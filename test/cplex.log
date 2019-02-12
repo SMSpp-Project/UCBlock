@@ -1,0 +1,245 @@
+
+Log started (V12.8.0.0) Fri Feb  1 12:07:27 2019
+
+
+Selected objective sense:  MINIMIZE
+Selected objective  name:  obj
+Selected RHS        name:  rhs
+Selected bound      name:  bnd
+CPLEX Error  1443: Column 'x74' has repeated row 'c148'.
+CPLEX Error  1443: Column 'x98' has repeated row 'c149'.
+CPLEX Error  1443: Column 'x121' has repeated row 'c150'.
+CPLEX Error  1443: Column 'x143' has repeated row 'c151'.
+CPLEX Error  1443: Column 'x164' has repeated row 'c152'.
+CPLEX Error  1443: Column 'x184' has repeated row 'c153'.
+CPLEX Error  1443: Column 'x203' has repeated row 'c154'.
+CPLEX Error  1443: Column 'x221' has repeated row 'c155'.
+CPLEX Error  1443: Column 'x238' has repeated row 'c156'.
+CPLEX Error  1443: Column 'x254' has repeated row 'c157'.
+CPLEX Error  1443: Column 'x269' has repeated row 'c158'.
+CPLEX Error  1443: Column 'x283' has repeated row 'c159'.
+CPLEX Error  1443: Column 'x296' has repeated row 'c160'.
+CPLEX Error  1443: Column 'x308' has repeated row 'c161'.
+CPLEX Error  1443: Column 'x319' has repeated row 'c162'.
+CPLEX Error  1443: Column 'x329' has repeated row 'c163'.
+CPLEX Error  1443: Column 'x338' has repeated row 'c164'.
+CPLEX Error  1443: Column 'x346' has repeated row 'c165'.
+CPLEX Error  1443: Column 'x353' has repeated row 'c166'.
+CPLEX Error  1443: Column 'x359' has repeated row 'c167'.
+CPLEX Error  1443: Column 'x364' has repeated row 'c168'.
+CPLEX Error  1443: Column 'x368' has repeated row 'c169'.
+CPLEX Error  1443: Column 'x745' has repeated row 'c318'.
+CPLEX Error  1443: Column 'x769' has repeated row 'c319'.
+CPLEX Error  1443: Column 'x792' has repeated row 'c320'.
+CPLEX Error  1443: Column 'x814' has repeated row 'c321'.
+CPLEX Error  1443: Column 'x835' has repeated row 'c322'.
+CPLEX Error  1443: Column 'x855' has repeated row 'c323'.
+CPLEX Error  1443: Column 'x874' has repeated row 'c324'.
+CPLEX Error  1443: Column 'x892' has repeated row 'c325'.
+CPLEX Error  1443: Column 'x909' has repeated row 'c326'.
+CPLEX Error  1443: Column 'x925' has repeated row 'c327'.
+CPLEX Error  1443: Column 'x940' has repeated row 'c328'.
+CPLEX Error  1443: Column 'x954' has repeated row 'c329'.
+CPLEX Error  1443: Column 'x967' has repeated row 'c330'.
+CPLEX Error  1443: Column 'x979' has repeated row 'c331'.
+CPLEX Error  1443: Column 'x990' has repeated row 'c332'.
+CPLEX Error  1443: Column 'x1000' has repeated row 'c333'.
+CPLEX Error  1443: Column 'x1009' has repeated row 'c334'.
+CPLEX Error  1443: Column 'x1017' has repeated row 'c335'.
+CPLEX Error  1443: Column 'x1024' has repeated row 'c336'.
+CPLEX Error  1443: Column 'x1030' has repeated row 'c337'.
+CPLEX Error  1443: Column 'x1035' has repeated row 'c338'.
+CPLEX Error  1443: Column 'x1039' has repeated row 'c339'.
+CPLEX Error  1443: Column 'x1391' has repeated row 'c485'.
+CPLEX Error  1443: Column 'x1416' has repeated row 'c486'.
+CPLEX Error  1443: Column 'x1440' has repeated row 'c487'.
+CPLEX Error  1443: Column 'x1463' has repeated row 'c488'.
+CPLEX Error  1443: Column 'x1485' has repeated row 'c489'.
+CPLEX Error  1443: Column 'x1506' has repeated row 'c490'.
+CPLEX Error  1443: Column 'x1526' has repeated row 'c491'.
+CPLEX Error  1443: Column 'x1545' has repeated row 'c492'.
+CPLEX Error  1443: Column 'x1563' has repeated row 'c493'.
+CPLEX Error  1443: Column 'x1580' has repeated row 'c494'.
+CPLEX Error  1443: Column 'x1596' has repeated row 'c495'.
+CPLEX Error  1443: Column 'x1611' has repeated row 'c496'.
+CPLEX Error  1443: Column 'x1625' has repeated row 'c497'.
+CPLEX Error  1443: Column 'x1638' has repeated row 'c498'.
+CPLEX Error  1443: Column 'x1650' has repeated row 'c499'.
+CPLEX Error  1443: Column 'x1661' has repeated row 'c500'.
+CPLEX Error  1443: Column 'x1671' has repeated row 'c501'.
+CPLEX Error  1443: Column 'x1680' has repeated row 'c502'.
+CPLEX Error  1443: Column 'x1688' has repeated row 'c503'.
+CPLEX Error  1443: Column 'x1695' has repeated row 'c504'.
+CPLEX Error  1443: Column 'x1701' has repeated row 'c505'.
+CPLEX Error  1443: Column 'x1706' has repeated row 'c506'.
+CPLEX Error  1443: Column 'x1710' has repeated row 'c507'.
+CPLEX Error  1443: Column 'x1713' has repeated row 'c508'.
+CPLEX Error  1443: Column 'x2090' has repeated row 'c656'.
+CPLEX Error  1443: Column 'x2114' has repeated row 'c657'.
+CPLEX Error  1443: Column 'x2137' has repeated row 'c658'.
+CPLEX Error  1443: Column 'x2159' has repeated row 'c659'.
+CPLEX Error  1443: Column 'x2180' has repeated row 'c660'.
+CPLEX Error  1443: Column 'x2200' has repeated row 'c661'.
+CPLEX Error  1443: Column 'x2219' has repeated row 'c662'.
+CPLEX Error  1443: Column 'x2237' has repeated row 'c663'.
+CPLEX Error  1443: Column 'x2254' has repeated row 'c664'.
+CPLEX Error  1443: Column 'x2270' has repeated row 'c665'.
+CPLEX Error  1443: Column 'x2285' has repeated row 'c666'.
+CPLEX Error  1443: Column 'x2299' has repeated row 'c667'.
+CPLEX Error  1443: Column 'x2312' has repeated row 'c668'.
+CPLEX Error  1443: Column 'x2324' has repeated row 'c669'.
+CPLEX Error  1443: Column 'x2335' has repeated row 'c670'.
+CPLEX Error  1443: Column 'x2345' has repeated row 'c671'.
+CPLEX Error  1443: Column 'x2354' has repeated row 'c672'.
+CPLEX Error  1443: Column 'x2362' has repeated row 'c673'.
+CPLEX Error  1443: Column 'x2369' has repeated row 'c674'.
+CPLEX Error  1443: Column 'x2375' has repeated row 'c675'.
+CPLEX Error  1443: Column 'x2380' has repeated row 'c676'.
+CPLEX Error  1443: Column 'x2384' has repeated row 'c677'.
+CPLEX Error  1443: Column 'x2761' has repeated row 'c826'.
+CPLEX Error  1443: Column 'x2785' has repeated row 'c827'.
+CPLEX Error  1443: Column 'x2808' has repeated row 'c828'.
+CPLEX Error  1443: Column 'x2830' has repeated row 'c829'.
+CPLEX Error  1443: Column 'x2851' has repeated row 'c830'.
+CPLEX Error  1443: Column 'x2871' has repeated row 'c831'.
+CPLEX Error  1443: Column 'x2890' has repeated row 'c832'.
+CPLEX Error  1443: Column 'x2908' has repeated row 'c833'.
+CPLEX Error  1443: Column 'x2925' has repeated row 'c834'.
+CPLEX Error  1443: Column 'x2941' has repeated row 'c835'.
+CPLEX Error  1443: Column 'x2956' has repeated row 'c836'.
+CPLEX Error  1443: Column 'x2970' has repeated row 'c837'.
+CPLEX Error  1443: Column 'x2983' has repeated row 'c838'.
+CPLEX Error  1443: Column 'x2995' has repeated row 'c839'.
+CPLEX Error  1443: Column 'x3006' has repeated row 'c840'.
+CPLEX Error  1443: Column 'x3016' has repeated row 'c841'.
+CPLEX Error  1443: Column 'x3025' has repeated row 'c842'.
+CPLEX Error  1443: Column 'x3033' has repeated row 'c843'.
+CPLEX Error  1443: Column 'x3040' has repeated row 'c844'.
+CPLEX Error  1443: Column 'x3046' has repeated row 'c845'.
+CPLEX Error  1443: Column 'x3051' has repeated row 'c846'.
+CPLEX Error  1443: Column 'x3055' has repeated row 'c847'.
+No file read.
+
+Log started (V12.8.0.0) Fri Feb  1 12:42:33 2019
+
+
+Problem 'mipex1.lp' read.
+Read time = 0.03 sec. (1.41 ticks)
+ c148: x26 - 34 x50 - 116 x51 - 116 x52 - 116 x53 - 116 x54 - 116 x55 - 116 x56
+       - 116 x57 - 116 x58 - 116 x59 - 116 x60 - 116 x61 - 116 x62 - 116 x63
+       - 116 x64 - 116 x65 - 116 x66 - 116 x67 - 116 x68 - 116 x69 - 116 x70
+       - 116 x71 - 116 x72 - 116 x73 - 68 x74 - 34 x75 - 34 x76 - 34 x77
+       - 34 x78 - 34 x79 - 34 x80 - 34 x81 - 34 x82 - 34 x83 - 34 x84 - 34 x85
+       - 34 x86 - 34 x87 - 34 x88 - 34 x89 - 34 x90 - 34 x91 - 34 x92 - 34 x93
+       - 34 x94 - 34 x95 - 34 x96 - 34 x97 <= 0
+
+Log started (V12.8.0.0) Fri Feb  1 13:56:57 2019
+
+
+Problem 'mipex1.lp' read.
+Read time = 0.02 sec. (1.41 ticks)
+Tried aggregator 2 times.
+MIP Presolve eliminated 99 rows and 546 columns.
+MIP Presolve modified 2397 coefficients.
+Aggregator did 83 substitutions.
+Reduced MIP has 1469 rows, 3634 columns, and 72959 nonzeros.
+Reduced MIP has 3399 binaries, 0 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.08 sec. (100.94 ticks)
+Found incumbent of value 2016380.884671 after 0.17 sec. (173.17 ticks)
+Probing fixed 210 vars, tightened 3 bounds.
+Probing time = 0.11 sec. (97.91 ticks)
+Cover probing fixed 0 vars, tightened 76 bounds.
+Tried aggregator 2 times.
+MIP Presolve eliminated 73 rows and 211 columns.
+MIP Presolve modified 276 coefficients.
+Aggregator did 4 substitutions.
+Reduced MIP has 1392 rows, 3419 columns, and 65636 nonzeros.
+Reduced MIP has 3184 binaries, 2 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.06 sec. (61.78 ticks)
+Probing time = 0.01 sec. (7.31 ticks)
+Clique table members: 32411.
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: deterministic, using up to 8 threads.
+Root relaxation solution time = 0.06 sec. (49.37 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+*     0+    0                      2016380.8847   173579.5555            91.39%
+      0     0  1852467.2977    78  2016380.8847  1852467.2977     1029    8.13%
+*     0+    0                      1878103.0182  1852467.2977             1.36%
+*     0+    0                      1873123.6686  1852467.2977             1.10%
+      0     0  1865428.2273   114  1873123.6686     Cuts: 142     1366    0.41%
+      0     0  1866926.7191    41  1873123.6686      Cuts: 81     1557    0.33%
+      0     0  1867333.7313   123  1873123.6686      Cuts: 31     1689    0.31%
+      0     0  1867837.4423   127  1873123.6686      Cuts: 46     1805    0.28%
+      0     0  1868012.7893   133  1873123.6686      Cuts: 31     1860    0.27%
+*     0+    0                      1871254.8907  1868012.7893             0.17%
+      0     0  1868083.0443   115  1871254.8907      Cuts: 28     1912    0.17%
+*     0+    0                      1869756.7312  1868083.0443             0.09%
+*     0+    0                      1869110.5215  1868083.0443             0.05%
+
+Repeating presolve.
+Tried aggregator 2 times.
+MIP Presolve eliminated 425 rows and 2846 columns.
+MIP Presolve added 4 rows and 0 columns.
+MIP Presolve modified 2377 coefficients.
+Aggregator did 20 substitutions.
+Reduced MIP has 951 rows, 549 columns, and 6885 nonzeros.
+Reduced MIP has 314 binaries, 2 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.02 sec. (22.49 ticks)
+Probing fixed 37 vars, tightened 2 bounds.
+Probing time = 0.01 sec. (7.43 ticks)
+Cover probing fixed 0 vars, tightened 89 bounds.
+Tried aggregator 2 times.
+MIP Presolve eliminated 122 rows and 38 columns.
+MIP Presolve modified 21 coefficients.
+Aggregator did 1 substitutions.
+Reduced MIP has 828 rows, 510 columns, and 5355 nonzeros.
+Reduced MIP has 275 binaries, 2 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.01 sec. (6.96 ticks)
+Probing time = 0.00 sec. (2.88 ticks)
+Tried aggregator 1 time.
+Reduced MIP has 828 rows, 510 columns, and 5355 nonzeros.
+Reduced MIP has 275 binaries, 2 generals, 0 SOSs, and 0 indicators.
+Presolve time = 0.00 sec. (3.00 ticks)
+Represolve time = 0.07 sec. (58.76 ticks)
+Probing time = 0.00 sec. (3.01 ticks)
+Clique table members: 3162.
+MIP emphasis: balance optimality and feasibility.
+MIP search method: dynamic search.
+Parallel mode: deterministic, using up to 8 threads.
+Root relaxation solution time = 0.02 sec. (15.34 ticks)
+
+        Nodes                                         Cuts/
+   Node  Left     Objective  IInf  Best Integer    Best Bound    ItCnt     Gap
+
+*     0+    0                      1869110.5215  1868219.0007             0.05%
+      0     0  1868084.8983   103  1869110.5215  1868219.0007     2358    0.05%
+
+Clique cuts applied:  4
+Cover cuts applied:  7
+Implied bound cuts applied:  47
+Flow cuts applied:  22
+Mixed integer rounding cuts applied:  66
+Zero-half cuts applied:  5
+Lift and project cuts applied:  7
+Gomory fractional cuts applied:  3
+
+Root node processing (before b&c):
+  Real time             =    1.76 sec. (1132.35 ticks)
+Parallel b&c, 8 threads:
+  Real time             =    0.00 sec. (0.00 ticks)
+  Sync time (average)   =    0.00 sec.
+  Wait time (average)   =    0.00 sec.
+                          ------------
+Total (root+branch&cut) =    1.76 sec. (1132.35 ticks)
+
+Solution pool: 6 solutions saved.
+
+MIP - Integer optimal, tolerance (0.0001/1e-06):  Objective =  1.8691105215e+06
+Current MIP best bound =  1.8689881112e+06 (gap = 122.41, 0.01%)
+Solution time =    1.77 sec.  Iterations = 2423  Nodes = 0 (1)
+Deterministic time = 1132.36 ticks  (640.88 ticks/sec)
+
