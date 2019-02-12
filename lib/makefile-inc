@@ -1,0 +1,53 @@
+##############################################################################
+############################### makefile-inc #################################
+##############################################################################
+#                                                                            #
+#   makefile of libUCBck as a pre-built library                              #
+#                                                                            #
+#   Input:  $(UCBckDIR) = the directory where the UCBlock source is          #
+#                                                                            #
+#   Output: accordingly, there is no in output, since there is no need to    #
+#           check for changes in the .h and rebuild the .o / .a. Also, the   #
+#           *OBJ is just the library                                         #
+#           $(UCBckINC) = the -I$(include directories) for UCBlock           #
+#           $(UCBckLIB) = external libreries + -L<libdirs> for UCBlock       #
+#           $(UCBckOBJ) = the libUCBck library itself                        #
+#                                                                            #
+#   Indeed, the makefile only calls makefile-c and strips away the *H and    #  
+#   *OBJ macros. This is not even necessary, it is only made for clarity.    #
+#                                                                            #
+#                                VERSION 1.00                                #
+#                               12 - 11 - 2018                               #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                          Operations Research Group                         #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
+#									     #
+##############################################################################
+
+# include the UCBck makefile internally defining all external modules - - - -
+
+include $(UCBckDIR)lib/makefile-c
+
+# re-define the OBJ as the library- - - - - - - - - - - - - - - - - - - - - -
+
+UCBckOBJ = $(UCBckDIR)lib/libUCBck.a
+
+# ensure that the library is properly constructed - - - - - - - - - - - - - -
+# force the make to be always executed
+
+$(UCBckOBJ): FORCE
+	make -f $(UCBckDIR)lib/makefile-lib UCBckDIR=$(UCBckDIR)
+FORCE:
+
+# clean-up unrequired things- - - - - - - - - - - - - - - - - - - - - - - - -
+
+UCBckH =
+
+# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+clean::
+	make -f $(UCBckDIR)lib/makefile-lib clean UCBckDIR=$(UCBckDIR) 
+
+########################## End of makefile-inc ###############################
