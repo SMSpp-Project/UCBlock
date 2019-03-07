@@ -39,7 +39,7 @@
 
 # macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-UCBckOBJ = $(UCBckDIR)obj/UCBlock.o $(UCBckDIR)obj/NetWorkBlock.o \
+UCBckOBJ = $(UCBckDIR)obj/UCBlock.o $(UCBckDIR)obj/NetworkBlock.o \
 	$(UCBckDIR)obj/BusNetworkBlock.o $(UCBckDIR)obj/UnitBlock.o \
 	$(UCBckDIR)obj/AcadThermalUnitBlock.o \
 	$(UCBckDIR)obj/AcadThemalUnitWRSolver.o \
@@ -49,7 +49,7 @@ UCBckOBJ = $(UCBckDIR)obj/UCBlock.o $(UCBckDIR)obj/NetWorkBlock.o \
 
 UCBckINC = -I$(UCBckDIR)include/
 
-UCBckH = $(UCBckDIR)include/UCBcklock.h $(UCBckDIR)include/NetWorkBlock.h \
+UCBckH = $(UCBckDIR)include/UCBcklock.h $(UCBckDIR)include/NetworkBlock.h \
 	$(UCBckDIR)include/BusNetworkBlock.h $(UCBckDIR)include/UnitBlock.h \
 	$(UCBckDIR)include/AcadThermalUnitBlock.h \
 	$(UCBckDIR)include/AcadThemalUnitWRSolver.h \
@@ -67,18 +67,18 @@ clean::
 
 $(UCBckDIR)obj/UCBlock.o: $(UCBckDIR)src/UCBlock.cpp \
 	$(UCBckDIR)include/UCBlock.h $(UCBckDIR)include/UnitBlock.h \
-	$(UCBckDIR)include/NetWorkBlock.h $(SMS++OBJ)
+	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/UCBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/NetWorkBlock.o: $(UCBckDIR)src/NetWorkBlock.cpp \
-	$(UCBckDIR)include/NetWorkBlock.h $(UCBckDIR)include/UCBlock.h \
+$(UCBckDIR)obj/NetworkBlock.o: $(UCBckDIR)src/NetworkBlock.cpp \
+	$(UCBckDIR)include/NetworkBlock.h $(UCBckDIR)include/UCBlock.h \
 	$(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/NetWorkBlock.cpp -o $@ $(SMS++INC) \
+	$(CC) -c $(UCBckDIR)src/NetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
 $(UCBckDIR)obj/BusNetworkBlock.o: $(UCBckDIR)src/BusNetworkBlock.cpp \
 	$(UCBckDIR)include/BusNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
-	$(UCBckDIR)include/NetWorkBlock.h $(SMS++OBJ)
+	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/BusNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
