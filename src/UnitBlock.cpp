@@ -4,11 +4,21 @@
 /** @file
  * Implementation of the UnitBlock class.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 03 - 09 - 2016
+ * \date 05 - 03 - 2019
  *
  * \author Antonio Frangioni \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \author Ali Ghezelsoflu \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -18,8 +28,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Kostas Tavlaridis-Gyparakis
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -27,10 +39,8 @@
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-#include <map>
-#include "UnitBlock.h"
-#include "UCBlock.h"
 
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -38,84 +48,68 @@
 
 using namespace SMSpp_di_unipi_it;
 
-using namespace std;
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register UnitBlock to the Block factory
+
+SMSpp_insert_in_factory_cpp_1( UnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-UnitBlock::UnitBlock(UCBlock * flbock) : Block(flbock) {
+void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
+  if( v_power.size() != f_time_horizon ) { // TODO It works only if v_power is
+                                           // always there
 
-UCBlock * f_UC_Block = dynamic_cast <UCBlock *> (get_f_Block());
-  if(f_UC_Block){
-	 U.resize(f_UC_Block->get_t());
-	 P.resize(f_UC_Block->get_t());
+    assert( v_commitment.size() == 0 &&
+            v_power.size() == 0 &&
+            v_primary_spinning_reserve.size() == 0 &&
+            v_secondary_spinning_reserve.size() == 0 &&
+            v_heat.size() == 0 ); // this should only happen once
 
-	 for(int i = 0 ; i<f_UC_Block->get_t() ; i++){
-		 //set pointer of the father Block
-		 U[i].set_Block(this); 
-		 P[i].set_Block(this); 
-		 //set lower and upper bounds
-		 U[i].set_lb(0.0); 
-		 U[i].set_ub(1.0); 
-		 P[i].set_lb(0.0);
-		 P[i].set_ub(Inf<double>()); 
-		 //set type of variables
-		 U[i].set_type(ColVariable::binary); 
-		 P[i].set_type(ColVariable::continuous);
-	 }
-  
-         add_static_variable(U); //adding the commitement variables to the Static Variables Vector
- 
-	 add_static_variable(P); //adding the power variables to the Static Variables Vector
+    auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+
+    if( ( ! tstvv ) && f_BlockConfig &&
+        f_BlockConfig->f_static_variables_Configuration )
+
+      tstvv = dynamic_cast<SimpleConfiguration<int> *>
+        ( f_BlockConfig->f_static_constraints_Configuration );
+
+    std::vector< std::vector<ColVariable> * > variables = {
+      &v_commitment,
+      &v_power,
+      &v_primary_spinning_reserve,
+      &v_secondary_spinning_reserve,
+      &v_heat
+    };
+
+    int use_variables = tstvv->f_value;
+
+    int k = 1;
+    for( int i = 0; i < variables.size(); ++i, k *= 2 ) {
+      if( use_variables & k ) {
+        ( * variables[i] ).resize( f_time_horizon );
+        add_static_variable( * variables[i] );
+      }
+    }
   }
-
 }
 
 /*--------------------------------------------------------------------------*/
 
-UnitBlock::~UnitBlock() {
+std::map<std::string,UnitBlock::UnitFactory>& UnitBlock::U_factory( void ) {
 
-}
-void UnitBlock::set_Unit_Block ( UCBlock * flbock ){
-
-set_f_Block(flbock);
-
-UCBlock * f_UC_Block = dynamic_cast <UCBlock *> (get_f_Block());
-  if(f_UC_Block){
-	 U.resize(f_UC_Block->get_t());
-	 P.resize(f_UC_Block->get_t());
-
-	 for(int i = 0 ; i<f_UC_Block->get_t() ; i++){
-		 //set pointer of the father Block
-		 U[i].set_Block(this); 
-		 P[i].set_Block(this); 
-		 //set lower and upper bounds
-		 U[i].set_lb(0.0); 
-		 U[i].set_ub(1.0); 
-		 P[i].set_lb(0.0);
-		 P[i].set_ub(Inf<double>()); 
-		 //set type of variables
-		 U[i].set_type(ColVariable::binary); 
-		 P[i].set_type(ColVariable::continuous);
-	 }
-  
-         add_static_variable(U); //adding the commitement variables to the Static Variables Vector
- 
-	 add_static_variable(P); //adding the power variables to the Static Variables Vector
-  }
-
-
-}
-/*--------------------------------------------------------------------------*/
-
-std::map<std::string,UnitBlock::UnitFactory>& UnitBlock::U_factory()
-{
-
- static std::map<std::string,UnitBlock::UnitFactory>*  ans =
+  // Initializing the UnitFactory
+  static std::map<std::string,UnitBlock::UnitFactory> * ans =
     new std::map<std::string,UnitBlock::UnitFactory>();
-//Initializing the UnitFactory
 
- return *ans;
- }
+  return * ans;
+}
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- End File UnitBlock.cpp ----------------------------*/
+/*--------------------------------------------------------------------------*/
