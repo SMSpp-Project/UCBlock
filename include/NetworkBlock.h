@@ -13,13 +13,6 @@
  * - A virtual public method is used in order to initialize and read
  *   the data of any possible derived NetworkBlock class.
  *
- * - A factory that is used in order for any possible derived class to
- *   be able to "automatically" register itself and be
- *   initialized. The factory is defined by a static method that
- *   initializes the static map that is used in order to store all the
- *   different possible derived classes that are linked with a unique
- *   string.
- *
  * - An int that stores the time this NetworkBlock is associated with.
  *
  * - A pointer to a Network, which defines the network.
@@ -32,9 +25,6 @@
  *
  * - Two vectors of doubles to store the minimum and maximum power
  *   flow in each line of the network.
- *
- * - A pointer to the UCBlock to which any derived NetworkBlock class
- *   is attached.
  *
  * - Flow limit constraints.
  *
@@ -103,10 +93,6 @@ protected:
 /*---------------------- PROTECTED TYPES OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /** Definition of the NetworkFactory, used to properly initialize all
-  * the different possible derived classes of NetworkBlock. */
- typedef boost::function<NetworkBlock * (UCBlock *)> NetworkFactory;
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -174,12 +160,7 @@ protected:
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// method incapsulating the NetworkBlock factory
- /** This method returns the NetworkBlock factory, which is a static object.
-  * The rationale for using a method is that this is the "Construct On First
-  * Use Idiom" that solves the "static initialization order problem". */
-
- static std::map<std::string, NetworkBlock::NetworkFactory> & f_factory();
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/

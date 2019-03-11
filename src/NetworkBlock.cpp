@@ -52,10 +52,18 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register NetworkBlock to the Block factory
+
+SMSpp_insert_in_factory_cpp_1( NetworkBlock );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-NetworkBlock::NetworkBlock( UCBlock * block ) : Block( block ) { }
+NetworkBlock::NetworkBlock( Block * block ) : Block( block ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -125,10 +133,3 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 }
 
 /*--------------------------------------------------------------------------*/
-
-std::map<std::string,NetworkBlock::NetworkFactory>& NetworkBlock::f_factory() {
- //initializing the NetworkFactory
- static std::map<std::string, NetworkBlock::NetworkFactory> * factory_map =
-   new std::map<std::string, NetworkBlock::NetworkFactory>();
- return * factory_map;
-}

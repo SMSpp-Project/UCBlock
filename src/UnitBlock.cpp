@@ -100,16 +100,5 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 }
 
 /*--------------------------------------------------------------------------*/
-
-std::map<std::string,UnitBlock::UnitFactory>& UnitBlock::U_factory( void ) {
-
-  // Initializing the UnitFactory
-  static std::map<std::string,UnitBlock::UnitFactory> * ans =
-    new std::map<std::string,UnitBlock::UnitFactory>();
-
-  return * ans;
-}
-
-/*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

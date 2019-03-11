@@ -252,10 +252,6 @@ public:
 /** @name Handling the data of the UnitBlock
     @{ */
 
-/** Static member method for initializing the map of the factory
- * of UnitBlock */
- static std::map<std::string, UnitBlock::UnitFactory>& U_factory();
-
  virtual void load( std::istream &input ) {};
 
 /*@} -----------------------------------------------------------------------*/
