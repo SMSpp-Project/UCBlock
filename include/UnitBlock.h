@@ -6,25 +6,17 @@
  * Header file for the *derived* class UnitBlock, which derives from
  * the Block, in order to define a base for any possible unit that can
  * be attached to a UCBlock. It has very basic information that can
- * characterize almost any different kind of unit, which includes five
- * sets of Variables: power variables, commitment variables, primary
- * and secondary spinning reserve variables, and the heat
- * variables. This class has thus been constructed having the
- * following elements:
+ * characterize almost any different kind of unit, which includes four
+ * sets of Variables: power variables, commitment variables, and the
+ * primary and secondary spinning reserve variables. This class has
+ * thus been constructed having the following elements:
  *
- * - A virtual public method is used in order to initialize and read
- *   the data of any possible derived UnitBlock class.
- *
- * - A factory that is used in order for any possible derived class to
- *   be able to "automatically" register itself and be
- *   initialized. The factory is defined by a static method that
- *   initializes the static map that is used in order to store all the
- *   different possible derived classes that are linked with a unique
- *   string.
+ * - A virtual public method that is used to initialize and read the
+ *   data of any possible derived UnitBlock class.
  *
  * - The time horizon of the problem.
  *
- * - Five vectors of ColVariable objects, that are used to store the
+ * - Four vectors of ColVariable objects, that are used to store the
  *   information regarding:
  *
  *     (i)   the commitment of the unit;
@@ -33,9 +25,7 @@
  *
  *     (iii) the primary spinning reverve of the unit;
  *
- *     (iv)  the secondary spinning reserve of the unit;
- *
- *     (v)   the heat produced by the unit.
+ *     (iv)  the secondary spinning reserve of the unit.
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
@@ -43,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 03 - 2019
+ * \date 13 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -81,7 +71,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "boost/function.hpp"
 #include "Block.h"
 #include "ColVariable.h"
 #include <map>
@@ -92,23 +81,7 @@
 
 namespace SMSpp_di_unipi_it {
 
-class UCBlock; ///< forward declaration of UCBlock
-
 class UnitBlock : public Block {
-
-/*--------------------------------------------------------------------------*/
-/*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-protected:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------- PROTECTED TYPES OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
-
-/** Definition of the UnitFactory, used to properly initialize all the
- * different possible derived classes of UnitBlock */
- typedef boost::function <UnitBlock * (UCBlock *)> UnitFactory;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -150,8 +123,6 @@ public:
   *
   * - the secondary spinning reserve variables
   *
-  * - the heat variables
-  *
   * All of these variables are optional. The parameter stvv is used to
   * decide which of these variables should be used. If stvv is not
   * nullptr and it is a SimpleConfiguration<int> or if
@@ -181,61 +152,22 @@ public:
  int get_time_horizon( void ) const { return f_time_horizon; }
 
  /// Method for returning the vector of commitment variables
- std::vector<ColVariable>* get_commitment( void ) { return &v_commitment; }
-
- /// Method for returning the i-th commitment variables
- ColVariable * get_commitment( int i ) { return &v_commitment[i]; }
-
- /// Method for returning the total number of commitment variable
- int get_commitment_size( void ) { return v_commitment.size(); }
+ const std::vector<ColVariable> & get_commitment( void ) const {
+   return v_commitment;
+ }
 
  /// Method for returning the vector of power variables
- std::vector<ColVariable> * get_power( void ) { return &v_power; }
-
- /// Method for returning the i-th power variable
- ColVariable * get_power( int i ) { return &v_power[i]; }
-
- /// Method for returning the total number of power variables
- int get_power_size( void ) { return v_power.size(); }
+ const std::vector<ColVariable> & get_power( void ) const { return v_power; }
 
  /// Method for returning the vector of primary spinning reserve variables
- std::vector<ColVariable> * get_primary_spinning_reserve( void ) {
-   return &v_primary_spinning_reserve;
- }
-
- /// Method for returning the i-th primary reserve variable
- ColVariable * get_primary_spinning_reserve( int i ) {
-   return &v_primary_spinning_reserve[i];
- }
-
- /// Method for returning the total number of primary reserve variables
- int get_primary_spinning_reserve_size( void ) {
-   return v_primary_spinning_reserve.size();
+ const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
+   return v_primary_spinning_reserve;
  }
 
  /// Method for returning the vector of secondary reserve variables
- std::vector<ColVariable> * get_secondary_spinning_reserve( void ) {
-   return &v_secondary_spinning_reserve;
+ const std::vector<ColVariable> & get_secondary_spinning_reserve( void ) const {
+   return v_secondary_spinning_reserve;
  }
-
- /// Method for returning the i-th secondary reserve variable
- ColVariable * get_secondary_spinning_reserve( int i ) {
-   return &v_secondary_spinning_reserve[i];
- }
-
- /// Method for returning the total number of secondary reserve variables
- int get_secondary_spinning_reserve_size( void ) {
-   return v_secondary_spinning_reserve.size();
- }
-
- /// Method for returning the vector of heat variables
- std::vector<ColVariable> * get_heat( void ) { return &v_heat; }
-
- /// Method for returning the i-th heat variable
- ColVariable * get_heat( int i ) { return &v_heat[i]; }
-
- /// Method for returning the total number of heat variables
- int get_heat_size( void ) { return v_heat.size(); }
 
 /*@} -----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE UnitBlock --------------------*/
@@ -244,7 +176,7 @@ public:
  *  @{ */
 
  /// Set the time horizon
- void set_time_horizon( int t ) { f_time_horizon = t; }
+ void set_time_horizon( int t );
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
@@ -252,7 +184,7 @@ public:
 /** @name Handling the data of the UnitBlock
     @{ */
 
- virtual void load( std::istream &input ) {};
+ virtual void load( std::istream &input ) override {};
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -279,9 +211,6 @@ protected:
 
  /// Vector of secondary spinning reserve variables
  std::vector<ColVariable> v_secondary_spinning_reserve;
-
- /// Vector of heat variables
- std::vector<ColVariable> v_heat;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE FIELDS OF THE CLASS ------------------------*/

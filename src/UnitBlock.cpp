@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 03 - 2019
+ * \date 13 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -62,14 +62,10 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 
 void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  if( v_power.size() != f_time_horizon ) { // TODO It works only if v_power is
-                                           // always there
-
-    assert( v_commitment.size() == 0 &&
-            v_power.size() == 0 &&
-            v_primary_spinning_reserve.size() == 0 &&
-            v_secondary_spinning_reserve.size() == 0 &&
-            v_heat.size() == 0 ); // this should only happen once
+  if( v_commitment.size() == 0 &&
+      v_power.size() == 0 &&
+      v_primary_spinning_reserve.size() == 0 &&
+      v_secondary_spinning_reserve.size() == 0 ) { // this should only happen once
 
     auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
 
@@ -79,24 +75,38 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
       tstvv = dynamic_cast<SimpleConfiguration<int> *>
         ( f_BlockConfig->f_static_constraints_Configuration );
 
-    std::vector< std::vector<ColVariable> * > variables = {
+    typedef std::vector< std::vector<ColVariable> * > v_pv_variables;
+
+    v_pv_variables variables = {
       &v_commitment,
       &v_power,
       &v_primary_spinning_reserve,
-      &v_secondary_spinning_reserve,
-      &v_heat
+      &v_secondary_spinning_reserve
     };
 
     int use_variables = tstvv->f_value;
 
     int k = 1;
-    for( int i = 0; i < variables.size(); ++i, k *= 2 ) {
+    for( v_pv_variables::size_type i = 0; i < variables.size(); ++i, k *= 2 ) {
       if( use_variables & k ) {
         ( * variables[i] ).resize( f_time_horizon );
         add_static_variable( * variables[i] );
       }
     }
   }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::set_time_horizon( int t ) {
+  if( f_time_horizon == t )
+    return;
+
+  if( f_time_horizon != 0 )
+    throw std::logic_error( "UnitBlock::set_time_horizon: "
+                            "time horizon has already been set.");
+
+  f_time_horizon = t;
 }
 
 /*--------------------------------------------------------------------------*/
