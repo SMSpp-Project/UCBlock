@@ -43,7 +43,7 @@
 #include <iostream>
 #include <vector>
 #include "FRowConstraint.h"
-#include "NetWorkBlock.h"
+#include "NetworkBlock.h"
 #include "UCBlock.h"
 #include "UnitBlock.h"
 
@@ -59,29 +59,11 @@ using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_abstract_variables( Configuration *stvv ) {
-
-  if( ! f_network ) {
-    throw( std::logic_error( "UCBlock::generate_abstract_variables: "
-			     "f_network of UCBlock is not set" ) );
-  }
-
-  auto num_nodes = f_network->get_num_nodes();
-
-  if( v_node_injection.size() != num_nodes ) {
-    assert( v_node_injection.size() == 0 ); // this should only happen once
-    v_node_injection.resize( num_nodes );
-    add_static_variable( v_node_injection );
-  }
-}
-
-/*--------------------------------------------------------------------------*/
-
 void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   if( ! f_network ) {
     throw( std::logic_error( "UCBlock::generate_abstract_constraints: "
-			     "f_network of UCBlock is not set" ) );
+                             "f_network of UCBlock is not set" ) );
   }
 
   auto num_nodes = f_network->get_num_nodes();
@@ -92,31 +74,31 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     v_node_injection_constraints.resize
       ( boost::multi_array<FRowConstraint *, 2>::
-	extent_gen()[f_time_horizon][num_nodes] );
+        extent_gen()[f_time_horizon][num_nodes] );
   }
 
   // Node injection constraints.
 
-  int node_id = 0;
   for( int t = 0; t < f_time_horizon; ++t ) {
-    for( auto node : f_network->get_nodes() ) {
+
+    for( int node_id = 0; node_id < network.num_nodes; ++node_id ) {
 
       auto linear_function = new LinearFunction();
 
       for( auto unit_block : node->get_unit_blocks() )
-	linear_function.add_variable( unit_block->get_power(t), 1.0);
+        linear_function.add_variable( unit_block->get_power( t ), 1.0 );
 
       linear_function.add_variable
-	( v_network_blocks[t].get_node_injection( node_id ), - 1.0);
+        ( v_network_blocks[t].get_node_injection( node_id ), - 1.0 );
 
-      v_node_injection_constraints[t][node_id].set_both(0.0);
-      v_node_injection_constraints[t][node_id].set_function(linear_function);
+      v_node_injection_constraints[t][node_id].set_both( 0.0 );
+      v_node_injection_constraints[t][node_id].set_function( linear_function );
 
       ++node_id;
     }
-
-    add_static_constraint( v_node_injection_constraints[t] );
   }
+
+    add_static_constraint( v_node_injection_constraints );
 }
 
 /*--------------------------------------------------------------------------*/

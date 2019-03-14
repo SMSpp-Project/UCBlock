@@ -122,11 +122,6 @@ public:
  /// Method that initiazes the instance and passes all the needed data
  void instance( std::istream& inStream );
 
- /// returns the i-th node injection variable
- const ColVariable * get_node_injection( const int i ) const {
-   return & ( v_node_injection[i] );
- }
-
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
 /*--------------------------------------------------------------------------*/
@@ -177,9 +172,6 @@ protected:
 
  /// The network
  Network f_network;
-
- /// power injection at each node
- std::vector<ColVariable> v_node_injection;
 
  /// Node injection constraints at each time and for
  boost::multi_array<FRowConstraint *, 2> v_node_injection_constraints;
