@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 04 - 03 - 2019
+ * \date 12 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,7 +43,6 @@
 #include <map>
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
-#include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -71,31 +70,46 @@ NetworkBlock::~NetworkBlock() { }
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
+void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  if( ! f_network ) {
-    throw( std::logic_error( "NetworkBlock::generate_abstract_constraints: "
-			     "f_network of NetworkBlock is not set" ) );
+  if( number_nodes < 0 ) {
+    throw( std::logic_error( "NetworkBlock::generate_abstract_variables: "
+			     "number of nodes of NetworkBlock is not set" ) );
   }
 
-  auto num_lines = f_network->get_num_lines();
+  if( v_node_injection.size() != number_nodes ) {
+    assert( v_node_injection.size() == 0 ); // this should only happen once
+    v_node_injection.resize( number_nodes );
+    add_static_variable( v_node_injection );
+  }
+}
 
-  if( v_flow_limit_constraints.size() != num_lines ) {
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
+
+  if( number_lines < 0 ) {
+    throw( std::logic_error( "NetworkBlock::generate_abstract_constraints: "
+			     "number of lines of NetworkBlock is not set" ) );
+  }
+
+  if( v_flow_limit_constraints.size() != number_lines ) {
     // this should only happen once
     assert( v_flow_limit_constraints.size() == 0 );
-    v_flow_limit_constraints.resize( num_lines );
+    v_flow_limit_constraints.resize( number_lines );
   }
 
   // Flow limit constraints
 
-  auto num_nodes = f_network->get_num_nodes();
+  // TODO Put these constraints in the DCNetworkBlock when (and if) it
+  // is created.
 
-  for( int line_id = 0; line_id < num_lines; ++line_id ) {
+  for( int line_id = 0; line_id < number_lines; ++line_id ) {
 
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
-    for( int node_id = 0; node_id < num_nodes; ++node_id ) {
+    for( int node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
 
       double coefficient = 0.0; // TODO Compute the Power Transfer
 				// Distribution Factor Matrix"
@@ -103,13 +117,8 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
       if( coefficient == 0.0 )
 	continue;
 
-      auto unit_blocks = f_network->get_node( node_id )->get_unit_blocks();
-
-      for( int unit_block_id = 0; unit_block_id < unit_blocks.size();
-	   ++unit_block_id ) {
-	linear_function.add_variable
-	  ( unit_blocks[unit_block_id]->get_power( f_time, coefficient ) );
-      }
+      linear_function.add_variable
+	( get_node_injection( node_id ) , coefficient );
 
       constant_term -= coefficient * v_demand[node_id];
 
@@ -117,7 +126,7 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     // Set the function of the constraint
 
-    v_flow_limit_constraints[line_id].set_function(linear_function);
+    v_flow_limit_constraints[line_id].set_function( linear_function );
 
     // Set the left- and right-hand sides
 

@@ -10,12 +10,7 @@
  * minimum possible ingredients. Based on the above description, the
  * class has been constructed having the following elements:
  *
- * - A virtual public method is used in order to initialize and read
- *   the data of any possible derived NetworkBlock class.
- *
- * - An int that stores the time this NetworkBlock is associated with.
- *
- * - A pointer to a Network, which defines the network.
+ * - The number of nodes and lines of the network.
  *
  * - A vector of doubles used to store the values of the demand at
  *   each node of the network.
@@ -30,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 03 - 2019
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -68,7 +63,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "boost/function.hpp"
 #include "Block.h"
 #include "ColVariable.h"
 #include "FRowConstraint.h"
@@ -79,19 +73,7 @@
 
 namespace SMSpp_di_unipi_it {
 
-class UCBlock; ///< forward declaration of UCBlock
-
 class NetworkBlock : public Block {
-
-/*--------------------------------------------------------------------------*/
-/*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-protected:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------- PROTECTED TYPES OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -133,14 +115,13 @@ public:
 /** @name Methods for modifying the NetworkBlock
  *  @{ */
 
- /// sets the time this NetworkBlock is associated with
- void set_time( int t ) {
-   f_time = t;
+ /// sets the number of nodes of the network
+ void set_number_nodes( int number_nodes ) {
+   f_number_nodes = number_nodes;
  }
-
- /// sets the Network of this NetworkBlock
- void set_network( Network * network ) {
-   f_network = network;
+ /// sets the number of lines of the network
+ void set_number_lines( int number_lines ) {
+   f_number_lines = number_lines;
  }
 
 /*@} -----------------------------------------------------------------------*/
@@ -149,6 +130,10 @@ public:
 /** @name Reading the data of the NetworkBlock
     @{ */
 
+ /// returns the i-th node injection variable
+ const ColVariable & get_node_injection( const int i ) const {
+   return v_node_injection[i];
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -166,11 +151,11 @@ protected:
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// the time associated with this NetworkBlock
- int f_time;
+ /// number of nodes of the network
+ int f_number_nodes = -1;
 
- /// a pointer to the Network
- Network * f_network;
+ /// number of lines of the network
+ int f_number_lines = -1;
 
  /// vector to store the demand of each node of the network
  std::vector<double> v_demand;
@@ -183,6 +168,9 @@ protected:
 
  /// vector to store the maximum power flow at each line
  std::vector<double> v_maximum_power_flow;
+
+ /// power injection at each node
+ std::vector<ColVariable> v_node_injection;
 
  /// flow limit constraints
  std::vector<FRowConstraint> v_flow_limit_constraints;
