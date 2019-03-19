@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 03 - 2019
+ * \date 19 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -158,6 +158,9 @@ public:
 
  /// Method for returning the vector of power variables
  const std::vector<ColVariable> & get_power( void ) const { return v_power; }
+
+ /// Method for returning the pointer to the power variable at time t
+ ColVariable * get_power( int i ) { return & ( v_power[i] ); }
 
  /// Method for returning the vector of primary spinning reserve variables
  const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {

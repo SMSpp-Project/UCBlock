@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 14 - 03 - 2019
+ * \date 19 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -109,6 +109,8 @@ public:
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
    override;
 
+ virtual void load( std::istream &input ) override { };
+
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -130,9 +132,9 @@ public:
 /** @name Reading the data of the NetworkBlock
     @{ */
 
- /// returns the i-th node injection variable
- const ColVariable & get_node_injection( const int i ) const {
-   return v_node_injection[i];
+ /// returns the vector of node injection variables
+ const std::vector<ColVariable> & get_node_injection() const {
+   return v_node_injection;
  }
 
 /*@} -----------------------------------------------------------------------*/

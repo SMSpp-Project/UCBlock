@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 12 - 03 - 2019
+ * \date 19 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -72,14 +72,14 @@ NetworkBlock::~NetworkBlock() { }
 
 void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  if( number_nodes < 0 ) {
+  if( f_number_nodes < 0 ) {
     throw( std::logic_error( "NetworkBlock::generate_abstract_variables: "
 			     "number of nodes of NetworkBlock is not set" ) );
   }
 
-  if( v_node_injection.size() != number_nodes ) {
+  if( v_node_injection.size() != f_number_nodes ) {
     assert( v_node_injection.size() == 0 ); // this should only happen once
-    v_node_injection.resize( number_nodes );
+    v_node_injection.resize( f_number_nodes );
     add_static_variable( v_node_injection );
   }
 }
@@ -88,15 +88,15 @@ void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
 void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
-  if( number_lines < 0 ) {
+  if( f_number_lines < 0 ) {
     throw( std::logic_error( "NetworkBlock::generate_abstract_constraints: "
 			     "number of lines of NetworkBlock is not set" ) );
   }
 
-  if( v_flow_limit_constraints.size() != number_lines ) {
+  if( v_flow_limit_constraints.size() != f_number_lines ) {
     // this should only happen once
     assert( v_flow_limit_constraints.size() == 0 );
-    v_flow_limit_constraints.resize( number_lines );
+    v_flow_limit_constraints.resize( f_number_lines );
   }
 
   // Flow limit constraints
@@ -104,7 +104,7 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
   // TODO Put these constraints in the DCNetworkBlock when (and if) it
   // is created.
 
-  for( int line_id = 0; line_id < number_lines; ++line_id ) {
+  for( int line_id = 0; line_id < f_number_lines; ++line_id ) {
 
     auto linear_function = new LinearFunction();
     double constant_term = 0;
@@ -117,8 +117,8 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
       if( coefficient == 0.0 )
 	continue;
 
-      linear_function.add_variable
-	( get_node_injection( node_id ) , coefficient );
+      linear_function->add_variable
+	( & v_node_injection[node_id] , coefficient );
 
       constant_term -= coefficient * v_demand[node_id];
 
