@@ -112,15 +112,14 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
   auto variables_to_be_generated = get_variables_to_be_generated( stvv );
 
   int k = 1;
-  for( v_pairs::size_type i = 0; i < variables_and_types.size(); ++i, k *= 2 ) {
+  for( auto [ variables, variable_type ] : variables_and_types ) {
     if( variables_to_be_generated & k ) {
-      auto variables     = variables_and_types[i].first;
-      auto variable_type = variables_and_types[i].second;
       variables->resize( f_time_horizon );
       for( auto & variable : * variables )
         variable.set_type( variable_type );
       add_static_variable( * variables );
     }
+    k *= 2;
   }
 }
 
