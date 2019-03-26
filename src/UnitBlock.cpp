@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 03 - 2019
+ * \date 26 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -60,38 +60,66 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
+
+  if( ! stvv )
+    return 0;
+
+  // informs which variables must be generated
+  int variables_to_be_generated = 0;
+
+  auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+
+  if( ( ! tstvv ) && f_BlockConfig &&
+      f_BlockConfig->f_static_variables_Configuration ) {
+
+    tstvv = dynamic_cast<SimpleConfiguration<int> *>
+      ( f_BlockConfig->f_static_constraints_Configuration );
+  }
+
+  if( tstvv )
+    variables_to_be_generated = tstvv->f_value;
+
+  return variables_to_be_generated;
+}
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  if( v_commitment.size() == 0 &&
-      v_power.size() == 0 &&
-      v_primary_spinning_reserve.size() == 0 &&
-      v_secondary_spinning_reserve.size() == 0 ) { // this should only happen once
+  if( v_commitment.size() != 0 ||
+      v_power.size() != 0 ||
+      v_primary_spinning_reserve.size() != 0 ||
+      v_secondary_spinning_reserve.size() != 0 ) {
+    // the abstract variables should be generated only once
+    return;
+  }
 
-    auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+  if( f_time_horizon == 0 ) {
+    // there are no variables to be generated
+    return;
+  }
 
-    if( ( ! tstvv ) && f_BlockConfig &&
-        f_BlockConfig->f_static_variables_Configuration )
+  typedef std::vector< std::pair< std::vector<ColVariable> * , int > > v_pairs;
 
-      tstvv = dynamic_cast<SimpleConfiguration<int> *>
-        ( f_BlockConfig->f_static_constraints_Configuration );
+  v_pairs variables_and_types = {
+    std::make_pair( &v_commitment,                 ColVariable::kBinary ),
+    std::make_pair( &v_power,                      ColVariable::kNonNegative ),
+    std::make_pair( &v_primary_spinning_reserve,   ColVariable::kNonNegative ),
+    std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative )
+  };
 
-    typedef std::vector< std::vector<ColVariable> * > v_pv_variables;
+  auto variables_to_be_generated = get_variables_to_be_generated( stvv );
 
-    v_pv_variables variables = {
-      &v_commitment,
-      &v_power,
-      &v_primary_spinning_reserve,
-      &v_secondary_spinning_reserve
-    };
-
-    int use_variables = tstvv->f_value;
-
-    int k = 1;
-    for( v_pv_variables::size_type i = 0; i < variables.size(); ++i, k *= 2 ) {
-      if( use_variables & k ) {
-        ( * variables[i] ).resize( f_time_horizon );
-        add_static_variable( * variables[i] );
-      }
+  int k = 1;
+  for( v_pairs::size_type i = 0; i < variables_and_types.size(); ++i, k *= 2 ) {
+    if( variables_to_be_generated & k ) {
+      auto variables     = variables_and_types[i].first;
+      auto variable_type = variables_and_types[i].second;
+      variables->resize( f_time_horizon );
+      for( auto & variable : * variables )
+        variable.set_type( variable_type );
+      add_static_variable( * variables );
     }
   }
 }
