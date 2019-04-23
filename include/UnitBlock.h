@@ -23,7 +23,7 @@
  *
  *     (ii)  the power produced by the unit;
  *
- *     (iii) the primary spinning reverve of the unit;
+ *     (iii) the primary spinning reserve of the unit;
  *
  *     (iv)  the secondary spinning reserve of the unit.
  *
@@ -64,9 +64,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
-#define __UnitBlock  /* self-identification: #endif at the end
-                      * of the file */
-
+#define __UnitBlock
+/* self-identification: #endif at the end of the file */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -117,7 +116,7 @@ public:
   *
   * - the commitment variables
   *
-  * - the power variables
+  * - the active power variables
   *
   * - the primary spinning reserve variables
   *
@@ -157,10 +156,13 @@ public:
  }
 
  /// Method for returning the vector of power variables
- const std::vector<ColVariable> & get_power( void ) const { return v_power; }
+ const std::vector<ColVariable> & get_power( void ) const { return v_active_power; }
 
  /// Method for returning the pointer to the power variable at time t
- ColVariable * get_power( int i ) { return & ( v_power[i] ); }
+ ColVariable * get_power( int i ) { return & ( v_active_power[i] ); }
+
+/// Method for returning the pointer to the power injected variable at time t
+ ColVariable * get_power_injected( int i ) { return & ( v_power_injected[i] ); }
 
  /// Method for returning the vector of primary spinning reserve variables
  const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
@@ -206,8 +208,11 @@ protected:
  /// Vector of commitment variables
  std::vector<ColVariable> v_commitment;
 
+///< the shut down binary variables
+std::vector < ColVariable > v_power_injected;
+
  /// Vector of power variables
- std::vector<ColVariable> v_power;
+ std::vector<ColVariable> v_active_power;
 
  /// Vector of primary spinning reserve variables
  std::vector<ColVariable> v_primary_spinning_reserve;

@@ -88,7 +88,8 @@ int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
 void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
   if( v_commitment.size() != 0 ||
-      v_power.size() != 0 ||
+      v_power_injected.size() != 0 ||
+      v_active_power.size() != 0 ||
       v_primary_spinning_reserve.size() != 0 ||
       v_secondary_spinning_reserve.size() != 0 ) {
     // the abstract variables should be generated only once
@@ -104,7 +105,8 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
   v_pairs variables_and_types = {
     std::make_pair( &v_commitment,                 ColVariable::kBinary ),
-    std::make_pair( &v_power,                      ColVariable::kNonNegative ),
+    std::make_pair( &v_power_injected,             ColVariable::kNonNegative ),
+    std::make_pair( &v_active_power,               ColVariable::kNonNegative ),
     std::make_pair( &v_primary_spinning_reserve,   ColVariable::kNonNegative ),
     std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative )
   };

@@ -60,9 +60,8 @@
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 #ifndef __UCBlock
-#define __UCBlock /* self-identification: #endif at the end
-		   * of the file */
-
+#define __UCBlock
+/* self-identification: #endif at the end of the file */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -97,7 +96,7 @@ public:
 /** @name Constructor and Destructor
  *  @{ */
 
- /// constructor of UCBlock, taking possibly a pointer of its fater Block
+ /// constructor of UCBlock, taking possibly a pointer of its father Block
  UCBlock( Block *father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
