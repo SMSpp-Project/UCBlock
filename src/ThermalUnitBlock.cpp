@@ -86,63 +86,88 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group , Block * father )
 
 // read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-f_time_horizon = ( group.getDim( "TimeHorizon" ) ).getSize();
+ netCDF::NcDim TH = group.getDim( "TimeHorizon" );
+ if( TH.isNull() )
+  throw( std::invalid_argument( "TimeHorizon not present" ) );
 
-f_number_values = ( group.getDim( "NumberValues" ) ).getSize();
+ f_time_horizon = TH.getSize();
+ if( f_time_horizon <= 0 )
+  throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+  
+ netCDF::NcDim NV = group.getDim( "NumberValues" );
+ if( NV.isNull() )
+  f_number_values = 0;
+ else {
+  f_number_values = NV.getSize();
+  if( ( f_number_values < 1 ) || ( f_number_values > f_time_horizon ) )
+   throw( std::invalid_argument( "invalid f_number_values" ) );
+  }
 
+ std::vector < size_t > start = { 0 };
+ std::vector < size_t > countime = { (size_t)f_time_horizon };
+ std::vector < size_t > countch = { f_number_values };
+ std::vector < ptrdiff_t > stridech = { f_number_values };
 
-std::vector < size_t > start = { 0 };
-std::vector < size_t > countime = { (size_t)f_time_horizon };
-std::vector < size_t > countch = { f_number_values };
-std::vector < ptrdiff_t > stridech = { f_number_values };
+ std::vector<int> ci;
+ if( ( f_number_values > 1 ) && ( f_number_values < f_time_horizon ) ) {
+  ci.resize( f_number_values );
+  netCDF::NcVar ChangeIntervals = group.getVar( "ChangeIntervals" );
+  ci.getVar( start , countch , ci.data() );
 
-/*
-netCDF::NcVar MinP = group.getVar("MinPower");
-    if ( ! MinP.isNull() ) {
-        if (f_time_horizon == f_number_values) {
-            f_MinPower.resize(f_time_horizon);
-            MinP.getVar(start, countime, f_MinPower.data());
-        }
-        else if ( f_number_values > 0 && f_number_values < f_time_horizon ) {
-            f_MinPower.resize(f_number_values);
-            MinP.getVar(start, countch, stridech, f_change_interval.data());
-        }
-        else if (f_number_values == 0 ) {
-            netCDF::NcVar MinP = group.getVar( "MinPower" );
-        }
-        else {
-            // There is something wrong
-        }
-
-    }
-*/
+  // TODO: check that all numbers are between 1 and f_time_horizon,
+  // that the last number is == f_time_horizon, and that they are
+  // ordered in increasing sense
+  }
+ 
 /*--------------------MinPower-deserialize----------------------------------*/
 
-    netCDF::NcVar MinP = group.getVar("MinPower");
-    if ( ! MinP.isNull() ) {
-            f_MinPower.resize(f_time_horizon);
-            MinP.getVar(start, countime, f_MinPower.data());
-        }
+ netCDF::NcVar MinP = group.getVar( "MinPower" );
+ if( MinP.isNull() )
+  throw( std::invalid_argument( "Min Power not present" ) );
+
+ f_MinPower.resize( f_time_horizon );
+    
+ if( f_number_values == f_time_horizon )
+  MinP.getVar( start , countime , f_MinPower.data() );
+ else {
+  std::vector<double> tmpv( f_number_values );
+  MinP.getVar( start , countch , f_MinPower.data() );
+
+  if( f_number_values == 1 )
+   f_MinPower.assign( f_time_horizon , tmpv[ 0 ] );
+  else {
+   int i = 0;
+   for( int j = 0 ; j < f_number_values ; ) {
+    f_MinPower[ i ] = tmpv[ j ];
+    if( ++i > ci[ j ] )
+     ++j;
+    }
+   }
+  }
 
 /*--------------------MaxPower-deserialize----------------------------------*/
 
-netCDF::NcVar MaxP = group.getVar("MaxPower");
-    if ( ! MaxP.isNull() ) {
-            f_MaxPower.resize(f_time_horizon);
-            MaxP.getVar(start, countime, f_MaxPower.data());
-        }
+ netCDF::NcVar MaxP = group.getVar("MaxPower");
+ if ( ! MaxP.isNull() ) {
+  f_MaxPower.resize(f_time_horizon);
+  MaxP.getVar(start, countime, f_MaxPower.data());
+ }
 
 /*------------------FixedConsPower-deserialize------------------------------*/
 
-    netCDF::NcVar FixCoPow  = group.getVar( "FixedConsPower" );
+ netCDF::NcVar FixCoPow = group.getVar( "FixedConsPower" );
+ if( FixCoPow.isNull() )
+  throw( std::invalid_argument( "FixedConsPower not present" ) );
+ f_fix_cons_pow = ... ;
 
+  
 /*--------------------DeltaRampUp-deserialize-------------------------------*/
 
-    netCDF::NcVar RampUp = group.getVar("DeltaRampUp");
-    if ( ! RampUp.isNull() ) {
-            f_DeltaRampUp.resize(f_time_horizon);
-            RampUp.getVar(start, countime, f_DeltaRampUp.data());
-        }
+ netCDF::NcVar RampUp = group.getVar( "DeltaRampUp" );
+ if ( ! RampUp.isNull() ) {
+  f_DeltaRampUp.resize(f_time_horizon);
+  RampUp.getVar(start, countime, f_DeltaRampUp.data());
+  }
 
 /*-------------------DeltaRampDown-deserialize------------------------------*/
 

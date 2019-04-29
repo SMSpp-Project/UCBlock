@@ -353,7 +353,8 @@ virtual void load( );
  *
  * - the dimension "NumberValues" which is a subset of "TimeHorizon" and
  *   indicates the number of above intervals \f$([0 , a] , [a+1 , b], ... ,
- *   [j+1 , k] , [k+1, T])\f$ where the variables change.
+ *   [j+1 , k] , [k+1, T])\f$ where the variables change. The dimension is
+ *   optional, if it is not provided than it is taken to be 1.
  *
  *   Three scenarios may happen:
  *
