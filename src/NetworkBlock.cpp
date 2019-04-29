@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -68,7 +68,43 @@ NetworkBlock::NetworkBlock( Block * block ) : Block( block ) { }
 
 NetworkBlock::~NetworkBlock() { }
 
+
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+
+
+//void NetworkBlock::load( )
+//{
+
+
+//}
+
+
+/*--------------------------------------------------------------------------*/
+
+
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+
+
+
+// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+}  // end( NetworkBlock::deserialize )
+
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 
 void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
@@ -120,7 +156,7 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
       linear_function->add_variable
 	( & v_node_injection[node_id] , coefficient );
 
-      constant_term -= coefficient * v_demand[node_id];
+      constant_term -= coefficient * v_active_demand[node_id];
 
     } // for each node
 
@@ -141,4 +177,16 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
   add_static_constraint( v_flow_limit_constraints );
 }
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::serialize( netCDF::NcGroup & group ) const
+{
+
+}    // end( NetworkBlock::serialize )
+/*--------------------------------------------------------------------------*/
+/*--------------------- End File NetworkBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -55,6 +55,141 @@
 
 using namespace SMSpp_di_unipi_it;
 
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+
+
+//void UCBlock::load( )
+//{
+
+
+//}
+
+
+/*--------------------------------------------------------------------------*/
+
+
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+
+
+// check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim TH = group.getDim( "TimeHorizon" );
+  if( TH.isNull() )
+    throw( std::invalid_argument( "TimeHorizon not present" ) );
+
+  f_time_horizon = TH.getSize();
+  if( f_time_horizon <= 0 )
+    throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim NU = group.getDim( "NumberUnits" );
+  if( NU.isNull() )
+    throw( std::invalid_argument( "NumberUnits not present" ) );
+
+  f_number_units = NU.getSize();
+  if( f_number_units <= 0 )
+    throw( std::invalid_argument( "NumberUnits <= 0" ) );
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim NN = group.getDim( "NumberNodes" );
+  if( NN.isNull() )
+    throw( std::invalid_argument( "NumberNodes not present" ) );
+
+  f_number_nodes = NN.getSize();
+  if( f_number_nodes <= 0 )
+    throw( std::invalid_argument( "NumberNodes <= 0" ) );
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim PZ = group.getDim( "PrimaryZones" );
+  if( PZ.isNull() )
+    throw( std::invalid_argument( "PrimaryZones not present" ) );
+
+  f_number_Pr_zones = PZ.getSize();
+  if( f_number_Pr_zones <= 0 )
+    throw( std::invalid_argument( "NumberNodes <= 0" ) );
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim SZ = group.getDim( "SecondaryZones" );
+  if( SZ.isNull() )
+    throw( std::invalid_argument( "SecondaryZones not present" ) );
+
+  f_number_Se_zones = SZ.getSize();
+  if( f_number_Se_zones <= 0 )
+    throw( std::invalid_argument( "SecondaryZones <= 0" ) );
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim IZ = group.getDim( "InertiaZones" );
+  if( IZ.isNull() )
+    throw( std::invalid_argument( "InertiaZones not present" ) );
+
+  f_number_In_zones = IZ.getSize();
+  if( f_number_In_zones <= 0 )
+    throw( std::invalid_argument( "InertiaZones <= 0" ) );
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  netCDF::NcDim EZ = group.getDim( "EmissionZones" );
+  if( EZ.isNull() )
+    throw( std::invalid_argument( "EmissionZones not present" ) );
+
+  f_number_Em_zones = EZ.getSize();
+  if( f_number_Em_zones <= 0 )
+    throw( std::invalid_argument( "EmissionZones <= 0" ) );
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  netCDF::NcDim NP = group.getDim( "PollutantSet" );
+  if( NP.isNull() )
+    throw( std::invalid_argument( "PollutantSet not present" ) );
+
+  f_number_pollutants = NP.getSize();
+  if( f_number_pollutants <= 0 )
+    throw( std::invalid_argument( "PollutantSet <= 0" ) );
+
+// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  std::vector < size_t > start = { 0 };
+  std::vector < size_t > countime = { (size_t)f_time_horizon };
+  std::vector < size_t > coununit = { (size_t)f_number_units };
+  std::vector < size_t > counode = { (size_t)f_number_nodes };
+  std::vector < size_t > countprim = { (size_t)f_number_Pr_zones };
+  std::vector < size_t > countsecond = { (size_t)f_number_Se_zones};
+  std::vector < size_t > counit = { (size_t)f_number_In_zones };
+  std::vector < size_t > countunem = { (size_t)f_number_Em_zones };
+  std::vector < size_t > countpoll = { (size_t)f_number_pollutants };
+
+
+
+/*--------------------PrimaryDemand-deserialize-----------------------------*/
+
+  netCDF::NcVar PrimDemand = group.getVar( "PrimaryDemand" );
+  if( PrimDemand.isNull() )
+    throw( std::invalid_argument( "Primary Demand not present" ) );
+
+  f_prim_demand.resize( f_number_Pr_zones );
+
+/*--------------------SecondaryDemand-deserialize---------------------------*/
+
+/*--------------------InertiaDemand-deserialize-----------------------------*/
+
+/*-------------------PollutantDemand-deserialize----------------------------*/
+
+/*---------------------PollutantRho-deserialize-----------------------------*/
+
+
+
+
+
+
+}  // end( UCBlock::deserialize )
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -98,4 +233,20 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   add_static_constraint( v_node_injection_constraints );
 }
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::serialize( netCDF::NcGroup & group ) const
+{
+  group.putAtt( "type" , "UCBlock" );
+
+
+  netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
+  netCDF::NcDim number_units = group.addDim( "NumberUnits" , f_number_units);
+
+}  // end( UCBlock::serialize )
+/*--------------------------------------------------------------------------*/
+/*------------------------ End File UCBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

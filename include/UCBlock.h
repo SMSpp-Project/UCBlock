@@ -30,7 +30,7 @@
  *
  * \version 0.11
  *
- * \date 07 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -108,6 +108,73 @@ public:
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
+/*--------------------------------------------------------------------------*/
+/// extends Block::deserialize( netCDF::NcGroup )
+/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+ * the UCBlock. Besides the mandatory "type" attribute of any :Block,
+ * the group should contain the following:
+ *
+ *
+ * - the dimension "TimeHorizon" containing the number of time steps in
+ *   the problem;
+ *
+ * - the dimension "NumberUnits" containing the number of units in
+ *   the problem;
+ *
+ * - the dimension "NumberNodes" containing the number of nodes in
+ *   the problem;
+ *
+ * - the dimension "PrimaryZones" is the subset of the "NumberNodes" and each
+ *   one being associated with one specific primary spinning reserve
+ *   requirement in the problem. The dimension is optional, if it is not
+ *   provided than it is taken to be 0;
+ *
+ * - the dimension "SecondaryZones" is the subset of the "NumberNodes" and
+ *   each one being associated with one specific secondary spinning reserve
+ *   requirement in the problem. The dimension is optional, if it is not
+ *   provided than it is taken to be 0;
+ *
+ * - the dimension "InertiaZones" is the subset of the "NumberNodes" and each
+ *   one being associated with one specific inertia requirement in the
+ *   problem. The dimension is optional, if it is not
+ *   provided than it is taken to be 0;
+ *
+ * - the dimension "PollutantSet" containing the set of pollutants in the
+ *   problem. The dimension is optional, if it is not
+ *   provided than it is taken to be 0;
+ *
+ * - the dimension "EmissionZones" is the subset of the "NumberNodes" and each
+ *   one being associated with an emission limits on the specific pollutant in
+ *   the set of pollutants in the problem. The dimension is optional, if it is not
+ *   provided than it is taken to be 0;
+ *
+ * - the variable "PrimaryDemand", of type double and indexed over the
+ *   dimension "PrimaryZones" and "TimeHorizon" ; the i-th entry of the
+ *   variable is assumed to contain the primary reserves requirement which are
+ *   specified on the primary reserves zones in the network;
+ *
+ * - the variable "SecondaryDemand", of type double and indexed over the
+ *   dimension "SecondaryZones" and "TimeHorizon"; the i-th entry of the
+ *   variable is assumed to contain the secondary reserves requirement which
+ *   are specified on the secondary reserves zones in the time t;
+ *
+ * - the variable "InertiaDemand", of type double and indexed over the
+ *   dimension "InertiaZones" and "TimeHorizon"; the i-th entry of the
+ *   variable is assumed to contain the inertia requirement in the time t;
+ *
+ * - the variable "PollutantDemand", of type double and indexed over the
+ *   dimension "EmissionZones"; the i-th entry of the variable is assumed to
+ *   contain the pollutants limits in the time t;
+ *
+ * - the variable "PollutantRho", of type double and indexed over the
+ *   dimension "TimeHorizon", "PollutantSet", and the "NumberUnits"; each
+ *   entry of the variable is assumed to contain the conversion factor of
+ *   pollution due to the generation units in the time t;
+ */
+
+virtual void deserialize( netCDF::NcGroup & group ,
+                                  Block *father = nullptr ) override;
+/*--------------------------------------------------------------------------*/
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
    override;
@@ -131,7 +198,7 @@ public:
  int get_time_horizon( void ) const { return f_time_horizon; }
 
  /// sets the number of units of the problem
- void set_units_size( int units ) { f_units_size = units; }
+ void set_units_size( int units ) { f_number_units = units; }
 
  /// returns the vector of (pointers to) NetworkBlocks
  const std::vector<NetworkBlock *> & get_network_blocks( void ) {
@@ -140,6 +207,21 @@ public:
 
  /// returns the Network
  const Network & get_network( void ) { return f_network; }
+
+/*@} -----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the UCBlock
+ *  @{ */
+
+/// extends Block::serialize( netCDF::NcGroup )
+/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+ * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group.
+ *
+ * */
+
+virtual void serialize( netCDF::NcGroup & group ) const override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UCBlock ---------------------*/
@@ -160,14 +242,44 @@ protected:
  int f_time_horizon;
 
  /// The number of units of the problem
- int f_units_size;
+ int f_number_units;
 
- /** Vector of pointers to the NetworkBlocks. This vector either is
+/// The number of nodes in the network
+ int f_number_nodes;
+
+/// The number of nodes in primary zones of the network
+int f_number_Pr_zones;
+
+/// The number of nodes in secondary zones of the network
+int f_number_Se_zones;
+
+/// The number of nodes in inertia zones of the network
+int f_number_In_zones;
+
+/// The number of nodes in emission zones of the network
+int f_number_Em_zones;
+
+/// The set of pollutants of the problem
+int f_number_pollutants;
+
+/** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
   * is no network. If it has positive size, then the NetworkBlock at
   * position i in this vector refers to the network at the i-th time
   * step. */
  std::vector<NetworkBlock *> v_network_blocks;
+
+/// the vector of PrimaryDemand
+std::vector < double >  f_prim_demand;
+
+/// the vector of SecondaryDemand
+std::vector < double >  f_second_demand;
+
+/// the vector of InertiaDemand
+std::vector < double >  f_inertia_demand;
+
+/// the vector of PollutantDemand
+std::vector < double >  f_pollut_demand;
 
  /// The network
  Network f_network;

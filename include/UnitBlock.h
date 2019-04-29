@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 26 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -110,6 +110,25 @@ public:
 /** @name Other initializations
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
+/// extends Block::deserialize( netCDF::NcGroup )
+/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+ * the UnitBlock. Besides the mandatory "type" attribute of any :Block,
+ * the group should contain the following:
+ *
+ *
+ * - the dimension "TimeHorizon" containing the number of time steps in
+ *   this unit;
+ *
+ *  //TODO
+ *
+ */
+
+virtual void deserialize( netCDF::NcGroup & group ,
+                                  Block *father = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+
  /// generate the static variables of UnitBlock
  /** Method that generates the static variables of this
   * UnitBlock. These may be:
@@ -139,7 +158,7 @@ public:
   * not present), none of the variables above is considered. */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
+   override ;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE UnitBlock -------------*/
@@ -173,6 +192,21 @@ public:
  const std::vector<ColVariable> & get_secondary_spinning_reserve( void ) const {
    return v_secondary_spinning_reserve;
  }
+
+/*@} -----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the UnitBlock
+ *  @{ */
+
+/// extends Block::serialize( netCDF::NcGroup )
+/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+ * UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group.
+ *
+ * */
+
+virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE UnitBlock --------------------*/

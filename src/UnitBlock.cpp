@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 26 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -55,6 +55,45 @@ using namespace SMSpp_di_unipi_it;
 // register UnitBlock to the Block factory
 
 SMSpp_insert_in_factory_cpp_1( UnitBlock );
+
+
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+
+
+//void UnitBlock::load( )
+//{
+
+
+//}
+
+
+/*--------------------------------------------------------------------------*/
+
+
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+
+// check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    netCDF::NcDim TH = group.getDim( "TimeHorizon" );
+    if( TH.isNull() )
+        throw( std::invalid_argument( "TimeHorizon not present" ) );
+
+    f_time_horizon = TH.getSize();
+    if( f_time_horizon <= 0 )
+        throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+
+
+}  // end( UnitBlock::deserialize )
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -138,6 +177,18 @@ void UnitBlock::set_time_horizon( int t ) {
   f_time_horizon = t;
 }
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------- METHODS FOR LOADING, PRINTING & SAVING THE UnitBlock ---------*/
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::serialize( netCDF::NcGroup & group ) const
+{
+  group.putAtt( "type" , "UnitBlock" );
+
+  netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
+
+}    // end( UnitBlock::serialize )
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

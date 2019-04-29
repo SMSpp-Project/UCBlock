@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 03 - 2019
+ * \date 24 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -102,6 +102,45 @@ public:
 /** @name Other initializations
  *  @{ */
 
+
+/*--------------------------------------------------------------------------*/
+/// extends Block::deserialize( netCDF::NcGroup )
+/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+ * the NetworkBlock. Besides the mandatory "type" attribute of any :Block,
+ * the group should contain the following:
+ *
+ * - the dimension "TimeHorizon" containing the number of time steps in
+ *   the problem;
+ *
+ * - the dimension "NumberNodes" containing the number of nodes in
+ *   the problem;
+ *
+ * - the dimension "NumberLines" containing the number of arcs in
+ *   the problem;
+ *
+ * - the variable "ActiveDemand", of type double and indexed over the
+ *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
+ *   contain the active power requirement at each node in the network;
+ *
+ * - the variable "MinPower", of type double and indexed over the dimension
+ *   "NumberLines"; each entry of the variable is assumed to contain the
+ *   minimum power output of the network at time t;
+ *
+ * - the variable "MaxPower", of type double and indexed over the dimension
+ *   "NumberLines"; each entry of the variable is assumed to contain the
+ *   maximum power output of the unit at time t;
+ *
+ * - the variable "SusceptanceVec", of type double and indexed over the
+ *   "NumberNodes";
+ *
+ */
+
+virtual void deserialize( netCDF::NcGroup & group ,
+                                  Block *father = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+
+
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
 
@@ -136,6 +175,22 @@ public:
    return v_node_injection;
  }
 
+
+/*@} -----------------------------------------------------------------------*/
+/*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the NetworkBlock
+ *  @{ */
+
+/// extends Block::serialize( netCDF::NcGroup )
+/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+ * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group.
+ *
+ * */
+
+virtual void serialize( netCDF::NcGroup & group ) const override;
+
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -159,7 +214,7 @@ protected:
  int f_number_lines = -1;
 
  /// vector to store the demand of each node of the network
- std::vector<double> v_demand;
+ std::vector<double> v_active_demand;
 
  /// vector to store the susceptance of each line of the network
  std::vector<double> v_susceptance;

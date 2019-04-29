@@ -211,7 +211,7 @@ int count_plus=0;
 int count_minus=0;
 
 
-//constructing all arc connections frmo the starting node
+//constructing all arc connections from the starting node
 
 if (fInitUpDownTime > 0 ){
 
@@ -299,7 +299,7 @@ else if ( fInitUpDownTime < 0 ) {
   //proceed with constructing all the arcs that are connecting the nodes of the graph
 
    /* 
-       Construcing the y^+ arcs that we have the following:
+       Constructing the y^+ arcs that we have the following:
        i)   all online nodes that are prior to init_t are excluded (condition only valid,
             in case there it init_t != 0), where no y^+ arcs are considered
        ii)  all online nodes that are greater than init_t but yet again smaller than T-\tau^+
@@ -323,7 +323,7 @@ else if ( fInitUpDownTime < 0 ) {
     }
 
    /* 
-       Construcing the y^- arcs that we have the following:
+       Constructing the y^- arcs that we have the following:
        i)   all offline nodes that are prior to init_t + \tau^+ are excluded (condition only valid,
             in case there it init_t != 0), where no y^- arcs are considered
        ii)  all offline nodes that are greater than init_t + \tau^+ but yet again smaller than T-\tau^-
@@ -421,7 +421,7 @@ add_static_variable(Y_minus);
         	    }       
         	} // for j
 
-    		LinearConstraint::v_coeff_pair  *v_u_pair = new LinearConstraint::v_coeff_pair(u_count+1);
+    	LinearConstraint::v_coeff_pair  *v_u_pair = new LinearConstraint::v_coeff_pair(u_count+1);
 		LinearConstraint::v_coeff_pair  *v_p_pair = new LinearConstraint::v_coeff_pair(u_count+1);
 		//LinearConstraint::v_coeff_pair  *v_p2_pair = new LinearConstraint::v_coeff_pair(u_count+1);
 		LinearConstraint::v_coeff_pair::iterator it;
@@ -1743,7 +1743,7 @@ UCBlock * f_UC_Block = dynamic_cast <UCBlock *> (get_f_Block());
 		for(int i=0; i<f_UC_Block->get_t(); i++){
 		
 		//initilaize the vector of pairs of the variables and coefficients of the corresponding constraints
-	        LinearConstraint::v_coeff_pair * v_min_pair = new LinearConstraint::v_coeff_pair(2);
+		LinearConstraint::v_coeff_pair * v_min_pair = new LinearConstraint::v_coeff_pair(2);
 		LinearConstraint::v_coeff_pair * v_max_pair = new LinearConstraint::v_coeff_pair(2);
 
 		LinearConstraint::v_coeff_pair::iterator it;
@@ -1818,7 +1818,7 @@ for(int i=0; i < t1 ; i++){
 	   it = v_uz_pair->begin() + 2;
    	   *it = LinearConstraint::coeff_pair( &U_01[i] , -1);
 	   for (int j = 0 ; j < i; j++){
-		   it = v_uz_pair->begin() + 3 + j;
+		   it = v_uz_pair->begin() + 3 +
    		   *it = LinearConstraint::coeff_pair( &U_01[i -1 - j] , -1);		
 	   }
 		

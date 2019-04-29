@@ -83,8 +83,7 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 void ThermalUnitBlock::deserialize( netCDF::NcGroup & group , Block * father )
 {
 
-
-// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  netCDF::NcDim TH = group.getDim( "TimeHorizon" );
  if( TH.isNull() )
@@ -102,17 +101,17 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group , Block * father )
   if( ( f_number_values < 1 ) || ( f_number_values > f_time_horizon ) )
    throw( std::invalid_argument( "invalid f_number_values" ) );
   }
+// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::vector < size_t > start = { 0 };
  std::vector < size_t > countime = { (size_t)f_time_horizon };
  std::vector < size_t > countch = { f_number_values };
- std::vector < ptrdiff_t > stridech = { f_number_values };
+ std::vector < int > Change_Interval;
 
- std::vector<int> ci;
  if( ( f_number_values > 1 ) && ( f_number_values < f_time_horizon ) ) {
-  ci.resize( f_number_values );
-  netCDF::NcVar ChangeIntervals = group.getVar( "ChangeIntervals" );
-  ci.getVar( start , countch , ci.data() );
+  Change_Interval.resize( f_number_values );
+  netCDF::NcVar CI = group.getVar( "ChangeIntervals" );
+  CI.getVar( start , countch , Change_Interval.data() );
 
   // TODO: check that all numbers are between 1 and f_time_horizon,
   // that the last number is == f_time_horizon, and that they are
@@ -139,7 +138,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group , Block * father )
    int i = 0;
    for( int j = 0 ; j < f_number_values ; ) {
     f_MinPower[ i ] = tmpv[ j ];
-    if( ++i > ci[ j ] )
+    if( ++i > Change_Interval[ j ] )
      ++j;
     }
    }
@@ -147,89 +146,248 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group , Block * father )
 
 /*--------------------MaxPower-deserialize----------------------------------*/
 
- netCDF::NcVar MaxP = group.getVar("MaxPower");
- if ( ! MaxP.isNull() ) {
-  f_MaxPower.resize(f_time_horizon);
-  MaxP.getVar(start, countime, f_MaxPower.data());
- }
+    netCDF::NcVar MaxP = group.getVar( "MaxPower" );
+    if( MaxP.isNull() )
+        throw( std::invalid_argument( "Max Power not present" ) );
+
+    f_MaxPower.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        MaxP.getVar( start , countime , f_MaxPower.data() );
+    else {
+        std::vector<double> tMpv( f_number_values );
+        MaxP.getVar( start , countch , f_MaxPower.data() );
+
+        if( f_number_values == 1 )
+            f_MaxPower.assign( f_time_horizon , tMpv[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_MaxPower[ i ] = tMpv[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
 
 /*------------------FixedConsPower-deserialize------------------------------*/
 
  netCDF::NcVar FixCoPow = group.getVar( "FixedConsPower" );
  if( FixCoPow.isNull() )
   throw( std::invalid_argument( "FixedConsPower not present" ) );
- f_fix_cons_pow = ... ;
 
-  
+
 /*--------------------DeltaRampUp-deserialize-------------------------------*/
 
- netCDF::NcVar RampUp = group.getVar( "DeltaRampUp" );
- if ( ! RampUp.isNull() ) {
-  f_DeltaRampUp.resize(f_time_horizon);
-  RampUp.getVar(start, countime, f_DeltaRampUp.data());
-  }
+    netCDF::NcVar RampUp = group.getVar( "DeltaRampUp" );
+    if( RampUp.isNull() )
+        throw( std::invalid_argument( "DeltaRampUp not present" ) );
+
+    f_DeltaRampUp.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        RampUp.getVar( start , countime , f_DeltaRampUp.data() );
+    else {
+        std::vector<double> trup( f_number_values );
+        RampUp.getVar( start , countch , f_DeltaRampUp.data() );
+
+        if( f_number_values == 1 )
+            f_DeltaRampUp.assign( f_time_horizon , trup[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_DeltaRampUp[ i ] = trup[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
 
 /*-------------------DeltaRampDown-deserialize------------------------------*/
 
-    netCDF::NcVar RampDown = group.getVar("DeltaRampDown");
-    if ( ! RampDown.isNull() ) {
-            f_DeltaRampDown.resize(f_time_horizon);
-            RampDown.getVar(start, countime, f_DeltaRampDown.data());
-        }
+    netCDF::NcVar RampDown = group.getVar( "DeltaRampDown" );
+    if( RampDown.isNull() )
+        throw( std::invalid_argument( "DeltaRampDown not present" ) );
 
+    f_DeltaRampDown.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        RampDown.getVar( start , countime , f_DeltaRampDown.data() );
+    else {
+        std::vector<double> trdn( f_number_values );
+        RampDown.getVar( start , countch , f_DeltaRampDown.data() );
+
+        if( f_number_values == 1 )
+            f_DeltaRampDown.assign( f_time_horizon , trdn[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_DeltaRampDown[ i ] = trdn[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
 /*-------------------------PrimaryRho-deserialize---------------------------*/
 
+    netCDF::NcVar PrimRho = group.getVar( "PrimaryRho" );
+    if( PrimRho.isNull() )
+        throw( std::invalid_argument( "PrimaryRho not present" ) );
+
+    f_PrimaryRho.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        PrimRho.getVar( start , countime , f_PrimaryRho.data() );
+    else {
+        std::vector<double> tprho( f_number_values );
+        PrimRho.getVar( start , countch , f_PrimaryRho.data() );
+
+        if( f_number_values == 1 )
+            f_PrimaryRho.assign( f_time_horizon , tprho[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_PrimaryRho[ i ] = tprho[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
+/*
     netCDF::NcVar PrimRho = group.getVar("PrimaryRho");
     if ( ! PrimRho.isNull() ) {
         f_PrimaryRho.resize(f_time_horizon);
         PrimRho.getVar(start, countime, f_PrimaryRho.data());
 
     }
+    */
 /*------------------------SecondaryRho-deserialize--------------------------*/
 
-    netCDF::NcVar SecondRho = group.getVar("SecondaryRho");
-    if ( ! SecondRho.isNull() ) {
-        f_SecondaryRho.resize(f_time_horizon);
-        SecondRho.getVar(start, countime, f_SecondaryRho.data());
+    netCDF::NcVar SecondRho = group.getVar( "SecondaryRho" );
+    if( SecondRho.isNull() )
+        throw( std::invalid_argument( "SecondaryRho not present" ) );
 
+    f_SecondaryRho.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        SecondRho.getVar( start , countime , f_SecondaryRho.data() );
+    else {
+        std::vector<double> tsrho( f_number_values );
+        SecondRho.getVar( start , countch , f_SecondaryRho.data() );
+
+        if( f_number_values == 1 )
+            f_SecondaryRho.assign( f_time_horizon , tsrho[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_SecondaryRho[ i ] = tsrho[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
     }
 
 /*---------------Quadratic-Linear-Constant-Term-deserialize-----------------*/
 
-    netCDF::NcVar QTerm = group.getVar("QuadTerm");
-    if ( ! QTerm.isNull() ) {
-        f_QuadTerm.resize(f_time_horizon);
-        QTerm.getVar(start, countime, f_QuadTerm.data());
+    netCDF::NcVar QTerm = group.getVar( "QuadTerm" );
+    if( QTerm.isNull() )
+        throw( std::invalid_argument( "QuadTerm not present" ) );
 
-    }
-        netCDF::NcVar LTerm = group.getVar("LinearTerm");
-        if ( ! LTerm.isNull() ) {
-            f_LinearTerm.resize(f_time_horizon);
-            LTerm.getVar(start, countime, f_LinearTerm.data());
+    f_QuadTerm.resize( f_time_horizon );
 
-        }
+    if( f_number_values == f_time_horizon )
+        QTerm.getVar( start , countime , f_QuadTerm.data() );
+    else {
+        std::vector<double> tqt( f_number_values );
+        QTerm.getVar( start , countch , f_QuadTerm.data() );
 
-            netCDF::NcVar CTerm = group.getVar("ConstTerm");
-            if ( ! CTerm.isNull() ) {
-                f_ConstTerm.resize(f_time_horizon);
-                CTerm.getVar(start, countime, f_ConstTerm.data());
+        if( f_number_values == 1 )
+            f_QuadTerm.assign( f_time_horizon , tqt[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_QuadTerm[ i ] = tqt[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
             }
+        }
+    }
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    netCDF::NcVar LTerm = group.getVar( "LinearTerm" );
+    if( LTerm.isNull() )
+        throw( std::invalid_argument( "LinearTerm not present" ) );
+
+    f_LinearTerm.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        LTerm.getVar( start , countime , f_LinearTerm.data() );
+    else {
+        std::vector<double> tlt( f_number_values );
+        LTerm.getVar( start , countch , f_LinearTerm.data() );
+
+        if( f_number_values == 1 )
+            f_LinearTerm.assign( f_time_horizon , tlt[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_LinearTerm[ i ] = tlt[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    netCDF::NcVar CTerm = group.getVar( "ConstTerm" );
+    if( CTerm.isNull() )
+        throw( std::invalid_argument( "ConstTerm not present" ) );
+
+    f_ConstTerm.resize( f_time_horizon );
+
+    if( f_number_values == f_time_horizon )
+        CTerm.getVar( start , countime , f_ConstTerm.data() );
+    else {
+        std::vector<double> tct( f_number_values );
+        CTerm.getVar( start , countch , f_ConstTerm.data() );
+
+        if( f_number_values == 1 )
+            f_ConstTerm.assign( f_time_horizon , tct[ 0 ] );
+        else {
+            int i = 0;
+            for( int j = 0 ; j < f_number_values ; ) {
+                f_ConstTerm[ i ] = tct[ j ];
+                if( ++i > Change_Interval[ j ] )
+                    ++j;
+            }
+        }
+    }
+
 /*----------------------------PZero-deserialize-----------------------------*/
 
 netCDF::NcVar PZero  = group.getVar( "PZero" );
+    if( PZero.isNull() )
+        throw( std::invalid_argument( "PZero not present" ) );
 
 /*-------------------------StartUpCost-deserialize--------------------------*/
 
 netCDF::NcVar StartUpC  = group.getVar( "StartUpCost" );
+    if( StartUpC.isNull() )
+        throw( std::invalid_argument( "StartUpC not present" ) );
 
 /*-----------------MinUp--MinDown--InitUpDown-deserialize-------------------*/
 
 netCDF::NcVar MinUp  = group.getVar( "MinUpTime" );
+    if( MinUp.isNull() )
+        throw( std::invalid_argument( "MinUpTime not present" ) );
 
 netCDF::NcVar MinDown  = group.getVar( "MinDownTime" );
+    if( MinDown.isNull() )
+        throw( std::invalid_argument( "MinDownTime not present" ) );
 
 netCDF::NcVar IntUpDown  = group.getVar( "IntUpDownTime" );
-
+    if( IntUpDown.isNull() )
+        throw( std::invalid_argument( "IntUpDownTime not present" ) );
 
 }  // end( ThermalUnitBlock::deserialize )
 
@@ -319,7 +477,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc )
     else if( InitUpDownTime_val > 0 && InitUpDownTime_val < MinUpTime_val)
         power_value > 0;
 
-    if (  power_value = 0.0 ) {
+    if (  power_value == 0.0 ) {
 
 
         for (int t = 0; t < init_t ; ++t) {
@@ -579,15 +737,13 @@ void ThermalUnitBlock::generate_objective( Configuration *objc )
 }  // end( ThermalUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*------------ METHODS FOR LOADING, PRINTING & SAVING THE MCFBlock ---------*/
+/*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 {
 
-    group.putAtt( "type" , "ThermalUnitBlock" );
-    group.putAtt( "infinity" , netCDF::NcDouble() , Inf<double>() );
-
+group.putAtt( "type" , "ThermalUnitBlock" );
 
 netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
 netCDF::NcDim number_values = group.addDim( "NumberValues" , f_number_values);
@@ -596,41 +752,31 @@ netCDF::NcDim number_values = group.addDim( "NumberValues" , f_number_values);
 std::vector < size_t > startp = { 0 };
 std::vector < size_t > countpt = { (size_t)f_time_horizon };
 std::vector < size_t > countpu = { f_number_values };
-std::vector < ptrdiff_t > strideche = { f_number_values };
 
 
-/*
-    if( f_MinPower.size() )
-        if ( f_time_horizon == f_number_values) {
-            ( group.addVar( "MinPower" , netCDF::NcDouble() , time_horizon )
-            ).putVar( startp , countpt , f_MinPower.data() );
-        }
-        else if ( f_number_values > 0 && f_number_values < f_time_horizon ) {
-            ( group.addVar( "MinPower" , netCDF::NcDouble() , time_changes )
-         ).putVar( startp , countpu , strideche , f_change_interval.data() );
-        }
-        else if ( f_number_values == 0 ) {
-            netCDF::NcVar MinPow  = group.addVar( "MinPower" ,
-                                                  netCDF::NcDouble() );
-        }
-        else {
-            // There is something wrong
-        }
-
-*/
 /*---------------------MinPower-serialize-----------------------------------*/
-
     if( f_MinPower.size() )
+        if( f_number_values == f_time_horizon )
             ( group.addVar( "MinPower" , netCDF::NcDouble() , time_horizon )
             ).putVar( startp , countpt , f_MinPower.data() );
+        else {
+            ( group.addVar( "MinPower" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_MinPower.data() );
+        }
 
 
 /*---------------------MinPower-serialize-----------------------------------*/
 
 
     if( f_MaxPower.size() )
-        ( group.addVar( "MaxPower" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "MaxPower" , netCDF::NcDouble() , time_horizon )
             ).putVar( startp , countpt , f_MaxPower.data() );
+        else {
+            ( group.addVar( "MaxPower" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_MaxPower.data() );
+        }
+
 
 /*-------------------FixedConsPower-serialize-------------------------------*/
 
@@ -641,28 +787,46 @@ netCDF::NcVar FixCoPow  = group.addVar( "FixedConsPower" ,
 
 
     if( f_DeltaRampUp.size() )
-        ( group.addVar( "DeltaRampUp" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "DeltaRampUp" , netCDF::NcDouble() , time_horizon )
             ).putVar( startp , countpt , f_DeltaRampUp.data() );
+        else {
+            ( group.addVar( "DeltaRampUp" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_DeltaRampUp.data() );
+        }
 
 /*---------------------DeltaRampDown-serialize------------------------------*/
 
     if( f_DeltaRampDown.size() )
-       ( group.addVar( "DeltaRampDown" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "DeltaRampDown" , netCDF::NcDouble() , time_horizon )
             ).putVar( startp , countpt , f_DeltaRampDown.data() );
+        else{
+            ( group.addVar( "DeltaRampDown" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_DeltaRampDown.data() );
+        }
 
 /*--------------------------PrimaryRho-serialize----------------------------*/
 
     if( f_PrimaryRho.size() )
-        ( group.addVar( "PrimaryRho" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "PrimaryRho" , netCDF::NcDouble() , time_horizon )
         ).putVar( startp , countpt , f_PrimaryRho.data() );
-
+        else{
+            ( group.addVar( "PrimaryRho" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_PrimaryRho.data() );
+        }
 
 /*-------------------------SecondaryRho-serialize---------------------------*/
 
     if( f_SecondaryRho.size() )
-        ( group.addVar( "SecondaryRho" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "SecondaryRho" , netCDF::NcDouble() , time_horizon )
         ).putVar( startp , countpt , f_SecondaryRho.data() );
-
+        else{
+            ( group.addVar( "SecondaryRho" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_SecondaryRho.data() );
+        }
 /*-----------------------------PZero-serialize------------------------------*/
 
 netCDF::NcVar PZero  = group.addVar( "PZero" ,       netCDF::NcUint64() );
@@ -670,17 +834,31 @@ netCDF::NcVar PZero  = group.addVar( "PZero" ,       netCDF::NcUint64() );
 /*----------------Quadratic-Linear-Constant-Term-serialize------------------*/
 
     if( f_QuadTerm.size() )
-        ( group.addVar( "QuadTerm" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "QuadTerm" , netCDF::NcDouble() , time_horizon )
          ).putVar( startp , countpt , f_QuadTerm.data() );
+        else{
+            ( group.addVar( "QuadTerm" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_QuadTerm.data() );
+        }
 
     if( f_LinearTerm.size() )
-        ( group.addVar( "LinearTerm" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "LinearTerm" , netCDF::NcDouble() , time_horizon )
           ).putVar( startp , countpt , f_LinearTerm.data() );
+        else{
+            ( group.addVar( "LinearTerm" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_LinearTerm.data() );
+        }
 
     if( f_ConstTerm.size() )
-        ( group.addVar( "ConstTerm" , netCDF::NcDouble() , time_horizon )
+        if( f_number_values == f_time_horizon )
+            ( group.addVar( "ConstTerm" , netCDF::NcDouble() , time_horizon )
          ).putVar( startp , countpt , f_ConstTerm.data() );
-
+        else{
+            ( group.addVar( "ConstTerm" , netCDF::NcDouble() , number_values )
+            ).putVar( startp , countpu , f_ConstTerm.data() );
+        }
 /*--------------------------StartUpCost-serialize---------------------------*/
 
 netCDF::NcVar StartUpC  = group.addVar( "StartUpCost" ,  netCDF::NcUint64() );

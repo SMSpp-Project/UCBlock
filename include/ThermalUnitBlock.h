@@ -457,7 +457,7 @@ virtual void deserialize( netCDF::NcGroup & group ,
 /*--------------------------------------------------------------------------*/
 
 virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-        override final;
+        override;
 
 /// generate the abstract variables of the ThermalUnit
 /** Method that generates the abstract variables of the ThermalUnitBlock.
@@ -508,7 +508,7 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
  */
 
 virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-        override final;
+        override ;
 
 
 
@@ -519,7 +519,7 @@ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
  *
 */
 virtual void generate_objective( Configuration *objc = nullptr )
-        override final;
+        override ;
 /*@} -----------------------------------------------------------------------*/
 /*----------- Methods for reading the data of the ThermalUnitBlock ---------*/
 /*--------------------------------------------------------------------------*/
@@ -583,6 +583,8 @@ double InitUpDownTime_val;
 ///< variable denoting the time-steps unit is subjected to initial conditions
 int init_t;
 
+
+
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -596,7 +598,7 @@ int init_t;
  *
  * */
 
-virtual void serialize( netCDF::NcGroup & group ) const override final;
+virtual void serialize( netCDF::NcGroup & group ) const override;
 
 
 /*@} -----------------------------------------------------------------------*/
@@ -617,11 +619,10 @@ int number_values;
 /** @name Protected methods for inserting and extracting
 * @{ */
 /// print the ThermalUnitBlock on an ostream with the given verbosity
-/** Protected method to print information about the ThermalUnitBlock; with
- * the "complete" level it outputs the ThermalUnitBlock in DIMACS format.
+/** Protected method to print information about the ThermalUnitBlock;
  * */
 
-virtual void print( std::ostream &output ) const override final;
+virtual void print( std::ostream &output ) const override ;
 
 /*--------------------------------------------------------------------------*/
 /// loads the ThermalUnit instance from standard .dat file format
@@ -633,7 +634,7 @@ virtual void print( std::ostream &output ) const override final;
 //virtual void load( std::istream &input ) override final;
 
 
-void load(std::istream& inStream);
+// void load(std::istream& inStream);
 
 /*@}------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
