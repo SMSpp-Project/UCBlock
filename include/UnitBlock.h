@@ -16,16 +16,18 @@
  *
  * - The time horizon of the problem.
  *
- * - Four vectors of ColVariable objects, that are used to store the
+ * - Five vectors of ColVariable objects, that are used to store the
  *   information regarding:
  *
  *     (i)   the commitment of the unit;
  *
- *     (ii)  the power produced by the unit;
+ *     (ii)  the power injected into the grid;
  *
  *     (iii) the primary spinning reserve of the unit;
  *
- *     (iv)  the secondary spinning reserve of the unit.
+ *     (iv)  the secondary spinning reserve of the unit;
+ *
+ *     (v)   the active power produced by the unit.
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
@@ -33,7 +35,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 30 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -66,6 +68,7 @@
 #ifndef __UnitBlock
 #define __UnitBlock
 /* self-identification: #endif at the end of the file */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -96,7 +99,7 @@ public:
 
 /** Constructor of UnitBlock, taking possibly a pointer of its father
  * Block and the time horizon. */
-  UnitBlock( Block * father_block = nullptr , int t = 0 )
+ UnitBlock( Block * father_block = nullptr , int t = 0 )
    : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -110,22 +113,16 @@ public:
 /** @name Other initializations
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the UnitBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
  *
- *
- * - the dimension "TimeHorizon" containing the number of time steps in
- *   this unit;
- *
- *  //TODO
- *
+ * - the dimension "TimeHorizon" containing the time horizon.
  */
 
-virtual void deserialize( netCDF::NcGroup & group ,
-                                  Block *father = nullptr ) override;
+ virtual void deserialize( netCDF::NcGroup & group ,
+                           Block *father = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -135,27 +132,31 @@ virtual void deserialize( netCDF::NcGroup & group ,
   *
   * - the commitment variables
   *
-  * - the active power variables
+  * - the power injected variables
   *
   * - the primary spinning reserve variables
   *
   * - the secondary spinning reserve variables
   *
-  * All of these variables are optional. The parameter stvv is used to
-  * decide which of these variables should be used. If stvv is not
-  * nullptr and it is a SimpleConfiguration<int> or if
+  * - the active power variables
+  *
+  * All of these variables are optional, except the active power
+  * variables. The parameter stvv is used to decide which of the
+  * optional variables should be used. If stvv is not nullptr and it
+  * is a SimpleConfiguration<int> or if
   * f_BlockConfig->f_static_constraints_Configuration is not nullptr
   * and it is a SimpleConfiguration<int>, then the f_value (an int of
   * this (the first possible) Configuration indicates whether each of
-  * the variables should be used. This is done according to the
-  * corresponding bit of f_value. If the bit associated with a
+  * the optional variables should be used. This is done according to
+  * the corresponding bit of f_value. If the bit associated with a
   * variable is 1, then the variable should be used; otherwise, it
   * should not. The first bit is associated with the commitment
-  * variables, the second one with the power variables and so on
-  * according to the order the variables are listed above. Whenever a
-  * group of variables should be used, its size will be the time
-  * horizon. In any other case (i.e., if a SimpleConfiguration<int> is
-  * not present), none of the variables above is considered. */
+  * variables, the second one with the primary spinning reserve
+  * variables and so on according to the order the variables are
+  * listed above. Whenever a group of variables should be used, its
+  * size will be the time horizon. In any other case (i.e., if a
+  * SimpleConfiguration<int> is not present), none of the variables
+  * above is considered. */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override ;
@@ -174,14 +175,10 @@ virtual void deserialize( netCDF::NcGroup & group ,
    return v_commitment;
  }
 
- /// Method for returning the vector of power variables
- const std::vector<ColVariable> & get_power( void ) const { return v_active_power; }
-
- /// Method for returning the pointer to the power variable at time t
- ColVariable * get_power( int i ) { return & ( v_active_power[i] ); }
-
-/// Method for returning the pointer to the power injected variable at time t
- ColVariable * get_power_injected( int i ) { return & ( v_power_injected[i] ); }
+ /// Method for returning the vector of power injected variables
+ const std::vector<ColVariable> & get_power_injected( void ) const {
+   return v_power_injected;
+ }
 
  /// Method for returning the vector of primary spinning reserve variables
  const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
@@ -193,6 +190,14 @@ virtual void deserialize( netCDF::NcGroup & group ,
    return v_secondary_spinning_reserve;
  }
 
+ /// Method for returning the vector of power variables
+ const std::vector<ColVariable> & get_power( void ) const {
+   return v_active_power;
+ }
+
+ /// Method for returning the pointer to the power variable at time t
+ ColVariable * get_power( int i ) { return & ( v_active_power[i] ); }
+
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
@@ -203,10 +208,9 @@ virtual void deserialize( netCDF::NcGroup & group ,
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group.
- *
- * */
+ */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE UnitBlock --------------------*/
@@ -242,8 +246,8 @@ protected:
  /// Vector of commitment variables
  std::vector<ColVariable> v_commitment;
 
-///< the shut down binary variables
-std::vector < ColVariable > v_power_injected;
+ /// Vector of power injected into the grid
+ std::vector<ColVariable> v_power_injected;
 
  /// Vector of power variables
  std::vector<ColVariable> v_active_power;

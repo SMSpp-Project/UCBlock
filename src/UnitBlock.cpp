@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 30 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -56,47 +56,23 @@ using namespace SMSpp_di_unipi_it;
 
 SMSpp_insert_in_factory_cpp_1( UnitBlock );
 
-
-
-/*@} -----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- METHODS OF UnitBlock -------------------------*/
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-
-
-//void UnitBlock::load( )
-//{
-
-
-//}
-
-
-/*--------------------------------------------------------------------------*/
-
-
-
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
 
-// check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  netCDF::NcDim TH = group.getDim( "TimeHorizon" );
+  if( TH.isNull() )
+    throw( std::invalid_argument( "TimeHorizon not present" ) );
 
-    netCDF::NcDim TH = group.getDim( "TimeHorizon" );
-    if( TH.isNull() )
-        throw( std::invalid_argument( "TimeHorizon not present" ) );
+  f_time_horizon = TH.getSize();
+  if( f_time_horizon <= 0 )
+    throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+}
 
-    f_time_horizon = TH.getSize();
-    if( f_time_horizon <= 0 )
-        throw( std::invalid_argument( "TimeHorizon <= 0" ) );
-
-
-}  // end( UnitBlock::deserialize )
-
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
@@ -145,12 +121,17 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
   v_pairs variables_and_types = {
     std::make_pair( &v_commitment,                 ColVariable::kBinary ),
     std::make_pair( &v_power_injected,             ColVariable::kNonNegative ),
-    std::make_pair( &v_active_power,               ColVariable::kNonNegative ),
     std::make_pair( &v_primary_spinning_reserve,   ColVariable::kNonNegative ),
-    std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative )
+    std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
+    std::make_pair( &v_active_power,               ColVariable::kNonNegative )
+    // v_active_power must be the last one in this list
   };
 
   auto variables_to_be_generated = get_variables_to_be_generated( stvv );
+
+  // The active power variables must be always present
+  variables_to_be_generated |=
+    (int) std::pow( 2, variables_and_types.size() - 1 );
 
   int k = 1;
   for( auto [ variables, variable_type ] : variables_and_types ) {
@@ -165,6 +146,8 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 }
 
 /*--------------------------------------------------------------------------*/
+/*------------------- METHODS FOR MODIFYING THE UnitBlock ------------------*/
+/*--------------------------------------------------------------------------*/
 
 void UnitBlock::set_time_horizon( int t ) {
   if( f_time_horizon == t )
@@ -178,17 +161,14 @@ void UnitBlock::set_time_horizon( int t ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
-/*----------- METHODS FOR LOADING, PRINTING & SAVING THE UnitBlock ---------*/
+/*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::serialize( netCDF::NcGroup & group ) const
-{
+void UnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "UnitBlock" );
+  group.addDim( "TimeHorizon" , f_time_horizon );
+}
 
-  netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
-
-}    // end( UnitBlock::serialize )
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/
