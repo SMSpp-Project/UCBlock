@@ -88,7 +88,7 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
   netCDF::NcDim number_lines_NcDim = group.getDim( "NumberLines" );
   if( number_lines_NcDim.isNull() )
     throw( std::logic_error( "NumberLines dimension is required" ) );
-  NumberLines = number_lines_NcDim.getSize();
+  f_number_lines = number_lines_NcDim.getSize();
 
   // Read active demand
 
