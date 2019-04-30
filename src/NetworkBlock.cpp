@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 30 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -68,49 +68,81 @@ NetworkBlock::NetworkBlock( Block * block ) : Block( block ) { }
 
 NetworkBlock::~NetworkBlock() { }
 
-
-
-/*@} -----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-
-
-//void NetworkBlock::load( )
-//{
-
-
-//}
-
-
-/*--------------------------------------------------------------------------*/
-
-
-
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
 
+  std::vector < size_t > start = { 0 };
+  std::vector < size_t > count_nodes = { (size_t) f_number_nodes };
+  std::vector < size_t > count_lines = { (size_t) f_number_lines };
 
+  // Read the number of nodes and lines
 
-// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  netCDF::NcDim number_nodes_NcDim = group.getDim( "NumberNodes" );
+  if( number_nodes_NcDim.isNull() )
+    throw( std::logic_error( "NumberNodes dimension is required" ) );
+  f_number_nodes = number_nodes_NcDim.getSize();
 
+  netCDF::NcDim number_lines_NcDim = group.getDim( "NumberLines" );
+  if( number_lines_NcDim.isNull() )
+    throw( std::logic_error( "NumberLines dimension is required" ) );
+  NumberLines = number_lines_NcDim.getSize();
+
+  // Read active demand
+
+  netCDF::NcVar active_demand_NcVar = group.getVar( "ActiveDemand" );
+  if( active_demand_NcVar.isNull() )
+    throw( std::logic_error( "ActiveDemand not found" ) );
+
+  v_active_demand.resize( f_number_nodes );
+  active_demand_NcVar.getVar( start , count_nodes , v_active_demand.data() );
+
+  // Read susceptance
+
+  netCDF::NcVar susceptance_NcVar = group.getVar( "Susceptance" );
+  if( susceptance_NcVar.isNull() )
+    throw( std::logic_error( "Susceptance not found" ) );
+
+  v_susceptance.resize( f_number_lines );
+  susceptance_NcVar.getVar( start , count_lines , v_susceptance.data() );
+
+  // Read minimum power flow
+
+  netCDF::NcVar min_power_flow_NcVar = group.getVar( "MinPowerFlow" );
+  if( min_power_flow_NcVar.isNull() )
+    throw( std::logic_error( "MinPowerFlow not found" ) );
+
+  v_minimum_power_flow.resize( f_number_lines );
+  min_power_flow_NcVar.getVar( start , count_lines , v_minimum_power_flow.data() );
+
+  // Read maximum power flow
+
+  netCDF::NcVar max_power_flow_NcVar = group.getVar( "MaxPowerFlow" );
+  if( max_power_flow_NcVar.isNull() )
+    throw( std::logic_error( "MaxPowerFlow not found" ) );
+
+  v_maximum_power_flow.resize( f_number_lines );
+  max_power_flow_NcVar.getVar( start , count_lines , v_maximum_power_flow.data() );
+
+  // Issue Modification. Note: this is a NBModification, the "nuclear
+  // option"
+
+  if( anyone_there() )
+    add_Modification( std::make_shared<NBModification>( this ) );
 
 }  // end( NetworkBlock::deserialize )
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-
 void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
   if( f_number_nodes < 0 ) {
     throw( std::logic_error( "NetworkBlock::generate_abstract_variables: "
-			     "number of nodes of NetworkBlock is not set" ) );
+                             "number of nodes of NetworkBlock is not set" ) );
   }
 
   if( v_node_injection.size() != f_number_nodes ) {
@@ -126,7 +158,7 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   if( f_number_lines < 0 ) {
     throw( std::logic_error( "NetworkBlock::generate_abstract_constraints: "
-			     "number of lines of NetworkBlock is not set" ) );
+                             "number of lines of NetworkBlock is not set" ) );
   }
 
   if( v_flow_limit_constraints.size() != f_number_lines ) {
@@ -148,13 +180,13 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
     for( int node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
 
       double coefficient = 0.0; // TODO Compute the Power Transfer
-				// Distribution Factor Matrix"
+                                // Distribution Factor Matrix
 
       if( coefficient == 0.0 )
-	continue;
+        continue;
 
       linear_function->add_variable
-	( & v_node_injection[node_id] , coefficient );
+        ( & v_node_injection[node_id] , coefficient );
 
       constant_term -= coefficient * v_active_demand[node_id];
 
@@ -183,10 +215,38 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::serialize( netCDF::NcGroup & group ) const
-{
+void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
+
+ group.putAtt( "type" , "NetworkBlock" );
+
+ netCDF::NcDim number_nodes_NcDim =
+   group.addDim( "NumberNodes" , f_number_nodes );
+
+ netCDF::NcDim number_lines_NcDim =
+   group.addDim( "NumberLines" , f_number_lines );
+
+ std::vector < size_t > start = { 0 };
+ std::vector < size_t > count_nodes = { (size_t) f_number_nodes };
+ std::vector < size_t > count_lines = { (size_t) f_number_lines };
+
+ if( v_active_demand.size() )
+   ( group.addVar( "ActiveDemand" , netCDF::NcDouble() , number_nodes_NcDim )
+     ).putVar( start , count_nodes , v_active_demand.data() );
+
+ if( v_susceptance.size() )
+   ( group.addVar( "Susceptance" , netCDF::NcDouble() , number_lines_NcDim )
+     ).putVar( start , count_lines , v_susceptance.data() );
+
+ if( v_minimum_power_flow.size() )
+   ( group.addVar( "MinPowerFlow" , netCDF::NcDouble() , number_lines_NcDim )
+     ).putVar( start , count_lines , v_minimum_power_flow.data() );
+
+ if( v_maximum_power_flow.size() )
+   ( group.addVar( "MaxPowerFlow" , netCDF::NcDouble() , number_lines_NcDim )
+     ).putVar( start , count_lines , v_maximum_power_flow.data() );
 
 }    // end( NetworkBlock::serialize )
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

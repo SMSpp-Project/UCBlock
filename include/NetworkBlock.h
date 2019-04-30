@@ -21,11 +21,13 @@
  * - Two vectors of doubles to store the minimum and maximum power
  *   flow in each line of the network.
  *
+ * - Variables representing the power injection at each node.
+ *
  * - Flow limit constraints.
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 30 - 04 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -58,6 +60,7 @@
 #ifndef __NetworkBlock
 #define __NetworkBlock
 /* self-identification: #endif at the end of the file */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -102,15 +105,10 @@ public:
 /** @name Other initializations
  *  @{ */
 
-
-/*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
- *
- * - the dimension "TimeHorizon" containing the number of time steps in
- *   the problem;
  *
  * - the dimension "NumberNodes" containing the number of nodes in
  *   the problem;
@@ -120,26 +118,23 @@ public:
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
- *   contain the active power requirement at each node in the network;
+ *   contain the active power requirement at node i in the network;
  *
- * - the variable "MinPower", of type double and indexed over the dimension
- *   "NumberLines"; each entry of the variable is assumed to contain the
- *   minimum power output of the network at time t;
+ * - the variable "MinPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is
+ *   assumed to contain the minimum power flow at line i;
  *
- * - the variable "MaxPower", of type double and indexed over the dimension
- *   "NumberLines"; each entry of the variable is assumed to contain the
- *   maximum power output of the unit at time t;
+ * - the variable "MaxPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is
+ *   assumed to contain the maximum power flow at line i;
  *
- * - the variable "SusceptanceVec", of type double and indexed over the
- *   "NumberNodes";
- *
+ * - the variable "Susceptance", of type double and indexed over the
+ *   "NumberLines"; the i-th entry of this variable is assumed to
+ *   contain the susceptance of line i.
  */
 
-virtual void deserialize( netCDF::NcGroup & group ,
-                                  Block *father = nullptr ) override;
-
-/*--------------------------------------------------------------------------*/
-
+ virtual void deserialize( netCDF::NcGroup & group ,
+                           Block *father = nullptr ) override;
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
@@ -159,6 +154,7 @@ virtual void deserialize( netCDF::NcGroup & group ,
  void set_number_nodes( int number_nodes ) {
    f_number_nodes = number_nodes;
  }
+
  /// sets the number of lines of the network
  void set_number_lines( int number_lines ) {
    f_number_lines = number_lines;
@@ -175,7 +171,6 @@ virtual void deserialize( netCDF::NcGroup & group ,
    return v_node_injection;
  }
 
-
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -186,10 +181,9 @@ virtual void deserialize( netCDF::NcGroup & group ,
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group.
- *
- * */
+ */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
