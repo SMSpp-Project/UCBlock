@@ -7,16 +7,16 @@
  * unit commitment Problem.
  *
  * A ThermalUnitBlock class is designed in order to give mathematical
- * formulation to describe the operation of large conventional power plants
- * (such as Nuclear, Hard coal, Gas turbine, Gas, Combined cycle, Oil, ...)
- * which directly connected to the transmission grid. The technical and
- * physical constraints are mainly divided in  for different categories as
- * bellow:
+ * formulation to describe the operation of large conventional power
+ * plants (such as nuclear, hard coal, gas turbine, gas, combined
+ * cycle, oil, ...)  which directly connected to the transmission
+ * grid. The technical and physical constraints are mainly divided in
+ * four different categories as bellow:
  *
- * - Maximum and Minimum power output constraints
- * - Ramp Up/Down rate constraints
- * - Min Up/Down time constraints
- * - Start-up cost constraints
+ * - Maximum and minimum power output constraints;
+ * - Ramp-up/down rate constraints;
+ * - Minimum up and down time constraints;
+ * - Start-up cost constraints.
  *
  * Based on the above description the class has been constructed having the
  * following elements:
@@ -41,11 +41,9 @@
  *   the different values needed to describe the above mentioned constraints
  *   and costs.
  *
- *
- *
  * \version 0.11
  *
- * \date 18 - 04 - 2019
+ * \date 02 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -57,8 +55,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
+ * Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -93,6 +96,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
 /// implementation of the Block concept for the thermal unit problem
 /** The ThermalUnitBlock class implements the Block concept [see Block.h]
  * for the EDF Unit Commitment Problem.
@@ -255,17 +259,17 @@ namespace SMSpp_di_unipi_it
  * Given the constants and variables defined above, the objective function of
  * the unit commitment representing the total power production cost to be
  * minimized has the form:
+ *
  * \f[
- *     min \quad ( s \sum_{ t \in T } v_t + \sum_{ t \in T } (a_t p_t^2 + b_t p_t
- *                                          + c_t u_t))
+ *     min \quad ( s \sum_{ t \in T } v_t +
+ *                 \sum_{ t \in T } (a_t p_t^2 + b_t p_t + c_t u_t) )
  * \f]
- * where \f$ s \sum_{ t \in T } v_t \f$ is the start-up cost of the unit and
- * \f$ a_t \f$, \f$ b_t \f$, and  \f$ c_t \f$  are the quadratic, linear and
- * constant term of power cost function of the unit at time period \f$t\f$
- * respectively.
- * */
-
-
+ *
+ * where \f$ s \sum_{ t \in T } v_t \f$ is the total start-up cost of
+ * the unit and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are,
+ * respectively, the quadratic, linear, and constant terms of the
+ * power cost function of the unit at time period \f$t\f$.
+ */
 
  class ThermalUnitBlock : public UnitBlock {
 
@@ -273,49 +277,46 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
-    public:
+
+public:
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * ThermalUnitBlock defines several main public types:
+ * ThermalUnitBlock defines the following main public types:
  *
  * - Index, the type of parameters indices;
  *
- *
- @{ */
-
+ * @{ */
 
 /*--------------------------------------------------------------------------*/
+
 typedef unsigned int Index;                 ///< index of parameters
 typedef const Index c_Index;                ///< a read-only Index
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-/*--------------------------------------------------------------------------*/
+/*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
 
-/** Constructor of ThermalUnitBlock, taking possibly a pointer of its father
-  *  Block, alongside with setting the unit with ramp_constraints */
+/** Constructor of ThermalUnitBlock, taking possibly a pointer of its
+ * father Block. */
 
-ThermalUnitBlock( Block * flbock = nullptr ): UnitBlock( flbock ) {
-
-
-}
+ ThermalUnitBlock( Block * flbock = nullptr ): UnitBlock( flbock ) { }
 
 /*--------------------------------------------------------------------------*/
 
-/// destructor of ThermalUnitBlock
+ /// destructor of ThermalUnitBlock
 
-virtual ~ThermalUnitBlock() { } ;
+ virtual ~ThermalUnitBlock() { };
 
 
-
-/*--------------------------------------------------------------------------*/
+/*@}------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -327,8 +328,7 @@ virtual ~ThermalUnitBlock() { } ;
  * ThermalUnitBlock then a NBModification (the "nuclear option") is issued.
  * */
 
-virtual void load( );
-
+ virtual void load( std::istream &input ) override { };
 
 /*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
@@ -336,43 +336,46 @@ virtual void load( );
  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
  *
+ * - the dimension "TimeHorizon" containing the time horizon;
  *
- * - the dimension "TimeHorizon" containing the number of time steps in
- *   this unit;
  *
- * - let's suppose some variables (such as MinPower, MaxPower , ...) may
- *   change independently, and may have different values for some intervals
- *   along the "TimeHorizon".  Without loss of generality, let's collect the
- *   intersection of all the intervals between each two parameters separately.
- *   It means, at the end we may have some intervals such as:
- *   \f$ [0 , a] , [a+1 , b], ... , [j+1 , k] , [k+1, T] \f$ (where
- *   \f$ a, b, ... , k < T \f$ and are positive integer numbers in which
- *   \f$T\f$ is the length of the TimeHorizon). In each interval one parameter
- *   may change or not(if not, copy the corresponding value of its' previous
- *   interval).
+ * Note: TODO explain intervals
  *
- * - the dimension "NumberValues" which is a subset of "TimeHorizon" and
- *   indicates the number of above intervals \f$([0 , a] , [a+1 , b], ... ,
- *   [j+1 , k] , [k+1, T])\f$ where the variables change. The dimension is
- *   optional, if it is not provided than it is taken to be 1.
+ * Note: let's suppose the values of some variables (such as MinPower,
+ * MaxPower, ...) may change independently, and may have different
+ * values for some intervals along the "TimeHorizon". Without loss of
+ * generality, let's collect the intersection of all the intervals
+ * between each two variables separately. It means, at the end we may
+ * have some intervals such as: \f$ [0 , a], [a+1 , b], \dots, [j+1 ,
+ * k], [k+1, T] \f$ (where \f$ a, b, \dots, k < T \f$ and are positive
+ * integer numbers in which \f$T\f$ is the length of the
+ * TimeHorizon). In each interval one parameter may change or not(if
+ * not, copy the corresponding value of its' previous interval).
+ *
+ * - the dimension "NumberIntervals" which is a subset of {1, ...,
+ *   "TimeHorizon"} and indicates the number of above intervals \f$([0
+ *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, T])\f$ where the
+ *   variables change. This dimension is optional. If it is not
+ *   provided then it is taken to be 1.
  *
  *   Three scenarios may happen:
  *
- *    i). In the simplest case scenario, "NumberValues = 1" which means
- *        in all the period of "TimeHorizon"; all the variables are fixed.
+ *    i). In the simplest case scenario, "NumberIntervals = 1" which
+ *        means that the value of each variable does not change, i.e.,
+ *        it is the same for each period in {1, ..., "TimeHorizon"}.
  *
- *   ii). In the average case scenario, "1 < NumberValues < TimeHorizon" which
- *        means in some time steps of defined "TimeHorizon"; some of the
- *        variables are changing.
+ *   ii). In the average case scenario, "1 < NumberIntervals <
+ *        TimeHorizon", which means that in some time steps the values
+ *        of some of the variables are changing.
  *
- *  iii). In the worst case scenario, "NumberValues = TimeHorizon" which means
- *         in every time step of defined "TimeHorizon"; all the variables are
- *         changing.
+ *  iii). In the worst case scenario, "NumberIntervals = TimeHorizon",
+ *        which means that in every time step, the value of each
+ *        variable may change.
  *
- * - the variable "ChangeIntervals", of type integer and indexed over the
- *   dimension "NumberValues"; the \f$t_{th}\f$ entry of the variable
- *   indicates the positive number of \f$ a, b, ..., k, T\f$ on the above
- *   example.
+ * - the variable "ChangeIntervals", of type integer and indexed over
+ *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
+ *   variable indicates the positive number of \f$ a, b, ..., k,
+ *   TimeHorizon\f$ on the above example.
  *
  * - the variable "MinPower", of type double and indexed over the dimension
  *   "TimeHorizon"; each entry of the variable is assumed to contain the
@@ -386,7 +389,7 @@ virtual void load( );
  *   entries in the same interval whereas it may change(or not) in the other
  *   intervals (if exist any);
  *
- * - the variable "FixedConsPower", of type UInt64 and not indexed over
+ * - the variable "FixedConsPower", of type double and not indexed over
  *   any dimension and indicates the fixed consumption of the power plant when
  *   it is off in this unit;
  *
@@ -422,7 +425,7 @@ virtual void load( );
  *   must be equal to other entries in the same interval whereas it may change
  *   (or not) in the other intervals (if exist any);
  *
- * - the scalar variable "StartUpCost", of type UInt64 and not indexed over
+ * - the scalar variable "StartUpCost", of type double and not indexed over
  *   any dimension and indicates the start up cost in this unit;
  *
  * - the variable "LinearTerm", of type double and indexed over the
@@ -437,7 +440,7 @@ virtual void load( );
  *   must be equal to other entries in the same interval whereas it may change
  *   (or not) in the other intervals (if exist any);
  *
- * - the scalar variable "PZero", of type UInt64 and not indexed over any
+ * - the scalar variable "PZero", of type double and not indexed over any
  *   dimension and indicates the initiate amount of the power in this unit;
  *
  * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
@@ -451,8 +454,7 @@ virtual void load( );
  *
  */
 
-virtual void deserialize( netCDF::NcGroup & group ,
-        Block *father = nullptr ) override;
+virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -468,8 +470,8 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
  *       variables.
  *
  * ii). ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
- *      (f_time_horizon) - 1 corresponding start_up_thermal and
- *      shut_down_thermal variables.
+ *      (f_time_horizon) - 1 corresponding start_up and
+ *      shut_down variables.
  *
  *  Note1: commitment variable are fixed to 0 or 1 for the entry a = 0, ...,
  *      init_t - 1.
@@ -526,17 +528,17 @@ virtual void generate_objective( Configuration *objc = nullptr )
 /** @name Methods for reading the data of the ThermalUnitBlock
  *  @{  */
 
-/// the number of values
-Index f_number_values;
+/// the number of intervals
+Index f_number_intervals;
 
 /// the vector of change interval
-std::vector < double >  f_change_interval;
+std::vector< int >  f_change_interval;
 
 /// the vector of MinPower
-std::vector < double >  f_MinPower;
+std::vector< double >  f_MinPower;
 
 /// the vector of MaxPower
-std::vector < double >  f_MaxPower;
+std::vector< double >  f_MaxPower;
 
 /// the vector of PrimaryRho
 std::vector< double >  f_PrimaryRho;
@@ -545,45 +547,43 @@ std::vector< double >  f_PrimaryRho;
 std::vector< double >  f_SecondaryRho;
 
 /// the vector of InitPower
-std::vector < double >  f_StartUpLim;
+std::vector< double >  f_StartUpLim;
 
 /// the vector of RampUp
-std::vector < double >  f_DeltaRampUp;
+std::vector< double >  f_DeltaRampUp;
 
 /// the vector of RampDown
-std::vector < double >  f_DeltaRampDown;
+std::vector< double >  f_DeltaRampDown;
 
 /// the vector of QuadTerm
-std::vector < double >  f_QuadTerm;
+std::vector< double >  f_QuadTerm;
 
 /// the vector of LinearTerm
-std::vector < double >  f_LinearTerm;
+std::vector< double >  f_LinearTerm;
 
 /// the vector of ConstTerm
-std::vector < double >  f_ConstTerm;
+std::vector< double >  f_ConstTerm;
 
 /// the FixedConsPower value
 double  f_FixedConsPower;
 
 /// the StartUpCost value
-double StratUpCost_val;
+double f_StartUpCost;
 
 /// the PZero value
-double PZero_val;
+double f_PZero;
 
 /// the MinUpTime value
-double MinUpTime_val;
+int f_MinUpTime;
 
 /// the MinDownTime value
-double  MinDownTime_val;
+int f_MinDownTime;
 
 /// the InitUpDownTime value
-double InitUpDownTime_val;
+int f_InitUpDownTime;
 
-///< variable denoting the time-steps unit is subjected to initial conditions
+/// variable denoting the time-steps unit is subjected to initial conditions
 int init_t;
-
-
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -622,7 +622,7 @@ int number_values;
 /** Protected method to print information about the ThermalUnitBlock;
  * */
 
-virtual void print( std::ostream &output ) const override ;
+// virtual void print( std::ostream &output ) const override ;
 
 /*--------------------------------------------------------------------------*/
 /// loads the ThermalUnit instance from standard .dat file format
@@ -642,55 +642,61 @@ virtual void print( std::ostream &output ) const override ;
 
 /*-----------------------------variables------------------------------------*/
 
-    ///< the start up binary variables
-    std::vector < ColVariable > v_start_up_thermal;
+    /// the start up binary variables
+    std::vector< ColVariable > v_start_up;
 
-    ///< the shut down binary variables
-    std::vector < ColVariable > v_shut_down_thermal;
+    /// the shut down binary variables
+    std::vector< ColVariable > v_shut_down;
 
 
 /*----------------------------constraints-----------------------------------*/
 
-    ///< the connection min up and down time constraints
-    std::vector < FRowConstraint > UVW_Const;
+    /// the connection min up and down time constraints
+    std::vector< FRowConstraint > UVW_Const;
 
-     ///< the TURN ON min up and down time constraints
-    std::vector < FRowConstraint > UV_Const;
+    /// the TURN ON min up and down time constraints
+    std::vector< FRowConstraint > UV_Const;
 
-    ///< the SHUT DOWN min up and down time constraints
-    std::vector < FRowConstraint > UW_Const;
+    /// the SHUT DOWN min up and down time constraints
+    std::vector< FRowConstraint > UW_Const;
 
-    ///< the RampUp time constraints
-    std::vector < FRowConstraint > RampUp_Const;
+    /// the RampUp time constraints
+    std::vector< FRowConstraint > RampUp_Const;
 
-    ///< the RampDown time constraints
-    std::vector < FRowConstraint > RampDown_Const;
+    /// the RampDown time constraints
+    std::vector< FRowConstraint > RampDown_Const;
 
-    ///< the PrimaryRho fraction constraints
-    std::vector < FRowConstraint > PrimaryRho_Const;
+    /// the PrimaryRho fraction constraints
+    std::vector< FRowConstraint > PrimaryRho_Const;
 
-    ///< the SecondaryRho fraction constraints
-     std::vector < FRowConstraint > SecondaryRho_Const;
+    /// the SecondaryRho fraction constraints
+    std::vector< FRowConstraint > SecondaryRho_Const;
 
-    ///< the PowerOutput constraints
+    /// the PowerOutput constraints
 
-    std::vector < FRowConstraint > PMin_Const;
+    std::vector< FRowConstraint > PMin_Const;
 
-    std::vector < FRowConstraint > PMax_Const;
+    std::vector< FRowConstraint > PMax_Const;
 
-    std::vector < FRowConstraint > PowerInjected_Const;
+    std::vector< FRowConstraint > PowerInjected_Const;
 
-    std::vector <LB0Constraint> PowerFix_Const;
+    std::vector< LB0Constraint > PowerFix_Const;
 
-    ///< the (linear) objective function
-    FRealObjective object;
+    /// the objective function
+    FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 private:
 
-        SMSpp_insert_in_factory_h;
+  template<class T>
+  void deserialize( const netCDF::NcGroup & group,
+                    const std::string & var_name,
+                    const std::vector<int> & Change_Interval,
+                    std::vector<T> & data );
+
+  SMSpp_insert_in_factory_h;
 
 }; // end( class( ThermalUnitBlock ) )
 
