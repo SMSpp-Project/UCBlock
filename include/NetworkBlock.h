@@ -133,8 +133,7 @@ public:
  *   contain the susceptance of line i.
  */
 
- virtual void deserialize( netCDF::NcGroup & group ,
-                           Block *father = nullptr ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;

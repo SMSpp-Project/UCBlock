@@ -62,7 +62,7 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   netCDF::NcDim TH = group.getDim( "TimeHorizon" );
   if( TH.isNull() )

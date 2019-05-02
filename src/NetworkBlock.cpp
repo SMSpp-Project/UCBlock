@@ -72,7 +72,7 @@ NetworkBlock::~NetworkBlock() { }
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
   std::vector < size_t > start = { 0 };
   std::vector < size_t > count_nodes = { (size_t) f_number_nodes };

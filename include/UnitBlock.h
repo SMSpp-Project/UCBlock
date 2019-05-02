@@ -121,8 +121,7 @@ public:
  * - the dimension "TimeHorizon" containing the time horizon.
  */
 
- virtual void deserialize( netCDF::NcGroup & group ,
-                           Block *father = nullptr ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
