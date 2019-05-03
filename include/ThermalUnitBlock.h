@@ -339,22 +339,25 @@ typedef const Index c_Index;                ///< a read-only Index
  * - the dimension "TimeHorizon" containing the time horizon;
  *
  *
- * Note: TODO explain intervals
- *
- * Note: let's suppose the values of some variables (such as MinPower,
+ * Note 1: consider set time horizon \f$\{0, \dots, "TimeHorizon-1"\}\f$ with
+ * dimension "TimeHorizon". It can be presented as the union of some
+ * intervals.
+ * 
+ * Note 2: let's suppose the values of each variable (such as MinPower,
  * MaxPower, ...) may change independently, and may have different
- * values for some intervals along the "TimeHorizon". Without loss of
- * generality, let's collect the intersection of all the intervals
- * between each two variables separately. It means, at the end we may
- * have some intervals such as: \f$ [0 , a], [a+1 , b], \dots, [j+1 ,
- * k], [k+1, T] \f$ (where \f$ a, b, \dots, k < T \f$ and are positive
- * integer numbers in which \f$T\f$ is the length of the
- * TimeHorizon). In each interval one parameter may change or not(if
- * not, copy the corresponding value of its' previous interval).
+ * values for some intervals along the set time horizon \f$\{0, \dots,
+ * "TimeHorizon-1"\}\f$. It means each variable has its own changes along
+ * some intervals independently. Without loss of generality, let's take the
+ * union of the intersection of all the intervals between each two variables
+ * separately. It means, at the end we may have a set of intervals such as:
+ * \f$ [0 , a], [a+1 , b], \dots, [j+1 , k], [k+1 , TimeHorizon-1] \f$which
+ * where they cover all the changes for all the variables. Then in each
+ * interval, one variable may change or not(if not, copy the corresponding
+ * value of its' previous interval).
  *
- * - the dimension "NumberIntervals" which is a subset of {1, ...,
- *   "TimeHorizon"} and indicates the number of above intervals \f$([0
- *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, T])\f$ where the
+ * - the dimension "NumberIntervals" which is a subset of \f$ \{1, ...,
+ *   "TimeHorizon"\}\f$ and indicates the number of above intervals \f$([0
+ *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, TimeHorizon-1])\f$ where the
  *   variables change. This dimension is optional. If it is not
  *   provided then it is taken to be 1.
  *
@@ -362,7 +365,8 @@ typedef const Index c_Index;                ///< a read-only Index
  *
  *    i). In the simplest case scenario, "NumberIntervals = 1" which
  *        means that the value of each variable does not change, i.e.,
- *        it is the same for each period in {1, ..., "TimeHorizon"}.
+ *        it is the same for each period in \f$ \{1, \dots ,
+ *        "TimeHorizon"\}\f$.
  *
  *   ii). In the average case scenario, "1 < NumberIntervals <
  *        TimeHorizon", which means that in some time steps the values
@@ -375,70 +379,70 @@ typedef const Index c_Index;                ///< a read-only Index
  * - the variable "ChangeIntervals", of type integer and indexed over
  *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
  *   variable indicates the positive number of \f$ a, b, ..., k,
- *   TimeHorizon\f$ on the above example.
+ *   TimeHorizon-1\f$ on the above example.
  *
  * - the variable "MinPower", of type double and indexed over the dimension
- *   "TimeHorizon"; each entry of the variable is assumed to contain the
- *   minimum power output of the unit at time t, and it must be equal to other
- *   entries in the same interval whereas it may change(or not) in the other
- *   intervals (if exist any);
+ *   "NumberIntervals"; each entry of the variable is assumed to contain the
+ *   minimum power output value of the unit for the corresponding time steps
+ *   in same interval whereas it may change(or not) in the other intervals
+ *   (if exist any);
  *
  * - the variable "MaxPower", of type double and indexed over the dimension
- *   "TimeHorizon"; each entry of the variable is assumed to contain the
- *   maximum power output of the unit at time t, and it must be equal to other
- *   entries in the same interval whereas it may change(or not) in the other
- *   intervals (if exist any);
+ *   "NumberIntervals"; each entry of the variable is assumed to contain the
+ *   maximum power output value of the unit for the corresponding time steps
+ *   in same interval whereas it may change(or not) in the other intervals
+ *   (if exist any);
  *
  * - the variable "FixedConsPower", of type double and not indexed over
  *   any dimension and indicates the fixed consumption of the power plant when
  *   it is off in this unit;
  *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
- *   "TimeHorizon"; each entry of the variable is assumed to contain the
- *   increases of power production of the unit at time t, and it must be equal
- *   to other entries in the same interval whereas it may change(or not) in the
- *   other intervals (if exist any);
+ *   "NumberIntervals"; each entry of the variable is assumed to contain the
+ *   increases of power production value of the unit for the corresponding time
+ *   steps in same interval whereas it may change(or not) in the other intervals
+ *   (if exist any);
  *
  * - the variable "DeltaRampDown", of type double and indexed over the
- *   dimension "TimeHorizon"; each entry of the variable is assumed to contain
- *   the decreases of power production of the unit at time t, and it must be
- *   equal to other entries in the same interval whereas it may change(or not)
- *   in the other intervals (if exist any);
+ *   dimension "NumberIntervals"; each entry of the variable is assumed to
+ *   contain the decreases of power production value of the unit for the
+ *   corresponding time steps in same interval whereas it may change(or not)
+ *   in the other intervals
+ *   (if exist any);
  *
  * - the variable "PrimaryRho", of type double and indexed over the dimension
- *   "TimeHorizon"; each entry of the variable is assumed to contain the
- *   maximum fraction factor between primary power and the active power for
- *   the unit at time t, and it must be equal to other entries in the same
- *   interval whereas it may change(or not) in the other intervals
- *   (if exist any);
+ *   "NumberIntervals"; each entry of the variable is assumed to contain the
+ *   maximum fraction factor between primary power and the active power of
+ *   the unit for the corresponding time steps in same interval whereas it may
+ *   change(or not) in the other intervals (if exist any);
  *
  * - the variable "SecondaryRho", of type double and indexed over the
- *   dimension "TimeHorizon"; each entry of the variable is assumed to contain
- *   the maximum fraction factor between secondary power and the active power
- *   for the unit at time t, and it must be equal to other entries in the same
- *   interval whereas it may change(or not) in the other intervals
- *   (if exist any);
+ *   dimension "NumberIntervals"; each entry of the variable is assumed to
+ *   contain the maximum fraction factor between secondary power and the
+ *   active power of the unit for the corresponding time steps in same
+ *   interval whereas it may change(or not) in the other intervals (if exist
+ *   any);
  *
- * - the variable "QuadTerm", of type double and indexed over the
- *   dimension "TimeHorizon"; each entry of the variable is assumed to contain
- *   the quadratic term of power cost function for the unit at time t, and it
- *   must be equal to other entries in the same interval whereas it may change
- *   (or not) in the other intervals (if exist any);
+ * - the variable "QuadTerm", of type double and indexed over the dimension
+ *   "NumberIntervals"; each entry of the variable is assumed to contain the
+ *   quadratic term of power cost function of the unit for the corresponding
+ *   time steps in same interval whereas it may change(or not) in the other
+ *   intervals (if exist any);
  *
  * - the scalar variable "StartUpCost", of type double and not indexed over
  *   any dimension and indicates the start up cost in this unit;
  *
  * - the variable "LinearTerm", of type double and indexed over the
- *   dimension "TimeHorizon"; each entry of the variable is assumed to contain
- *   the linear term of power cost function for the unit at time t, and it
- *   must be equal to other entries in the same interval whereas it may change
- *   (or not) in the other intervals (if exist any);
+ *   dimension "NumberIntervals"; each entry of the variable is assumed to
+ *   contain the linear term of power cost function of the unit for the
+ *   corresponding time steps in same interval whereas it may change(or not)
+ *   in the other intervals (if exist any);
  *
  * - the variable "ConstTerm", of type double and indexed over the
- *   dimension "TimeHorizon"; each entry of the variable is assumed to contain
- *   the constant term of power cost function for the unit at time t, and it
- *   must be equal to other entries in the same interval whereas it may change
- *   (or not) in the other intervals (if exist any);
+ *   dimension "NumberIntervals"; each entry of the variable is assumed to
+ *   contain the constant term of power cost function of the unit for the
+ *   corresponding time steps in same interval whereas it may change(or not)
+ *   in the other intervals (if exist any);
  *
  * - the scalar variable "PZero", of type double and not indexed over any
  *   dimension and indicates the initiate amount of the power in this unit;
