@@ -30,7 +30,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 03 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -110,10 +110,13 @@ public:
  *  @{ */
 /*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the UCBlock. Besides the mandatory "type" attribute of any :Block,
- * the group should contain the following:
+/** Extends Block::deserialize( netCDF::NcGroup ) to the specific
+ * format of the UCBlock. Besides the mandatory "type" attribute of
+ * any :Block, the group should contain the following:
  *
+ * - the group of "UnitBlock" containing the UnitBlocks
+ *
+ * - the group of "NetworkBlock";
  *
  * - the dimension "TimeHorizon" containing the number of time steps in
  *   the problem;
@@ -172,8 +175,7 @@ public:
  *   pollution due to the generation units in the time t;
  */
 
-virtual void deserialize( netCDF::NcGroup & group ,
-                                  Block *father = nullptr ) override;
+virtual void deserialize( netCDF::NcGroup & group ) override;
 /*--------------------------------------------------------------------------*/
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
@@ -244,42 +246,42 @@ protected:
  /// The number of units of the problem
  int f_number_units;
 
-/// The number of nodes in the network
+ /// The number of nodes in the network
  int f_number_nodes;
 
-/// The number of nodes in primary zones of the network
-int f_number_Pr_zones;
+ /// The number of nodes in primary zones of the network
+ int f_number_primary_zones;
 
-/// The number of nodes in secondary zones of the network
-int f_number_Se_zones;
+ /// The number of nodes in secondary zones of the network
+ int f_number_secondary_zones;
 
-/// The number of nodes in inertia zones of the network
-int f_number_In_zones;
+ /// The number of nodes in inertia zones of the network
+ int f_number_inertia_zones;
 
-/// The number of nodes in emission zones of the network
-int f_number_Em_zones;
+ /// The number of nodes in emission zones of the network
+ int f_number_emission_zones;
 
-/// The set of pollutants of the problem
-int f_number_pollutants;
+ /// The set of pollutants of the problem
+ int f_number_pollutants;
 
-/** Vector of pointers to the NetworkBlocks. This vector either is
+ /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
   * is no network. If it has positive size, then the NetworkBlock at
   * position i in this vector refers to the network at the i-th time
   * step. */
  std::vector<NetworkBlock *> v_network_blocks;
 
-/// the vector of PrimaryDemand
-std::vector < double >  f_prim_demand;
+ /// the vector of PrimaryDemand
+ std::vector< double > f_primary_demand;
 
-/// the vector of SecondaryDemand
-std::vector < double >  f_second_demand;
+ /// the vector of SecondaryDemand
+ std::vector< double > f_secondary_demand;
 
-/// the vector of InertiaDemand
-std::vector < double >  f_inertia_demand;
+ /// the vector of InertiaDemand
+ std::vector< double > f_inertia_demand;
 
-/// the vector of PollutantDemand
-std::vector < double >  f_pollut_demand;
+ /// the vector of PollutantDemand
+ std::vector< double > f_pollutant_demand;
 
  /// The network
  Network f_network;

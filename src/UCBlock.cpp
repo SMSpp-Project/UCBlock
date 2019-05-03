@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 04 - 2019
+ * \date 03 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -73,127 +73,63 @@ using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
 
+template<class T>
+void deserialize_dim( const netCDF::NcGroup & group,
+                      const std::string & dim_name, T & data ) {
 
+  netCDF::NcDim ncDim = group.getDim( dim_name );
+
+  if( ncDim.isNull() )
+    throw( std::invalid_argument( "UCBlock::deserialize: " +
+                                  dim_name + " is not present" ) );
+
+  data = ncDim.getSize();
+  if( data <= 0 )
+    throw( std::invalid_argument( "UCBlock::deserialize: " +
+                                  dim_name + " must be positive" ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::deserialize( netCDF::NcGroup & group , Block * father ) {
+template<class T>
+void deserialize( const netCDF::NcGroup & group,
+                  const std::string & var_name,
+                  std::vector<T> & data ,
+                  const typename std::vector<T>::size_type & size ) {
 
+  auto ncVar = group.getVar( var_name );
+  if( ncVar.isNull() )
+    throw( std::invalid_argument( "UCBlock::deserialize: " +
+                                  var_name + " is not present" ) );
 
-// check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  data.resize( size );
+  ncVar.getVar( { 0 }, { size }, data.data() );
+}
 
-  netCDF::NcDim TH = group.getDim( "TimeHorizon" );
-  if( TH.isNull() )
-    throw( std::invalid_argument( "TimeHorizon not present" ) );
+/*--------------------------------------------------------------------------*/
 
-  f_time_horizon = TH.getSize();
-  if( f_time_horizon <= 0 )
-    throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  ::deserialize_dim( group, "TimeHorizon",    f_time_horizon );
+  ::deserialize_dim( group, "NumberUnits",    f_number_units );
+  ::deserialize_dim( group, "NumberNodes",    f_number_nodes );
+  ::deserialize_dim( group, "PrimaryZones",   f_number_primary_zones );
+  ::deserialize_dim( group, "SecondaryZones", f_number_secondary_zones );
+  ::deserialize_dim( group, "InertiaZones",   f_number_inertia_zones );
+  ::deserialize_dim( group, "EmissionZones",  f_number_emission_zones );
+  ::deserialize_dim( group, "PollutantSet",   f_number_pollutants );
 
-  netCDF::NcDim NU = group.getDim( "NumberUnits" );
-  if( NU.isNull() )
-    throw( std::invalid_argument( "NumberUnits not present" ) );
+  ::deserialize( group, "PrimaryDemand",   f_primary_demand,   f_number_primary_zones );
+  ::deserialize( group, "SecondaryDemand", f_secondary_demand, f_number_secondary_zones );
+  ::deserialize( group, "InertiaDemand",   f_inertia_demand,   f_number_inertia_zones );
+  ::deserialize( group, "PollutantDemand", f_pollutant_demand, f_number_pollutants );
 
-  f_number_units = NU.getSize();
-  if( f_number_units <= 0 )
-    throw( std::invalid_argument( "NumberUnits <= 0" ) );
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  netCDF::NcDim NN = group.getDim( "NumberNodes" );
-  if( NN.isNull() )
-    throw( std::invalid_argument( "NumberNodes not present" ) );
-
-  f_number_nodes = NN.getSize();
-  if( f_number_nodes <= 0 )
-    throw( std::invalid_argument( "NumberNodes <= 0" ) );
-
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  netCDF::NcDim PZ = group.getDim( "PrimaryZones" );
-  if( PZ.isNull() )
-    throw( std::invalid_argument( "PrimaryZones not present" ) );
-
-  f_number_Pr_zones = PZ.getSize();
-  if( f_number_Pr_zones <= 0 )
-    throw( std::invalid_argument( "NumberNodes <= 0" ) );
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  netCDF::NcDim SZ = group.getDim( "SecondaryZones" );
-  if( SZ.isNull() )
-    throw( std::invalid_argument( "SecondaryZones not present" ) );
-
-  f_number_Se_zones = SZ.getSize();
-  if( f_number_Se_zones <= 0 )
-    throw( std::invalid_argument( "SecondaryZones <= 0" ) );
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  netCDF::NcDim IZ = group.getDim( "InertiaZones" );
-  if( IZ.isNull() )
-    throw( std::invalid_argument( "InertiaZones not present" ) );
-
-  f_number_In_zones = IZ.getSize();
-  if( f_number_In_zones <= 0 )
-    throw( std::invalid_argument( "InertiaZones <= 0" ) );
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  netCDF::NcDim EZ = group.getDim( "EmissionZones" );
-  if( EZ.isNull() )
-    throw( std::invalid_argument( "EmissionZones not present" ) );
-
-  f_number_Em_zones = EZ.getSize();
-  if( f_number_Em_zones <= 0 )
-    throw( std::invalid_argument( "EmissionZones <= 0" ) );
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  netCDF::NcDim NP = group.getDim( "PollutantSet" );
-  if( NP.isNull() )
-    throw( std::invalid_argument( "PollutantSet not present" ) );
-
-  f_number_pollutants = NP.getSize();
-  if( f_number_pollutants <= 0 )
-    throw( std::invalid_argument( "PollutantSet <= 0" ) );
-
-// read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  std::vector < size_t > start = { 0 };
-  std::vector < size_t > countime = { (size_t)f_time_horizon };
-  std::vector < size_t > coununit = { (size_t)f_number_units };
-  std::vector < size_t > counode = { (size_t)f_number_nodes };
-  std::vector < size_t > countprim = { (size_t)f_number_Pr_zones };
-  std::vector < size_t > countsecond = { (size_t)f_number_Se_zones};
-  std::vector < size_t > counit = { (size_t)f_number_In_zones };
-  std::vector < size_t > countunem = { (size_t)f_number_Em_zones };
-  std::vector < size_t > countpoll = { (size_t)f_number_pollutants };
-
-
-
-/*--------------------PrimaryDemand-deserialize-----------------------------*/
-
-  netCDF::NcVar PrimDemand = group.getVar( "PrimaryDemand" );
-  if( PrimDemand.isNull() )
-    throw( std::invalid_argument( "Primary Demand not present" ) );
-
-  f_prim_demand.resize( f_number_Pr_zones );
-
-/*--------------------SecondaryDemand-deserialize---------------------------*/
-
-/*--------------------InertiaDemand-deserialize-----------------------------*/
-
-/*-------------------PollutantDemand-deserialize----------------------------*/
-
-/*---------------------PollutantRho-deserialize-----------------------------*/
-
-
-
-
-
+  // TODO PollutantRho
 
 }  // end( UCBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
@@ -238,15 +174,46 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::serialize( netCDF::NcGroup & group ) const
-{
+template<class T>
+void serialize( netCDF::NcGroup & group, const std::string & var_name,
+                const netCDF::NcType & ncType, const netCDF::NcDim & ncDim,
+                const std::vector<T> & data ) {
+
+  group.addVar( var_name , ncType , ncDim )
+    .putVar( { 0 } , { data.size() } , data.data() );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::serialize( netCDF::NcGroup & group ) const {
+
   group.putAtt( "type" , "UCBlock" );
 
+  group.addDim( "TimeHorizon",    f_time_horizon );
+  group.addDim( "NumberUnits",    f_number_units );
+  group.addDim( "NumberNodes",    f_number_nodes );
 
-  netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
-  netCDF::NcDim number_units = group.addDim( "NumberUnits" , f_number_units);
+  ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
+               group.addDim( "PrimaryZones", f_number_primary_zones ),
+               f_primary_demand );
+
+  ::serialize( group, "SecondaryDemand", netCDF::NcDouble(),
+               group.addDim( "SecondaryZones", f_number_secondary_zones ),
+               f_secondary_demand );
+
+  ::serialize( group, "InertiaDemand", netCDF::NcDouble(),
+               group.addDim( "InertiaZones", f_number_inertia_zones ),
+               f_inertia_demand );
+
+  ::serialize( group, "PollutantDemand", netCDF::NcDouble(),
+               group.addDim( "PollutantSet", f_number_pollutants ),
+               f_pollutant_demand );
+
+  // TODO PollutantRho
+  //group.addDim( "EmissionZones",  f_number_emission_zones );
 
 }  // end( UCBlock::serialize )
+
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/
