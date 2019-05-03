@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 05 - 2019
+ * \date 03 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -689,12 +689,6 @@ int number_values;
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 private:
-
-  template<class T>
-  void deserialize( const netCDF::NcGroup & group,
-                    const std::string & var_name,
-                    const std::vector<int> & Change_Interval,
-                    std::vector<T> & data );
 
   SMSpp_insert_in_factory_h;
 

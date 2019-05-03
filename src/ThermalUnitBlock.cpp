@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 05 - 2019
+ * \date 03 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -88,44 +88,16 @@ void deserialize( const netCDF::NcGroup & group,
 /*--------------------------------------------------------------------------*/
 
 template<class T>
-void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group,
-                                    const std::string & var_name,
-                                    const std::vector<int> & Change_Interval,
-                                    std::vector<T> & data ) {
+void deserialize( const netCDF::NcGroup & group, const std::string & var_name,
+                  const size_t & size, std::vector<T> & data ) {
 
   auto ncVar = group.getVar( var_name );
   if( ncVar.isNull() )
     throw( std::invalid_argument( "ThermalUnitBlock::deserialize: " +
                                   var_name + " is not present" ) );
 
-  std::vector < size_t > start = { 0 };
-  std::vector < size_t > count_number_intervals = { f_number_intervals };
-
-  data.resize( f_time_horizon );
-
-  if( f_number_intervals == f_time_horizon )
-
-    ncVar.getVar( start, count_number_intervals, data.data() );
-
-  else {
-
-    std::vector<T> netCDF_data( f_number_intervals );
-    ncVar.getVar( start, count_number_intervals, netCDF_data.data() );
-
-    if( f_number_intervals == 1)
-
-      data.assign( f_time_horizon, netCDF_data[ 0 ] );
-
-    else {
-
-      int i = 0;
-      for( int j = 0; j < f_number_intervals; ) {
-        data[ i ] = netCDF_data[ j ];
-        if( ++i > Change_Interval[ j ] )
-          ++j;
-      }
-    }
-  }
+  data.resize( size );
+  ncVar.getVar( { 0 }, { size }, data.data() );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -134,7 +106,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   // check the data- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  netCDF::NcDim TH = group.getDim( "TimeHorizon" );
+  auto TH = group.getDim( "TimeHorizon" );
   if( TH.isNull() )
     throw( std::invalid_argument
            ( "ThermalUnitBlock::deserialize: TimeHorizon not present" ) );
@@ -144,7 +116,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
     throw( std::invalid_argument
            ( "ThermalUnitBlock::deserialize: TimeHorizon must be positive" ) );
 
-  netCDF::NcDim NV = group.getDim( "NumberIntervals" );
+  auto NV = group.getDim( "NumberIntervals" );
   if( NV.isNull() )
     f_number_intervals = 0;
   else {
@@ -154,21 +126,18 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
              ( "ThermalUnitBlock::deserialize: invalid f_number_intervals" ) );
   }
 
-  std::vector < int > Change_Interval;
-
   // check problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
 
-    Change_Interval.resize( f_number_intervals );
-    netCDF::NcVar CI = group.getVar( "ChangeIntervals" );
-    CI.getVar( { 0 } , { f_number_intervals } , Change_Interval.data() );
+    ::deserialize( group, "ChangeIntervals", f_number_intervals,
+                   f_change_interval );
 
     // Check that all numbers are between 1 and f_time_horizon, that
     // the last number is == f_time_horizon, and that they are ordered
     // in increasing sense
 
-    if( Change_Interval.back() != f_time_horizon ) {
+    if( f_change_interval.back() != f_time_horizon ) {
       throw( std::invalid_argument
              ( "ThermalUnitBlock::deserialize: invalid value in "
                "ChangeIntervals: the last element must be TimeHorizon." ) );
@@ -176,7 +145,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
     int previous_t = 0;
 
-    for( auto t : Change_Interval ) {
+    for( auto t : f_change_interval ) {
       if( ! ( t > previous_t && t < f_time_horizon - 1 ) )
         throw( std::invalid_argument
                ( "ThermalUnitBlock::deserialize: invalid value in "
@@ -190,15 +159,15 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   // read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  deserialize( group, "MinPower",      Change_Interval, f_MinPower );
-  deserialize( group, "MaxPower",      Change_Interval, f_MaxPower );
-  deserialize( group, "DeltaRampUp",   Change_Interval, f_DeltaRampUp );
-  deserialize( group, "DeltaRampDown", Change_Interval, f_DeltaRampDown );
-  deserialize( group, "PrimaryRho",    Change_Interval, f_PrimaryRho );
-  deserialize( group, "SecondaryRho",  Change_Interval, f_SecondaryRho );
-  deserialize( group, "LinearTerm",    Change_Interval, f_LinearTerm );
-  deserialize( group, "QuadTerm",      Change_Interval, f_QuadTerm );
-  deserialize( group, "ConstTerm",     Change_Interval, f_ConstTerm );
+  ::deserialize( group, "MinPower",      f_number_intervals, f_MinPower );
+  ::deserialize( group, "MaxPower",      f_number_intervals, f_MaxPower );
+  ::deserialize( group, "DeltaRampUp",   f_number_intervals, f_DeltaRampUp );
+  ::deserialize( group, "DeltaRampDown", f_number_intervals, f_DeltaRampDown );
+  ::deserialize( group, "PrimaryRho",    f_number_intervals, f_PrimaryRho );
+  ::deserialize( group, "SecondaryRho",  f_number_intervals, f_SecondaryRho );
+  ::deserialize( group, "LinearTerm",    f_number_intervals, f_LinearTerm );
+  ::deserialize( group, "QuadTerm",      f_number_intervals, f_QuadTerm );
+  ::deserialize( group, "ConstTerm",     f_number_intervals, f_ConstTerm );
 
   ::deserialize( group, "FixedConsPower",  & f_FixedConsPower );
   ::deserialize( group, "PZero",           & f_PZero );
@@ -587,12 +556,24 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
 
 /*--------------------------------------------------------------------------*/
 
+template<class T>
+void serialize( netCDF::NcGroup & group, const std::string & var_name,
+                const netCDF::NcType & ncType, const netCDF::NcDim & ncDim,
+                const std::vector<T> & data ) {
+
+  group.addVar( var_name , ncType , ncDim )
+    .putVar( { 0 } , { data.size() } , data.data() );
+}
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
   group.putAtt( "type" , "ThermalUnitBlock" );
 
-  netCDF::NcDim time_horizon = group.addDim( "TimeHorizon" , f_time_horizon );
-  netCDF::NcDim number_values = group.addDim( "NumberIntervals" , f_number_intervals);
+  group.addDim( "TimeHorizon" , f_time_horizon );
+  netCDF::NcDim ncdim_number_intervals = group.addDim( "NumberIntervals",
+                                                       f_number_intervals );
 
   ::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
   ::serialize( group, "PZero",          netCDF::NcDouble(), f_PZero );
@@ -601,106 +582,35 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
   ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
 
-  // TODO serialize the vectors
+  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+               ncdim_number_intervals, f_change_interval );
 
-  std::vector < size_t > startp = { 0 };
-  std::vector < size_t > countpt = { (size_t)f_time_horizon };
-  std::vector < size_t > countpu = { f_number_intervals };
+  ::serialize( group, "MinPower", netCDF::NcDouble(),
+               ncdim_number_intervals, f_MinPower );
 
-/*---------------------MinPower-serialize-----------------------------------*/
+  ::serialize( group, "MaxPower", netCDF::NcDouble(),
+               ncdim_number_intervals, f_MaxPower );
 
-    if( f_MinPower.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "MinPower" , netCDF::NcDouble() , time_horizon )
-            ).putVar( startp , countpt , f_MinPower.data() );
-        else {
-            ( group.addVar( "MinPower" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_MinPower.data() );
-        }
+  ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
+               ncdim_number_intervals, f_DeltaRampUp );
 
-/*---------------------MaxPower-serialize-----------------------------------*/
+  ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
+               ncdim_number_intervals, f_DeltaRampDown );
 
-    if( f_MaxPower.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "MaxPower" , netCDF::NcDouble() , time_horizon )
-            ).putVar( startp , countpt , f_MaxPower.data() );
-        else {
-            ( group.addVar( "MaxPower" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_MaxPower.data() );
-        }
+  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
+               ncdim_number_intervals, f_PrimaryRho );
 
-/*---------------------DeltaRampUp-serialize--------------------------------*/
+  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
+               ncdim_number_intervals, f_SecondaryRho );
 
+  ::serialize( group, "QuadTerm", netCDF::NcDouble(),
+               ncdim_number_intervals, f_QuadTerm );
 
-    if( f_DeltaRampUp.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "DeltaRampUp" , netCDF::NcDouble() , time_horizon )
-            ).putVar( startp , countpt , f_DeltaRampUp.data() );
-        else {
-            ( group.addVar( "DeltaRampUp" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_DeltaRampUp.data() );
-        }
+  ::serialize( group, "LinearTerm", netCDF::NcDouble(),
+               ncdim_number_intervals, f_LinearTerm );
 
-/*---------------------DeltaRampDown-serialize------------------------------*/
-
-    if( f_DeltaRampDown.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "DeltaRampDown" , netCDF::NcDouble() , time_horizon )
-            ).putVar( startp , countpt , f_DeltaRampDown.data() );
-        else{
-            ( group.addVar( "DeltaRampDown" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_DeltaRampDown.data() );
-        }
-
-/*--------------------------PrimaryRho-serialize----------------------------*/
-
-    if( f_PrimaryRho.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "PrimaryRho" , netCDF::NcDouble() , time_horizon )
-        ).putVar( startp , countpt , f_PrimaryRho.data() );
-        else{
-            ( group.addVar( "PrimaryRho" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_PrimaryRho.data() );
-        }
-
-/*-------------------------SecondaryRho-serialize---------------------------*/
-
-    if( f_SecondaryRho.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "SecondaryRho" , netCDF::NcDouble() , time_horizon )
-        ).putVar( startp , countpt , f_SecondaryRho.data() );
-        else{
-            ( group.addVar( "SecondaryRho" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_SecondaryRho.data() );
-        }
-/*----------------Quadratic-Linear-Constant-Term-serialize------------------*/
-
-    if( f_QuadTerm.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "QuadTerm" , netCDF::NcDouble() , time_horizon )
-         ).putVar( startp , countpt , f_QuadTerm.data() );
-        else{
-            ( group.addVar( "QuadTerm" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_QuadTerm.data() );
-        }
-
-    if( f_LinearTerm.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "LinearTerm" , netCDF::NcDouble() , time_horizon )
-          ).putVar( startp , countpt , f_LinearTerm.data() );
-        else{
-            ( group.addVar( "LinearTerm" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_LinearTerm.data() );
-        }
-
-    if( f_ConstTerm.size() )
-        if( f_number_intervals == f_time_horizon )
-            ( group.addVar( "ConstTerm" , netCDF::NcDouble() , time_horizon )
-         ).putVar( startp , countpt , f_ConstTerm.data() );
-        else{
-            ( group.addVar( "ConstTerm" , netCDF::NcDouble() , number_values )
-            ).putVar( startp , countpu , f_ConstTerm.data() );
-        }
+  ::serialize( group, "ConstTerm", netCDF::NcDouble(),
+               ncdim_number_intervals, f_ConstTerm );
 
 }  // end( ThermalUnitBlock::serialize )
 
