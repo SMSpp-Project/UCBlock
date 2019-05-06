@@ -167,6 +167,66 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
   add_static_constraint( v_node_injection_constraints );
+
+
+  // Primary demand constraints.
+
+  if( v_PrimaryDemand_Const.size() != f_time_horizon ) {
+    // this should only happen once
+    assert(v_PrimaryDemand_Const.size() == 0);
+
+    v_PrimaryDemand_Const.resize
+            (boost::multi_array<FRowConstraint *, 2>::
+             extent_gen()[f_time_horizon][f_number_primary_zones]);
+  }
+
+//TODO
+
+  // Secondary demand constraints.
+
+  if( v_SecondaryDemand_Const.size() != f_time_horizon ) {
+    // this should only happen once
+    assert(v_SecondaryDemand_Const.size() == 0);
+
+    v_SecondaryDemand_Const.resize
+            (boost::multi_array<FRowConstraint *, 2>::
+             extent_gen()[f_time_horizon][f_number_secondary_zones]);
+  }
+
+//TODO
+
+  // Inertia demand constraints.
+
+    if( v_InertiaDemand_Const.size() != f_time_horizon ) {
+      // this should only happen once
+      assert(v_InertiaDemand_Const.size() == 0);
+
+      v_InertiaDemand_Const.resize
+              (boost::multi_array<FRowConstraint *, 2>::
+               extent_gen()[f_time_horizon][f_number_inertia_zones]);
+    }
+
+//TODO
+
+  // Pollutant demand constraints.
+
+  if( v_PollutantDemand_Const.size() != f_number_pollutants ) {
+    // this should only happen once
+    assert(v_PollutantDemand_Const.size() == 0);
+
+    v_PollutantDemand_Const.resize
+            (boost::multi_array<FRowConstraint *, 2>::
+             extent_gen()[f_number_pollutants][f_number_emission_zones]);
+  }
+
+//TODO
+
+
+
+
+
+
+
 }
 
 /*--------------------------------------------------------------------------*/

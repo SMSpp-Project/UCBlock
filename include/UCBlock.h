@@ -114,7 +114,7 @@ public:
  * format of the UCBlock. Besides the mandatory "type" attribute of
  * any :Block, the group should contain the following:
  *
- * - the group of "UnitBlock" containing the UnitBlocks
+ * - the group of "Units" containing the UnitBlocks;
  *
  * - the group of "NetworkBlock";
  *
@@ -127,52 +127,47 @@ public:
  * - the dimension "NumberNodes" containing the number of nodes in
  *   the problem;
  *
- * - the dimension "PrimaryZones" is the subset of the "NumberNodes" and each
- *   one being associated with one specific primary spinning reserve
- *   requirement in the problem. The dimension is optional, if it is not
- *   provided than it is taken to be 0;
+ * - the dimension "PrimaryZones" is associated with one specific primary
+ *   spinning reserve in the problem. The dimension is optional, if it is not
+ *   provided then it is taken to be 0;
  *
- * - the dimension "SecondaryZones" is the subset of the "NumberNodes" and
- *   each one being associated with one specific secondary spinning reserve
- *   requirement in the problem. The dimension is optional, if it is not
- *   provided than it is taken to be 0;
+ * - the dimension "SecondaryZones" is associated with one specific secondary
+ *   spinning reserve in the problem. The dimension is optional, if it is not
+ *   provided then it is taken to be 0;
  *
- * - the dimension "InertiaZones" is the subset of the "NumberNodes" and each
- *   one being associated with one specific inertia requirement in the
- *   problem. The dimension is optional, if it is not
- *   provided than it is taken to be 0;
+ * - the dimension "InertiaZones" is associated with one specific inertia zone
+ *   in the problem. The dimension is optional, if it is not provided then it is
+ *   taken to be 0;
  *
  * - the dimension "PollutantSet" containing the set of pollutants in the
- *   problem. The dimension is optional, if it is not
- *   provided than it is taken to be 0;
+ *   problem. The dimension is optional, if it is not provided then it is taken
+ *   to be 0;
  *
- * - the dimension "EmissionZones" is the subset of the "NumberNodes" and each
- *   one being associated with an emission limits on the specific pollutant in
- *   the set of pollutants in the problem. The dimension is optional, if it is not
- *   provided than it is taken to be 0;
+ * - the dimension "EmissionZones" is associated with an emission limits on the
+ *   specific pollutant in the set of pollutants in the problem. The dimension
+ *   is optional, if it is not provided then it is taken to be 0;
  *
  * - the variable "PrimaryDemand", of type double and indexed over the
- *   dimension "PrimaryZones" and "TimeHorizon" ; the i-th entry of the
- *   variable is assumed to contain the primary reserves requirement which are
- *   specified on the primary reserves zones in the network;
+ *   dimension "PrimaryZones"; the i-th entry of the variable is assumed to
+ *   contain the primary reserves requirement which are specified on the
+ *   primary reserves zones in the time t;
  *
  * - the variable "SecondaryDemand", of type double and indexed over the
- *   dimension "SecondaryZones" and "TimeHorizon"; the i-th entry of the
- *   variable is assumed to contain the secondary reserves requirement which
- *   are specified on the secondary reserves zones in the time t;
+ *   dimension "SecondaryZones"; the i-th entry of the variable is assumed to
+ *   contain the secondary reserves requirement which are specified on the
+ *   secondary reserves zones in the time t;
  *
  * - the variable "InertiaDemand", of type double and indexed over the
- *   dimension "InertiaZones" and "TimeHorizon"; the i-th entry of the
- *   variable is assumed to contain the inertia requirement in the time t;
+ *   dimension "InertiaZones"; the i-th entry of the variable is assumed to
+ *   contain the inertia requirement in the time t;
  *
  * - the variable "PollutantDemand", of type double and indexed over the
  *   dimension "EmissionZones"; the i-th entry of the variable is assumed to
  *   contain the pollutants limits in the time t;
  *
  * - the variable "PollutantRho", of type double and indexed over the
- *   dimension "TimeHorizon", "PollutantSet", and the "NumberUnits"; each
- *   entry of the variable is assumed to contain the conversion factor of
- *   pollution due to the generation units in the time t;
+ *   "PollutantSet"; each entry of the variable is assumed to contain the
+ *   conversion factor of pollution due to the generation unit in the time t;
  */
 
 virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -289,7 +284,20 @@ protected:
  /// Node injection constraints at each time and for
  boost::multi_array<FRowConstraint *, 2> v_node_injection_constraints;
 
-};   // end( class( UCBlock ) )
+ /// Primary demand constraints at each time
+ boost::multi_array<FRowConstraint *, 2> v_PrimaryDemand_Const;
+
+/// Secondary demand constraints at each time
+boost::multi_array<FRowConstraint *, 2>  v_SecondaryDemand_Const;
+
+/// Inertia demand constraints at each time
+boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
+
+/// Pollutant demand constraints at each time
+boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
+
+
+    };   // end( class( UCBlock ) )
 
 } /* namespace SMSpp_di_unipi_it */
 
