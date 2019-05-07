@@ -111,10 +111,12 @@ public:
  * the group should contain the following:
  *
  * - the dimension "NumberNodes" containing the number of nodes in
- *   the problem;
+ *   the problem; this dimension is optional, if it is not provided
+ *   then it is taken to be == 1;
  *
  * - the dimension "NumberLines" containing the number of arcs in
- *   the problem;
+ *   the problem; if NumberNodes == 1 then this dimension need not to
+ *   be present since it is not loaded;
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
@@ -122,15 +124,18 @@ public:
  *
  * - the variable "MinPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is
- *   assumed to contain the minimum power flow at line i;
+ *   assumed to contain the minimum power flow at line i; if NumberNodes
+ *   == 1 then this variable need not to be present since it is not loaded;
  *
  * - the variable "MaxPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is
- *   assumed to contain the maximum power flow at line i;
+ *   assumed to contain the maximum power flow at line i; if NumberNodes
+ *   == 1 then this variable need not to be present since it is not loaded;
  *
  * - the variable "Susceptance", of type double and indexed over the
  *   "NumberLines"; the i-th entry of this variable is assumed to
- *   contain the susceptance of line i.
+ *   contain the susceptance of line i; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded.
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;

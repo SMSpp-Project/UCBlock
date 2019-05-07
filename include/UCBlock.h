@@ -114,22 +114,50 @@ public:
  * format of the UCBlock. Besides the mandatory "type" attribute of
  * any :Block, the group should contain the following:
  *
- * - the group of "Units" containing the UnitBlocks;
- *
- * - the group of "NetworkBlock";
- *
  * - the dimension "TimeHorizon" containing the number of time steps in
  *   the problem;
  *
  * - the dimension "NumberUnits" containing the number of units in
  *   the problem;
  *
- * - the dimension "NumberNodes" containing the number of nodes in
- *   the problem;
+ * - the groups "Unit_0", "Unit_1", ... , "Unit_n" with n == NumberUnits - 1,
+ *   containing each one UnitBlock corresponding to one unit;
  *
- * - the dimension "PrimaryZones" is associated with one specific primary
+ * - the dimension "NumberNodes" containing the number of nodes in
+ *   the problem; the dimension is optional, if it is not provided then it is
+ *   taken to be 1, which means that all the Unit belong to the same node
+ *   (the network is a bus);
+ *
+ * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
+ *   with t = TimeHorizon - 1, containing each the state of the interconnect
+ *   network at time t;
+ *
+ * - the variable "Node", of type int and indexed over the dimension
+ *   "NumberUnits"; the entry Node[ i ] tells to which node unit i belongs;
+ *   if NumberNodes == 1  (say, it is not provided at all), then this
+ *   variable need not be defined, since it is not loaded;
+ *
+ * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
- *   provided then it is taken to be 0;
+ *   provided then it is taken to be 0, which means that no primary reserve
+ *   constraints are present in the problem;
+ *
+ * - the variable "PrimaryZones", of type int and indexed over the dimension
+ *   "NumberNodes"; the entry PrimaryZones[ i ] tells to which primary zone
+ *   the node i belongs, if PrimaryZones[ i ] >= NumberPrimaryZones, this
+ *   means that node i does not belong to any primary zone, and hence the
+ *   corresponding units are not involved into the primary reserve
+ *   constraints; if NumberPrimaryZones == 0  (say, it is not provided
+ *   at all) then this variable need not be defined, since it is not loaded;
+ *   if NumberPrimaryZones == 1 and this variable is not defined, then there
+ *   is only one primary zone and all the nodes belong to it
+ *
+ * - the variable "PrimaryDemand", of type double and indexed both over the
+ *   dimension "PrimaryZones" and over the dimension "TimeHorizon": entry
+ *   PrimaryDemand[ i , t ] is assumed to contain the primary reserves
+ *   requirement which are specified on the primary reserves zone i in the
+ *   time t; if PrimaryZones == 0 (say, it is not provided at all), then
+ *   this variable need not be defined, since it is not loaded;
  *
  * - the dimension "SecondaryZones" is associated with one specific secondary
  *   spinning reserve in the problem. The dimension is optional, if it is not
@@ -146,11 +174,6 @@ public:
  * - the dimension "EmissionZones" is associated with an emission limits on the
  *   specific pollutant in the set of pollutants in the problem. The dimension
  *   is optional, if it is not provided then it is taken to be 0;
- *
- * - the variable "PrimaryDemand", of type double and indexed over the
- *   dimension "PrimaryZones"; the i-th entry of the variable is assumed to
- *   contain the primary reserves requirement which are specified on the
- *   primary reserves zones in the time t;
  *
  * - the variable "SecondaryDemand", of type double and indexed over the
  *   dimension "SecondaryZones"; the i-th entry of the variable is assumed to

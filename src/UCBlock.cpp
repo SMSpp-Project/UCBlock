@@ -119,7 +119,10 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize_dim( group, "EmissionZones",  f_number_emission_zones );
   ::deserialize_dim( group, "PollutantSet",   f_number_pollutants );
 
-  ::deserialize( group, "PrimaryDemand",   f_primary_demand,   f_number_primary_zones );
+ if( f_number_primary_zones > 0 )
+  ::deserialize( group , "PrimaryDemand" , f_primary_demand,
+		 f_number_primary_zones );
+ 
   ::deserialize( group, "SecondaryDemand", f_secondary_demand, f_number_secondary_zones );
   ::deserialize( group, "InertiaDemand",   f_inertia_demand,   f_number_inertia_zones );
   ::deserialize( group, "PollutantDemand", f_pollutant_demand, f_number_pollutants );

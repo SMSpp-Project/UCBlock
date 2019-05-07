@@ -383,32 +383,35 @@ typedef const Index c_Index;                ///< a read-only Index
  *
  * - the variable "MinPower", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   minimum power output value of the unit for the corresponding time steps
- *   in same interval whereas it may change(or not) in the other intervals
- *   (if exist any);
+ *   minimum power output value of the unit for the corresponding time steps;
+ *   it must be that MinPower[ i ] >= 0 for all i;
  *
  * - the variable "MaxPower", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   maximum power output value of the unit for the corresponding time steps
- *   in same interval whereas it may change(or not) in the other intervals
- *   (if exist any);
+ *   maximum power output value of the unit for the corresponding time steps;
+ *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
  *
  * - the variable "FixedConsPower", of type double and not indexed over
  *   any dimension and indicates the fixed consumption of the power plant when
- *   it is off in this unit;
+ *   it is off in this unit; this variable is optional, if it is not provided
+ *   then it is assumed that FixedConsPower == 0;
  *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
  *   increases of power production value of the unit for the corresponding time
  *   steps in same interval whereas it may change(or not) in the other intervals
- *   (if exist any);
+ *   (if exist any); this variable is optional, if it is not provided then it
+ *   is assumed that DeltaRampUp == MaxPower, i.e., the unit can ramp up by
+ *   an arbitrary amount, i.e., there are no ramp-up constrtaints;
  *
  * - the variable "DeltaRampDown", of type double and indexed over the
  *   dimension "NumberIntervals"; each entry of the variable is assumed to
  *   contain the decreases of power production value of the unit for the
  *   corresponding time steps in same interval whereas it may change(or not)
- *   in the other intervals
- *   (if exist any);
+ *   in the other intervals  (if exist any); this variable is optional, if it
+ *   is not provided then it is assumed that DeltaRampDown == MaxPower, i.e.,
+ *   the unit can ramp down by an arbitrary amount, i.e., there are no
+ *   ramp-down constrtaints;
  *
  * - the variable "PrimaryRho", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
@@ -441,20 +444,37 @@ typedef const Index c_Index;                ///< a read-only Index
  * - the variable "ConstTerm", of type double and indexed over the
  *   dimension "NumberIntervals"; each entry of the variable is assumed to
  *   contain the constant term of power cost function of the unit for the
- *   corresponding time steps in same interval whereas it may change(or not)
- *   in the other intervals (if exist any);
- *
- * - the scalar variable "PZero", of type double and not indexed over any
- *   dimension and indicates the initiate amount of the power in this unit;
- *
- * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
- *   any dimension and indicates the minimum allowed down time in this unit;
- *
- * - the scalar variable "MinDownTime", of type UInt64 and not indexed over
- *   any dimension and indicates the minimum allowed up time in this unit;
+ *   corresponding time steps if the unit is on;
  *
  * - the scalar variable "InitUpDownTime", of type UInt64 and not indexed over
  *   any dimension and indicates the initial time to generating the unit;
+ *   if InitUpDownTime > 0, this means that the unit has been on for
+ *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
+ *   horizont); if, instead, InitUpDownTime <= 0, this means that the unit
+ *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
+ *   note that InitUpDownTime == 0 means that the unit has been just shut
+ *   down at the end of time instant -1, i.e., the beginning of time 
+ *   instant 0; 
+ *
+ * - the scalar variable "PZero", of type double and not indexed over any
+ *   dimension; if InitUpDownTime > 0, it means that the unit was on at
+ *   time instant -1 (prior to the beginning of the horizon), and then
+ *   PZero indicates the amount of the power that the unit was producing
+ *   at time instant -1; if InitUpDownTime <= 0 then this variable need
+ *   not be defined since it is not loaded, if the variable is provided
+ *   then it must be that MaxPower >= its value >= MinPower;
+ *
+ * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
+ *   any dimension and indicates the minimum allowed down time in this unit;
+ *   this variable is optional, if it is not provided it is taken to be
+ *   MinUpTime == 0, which mean that the unit can shut down in the very
+ *   same time stamp in which it starts up;
+ *
+ * - the scalar variable "MinDownTime", of type UInt64 and not indexed over
+ *   any dimension and indicates the minimum allowed up time in this unit;
+ *   this variable is optional, if it is not provided it is taken to be
+ *   MinDownTime == 0, which mean that the unit can start up in the very
+ *   same time stamp in which it starts up;
  *
  */
 
