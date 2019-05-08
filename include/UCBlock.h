@@ -30,7 +30,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 05 - 2019
+ * \date 08 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -144,13 +144,13 @@ public:
  *
  * - the variable "PrimaryZones", of type int and indexed over the dimension
  *   "NumberNodes"; the entry PrimaryZones[ i ] tells to which primary zone
- *   the node i belongs, if PrimaryZones[ i ] >= NumberPrimaryZones, this
+ *   the node i belongs; if PrimaryZones[ i ] >= NumberPrimaryZones, this
  *   means that node i does not belong to any primary zone, and hence the
  *   corresponding units are not involved into the primary reserve
  *   constraints; if NumberPrimaryZones == 0  (say, it is not provided
  *   at all) then this variable need not be defined, since it is not loaded;
  *   if NumberPrimaryZones == 1 and this variable is not defined, then there
- *   is only one primary zone and all the nodes belong to it
+ *   is only one primary zone and all the nodes belong to it;
  *
  * - the variable "PrimaryDemand", of type double and indexed both over the
  *   dimension "PrimaryZones" and over the dimension "TimeHorizon": entry
@@ -159,38 +159,84 @@ public:
  *   time t; if PrimaryZones == 0 (say, it is not provided at all), then
  *   this variable need not be defined, since it is not loaded;
  *
- * - the dimension "SecondaryZones" is associated with one specific secondary
- *   spinning reserve in the problem. The dimension is optional, if it is not
- *   provided then it is taken to be 0;
+ * - the dimension "NumberSecondaryZones" is associated with one
+ *   specific secondary spinning reserve in the problem. The dimension
+ *   is optional, if it is not provided then it is taken to be 0,
+ *   which means that no secondary reserve constraints are present in
+ *   the problem;
  *
- * - the dimension "InertiaZones" is associated with one specific inertia zone
- *   in the problem. The dimension is optional, if it is not provided then it is
- *   taken to be 0;
+ * - the variable "SecondaryZones", of type int and indexed over the
+ *   dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to
+ *   which secondary zone the node i belongs; if SecondaryZones[ i ]
+ *   >= NumberSecondaryZones, this means that node i does not belong
+ *   to any secondary zone, and hence the corresponding units are not
+ *   involved into the secondary reserve constraints; if
+ *   NumberSecondaryZones == 0 (say, it is not provided at all) then
+ *   this variable need not be defined, since it is not loaded; if
+ *   NumberSecondaryZones == 1 and this variable is not defined, then
+ *   there is only one secondary zone and all the nodes belong to it;
  *
- * - the dimension "PollutantSet" containing the set of pollutants in the
- *   problem. The dimension is optional, if it is not provided then it is taken
- *   to be 0;
+ * - the variable "SecondaryDemand", of type double and indexed both
+ *   over the dimension "SecondaryZones" and over the dimension
+ *   "TimeHorizon": entry SecondaryDemand[ i , t ] is assumed to
+ *   contain the secondary reserves requirement which are specified on
+ *   the secondary reserves zone i in the time t; if SecondaryZones ==
+ *   0 (say, it is not provided at all), then this variable need not
+ *   be defined, since it is not loaded;
  *
- * - the dimension "EmissionZones" is associated with an emission limits on the
- *   specific pollutant in the set of pollutants in the problem. The dimension
- *   is optional, if it is not provided then it is taken to be 0;
+ * - the dimension "NumberInertiaZones" is associated with one
+ *   specific inertia zone in the problem. The dimension is optional,
+ *   if it is not provided then it is taken to be 0;
  *
- * - the variable "SecondaryDemand", of type double and indexed over the
- *   dimension "SecondaryZones"; the i-th entry of the variable is assumed to
- *   contain the secondary reserves requirement which are specified on the
- *   secondary reserves zones in the time t;
+ * - the variable "InertiaZones", of type int and indexed over the dimension
+ *   "NumberNodes"; the entry InertiaZones[ i ] tells to which inertia zone
+ *   the node i belongs; if InertiaZones[ i ] >= NumberInertiaZones, this
+ *   means that node i does not belong to any inertia zone, and hence the
+ *   corresponding units are not involved into the inertia reserve
+ *   constraints; if NumberInertiaZones == 0  (say, it is not provided
+ *   at all) then this variable need not be defined, since it is not loaded;
+ *   if NumberInertiaZones == 1 and this variable is not defined, then there
+ *   is only one inertia zone and all the nodes belong to it;
  *
- * - the variable "InertiaDemand", of type double and indexed over the
- *   dimension "InertiaZones"; the i-th entry of the variable is assumed to
- *   contain the inertia requirement in the time t;
+ * - the variable "InertiaDemand", of type double and indexed both over the
+ *   dimension "InertiaZones" and over the dimension "TimeHorizon": entry
+ *   InertiaDemand[ i , t ] is assumed to contain the inertia reserves
+ *   requirement which are specified on the inertia reserves zone i in the
+ *   time t; if InertiaZones == 0 (say, it is not provided at all), then
+ *   this variable need not be defined, since it is not loaded;
  *
- * - the variable "PollutantDemand", of type double and indexed over the
- *   dimension "EmissionZones"; the i-th entry of the variable is assumed to
- *   contain the pollutants limits in the time t;
+ * - the dimension "NumberPollutants" containing the number of
+ *   pollutants in the problem. The dimension is optional, if it is
+ *   not provided then it is taken to be 0;
+ *
+ * - the variable "NumberPollutantZones" of type int indexed over the
+ *   dimension "NumberPollutants"; the i-th entry of the variable is
+ *   assumed to contain the number of pollutant zones associated with
+ *   pollutant i. If NumberPollutants == 0 (say, there is no
+ *   pollutant) then this variable need not be defined, since it is
+ *   not loaded.
+ *
+ * - the variable "PollutantZones", of type int and indexed over the
+ *   dimensions "NumberPollutants" and "NumberNodes"; the entry
+ *   PollutantZones[ i , j ] tells to which pollutant zone associated
+ *   with pollutant i the node j belongs; if PollutantZones[ i , j ]
+ *   >= NumberPollutantZones[ i ], this means that node j does not
+ *   belong to any pollutant zone, and hence the corresponding units
+ *   are not involved into the pollutant demand constraints associated
+ *   with pollutant i; if NumberPollutants == 0 (say, there is no
+ *   pollutant) then this variable need not be defined, since it is
+ *   not loaded;
+ *
+ * - the variable "PollutantDemand", of type double and indexed over
+ *   the dimension "NumberPollutants"; the i-th entry of the variable
+ *   is assumed to contain the limit of pollutant i;
  *
  * - the variable "PollutantRho", of type double and indexed over the
- *   "PollutantSet"; each entry of the variable is assumed to contain the
- *   conversion factor of pollution due to the generation unit in the time t;
+ *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits";
+ *   the entry PollutantRho[ t , i , j ] is assumed to contain the
+ *   conversion factor of pollutant i due to the generation of unit j
+ *   at time t. If NumberPollutants == 0 (say, there is no pollutant)
+ *   then this variable need not be defined, since it is not loaded;
  */
 
 virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -267,6 +313,9 @@ protected:
  /// The number of nodes in the network
  int f_number_nodes;
 
+ /// The entry v_node[ i ] tells to which node unit i belongs
+ std::vector<int> v_node;
+
  /// The number of nodes in primary zones of the network
  int f_number_primary_zones;
 
@@ -276,11 +325,15 @@ protected:
  /// The number of nodes in inertia zones of the network
  int f_number_inertia_zones;
 
- /// The number of nodes in emission zones of the network
- int f_number_emission_zones;
-
- /// The set of pollutants of the problem
+ /// The number of pollutants
  int f_number_pollutants;
+
+ /// The number of pollutant zones of each pollutant
+ std::vector<int> v_number_pollutant_zones;
+
+ /** The vector PollutantZones indexed over the dimensions
+  *  NumberPollutants and NumberNodes */
+ std::vector<std::vector<int>> v_pollutant_zones;
 
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
@@ -289,17 +342,26 @@ protected:
   * step. */
  std::vector<NetworkBlock *> v_network_blocks;
 
- /// the vector of PrimaryDemand
- std::vector< double > f_primary_demand;
+ /// the vector of PrimaryZones
+ std::vector<int> v_primary_zones;
 
- /// the vector of SecondaryDemand
- std::vector< double > f_secondary_demand;
+ /// the matrix of PrimaryDemand
+ std::vector<std::vector<double>> v_primary_demand;
 
- /// the vector of InertiaDemand
- std::vector< double > f_inertia_demand;
+ /// the vector of SecondaryZones
+ std::vector<int> v_secondary_zones;
+
+ /// the matrix of SecondaryDemand
+ std::vector<std::vector<double>> v_secondary_demand;
+
+ /// the matrix of InertiaDemand
+ std::vector<std::vector<double>> v_inertia_demand;
 
  /// the vector of PollutantDemand
- std::vector< double > f_pollutant_demand;
+ std::vector<double> v_pollutant_demand;
+
+ /// the PollutantRho matrix
+ std::vector<std::vector<std::vector<double>>> v_pollutant_rho;
 
  /// The network
  Network f_network;
@@ -319,8 +381,7 @@ boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
 /// Pollutant demand constraints at each time
 boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
 
-
-    };   // end( class( UCBlock ) )
+};   // end( class( UCBlock ) )
 
 } /* namespace SMSpp_di_unipi_it */
 
