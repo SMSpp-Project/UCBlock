@@ -11,8 +11,6 @@
  *
  * - A time horizon of the optimization problem.
  *
- * - A Network, that defines the topology of the network.
- *
  * - A set of units (UnitBlock; that may be referring to any different
  *   kind of unit, such as thermal, hydro, etc).
  *
@@ -30,7 +28,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 05 - 2019
+ * \date 10 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -70,7 +68,8 @@
 #include <vector>
 #include "Block.h"
 #include "ColVariable.h"
-#include "Network.h"
+#include "NetworkBlock.h"
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -91,6 +90,15 @@ class UCBlock : public Block {
 public:
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Types
+    @{ */
+
+ typedef unsigned int Index;
+ typedef const Index c_Index;
+
+/*@} -----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -120,8 +128,9 @@ public:
  * - the dimension "NumberUnits" containing the number of units in
  *   the problem;
  *
- * - the groups "Unit_0", "Unit_1", ... , "Unit_n" with n == NumberUnits - 1,
- *   containing each one UnitBlock corresponding to one unit;
+ * - the groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
+ *   n == NumberUnits - 1, containing each one UnitBlock corresponding
+ *   to one unit;
  *
  * - the dimension "NumberNodes" containing the number of nodes in
  *   the problem; the dimension is optional, if it is not provided then it is
@@ -152,12 +161,13 @@ public:
  *   if NumberPrimaryZones == 1 and this variable is not defined, then there
  *   is only one primary zone and all the nodes belong to it;
  *
- * - the variable "PrimaryDemand", of type double and indexed both over the
- *   dimension "PrimaryZones" and over the dimension "TimeHorizon": entry
+ * - the variable "PrimaryDemand", of type double and indexed both
+ *   over the dimensions "PrimaryZones" and "TimeHorizon": entry
  *   PrimaryDemand[ i , t ] is assumed to contain the primary reserves
- *   requirement which are specified on the primary reserves zone i in the
- *   time t; if PrimaryZones == 0 (say, it is not provided at all), then
- *   this variable need not be defined, since it is not loaded;
+ *   requirement which are specified on the primary reserves zone i in
+ *   the time t; if NumberPrimaryZones == 0 (say, it is not provided
+ *   at all), then this variable need not be defined, since it is not
+ *   loaded;
  *
  * - the dimension "NumberSecondaryZones" is associated with one
  *   specific secondary spinning reserve in the problem. The dimension
@@ -177,33 +187,35 @@ public:
  *   there is only one secondary zone and all the nodes belong to it;
  *
  * - the variable "SecondaryDemand", of type double and indexed both
- *   over the dimension "SecondaryZones" and over the dimension
- *   "TimeHorizon": entry SecondaryDemand[ i , t ] is assumed to
- *   contain the secondary reserves requirement which are specified on
- *   the secondary reserves zone i in the time t; if SecondaryZones ==
- *   0 (say, it is not provided at all), then this variable need not
- *   be defined, since it is not loaded;
+ *   over the dimensions "SecondaryZones" and "TimeHorizon": entry
+ *   SecondaryDemand[ i , t ] is assumed to contain the secondary
+ *   reserves requirement which are specified on the secondary
+ *   reserves zone i in the time t; if NumberSecondaryZones == 0 (say,
+ *   it is not provided at all), then this variable need not be
+ *   defined, since it is not loaded;
  *
  * - the dimension "NumberInertiaZones" is associated with one
  *   specific inertia zone in the problem. The dimension is optional,
  *   if it is not provided then it is taken to be 0;
  *
- * - the variable "InertiaZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry InertiaZones[ i ] tells to which inertia zone
- *   the node i belongs; if InertiaZones[ i ] >= NumberInertiaZones, this
- *   means that node i does not belong to any inertia zone, and hence the
- *   corresponding units are not involved into the inertia reserve
- *   constraints; if NumberInertiaZones == 0  (say, it is not provided
- *   at all) then this variable need not be defined, since it is not loaded;
- *   if NumberInertiaZones == 1 and this variable is not defined, then there
- *   is only one inertia zone and all the nodes belong to it;
+ * - the variable "InertiaZones", of type int and indexed over the
+ *   dimension "NumberNodes"; the entry InertiaZones[ i ] tells to
+ *   which inertia zone the node i belongs; if InertiaZones[ i ] >=
+ *   NumberInertiaZones, this means that node i does not belong to any
+ *   inertia zone, and hence the corresponding units are not involved
+ *   into the inertia reserve constraints; if NumberInertiaZones == 0
+ *   (say, it is not provided at all) then this variable need not be
+ *   defined, since it is not loaded; if NumberInertiaZones == 1 and
+ *   this variable is not defined, then there is only one inertia zone
+ *   and all the nodes belong to it;
  *
- * - the variable "InertiaDemand", of type double and indexed both over the
- *   dimension "InertiaZones" and over the dimension "TimeHorizon": entry
+ * - the variable "InertiaDemand", of type double and indexed both
+ *   over the dimensions "InertiaZones" and "TimeHorizon": entry
  *   InertiaDemand[ i , t ] is assumed to contain the inertia reserves
- *   requirement which are specified on the inertia reserves zone i in the
- *   time t; if InertiaZones == 0 (say, it is not provided at all), then
- *   this variable need not be defined, since it is not loaded;
+ *   requirement which are specified on the inertia reserves zone i in
+ *   the time t; if NumberInertiaZones == 0 (say, it is not provided
+ *   at all), then this variable need not be defined, since it is not
+ *   loaded;
  *
  * - the dimension "NumberPollutants" containing the number of
  *   pollutants in the problem. The dimension is optional, if it is
@@ -229,7 +241,9 @@ public:
  *
  * - the variable "PollutantDemand", of type double and indexed over
  *   the dimension "NumberPollutants"; the i-th entry of the variable
- *   is assumed to contain the limit of pollutant i;
+ *   is assumed to contain the limit of pollutant i; if
+ *   NumberPollutants == 0 (say, there is no pollutant) then this
+ *   variable need not be defined, since it is not loaded;
  *
  * - the variable "PollutantRho", of type double and indexed over the
  *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits";
@@ -254,12 +268,6 @@ virtual void deserialize( netCDF::NcGroup & group ) override;
  /// Method that initiazes the instance and passes all the needed data
  void instance( std::istream& inStream );
 
-/*@} -----------------------------------------------------------------------*/
-/*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the data of the UCBlock
-    @{ */
-
  /// returns the time horizon of the problem
  int get_time_horizon( void ) const { return f_time_horizon; }
 
@@ -271,8 +279,44 @@ virtual void deserialize( netCDF::NcGroup & group ) override;
    return v_network_blocks;
  }
 
- /// returns the Network
- const Network & get_network( void ) { return f_network; }
+ /// returns the primary demand of the given zone at the given time
+ inline double get_primary_demand( Index zone, Index time ) {
+   return v_primary_demand[ zone * f_number_primary_zones + time ];
+ }
+
+ /// returns the secondary demand of the given zone at the given time
+ inline double get_secondary_demand( Index zone, Index time ) {
+   return v_secondary_demand[ zone * f_number_secondary_zones + time ];
+ }
+
+ /// returns the inertia demand of the given zone at the given time
+ inline double get_inertia_demand( Index zone, Index time ) {
+   return v_inertia_demand[ zone * f_number_inertia_zones + time ];
+ }
+
+ /** returns the conversion factor of the given pollutant due to the
+  * generation of the given unit at the given time */
+ inline double get_pollutant_rho( Index time, Index pollutant, Index unit ) {
+   auto index = f_time_horizon * f_number_pollutants * time +
+     f_number_pollutants * pollutant + unit;
+   return v_pollutant_rho[ index ];
+ }
+
+ /** returns the pollutant zone associated with the given pollutant
+  * the given node belongs to */
+ inline Index get_pollutant_zone( Index pollutant, Index node ) {
+   return v_pollutant_zones[ pollutant * f_number_pollutants + node ];
+ }
+
+ /// returns the i-th UnitBlock
+ inline UnitBlock * get_unit_block( Index i ) const {
+   return static_cast<UnitBlock *>( v_Block[ i ] );
+ }
+
+ /// returns the t-th NetworkBlock
+ inline NetworkBlock * get_network_block( Index t ) const {
+   return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
@@ -305,35 +349,38 @@ virtual void serialize( netCDF::NcGroup & group ) const override final;
 protected:
 
  /// The time horizon of the problem
- int f_time_horizon;
+ Index f_time_horizon;
 
  /// The number of units of the problem
- int f_number_units;
+ Index f_number_units;
 
  /// The number of nodes in the network
- int f_number_nodes;
+ Index f_number_nodes;
 
  /// The entry v_node[ i ] tells to which node unit i belongs
- std::vector<int> v_node;
+ std::vector<Index> v_node;
 
  /// The number of nodes in primary zones of the network
- int f_number_primary_zones;
+ Index f_number_primary_zones;
 
  /// The number of nodes in secondary zones of the network
- int f_number_secondary_zones;
+ Index f_number_secondary_zones;
 
  /// The number of nodes in inertia zones of the network
- int f_number_inertia_zones;
+ Index f_number_inertia_zones;
 
  /// The number of pollutants
- int f_number_pollutants;
+ Index f_number_pollutants;
+
+ /// The set of UnitBlocks
+ std::vector<UnitBlock *> v_unit_blocks;
 
  /// The number of pollutant zones of each pollutant
- std::vector<int> v_number_pollutant_zones;
+ std::vector<Index> v_number_pollutant_zones;
 
- /** The vector PollutantZones indexed over the dimensions
+ /** The matrix PollutantZones indexed over the dimensions
   *  NumberPollutants and NumberNodes */
- std::vector<std::vector<int>> v_pollutant_zones;
+ std::vector<Index> v_pollutant_zones;
 
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
@@ -343,28 +390,32 @@ protected:
  std::vector<NetworkBlock *> v_network_blocks;
 
  /// the vector of PrimaryZones
- std::vector<int> v_primary_zones;
+ std::vector<Index> v_primary_zones;
 
- /// the matrix of PrimaryDemand
- std::vector<std::vector<double>> v_primary_demand;
+ /** the matrix of PrimaryDemand indexed over the dimensions
+  * PrimaryZones and TimeHorizon */
+ std::vector<double> v_primary_demand;
 
  /// the vector of SecondaryZones
- std::vector<int> v_secondary_zones;
+ std::vector<Index> v_secondary_zones;
 
- /// the matrix of SecondaryDemand
- std::vector<std::vector<double>> v_secondary_demand;
+ /** the matrix of SecondaryDemand indexed over the dimensions
+  * SecondaryZones and TimeHorizon */
+ std::vector<double> v_secondary_demand;
 
- /// the matrix of InertiaDemand
- std::vector<std::vector<double>> v_inertia_demand;
+ /// the vector InertiaZones
+ std::vector<Index> v_inertia_zones;
+
+ /** the matrix of InertiaDemand indexed over the dimensions
+  * InertiaZones and TimeHorizon */
+ std::vector<double> v_inertia_demand;
 
  /// the vector of PollutantDemand
  std::vector<double> v_pollutant_demand;
 
- /// the PollutantRho matrix
- std::vector<std::vector<std::vector<double>>> v_pollutant_rho;
-
- /// The network
- Network f_network;
+ /** the PollutantRho matrix index over the dimensions
+  * TimeHorizon, NumberPollutants, and NumberUnits */
+ std::vector<double> v_pollutant_rho;
 
  /// Node injection constraints at each time and for
  boost::multi_array<FRowConstraint *, 2> v_node_injection_constraints;
@@ -372,14 +423,23 @@ protected:
  /// Primary demand constraints at each time
  boost::multi_array<FRowConstraint *, 2> v_PrimaryDemand_Const;
 
-/// Secondary demand constraints at each time
-boost::multi_array<FRowConstraint *, 2>  v_SecondaryDemand_Const;
+ /// Secondary demand constraints at each time
+ boost::multi_array<FRowConstraint *, 2>  v_SecondaryDemand_Const;
 
-/// Inertia demand constraints at each time
-boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
+ /// Inertia demand constraints at each time
+ boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
 
-/// Pollutant demand constraints at each time
-boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
+ /// Pollutant demand constraints at each time
+ boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
+
+
+
+  void deserialize_sub_blocks( const netCDF::NcGroup & group );
+
+  void deserialize_sub_blocks( const netCDF::NcGroup & group,
+                               const std::string sub_group_name_prefix,
+                               const int num_sub_blocks );
+
 
 };   // end( class( UCBlock ) )
 
