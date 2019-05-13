@@ -28,7 +28,7 @@
  *
  * \version 0.11
  *
- * \date 10 - 05 - 2019
+ * \date 13 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -96,7 +96,6 @@ public:
     @{ */
 
  typedef unsigned int Index;
- typedef const Index c_Index;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -253,7 +252,8 @@ public:
  *   then this variable need not be defined, since it is not loaded;
  */
 
-virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
+
 /*--------------------------------------------------------------------------*/
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
@@ -281,31 +281,31 @@ virtual void deserialize( netCDF::NcGroup & group ) override;
 
  /// returns the primary demand of the given zone at the given time
  inline double get_primary_demand( Index zone, Index time ) {
-   return v_primary_demand[ zone * f_number_primary_zones + time ];
+   return v_primary_demand[ zone * f_time_horizon + time ];
  }
 
  /// returns the secondary demand of the given zone at the given time
  inline double get_secondary_demand( Index zone, Index time ) {
-   return v_secondary_demand[ zone * f_number_secondary_zones + time ];
+   return v_secondary_demand[ zone * f_time_horizon + time ];
  }
 
  /// returns the inertia demand of the given zone at the given time
  inline double get_inertia_demand( Index zone, Index time ) {
-   return v_inertia_demand[ zone * f_number_inertia_zones + time ];
+   return v_inertia_demand[ zone * f_time_horizon + time ];
  }
 
  /** returns the conversion factor of the given pollutant due to the
   * generation of the given unit at the given time */
  inline double get_pollutant_rho( Index time, Index pollutant, Index unit ) {
-   auto index = f_time_horizon * f_number_pollutants * time +
-     f_number_pollutants * pollutant + unit;
+   auto index = time * f_number_pollutants * f_number_units +
+     pollutant * f_number_units + unit;
    return v_pollutant_rho[ index ];
  }
 
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
  inline Index get_pollutant_zone( Index pollutant, Index node ) {
-   return v_pollutant_zones[ pollutant * f_number_pollutants + node ];
+   return v_pollutant_zones[ pollutant * f_number_nodes + node ];
  }
 
  /// returns the i-th UnitBlock
@@ -331,7 +331,7 @@ virtual void deserialize( netCDF::NcGroup & group ) override;
  *
  * */
 
-virtual void serialize( netCDF::NcGroup & group ) const override final;
+ virtual void serialize( netCDF::NcGroup & group ) const override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UCBlock ---------------------*/
@@ -432,14 +432,23 @@ protected:
  /// Pollutant demand constraints at each time
  boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
 
+/*--------------------------------------------------------------------------*/
+/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
+/*--------------------------------------------------------------------------*/
 
+private:
 
-  void deserialize_sub_blocks( const netCDF::NcGroup & group );
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
 
-  void deserialize_sub_blocks( const netCDF::NcGroup & group,
-                               const std::string sub_group_name_prefix,
-                               const int num_sub_blocks );
+ /// Deserialize the sub-blocks of UCBlock
+ void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
+ /// Deserialize the sub-blocks of UCBlock that have the given prefix name
+ void deserialize_sub_blocks( const netCDF::NcGroup & group,
+                              const std::string sub_group_name_prefix,
+                              const int num_sub_blocks );
 
 };   // end( class( UCBlock ) )
 
