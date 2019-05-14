@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 04 - 2019
+ * \date 14 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -106,7 +106,8 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
       v_power_injected.size() != 0 ||
       v_active_power.size() != 0 ||
       v_primary_spinning_reserve.size() != 0 ||
-      v_secondary_spinning_reserve.size() != 0 ) {
+      v_secondary_spinning_reserve.size() != 0 ||
+      v_heat.size() != 0 ) {
     // the abstract variables should be generated only once
     return;
   }
@@ -123,6 +124,7 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
     std::make_pair( &v_power_injected,             ColVariable::kNonNegative ),
     std::make_pair( &v_primary_spinning_reserve,   ColVariable::kNonNegative ),
     std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
+    std::make_pair( &v_heat,                       ColVariable::kNonNegative ),
     std::make_pair( &v_active_power,               ColVariable::kNonNegative )
     // v_active_power must be the last one in this list
   };
