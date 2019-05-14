@@ -28,7 +28,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 05 - 2019
+ * \date 14 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -143,6 +143,11 @@ public:
  * - the variable "Node", of type int and indexed over the dimension
  *   "NumberUnits"; the entry Node[ i ] tells to which node unit i belongs;
  *   if NumberNodes == 1  (say, it is not provided at all), then this
+ *   variable need not be defined, since it is not loaded;
+ *
+ * - the variable "HeatNode", of type int and indexed over the dimension
+ *   "NumberUnits"; the entry HeatNode[ i ] tells to which node heat-only unit
+ *   i belongs; if NumberNodes == 1  (say, it is not provided at all), then this
  *   variable need not be defined, since it is not loaded;
  *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
@@ -360,6 +365,9 @@ protected:
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
 
+ /// The entry v_heat_node[ i ] tells to which node heat-only unit i belongs
+std::vector<Index> v_heat_node;
+
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
 
@@ -430,7 +438,7 @@ protected:
  boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
 
  /// Pollutant demand constraints at each time
- boost::multi_array<FRowConstraint *, 2> v_PollutantDemand_Const;
+ boost::multi_array<FRowConstraint *, 1> v_PollutantDemand_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

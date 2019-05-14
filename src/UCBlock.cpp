@@ -224,6 +224,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
   if( f_number_nodes > 1 ) {
     ::deserialize( group, "Node", v_node, { f_number_units } );
+
+    ::deserialize( group, "HeatNode", v_heat_node, { f_number_units } );
   }
 
   deserialize_sub_blocks( group );
@@ -272,9 +274,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
   add_static_constraint( v_node_injection_constraints );
-
-  // Primary demand constraints.
-
+/*--------------------------------------------------------------------------*/
   if( v_PrimaryDemand_Const.size() != f_time_horizon ) {
     // this should only happen once
     assert(v_PrimaryDemand_Const.size() == 0);
@@ -283,11 +283,44 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
             (boost::multi_array<FRowConstraint *, 2>::
              extent_gen()[f_time_horizon][f_number_primary_zones]);
   }
+// Primary demand constraints.
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+    for (Index zone_id = 0; zone_id < f_number_primary_zones; ++zone_id) {
 
-//TODO
+      auto linear_function = new LinearFunction();
 
-  // Secondary demand constraints.
+      v_PrimaryDemand_Const[t][zone_id]->set_lhs
+              (get_primary_demand(zone_id, t));
+      v_PrimaryDemand_Const[t][zone_id]->set_rhs(Inf<double>());
+      v_PrimaryDemand_Const[t][zone_id]->set_function(linear_function);
 
+    }
+  }
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+
+        auto node_id = v_node[unit_id];
+
+        if(node_id >= f_number_primary_zones)
+          continue;
+
+        auto zone_id = v_primary_zones[node_id];
+
+        auto primary_spinning_reserve = get_unit_block(unit_id)
+                ->get_primary_spinning_reserve();
+
+        auto linear_function = static_cast<LinearFunction *>
+        (v_PrimaryDemand_Const[t][zone_id]->get_function());
+        linear_function->
+                add_variable(&primary_spinning_reserve[t], 1.0);
+
+      }
+    }
+
+  add_static_constraint( v_PrimaryDemand_Const);
+
+/*--------------------------------------------------------------------------*/
   if( v_SecondaryDemand_Const.size() != f_time_horizon ) {
     // this should only happen once
     assert(v_SecondaryDemand_Const.size() == 0);
@@ -297,10 +330,45 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
              extent_gen()[f_time_horizon][f_number_secondary_zones]);
   }
 
-//TODO
+  // Secondary demand constraints.
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+    for (Index zone_id = 0; zone_id < f_number_secondary_zones; ++zone_id) {
 
-  // Inertia demand constraints.
+      auto linear_function = new LinearFunction();
 
+      v_SecondaryDemand_Const[t][zone_id]->set_lhs
+              (get_secondary_demand(zone_id, t));
+      v_SecondaryDemand_Const[t][zone_id]->set_rhs(Inf<double>());
+      v_SecondaryDemand_Const[t][zone_id]->set_function(linear_function);
+
+    }
+  }
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+
+      auto node_id = v_node[unit_id];
+
+      if(node_id >= f_number_secondary_zones)
+        continue;
+
+      auto zone_id = v_secondary_zones[node_id];
+
+      auto secondary_spinning_reserve = get_unit_block(unit_id)
+              ->get_secondary_spinning_reserve();
+
+      auto linear_function = static_cast<LinearFunction *>
+      (v_SecondaryDemand_Const[t][zone_id]->get_function());
+      linear_function->
+              add_variable(&secondary_spinning_reserve[t], 1.0);
+
+    }
+  }
+
+  add_static_constraint( v_SecondaryDemand_Const);
+
+
+/*--------------------------------------------------------------------------*/
     if( v_InertiaDemand_Const.size() != f_time_horizon ) {
       // this should only happen once
       assert(v_InertiaDemand_Const.size() == 0);
@@ -310,23 +378,98 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
                extent_gen()[f_time_horizon][f_number_inertia_zones]);
     }
 
+  // Inertia demand constraints.
 //TODO
 
-  // Pollutant demand constraints.
-    /*
+/*--------------------------------------------------------------------------*/
+
   if( v_PollutantDemand_Const.size() != f_number_pollutants ) {
     // this should only happen once
     assert(v_PollutantDemand_Const.size() == 0);
 
     v_PollutantDemand_Const.resize
-            (boost::multi_array<FRowConstraint *, 2>::
-             extent_gen()[f_number_pollutants][f_number_pollutant_zones]);
+            (boost::multi_array<FRowConstraint *, 1>::
+             extent_gen()[f_number_pollutants]);
   }
-    */
+
+
+    // Pollutant demand constraints.
+    for (Index p = 0; p < f_number_pollutants; ++p){
+        auto linear_function = new LinearFunction();
+
+        v_PollutantDemand_Const[p]->set_rhs
+                (v_pollutant_demand[p]);
+        v_PollutantDemand_Const[p]->set_lhs(-Inf<double>());
+        v_PollutantDemand_Const[p]->set_function(linear_function);
+
+    }
+
+  for (Index p = 0; p < f_number_pollutants; ++p){
+
+      for (Index t = 0; t < f_time_horizon; ++t ){
+
+        for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ){
+
+        auto node_id = v_node[unit_id];
+
+
+        auto zone_id = v_number_pollutant_zones[node_id];
+
+        if (zone_id == 0)
+          continue;
+
+        auto pollutant_id = v_pollutant_zones[zone_id];
+
+        if (pollutant_id >= zone_id)
+          continue;
+
+        auto active_power = get_unit_block(unit_id)
+                ->get_heat();
+
+        auto linear_function = static_cast<LinearFunction *>
+        ( v_PollutantDemand_Const[p]->get_function());
+        linear_function->
+                add_variable(& active_power[t], v_pollutant_rho[t]);
+
+
+      }
+        for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ){
+
+          auto heatnode_id = v_heat_node[unit_id];
+
+
+          auto heatzone_id = v_number_pollutant_zones[heatnode_id];
+
+          if (heatzone_id == 0)
+            continue;
+
+          auto pollutant_id = v_pollutant_zones[heatzone_id];
+
+          if (pollutant_id >= heatzone_id)
+            continue;
+
+          auto heat = get_unit_block(unit_id)
+                  ->get_heat();
+
+          auto linear_function = static_cast<LinearFunction *>
+          ( v_PollutantDemand_Const[p]->get_function());
+          linear_function->
+                  add_variable(& heat[t], v_pollutant_rho[t]);
+
+        }
+
+    }
+  }
+  add_static_constraint( v_PrimaryDemand_Const);
+
+/*--------------------------------------------------------------------------*/
+// heat demand constraint
 
 //TODO
 
-}
+/*--------------------------------------------------------------------------*/
+
+    }  // end( UCBlock::global constraints )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -426,6 +569,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
   if( f_number_nodes > 1 ) {
     ::serialize( group, "Node", netCDF::NcUint64(),
                  { dim_number_units }, v_node );
+
+    ::serialize( group, "HeatNode", netCDF::NcUint64(),
+                 { dim_number_units }, v_heat_node );
   }
 
   // Serialize sub-blocks
