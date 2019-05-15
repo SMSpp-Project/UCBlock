@@ -19,8 +19,6 @@
  *   set is either empty, which means that there is no network in the
  *   model, or has size equals the time horizon.
  *
- * - A vector of node injection ColVariables.
- *
  * - A multi_array of node injection constraints.
  *
  * - Some basic public methods to read the data and initialize the
@@ -28,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 14 - 05 - 2019
+ * \date 15 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -67,7 +65,6 @@
 #include <boost/multi_array.hpp>
 #include <vector>
 #include "Block.h"
-#include "ColVariable.h"
 #include "NetworkBlock.h"
 #include "UnitBlock.h"
 
@@ -136,6 +133,11 @@ public:
  *   taken to be 1, which means that all the Unit belong to the same node
  *   (the network is a bus);
  *
+ * - the dimension "NumberHeatOnlyUnits" containing the number of
+ *   heat-only generation units in the problem; the dimension is
+ *   optional: if it is not provided then it is taken to be 0, which
+ *   means that there is no heat-only generation unit;
+ *
  * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the state of the interconnect
  *   network at time t;
@@ -145,10 +147,11 @@ public:
  *   if NumberNodes == 1  (say, it is not provided at all), then this
  *   variable need not be defined, since it is not loaded;
  *
- * - the variable "HeatNode", of type int and indexed over the dimension
- *   "NumberUnits"; the entry HeatNode[ i ] tells to which node heat-only unit
- *   i belongs; if NumberNodes == 1  (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
+ * - the variable "HeatOnlyUnits", of type int and indexed over the
+ *   dimension "NumberHeatOnlyUnits"; it contains the indices of the
+ *   heat-only generation units; if NumberHeatOnlyUnits == 0, then
+ *   this variable need not be defined, since there is no heat-only
+ *   generation unit and, therefore, this variable is not loaded;
  *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
@@ -274,34 +277,32 @@ public:
  void instance( std::istream& inStream );
 
  /// returns the time horizon of the problem
- int get_time_horizon( void ) const { return f_time_horizon; }
-
- /// sets the number of units of the problem
- void set_units_size( int units ) { f_number_units = units; }
+ Index get_time_horizon( void ) const { return f_time_horizon; }
 
  /// returns the vector of (pointers to) NetworkBlocks
- const std::vector<NetworkBlock *> & get_network_blocks( void ) {
+ const std::vector<NetworkBlock *> & get_network_blocks( void ) const {
    return v_network_blocks;
  }
 
  /// returns the primary demand of the given zone at the given time
- inline double get_primary_demand( Index zone, Index time ) {
+ inline double get_primary_demand( Index zone, Index time ) const {
    return v_primary_demand[ zone * f_time_horizon + time ];
  }
 
  /// returns the secondary demand of the given zone at the given time
- inline double get_secondary_demand( Index zone, Index time ) {
+ inline double get_secondary_demand( Index zone, Index time ) const {
    return v_secondary_demand[ zone * f_time_horizon + time ];
  }
 
  /// returns the inertia demand of the given zone at the given time
- inline double get_inertia_demand( Index zone, Index time ) {
+ inline double get_inertia_demand( Index zone, Index time ) const {
    return v_inertia_demand[ zone * f_time_horizon + time ];
  }
 
  /** returns the conversion factor of the given pollutant due to the
   * generation of the given unit at the given time */
- inline double get_pollutant_rho( Index time, Index pollutant, Index unit ) {
+ inline double get_pollutant_rho( Index time, Index pollutant, Index unit )
+   const {
    auto index = time * f_number_pollutants * f_number_units +
      pollutant * f_number_units + unit;
    return v_pollutant_rho[ index ];
@@ -309,7 +310,7 @@ public:
 
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
- inline Index get_pollutant_zone( Index pollutant, Index node ) {
+ inline Index get_pollutant_zone( Index pollutant, Index node ) const {
    return v_pollutant_zones[ pollutant * f_number_nodes + node ];
  }
 
@@ -321,6 +322,27 @@ public:
  /// returns the t-th NetworkBlock
  inline NetworkBlock * get_network_block( Index t ) const {
    return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+ }
+
+ /// returns the node where the given unit belongs to
+ inline Index get_node( Index unit ) const {
+   if( f_number_nodes > 1 )
+     return v_node[ unit ];
+   return 0;
+ }
+
+ /// returns the primary zone where the given node belongs to
+ inline Index get_primary_zone( Index node ) const {
+   if( v_primary_zones.size() > 0 )
+     return v_primary_zones[ node ];
+   return 0;
+ }
+
+ /// returns the secondary zone where the given node belongs to
+ inline Index get_secondary_zone( Index node ) const {
+   if( v_secondary_zones.size() > 0 )
+     return v_secondary_zones[ node ];
+   return 0;
  }
 
 /*@} -----------------------------------------------------------------------*/
@@ -362,11 +384,14 @@ protected:
  /// The number of nodes in the network
  Index f_number_nodes;
 
+ /// The number of heat-only generation units
+ Index f_number_heat_only_units;
+
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
 
- /// The entry v_heat_node[ i ] tells to which node heat-only unit i belongs
-std::vector<Index> v_heat_node;
+ /// Contains the indices of the heat-only generation units
+ std::vector<Index> v_heat_only_units;
 
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
@@ -425,20 +450,20 @@ std::vector<Index> v_heat_node;
   * TimeHorizon, NumberPollutants, and NumberUnits */
  std::vector<double> v_pollutant_rho;
 
- /// Node injection constraints at each time and for
- boost::multi_array<FRowConstraint *, 2> v_node_injection_constraints;
+ /// Node injection constraints for each time and node
+ boost::multi_array<FRowConstraint, 2> v_node_injection_constraints;
 
- /// Primary demand constraints at each time
- boost::multi_array<FRowConstraint *, 2> v_PrimaryDemand_Const;
+ /// Primary demand constraints for each time and primary zone
+ boost::multi_array<FRowConstraint, 2> v_PrimaryDemand_Const;
 
- /// Secondary demand constraints at each time
- boost::multi_array<FRowConstraint *, 2>  v_SecondaryDemand_Const;
+ /// Secondary demand constraints for each time and secondary zone
+ boost::multi_array<FRowConstraint, 2>  v_SecondaryDemand_Const;
 
- /// Inertia demand constraints at each time
- boost::multi_array<FRowConstraint *, 2>  v_InertiaDemand_Const;
+ /// Inertia demand constraints for each time and inertia zone
+ boost::multi_array<FRowConstraint, 2>  v_InertiaDemand_Const;
 
- /// Pollutant demand constraints at each time
- boost::multi_array<FRowConstraint *, 1> v_PollutantDemand_Const;
+ /// Pollutant demand constraints for each pollutant and pollutant zone
+ std::vector<std::vector<FRowConstraint>> v_PollutantDemand_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

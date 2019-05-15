@@ -37,7 +37,7 @@
  *
  * \version 0.11
  *
- * \date 14 - 05 - 2019
+ * \date 15 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -199,12 +199,12 @@ public:
 }
 
  /// Method for returning the vector of power variables
- const std::vector<ColVariable> & get_power( void ) const {
+ const std::vector<ColVariable> & get_active_power( void ) const {
    return v_active_power;
  }
 
  /// Method for returning the pointer to the power variable at time t
- ColVariable * get_power( int i ) { return & ( v_active_power[i] ); }
+ ColVariable * get_active_power( int i ) { return & ( v_active_power[i] ); }
 
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
@@ -266,7 +266,7 @@ protected:
  /// Vector of secondary spinning reserve variables
  std::vector<ColVariable> v_secondary_spinning_reserve;
 
-/// Vector of heat variables
+ /// Vector of heat variables
  std::vector<ColVariable> v_heat;
 
 /*--------------------------------------------------------------------------*/
