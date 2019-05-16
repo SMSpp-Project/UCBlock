@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 14 - 05 - 2019
+ * \date 16 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,6 +40,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "UCBlock.h"
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -65,12 +66,44 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   netCDF::NcDim TH = group.getDim( "TimeHorizon" );
-  if( TH.isNull() )
-    throw( std::invalid_argument( "TimeHorizon not present" ) );
+  if( TH.isNull() ) {
 
-  f_time_horizon = TH.getSize();
-  if( f_time_horizon <= 0 )
-    throw( std::invalid_argument( "TimeHorizon <= 0" ) );
+    // Dimension TimeHorizon is not present in the netCDF input.
+
+    auto f_Block = get_f_Block();
+
+    if( f_Block ) {
+      // The father Block is available. Take time horizon from it.
+      auto time_horizon = static_cast<UCBlock *>( get_f_Block() )->
+        get_time_horizon();
+      this->set_time_horizon( time_horizon );
+    }
+    else
+      throw( std::invalid_argument( "UnitBlock::deserialize: TimeHorizon "
+                                    "is not present in the netCDF input" ) );
+  }
+  else {
+
+    f_time_horizon = TH.getSize();
+    auto f_Block = get_f_Block();
+
+    if( f_Block ) {
+
+      // Check whether the given time horizon is equal to that of the
+      // father Block.
+      
+      auto time_horizon = static_cast<UCBlock *>( get_f_Block() )->
+        get_time_horizon();
+
+      if( f_time_horizon != time_horizon )
+        throw( std::invalid_argument
+               ( "UnitBlock::deserialize: TimeHorizon is different "
+                 "from that specified in UCBlock" ) );
+    }
+    else if( f_time_horizon <= 0 )
+      throw( std::invalid_argument
+             ( "UnitBlock::deserialize: TimeHorizon must be positive" ) );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
