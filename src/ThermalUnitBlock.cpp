@@ -236,41 +236,30 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc )
 
 /*------------Fixing-the-commitment-variables-to-0-or-1---------------------*/
 
-    double variable_value = - 1.0;
+    double commitment_variable_value = - 1.0;
 
-    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime )
-        variable_value = 0.0;
+    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
 
-    else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
-        variable_value = 1.0;
+        // unit must remain off from time 0 to init_t - 1
 
-    if ( variable_value >= 0.0 ) {
+        commitment_variable_value = 0.0;
 
-        //we need to fix v_commitment variable to 0 or 1 for init_t time steps
-        for (int t = 0; t < init_t ; ++t) {
-            v_commitment[t].set_value(variable_value);
-            v_commitment[t].is_fixed(true);
+        for (int t = 0; t < init_t; ++t) {
+            v_active_power[t].set_value( 0.0 );
+            v_active_power[t].is_fixed( true );
         }
     }
 
-/*----------------Fixing-the-power-variables-to-0---------------------------*/
-
-    double power_value= -1.0;
-
-    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime )
-        power_value = 0.0;
-
     else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
-        power_value > 0;
+        // unit must remain on from time 0 to init_t - 1
+        commitment_variable_value = 1.0;
 
-    if (  power_value == 0.0 ) {
+    if ( commitment_variable_value >= 0.0 ) {
 
-
+        //we need to fix v_commitment variable to 0 or 1 for init_t time steps
         for (int t = 0; t < init_t ; ++t) {
-            //we just need to fix v_power variable to 0 for init_t time steps
-            v_active_power[t].set_value(power_value);
-            v_active_power[t].is_fixed(true);
-
+            v_commitment[t].set_value( commitment_variable_value );
+            v_commitment[t].is_fixed( true );
         }
     }
 

@@ -16,7 +16,7 @@
  *
  * - The time horizon of the problem.
  *
- * - Five vectors of ColVariable objects, that are used to store the
+ * - Four vectors of ColVariable objects, that are used to store the
  *   information regarding:
  *
  *     (i)   the commitment of the unit;
@@ -27,9 +27,7 @@
  *
  *     (iv)  the secondary spinning reserve of the unit;
  *
- *     (v)   the heat produced by the unit.
- *
- *     (vi)  the active power produced by the unit.
+ *     (v)  the active power produced by the unit.
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
@@ -37,7 +35,7 @@
  *
  * \version 0.11
  *
- * \date 15 - 05 - 2019
+ * \date 17 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -139,8 +137,6 @@ public:
   *
   * - the secondary spinning reserve variables
   *
-  * - the heat variables
-  *
   * - the active power variables
   *
   * All of these variables are optional, except the active power
@@ -193,10 +189,6 @@ public:
    return v_secondary_spinning_reserve;
  }
 
-/// Method for returning the vector of heat variables
-  const std::vector<ColVariable> & get_heat( void ) const {
-   return v_heat;
-}
 
  /// Method for returning the vector of power variables
  const std::vector<ColVariable> & get_active_power( void ) const {
@@ -266,8 +258,6 @@ protected:
  /// Vector of secondary spinning reserve variables
  std::vector<ColVariable> v_secondary_spinning_reserve;
 
- /// Vector of heat variables
- std::vector<ColVariable> v_heat;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

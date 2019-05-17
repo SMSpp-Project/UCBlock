@@ -5,7 +5,7 @@
  * Header file for the *derived* class UCBlock, which implements the
  * base class Block, in order to define a very basic Unit Commitment
  * Block, that will be able to fit and be used as a base for almost
- * any different variation of the Unit Commitement Problem. As a
+ * any different variation of the Unit Commitment Problem. As a
  * result of this, the UCBlock class is characterized by the following
  * ingredients:
  *
@@ -67,6 +67,7 @@
 #include "Block.h"
 #include "NetworkBlock.h"
 #include "UnitBlock.h"
+#include "HeatBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -156,7 +157,7 @@ public:
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
  *   provided then it is taken to be 0, which means that no primary reserve
- *   constraints are present in the problem;
+ *   constraints are presented in the problem;
  *
  * - the variable "PrimaryZones", of type int and indexed over the dimension
  *   "NumberNodes"; the entry PrimaryZones[ i ] tells to which primary zone
@@ -179,7 +180,7 @@ public:
  * - the dimension "NumberSecondaryZones" is associated with one
  *   specific secondary spinning reserve in the problem. The dimension
  *   is optional, if it is not provided then it is taken to be 0,
- *   which means that no secondary reserve constraints are present in
+ *   which means that no secondary reserve constraints are presented in
  *   the problem;
  *
  * - the variable "SecondaryZones", of type int and indexed over the

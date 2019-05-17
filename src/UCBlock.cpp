@@ -451,13 +451,13 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
             continue; // this unit does not belong to any zone
 
-          auto heat = get_unit_block( unit_id )->get_heat();
+          //auto heat = get_unit_block( unit_id )->get_heat();
           auto rho  = get_pollutant_rho( t, pollutant, unit_id );
 
           auto linear_function = static_cast<LinearFunction *>
             ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function() );
 
-          linear_function->add_variable( & heat[ t ], rho );
+          //linear_function->add_variable( & heat[ t ], rho );
         }
       }
 
