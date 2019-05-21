@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 15 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -125,9 +125,19 @@ public:
  * - the dimension "NumberUnits" containing the number of units in
  *   the problem;
  *
+ * - the dimension "NumberHeatBlocks" containing the number of
+ *   heat blocks in in the problem; the dimension is
+ *   optional: if it is not provided then it is taken to be 0, which
+ *   means that there is no heat block in the problem;
+ *
  * - the groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
  *   n == NumberUnits - 1, containing each one UnitBlock corresponding
  *   to one unit;
+ *
+ * - the groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
+ *   n == NumberHeatBlocks - 1, containing each one HeatBlock corresponding to
+ *   one energy cell; when NumberHeatBlocks == 0, there is no heat constraint
+ *   anywhere in the problem;
  *
  * - the dimension "NumberNodes" containing the number of nodes in
  *   the problem; the dimension is optional, if it is not provided then it is
@@ -153,6 +163,11 @@ public:
  *   heat-only generation units; if NumberHeatOnlyUnits == 0, then
  *   this variable need not be defined, since there is no heat-only
  *   generation unit and, therefore, this variable is not loaded;
+ *
+ * - the variable "UnitEnergyCell", of type int and indexed over the dimension
+ *   "NumberHeatBlocks"; it contains the indices of the heat blocks; if
+ *   NumberHeatBlocks == 0, then this variable need not be defined, since
+ *   there is heat block and, therefore, this variable is not loaded;
  *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
@@ -346,6 +361,18 @@ public:
    return 0;
  }
 
+/// returns the inertia zone where the given node belongs to
+inline Index get_inertia_zone( Index node ) const {
+    if( v_inertia_zones.size() > 0 )
+      return v_inertia_zones[ node ];
+    return 0;
+}
+
+/// returns the i-th HeatBlock
+inline HeatBlock * get_heat_block( Index i ) const {
+    return static_cast<HeatBlock *>( v_Block[ i ] );
+}
+
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -388,11 +415,17 @@ protected:
  /// The number of heat-only generation units
  Index f_number_heat_only_units;
 
+/// The number of heat block
+Index f_number_heat_block;
+
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
 
  /// Contains the indices of the heat-only generation units
  std::vector<Index> v_heat_only_units;
+
+/// Contains the indices of the energy cell
+std::vector<Index> v_energy_cell;
 
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
@@ -408,6 +441,9 @@ protected:
 
  /// The set of UnitBlocks
  std::vector<UnitBlock *> v_unit_blocks;
+
+ /// The set of HeatBlocks
+ std::vector<HeatBlock *> v_heat_blocks;
 
  /// The number of pollutant zones of each pollutant
  std::vector<Index> v_number_pollutant_zones;
@@ -462,6 +498,9 @@ protected:
 
  /// Inertia demand constraints for each time and inertia zone
  boost::multi_array<FRowConstraint, 2>  v_InertiaDemand_Const;
+
+/// heat constraints for each time and index unit
+boost::multi_array<FRowConstraint, 2>  v_Heat_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector<std::vector<FRowConstraint>> v_PollutantDemand_Const;

@@ -35,7 +35,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -119,6 +119,16 @@ public:
  * the group should contain the following:
  *
  * - the dimension "TimeHorizon" containing the time horizon.
+ *
+ * - the variable "InertiaCommitment", of type double and indexed over the
+ *   dimension "TimeHorizon"; the entry  InertiaCommitment[ t ] shows the
+ *   value of inertia commitment parameter for each thermal unit; when the
+ *   thermal unit is OFF, InertiaCommitment[ t ] == 0 at the corresponding
+ *   time t;
+ *
+ * - the variable "InertiaPower", of type double and indexed over the
+ *   dimension "TimeHorizon"; the entry  InertiaPower[ t ] shows the amount of
+ *   inertia power value for the storage units at time t;
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -169,6 +179,16 @@ public:
  /// Method for returning the time horizon
  int get_time_horizon( void ) const { return f_time_horizon; }
 
+
+/// Method for returning the vector of inertia commitment
+const std::vector< double > & get_inertia_commitment( void ) const {
+    return v_inertia_commitment;
+}
+
+/// Method for returning the vector of inertia power
+const std::vector< double > & get_inertia_power( void ) const {
+ return v_inertia_power;
+ }
  /// Method for returning the vector of commitment variables
  const std::vector<ColVariable> & get_commitment( void ) const {
    return v_commitment;
@@ -235,8 +255,14 @@ public:
 
 protected:
 
- /// The time horizon of the problem
+/// The time horizon of the problem
  int f_time_horizon;
+
+/// Vector of inertia commitment
+std::vector< double > v_inertia_commitment;
+
+/// Vector of inertia power
+std::vector< double > v_inertia_power;
 
  /* Each of the following vectors of Variables should either have size
   * f_time_horizon, meaning that there is one Variable for each time

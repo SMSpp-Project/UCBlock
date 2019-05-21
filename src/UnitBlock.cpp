@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 16 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -200,6 +200,8 @@ void UnitBlock::set_time_horizon( int t ) {
 void UnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "UnitBlock" );
   group.addDim( "TimeHorizon" , f_time_horizon );
+
+  //TODO InertiaCommitment and InertiaPower
 }
 
 /*--------------------------------------------------------------------------*/

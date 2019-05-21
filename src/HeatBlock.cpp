@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -161,7 +161,7 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
     typedef std::vector< std::pair< std::vector<ColVariable> * , int > > v_pairs;
 
     v_pairs variables_and_types = {
-            std::make_pair( &v_heat,                       ColVariable::kNonNegative )
+     std::make_pair( &v_heat,                       ColVariable::kNonNegative )
             // v_heat must be the last one in this list
     };
 

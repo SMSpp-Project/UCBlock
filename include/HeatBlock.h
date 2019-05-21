@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -106,9 +106,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+typedef unsigned int Index;
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -151,12 +149,11 @@ virtual void load( std::istream &input ) override { };
  *
  * - the dimension "TimeHorizon" containing the time horizon;
  *
- * - the dimension "NumberUnits" containing the number of units in
- *   the problem;
+ *  * - the dimension "NumberUnits" containing the number of units;
  *
- * - the dimension "NumberHeatBlock" containing the number of energy cell in
- *   the problem; the dimension is optional: if it is not provided then it is
- *   taken to be 0, which means there is no energy cell in the problem;
+ * - the dimension "NumberHeatBlocks" containing the number of heat blocks in
+ *   in the problem; the dimension is optional: if it is not provided then it
+ *   is taken to be 0, which means that there is no heat block in the problem;
  *
  * - the dimension "NumberHeatID" containing the number of heat-ID in the
  *   problem; the dimension is optional: if it is not provided then it is
@@ -165,15 +162,14 @@ virtual void load( std::istream &input ) override { };
  * - the dimension "NumberThermalStorage" containing the number of thermal
  *   storage units within an energy cell; the dimension is optional: if it is
  *   not provided then it is taken to be 0, which means no thermal storage
- *   units are presented in the problem;
+ *   units are presented in the problem TODO;
  *
  * - the variable "UnitEnergyCell", of type int and indexed over the dimension
- *   "NumberUnits"; the entry UnitEnergyCell[ i ] tells to which energy
- *   cell unit i belongs; if UnitEnergyCell[ i ] >= NumberEnergyCell, this means
- *   that unit i is not located in any energy cell; if NumberEnergyCell == 0
+ *   "NumberUnits"; the entry UnitEnergyCell[ i ] tells to which heat block unit
+ *   i belongs; if UnitEnergyCell[ i ] >= NumberHeatBlocks, this means
+ *   that unit i is not located in any heat block; if NumberEnergyCell == 0
  *   (say, it is not provided at all) then this variable need not be defined,
- *   since it is not loaded; if NumberEnergyCell == 1, then there is only one
- *   energy cell and all the units are located in it;
+ *   since it is not loaded;
  *
  * - the variable "UnitHeatID", of type int and indexed over the dimension
  *   "NumberUnits"; the entry UnitHeatID[ i ] tells to which heat-ID unit i
@@ -188,12 +184,16 @@ virtual void load( std::istream &input ) override { };
  *   i in the time t; if NumberHeatID == 0 (say, it is not provided at all),
  *   then this variable need not be defined, since it is not loaded;
  *
+ * - the variable "HeatRho", of type double and indexed both over the
+ *   dimensions "TimeHorizon" and "??": entry HeatRho[ t , i ] is
+ *   assumed to contain the power to heat ratio at time t; TODO..;
+ *
  * - the variable "ThermalStorage", of type int and indexed over the dimension
  *   "NumberUnits"; the entry ThermalStorage[ i ] tells to which thermal unit
  *   i belongs; if ThermalStorage[ i ] >= NumberThermalStorage, this means
  *   that unit i is not assigned to any thermal storage; if
  *   NumberThermalStorage == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
+ *   variable need not be defined, since it is not loaded TODO;
  *
  * - the scalar variable "MinHeat", of type double and not indexed over
  *   any dimension and indicates the minimum heat output value of the unit;
@@ -240,8 +240,18 @@ virtual void generate_objective( Configuration *objc = nullptr )
 /** @name Methods for reading the data of the HeatBlock
  *  @{  */
 
-/// Method for returning the time horizon
-int get_time_horizon( void ) const { return f_time_horizon; }
+/// returns the time horizon of the problem
+Index get_time_horizon( void ) const { return f_time_horizon; }
+
+/// returns the heat rho of the given unit at the given time
+inline double get_heat_rho( Index unit, Index time ) const {
+ return v_heat_rho[ unit * f_time_horizon + time ];
+}
+
+/// returns the heat demand of the given zone at the given time
+inline double get_heat_demand( Index unit, Index time ) const {
+  return v_heat_demand[ unit * f_time_horizon + time ];
+}
 
 /// Method for returning the vector of heat variables
 const std::vector<ColVariable> & get_heat( void ) const {
@@ -284,8 +294,20 @@ void set_time_horizon( int t );
 protected:
 
 /// The time horizon of the problem
-int f_time_horizon;
+Index f_time_horizon;
 
+/** the matrix of HeatDemand indexed over the dimensions
+* NumberHeatID and TimeHorizon */
+std::vector<double> v_heat_demand;
+
+/// the MinHeat value
+int f_MinHeat;
+
+/// the MaxHeat value
+int f_MaxHeat;
+
+/// Vector of heat rho
+std::vector<double> v_heat_rho;
 
 /// Vector of heat variables
 std::vector<ColVariable> v_heat;

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 15 - 05 - 2019
+ * \date 21 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -129,6 +129,8 @@ inline void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
   deserialize_sub_blocks( group, "UnitBlock_", f_number_units );
   deserialize_sub_blocks( group, "NetworkBlock_", f_time_horizon );
+  deserialize_sub_blocks( group, "HeatBlock_", f_number_heat_block );
+
 }
 
 /*--------------------------------------------------------------------------*/
@@ -174,17 +176,19 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   // Default values for optional dimensions
   f_number_nodes           = 1;
   f_number_heat_only_units = 0;
+  f_number_heat_block      = 0;
   f_number_primary_zones   = 0;
   f_number_secondary_zones = 0;
   f_number_inertia_zones   = 0;
   f_number_pollutants      = 0;
 
-  ::deserialize_dim( group, "NumberNodes",          f_number_nodes );
-  ::deserialize_dim( group, "NumberHeatOnlyUnits",  f_number_heat_only_units );
-  ::deserialize_dim( group, "NumberPrimaryZones",   f_number_primary_zones );
-  ::deserialize_dim( group, "NumberSecondaryZones", f_number_secondary_zones );
-  ::deserialize_dim( group, "NumberInertiaZones",   f_number_inertia_zones );
-  ::deserialize_dim( group, "NumberPollutants",     f_number_pollutants );
+  ::deserialize_dim( group, "NumberNodes",         f_number_nodes );
+  ::deserialize_dim( group, "NumberHeatOnlyUnits", f_number_heat_only_units );
+  ::deserialize_dim( group, "NumberHeatBlocks",    f_number_heat_block);
+  ::deserialize_dim( group, "NumberPrimaryZones",  f_number_primary_zones );
+  ::deserialize_dim( group, "NumberSecondaryZones",f_number_secondary_zones );
+  ::deserialize_dim( group, "NumberInertiaZones",  f_number_inertia_zones );
+  ::deserialize_dim( group, "NumberPollutants",    f_number_pollutants );
 
   if( f_number_primary_zones >= 1 ) {
     ::deserialize( group, "PrimaryZones", v_primary_zones,
@@ -203,7 +207,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
 
   if( f_number_inertia_zones >= 1 ) {
-    ::deserialize( group, "InertiaZones", v_inertia_zones, { f_number_nodes } );
+    ::deserialize( group, "InertiaZones", v_inertia_zones,
+                                            { f_number_nodes } );
 
     ::deserialize( group, "InertiaDemand", v_inertia_demand,
                    { f_number_inertia_zones, f_time_horizon } );
@@ -230,6 +235,10 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   if( f_number_heat_only_units > 0 )
     ::deserialize( group, "HeatOnlyUnits", v_heat_only_units,
                    { f_number_heat_only_units } );
+
+  if( f_number_heat_block > 0 )
+    ::deserialize( group, "UnitEnergyCell", v_energy_cell,
+                   { f_number_heat_block } );
 
   deserialize_sub_blocks( group );
 
@@ -277,8 +286,8 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         auto linear_function = static_cast<LinearFunction *>
           ( v_node_injection_constraints[ t ][ node_id ].get_function() );
-        linear_function->
-          add_variable( get_unit_block( unit_id )->get_active_power( t ), 1.0 );
+     linear_function->
+       add_variable( get_unit_block( unit_id )->get_active_power( t ), 1.0 );
       }
     }
 
@@ -348,11 +357,12 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
     // Secondary demand constraints.
     for( Index t = 0; t < f_time_horizon; ++t ) {
 
-      for( Index zone_id = 0; zone_id < f_number_secondary_zones; ++zone_id ) {
+      for( Index zone_id = 0; zone_id < f_number_secondary_zones; ++zone_id ){
         v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs
           ( get_secondary_demand( zone_id, t ) );
         v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf<double>() );
-        v_SecondaryDemand_Const[ t ][ zone_id ].set_function( new LinearFunction() );
+        v_SecondaryDemand_Const[ t ][ zone_id ].set_function
+                                                ( new LinearFunction() );
       }
 
       for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
@@ -378,19 +388,60 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
 /*--------------------------------------------------------------------------*/
+  if( f_number_inertia_zones > 0 ) {
 
-  if( v_InertiaDemand_Const.size() != f_time_horizon ) {
-    // this should only happen once
-    assert( v_InertiaDemand_Const.size() == 0 );
+    if (v_InertiaDemand_Const.size() != f_time_horizon) {
+      // this should only happen once
+      assert(v_InertiaDemand_Const.size() == 0);
 
-    v_InertiaDemand_Const.resize
-      ( boost::multi_array<FRowConstraint *, 2>::
-       extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
+      v_InertiaDemand_Const.resize
+              (boost::multi_array<FRowConstraint *, 2>::
+               extent_gen()[f_time_horizon][f_number_inertia_zones]);
+    }
+
+
+    for( Index t = 0; t < f_time_horizon; ++t ) {
+
+      for( Index zone_id = 0; zone_id < f_number_inertia_zones; ++zone_id ) {
+        v_InertiaDemand_Const[ t ][ zone_id ].set_lhs
+                ( get_inertia_demand( zone_id, t ) );
+        v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf<double>() );
+        v_InertiaDemand_Const[ t ][ zone_id ].set_function
+                                              ( new LinearFunction() );
+      }
+
+      for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+
+        auto node_id = get_node( unit_id );
+
+        assert( node_id >= 0 && node_id < f_number_nodes );
+
+        auto zone_id = get_inertia_zone( node_id );
+        if( zone_id >= f_number_inertia_zones )
+          continue; // this unit does not belong to any zone
+
+        auto commitment_variable = get_unit_block( unit_id )->
+                get_commitment();
+
+        auto inertia_commitment = get_unit_block( unit_id )->
+                get_inertia_commitment();
+
+        auto active_power_variable = get_unit_block( unit_id )->
+                get_active_power();
+
+        auto inertia_power = get_unit_block( unit_id )->
+                get_inertia_power();
+
+        auto linear_function = static_cast<LinearFunction *>
+        ( v_InertiaDemand_Const[ t ][ zone_id ].get_function() );
+        linear_function->add_variable( & commitment_variable[ t ],
+                                                      inertia_commitment[t] );
+        linear_function->add_variable( & active_power_variable[ t ],
+                                                           inertia_power[t] );
+      }
+    }
+      add_static_constraint( v_InertiaDemand_Const );
   }
-
-  // Inertia demand constraints.
-  //TODO
-
 /*--------------------------------------------------------------------------*/
 
   // Pollutant demand constraints.
@@ -402,8 +453,10 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
       assert( v_PollutantDemand_Const.size() == 0 );
 
       v_PollutantDemand_Const.resize( f_number_pollutants );
-      for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
-        v_PollutantDemand_Const.resize( v_number_pollutant_zones[ pollutant ] );
+      for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant )
+      {
+        v_PollutantDemand_Const.resize( v_number_pollutant_zones[ pollutant ]
+                     );
       }
     }
 
@@ -435,7 +488,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto active_power = get_unit_block( unit_id )->get_active_power();
 
           auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function() );
+            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & active_power[ t ], rho );
         }
@@ -451,13 +504,13 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
             continue; // this unit does not belong to any zone
 
-          //auto heat = get_unit_block( unit_id )->get_heat();
+          auto heat = get_heat_block( unit_id )->get_heat();
           auto rho  = get_pollutant_rho( t, pollutant, unit_id );
 
           auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function() );
+            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function());
 
-          //linear_function->add_variable( & heat[ t ], rho );
+          linear_function->add_variable( & heat[ t ], rho );
         }
       }
 
@@ -466,9 +519,44 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
 /*--------------------------------------------------------------------------*/
-// heat demand constraint
+// heat constraint
 
-//TODO
+if (f_number_heat_block > 0 ) {
+
+  if (v_Heat_Const.size() != f_time_horizon) {
+    // this should only happen once
+    assert(v_Heat_Const.size() == 0);
+
+    v_Heat_Const.resize
+            (boost::multi_array<FRowConstraint *, 2>::
+             extent_gen()[f_time_horizon][f_number_heat_block]);
+  }
+
+
+  for (Index t = 0; t < f_time_horizon; ++t) {
+
+    for (Index unit_id = 0; unit_id < f_number_heat_block; ++unit_id) {
+
+      v_Heat_Const[ t ][ unit_id ].set_lhs ( -Inf<double>() );
+      v_Heat_Const[ t ][ unit_id ].set_rhs( 0.0 );
+      v_Heat_Const[ t ][ unit_id ].set_function ( new LinearFunction() );
+
+      auto heat = get_heat_block( unit_id )->get_heat();
+      auto active_power = get_unit_block( unit_id )->get_active_power();
+      auto heat_rho = get_heat_block( unit_id )->get_heat_rho( t , unit_id );
+
+      auto linear_function = static_cast<LinearFunction *>
+      ( v_Heat_Const[ t ][ unit_id ].get_function() );
+      linear_function->add_variable( & heat[ t ] , 1.0);
+      linear_function->add_variable( & active_power[ t ] , heat_rho);
+
+    }
+
+  }
+
+  add_static_constraint( v_Heat_Const );
+
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -515,6 +603,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
   auto dim_number_heat_only_units = group.addDim
     ( "NumberHeatOnlyUnits", f_number_heat_only_units );
+
+  auto dim_number_energy_cell = group.addDim
+          ( "NumberHeatBlocks", f_number_heat_block );
 
   auto dim_number_primary_zones =
     group.addDim( "NumberPrimaryZones", f_number_primary_zones );
@@ -580,6 +671,10 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
     ::serialize( group, "HeatOnlyUnits", netCDF::NcUint64(),
                  { dim_number_heat_only_units }, v_heat_only_units );
 
+  if( f_number_heat_block > 0 )
+    ::serialize( group, "UnitEnergyCell", netCDF::NcUint64(),
+                 { dim_number_energy_cell }, v_energy_cell );
+
   // Serialize sub-blocks
 
   for( Index i = 0; i < f_number_units; ++i ) {
@@ -594,6 +689,11 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
     sub_block->serialize( sub_group );
   }
 
+  for( Index i = 0; i < f_number_heat_block; ++i ) {
+    auto sub_block = get_heat_block( i );
+    auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ) );
+    sub_block->serialize( sub_group );
+  }
 }  // end( UCBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
