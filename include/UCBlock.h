@@ -144,6 +144,7 @@ public:
  *   taken to be 1, which means that all the Unit belong to the same node
  *   (the network is a bus);
  *
+ * NO, THIS WE DON'T NEED
  * - the dimension "NumberHeatOnlyUnits" containing the number of
  *   heat-only generation units in the problem; the dimension is
  *   optional: if it is not provided then it is taken to be 0, which
@@ -158,12 +159,18 @@ public:
  *   if NumberNodes == 1  (say, it is not provided at all), then this
  *   variable need not be defined, since it is not loaded;
  *
+ * NO, THIS WE DON'T NEED
  * - the variable "HeatOnlyUnits", of type int and indexed over the
  *   dimension "NumberHeatOnlyUnits"; it contains the indices of the
  *   heat-only generation units; if NumberHeatOnlyUnits == 0, then
  *   this variable need not be defined, since there is no heat-only
  *   generation unit and, therefore, this variable is not loaded;
  *
+ * WE NEED A MATRIX THAT, FOR EACH HEAT UNIT OF EACH HEAT BLOCK, TELLS
+ * IF THIS IS A HEAT-ONLY UNIT (INDEX >= NumberUnits), OR IF THIS IS
+ * ALSO AN ELECTRICITY-PRODUCING UNIT (INDEX < NumberUnits)
+ *
+ * NO, THIS WE DON'T NEED
  * - the variable "UnitEnergyCell", of type int and indexed over the dimension
  *   "NumberHeatBlocks"; it contains the indices of the heat blocks; if
  *   NumberHeatBlocks == 0, then this variable need not be defined, since
@@ -262,7 +269,22 @@ public:
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded;
  *
- * - the variable "PollutantDemand", of type double and indexed over
+ * EITHER WE NEED A NEW VARIABLE
+ * - the variable "PollutantHeatZones", of type int and indexed over the
+ *   dimensions "NumberPollutants" and "NumberHeatBlocks"; the entry
+ *   PollutantHeatZones[ i , j ] tells to which pollutant zone associated
+ *   with pollutant i the HeatBlock j belongs; if PollutantHeatZones[ i , j ]
+ *   >= NumberPollutantZones[ i ], this means that HeatBlock j does not
+ *   belong to any pollutant zone, and hence the corresponding units
+ *   are not involved into the pollutant demand constraints associated
+ *   with pollutant i; if NumberPollutants == 0 (say, there is no
+ *   pollutant) then this variable need not be defined, since it is
+ *   not loaded;
+ * OR WE NEED TO CONCATENATE PollutantZones and PollutantHeatZones, IF THIS
+ * IS POSSIBLE IN netCDF
+ *
+ * DIFFERENT NAME
+ * - the variable "PollutantBudget", of type double and indexed over
  *   the dimension "NumberPollutants"; the i-th entry of the variable
  *   is assumed to contain the limit of pollutant i; if
  *   NumberPollutants == 0 (say, there is no pollutant) then this
@@ -274,6 +296,10 @@ public:
  *   conversion factor of pollutant i due to the generation of unit j
  *   at time t. If NumberPollutants == 0 (say, there is no pollutant)
  *   then this variable need not be defined, since it is not loaded;
+ *
+ * HERE WE NEED THE SAME INFORMATION FOR HEAT BLOCKS: FOR EACH HEAT-ONLY
+ * UNIT IN EACH HEAT BLOCK (IF IT APPEARS IN A POLUTANT), WE NEED THE
+ * COEFFICIENT IN THE POLLUTANT CONSTRAINT
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;

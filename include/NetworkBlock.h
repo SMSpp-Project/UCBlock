@@ -118,6 +118,19 @@ public:
  *   the problem; if NumberNodes == 1 then this dimension need not to
  *   be present since it is not loaded;
  *
+ * WE NEED A DESCRIPTION OF THE LINES
+ * - the variable "Lines", of type int and indexed over both the
+ *   dimension "NumberNodes" and [ 0 , 1 ]; the i-th entry of the variable
+ *   is [ s , t ], where s and t are the two endpoints of the line
+ * OR
+ * - the variable "StartLine", of type int and indexed over the
+ *   dimension "NumberNodes"; the i-th entry of the variable is the 
+ *   starting point of the line (however, lines are not oriented)
+ *
+ * - the variable "EndLine", of type int and indexed over the
+ *   dimension "NumberNodes"; the i-th entry of the variable is the 
+ *   endinf point of the line (however, lines are not oriented)
+ *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
  *   contain the active power requirement at node i in the network;
@@ -164,6 +177,17 @@ public:
    f_number_lines = number_lines;
  }
 
+ /// set starting nodes
+
+ /// set ending nodes
+
+ /// set MinPowerFlow
+
+ /// set MaxPowerFlow
+
+ /// set Susceptance
+ 
+ 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/

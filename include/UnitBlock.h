@@ -119,16 +119,32 @@ public:
  * the group should contain the following:
  *
  * - the dimension "TimeHorizon" containing the time horizon.
+ *   THE DIMENSION IS OPTIONAL, BUT
+ *   HAVE TO COMMENT BETTER WHAT HAPPENS: THE FATHER CAN PASS THIS VALUE TO
+ *   THE UnitBlock, IF THE FATHER PASSES IT AND THERE IS A VALUE IN THE
+ *   netCDF THEN THE VALUES HAVE TO BE EQUAL ...
  *
  * - the variable "InertiaCommitment", of type double and indexed over the
  *   dimension "TimeHorizon"; the entry  InertiaCommitment[ t ] shows the
- *   value of inertia commitment parameter for each thermal unit; when the
- *   thermal unit is OFF, InertiaCommitment[ t ] == 0 at the corresponding
- *   time t;
+ *   value of inertia commitment parameter for each thermal unit
+ *
+ *    this means that the unit gives a contribution to the inertia at
+ *    time t which is get_commitment()[ t ] * InertiaCommitment[ t ]
+ *
+ *   the variable is optional. if not defined, InertiaCommitment[ t ] == 0
+ *   for all t. if it is defined it can either have size 1 or size TimeHorizon
+ *   if it has size 1 then the value is the same for all t
  *
  * - the variable "InertiaPower", of type double and indexed over the
- *   dimension "TimeHorizon"; the entry  InertiaPower[ t ] shows the amount of
- *   inertia power value for the storage units at time t;
+ *   dimension "TimeHorizon"; the entry InertiaPower[ t ] shows the amount of
+ *   inertia power value for the unit at time t
+ *
+ *    this means that the unit gives a contribution to the inertia at
+ *    time t which is get_active_power()[ t ] * InertiaCommitment[ t ]
+ *
+ *   the variable is optional. if not defined, InertiaCommitment[ t ] == 0
+ *   for all t. if it is defined it can either have size 1 or size TimeHorizon
+ *   if it has size 1 then the value is the same for all t
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -139,11 +155,12 @@ public:
  /** Method that generates the static variables of this
   * UnitBlock. These may be:
   *
-  * - the commitment variables
+  * - the commitment variables [bit 0]
   *
-  * - the power injected variables
+  *    ??????????????????
+  * - the power injected variables [bit 1]
   *
-  * - the primary spinning reserve variables
+  * - the primary spinning reserve variables [...]
   *
   * - the secondary spinning reserve variables
   *
@@ -239,6 +256,13 @@ const std::vector< double > & get_inertia_power( void ) const {
  *  @{ */
 
  /// Set the time horizon
+ /** Better comment again when this is supposed to be called and why: should
+  * be called by the father just before calling deserialize(), it says tha
+  * the object is just going to be deserialized and it should use the value
+  * passed here if it does not find one in the netCDF file. If there is a
+  * value in the netCDF and the two disagre ...
+  */
+
  void set_time_horizon( int t );
 
 /*@} -----------------------------------------------------------------------*/
