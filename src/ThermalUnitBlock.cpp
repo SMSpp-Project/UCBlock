@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 05 - 2019
+ * \date 24 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -169,7 +169,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "QuadTerm",      f_number_intervals, f_QuadTerm );
   ::deserialize( group, "ConstTerm",     f_number_intervals, f_ConstTerm );
 
-  ::deserialize( group, "FixedConsPower",  & f_FixedConsPower );
+ // ::deserialize( group, "FixedConsPower",  & f_FixedConsPower );
   ::deserialize( group, "PZero",           & f_PZero );
   ::deserialize( group, "StartUpCost",     & f_StartUpCost );
   ::deserialize( group, "MinUpTime",       & f_MinUpTime );
@@ -331,7 +331,7 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
     }
     add_static_constraint(PMax_Const);
 
-
+/*
 //initializing power injected Equalities
     PowerInjected_Const.resize(f_time_horizon);
     for (int t = 0 ; t < f_time_horizon ; t++) {
@@ -347,7 +347,7 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
 
     }
     add_static_constraint(PowerInjected_Const);
-
+*/
 //initializing PrimaryRho fraction Inequalities
 PrimaryRho_Const.resize(f_time_horizon);
     for (int t = 0 ; t < f_time_horizon ; t++){
@@ -564,7 +564,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   netCDF::NcDim ncdim_number_intervals = group.addDim( "NumberIntervals",
                                                        f_number_intervals );
 
-  ::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
+  //::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
   ::serialize( group, "PZero",          netCDF::NcDouble(), f_PZero );
   ::serialize( group, "StartUpCost",    netCDF::NcDouble(), f_StartUpCost );
   ::serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );

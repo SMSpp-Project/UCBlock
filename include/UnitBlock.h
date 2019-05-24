@@ -21,13 +21,11 @@
  *
  *     (i)   the commitment of the unit;
  *
- *     (ii)  the power injected into the grid;
+ *     (ii) the primary spinning reserve of the unit;
  *
- *     (iii) the primary spinning reserve of the unit;
+ *     (iii)  the secondary spinning reserve of the unit;
  *
- *     (iv)  the secondary spinning reserve of the unit;
- *
- *     (v)  the active power produced by the unit.
+ *     (iv)  the active power produced by the unit.
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
@@ -35,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 05 - 2019
+ * \date 24 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -119,10 +117,15 @@ public:
  * the group should contain the following:
  *
  * - the dimension "TimeHorizon" containing the time horizon.
- *   THE DIMENSION IS OPTIONAL, BUT
- *   HAVE TO COMMENT BETTER WHAT HAPPENS: THE FATHER CAN PASS THIS VALUE TO
- *   THE UnitBlock, IF THE FATHER PASSES IT AND THERE IS A VALUE IN THE
- *   netCDF THEN THE VALUES HAVE TO BE EQUAL ...
+ *
+ * - the variable "FixedConsumption", of type double and indexed over the
+ *   dimension "TimeHorizon"; the entry  FixedConsumption[ t ] shows the
+ *   fixed consumption of the power plant when it is OFF; this means that when
+ *   the unit is off, it has a fixed consumption at time t which is a negative
+ *   value; the variable is optional; if not defined,
+ *   FixedConsumption[ t ] == 0 for all t; if it is defined it can either have
+ *   size 1 or size TimeHorizon if it has size 1 then the value is the same
+ *   for all t;
  *
  * - the variable "InertiaCommitment", of type double and indexed over the
  *   dimension "TimeHorizon"; the entry  InertiaCommitment[ t ] shows the
@@ -153,13 +156,11 @@ public:
   *
   * - the commitment variables [bit 0]
   *
-  * - the power injected variables [bit 1]
+  * - the primary spinning reserve variables [bit 1]
   *
-  * - the primary spinning reserve variables [bit 2]
+  * - the secondary spinning reserve variables [bit 2]
   *
-  * - the secondary spinning reserve variables [bit 3]
-  *
-  * - the active power variables [bit 2]
+  * - the active power variables [bit 3]
   *
   * All of these variables are optional, except the active power
   * variables. The parameter stvv is used to decide which of the
@@ -192,6 +193,11 @@ public:
  int get_time_horizon( void ) const { return f_time_horizon; }
 
 
+/// Method for returning the vector of fixed consumption
+const std::vector< double > & get_fixed_consumption( void ) const {
+     return v_fixed_consumption;
+ }
+
 /// Method for returning the vector of inertia commitment
 const std::vector< double > & get_inertia_commitment( void ) const {
     return v_inertia_commitment;
@@ -206,11 +212,12 @@ const std::vector< double > & get_inertia_power( void ) const {
    return v_commitment;
  }
 
+/*
  /// Method for returning the vector of power injected variables
  const std::vector<ColVariable> & get_power_injected( void ) const {
    return v_power_injected;
  }
-
+*/
  /// Method for returning the vector of primary spinning reserve variables
   const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
    return v_primary_spinning_reserve;
@@ -277,6 +284,9 @@ protected:
 /// The time horizon of the problem
  int f_time_horizon;
 
+/// Vector of fixed consumption
+std::vector< double > v_fixed_consumption;
+
 /// Vector of inertia commitment
 std::vector< double > v_inertia_commitment;
 
@@ -292,7 +302,7 @@ std::vector< double > v_inertia_power;
  std::vector<ColVariable> v_commitment;
 
  /// Vector of power injected into the grid
- std::vector<ColVariable> v_power_injected;
+// std::vector<ColVariable> v_power_injected;
 
  /// Vector of power variables
  std::vector<ColVariable> v_active_power;

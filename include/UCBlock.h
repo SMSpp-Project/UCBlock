@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 05 - 2019
+ * \date 24 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -143,12 +143,6 @@ public:
  *   taken to be 1, which means that all the Unit belong to the same node
  *   (the network is a bus);
  *
- * NO, THIS WE DON'T NEED
- * - the dimension "NumberHeatOnlyUnits" containing the number of
- *   heat-only generation units in the problem; the dimension is
- *   optional: if it is not provided then it is taken to be 0, which
- *   means that there is no heat-only generation unit;
- *
  * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the state of the interconnect
  *   network at time t;
@@ -158,31 +152,14 @@ public:
  *   if NumberNodes == 1  (say, it is not provided at all), then this
  *   variable need not be defined, since it is not loaded;
  *
- * NO, THIS WE DON'T NEED
- * - the variable "HeatOnlyUnits", of type int and indexed over the
- *   dimension "NumberHeatOnlyUnits"; it contains the indices of the
- *   heat-only generation units; if NumberHeatOnlyUnits == 0, then
- *   this variable need not be defined, since there is no heat-only
- *   generation unit and, therefore, this variable is not loaded;
- *
- * WE NEED A MATRIX THAT, FOR EACH HEAT UNIT OF EACH HEAT BLOCK, TELLS
- * IF THIS IS A HEAT-ONLY UNIT (INDEX >= NumberUnits), OR IF THIS IS
- * ALSO AN ELECTRICITY-PRODUCING UNIT (INDEX < NumberUnits)
- *
  * - the variable "HeatSet", of type int and indexed both over the dimensions
  *   "NumberUnits" and "NumberHeatBlocks"; if HeatSet[ i , h ] = k, with
  *   k < number of heat units in HeatBlock h, then electrical unit i is
- *   represented into HeatBlock h ad the heat unit k; if, instead,
+ *   represented into HeatBlock h and the heat unit k; if, instead,
  *   HeatSet[ i , h ] = k, with k >= number of heat units in HeatBlock h,
- *   then none of the heat units in HeatBlock h represents the electrical]
- *   unit i
-
- *
- * NO, THIS WE DON'T NEED
- * - the variable "UnitEnergyCell", of type int and indexed over the dimension
- *   "NumberHeatBlocks"; it contains the indices of the heat blocks; if
- *   NumberHeatBlocks == 0, then this variable need not be defined, since
- *   there is heat block and, therefore, this variable is not loaded;
+ *   then none of the heat units in HeatBlock h represents the electrical unit
+ *   i; if NumberHeatBlocks == 0 (say, there is no HeatBlock) then
+ *   this variable need not be defined, since it is not loaded;
  *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
@@ -262,7 +239,7 @@ public:
  * - the variable "NumberPollutantZones" of type int indexed over the
  *   dimension "NumberPollutants"; the i-th entry of the variable is
  *   assumed to contain the number of pollutant zones associated with
- *   pollutant i. If NumberPollutants == 0 (say, there is no
+ *   pollutant i; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded.
  *
@@ -277,18 +254,17 @@ public:
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded;
  *
- * EITHER WE NEED A NEW VARIABLE
- *
  * - the variable "PollutantHeatZones", of type int and indexed over the
  *   dimensions "NumberPollutants" and "NumberHeatBlocks"; the entry
  *   PollutantHeatZones[ i , j ] tells to which pollutant zone associated
- *   with pollutant i the HeatBlock j belongs; if PollutantHeatZones[ i , j ]
+ *   with pollutant i, the HeatBlock j belongs; if PollutantHeatZones[ i , j ]
  *   >= NumberPollutantZones[ i ], this means that HeatBlock j does not
  *   belong to any pollutant zone, and hence the corresponding units
  *   are not involved into the pollutant budget constraints associated
  *   with pollutant i; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
- *   not loaded;
+ *   not loaded; if NumberHeatBlocks == 0 (say, there is no heat-only unit)
+ *   then this variable need not be defined, since it is not loaded;
  *
  * - the variable "PollutantBudget", of type double and indexed over
  *   the dimension "NumberPollutants"; the i-th entry of the variable
@@ -300,22 +276,17 @@ public:
  *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits";
  *   the entry PollutantRho[ t , p , i ] is assumed to contain the
  *   conversion factor of pollutant p due to the generation of unit i
- *   at time t. If NumberPollutants == 0 (say, there is no pollutant)
+ *   at time t; if NumberPollutants == 0 (say, there is no pollutant)
  *   then this variable need not be defined, since it is not loaded;
- *
- * HERE WE NEED THE SAME INFORMATION FOR HEAT BLOCKS: FOR EACH HEAT-ONLY
- * UNIT IN EACH HEAT BLOCK (IF IT APPEARS IN A POLUTANT), WE NEED THE
- * COEFFICIENT IN THE POLLUTANT CONSTRAINT
  *
  * - the variable "PollutantHeatRho", of type double and indexed over the
  *   dimensions "TimeHorizon", "NumberPollutants", and "NumberHeatBlocks"; the
  *   entry PollutantRho[ t , p , h ] is assumed to contain the conversion
  *   factor of pollutant p due to the generation of every heat-only unit in
- *   HeatBlock h at time
- *   t. If NumberPollutants == 0 (say, there is no pollutant) then this
- *   variable does not need be defined, since it is not loaded; If
- *   NumberHeatBlocks == 0 (say, there is no heat-only unit) then this
- *   variable need not be defined, since it is not loaded;
+ *   HeatBlock h at time t. If NumberPollutants == 0 (say, there is no
+ *   pollutant) then this variable does not need be defined, since it is not
+ *   loaded; if NumberHeatBlocks == 0 (say, there is no heat-only unit) then
+ *   this variable need not be defined, since it is not loaded;
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -366,10 +337,31 @@ public:
    return v_pollutant_rho[ index ];
  }
 
+/** returns the conversion factor of the given pollutant due to the generation
+ * of the given heat-only unit of each HeatBlock at the given time */
+ inline double get_pollutant_heat_rho( Index time, Index pollutant, Index unit )
+   const {
+   auto index = time * f_number_pollutants * f_number_heat_block +
+          pollutant * f_number_heat_block + unit;
+   return v_pollutant_heat_rho[ index ];
+ }
+
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
  inline Index get_pollutant_zone( Index pollutant, Index node ) const {
    return v_pollutant_zones[ pollutant * f_number_nodes + node ];
+ }
+
+ /** returns the HeatSet associated with the given unit
+  * the given HeatBlocks belongs to */
+ inline Index get_heat_set( Index unit, Index block ) const {
+     return v_heat_set[ f_number_units * f_number_heat_block + block ];
+ }
+
+ /** returns the pollutant heat zone associated with the given pollutant
+  * the given node belongs to */
+ inline Index get_pollutant_heat_zone( Index pollutant, Index block ) const {
+     return v_pollutant_heat_zones[ pollutant * f_number_heat_block + block ];
  }
 
  /// returns the i-th UnitBlock
@@ -494,6 +486,10 @@ protected:
   *  NumberPollutants and NumberNodes */
  std::vector<Index> v_pollutant_zones;
 
+ /** The matrix PollutantHeatZones indexed over the dimensions
+  *  NumberPollutants and NumberHeatBlocks */
+  std::vector<Index> v_pollutant_heat_zones;
+
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
   * is no network. If it has positive size, then the NetworkBlock at
@@ -520,14 +516,22 @@ protected:
 
  /** the matrix of InertiaDemand indexed over the dimensions
   * InertiaZones and TimeHorizon */
- std::vector<double> v_inertia_demand;
+ std::vector< double > v_inertia_demand;
 
  /// the vector of PollutantDemand
- std::vector<double> v_pollutant_budget;
+ std::vector< double > v_pollutant_budget;
 
  /** the PollutantRho matrix index over the dimensions
   * TimeHorizon, NumberPollutants, and NumberUnits */
- std::vector<double> v_pollutant_rho;
+ std::vector< double > v_pollutant_rho;
+
+ /** the PollutantHeatRho matrix index over the dimensions
+  * TimeHorizon, NumberPollutants, and NumberHeatBlocks */
+ std::vector< double > v_pollutant_heat_rho;
+
+ /** the HeatSet matrix index over the dimensions
+  * NumberUnits, and NumberHeatBlocks */
+ std::vector< Index > v_heat_set;
 
  /// Node injection constraints for each time and node
  boost::multi_array<FRowConstraint, 2> v_node_injection_constraints;

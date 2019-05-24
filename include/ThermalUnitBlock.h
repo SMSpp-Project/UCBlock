@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 05 - 2019
+ * \date 24 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -224,7 +224,7 @@ namespace SMSpp_di_unipi_it
  *   \f$ t \in \{1, ..., T\}  \f$:
  *
  * \f[
- *
+ * //TODO this constraint goes to UCBlock
  *   {p}_t = (1 - u_t )P_t{au} + p_t^{ac} \quad (11)
  * \f]
  *   where \f$ P_t{au} \f$ denotes the fixed consumption of the power plant
@@ -391,10 +391,6 @@ typedef const Index c_Index;                ///< a read-only Index
  *   maximum power output value of the unit for the corresponding time steps;
  *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
  *
- * - the variable "FixedConsPower", of type double and not indexed over
- *   any dimension and indicates the fixed consumption of the power plant when
- *   it is off in this unit; this variable is optional, if it is not provided
- *   then it is assumed that FixedConsPower == 0;
  *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
@@ -587,9 +583,6 @@ std::vector< double >  f_LinearTerm;
 /// the vector of ConstTerm
 std::vector< double >  f_ConstTerm;
 
-/// the FixedConsPower value
-double  f_FixedConsPower;
-
 /// the StartUpCost value
 double f_StartUpCost;
 
@@ -701,7 +694,7 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 
     std::vector< FRowConstraint > PMax_Const;
 
-    std::vector< FRowConstraint > PowerInjected_Const;
+   // std::vector< FRowConstraint > PowerInjected_Const;
 
     std::vector< LB0Constraint > PowerFix_Const;
 
