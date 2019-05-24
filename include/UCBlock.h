@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 05 - 2019
+ * \date 23 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -125,19 +125,18 @@ public:
  * - the dimension "NumberUnits" containing the number of units in
  *   the problem;
  *
- * - the dimension "NumberHeatBlocks" containing the number of
- *   heat blocks in in the problem; the dimension is
- *   optional: if it is not provided then it is taken to be 0, which
- *   means that there is no heat block in the problem;
+ * - the dimension "NumberHeatBlocks" containing the number of heat blocks in
+ *   in the problem; the dimension is optional: if it is not provided then it
+ *   is taken to be 0, which means that there is no heat block in the problem;
  *
  * - the groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
  *   n == NumberUnits - 1, containing each one UnitBlock corresponding
  *   to one unit;
  *
  * - the groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
- *   n == NumberHeatBlocks - 1, containing each one HeatBlock corresponding to
- *   one energy cell; when NumberHeatBlocks == 0, there is no heat constraint
- *   anywhere in the problem;
+ *   n == NumberHeatBlocks - 1, containing each one a HeatBlock corresponding
+ *   to one energy cell; when NumberHeatBlocks == 0, there is no heat
+ *   constraint anywhere in the problem;
  *
  * - the dimension "NumberNodes" containing the number of nodes in
  *   the problem; the dimension is optional, if it is not provided then it is
@@ -169,6 +168,16 @@ public:
  * WE NEED A MATRIX THAT, FOR EACH HEAT UNIT OF EACH HEAT BLOCK, TELLS
  * IF THIS IS A HEAT-ONLY UNIT (INDEX >= NumberUnits), OR IF THIS IS
  * ALSO AN ELECTRICITY-PRODUCING UNIT (INDEX < NumberUnits)
+ *
+ * - the variable "HeatSet", of type int and indexed both over the dimensions
+ *   "NumberUnits" and "NumberHeatBlocks"; entry HeatSet[ i , h ] tells
+ *   whether unit i of HeatBlock h is a heat-only unit or an electricity
+ *   producing unit; when HeatSet[ i , h ] >= NumberUnits it means the unit i
+ *   of HeatBlock h is a heat-only unit; when HeatSet[ i , h ] < NumberUnits
+ *   it means the unit i of HeatBlock h is an electricity-producing unit; when
+ *   HeatSet[ i , h ] == 0 it means the unit i is not belongs to any heat
+ *   block; if NumberHeatBlocks == 0 there is no heat block in the problem;
+ *
  *
  * NO, THIS WE DON'T NEED
  * - the variable "UnitEnergyCell", of type int and indexed over the dimension
@@ -270,20 +279,18 @@ public:
  *   not loaded;
  *
  * EITHER WE NEED A NEW VARIABLE
+ *
  * - the variable "PollutantHeatZones", of type int and indexed over the
  *   dimensions "NumberPollutants" and "NumberHeatBlocks"; the entry
  *   PollutantHeatZones[ i , j ] tells to which pollutant zone associated
  *   with pollutant i the HeatBlock j belongs; if PollutantHeatZones[ i , j ]
  *   >= NumberPollutantZones[ i ], this means that HeatBlock j does not
  *   belong to any pollutant zone, and hence the corresponding units
- *   are not involved into the pollutant demand constraints associated
+ *   are not involved into the pollutant budget constraints associated
  *   with pollutant i; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded;
- * OR WE NEED TO CONCATENATE PollutantZones and PollutantHeatZones, IF THIS
- * IS POSSIBLE IN netCDF
  *
- * DIFFERENT NAME
  * - the variable "PollutantBudget", of type double and indexed over
  *   the dimension "NumberPollutants"; the i-th entry of the variable
  *   is assumed to contain the limit of pollutant i; if
@@ -300,6 +307,15 @@ public:
  * HERE WE NEED THE SAME INFORMATION FOR HEAT BLOCKS: FOR EACH HEAT-ONLY
  * UNIT IN EACH HEAT BLOCK (IF IT APPEARS IN A POLUTANT), WE NEED THE
  * COEFFICIENT IN THE POLLUTANT CONSTRAINT
+ *
+ * - the variable "PollutantHeatRho", of type double and indexed over the
+ *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits"; the
+ *   entry PollutantRho[ t , i , j ] is assumed to contain the conversion
+ *   factor of pollutant i due to the generation of heat-only unit j at time
+ *   t. If NumberPollutants == 0 (say, there is no pollutant) then this
+ *   variable does not need be defined, since it is not loaded; If
+ *   NumberHeatBlocks == 0 (say, there is no heat-only unit) then this
+ *   variable need not be defined, since it is not loaded;
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -315,7 +331,7 @@ public:
 /** @name Reading the data of the UCBlock
  *  @{ */
 
- /// Method that initiazes the instance and passes all the needed data
+ /// Method that initializes the instance and passes all the needed data
  void instance( std::istream& inStream );
 
  /// returns the time horizon of the problem
@@ -441,8 +457,8 @@ protected:
  /// The number of heat-only generation units
  Index f_number_heat_only_units;
 
-/// The number of heat block
-Index f_number_heat_block;
+ /// The number of heat block
+ Index f_number_heat_block;
 
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
@@ -450,8 +466,8 @@ Index f_number_heat_block;
  /// Contains the indices of the heat-only generation units
  std::vector<Index> v_heat_only_units;
 
-/// Contains the indices of the energy cell
-std::vector<Index> v_energy_cell;
+ /// Contains the indices of the energy cell
+ std::vector<Index> v_energy_cell;
 
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
@@ -507,7 +523,7 @@ std::vector<Index> v_energy_cell;
  std::vector<double> v_inertia_demand;
 
  /// the vector of PollutantDemand
- std::vector<double> v_pollutant_demand;
+ std::vector<double> v_pollutant_budget;
 
  /** the PollutantRho matrix index over the dimensions
   * TimeHorizon, NumberPollutants, and NumberUnits */
@@ -529,7 +545,7 @@ std::vector<Index> v_energy_cell;
 boost::multi_array<FRowConstraint, 2>  v_Heat_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector<std::vector<FRowConstraint>> v_PollutantDemand_Const;
+ std::vector<std::vector<FRowConstraint>> v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

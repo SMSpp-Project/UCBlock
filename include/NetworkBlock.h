@@ -27,7 +27,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 04 - 2019
+ * \date 23 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -107,48 +107,43 @@ public:
 
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the NetworkBlock. Besides the mandatory "type" attribute of any :Block,
- * the group should contain the following:
+ * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
+ * group should contain the following:
  *
- * - the dimension "NumberNodes" containing the number of nodes in
- *   the problem; this dimension is optional, if it is not provided
- *   then it is taken to be == 1;
+ * - the dimension "NumberNodes" containing the number of nodes in the
+ *   problem; this dimension is optional, if it is not provided then it is
+ *   taken to be == 1;
  *
- * - the dimension "NumberLines" containing the number of arcs in
- *   the problem; if NumberNodes == 1 then this dimension need not to
- *   be present since it is not loaded;
+ * - the dimension "NumberLines" containing the number of arcs in the problem;
+ *   if NumberNodes == 1 then this dimension need not to be present since it
+ *   is not loaded;
  *
- * WE NEED A DESCRIPTION OF THE LINES
- * - the variable "Lines", of type int and indexed over both the
- *   dimension "NumberNodes" and [ 0 , 1 ]; the i-th entry of the variable
- *   is [ s , t ], where s and t are the two endpoints of the line
- * OR
- * - the variable "StartLine", of type int and indexed over the
- *   dimension "NumberNodes"; the i-th entry of the variable is the 
- *   starting point of the line (however, lines are not oriented)
+ * - the variable "StartLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the starting point of
+ *   the line (however, lines are not oriented)
  *
- * - the variable "EndLine", of type int and indexed over the
- *   dimension "NumberNodes"; the i-th entry of the variable is the 
- *   endinf point of the line (however, lines are not oriented)
+ * - the variable "EndLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the ending point of the
+ *   line (however, lines are not oriented)
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
  *   contain the active power requirement at node i in the network;
  *
  * - the variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is
- *   assumed to contain the minimum power flow at line i; if NumberNodes
- *   == 1 then this variable need not to be present since it is not loaded;
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the minimum power flow at line i; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
  *
  * - the variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is
- *   assumed to contain the maximum power flow at line i; if NumberNodes
- *   == 1 then this variable need not to be present since it is not loaded;
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the maximum power flow at line i; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
  *
  * - the variable "Susceptance", of type double and indexed over the
- *   "NumberLines"; the i-th entry of this variable is assumed to
- *   contain the susceptance of line i; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded.
+ *   "NumberLines"; the i-th entry of this variable is assumed to contain the
+ *   susceptance of line i; if NumberNodes == 1 then this variable need not to
+ *   be present since it is not loaded.
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -177,17 +172,6 @@ public:
    f_number_lines = number_lines;
  }
 
- /// set starting nodes
-
- /// set ending nodes
-
- /// set MinPowerFlow
-
- /// set MaxPowerFlow
-
- /// set Susceptance
- 
- 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -235,20 +219,26 @@ protected:
  /// number of lines of the network
  int f_number_lines = -1;
 
+ /// set starting lines
+  std::vector< int > v_startline;
+
+ /// set ending lines
+ std::vector< int > v_endline;
+
  /// vector to store the demand of each node of the network
- std::vector<double> v_active_demand;
+ std::vector< double > v_active_demand;
 
  /// vector to store the susceptance of each line of the network
- std::vector<double> v_susceptance;
+ std::vector< double > v_susceptance;
 
  /// vector to store the minimum power flow at each line
- std::vector<double> v_minimum_power_flow;
+ std::vector< double > v_minimum_power_flow;
 
  /// vector to store the maximum power flow at each line
- std::vector<double> v_maximum_power_flow;
+ std::vector< double > v_maximum_power_flow;
 
  /// power injection at each node
- std::vector<ColVariable> v_node_injection;
+ std::vector< ColVariable > v_node_injection;
 
  /// flow limit constraints
  std::vector<FRowConstraint> v_flow_limit_constraints;

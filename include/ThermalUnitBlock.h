@@ -402,7 +402,7 @@ typedef const Index c_Index;                ///< a read-only Index
  *   steps in same interval whereas it may change(or not) in the other intervals
  *   (if exist any); this variable is optional, if it is not provided then it
  *   is assumed that DeltaRampUp == MaxPower, i.e., the unit can ramp up by
- *   an arbitrary amount, i.e., there are no ramp-up constrtaints;
+ *   an arbitrary amount, i.e., there are no ramp-up constraints;
  *
  * - the variable "DeltaRampDown", of type double and indexed over the
  *   dimension "NumberIntervals"; each entry of the variable is assumed to
@@ -411,7 +411,7 @@ typedef const Index c_Index;                ///< a read-only Index
  *   in the other intervals  (if exist any); this variable is optional, if it
  *   is not provided then it is assumed that DeltaRampDown == MaxPower, i.e.,
  *   the unit can ramp down by an arbitrary amount, i.e., there are no
- *   ramp-down constrtaints;
+ *   ramp-down constraints;
  *
  * - the variable "PrimaryRho", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
@@ -450,7 +450,7 @@ typedef const Index c_Index;                ///< a read-only Index
  *   any dimension and indicates the initial time to generating the unit;
  *   if InitUpDownTime > 0, this means that the unit has been on for
  *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
- *   horizont); if, instead, InitUpDownTime <= 0, this means that the unit
+ *   horizon); if, instead, InitUpDownTime <= 0, this means that the unit
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
  *   note that InitUpDownTime == 0 means that the unit has been just shut
  *   down at the end of time instant -1, i.e., the beginning of time 
@@ -541,7 +541,6 @@ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
 /** Method that generates the objective of the ThermalUnitBlock.
- * //TODO
  *
 */
 virtual void generate_objective( Configuration *objc = nullptr )
@@ -635,7 +634,7 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 /*-------------------------- PROTECTED FRIENDS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-int number_values;
+//  int number_values;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/

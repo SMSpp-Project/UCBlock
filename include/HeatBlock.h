@@ -149,11 +149,14 @@ virtual void load( std::istream &input ) override { };
  *
  * - the dimension "TimeHorizon" containing the time horizon;
  *
- *  * - the dimension "NumberUnits" containing the number of units;
+ * - the dimension "NumberHeatUnits" containing the number heat-producing
+ *   units;
  *
- * - the dimension "NumberHeatBlocks" containing the number of heat blocks in
- *   in the problem; the dimension is optional: if it is not provided then it
- *   is taken to be 0, which means that there is no heat block in the problem;
+ * NO, THIS WE DON'T NEED
+ * - the dimension "NumberHeatOnlyUnits" containing the number of
+ *   heat-only generation units in the problem; the dimension is
+ *   optional: if it is not provided then it is taken to be 0, which
+ *   means that there is no heat-only generation unit;
  *
  * - the dimension "NumberHeatID" containing the number of heat-ID in the
  *   problem; the dimension is optional: if it is not provided then it is

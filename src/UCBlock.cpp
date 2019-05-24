@@ -222,7 +222,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     ::deserialize( group, "PollutantZones", v_pollutant_zones,
                    { f_number_pollutants, f_number_nodes } );
 
-    ::deserialize( group, "PollutantDemand", v_pollutant_demand,
+    ::deserialize( group, "PollutantBudget", v_pollutant_budget,
                    { f_number_pollutants } );
 
     ::deserialize( group, "PollutantRho", v_pollutant_rho,
@@ -444,18 +444,18 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 /*--------------------------------------------------------------------------*/
 
-  // Pollutant demand constraints.
+  // Pollutant budget constraints.
 
   if( f_number_pollutants > 0 ) {
 
-    if( v_PollutantDemand_Const.size() != f_number_pollutants ) {
+    if( v_PollutantBudget_Const.size() != f_number_pollutants ) {
       // this should only happen once
-      assert( v_PollutantDemand_Const.size() == 0 );
+      assert( v_PollutantBudget_Const.size() == 0 );
 
-      v_PollutantDemand_Const.resize( f_number_pollutants );
+        v_PollutantBudget_Const.resize( f_number_pollutants );
       for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant )
       {
-        v_PollutantDemand_Const.resize( v_number_pollutant_zones[ pollutant ]
+          v_PollutantBudget_Const.resize( v_number_pollutant_zones[ pollutant ]
                      );
       }
     }
@@ -463,11 +463,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
     for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
       for( Index zone = 0; zone < v_number_pollutant_zones[ pollutant ];
            ++zone ) {
-        v_PollutantDemand_Const[ pollutant ][ zone ].set_rhs
-          ( v_pollutant_demand[ pollutant ] );
-        v_PollutantDemand_Const[ pollutant ][ zone ].set_lhs( -Inf<double>() );
-        v_PollutantDemand_Const[ pollutant ][ zone ].set_function
-          ( new LinearFunction() );
+        v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
+        ( v_pollutant_budget[ pollutant ] );
+        v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf<double>());
+        v_PollutantBudget_Const[ pollutant ][ zone ].set_function
+        ( new LinearFunction() );
       }
     }
 
@@ -488,7 +488,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto active_power = get_unit_block( unit_id )->get_active_power();
 
           auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function());
+            ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & active_power[ t ], rho );
         }
@@ -508,13 +508,13 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto rho  = get_pollutant_rho( t, pollutant, unit_id );
 
           auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantDemand_Const[ pollutant ][ zone_id ].get_function());
+            ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & heat[ t ], rho );
         }
       }
 
-      add_static_constraint( v_PollutantDemand_Const[ pollutant ] );
+      add_static_constraint( v_PollutantBudget_Const[ pollutant ] );
     }
   }
 
@@ -655,8 +655,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
                  { dim_number_pollutants, dim_number_nodes },
                  v_pollutant_zones );
 
-    ::serialize( group, "PollutantDemand", netCDF::NcDouble(),
-                 { dim_number_pollutants }, v_pollutant_demand );
+    ::serialize( group, "PollutantBudget", netCDF::NcDouble(),
+                 { dim_number_pollutants }, v_pollutant_budget );
 
     ::serialize( group, "PollutantRho", netCDF::NcDouble(),
                  { dim_time_horizon, dim_number_pollutants, dim_number_units },

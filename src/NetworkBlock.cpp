@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 04 - 2019
+ * \date 23 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -89,6 +89,24 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
   if( number_lines_NcDim.isNull() )
     throw( std::logic_error( "NumberLines dimension is required" ) );
   f_number_lines = number_lines_NcDim.getSize();
+
+  // Read starting lines
+
+  netCDF::NcVar start_line_NcVar = group.getVar( "StartLine" );
+  if( start_line_NcVar.isNull() )
+    throw( std::logic_error( "StartLine not found" ) );
+
+  v_startline.resize( f_number_nodes );
+  start_line_NcVar.getVar( start , count_nodes , v_startline.data() );
+
+  // Read ending lines
+
+  netCDF::NcVar end_line_NcVar = group.getVar( "EndLine" );
+  if( end_line_NcVar.isNull() )
+    throw( std::logic_error( "EndLine not found" ) );
+
+  v_endline.resize( f_number_nodes );
+  start_line_NcVar.getVar( start , count_nodes , v_endline.data() );
 
   // Read active demand
 
@@ -228,6 +246,15 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
  std::vector < size_t > start = { 0 };
  std::vector < size_t > count_nodes = { (size_t) f_number_nodes };
  std::vector < size_t > count_lines = { (size_t) f_number_lines };
+
+
+  if( v_startline.size() )
+    ( group.addVar( "StartLine" , netCDF::NcUint64() , number_nodes_NcDim )
+    ).putVar( start , count_nodes , v_startline.data() );
+
+  if( v_endline.size() )
+    ( group.addVar( "EndLine" , netCDF::NcUint64() , number_nodes_NcDim )
+    ).putVar( start , count_nodes , v_endline.data() );
 
  if( v_active_demand.size() )
    ( group.addVar( "ActiveDemand" , netCDF::NcDouble() , number_nodes_NcDim )

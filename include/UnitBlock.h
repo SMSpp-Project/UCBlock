@@ -35,7 +35,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 05 - 2019
+ * \date 23 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -126,25 +126,21 @@ public:
  *
  * - the variable "InertiaCommitment", of type double and indexed over the
  *   dimension "TimeHorizon"; the entry  InertiaCommitment[ t ] shows the
- *   value of inertia commitment parameter for each thermal unit
- *
- *    this means that the unit gives a contribution to the inertia at
- *    time t which is get_commitment()[ t ] * InertiaCommitment[ t ]
- *
- *   the variable is optional. if not defined, InertiaCommitment[ t ] == 0
- *   for all t. if it is defined it can either have size 1 or size TimeHorizon
- *   if it has size 1 then the value is the same for all t
+ *   value of inertia commitment parameter for each thermal unit; this means
+ *   that the unit gives a contribution to the inertia at time t which is
+ *   get_commitment()[ t ] * InertiaCommitment[ t ]; the variable is optional.
+ *   if not defined, InertiaCommitment[ t ] == 0 for all t. if it is defined
+ *   it can either have size 1 or size TimeHorizon if it has size 1 then the
+ *   value is the same for all t;
  *
  * - the variable "InertiaPower", of type double and indexed over the
  *   dimension "TimeHorizon"; the entry InertiaPower[ t ] shows the amount of
- *   inertia power value for the unit at time t
- *
- *    this means that the unit gives a contribution to the inertia at
- *    time t which is get_active_power()[ t ] * InertiaCommitment[ t ]
- *
- *   the variable is optional. if not defined, InertiaCommitment[ t ] == 0
- *   for all t. if it is defined it can either have size 1 or size TimeHorizon
- *   if it has size 1 then the value is the same for all t
+ *   inertia power value for the unit at time t; this means that the unit
+ *   gives a contribution to the inertia at time t which is
+ *   get_active_power()[ t ] * InertiaCommitment[ t ]; the variable is
+ *   optional. if not defined, InertiaCommitment[ t ] == 0 for all t. if it is
+ *   defined it can either have size 1 or size TimeHorizon if it has size 1
+ *   then the value is the same for all t
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -157,14 +153,13 @@ public:
   *
   * - the commitment variables [bit 0]
   *
-  *    ??????????????????
   * - the power injected variables [bit 1]
   *
-  * - the primary spinning reserve variables [...]
+  * - the primary spinning reserve variables [bit 2]
   *
-  * - the secondary spinning reserve variables
+  * - the secondary spinning reserve variables [bit 3]
   *
-  * - the active power variables
+  * - the active power variables [bit 2]
   *
   * All of these variables are optional, except the active power
   * variables. The parameter stvv is used to decide which of the
