@@ -170,14 +170,13 @@ public:
  * ALSO AN ELECTRICITY-PRODUCING UNIT (INDEX < NumberUnits)
  *
  * - the variable "HeatSet", of type int and indexed both over the dimensions
- *   "NumberUnits" and "NumberHeatBlocks"; entry HeatSet[ i , h ] tells
- *   whether unit i of HeatBlock h is a heat-only unit or an electricity
- *   producing unit; when HeatSet[ i , h ] >= NumberUnits it means the unit i
- *   of HeatBlock h is a heat-only unit; when HeatSet[ i , h ] < NumberUnits
- *   it means the unit i of HeatBlock h is an electricity-producing unit; when
- *   HeatSet[ i , h ] == 0 it means the unit i is not belongs to any heat
- *   block; if NumberHeatBlocks == 0 there is no heat block in the problem;
- *
+ *   "NumberUnits" and "NumberHeatBlocks"; if HeatSet[ i , h ] = k, with
+ *   k < number of heat units in HeatBlock h, then electrical unit i is
+ *   represented into HeatBlock h ad the heat unit k; if, instead,
+ *   HeatSet[ i , h ] = k, with k >= number of heat units in HeatBlock h,
+ *   then none of the heat units in HeatBlock h represents the electrical]
+ *   unit i
+
  *
  * NO, THIS WE DON'T NEED
  * - the variable "UnitEnergyCell", of type int and indexed over the dimension
@@ -299,8 +298,8 @@ public:
  *
  * - the variable "PollutantRho", of type double and indexed over the
  *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits";
- *   the entry PollutantRho[ t , i , j ] is assumed to contain the
- *   conversion factor of pollutant i due to the generation of unit j
+ *   the entry PollutantRho[ t , p , i ] is assumed to contain the
+ *   conversion factor of pollutant p due to the generation of unit i
  *   at time t. If NumberPollutants == 0 (say, there is no pollutant)
  *   then this variable need not be defined, since it is not loaded;
  *
@@ -309,9 +308,10 @@ public:
  * COEFFICIENT IN THE POLLUTANT CONSTRAINT
  *
  * - the variable "PollutantHeatRho", of type double and indexed over the
- *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits"; the
- *   entry PollutantRho[ t , i , j ] is assumed to contain the conversion
- *   factor of pollutant i due to the generation of heat-only unit j at time
+ *   dimensions "TimeHorizon", "NumberPollutants", and "NumberHeatBlocks"; the
+ *   entry PollutantRho[ t , p , h ] is assumed to contain the conversion
+ *   factor of pollutant p due to the generation of every heat-only unit in
+ *   HeatBlock h at time
  *   t. If NumberPollutants == 0 (say, there is no pollutant) then this
  *   variable does not need be defined, since it is not loaded; If
  *   NumberHeatBlocks == 0 (say, there is no heat-only unit) then this
