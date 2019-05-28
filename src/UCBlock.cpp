@@ -246,13 +246,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   if( f_number_nodes > 1 )
     ::deserialize( group, "Node", v_node, { f_number_units } );
 
-  if( f_number_heat_only_units > 0 )
-    ::deserialize( group, "HeatOnlyUnits", v_heat_only_units,
-                   { f_number_heat_only_units } );
-
-  if( f_number_heat_block > 0 )
-    ::deserialize( group, "UnitEnergyCell", v_energy_cell,
-                   { f_number_heat_block } );
 
   deserialize_sub_blocks( group );
 
@@ -394,7 +387,8 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         auto linear_function = static_cast<LinearFunction *>
           ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function() );
-        linear_function->add_variable( & secondary_spinning_reserve[ t ], 1.0 );
+        linear_function->add_variable( & secondary_spinning_reserve[ t ],
+                                                                        1.0 );
       }
     }
 
@@ -469,7 +463,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         v_PollutantBudget_Const.resize( f_number_pollutants );
       for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant )
       {
-          v_PollutantBudget_Const.resize( v_number_pollutant_zones[ pollutant ]
+          v_PollutantBudget_Const.resize( v_number_pollutant_zones[pollutant]
                      );
       }
     }
@@ -548,26 +542,33 @@ if (f_number_heat_block > 0 ) {
 
     v_Heat_Const.resize
             (boost::multi_array<FRowConstraint *, 2>::
-             extent_gen()[f_time_horizon][f_number_heat_block]);
+             extent_gen()[f_time_horizon][f_number_units]);
   }
 
 
   for (Index t = 0; t < f_time_horizon; ++t) {
 
-    for (Index unit_id = 0; unit_id < f_number_heat_block; ++unit_id) {
+    for (Index unit_id = 0; unit_id < f_number_units; ++unit_id) {
 
       v_Heat_Const[ t ][ unit_id ].set_lhs ( -Inf<double>() );
       v_Heat_Const[ t ][ unit_id ].set_rhs( 0.0 );
       v_Heat_Const[ t ][ unit_id ].set_function ( new LinearFunction() );
 
-      auto heat = get_heat_block( unit_id )->get_heat();
       auto active_power = get_unit_block( unit_id )->get_active_power();
-      auto heat_rho = get_heat_block( unit_id )->get_heat_rho( t , unit_id );
 
-      auto linear_function = static_cast<LinearFunction *>
-      ( v_Heat_Const[ t ][ unit_id ].get_function() );
-      linear_function->add_variable( & heat[ t ] , 1.0);
-      linear_function->add_variable( & active_power[ t ] , heat_rho);
+      for (Index block_id = 0; block_id < f_number_heat_block; ++block_id) {
+
+
+          auto heat_id = get_heat_set( unit_id , block_id );
+
+          auto heat = get_heat_block(heat_id)->get_heat();
+          auto heat_rho = get_heat_block(heat_id)->get_heat_rho( block_id );
+
+          auto linear_function = static_cast<LinearFunction *>
+          ( v_Heat_Const[t][unit_id].get_function());
+          linear_function->add_variable(&heat[t], heat_rho);
+          linear_function->add_variable(&active_power[t], -1,0);
+      }
 
     }
 
@@ -619,9 +620,6 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
   auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
   auto dim_number_units = group.addDim( "NumberUnits", f_number_units );
   auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
-
-  auto dim_number_heat_only_units = group.addDim
-    ( "NumberHeatOnlyUnits", f_number_heat_only_units );
 
   auto dim_number_heat_block = group.addDim
           ( "NumberHeatBlocks", f_number_heat_block );
@@ -688,26 +686,18 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
                  { dim_number_pollutants }, v_pollutant_budget );
 
     ::serialize( group, "PollutantRho", netCDF::NcDouble(),
-                 { dim_time_horizon, dim_number_pollutants, dim_number_units },
-                 v_pollutant_rho );
+                 { dim_time_horizon, dim_number_pollutants,
+                   dim_number_units },                      v_pollutant_rho );
 
     ::serialize( group, "PollutantHeatRho", netCDF::NcDouble(),
-                 { dim_time_horizon, dim_number_pollutants, dim_number_heat_block },
-                   v_pollutant_heat_rho );
+                 { dim_time_horizon, dim_number_pollutants,
+                   dim_number_heat_block },            v_pollutant_heat_rho );
 
   }
 
   if( f_number_nodes > 1 )
     ::serialize( group, "Node", netCDF::NcUint64(),
                  { dim_number_units }, v_node );
-
-  if( f_number_heat_only_units > 0 )
-    ::serialize( group, "HeatOnlyUnits", netCDF::NcUint64(),
-                 { dim_number_heat_only_units }, v_heat_only_units );
-
-  if( f_number_heat_block > 0 )
-    ::serialize( group, "UnitEnergyCell", netCDF::NcUint64(),
-                 { dim_number_heat_block }, v_energy_cell );
 
   // Serialize sub-blocks
 

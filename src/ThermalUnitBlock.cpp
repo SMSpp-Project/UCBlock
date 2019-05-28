@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 28 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -131,13 +131,13 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
 
     ::deserialize( group, "ChangeIntervals", f_number_intervals,
-                   f_change_interval );
+                   v_change_interval );
 
     // Check that all numbers are between 1 and f_time_horizon, that
     // the last number is == f_time_horizon, and that they are ordered
     // in increasing sense
 
-    if( f_change_interval.back() != f_time_horizon ) {
+    if( v_change_interval.back() != f_time_horizon ) {
       throw( std::invalid_argument
              ( "ThermalUnitBlock::deserialize: invalid value in "
                "ChangeIntervals: the last element must be TimeHorizon." ) );
@@ -145,7 +145,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
     int previous_t = 0;
 
-    for( auto t : f_change_interval ) {
+    for( auto t : v_change_interval ) {
       if( ! ( t > previous_t && t < f_time_horizon - 1 ) )
         throw( std::invalid_argument
                ( "ThermalUnitBlock::deserialize: invalid value in "
@@ -157,17 +157,17 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
     }
   }
 
-  // read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // read problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  ::deserialize( group, "MinPower",      f_number_intervals, f_MinPower );
-  ::deserialize( group, "MaxPower",      f_number_intervals, f_MaxPower );
-  ::deserialize( group, "DeltaRampUp",   f_number_intervals, f_DeltaRampUp );
-  ::deserialize( group, "DeltaRampDown", f_number_intervals, f_DeltaRampDown );
-  ::deserialize( group, "PrimaryRho",    f_number_intervals, f_PrimaryRho );
-  ::deserialize( group, "SecondaryRho",  f_number_intervals, f_SecondaryRho );
-  ::deserialize( group, "LinearTerm",    f_number_intervals, f_LinearTerm );
-  ::deserialize( group, "QuadTerm",      f_number_intervals, f_QuadTerm );
-  ::deserialize( group, "ConstTerm",     f_number_intervals, f_ConstTerm );
+  ::deserialize( group, "MinPower",      f_number_intervals, v_MinPower );
+  ::deserialize( group, "MaxPower",      f_number_intervals, v_MaxPower );
+  ::deserialize( group, "DeltaRampUp",   f_number_intervals, v_DeltaRampUp );
+  ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown );
+  ::deserialize( group, "PrimaryRho",    f_number_intervals, v_PrimaryRho );
+  ::deserialize( group, "SecondaryRho",  f_number_intervals, v_SecondaryRho );
+  ::deserialize( group, "LinearTerm",    f_number_intervals, v_LinearTerm );
+  ::deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
+  ::deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
 
  // ::deserialize( group, "FixedConsPower",  & f_FixedConsPower );
   ::deserialize( group, "PZero",           & f_PZero );
@@ -275,8 +275,8 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
     for (int t = 0; t < init_t ; ++t){
 
         PowerFix_Const[t].set_variable( & v_active_power[ t ] , 1.0 );
-        PowerFix_Const[t].set_rhs (f_MaxPower[t]);
-        PowerFix_Const[t].set_lhs (f_MinPower[t]);
+        PowerFix_Const[t].set_rhs (v_MaxPower[t]);
+        PowerFix_Const[t].set_lhs (v_MinPower[t]);
         PowerFix_Const[t].set_Block( this );
 
     }
@@ -298,7 +298,7 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
         linear_function->add_variable( & v_secondary_spinning_reserve[t],
                                                                        -1.0 );
 
-        linear_function->add_variable( & v_commitment[t],     -f_MinPower[t]);
+        linear_function->add_variable( & v_commitment[t],     -v_MinPower[t]);
 
         PMin_Const[t].set_rhs( Inf<double>() );
         PMin_Const[t].set_lhs( 0.0 );
@@ -322,7 +322,7 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
         linear_function->add_variable( & v_secondary_spinning_reserve[t],
                                                                         1.0 );
 
-        linear_function->add_variable( & v_commitment[t],     -f_MaxPower[t]);
+        linear_function->add_variable( & v_commitment[t],     -v_MaxPower[t]);
 
         PMax_Const[t].set_rhs( 0.0 );
         PMax_Const[t].set_lhs(-Inf<double>());
@@ -352,7 +352,7 @@ if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime)
 PrimaryRho_Const.resize(f_time_horizon);
     for (int t = 0 ; t < f_time_horizon ; t++){
         auto linear_function = new LinearFunction();
-        linear_function->add_variable( & v_active_power[t],f_PrimaryRho[t] );
+        linear_function->add_variable( & v_active_power[t],v_PrimaryRho[t] );
         linear_function->add_variable( & v_primary_spinning_reserve[t],
                                                                      - 1.0 );
         PrimaryRho_Const[t].set_rhs(Inf<double>());
@@ -367,7 +367,7 @@ PrimaryRho_Const.resize(f_time_horizon);
     for (int t = 0 ; t < f_time_horizon ; t++){
         auto linear_function = new LinearFunction();
         linear_function->add_variable( & v_active_power[t],
-                                                         f_SecondaryRho[t] );
+                                                         v_SecondaryRho[t] );
         linear_function->add_variable( & v_secondary_spinning_reserve[t],
                                                                      - 1.0 );
         SecondaryRho_Const[t].set_rhs(Inf<double>());
@@ -458,10 +458,10 @@ RampUp_Const.resize(f_time_horizon - init_t);
         linear_function->add_variable( & v_active_power[t+1], -1.0 );
         linear_function->add_variable( & v_active_power[t], +1.0 );
         linear_function->add_variable( & v_start_up[t+1],
-                 - f_DeltaRampUp[t] );
+                 - v_DeltaRampUp[t] );
         linear_function->add_variable( & v_commitment[t+1],
-                                  (f_MinPower[t] + f_DeltaRampUp[t]));
-        linear_function->add_variable( & v_commitment[t], -f_MinPower[t]);
+                                  (v_MinPower[t] + v_DeltaRampUp[t]));
+        linear_function->add_variable( & v_commitment[t], -v_MinPower[t]);
 
         RampUp_Const[t].set_rhs( Inf<double>() );
         RampUp_Const[t].set_lhs( 0.0 );
@@ -480,10 +480,10 @@ RampDown_Const.resize(f_time_horizon - init_t);
         linear_function->add_variable( & v_active_power[t+1], 1.0 );
         linear_function->add_variable( & v_active_power[t], -1.0 );
         linear_function->add_variable( & v_shut_down[t+1],
-                      - f_DeltaRampDown[t] );
+                      - v_DeltaRampDown[t] );
         linear_function->add_variable( & v_commitment[t],
-                                       (f_MinPower[t] +  f_DeltaRampDown[t]));
-        linear_function->add_variable( & v_commitment[t+1],   -f_MinPower[t]);
+                                       (v_MinPower[t] +  v_DeltaRampDown[t]));
+        linear_function->add_variable( & v_commitment[t+1],   -v_MinPower[t]);
 
         RampDown_Const[t].set_rhs( Inf<double>() );
         RampDown_Const[t].set_lhs( 0.0 );
@@ -522,9 +522,9 @@ void ThermalUnitBlock::generate_objective( Configuration *objc ) {
   }
 
   for( int t = 0; t < f_time_horizon; ++t ) {
-    dquad_function->add_variable( & v_active_power[t], f_LinearTerm[t],
-                                  f_QuadTerm[t] );
-    dquad_function->add_variable( & v_commitment[t], f_ConstTerm[t], 0.0 );
+    dquad_function->add_variable( & v_active_power[t], v_LinearTerm[t],
+                                  v_QuadTerm[t] );
+    dquad_function->add_variable( & v_commitment[t], v_ConstTerm[t], 0.0 );
   }
 
   objective.set_function( dquad_function );
@@ -572,34 +572,34 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
 
   ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-               ncdim_number_intervals, f_change_interval );
+               ncdim_number_intervals, v_change_interval );
 
   ::serialize( group, "MinPower", netCDF::NcDouble(),
-               ncdim_number_intervals, f_MinPower );
+               ncdim_number_intervals, v_MinPower );
 
   ::serialize( group, "MaxPower", netCDF::NcDouble(),
-               ncdim_number_intervals, f_MaxPower );
+               ncdim_number_intervals, v_MaxPower );
 
   ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-               ncdim_number_intervals, f_DeltaRampUp );
+               ncdim_number_intervals, v_DeltaRampUp );
 
   ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-               ncdim_number_intervals, f_DeltaRampDown );
+               ncdim_number_intervals, v_DeltaRampDown );
 
   ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-               ncdim_number_intervals, f_PrimaryRho );
+               ncdim_number_intervals, v_PrimaryRho );
 
   ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-               ncdim_number_intervals, f_SecondaryRho );
+               ncdim_number_intervals, v_SecondaryRho );
 
   ::serialize( group, "QuadTerm", netCDF::NcDouble(),
-               ncdim_number_intervals, f_QuadTerm );
+               ncdim_number_intervals, v_QuadTerm );
 
   ::serialize( group, "LinearTerm", netCDF::NcDouble(),
-               ncdim_number_intervals, f_LinearTerm );
+               ncdim_number_intervals, v_LinearTerm );
 
   ::serialize( group, "ConstTerm", netCDF::NcDouble(),
-               ncdim_number_intervals, f_ConstTerm );
+               ncdim_number_intervals, v_ConstTerm );
 
 }  // end( ThermalUnitBlock::serialize )
 

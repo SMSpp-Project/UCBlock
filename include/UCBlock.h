@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 28 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -446,20 +446,11 @@ protected:
  /// The number of nodes in the network
  Index f_number_nodes;
 
- /// The number of heat-only generation units
- Index f_number_heat_only_units;
-
  /// The number of heat block
  Index f_number_heat_block;
 
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
-
- /// Contains the indices of the heat-only generation units
- std::vector<Index> v_heat_only_units;
-
- /// Contains the indices of the energy cell
- std::vector<Index> v_energy_cell;
 
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;

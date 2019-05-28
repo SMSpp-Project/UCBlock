@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 28 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -551,37 +551,37 @@ virtual void generate_objective( Configuration *objc = nullptr )
 Index f_number_intervals;
 
 /// the vector of change interval
-std::vector< int >  f_change_interval;
+std::vector< int >  v_change_interval;
 
 /// the vector of MinPower
-std::vector< double >  f_MinPower;
+std::vector< double >  v_MinPower;
 
 /// the vector of MaxPower
-std::vector< double >  f_MaxPower;
+std::vector< double >  v_MaxPower;
 
 /// the vector of PrimaryRho
-std::vector< double >  f_PrimaryRho;
+std::vector< double >  v_PrimaryRho;
 
 /// the vector of SecondaryRho
-std::vector< double >  f_SecondaryRho;
+std::vector< double >  v_SecondaryRho;
 
 /// the vector of InitPower
-std::vector< double >  f_StartUpLim;
+std::vector< double >  v_StartUpLim;
 
 /// the vector of RampUp
-std::vector< double >  f_DeltaRampUp;
+std::vector< double >  v_DeltaRampUp;
 
 /// the vector of RampDown
-std::vector< double >  f_DeltaRampDown;
+std::vector< double >  v_DeltaRampDown;
 
 /// the vector of QuadTerm
-std::vector< double >  f_QuadTerm;
+std::vector< double >  v_QuadTerm;
 
 /// the vector of LinearTerm
-std::vector< double >  f_LinearTerm;
+std::vector< double >  v_LinearTerm;
 
 /// the vector of ConstTerm
-std::vector< double >  f_ConstTerm;
+std::vector< double >  v_ConstTerm;
 
 /// the StartUpCost value
 double f_StartUpCost;
