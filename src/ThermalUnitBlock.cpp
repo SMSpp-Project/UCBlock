@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -116,6 +116,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
     throw( std::invalid_argument
            ( "ThermalUnitBlock::deserialize: TimeHorizon must be positive" ) );
 
+//TODO WE SHOULD PUT THEM INTO THE UnitBlock
   auto NV = group.getDim( "NumberIntervals" );
   if( NV.isNull() )
     f_number_intervals = 0;
@@ -127,7 +128,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   }
 
   // check problem data- - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+//TODO WE SHOULD PUT THEM INTO THE UnitBlock
   if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
 
     ::deserialize( group, "ChangeIntervals", f_number_intervals,
@@ -561,6 +562,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "ThermalUnitBlock" );
 
   group.addDim( "TimeHorizon" , f_time_horizon );
+
+    //TODO WE SHOULD PUT THEM INTO THE UnitBlock
   netCDF::NcDim ncdim_number_intervals = group.addDim( "NumberIntervals",
                                                        f_number_intervals );
 
@@ -571,6 +574,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
   ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
 
+    //TODO WE SHOULD PUT THEM INTO THE UnitBlock
   ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
                ncdim_number_intervals, v_change_interval );
 

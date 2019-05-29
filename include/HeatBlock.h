@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -230,7 +230,7 @@ virtual void load( std::istream &input ) override { };
  *   dimensions "NumberIntervals": entry MaxHeatStorage[ t ] is assumed to
  *   contain the maximum heat storage of this heat block for each interval t;
  *
- * - the scalar variable "StoringHeatRho", of type UInt64 and not indexed over
+ * - the scalar variable "StoringHeatRho", of type double and not indexed over
  *   any dimension and indicates the storing heat in the heat storage(if any)
  *   in this heat block; this variable is optional and always
  *   StoringHeatRho <= 1, if it is not provided it is taken to be
@@ -239,7 +239,7 @@ virtual void load( std::istream &input ) override { };
  *   heat storage then this variable need not be defined, since they are not
  *   loaded;
  *
- * - the scalar variable "ExtractingHeatRho", of type UInt64 and not indexed over
+ * - the scalar variable "ExtractingHeatRho", of type double and not indexed over
  *   any dimension and indicates the extracting heat in the heat storage(if any)
  *   in this heat block; this variable is optional and always
  *   ExtractingHeatRho >= 1, if it is not provided it is taken to be
@@ -248,7 +248,7 @@ virtual void load( std::istream &input ) override { };
  *   heat storage then this variable need not be defined, since they are not
  *   loaded;
  *
- * - the scalar variable "KeepingHeatRho", of type UInt64 and not indexed over
+ * - the scalar variable "KeepingHeatRho", of type double and not indexed over
  *   any dimension and indicates the keeping heat in the heat storage(if any)
  *   in this heat block; this variable is optional and always
  *   KeepingHeatRho <= 1, if it is not provided it is taken to be
@@ -256,19 +256,6 @@ virtual void load( std::istream &input ) override { };
  *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the heat block has no
  *   heat storage then this variable need not be defined, since they are not
  *   loaded;
- *
- * - the variable "HeatElectricalRho", of type double and indexed over the
- *   dimensions "NumberHeatUnits": entry HeatElectricalRho[ i ] is assumed to
- *   contain the heat-to-electrical-power ratio for heat unit i in this heat
- *   block; TODO
- *
- * - the variable "UnitHeatBlocks", of type int and indexed over the
- *   dimensions "NumberHeatUnits"; the entry UnitHeatBlocks[ i ] tells
- *   which heat-producing unit i belongs to this heat block; if
- *   UnitHeatBlocks[ i ] >= NumberHeatUnits, this means that unit i is not
- *   located in this heat block; if NumberHeatUnits == 0 (say, it is not
- *   provided at all) then this variable need not be defined, since it is not
- *   loaded; TODO WE DONT NEED THIS
  */
 
 virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -311,13 +298,6 @@ virtual void generate_objective( Configuration *objc = nullptr )
 
 /// returns the time horizon of the problem
 Index get_time_horizon( void ) const { return f_time_horizon; }
-
-/** returns the heat-to-electrical-power ratio of the given heat unit in this
- * heat block */
-inline double get_heat_rho( Index unit ) const {
- return v_heat_rho[ unit * f_number_heat_units];
-}
-
 
 /** returns the minimum heat production of the given block for interval t of
  * unit i */
@@ -408,9 +388,6 @@ std::vector< double > v_max_heat_storage;
 /** the matrix of CostHeatUnit indexed over the dimensions
  * NumberIntervals and NumberHeatUnits */
 std::vector< double > v_cost_heat_unit;
-
-/// Vector of heat rho
-std::vector< double > v_heat_rho;
 
 /// Value of storing heat rho
 double f_storing_heat_rho;

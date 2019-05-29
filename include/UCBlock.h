@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -161,6 +161,10 @@ public:
  *   i; if NumberHeatBlocks == 0 (say, there is no HeatBlock) then
  *   this variable need not be defined, since it is not loaded;
  *
+ * - the variable "PowerHeatRho", of type double and indexed over the
+ *   dimensions "NumberUnits": entry PowerHeatRho[ i ] is assumed to
+ *   contain the electrical-power-to-heat ratio for each unit i;
+ *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary
  *   spinning reserve in the problem. The dimension is optional, if it is not
  *   provided then it is taken to be 0, which means that no primary reserve
@@ -214,9 +218,9 @@ public:
  *   if it is not provided then it is taken to be 0;
  *
  * - the variable "InertiaZones", of type int and indexed over the
- *   dimension "NumberNodes"; the entry InertiaZones[ i ] tells to
- *   which inertia zone the node i belongs; if InertiaZones[ i ] >=
- *   NumberInertiaZones, this means that node i does not belong to any
+ *   dimension "NumberNodes"; the entry InertiaZones[ n ] tells to
+ *   which inertia zone the node n belongs; if InertiaZones[ n ] >=
+ *   NumberInertiaZones, this means that node n does not belong to any
  *   inertia zone, and hence the corresponding units are not involved
  *   into the inertia reserve constraints; if NumberInertiaZones == 0
  *   (say, it is not provided at all) then this variable need not be
@@ -237,31 +241,31 @@ public:
  *   not provided then it is taken to be 0;
  *
  * - the variable "NumberPollutantZones" of type int indexed over the
- *   dimension "NumberPollutants"; the i-th entry of the variable is
+ *   dimension "NumberPollutants"; the p-th entry of the variable is
  *   assumed to contain the number of pollutant zones associated with
- *   pollutant i; if NumberPollutants == 0 (say, there is no
+ *   pollutant p; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded.
  *
  * - the variable "PollutantZones", of type int and indexed over the
  *   dimensions "NumberPollutants" and "NumberNodes"; the entry
- *   PollutantZones[ i , j ] tells to which pollutant zone associated
- *   with pollutant i the node j belongs; if PollutantZones[ i , j ]
- *   >= NumberPollutantZones[ i ], this means that node j does not
+ *   PollutantZones[ p , n ] tells to which pollutant zone associated
+ *   with pollutant p the node n belongs; if PollutantZones[ p , n ]
+ *   >= NumberPollutantZones[ p ], this means that node n does not
  *   belong to any pollutant zone, and hence the corresponding units
  *   are not involved into the pollutant demand constraints associated
- *   with pollutant i; if NumberPollutants == 0 (say, there is no
+ *   with pollutant p; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded;
  *
  * - the variable "PollutantHeatZones", of type int and indexed over the
  *   dimensions "NumberPollutants" and "NumberHeatBlocks"; the entry
- *   PollutantHeatZones[ i , j ] tells to which pollutant zone associated
- *   with pollutant i, the HeatBlock j belongs; if PollutantHeatZones[ i , j ]
- *   >= NumberPollutantZones[ i ], this means that HeatBlock j does not
+ *   PollutantHeatZones[ p , h ] tells to which pollutant zone associated
+ *   with pollutant p, the HeatBlock h belongs; if PollutantHeatZones[ p , h ]
+ *   >= NumberPollutantZones[ p ], this means that HeatBlock h does not
  *   belong to any pollutant zone, and hence the corresponding units
  *   are not involved into the pollutant budget constraints associated
- *   with pollutant i; if NumberPollutants == 0 (say, there is no
+ *   with pollutant p; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded; if NumberHeatBlocks == 0 (say, there is no heat-only unit)
  *   then this variable need not be defined, since it is not loaded;
@@ -407,6 +411,11 @@ inline HeatBlock * get_heat_block( Index i ) const {
     return static_cast<HeatBlock *>( v_Block[ i ] );
 }
 
+/// returns the electrical-power-to-heat ratio of the given unit i
+inline double get_power_heat_rho( Index unit ) const {
+ return v_power_heat_rho[ unit * f_number_units];
+}
+
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -524,6 +533,9 @@ protected:
   * NumberUnits, and NumberHeatBlocks */
  std::vector< Index > v_heat_set;
 
+/// Vector of heat rho
+std::vector< double > v_power_heat_rho;
+
  /// Node injection constraints for each time and node
  boost::multi_array<FRowConstraint, 2> v_node_injection_constraints;
 
@@ -537,7 +549,7 @@ protected:
  boost::multi_array<FRowConstraint, 2>  v_InertiaDemand_Const;
 
 /// heat constraints for each time and index unit
-boost::multi_array<FRowConstraint, 2>  v_Heat_Const;
+boost::multi_array<FRowConstraint, 2>  v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector<std::vector<FRowConstraint>> v_PollutantBudget_Const;

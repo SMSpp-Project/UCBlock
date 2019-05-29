@@ -27,7 +27,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -110,6 +110,7 @@ public:
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
  *
+ * //TODO instead of ActiveDemand, we may consider all of them like TimeHorizon and put them into the UCBlock
  * - the dimension "NumberNodes" containing the number of nodes in the
  *   problem; this dimension is optional, if it is not provided then it is
  *   taken to be == 1;

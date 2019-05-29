@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -247,6 +247,10 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     ::deserialize( group, "Node", v_node, { f_number_units } );
 
 
+  ::deserialize(group, "PowerHeatRho", v_power_heat_rho,
+                {f_number_units});
+
+
   deserialize_sub_blocks( group );
 
 }  // end( UCBlock::deserialize )
@@ -266,7 +270,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         extent_gen()[ f_time_horizon ][ f_number_nodes ] );
   }
 
-  // Node injection constraints. //TODO change it
+  // Node injection constraints.
 
   if( f_number_nodes > 0 ) {
 
@@ -280,7 +284,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         linear_function->add_variable( & node_injection[ node_id ], - 1.0 );
 
-        v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+        v_node_injection_constraints[ t ][ node_id ].set_lhs( 0.0 );
         v_node_injection_constraints[ t ][ node_id ].
           set_function( linear_function );
       }
@@ -291,10 +295,19 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         if( f_number_nodes > 1 )
           node_id = v_node[ unit_id ];
 
+        auto fixed_consumption = get_unit_block( unit_id )
+                ->get_fixed_consumption();
+
+          v_node_injection_constraints[ t ][ node_id ].set_rhs
+                                         ( fixed_consumption[t] );
+
         auto linear_function = static_cast<LinearFunction *>
           ( v_node_injection_constraints[ t ][ node_id ].get_function() );
-     linear_function->
-       add_variable( get_unit_block( unit_id )->get_active_power( t ), 1.0 );
+
+     linear_function->add_variable( get_unit_block( unit_id )
+                                           ->get_active_power( t ), 1.0 );
+     linear_function->add_variable( get_unit_block( unit_id )
+                          ->get_commitment( t ), - fixed_consumption[t] );
       }
     }
 
@@ -536,11 +549,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
 if (f_number_heat_block > 0 ) {
 
-  if (v_Heat_Const.size() != f_time_horizon) {
+  if (v_power_Heat_Rho_Const.size() != f_time_horizon) {
     // this should only happen once
-    assert(v_Heat_Const.size() == 0);
+    assert(v_power_Heat_Rho_Const.size() == 0);
 
-    v_Heat_Const.resize
+    v_power_Heat_Rho_Const.resize
             (boost::multi_array<FRowConstraint *, 2>::
              extent_gen()[f_time_horizon][f_number_units]);
   }
@@ -550,9 +563,10 @@ if (f_number_heat_block > 0 ) {
 
     for (Index unit_id = 0; unit_id < f_number_units; ++unit_id) {
 
-      v_Heat_Const[ t ][ unit_id ].set_lhs ( -Inf<double>() );
-      v_Heat_Const[ t ][ unit_id ].set_rhs( 0.0 );
-      v_Heat_Const[ t ][ unit_id ].set_function ( new LinearFunction() );
+      v_power_Heat_Rho_Const[ t ][ unit_id ].set_lhs ( -Inf<double>() );
+      v_power_Heat_Rho_Const[ t ][ unit_id ].set_rhs( 0.0 );
+      v_power_Heat_Rho_Const[ t ][ unit_id ].set_function
+                                               ( new LinearFunction() );
 
       auto active_power = get_unit_block( unit_id )->get_active_power();
 
@@ -562,19 +576,19 @@ if (f_number_heat_block > 0 ) {
           auto heat_id = get_heat_set( unit_id , block_id );
 
           auto heat = get_heat_block(heat_id)->get_heat();
-          auto heat_rho = get_heat_block(heat_id)->get_heat_rho( block_id );
+          auto power_heat_rho = get_power_heat_rho(unit_id);
 
           auto linear_function = static_cast<LinearFunction *>
-          ( v_Heat_Const[t][unit_id].get_function());
-          linear_function->add_variable(&heat[t], heat_rho);
-          linear_function->add_variable(&active_power[t], -1,0);
+          ( v_power_Heat_Rho_Const[t][unit_id].get_function());
+          linear_function->add_variable(&heat[t], 1,0);
+          linear_function->add_variable(&active_power[t], - power_heat_rho);
       }
 
     }
 
   }
 
-  add_static_constraint( v_Heat_Const );
+  add_static_constraint( v_power_Heat_Rho_Const );
 
 }
 
@@ -694,6 +708,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
                    dim_number_heat_block },            v_pollutant_heat_rho );
 
   }
+
+  ::serialize( group, "PowerHeatRho", netCDF::NcDouble(),
+               { dim_number_units},                        v_power_heat_rho );
 
   if( f_number_nodes > 1 )
     ::serialize( group, "Node", netCDF::NcUint64(),

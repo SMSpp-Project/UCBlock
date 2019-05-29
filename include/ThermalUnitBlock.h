@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -337,49 +337,6 @@ typedef const Index c_Index;                ///< a read-only Index
  * the group should contain the following:
  *
  * - the dimension "TimeHorizon" containing the time horizon;
- *
- *
- * Note 1: consider set time horizon \f$\{0, \dots, "TimeHorizon-1"\}\f$ with
- * dimension "TimeHorizon". It can be presented as the union of some
- * intervals.
- * 
- * Note 2: let's suppose the values of each variable (such as MinPower,
- * MaxPower, ...) may change independently, and may have different
- * values for some intervals along the set time horizon \f$\{0, \dots,
- * "TimeHorizon-1"\}\f$. It means each variable has its own changes along
- * some intervals independently. Without loss of generality, let's take the
- * union of the intersection of all the intervals between each two variables
- * separately. It means, at the end we may have a set of intervals such as:
- * \f$ [0 , a], [a+1 , b], \dots, [j+1 , k], [k+1 , TimeHorizon-1] \f$which
- * where they cover all the changes for all the variables. Then in each
- * interval, one variable may change or not(if not, copy the corresponding
- * value of its' previous interval).
- *
- * - the dimension "NumberIntervals" which is a subset of \f$ \{1, ...,
- *   "TimeHorizon"\}\f$ and indicates the number of above intervals \f$([0
- *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, TimeHorizon-1])\f$ where the
- *   variables change. This dimension is optional. If it is not
- *   provided then it is taken to be 1.
- *
- *   Three scenarios may happen:
- *
- *    i). In the simplest case scenario, "NumberIntervals = 1" which
- *        means that the value of each variable does not change, i.e.,
- *        it is the same for each period in \f$ \{1, \dots ,
- *        "TimeHorizon"\}\f$.
- *
- *   ii). In the average case scenario, "1 < NumberIntervals <
- *        TimeHorizon", which means that in some time steps the values
- *        of some of the variables are changing.
- *
- *  iii). In the worst case scenario, "NumberIntervals = TimeHorizon",
- *        which means that in every time step, the value of each
- *        variable may change.
- *
- * - the variable "ChangeIntervals", of type integer and indexed over
- *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
- *   variable indicates the positive number of \f$ a, b, ..., k,
- *   TimeHorizon-1\f$ on the above example.
  *
  * - the variable "MinPower", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the

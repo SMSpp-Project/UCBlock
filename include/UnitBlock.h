@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 29 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -90,6 +90,20 @@ class UnitBlock : public Block {
 public:
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * UnitBlock defines the following main public types:
+ *
+ * - Index, the type of parameters indices;
+ *
+ * @{ */
+
+/*--------------------------------------------------------------------------*/
+
+typedef unsigned int Index;                 ///< index of parameters
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -117,6 +131,47 @@ public:
  * the group should contain the following:
  *
  * - the dimension "TimeHorizon" containing the time horizon.
+ *
+* Note 1: consider set time horizon \f$\{0, \dots, "TimeHorizon-1"\}\f$ with
+ * dimension "TimeHorizon". It can be presented as the union of some
+ * intervals.
+ *
+ * Note 2: let's suppose the values of each variable may change independently,
+ * and may have different values for some intervals along the set time horizon
+ * \f$\{0, \dots, "TimeHorizon-1"\}\f$. It means each variable has its own
+ * changes along some intervals independently. Without loss of generality,
+ * let's take the union of the intersection of all the intervals between each
+ * two variables separately. It means, at the end we may have a set of
+ * intervals such as: \f$ [0 , a], [a+1 , b], \dots, [j+1 , k], [k+1 ,
+ * TimeHorizon-1] \f$which where they cover all the changes for all the
+ * variables. Then in each interval, one variable may change or not(if not,
+ * copy the corresponding value of its' previous interval).
+ *
+ * - the dimension "NumberIntervals" which is a subset of \f$ \{1, ...,
+ *   "TimeHorizon"\}\f$ and indicates the number of above intervals \f$([0
+ *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, TimeHorizon-1])\f$ where the
+ *   variables change. This dimension is optional. If it is not
+ *   provided then it is taken to be 1.
+ *
+ *   Three scenarios may happen:
+ *
+ *    i). In the simplest case scenario, "NumberIntervals = 1" which
+ *        means that the value of each variable does not change, i.e.,
+ *        it is the same for each period in \f$ \{1, \dots ,
+ *        "TimeHorizon"\}\f$.
+ *
+ *   ii). In the average case scenario, "1 < NumberIntervals <
+ *        TimeHorizon", which means that in some time steps the values
+ *        of some of the variables are changing.
+ *
+ *  iii). In the worst case scenario, "NumberIntervals = TimeHorizon",
+ *        which means that in every time step, the value of each
+ *        variable may change.
+ *
+ * - the variable "ChangeIntervals", of type integer and indexed over
+ *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
+ *   variable indicates the positive number of \f$ a, b, ..., k,
+ *   TimeHorizon-1\f$ on the above example.
  *
  * - the variable "FixedConsumption", of type double and indexed over the
  *   dimension "TimeHorizon"; the entry  FixedConsumption[ t ] shows the
@@ -212,6 +267,9 @@ const std::vector< double > & get_inertia_power( void ) const {
    return v_commitment;
  }
 
+
+/// Method for returning the pointer to the commitment variable at time t
+ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
 /*
  /// Method for returning the vector of power injected variables
  const std::vector<ColVariable> & get_power_injected( void ) const {
@@ -281,8 +339,14 @@ const std::vector< double > & get_inertia_power( void ) const {
 
 protected:
 
+/// the number of intervals
+Index f_number_intervals;
+
+/// the vector of change interval
+std::vector< int >  v_change_interval;
+
 /// The time horizon of the problem
- int f_time_horizon;
+int f_time_horizon;
 
 /// Vector of fixed consumption
 std::vector< double > v_fixed_consumption;
@@ -300,9 +364,6 @@ std::vector< double > v_inertia_power;
 
  /// Vector of commitment variables
  std::vector<ColVariable> v_commitment;
-
- /// Vector of power injected into the grid
-// std::vector<ColVariable> v_power_injected;
 
  /// Vector of power variables
  std::vector<ColVariable> v_active_power;
