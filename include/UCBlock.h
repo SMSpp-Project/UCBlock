@@ -26,7 +26,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 05 - 2019
+ * \date 03 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -79,6 +79,165 @@ class FRowConstraint; ///< forward declaration of FRowConstraint
 class NetworkBlock;   ///< forward declaration of NetworkBlock
 class UnitBlock;      ///< forward declaration of UnitBlock
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------- CLASS UCBlock --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// implementation of the Block concept for the unit commitment problem
+/** The UCBlock class implements the Block concept [see Block.h] for the EDF
+ *  Unit Commitment Problem.
+ *
+ *  The unit commitment corresponds to the short-term problem (with for
+ *  instance one week or one day time horizon or even longer when the SSV is
+ *  not considered and feasible regarding computational limitations) arising
+ *  at each stage of the mid-term problem. This consists of a deterministic
+ *  optimization problem involving a large number of power plants, load
+ *  flexibilities and storage devices intended to jointly satisfy a
+ *  deterministic demand at each node of the network. The goal of these
+ *  problems is to find an optimal (or near optimal) schedule satisfying the
+ *  set of technical constraints.
+ *
+ *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
+ *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
+ *  three partitions of the set of nodes which may or may not be identical:
+ *
+ *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
+ *  in several zones (sets of nodes) each one being associated with one
+ *  specific primary spinning reserve requirement;
+ *
+ *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+ *  \f$ in several zones each one being associated with one specific secondary
+ *  spinning reserve requirement;
+ *
+ *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+ *  \f$ in several zones each one being associated with one specific inertia
+ *  requirement;
+ *
+ *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
+ *  \f$ corresponding to zones which are associated with an emissions
+ *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
+ *  \f$ \mathcal{P} \f$.
+ *
+ *  The electrical system contains a set of “units” (e.g., power plants, load
+ *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
+ *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
+ *  \in \mathcal{N} \f$.
+ *
+ *  The decision variables are introduced as:
+ *
+ * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *
+ * - \f$ S_{t,n} \f$ : the node injection variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$;
+ *
+ * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
+ *   \f$;
+ *
+ * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
+ *   \f$;
+ *
+ * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
+ *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$;
+ *
+ * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *
+ *  The global constraints of unit commitment problem, on the time horizon
+ *  \f$ \mathcal{T} \f$ write as follow:
+ *
+ * - Node injection Constraints:
+ *   In the unit commitment problem, \f$ P^{au}_{t , i} \f$ denotes the fixed
+ *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
+ *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
+ *   and each node \f$ n \in \mathcal{N} \f$. The node injection constraints
+ *   will be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{ i \in \mathcal{I}_n } (p^{ac}_{t,i} + P^{au}_{t , i}(1 - u_{t,i}))
+ *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
+ * \f]
+ *
+ * - Primary Demand Constraints:
+ *   In the unit commitment problem, the primary demand
+ *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
+ *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
+ *   be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in I_n } p^{pr}_{t,i} \geq
+ *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+ *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
+ * \f]
+ *
+ * - Secondary Demand Constraints:
+ *   In the unit commitment problem, the secondary demand
+ *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
+ *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
+ *   be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } p^{sc}_{t,i} \geq
+ *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+ *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
+ * \f]
+ *
+ * - Inertia Demand Constraints:
+ *   In the unit commitment problem, the inertia demand
+ *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
+ *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
+ *   parameters \f$ \alpha_{t , i} \f$ and \f$ \beta_{t , i} \f$ will be
+ *   satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } (\alpha_{t , i}
+ *  u_{t,i} + \beta_{t , i} p^{ac}_{t,i}) \geq D^{in}_{\mathcal{B} , t}
+ *        \quad t \in \mathcal{T}
+ *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
+ * \f]
+ *
+ * - Pollutant Budget Constraints:
+ *   In the unit commitment problem, the pollutant budget \f$ \mathcal{O}_p
+ *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
+ *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
+ *   with two parameters \f$ \rho_{t , p , i} \f$ and \f$ \rho^{'}_{t , p , i}
+ *   \f$ where considered as pollutant ratio and pollutant heat ratio
+ *   respectively; is defined  as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }(\sum_{ i \in
+ *  \mathcal{I}_n } (\rho_{t , p , i} p^{ac}_{t,i}) + \sum_{ h \in \mathcal{H}
+ *  } (\rho^{'}_{t , p , h} p^{he}_{t,h}) ) \leq \mathcal{O}_p  \quad
+ *  \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
+ *                     \quad p \in \mathcal{P} \quad                       (5)
+ * \f]
+ *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
+ *
+ * - Heat Demand Constraints:
+ *   In the unit commitment problem, the Heat Demand Constraints link the
+ *   UCBlock variables with the HeatBlock, where for each heat block
+ *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
+ *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat Demand
+ *   Constraints are defined as below:
+ *
+ * \f[
+ *  \sum_{h \in \mathcal{H} , j \in \mathcal{I}^{ec}(h): e^h(j)=i}
+ *   p^{h , he}_{t , j}  \leq \varrho_i p^{ac}_{t,i} \quad i \in \mathcal{I}
+ *                                 \quad t \in \mathcal{T} \quad           (6)
+ * \f]
+ *   where \f$ j \in \mathcal{I}^{ec}(h) \f$ is an electricity producing unit
+ *   in heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
+ *   \mathcal{I}^{ec}(h) \f$, there is the need to know which electrical unit
+ *   \f$ j \f$ is representing. Thus, we need a mapping
+ *   \f$ e^h : \mathcal{I}^{ec}(h) \to \mathcal{I} \f$, where \f$ \mathcal{I}
+ *   \f$ is the set of electricity producing units (standard units in UC
+ *   parlance).
+ */
+
 class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
@@ -113,7 +272,7 @@ public:
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/*--------------------------------------------------------------------------*/
+
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific
  * format of the UCBlock. Besides the mandatory "type" attribute of
@@ -299,6 +458,8 @@ public:
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
    override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/

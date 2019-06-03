@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 05 - 2019
+ * \date 03 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n

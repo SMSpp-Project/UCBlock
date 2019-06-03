@@ -27,7 +27,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 05 - 2019
+ * \date 03 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -77,6 +77,41 @@ namespace SMSpp_di_unipi_it {
 
 class NetworkBlock : public Block {
 
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS NetworkBlock -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// implementation of the Block concept for the unit commitment problem
+/** The NetworkBlock class implements the Block concept [see Block.h] for the
+ *  EDF Unit Commitment Problem.
+ *
+ *  A network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
+ *  of arcs connecting the nodes \f$ \mathcal{L} \f$.
+ *
+ *  The decision variable is introduced as:
+ *
+ * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *
+ *   By considering a \f$ |\mathcal{L}| \times |\mathcal{N}| \f$ matrix
+ *   \f$ B_t \f$, which constitutes the so-called Power Transfer Distribution
+ *   Factor matrix which represents the linear relationship between power
+ *   injections at each node of the grid and active power flows through the
+ *   transmission lines. The flow limit equations can be written as follow:
+ *
+ * \f[
+ *  P^{mn}_{\ell , t} \leq \sum_{ n' \in \mathcal{N}} (B_t)_({\ell, n'})
+ *  (\sum_{ i \in \mathcal{I}_n'}p^{ac}_{t,i} - D^{ac}_{n' , t}) \leq
+ *  P^{mx}_{\ell , t} \quad t \in \mathcal{T} \quad \ell \in \mathcal{L} \quad
+ * \f]
+ *   Where \f$ P^{mn}_{\ell , t}\f$ and \f$ P^{mx}_{\ell , t}\f$ are minimum
+ *   and maximum power flow at each line \f$ \ell \in \mathcal{L}\f$ and
+ *   \f$ D^{ac}_{n' , t} \f$ is the active power demand at node
+ *   \f$ n \in \mathcal{N} \f$ in the network.
+ */
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -129,7 +164,7 @@ public:
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
- *   contain the active power requirement at node i in the network;
+ *   contain the active power demand at node i in the network;
  *
  * - the variable "MinPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is assumed to

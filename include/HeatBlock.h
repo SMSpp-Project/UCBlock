@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 05 - 2019
+ * \date 03 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -82,9 +82,89 @@ namespace SMSpp_di_unipi_it {
 /** The HeatBlock class implements the Block concept [see Block.h]
  * for the EDF Unit Commitment Problem.
  *
+ *  The constraints regarding heat management can be described separately for
+ *  each “heat block” (HB). In SMS++ parlance, a HB is the intersection of an
+ *  Energy Cell and a heat-ID: a set of heat-producing units that are
+ *  geographically near enough to exchange heat of the same type, together
+ *  with demand and possibly storage of this heat. HBs are only connected to
+ *  each other because some heat-producing units are also electricity
+ *  producing ones, where heat is a by-product or a co-product of electricity.
+ *  However, this linking “happens at the level of the main UC model”, and
+ *  therefore it is not required for the description of the internal
+ *  constraints of a HB.
  *
+ *  The variable to the HB portion of the EUC model are the following:
  *
+ * - \f$ p^{he}_{t,i} \f$ : representing the power produced by heat unit
+ *   \f$ i \in \mathcal{I}(h) \f$ at time \f$ t \in \mathcal{T} \f$;
  *
+ * - if the heat storage is defined, \f$ s_{t,+} \geq 0 \f$ and \f$ s_{t,-}
+ *   \geq 0 \f$ representing respectively the amount of heat added to and
+ *   removed from the storage at time instant \f$ t \in \mathcal{T} \f$ ;
+ *
+ * - if the heat storage is defined, \f$ v_t \f$ representing respectively the
+ *   amount of heat available in the storage at time instant
+ *   \f$ t \in \mathcal{T} \f$;
+ *
+ *  The heat constraints of unit commitment problem, on the time horizon
+ *  \f$ \mathcal{T} \f$ write as follow:
+ *
+ * - Demand Constraints:
+ *   In the unit commitment problem, \f$ D^h_{t} \f$ denotes the heat demand
+ *   of the each heat block \f$ h \in \mathcal{H} \f$ for each time period
+ *   \f$ t \in \mathcal{T} \f$ will be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{ i \in \mathcal{I}_h } (p^{h , he}_{t,i} - s^{h}_{t , +} +
+ *  s^{h}_{t , -} \geq D^h_{t} \quad t \in \mathcal{T}           \quad     (1)
+ * \f]
+ *
+ * - Heat production bounds Constraints:
+ *   Let \f$ P^{h , mn}_{t , i} \f$ and \f$ P^{h , mx}_{t , i} \f$ denotes the
+ *   minimum and maximum heat production respectively. For each heat unit
+ *   \f$ i \in \mathcal{I}(h) \f$ in heat block \f$ h \in \mathcal{H}\f$ and
+ *   at time \f$ t \in \mathcal{T} \f$, the heat production bounds will be
+ *   satisfied as follow:
+ *
+ * \f[
+ *   p^{he}_{t,i} \in [ P^{h , mn}_{t , i} ,  P^{h , mx}_{t , i}]
+ *    \quad i \in \mathcal{I}(h) \quad t \in \mathcal{T}         \quad     (2)
+ * \f]
+ *
+ * - Heat storage bounds Constraints:
+ *   Let \f$ V^{h , mn}_{t} \f$ and \f$ V^{h , mx}_{t} \f$ denotes the
+ *   minimum and maximum heat storage respectively. For each heat block
+ *   \f$ h \in \mathcal{H} \f$  and at time \f$ t \in \mathcal{T} \f$, the heat
+ *   storage bounds will be presented as follow:
+ *
+ * \f[
+ *      v^h_{t} \in [v^{h , mn}_{t} , V^{h , mx}_{t}]
+ *                          \quad t \in \mathcal{T}           \quad        (3)
+ * \f]
+ *
+ * - Evolution in the stored heat Constraints:
+ *   Let three constants \f$ \rho^{h}_{+} \f$, \f$ \rho^{h}_{-} \f$, and
+ *   \f$ \rho^{h} \f$ representing inefficiencies in, respectively, storing
+ *   heat in the heat storage, extracting heat from the heat storage, and
+ *   keeping heat in the heat storage. Then the evolution in the stored heat
+ *   constraints will be presented as follow:
+ *
+ * \f[
+ *   v^{h}_{t} = \rho^{h} v^{h}_{t-1} + \rho^{h}_{+} s^{h}_{t , +} +
+ *     \rho^{h}_{-} s^{h}_{t , -}  \quad t \in \mathcal{T}          \quad  (4)
+ * \f]
+ *
+ * - Objective Function:
+ *   We will now consider one specific fixed HB \f$ h \in \mathcal{H} \f$. The
+ *   portion of the objective function of the EUC corresponding to this HB
+ *   simply reads:
+ *
+ * \f[
+ *   min \sum_{ i \in \mathcal{I}_h } \sum_{ t \in \mathcal{T} }
+ *                       C^h_{t,i}p^{h , he}_{t,i}
+ * \f]
+ *   Where \f$  C^h_{t,i} \f$ is the cost of producing one heat unit
+ *   \f$ i \in \mathcal{I}(h) \f$ at time \f$ t \in \mathcal{T} \f$.
  */
 
     class HeatBlock : public Block {
