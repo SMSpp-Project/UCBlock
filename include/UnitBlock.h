@@ -315,7 +315,7 @@ ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
 /** @name Methods for modifying the UnitBlock
  *  @{ */
 
- /// Set the time horizon
+ /// Set the time horizon \\TODO
  /** Better comment again when this is supposed to be called and why: should
   * be called by the father just before calling deserialize(), it says tha
   * the object is just going to be deserialized and it should use the value

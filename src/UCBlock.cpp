@@ -513,31 +513,34 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
           linear_function->add_variable( & active_power[ t ], rho );
         }
-        //TODO
-/*
+
         // Terms associated with heat-only generation units
+
+        if( f_number_heat_block > 0 ) {
+
+        for (Index h = 0; h < f_number_heat_block; ++h) {
+
         for( std::vector<Index>::size_type i = 0;
              i >= f_number_units; ++i ) {
 
           //auto unit_id = v_heat_only_units[ i ];
-          auto unit_id = v_heat_set[ i ];
-          auto node_id = get_heat_block( unit_id );
+          auto heat_id = v_heat_set[ i ];
 
-          auto zone_id = get_pollutant_heat_zone( pollutant, node_id );
+          auto zone_id = get_pollutant_heat_zone( pollutant, h );
           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
             continue; // this unit does not belong to any zone
 
-          auto heat = get_heat_block( unit_id )->get_heat();
-          auto rho  = get_pollutant_heat_rho( t, pollutant, unit_id );
+          auto heat = get_heat_block( heat_id )->get_heat();
+          auto rho  = get_pollutant_heat_rho( t, pollutant, h );
 
           auto linear_function = static_cast<LinearFunction *>
             ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & heat[ t ], rho );
+        }
+        }
 
         }
-        */
-
       }
 
       add_static_constraint( v_PollutantBudget_Const[ pollutant ] );

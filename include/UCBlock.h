@@ -21,6 +21,16 @@
  *
  * - A multi_array of node injection constraints.
  *
+ * - A multi_array of primary demand constraints.
+ *
+ * - A multi_array of secondary demand constraints.
+ *
+ * - A multi_array of inertia demand constraints.
+ *
+ * - A multi_array of pollutant budget constraints.
+ *
+ * - A multi_array of heat constraints.
+ *
  * - Some basic public methods to read the data and initialize the
  *   optimisation problem.
  *
@@ -204,24 +214,27 @@ class UnitBlock;      ///< forward declaration of UnitBlock
  *   In the unit commitment problem, the pollutant budget \f$ \mathcal{O}_p
  *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
  *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
- *   with two parameters \f$ \rho_{t , p , i} \f$ and \f$ \rho^{'}_{t , p , i}
- *   \f$ where considered as pollutant ratio and pollutant heat ratio
- *   respectively; is defined  as follow:
+ *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
+ *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
+ *   \rho^{'}_{t , p , i} \f$ where considered as pollutant ratio and
+ *   pollutant heat ratio respectively; is defined  as follow:
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }(\sum_{ i \in
- *  \mathcal{I}_n } (\rho_{t , p , i} p^{ac}_{t,i}) + \sum_{ h \in \mathcal{H}
- *  } (\rho^{'}_{t , p , h} p^{he}_{t,h}) ) \leq \mathcal{O}_p  \quad
- *  \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
- *                     \quad p \in \mathcal{P} \quad                       (5)
+ *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }\sum_{ i \in
+ *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{n \in \mathcal{B'}}
+ *  \sum_{ t \in \mathcal{T} }\sum_{ i \in \mathcal{I}(h)
+ *  } \rho^{'}_{t , p , h} p^{he}_{t,i}  \leq \mathcal{O}_p  \quad
+ *  \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})  \quad
+ *  \mathcal{B'} \in \mathcal{B}^{p}(\mathcal{H})
+ *          \quad h \in \mathcal{H} \quad p \in \mathcal{P} \quad          (5)
  * \f]
  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
  *
- * - Heat Demand Constraints:
- *   In the unit commitment problem, the Heat Demand Constraints link the
- *   UCBlock variables with the HeatBlock, where for each heat block
+ * - Heat Constraints:
+ *   In the unit commitment problem, the Heat Constraints link the UCBlock
+ *   variables with the HeatBlock, where for each heat block
  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
- *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat Demand
+ *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat
  *   Constraints are defined as below:
  *
  * \f[
@@ -249,8 +262,12 @@ public:
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Public Types
-    @{ */
+/** @name Public types
+ *
+ * UCBlock defines a main public type:
+ *
+ * - Index, the type of indices;
+ @{ */
 
  typedef unsigned int Index;
 
@@ -455,11 +472,49 @@ public:
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// generate the static constraint of the UCBlock
+ /** Method that generates the abstract constraint of the UCBlock. These are:
+  *
+  * - if f_number_nodes > 0, a boost::multi_array<FRowConstraint, 2>; with two
+  *   dimensions which are f_time_horizon, and f_number_nodes entries, the
+  *   entry t = 0, ..., f_time_horizon - 1 and the entry
+  *   n = 1, ..., f_number_nodes being the node injection constraints at time
+  *   t and node n;
+  *
+  * - if f_number_primary_zones > 0, a boost::multi_array<FRowConstraint, 2>;
+  *   with two dimensions which are f_time_horizon, and f_number_primary_zones
+  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
+  *   z = 1, ..., f_number_primary_zones being the primary demand constraints
+  *   at time t and primary zone z;
+  *
+  * - if f_number_secondary_zones > 0, a boost::multi_array<FRowConstraint,2>;
+  *   with two dimensions which are f_time_horizon, and
+  *   f_number_secondary_zones entries, the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   z = 1, ..., f_number_secondary_zones being the secondary demand
+  *   constraints at time t and secondary zone z;
+  *
+  * - if f_number_inertia_zones > 0, a boost::multi_array<FRowConstraint, 2>;
+  *   with two dimensions which are f_time_horizon, and f_number_inertia_zones
+  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
+  *   z = 1, ..., f_number_inertia_zones being the inertia demand constraints
+  *   at time t and inertia zone z;
+  *
+  * - if f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>;
+  *   with two dimensions which are f_number_pollutants, and
+  *   v_number_pollutant_zones entries, the entry
+  *   p = 1, ..., f_number_pollutants and the entry
+  *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
+  *   constraints at pollutant p and pollutant zones z;
+  *
+  * - if f_number_heat_block > 0, a boost::multi_array<FRowConstraint, 2>;
+  *   with two dimensions which are f_time_horizon, and f_number_units
+  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
+  *   i = 1, ..., f_number_units - 1 being the heat constraints
+  *   at time t and unit i;  */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
    override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
@@ -586,9 +641,7 @@ inline double get_power_heat_rho( Index unit ) const {
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- *
- * */
+ * details of the format of the created netCDF group. */
 
  virtual void serialize( netCDF::NcGroup & group ) const override final;
 
@@ -694,8 +747,8 @@ protected:
   * NumberUnits, and NumberHeatBlocks */
  std::vector< Index > v_heat_set;
 
-/// Vector of heat rho
-std::vector< double > v_power_heat_rho;
+ /// Vector of heat rho
+ std::vector< double > v_power_heat_rho;
 
  /// Node injection constraints for each time and node
  boost::multi_array<FRowConstraint, 2> v_node_injection_constraints;
@@ -709,8 +762,8 @@ std::vector< double > v_power_heat_rho;
  /// Inertia demand constraints for each time and inertia zone
  boost::multi_array<FRowConstraint, 2>  v_InertiaDemand_Const;
 
-/// heat constraints for each time and index unit
-boost::multi_array<FRowConstraint, 2>  v_power_Heat_Rho_Const;
+ /// heat constraints for each time and index unit
+ boost::multi_array<FRowConstraint, 2>  v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector<std::vector<FRowConstraint>> v_PollutantBudget_Const;
