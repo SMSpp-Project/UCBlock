@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 06 - 2019
+ * \date 05 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -414,6 +414,9 @@ virtual void generate_objective( Configuration *objc = nullptr )
 
 /// returns the time horizon of the problem
 Index get_time_horizon( void ) const { return f_time_horizon; }
+
+/// returns the number of units in this HeatBlock
+Index get_number_heat_units( void ) const { return f_number_heat_units; }
 
 /** returns the minimum heat production of the given block for interval t of
  * unit i */

@@ -36,7 +36,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 06 - 2019
+ * \date 05 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -331,7 +331,7 @@ public:
  * - the variable "HeatSet", of type int and indexed both over the dimensions
  *   "NumberUnits" and "NumberHeatBlocks"; if HeatSet[ i , h ] = k, with
  *   k < number of heat units in HeatBlock h, then electrical unit i is
- *   represented into HeatBlock h and the heat unit k; if, instead,
+ *   represented into HeatBlock h as the heat unit k; if, instead,
  *   HeatSet[ i , h ] = k, with k >= number of heat units in HeatBlock h,
  *   then none of the heat units in HeatBlock h represents the electrical unit
  *   i; if NumberHeatBlocks == 0 (say, there is no HeatBlock) then
@@ -507,11 +507,14 @@ public:
   *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
   *   constraints at pollutant p and pollutant zones z;
   *
-  * - if f_number_heat_block > 0, a boost::multi_array<FRowConstraint, 2>;
-  *   with two dimensions which are f_time_horizon, and f_number_units
-  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
-  *   i = 1, ..., f_number_units - 1 being the heat constraints
-  *   at time t and unit i;  */
+  * - if f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2>
+  *   with two dimensions which are f_time_horizon and the number of
+  *   UnitBlocks that produce electricity and belong to some
+  *   HeatBlock; the constraint at position ( t, i ) being the heat
+  *   constraints at time t and unit M[ i ], where M maps the
+  *   constraint into an electricity-producing unit that belongs to
+  *   some HeatBlock.
+  */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
    override;
@@ -557,12 +560,14 @@ public:
    return v_pollutant_rho[ index ];
  }
 
-/** returns the conversion factor of the given pollutant due to the generation
- * of the given heat-only unit of each HeatBlock at the given time */
- inline double get_pollutant_heat_rho( Index time, Index pollutant, Index unit )
+ /** returns the conversion factor of the given pollutant due to the
+  *  generation of every heat-only unit in the given heat block at the
+  *  given time. */
+ inline double get_pollutant_heat_rho( Index time, Index pollutant,
+                                       Index heat_block )
    const {
-   auto index = time * f_number_pollutants * f_number_heat_block +
-          pollutant * f_number_heat_block + unit;
+   auto index = time * f_number_pollutants * f_number_heat_blocks +
+     pollutant * f_number_heat_blocks + heat_block;
    return v_pollutant_heat_rho[ index ];
  }
 
@@ -572,16 +577,18 @@ public:
    return v_pollutant_zones[ pollutant * f_number_nodes + node ];
  }
 
- /** returns the HeatSet associated with the given unit
-  * the given HeatBlocks belongs to */
- inline Index get_heat_set( Index unit, Index block ) const {
-     return v_heat_set[ f_number_units * f_number_heat_block + block ];
+ /** returns the heat unit that represents the given unit in the given
+  * HeatBlock */
+ inline Index get_heat_unit( Index unit, Index heat_block ) const {
+   return v_heat_set[ unit * f_number_heat_blocks + heat_block ];
  }
 
- /** returns the pollutant heat zone associated with the given pollutant
-  * the given node belongs to */
- inline Index get_pollutant_heat_zone( Index pollutant, Index block ) const {
-     return v_pollutant_heat_zones[ pollutant * f_number_heat_block + block ];
+ /** returns the pollutant zone associated with the given pollutant
+  * the given HeatBlock belongs to */
+ inline Index get_pollutant_heat_zone( Index pollutant,
+                                       Index heat_block ) const {
+   return v_pollutant_heat_zones
+     [ pollutant * f_number_heat_blocks + heat_block ];
  }
 
  /// returns the i-th UnitBlock
@@ -592,6 +599,12 @@ public:
  /// returns the t-th NetworkBlock
  inline NetworkBlock * get_network_block( Index t ) const {
    return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+ }
+
+ /// returns the i-th HeatBlock
+ inline HeatBlock * get_heat_block( Index i ) const {
+   return static_cast<HeatBlock *>
+     ( v_Block[ f_number_units + f_time_horizon + i ] );
  }
 
  /// returns the node where the given unit belongs to
@@ -615,22 +628,17 @@ public:
    return 0;
  }
 
-/// returns the inertia zone where the given node belongs to
-inline Index get_inertia_zone( Index node ) const {
-    if( v_inertia_zones.size() > 0 )
-      return v_inertia_zones[ node ];
-    return 0;
-}
+ /// returns the inertia zone where the given node belongs to
+ inline Index get_inertia_zone( Index node ) const {
+   if( v_inertia_zones.size() > 0 )
+     return v_inertia_zones[ node ];
+   return 0;
+ }
 
-/// returns the i-th HeatBlock
-inline HeatBlock * get_heat_block( Index i ) const {
-    return static_cast<HeatBlock *>( v_Block[ i ] );
-}
-
-/// returns the electrical-power-to-heat ratio of the given unit i
-inline double get_power_heat_rho( Index unit ) const {
- return v_power_heat_rho[ unit * f_number_units];
-}
+ /// returns the electrical-power-to-heat ratio of the given unit
+ inline double get_power_heat_rho( Index unit ) const {
+   return v_power_heat_rho[ unit ];
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
@@ -670,7 +678,7 @@ protected:
  Index f_number_nodes;
 
  /// The number of heat block
- Index f_number_heat_block;
+ Index f_number_heat_blocks;
 
  /// The entry v_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_node;
