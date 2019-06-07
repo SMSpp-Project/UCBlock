@@ -36,7 +36,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 06 - 2019
+ * \date 07 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -323,10 +323,28 @@ public:
  *   with t = TimeHorizon - 1, containing each the state of the interconnect
  *   network at time t;
  *
- * - the variable "Node", of type int and indexed over the dimension
- *   "NumberUnits"; the entry Node[ i ] tells to which node unit i belongs;
- *   if NumberNodes == 1  (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
+ * - the variable "UnitNode", of type int and indexed over the
+ *   dimension "NumberUnits"; the entry UnitNode[ i ] tells to which
+ *   node unit i belongs; if NumberNodes == 1 (say, it is not provided
+ *   at all), then this variable need not be defined, since it is not
+ *   loaded;
+ *
+ * - the variable "HeatNode", of type int and indexed over the
+ *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to
+ *   which node the HeatBlock h belongs; if NumberHeatBlocks == 0
+ *   (say, it is not provided at all), then this variable need not be
+ *   defined, since it is not loaded. This information is actually
+ *   only used to determine in which Pollutant Zone a HeatBlock is
+ *   located, in order to add the corresponding heat units (that are
+ *   not also electrical units) to the pollution constraints. This
+ *   means that also if NumberPollutants == 0 (say, it is not provided
+ *   at all) this variable is useless and therefore need not be
+ *   defined, since it is not loaded. Finally, notice that for units
+ *   into a HeatBlock that also are electrical units, this variable
+ *   provides another time an information that is already known, i.e.,
+ *   to which node they belong to. Of course *the two information must
+ *   agree*, otherwise the input file is ill-defined and exception is
+ *   thrown.
  *
  * - the variable "HeatSet", of type int and indexed both over the dimensions
  *   "NumberUnits" and "NumberHeatBlocks"; if HeatSet[ i , h ] = k, with
@@ -433,18 +451,6 @@ public:
  *   with pollutant p; if NumberPollutants == 0 (say, there is no
  *   pollutant) then this variable need not be defined, since it is
  *   not loaded;
- *
- * - the variable "PollutantHeatZones", of type int and indexed over the
- *   dimensions "NumberPollutants" and "NumberHeatBlocks"; the entry
- *   PollutantHeatZones[ p , h ] tells to which pollutant zone associated
- *   with pollutant p, the HeatBlock h belongs; if PollutantHeatZones[ p , h ]
- *   >= NumberPollutantZones[ p ], this means that HeatBlock h does not
- *   belong to any pollutant zone, and hence the corresponding units
- *   are not involved into the pollutant budget constraints associated
- *   with pollutant p; if NumberPollutants == 0 (say, there is no
- *   pollutant) then this variable need not be defined, since it is
- *   not loaded; if NumberHeatBlocks == 0 (say, there is no heat-only unit)
- *   then this variable need not be defined, since it is not loaded;
  *
  * - the variable "PollutantBudget", of type double and indexed over
  *   the dimension "NumberPollutants"; the i-th entry of the variable
@@ -583,14 +589,6 @@ public:
    return v_heat_set[ unit * f_number_heat_blocks + heat_block ];
  }
 
- /** returns the pollutant zone associated with the given pollutant
-  * the given HeatBlock belongs to */
- inline Index get_pollutant_heat_zone( Index pollutant,
-                                       Index heat_block ) const {
-   return v_pollutant_heat_zones
-     [ pollutant * f_number_heat_blocks + heat_block ];
- }
-
  /// returns the i-th UnitBlock
  inline UnitBlock * get_unit_block( Index i ) const {
    return static_cast<UnitBlock *>( v_Block[ i ] );
@@ -608,9 +606,9 @@ public:
  }
 
  /// returns the node where the given unit belongs to
- inline Index get_node( Index unit ) const {
+ inline Index get_unit_node( Index unit ) const {
    if( f_number_nodes > 1 )
-     return v_node[ unit ];
+     return v_unit_node[ unit ];
    return 0;
  }
 
@@ -680,9 +678,6 @@ protected:
  /// The number of heat block
  Index f_number_heat_blocks;
 
- /// The entry v_node[ i ] tells to which node unit i belongs
- std::vector<Index> v_node;
-
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
 
@@ -707,10 +702,6 @@ protected:
  /** The matrix PollutantZones indexed over the dimensions
   *  NumberPollutants and NumberNodes */
  std::vector<Index> v_pollutant_zones;
-
- /** The matrix PollutantHeatZones indexed over the dimensions
-  *  NumberPollutants and NumberHeatBlocks */
-  std::vector<Index> v_pollutant_heat_zones;
 
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
@@ -750,6 +741,12 @@ protected:
  /** the PollutantHeatRho matrix index over the dimensions
   * TimeHorizon, NumberPollutants, and NumberHeatBlocks */
  std::vector< double > v_pollutant_heat_rho;
+
+ /// The entry v_unit_node[ i ] tells to which node unit i belongs
+ std::vector<Index> v_unit_node;
+
+ /// The entry v_heat_node[ h ] tells to which node the HeatBlock h belongs
+ std::vector<Index> v_heat_node;
 
  /** the HeatSet matrix index over the dimensions
   * NumberUnits, and NumberHeatBlocks */
