@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 06 - 2019
+ * \date 06 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -103,7 +103,8 @@ public:
 /*--------------------------------------------------------------------------*/
 
 typedef unsigned int Index;                 ///< index of parameters
-/*--------------------------------------------------------------------------*/
+
+/*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -111,7 +112,7 @@ typedef unsigned int Index;                 ///< index of parameters
 
 /** Constructor of UnitBlock, taking possibly a pointer of its father
  * Block and the time horizon. */
- UnitBlock( Block * father_block = nullptr , int t = 0 )
+ UnitBlock( Block * father_block = nullptr , Index t = 0 )
    : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -132,9 +133,9 @@ typedef unsigned int Index;                 ///< index of parameters
  *
  * - the dimension "TimeHorizon" containing the time horizon.
  *
-* Note 1: consider set time horizon \f$\{0, \dots, "TimeHorizon-1"\}\f$ with
- * dimension "TimeHorizon". It can be presented as the union of some
- * intervals.
+ * Note 1: consider set time horizon \f$\{0, \dots,
+ * "TimeHorizon-1"\}\f$ with dimension "TimeHorizon". It can be
+ * presented as the union of some intervals.
  *
  * Note 2: let's suppose the values of each variable may change independently,
  * and may have different values for some intervals along the set time horizon
@@ -221,7 +222,7 @@ typedef unsigned int Index;                 ///< index of parameters
   * variables. The parameter stvv is used to decide which of the
   * optional variables should be used. If stvv is not nullptr and it
   * is a SimpleConfiguration<int> or if
-  * f_BlockConfig->f_static_constraints_Configuration is not nullptr
+  * f_BlockConfig->f_static_variables_Configuration is not nullptr
   * and it is a SimpleConfiguration<int>, then the f_value (an int of
   * this (the first possible) Configuration indicates whether each of
   * the optional variables should be used. This is done according to
@@ -245,37 +246,31 @@ typedef unsigned int Index;                 ///< index of parameters
     @{ */
 
  /// Method for returning the time horizon
- int get_time_horizon( void ) const { return f_time_horizon; }
+ Index get_time_horizon( void ) const { return f_time_horizon; }
 
-
-/// Method for returning the vector of fixed consumption
-const std::vector< double > & get_fixed_consumption( void ) const {
-     return v_fixed_consumption;
+ /// Method for returning the vector of fixed consumption
+ const std::vector< double > & get_fixed_consumption( void ) const {
+   return v_fixed_consumption;
  }
 
-/// Method for returning the vector of inertia commitment
-const std::vector< double > & get_inertia_commitment( void ) const {
-    return v_inertia_commitment;
-}
-
-/// Method for returning the vector of inertia power
-const std::vector< double > & get_inertia_power( void ) const {
- return v_inertia_power;
+ /// Method for returning the vector of inertia commitment
+ const std::vector< double > & get_inertia_commitment( void ) const {
+   return v_inertia_commitment;
  }
+
+ /// Method for returning the vector of inertia power
+ const std::vector< double > & get_inertia_power( void ) const {
+   return v_inertia_power;
+ }
+
  /// Method for returning the vector of commitment variables
  const std::vector<ColVariable> & get_commitment( void ) const {
    return v_commitment;
  }
 
+ /// Method for returning the pointer to the commitment variable at time t
+ ColVariable * get_commitment( int t ) { return & ( v_commitment[ t ] ); }
 
-/// Method for returning the pointer to the commitment variable at time t
-ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
-/*
- /// Method for returning the vector of power injected variables
- const std::vector<ColVariable> & get_power_injected( void ) const {
-   return v_power_injected;
- }
-*/
  /// Method for returning the vector of primary spinning reserve variables
   const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
    return v_primary_spinning_reserve;
@@ -285,7 +280,6 @@ ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
  const std::vector<ColVariable> & get_secondary_spinning_reserve( void ) const {
    return v_secondary_spinning_reserve;
  }
-
 
  /// Method for returning the vector of power variables
  const std::vector<ColVariable> & get_active_power( void ) const {
@@ -323,7 +317,7 @@ ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
   * value in the netCDF and the two disagre ...
   */
 
- void set_time_horizon( int t );
+ void set_time_horizon( Index t );
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
@@ -333,29 +327,40 @@ ColVariable * get_commitment( int i ) { return & ( v_commitment[i] ); }
 
  virtual void load( std::istream &input ) override {};
 
+
 /*@} -----------------------------------------------------------------------*/
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 protected:
 
-/// the number of intervals
-Index f_number_intervals;
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
 
-/// the vector of change interval
-std::vector< int >  v_change_interval;
+ void guts_of_destructor( void );
 
-/// The time horizon of the problem
-int f_time_horizon;
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
 
-/// Vector of fixed consumption
-std::vector< double > v_fixed_consumption;
+ /// The time horizon of the problem
+ Index f_time_horizon;
 
-/// Vector of inertia commitment
-std::vector< double > v_inertia_commitment;
+ /// the number of intervals
+ Index f_number_intervals;
 
-/// Vector of inertia power
-std::vector< double > v_inertia_power;
+ /// the vector of change intervals
+ std::vector< int > v_change_intervals;
+
+ /// Vector of fixed consumption
+ std::vector< double > v_fixed_consumption;
+
+ /// Vector of inertia commitment
+ std::vector< double > v_inertia_commitment;
+
+ /// Vector of inertia power
+ std::vector< double > v_inertia_power;
 
  /* Each of the following vectors of Variables should either have size
   * f_time_horizon, meaning that there is one Variable for each time
@@ -373,7 +378,6 @@ std::vector< double > v_inertia_power;
 
  /// Vector of secondary spinning reserve variables
  std::vector<ColVariable> v_secondary_spinning_reserve;
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -399,6 +403,10 @@ private:
   * then this method returns the appropriate value according to what
   * is specified in the generate_abstract_variables() method. */
  int get_variables_to_be_generated( Configuration *stvv );
+
+ void deserialize_time_horizon( netCDF::NcGroup & group );
+
+ void deserialize_change_intervals( netCDF::NcGroup & group );
 
 };  // end( class( UnitBlock ) )
 
