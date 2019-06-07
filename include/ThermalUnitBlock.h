@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 05 - 2019
+ * \date 07 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -271,8 +271,7 @@ namespace SMSpp_di_unipi_it
  * power cost function of the unit at time period \f$t\f$.
  */
 
- class ThermalUnitBlock : public UnitBlock {
-
+class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -281,24 +280,6 @@ namespace SMSpp_di_unipi_it
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * ThermalUnitBlock defines the following main public types:
- *
- * - Index, the type of parameters indices;
- *
- * @{ */
-
-/*--------------------------------------------------------------------------*/
-
-typedef unsigned int Index;                 ///< index of parameters
-typedef const Index c_Index;                ///< a read-only Index
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-/*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -314,7 +295,6 @@ typedef const Index c_Index;                ///< a read-only Index
  /// destructor of ThermalUnitBlock
 
  virtual ~ThermalUnitBlock() { };
-
 
 /*@}------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -406,16 +386,17 @@ typedef const Index c_Index;                ///< a read-only Index
  *   horizon); if, instead, InitUpDownTime <= 0, this means that the unit
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
  *   note that InitUpDownTime == 0 means that the unit has been just shut
- *   down at the end of time instant -1, i.e., the beginning of time 
- *   instant 0; 
+ *   down at the end of time instant -1, i.e., the beginning of time
+ *   instant 0;
  *
- * - the scalar variable "PZero", of type double and not indexed over any
- *   dimension; if InitUpDownTime > 0, it means that the unit was on at
- *   time instant -1 (prior to the beginning of the horizon), and then
- *   PZero indicates the amount of the power that the unit was producing
- *   at time instant -1; if InitUpDownTime <= 0 then this variable need
- *   not be defined since it is not loaded, if the variable is provided
- *   then it must be that MaxPower >= its value >= MinPower;
+ * - the scalar variable "InitialPower", of type double and not
+ *   indexed over any dimension; if InitUpDownTime > 0, it means that
+ *   the unit was on at time instant -1 (prior to the beginning of the
+ *   horizon), and then InitialPower indicates the amount of the power
+ *   that the unit was producing at time instant -1; if InitUpDownTime
+ *   <= 0 then this variable need not be defined since it is not
+ *   loaded, if the variable is provided then it must be that MaxPower
+ *   >= its value >= MinPower;
  *
  * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
  *   any dimension and indicates the minimum allowed down time in this unit;
@@ -431,12 +412,12 @@ typedef const Index c_Index;                ///< a read-only Index
  *
  */
 
-virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
-virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-        override;
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+   override;
 
 /// generate the abstract variables of the ThermalUnit
 /** Method that generates the abstract variables of the ThermalUnitBlock.
@@ -479,84 +460,29 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
  *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
  *   (f_time_horizon) - 1 being the power output constraints at time t;
  *
- * - Start-Up Cost Constraints,
+ * - Time dependent Start-Up Cost Constraints
  * //TODO
  *
  * - Other Constraints,
  * //TODO
  */
 
-virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-        override ;
-
-
+ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
+   override ;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
 /** Method that generates the objective of the ThermalUnitBlock.
  *
-*/
-virtual void generate_objective( Configuration *objc = nullptr )
-        override ;
+ */
+ virtual void generate_objective( Configuration *objc = nullptr )
+   override;
+
 /*@} -----------------------------------------------------------------------*/
 /*----------- Methods for reading the data of the ThermalUnitBlock ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the ThermalUnitBlock
  *  @{  */
-
-/// the number of intervals
-Index f_number_intervals;
-
-/// the vector of change interval
-std::vector< int >  v_change_interval;
-
-/// the vector of MinPower
-std::vector< double >  v_MinPower;
-
-/// the vector of MaxPower
-std::vector< double >  v_MaxPower;
-
-/// the vector of PrimaryRho
-std::vector< double >  v_PrimaryRho;
-
-/// the vector of SecondaryRho
-std::vector< double >  v_SecondaryRho;
-
-/// the vector of InitPower
-std::vector< double >  v_StartUpLim;
-
-/// the vector of RampUp
-std::vector< double >  v_DeltaRampUp;
-
-/// the vector of RampDown
-std::vector< double >  v_DeltaRampDown;
-
-/// the vector of QuadTerm
-std::vector< double >  v_QuadTerm;
-
-/// the vector of LinearTerm
-std::vector< double >  v_LinearTerm;
-
-/// the vector of ConstTerm
-std::vector< double >  v_ConstTerm;
-
-/// the StartUpCost value
-double f_StartUpCost;
-
-/// the PZero value
-double f_PZero;
-
-/// the MinUpTime value
-int f_MinUpTime;
-
-/// the MinDownTime value
-int f_MinDownTime;
-
-/// the InitUpDownTime value
-int f_InitUpDownTime;
-
-/// variable denoting the time-steps unit is subjected to initial conditions
-int init_t;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -571,20 +497,13 @@ int init_t;
  *
  * */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
-
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-    protected:
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED FRIENDS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-//  int number_values;
+  protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
@@ -609,54 +528,118 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 // void load(std::istream& inStream);
 
+/*@} -----------------------------------------------------------------------*/
+/*---------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock ----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the ThermalUnitBlock
+    @{ */
+
+ /** returns the start up variable associated with time t such that
+  * init_t <= t < time_horizon. */
+ inline ColVariable & start_up( Index t ) {
+   return v_start_up[ t - init_t ];
+ }
+
+ /** returns the shut down variable associated with time t such that
+  * init_t <= t < time_horizon. */
+ inline ColVariable & shut_down( Index t ) {
+   return v_shut_down[ t - init_t ];
+ }
+
 /*@}------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------data--------------------------------------*/
+
+ /// the vector of change interval
+ std::vector< int >  v_change_interval;
+
+ /// the vector of MinPower
+ std::vector< double >  v_MinPower;
+
+ /// the vector of MaxPower
+ std::vector< double >  v_MaxPower;
+
+ /// the vector of PrimaryRho
+ std::vector< double >  v_PrimaryRho;
+
+ /// the vector of SecondaryRho
+ std::vector< double >  v_SecondaryRho;
+
+ /// the vector of InitPower
+ std::vector< double >  v_StartUpLim;
+
+ /// the vector of RampUp
+ std::vector< double >  v_DeltaRampUp;
+
+ /// the vector of RampDown
+ std::vector< double >  v_DeltaRampDown;
+
+ /// the vector of QuadTerm
+ std::vector< double >  v_QuadTerm;
+
+ /// the vector of LinearTerm
+ std::vector< double >  v_LinearTerm;
+
+ /// the vector of ConstTerm
+ std::vector< double >  v_ConstTerm;
+
+ /// the StartUpCost value
+ double f_StartUpCost;
+
+ /// the InitialPower value
+ double f_InitialPower;
+
+ /// the MinUpTime value
+ int f_MinUpTime;
+
+ /// the MinDownTime value
+ int f_MinDownTime;
+
+ /// the InitUpDownTime value
+ int f_InitUpDownTime;
+
+ /// variable denoting the time-steps unit is subjected to initial conditions
+ Index init_t;
+
 /*-----------------------------variables------------------------------------*/
 
-    /// the start up binary variables
-    std::vector< ColVariable > v_start_up;
+ /// the start up binary variables
+ std::vector< ColVariable > v_start_up;
 
-    /// the shut down binary variables
-    std::vector< ColVariable > v_shut_down;
-
+ /// the shut down binary variables
+ std::vector< ColVariable > v_shut_down;
 
 /*----------------------------constraints-----------------------------------*/
 
-    /// the connection min up and down time constraints
-    std::vector< FRowConstraint > UVW_Const;
+ /// the connection min up and down time constraints
+ std::vector< FRowConstraint > StartUp_ShutDown_Variables_Constraints;
 
-    /// the TURN ON min up and down time constraints
-    std::vector< FRowConstraint > UV_Const;
+ /// the TURN ON min up and down time constraints
+ std::vector< FRowConstraint > StartUp_Constraints;
 
-    /// the SHUT DOWN min up and down time constraints
-    std::vector< FRowConstraint > UW_Const;
+ /// the SHUT DOWN min up and down time constraints
+ std::vector< FRowConstraint > ShutDown_Constraints;
 
-    /// the RampUp time constraints
-    std::vector< FRowConstraint > RampUp_Const;
+ /// the RampUp time constraints
+ std::vector< FRowConstraint > RampUp_Constraints;
 
-    /// the RampDown time constraints
-    std::vector< FRowConstraint > RampDown_Const;
+ /// the RampDown time constraints
+ std::vector< FRowConstraint > RampDown_Constraints;
 
-    /// the PrimaryRho fraction constraints
-    std::vector< FRowConstraint > PrimaryRho_Const;
+ /// the PrimaryRho fraction constraints
+ std::vector< FRowConstraint > PrimaryRho_Constraints;
 
-    /// the SecondaryRho fraction constraints
-    std::vector< FRowConstraint > SecondaryRho_Const;
+ /// the SecondaryRho fraction constraints
+ std::vector< FRowConstraint > SecondaryRho_Constraints;
 
-    /// the PowerOutput constraints
+ std::vector< FRowConstraint > MinPower_Constraints;
 
-    std::vector< FRowConstraint > PMin_Const;
+ std::vector< FRowConstraint > MaxPower_Constraints;
 
-    std::vector< FRowConstraint > PMax_Const;
-
-   // std::vector< FRowConstraint > PowerInjected_Const;
-
-    std::vector< LB0Constraint > PowerFix_Const;
-
-    /// the objective function
-    FRealObjective objective;
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
