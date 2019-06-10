@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 07 - 06 - 2019
+ * \date 09 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -589,7 +589,20 @@ public:
  double f_StartUpCost;
 
  /// the InitialPower value
- double f_InitialPower;
+ double f_initial_power;
+
+ /* TODO Add the following to the comments of deserialize:
+  *
+  * - f_initial_min_power
+  * - f_initial_delta_ramp_up
+  * - f_initial_delta_ramp_down
+  */
+
+ double f_initial_min_power;
+
+ double f_initial_delta_ramp_up;
+
+ double f_initial_delta_ramp_down;
 
  /// the MinUpTime value
  int f_MinUpTime;
