@@ -216,18 +216,18 @@ class UnitBlock;      ///< forward declaration of UnitBlock
  *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
  *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
  *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
- *   \rho^{'}_{t , p , i} \f$ where considered as pollutant ratio and
+ *   \rho'_{t , p , i} \f$ where considered as pollutant ratio and
  *   pollutant heat ratio respectively; is defined  as follow:
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }\sum_{ i \in
- *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{n \in \mathcal{B'}}
- *  \sum_{ t \in \mathcal{T} }\sum_{ i \in \mathcal{I}(h)
- *  } \rho^{'}_{t , p , h} p^{he}_{t,i}  \leq \mathcal{O}_p  \quad
- *  \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})  \quad
- *  \mathcal{B'} \in \mathcal{B}^{p}(\mathcal{H})
- *          \quad h \in \mathcal{H} \quad p \in \mathcal{P} \quad          (5)
+ *
+ *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ i \in
+ *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{h \in \mathcal{H}_n}
+ *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
+ *  \leq \mathcal{O}_p  \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
+ *  \quad p \in \mathcal{P} \quad                                          (5)
  * \f]
+ *
  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
  *
  * - Heat Constraints:

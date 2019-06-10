@@ -33,7 +33,7 @@
  *
  * \version 0.11
  *
- * \date 06 - 06 - 2019
+ * \date 10 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -175,31 +175,36 @@ typedef unsigned int Index;                 ///< index of parameters
  *   TimeHorizon-1\f$ on the above example.
  *
  * - the variable "FixedConsumption", of type double and indexed over the
- *   dimension "TimeHorizon"; the entry  FixedConsumption[ t ] shows the
+ *   dimension "NumberIntervals"; the entry  FixedConsumption[ t ] shows the
  *   fixed consumption of the power plant when it is OFF; this means that when
- *   the unit is off, it has a fixed consumption at time t which is a negative
- *   value; the variable is optional; if not defined,
- *   FixedConsumption[ t ] == 0 for all t; if it is defined it can either have
- *   size 1 or size TimeHorizon if it has size 1 then the value is the same
- *   for all t;
+ *   the unit is off, it has a fixed consumption for the corresponding time
+ *   steps in same interval whereas it may change(or not) in the other
+ *   intervals  (if exist any); the variable is optional; if not defined,
+ *   FixedConsumption[ t ] == 0 for all time steps in the all intervals; if it
+ *   is defined it can either have size 1 or size NumberIntervals if it has
+ *   size 1 then the value is the same for all time steps in all intervals;
  *
  * - the variable "InertiaCommitment", of type double and indexed over the
- *   dimension "TimeHorizon"; the entry  InertiaCommitment[ t ] shows the
- *   value of inertia commitment parameter for each thermal unit; this means
- *   that the unit gives a contribution to the inertia at time t which is
+ *   dimension "NumberIntervals"; the entry InertiaCommitment[ t ] shows the
+ *   value of inertia commitment parameter of thermal units for the
+ *   corresponding time steps in same interval whereas it may change(or not)
+ *   in the other intervals(if exist any); this means that the unit gives a
+ *   contribution to the inertia at each time step t of each interval which is
  *   get_commitment()[ t ] * InertiaCommitment[ t ]; the variable is optional.
- *   if not defined, InertiaCommitment[ t ] == 0 for all t. if it is defined
- *   it can either have size 1 or size TimeHorizon if it has size 1 then the
- *   value is the same for all t;
+ *   if not defined, InertiaCommitment[ t ] == 0 for all time steps of the all
+ *   intervals. if it is defined it can either have size 1 or size
+ *   NumberIntervals if it has size 1 then the value is the same for all t;
  *
  * - the variable "InertiaPower", of type double and indexed over the
- *   dimension "TimeHorizon"; the entry InertiaPower[ t ] shows the amount of
- *   inertia power value for the unit at time t; this means that the unit
- *   gives a contribution to the inertia at time t which is
+ *   dimension "NumberIntervals"; the entry InertiaPower[ t ] shows the amount
+ *   of inertia power value of the thermal units for the corresponding time
+ *   steps in same interval whereas it may change(or not) in the other
+ *   intervals(if exist any); this means that the unit gives a contribution to
+ *   the inertia at time step t of each interval which is
  *   get_active_power()[ t ] * InertiaCommitment[ t ]; the variable is
- *   optional. if not defined, InertiaCommitment[ t ] == 0 for all t. if it is
- *   defined it can either have size 1 or size TimeHorizon if it has size 1
- *   then the value is the same for all t
+ *   optional. if not defined, InertiaCommitment[ t ] == 0 for all time steps
+ *   of the all intervals. if it is defined it can either have size 1 or size
+ *   NumberIntervals if it has size 1 then the value is the same for all t;
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;

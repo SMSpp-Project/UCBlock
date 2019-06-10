@@ -164,9 +164,21 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
+
+  using SMSpp_di_unipi_it::Serialization::deserialize;
+
   guts_of_destructor();
   deserialize_time_horizon( group );
   deserialize_change_intervals( group );
+
+  deserialize( group, "FixedConsumption", v_fixed_consumption,
+               {f_number_intervals} );
+
+  deserialize( group, "InertiaCommitment", v_inertia_commitment,
+               {f_number_intervals} );
+
+  deserialize( group, "InertiaPower", v_inertia_power,
+               {f_number_intervals} );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -262,6 +274,9 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "UnitBlock" );
   group.addDim( "TimeHorizon" , f_time_horizon );
 
+  using SMSpp_di_unipi_it::Serialization::serialize;
+
+
   auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
   Serialization::serialize( group, "ChangeInterval", netCDF::NcUint64(),
@@ -269,7 +284,14 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
   //::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
 
-  //TODO InertiaCommitment and InertiaPower and FixedConsumption
+  serialize( group, "FixedConsumption", netCDF::NcDouble(),
+             {NumberIntervals}, v_fixed_consumption);
+
+  serialize( group, "InertiaCommitment", netCDF::NcDouble(),
+             {NumberIntervals}, v_inertia_commitment);
+
+  serialize( group, "InertiaPower", netCDF::NcDouble(),
+             {NumberIntervals}, v_inertia_power);
 }
 
 /*--------------------------------------------------------------------------*/

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 07 - 06 - 2019
+ * \date 10 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -426,19 +426,19 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   // Pollutant budget constraints.
 
-  // TODO This constraint is wrong and must be corrected
-  /*
+  // TODO This constraint should check again
+
   if( f_number_pollutants > 0 ) {
 
     if( v_PollutantBudget_Const.size() != f_number_pollutants ) {
       // this should only happen once
       assert( v_PollutantBudget_Const.size() == 0 );
 
-        v_PollutantBudget_Const.resize( f_number_pollutants );
+      v_PollutantBudget_Const.resize( f_number_pollutants );
       for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant )
       {
-          v_PollutantBudget_Const.resize( v_number_pollutant_zones[pollutant]
-                     );
+        v_PollutantBudget_Const.resize( v_number_pollutant_zones[pollutant]
+        );
       }
     }
 
@@ -446,10 +446,10 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
       for( Index zone = 0; zone < v_number_pollutant_zones[ pollutant ];
            ++zone ) {
         v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-        ( v_pollutant_budget[ pollutant ] );
+            ( v_pollutant_budget[ pollutant ] );
         v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf<double>());
         v_PollutantBudget_Const[ pollutant ][ zone ].set_function
-        ( new LinearFunction() );
+            ( new LinearFunction() );
       }
     }
 
@@ -470,7 +470,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto active_power = get_unit_block( unit_id )->get_active_power();
 
           auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
+          ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & active_power[ t ], rho );
         }
@@ -479,27 +479,27 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         if( f_number_heat_blocks > 0 ) {
 
-        for (Index h = 0; h < f_number_heat_blocks; ++h) {
+          for (Index h = 0; h < f_number_heat_blocks; ++h) {
 
-        for( std::vector<Index>::size_type i = 0;
-             i >= f_number_units; ++i ) {
+            for( std::vector<Index>::size_type i = 0;
+                 i <= f_number_units; ++i ) {
 
-          //auto unit_id = v_heat_only_units[ i ];
-          auto heat_id = v_heat_set[ i ];
+              //auto unit_id = v_heat_only_units[ i ];
+              auto heat_id = v_heat_set[ i ];
 
-          auto zone_id = get_pollutant_heat_zone( pollutant, h );
-          if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-            continue; // this unit does not belong to any zone
+              auto zone_id = get_pollutant_zone( pollutant, h );
+              if( zone_id >= v_number_pollutant_zones[ pollutant ] )
+                continue; // this unit does not belong to any zone
 
-          auto heat = get_heat_block( heat_id )->get_heat();
-          auto rho  = get_pollutant_heat_rho( t, pollutant, h );
+              auto heat = get_heat_block( heat_id )->get_heat( heat_id );
+              auto rho  = get_pollutant_heat_rho( t, pollutant, heat_id );
 
-          auto linear_function = static_cast<LinearFunction *>
-            ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
+              auto linear_function = static_cast<LinearFunction *>
+              ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-          linear_function->add_variable( & heat[ t ], rho );
-        }
-        }
+              linear_function->add_variable( & heat[ t ], rho );
+            }
+          }
 
         }
       }
@@ -507,8 +507,6 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
       add_static_constraint( v_PollutantBudget_Const[ pollutant ] );
     }
   }
-  */
-
 /*--------------------------------------------------------------------------*/
 
   // Heat constraints.
