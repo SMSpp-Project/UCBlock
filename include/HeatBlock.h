@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 06 - 2019
+ * \date 10 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -167,14 +167,14 @@ namespace SMSpp_di_unipi_it {
  *   \f$ i \in \mathcal{I}(h) \f$ at time \f$ t \in \mathcal{T} \f$.
  */
 
-    class HeatBlock : public Block {
+  class HeatBlock : public Block {
 
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+  public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
@@ -189,7 +189,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-typedef unsigned int Index;
+    typedef unsigned int Index;
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -200,14 +200,14 @@ typedef unsigned int Index;
 /** Constructor of HeatBlock, taking possibly a pointer of its
  * father Block. */
 
-HeatBlock( Block * father_block = nullptr , int t = 0 )
+    HeatBlock( Block * father_block = nullptr , int t = 0 )
         : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
 
 /// destructor of HeatBlock
 
-virtual ~HeatBlock() { };
+    virtual ~HeatBlock() { };
 
 
 /*@}------------------------------------------------------------------------*/
@@ -222,7 +222,7 @@ virtual ~HeatBlock() { };
  * HeatBlock then a NBModification (the "nuclear option") is issued.
  * */
 
-virtual void load( std::istream &input ) override { };
+    virtual void load( std::istream &input ) override { };
 
 /*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
@@ -310,6 +310,12 @@ virtual void load( std::istream &input ) override { };
  *   dimensions "NumberIntervals": entry MaxHeatStorage[ t ] is assumed to
  *   contain the maximum heat storage of this heat block for each interval t;
  *
+ * - the scalar variable "InitialHeatAvailable", of type double and not
+ *   indexed over any dimension and indicates the the initial amount of heat
+ *   in the storage at the time -1 in this heat block; this variable is
+ *   optional, if it is not provided it is taken to be
+ *   InitialHeatAvailable == MinHeatStorage [ 0 ];
+ *
  * - the scalar variable "StoringHeatRho", of type double and not indexed over
  *   any dimension and indicates the storing heat in the heat storage(if any)
  *   in this heat block; this variable is optional and always
@@ -319,9 +325,9 @@ virtual void load( std::istream &input ) override { };
  *   heat storage then this variable need not be defined, since they are not
  *   loaded;
  *
- * - the scalar variable "ExtractingHeatRho", of type double and not indexed over
- *   any dimension and indicates the extracting heat in the heat storage(if any)
- *   in this heat block; this variable is optional and always
+ * - the scalar variable "ExtractingHeatRho", of type double and not indexed
+ *   over any dimension and indicates the extracting heat in the heat storage(
+ *   if any) in this heat block; this variable is optional and always
  *   ExtractingHeatRho >= 1, if it is not provided it is taken to be
  *   ExtractingHeatRho == 0; if for all intervals t,
  *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the heat block has no
@@ -338,12 +344,12 @@ virtual void load( std::istream &input ) override { };
  *   loaded;
  */
 
-virtual void deserialize( netCDF::NcGroup & group ) override;
+    virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
-virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-override;
+    virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+    override;
 
 /// generate the abstract variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.
@@ -394,8 +400,8 @@ override;
  * //TODO
  */
 
-virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-override ;
+    virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
+    override ;
 
 
 
@@ -404,7 +410,7 @@ override ;
 /** Method that generates the objective of the HeatBlock.
  *
 */
-virtual void generate_objective( Configuration *objc = nullptr )
+    virtual void generate_objective( Configuration *objc = nullptr )
     override ;
 /*@} -----------------------------------------------------------------------*/
 /*-------------- Methods for reading the data of the HeatBlock -------------*/
@@ -413,35 +419,35 @@ virtual void generate_objective( Configuration *objc = nullptr )
  *  @{  */
 
 /// returns the time horizon of the problem
-Index get_time_horizon( void ) const { return f_time_horizon; }
+    Index get_time_horizon( void ) const { return f_time_horizon; }
 
 /// returns the number of units in this HeatBlock
-Index get_number_heat_units( void ) const { return f_number_heat_units; }
+    Index get_number_heat_units( void ) const { return f_number_heat_units; }
 
 /** returns the minimum heat production of the given block for interval t of
  * unit i */
-inline double get_min_heat_production(  Index interval , Index unit) const {
-    return v_min_heat_production[ interval * f_number_heat_units + unit ];
-}
+    inline double get_min_heat_production(  Index interval , Index unit) const {
+        return v_min_heat_production[ interval * f_number_heat_units + unit ];
+    }
+
+/** returns the cost of heat unit of the given block for interval t of
+ * unit i */
+    inline double get_cost_heat_unit(  Index interval , Index unit) const {
+        return v_cost_heat_unit[ interval * f_number_heat_units + unit ];
+    }
 
 /** returns the maximum heat production of the given block for interval t of
  * unit i */
-inline double get_max_heat_production(  Index interval , Index unit) const {
-    return v_max_heat_production[ interval * f_number_heat_units + unit ];
-}
-
-/// returns the heat cost of the given block for interval t of unit i
-inline double get_cost_heat_unit(  Index interval , Index unit) const {
-    return v_cost_heat_unit[ interval * f_number_heat_units + unit ];
-}
+    inline double get_max_heat_production(  Index interval , Index unit) const {
+        return v_max_heat_production[ interval * f_number_heat_units + unit ];
+    }
 
 /// Method for returning the vector of heat variables
-const std::vector<ColVariable> & get_heat( void ) const {
-     return v_heat;
-}
-
+    const std::vector<ColVariable> & get_heat( void ) const {
+        return v_heat;
+    }
 /// Method for returning the pointer to the heat variable at time t
-ColVariable * get_heat( int t ) { return & ( v_heat[t] ); }
+    ColVariable * get_heat( int t ) { return & ( v_heat[t] ); }
 
 
 /*@} -----------------------------------------------------------------------*/
@@ -457,7 +463,7 @@ ColVariable * get_heat( int t ) { return & ( v_heat[t] ); }
  *
  * */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
+    virtual void serialize( netCDF::NcGroup & group ) const override;
 
 
 /*@} -----------------------------------------------------------------------*/
@@ -467,88 +473,94 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
  *  @{ */
 
 /// Set the time horizon
-void set_time_horizon( int t );
+    void set_time_horizon( int t );
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+  protected:
 
 /// the time horizon of the problem
-Index f_time_horizon;
+    Index f_time_horizon;
 
 /// The number of units of the problem
-Index f_number_heat_units;
+    Index f_number_heat_units;
 
 /// the number of intervals
-Index f_number_intervals;
+    Index f_number_intervals;
 
 /// the vector of change interval
-std::vector< int >  v_change_interval;
+    std::vector< int >  v_change_intervals;
 
 /// the vector of HeatDemand indexed over the dimensions NumberIntervals
-std::vector< double > v_heat_demand;
+    std::vector< double > v_heat_demand;
 
 /** the matrix of MinHeatProduction indexed over the dimensions
  * NumberIntervals and NumberHeatUnits */
-std::vector< double > v_min_heat_production;
+    std::vector< double > v_min_heat_production;
 
 /** the matrix of MaxHeatProduction indexed over the dimensions
  * NumberIntervals and NumberHeatUnits */
-std::vector< double > v_max_heat_production;
+    std::vector< double > v_max_heat_production;
 
 /// the vector of MinHeatStorage indexed over the dimensions NumberIntervals
-std::vector< double > v_min_heat_storage;
+    std::vector< double > v_min_heat_storage;
 
 /// the vector of MaxHeatStorage indexed over the dimensions NumberIntervals
-std::vector< double > v_max_heat_storage;
+    std::vector< double > v_max_heat_storage;
 
 /** the matrix of CostHeatUnit indexed over the dimensions
  * NumberIntervals and NumberHeatUnits */
-std::vector< double > v_cost_heat_unit;
+    std::vector< double > v_cost_heat_unit;
 
 /// Value of storing heat rho
-double f_storing_heat_rho;
+    double f_storing_heat_rho;
 
 /// Value of extracting heat rho
-double f_extracting_heat_rho;
+    double f_extracting_heat_rho;
 
 /// Value of keeping heat rho
-double f_keeping_heat_rho;
+    double f_keeping_heat_rho;
+
+/// the initial amount of heat in the storage at the beginning of the time t
+    double f_initial_heat_storage;
 /*-----------------------------variables------------------------------------*/
 
 /// Vector of Heat variables
-std::vector< ColVariable > v_heat;
+    std::vector< ColVariable > v_heat;
 
 /// Vector of HeatAdded variables
-std::vector< ColVariable > v_heat_added;
+    std::vector< ColVariable > v_heat_added;
 
 /// Vector of HeatRemoved variables
-std::vector< ColVariable > v_heat_removed;
+    std::vector< ColVariable > v_heat_removed;
 
 /// Vector of HeatAvailable variables
-std::vector< ColVariable > v_heat_available;
+    std::vector< ColVariable > v_heat_available;
 
 /*----------------------------constraints-----------------------------------*/
 /// the heat demand satisfaction constraints
-std::vector< FRowConstraint > v_HeatDemand_Const;
+    std::vector< FRowConstraint > v_HeatDemand_Constraints;
 
 /// the heat bound satisfaction constraints
-boost::multi_array<FRowConstraint, 2> v_HeatBounds_Const;
+    boost::multi_array<FRowConstraint, 2> v_HeatBounds_Constraints;
 
 /// the heat storage bound satisfaction constraints
-std::vector< FRowConstraint > v_HeatStorageBounds_Const;
+    std::vector< FRowConstraint > v_HeatStorageBounds_Constraints;
+
+/// the evolution in the  stored heat constraints
+    std::vector< FRowConstraint > v_EvolutionStoredHeat_Constraints;
 
 /// the objective function
-FRealObjective objective;
+    FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
-    private:
+  private:
 
-        SMSpp_insert_in_factory_h;
+    SMSpp_insert_in_factory_h;
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -560,9 +572,14 @@ FRealObjective objective;
  * value is not given in stvv, then this method returns the appropriate value
  * according to what is specified in the generate_abstract_variables() method.
  * */
-int get_variables_to_be_generated( Configuration *stvv );
+    int get_variables_to_be_generated( Configuration *stvv );
 
-    }; // end( class( HeatBlock ) )
+    void deserialize_time_horizon( netCDF::NcGroup & group );
+
+    void deserialize_change_intervals( netCDF::NcGroup & group );
+
+
+  }; // end( class( HeatBlock ) )
 
 /*@}  end( class( HeatBlock ) ) --------------------------------------------*/
 /*--------------------------------------------------------------------------*/
