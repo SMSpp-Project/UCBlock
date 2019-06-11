@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 09 - 06 - 2019
+ * \date 11 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -198,9 +198,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   // POWER OUTPUT CONSTRAINTS
 
   // Initializing minimum power constraints
-
-  // TODO Should we use these constraints for minimum and maximum
-  // power or those that involve the u, v, and w variables?
 
   MinPower_Constraints.resize( f_time_horizon );
 
@@ -458,7 +455,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   /*--------------------------------------------------------------------------*/
   // TIME DEPENDENT START UP COSTS CONSTRAINTS
 
-  //TODO
+  //TODO if any exist
 
 } // end( ThermalUnitBlock::generate_abstract_constraints )
 
@@ -515,11 +512,11 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
 
   serialize( group, "InitialMinPower",
-             netCDF::NcUint64(), f_initial_min_power );
+             netCDF::NcDouble(), f_initial_min_power );
   serialize( group, "InitialDeltaRampUp",
-             netCDF::NcUint64(), f_initial_delta_ramp_up );
+             netCDF::NcDouble(), f_initial_delta_ramp_up );
   serialize( group, "InitialDeltaRampDown",
-             netCDF::NcUint64(), f_initial_delta_ramp_down );
+             netCDF::NcDouble(), f_initial_delta_ramp_down );
 
   auto NumberIntervals = group.getDim( "NumberIntervals" );
 

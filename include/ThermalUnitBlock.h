@@ -43,7 +43,7 @@
  *
  * \version 0.11
  *
- * \date 09 - 06 - 2019
+ * \date 11 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -223,13 +223,6 @@ namespace SMSpp_di_unipi_it
  *   when it is off. we have the following relation for each
  *   \f$ t \in \{1, ..., T\}  \f$:
  *
- * \f[
- * //TODO this constraint goes to UCBlock
- *   {p}_t = (1 - u_t )P_t{au} + p_t^{ac} \quad (11)
- * \f]
- *   where \f$ P_t{au} \f$ denotes the fixed consumption of the power plant
- *   when it is off.
- *
  * - Active power relation with primary and secondary spinning reserves:
  *   for each
  *   \f$ t \in \{1, ..., T\}  \f$:
@@ -328,14 +321,18 @@ public:
  *   maximum power output value of the unit for the corresponding time steps;
  *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
  *
- *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   increases of power production value of the unit for the corresponding time
- *   steps in same interval whereas it may change(or not) in the other intervals
- *   (if exist any); this variable is optional, if it is not provided then it
- *   is assumed that DeltaRampUp == MaxPower, i.e., the unit can ramp up by
- *   an arbitrary amount, i.e., there are no ramp-up constraints;
+ *   increases of power production value of the unit for the corresponding
+ *   time steps in same interval whereas it may change(or not) in the other
+ *   intervals (if exist any); this variable is optional, if it is not
+ *   provided then it is assumed that DeltaRampUp == MaxPower, i.e., the unit
+ *   can ramp up by an arbitrary amount, i.e., there are no ramp-up
+ *   constraints;
+ *
+ * - the scalar variable "InitialDeltaRampUp", of type double and not indexed
+ *   over any dimension; it indicates the delta ramp up value at time instant
+ *   zero(the initial condition);
  *
  * - the variable "DeltaRampDown", of type double and indexed over the
  *   dimension "NumberIntervals"; each entry of the variable is assumed to
@@ -345,6 +342,10 @@ public:
  *   is not provided then it is assumed that DeltaRampDown == MaxPower, i.e.,
  *   the unit can ramp down by an arbitrary amount, i.e., there are no
  *   ramp-down constraints;
+ *
+ * - the scalar variable "InitialDeltaRampDown", of type double and not
+ *   indexed over any dimension; it indicates the delta ramp down value at
+ *   time instant zero(the initial condition);
  *
  * - the variable "PrimaryRho", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
@@ -398,6 +399,10 @@ public:
  *   loaded, if the variable is provided then it must be that MaxPower
  *   >= its value >= MinPower;
  *
+ * - the scalar variable "InitialMinPower", of type double and not indexed
+ *   over any dimension; it indicates the minimum power at time instant zero
+ *   (the initial condition);
+ *
  * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
  *   any dimension and indicates the minimum allowed down time in this unit;
  *   this variable is optional, if it is not provided it is taken to be
@@ -415,10 +420,6 @@ public:
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
-
 /// generate the abstract variables of the ThermalUnit
 /** Method that generates the abstract variables of the ThermalUnitBlock.
  * These are as std::vector< ColVariable >  with exactly :
@@ -442,6 +443,9 @@ public:
  *  production of the unit.
  *
  * */
+
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+   override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the ThermalUnit
 /** Method that generates the static constraint of the ThermalUnitBlock.
@@ -461,10 +465,10 @@ public:
  *   (f_time_horizon) - 1 being the power output constraints at time t;
  *
  * - Time dependent Start-Up Cost Constraints
- * //TODO
+ * //TODO if any exist
  *
  * - Other Constraints,
- * //TODO
+ * //TODO if any exist
  */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
@@ -510,23 +514,6 @@ public:
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for inserting and extracting
 * @{ */
-/// print the ThermalUnitBlock on an ostream with the given verbosity
-/** Protected method to print information about the ThermalUnitBlock;
- * */
-
-// virtual void print( std::ostream &output ) const override ;
-
-/*--------------------------------------------------------------------------*/
-/// loads the ThermalUnit instance from standard .dat file format
-/** Protected method for loading a ThermalUnitBlock out of a std::istream
- *
- *      //TODO
- */
-
-//virtual void load( std::istream &input ) override final;
-
-
-// void load(std::istream& inStream);
 
 /*@} -----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock ----------*/
@@ -591,13 +578,6 @@ public:
  /// the InitialPower value
  double f_initial_power;
 
- /* TODO Add the following to the comments of deserialize:
-  *
-  * - f_initial_min_power
-  * - f_initial_delta_ramp_up
-  * - f_initial_delta_ramp_down
-  */
-
  double f_initial_min_power;
 
  double f_initial_delta_ramp_up;
@@ -625,6 +605,9 @@ public:
  std::vector< ColVariable > v_shut_down;
 
 /*----------------------------constraints-----------------------------------*/
+
+ /// the power out put constraints
+//TODO with three variables u, v, w
 
  /// the connection min up and down time constraints
  std::vector< FRowConstraint > StartUp_ShutDown_Variables_Constraints;
