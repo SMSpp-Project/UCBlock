@@ -321,6 +321,14 @@ public:
  *   maximum power output value of the unit for the corresponding time steps;
  *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
  *
+ * - the scalar variable "ShutDownCapability", of type double and not indexed
+ *   over any dimension; it indicates the amount of shut down capability when
+ *   the unit is getting OFF;
+ *
+ * - the scalar variable "StartUpCapability", of type double and not indexed
+ *   over any dimension; it indicates the amount of start up capability when
+ *   the unit is getting ON;
+ *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
  *   increases of power production value of the unit for the corresponding
@@ -575,6 +583,11 @@ public:
  /// the StartUpCost value
  double f_StartUpCost;
 
+ /// the shut down and start up capabilities
+ double f_shut_down_capability;
+
+ double f_start_up_capability;
+
  /// the InitialPower value
  double f_initial_power;
 
@@ -606,8 +619,8 @@ public:
 
 /*----------------------------constraints-----------------------------------*/
 
- /// the power out put constraints
-//TODO with three variables u, v, w
+ /// the power out put constraints //TODO
+ std::vector< FRowConstraint > Power_Output_Constraints;
 
  /// the connection min up and down time constraints
  std::vector< FRowConstraint > StartUp_ShutDown_Variables_Constraints;

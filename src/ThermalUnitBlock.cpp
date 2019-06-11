@@ -90,6 +90,8 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
   deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
 
+  deserialize( group, "ShutDownCapability",   & f_shut_down_capability );
+  deserialize( group, "StartUpCapability",    & f_start_up_capability );
   deserialize( group, "InitialPower",         & f_initial_power );
   deserialize( group, "InitialMinPower",      & f_initial_min_power );
   deserialize( group, "InitialDeltaRampUp",   & f_initial_delta_ramp_up );
@@ -195,7 +197,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
-  // POWER OUTPUT CONSTRAINTS
+
+  // //TODO POWER OUTPUT CONSTRAINTS with u, v and w variables
+
+/*--------------------------------------------------------------------------*/
 
   // Initializing minimum power constraints
 
@@ -510,6 +515,10 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
   serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
   serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
+  serialize( group, "ShutDownCapability",   netCDF::NcDouble(),
+             f_shut_down_capability );
+  serialize( group, "StartUpCapability",    netCDF::NcDouble(),
+             f_start_up_capability );
 
   serialize( group, "InitialMinPower",
              netCDF::NcDouble(), f_initial_min_power );
