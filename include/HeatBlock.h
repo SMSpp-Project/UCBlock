@@ -25,7 +25,7 @@
  *
  * \version 0.11
  *
- * \date 10 - 06 - 2019
+ * \date 11 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -200,7 +200,7 @@ namespace SMSpp_di_unipi_it {
 /** Constructor of HeatBlock, taking possibly a pointer of its
  * father Block. */
 
-    HeatBlock( Block * father_block = nullptr , int t = 0 )
+    HeatBlock( Block * father_block = nullptr , Index t = 0 )
         : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -473,7 +473,7 @@ namespace SMSpp_di_unipi_it {
  *  @{ */
 
 /// Set the time horizon
-    void set_time_horizon( int t );
+    void set_time_horizon( Index t );
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

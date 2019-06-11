@@ -122,6 +122,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
   // Default values for optional dimensions
   f_number_nodes           = 1;
+  f_number_lines           = 0;
   f_number_heat_blocks     = 0;
   f_number_primary_zones   = 0;
   f_number_secondary_zones = 0;
@@ -129,11 +130,38 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   f_number_pollutants      = 0;
 
   deserialize_dim( group, "NumberNodes",          f_number_nodes );
+  deserialize_dim( group, "NumberLines",          f_number_lines );
   deserialize_dim( group, "NumberHeatBlocks",     f_number_heat_blocks );
   deserialize_dim( group, "NumberPrimaryZones",   f_number_primary_zones );
   deserialize_dim( group, "NumberSecondaryZones", f_number_secondary_zones );
   deserialize_dim( group, "NumberInertiaZones",   f_number_inertia_zones );
   deserialize_dim( group, "NumberPollutants",     f_number_pollutants );
+
+  if( f_number_nodes > 1 ) {
+    deserialize( group, "StartLine", v_start_line,
+                 { f_number_nodes } );
+  }
+
+  if( f_number_nodes > 1 ) {
+    deserialize( group, "EndLine", v_end_line,
+                 { f_number_nodes } );
+  }
+
+
+  if( f_number_nodes > 1 ) {
+    deserialize( group, "MinPowerFlow", v_min_power_flow,
+                 { f_number_lines } );
+  }
+
+  if( f_number_nodes > 1 ) {
+    deserialize( group, "MaxPowerFlow", v_max_power_flow,
+                 { f_number_lines } );
+  }
+
+  if( f_number_nodes > 1 ) {
+    deserialize( group, "Susceptance", v_susceptance,
+                 { f_number_lines } );
+  }
 
   if( f_number_heat_blocks >= 1 ) {
     deserialize( group, "HeatSet", v_heat_set,
@@ -603,6 +631,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
   auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
   auto dim_number_units = group.addDim( "NumberUnits", f_number_units );
   auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+  auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
+
 
   auto dim_number_heat_blocks =
     group.addDim( "NumberHeatBlocks",     f_number_heat_blocks );
@@ -616,6 +646,31 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
     group.addDim( "NumberPollutants",     f_number_pollutants );
 
   using SMSpp_di_unipi_it::Serialization::serialize;
+
+  if( f_number_nodes > 1 ) {
+    serialize( group, "StartLine", netCDF::NcUint64(),
+        { dim_number_nodes}, v_start_line);
+  }
+
+  if( f_number_nodes > 1 ) {
+    serialize( group, "EndLine", netCDF::NcUint64(),
+               { dim_number_nodes}, v_end_line);
+  }
+
+  if( f_number_nodes > 1 ) {
+    serialize( group, "MinPowerFlow", netCDF::NcDouble(),
+               { dim_number_lines}, v_min_power_flow);
+  }
+
+  if( f_number_nodes > 1 ) {
+    serialize( group, "MaxPowerFlow", netCDF::NcDouble(),
+               { dim_number_lines}, v_max_power_flow);
+  }
+
+  if( f_number_nodes > 1 ) {
+    serialize( group, "Susceptance", netCDF::NcDouble(),
+               { dim_number_lines}, v_susceptance);
+  }
 
   if( f_number_heat_blocks >= 1 ) {
     serialize( group, "HeatSet", netCDF::NcUint64(),

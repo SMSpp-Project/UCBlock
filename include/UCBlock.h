@@ -319,6 +319,35 @@ public:
  *   taken to be 1, which means that all the Unit belong to the same node
  *   (the network is a bus);
  *
+ * - the dimension "NumberLines" containing the number of arcs in the problem;
+ *   if NumberNodes == 1 then this dimension need not to be present since it
+ *   is not loaded;
+ *
+ * - the variable "StartLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the n-th entry of the variable is the starting point of
+ *   the line (however, lines are not oriented); if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "EndLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the n-th entry of the variable is the ending point of the
+ *   line (however, lines are not oriented); if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "MinPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the l-th entry of the variable is assumed to
+ *   contain the minimum power flow at line l; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "MaxPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the l-th entry of the variable is assumed to
+ *   contain the maximum power flow at line l; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "Susceptance", of type double and indexed over the
+ *   "NumberLines"; the l-th entry of this variable is assumed to contain the
+ *   susceptance of line l; if NumberNodes == 1 then this variable need not to
+ *   be present since it is not loaded.
+ *
  * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the state of the interconnect
  *   network at time t;
@@ -537,6 +566,47 @@ public:
  /// returns the time horizon of the problem
  Index get_time_horizon( void ) const { return f_time_horizon; }
 
+ /// returns the number of nodes the network
+ Index get_number_nodes( void ) const { return f_number_nodes; }
+
+ /// returns the number of lines the network
+ Index get_number_lines( void ) const { return f_number_lines; }
+
+ /// returns the start line where the given node belongs to
+ inline Index get_start_line( Index node ) const {
+   if( v_start_line.size() > 0 )
+     return v_start_line[ node ];
+   return 0;
+ }
+
+ /// returns the end line where the given node belongs to
+ inline Index get_end_line( Index node ) const {
+   if( v_end_line.size() > 0 )
+     return v_end_line[ node ];
+   return 0;
+ }
+
+ /// returns the minimum power flow for the given line l
+ inline Index get_min_power_flow( Index line ) const {
+   if( v_min_power_flow.size() > 0 )
+     return v_min_power_flow[ line ];
+   return 0;
+ }
+
+ /// returns the maximum power flow for the given line l
+ inline Index get_max_power_flow( Index line ) const {
+   if( v_max_power_flow.size() > 0 )
+     return v_max_power_flow[ line ];
+   return 0;
+ }
+
+ /// returns the Susceptance for the given line l
+ inline Index get_susceptance( Index line ) const {
+   if( v_susceptance.size() > 0 )
+     return v_susceptance[ line ];
+   return 0;
+ }
+
  /// returns the vector of (pointers to) NetworkBlocks
  const std::vector<NetworkBlock *> & get_network_blocks( void ) const {
    return v_network_blocks;
@@ -626,6 +696,7 @@ public:
    return 0;
  }
 
+
  /// returns the inertia zone where the given node belongs to
  inline Index get_inertia_zone( Index node ) const {
    if( v_inertia_zones.size() > 0 )
@@ -675,6 +746,9 @@ protected:
  /// The number of nodes in the network
  Index f_number_nodes;
 
+ /// The number of nodes in the network
+ Index f_number_lines;
+
  /// The number of heat block
  Index f_number_heat_blocks;
 
@@ -716,6 +790,21 @@ protected:
  /** the matrix of PrimaryDemand indexed over the dimensions
   * PrimaryZones and TimeHorizon */
  std::vector<double> v_primary_demand;
+
+ /// the vector of StartLine
+ std::vector<Index> v_start_line;
+
+ /// the vector of EndLine
+ std::vector<Index> v_end_line;
+
+ /// the vector of MinPowerFlow
+ std::vector<Index> v_min_power_flow;
+
+ /// the vector of MaxPowerFlow
+ std::vector<Index> v_max_power_flow;
+
+ /// the vector of Susceptance
+ std::vector<Index> v_susceptance;
 
  /// the vector of SecondaryZones
  std::vector<Index> v_secondary_zones;
