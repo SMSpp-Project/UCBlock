@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 07 - 06 - 2019
+ * \date 12 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,7 +40,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Serialization.h"
 #include "UCBlock.h"
 #include "UnitBlock.h"
 
@@ -134,8 +133,8 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
   if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
 
-    Serialization::deserialize( group, "ChangeIntervals", f_number_intervals,
-                                v_change_intervals );
+    ::deserialize( group, "ChangeIntervals", f_number_intervals,
+                   v_change_intervals );
 
     // Check that all numbers are between 1 and f_time_horizon, that
     // the last number is == f_time_horizon, and that they are ordered
@@ -165,20 +164,19 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
-  using SMSpp_di_unipi_it::Serialization::deserialize;
-
   guts_of_destructor();
+
   deserialize_time_horizon( group );
   deserialize_change_intervals( group );
 
-  deserialize( group, "FixedConsumption", v_fixed_consumption,
-               {f_number_intervals} );
+  ::deserialize( group, "FixedConsumption", v_fixed_consumption,
+                 {f_number_intervals} );
 
-  deserialize( group, "InertiaCommitment", v_inertia_commitment,
-               {f_number_intervals} );
+  ::deserialize( group, "InertiaCommitment", v_inertia_commitment,
+                 {f_number_intervals} );
 
-  deserialize( group, "InertiaPower", v_inertia_power,
-               {f_number_intervals} );
+  ::deserialize( group, "InertiaPower", v_inertia_power,
+                 {f_number_intervals} );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -274,24 +272,21 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "UnitBlock" );
   group.addDim( "TimeHorizon" , f_time_horizon );
 
-  using SMSpp_di_unipi_it::Serialization::serialize;
-
-
   auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
-  Serialization::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-                            NumberIntervals, v_change_intervals );
+  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+               NumberIntervals, v_change_intervals );
 
   //::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
 
-  serialize( group, "FixedConsumption", netCDF::NcDouble(),
-             {NumberIntervals}, v_fixed_consumption);
+  ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
+               { NumberIntervals }, v_fixed_consumption);
 
-  serialize( group, "InertiaCommitment", netCDF::NcDouble(),
-             {NumberIntervals}, v_inertia_commitment);
+  ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
+               { NumberIntervals }, v_inertia_commitment);
 
-  serialize( group, "InertiaPower", netCDF::NcDouble(),
-             {NumberIntervals}, v_inertia_power);
+  ::serialize( group, "InertiaPower", netCDF::NcDouble(),
+               { NumberIntervals }, v_inertia_power);
 }
 
 /*--------------------------------------------------------------------------*/
