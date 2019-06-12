@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 06 - 2019
+ * \date 12 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,7 +43,6 @@
 #include "FRealObjective.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
-#include "Serialization.h"
 #include "ThermalUnitBlock.h"
 #include "UCBlock.h"
 #include "UnitBlock.h"
@@ -78,28 +77,26 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   UnitBlock::deserialize( group );
 
-  using SMSpp_di_unipi_it::Serialization::deserialize;
+  ::deserialize( group, "MinPower",      f_number_intervals, v_MinPower );
+  ::deserialize( group, "MaxPower",      f_number_intervals, v_MaxPower );
+  ::deserialize( group, "DeltaRampUp",   f_number_intervals, v_DeltaRampUp );
+  ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown );
+  ::deserialize( group, "PrimaryRho",    f_number_intervals, v_PrimaryRho );
+  ::deserialize( group, "SecondaryRho",  f_number_intervals, v_SecondaryRho );
+  ::deserialize( group, "LinearTerm",    f_number_intervals, v_LinearTerm );
+  ::deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
+  ::deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
 
-  deserialize( group, "MinPower",      f_number_intervals, v_MinPower );
-  deserialize( group, "MaxPower",      f_number_intervals, v_MaxPower );
-  deserialize( group, "DeltaRampUp",   f_number_intervals, v_DeltaRampUp );
-  deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown );
-  deserialize( group, "PrimaryRho",    f_number_intervals, v_PrimaryRho );
-  deserialize( group, "SecondaryRho",  f_number_intervals, v_SecondaryRho );
-  deserialize( group, "LinearTerm",    f_number_intervals, v_LinearTerm );
-  deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
-  deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
-
-  deserialize( group, "ShutDownCapability",   & f_shut_down_capability );
-  deserialize( group, "StartUpCapability",    & f_start_up_capability );
-  deserialize( group, "InitialPower",         & f_initial_power );
-  deserialize( group, "InitialMinPower",      & f_initial_min_power );
-  deserialize( group, "InitialDeltaRampUp",   & f_initial_delta_ramp_up );
-  deserialize( group, "InitialDeltaRampDown", & f_initial_delta_ramp_down );
-  deserialize( group, "StartUpCost",          & f_StartUpCost );
-  deserialize( group, "MinUpTime",            & f_MinUpTime );
-  deserialize( group, "MinDownTime",          & f_MinDownTime );
-  deserialize( group, "InitUpDownTime",       & f_InitUpDownTime );
+  ::deserialize( group, "ShutDownCapability",   & f_shut_down_capability );
+  ::deserialize( group, "StartUpCapability",    & f_start_up_capability );
+  ::deserialize( group, "InitialPower",         & f_initial_power );
+  ::deserialize( group, "InitialMinPower",      & f_initial_min_power );
+  ::deserialize( group, "InitialDeltaRampUp",   & f_initial_delta_ramp_up );
+  ::deserialize( group, "InitialDeltaRampDown", & f_initial_delta_ramp_down );
+  ::deserialize( group, "StartUpCost",          & f_StartUpCost );
+  ::deserialize( group, "MinUpTime",            & f_MinUpTime );
+  ::deserialize( group, "MinDownTime",          & f_MinDownTime );
+  ::deserialize( group, "InitUpDownTime",       & f_InitUpDownTime );
 
 }  // end( ThermalUnitBlock::deserialize )
 
@@ -508,53 +505,52 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "ThermalUnitBlock" );
   group.addDim( "TimeHorizon" , f_time_horizon );
 
-  using SMSpp_di_unipi_it::Serialization::serialize;
+  ::serialize( group, "InitialPower",   netCDF::NcDouble(), f_initial_power );
+  ::serialize( group, "StartUpCost",    netCDF::NcDouble(), f_StartUpCost );
+  ::serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
+  ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
+  ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
 
-  serialize( group, "InitialPower",   netCDF::NcDouble(), f_initial_power );
-  serialize( group, "StartUpCost",    netCDF::NcDouble(), f_StartUpCost );
-  serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
-  serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
-  serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
-  serialize( group, "ShutDownCapability",   netCDF::NcDouble(),
-             f_shut_down_capability );
-  serialize( group, "StartUpCapability",    netCDF::NcDouble(),
-             f_start_up_capability );
+  ::serialize( group, "ShutDownCapability", netCDF::NcDouble(),
+               f_shut_down_capability );
+  ::serialize( group, "StartUpCapability", netCDF::NcDouble(),
+               f_start_up_capability );
 
-  serialize( group, "InitialMinPower",
-             netCDF::NcDouble(), f_initial_min_power );
-  serialize( group, "InitialDeltaRampUp",
-             netCDF::NcDouble(), f_initial_delta_ramp_up );
-  serialize( group, "InitialDeltaRampDown",
-             netCDF::NcDouble(), f_initial_delta_ramp_down );
+  ::serialize( group, "InitialMinPower",
+               netCDF::NcDouble(), f_initial_min_power );
+  ::serialize( group, "InitialDeltaRampUp",
+               netCDF::NcDouble(), f_initial_delta_ramp_up );
+  ::serialize( group, "InitialDeltaRampDown",
+               netCDF::NcDouble(), f_initial_delta_ramp_down );
 
   auto NumberIntervals = group.getDim( "NumberIntervals" );
 
-  serialize( group, "MinPower", netCDF::NcDouble(),
-             NumberIntervals, v_MinPower );
+  ::serialize( group, "MinPower", netCDF::NcDouble(),
+               NumberIntervals, v_MinPower );
 
-  serialize( group, "MaxPower", netCDF::NcDouble(),
-             NumberIntervals, v_MaxPower );
+  ::serialize( group, "MaxPower", netCDF::NcDouble(),
+               NumberIntervals, v_MaxPower );
 
-  serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-             NumberIntervals, v_DeltaRampUp );
+  ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
+               NumberIntervals, v_DeltaRampUp );
 
-  serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-             NumberIntervals, v_DeltaRampDown );
+  ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
+               NumberIntervals, v_DeltaRampDown );
 
-  serialize( group, "PrimaryRho", netCDF::NcDouble(),
-             NumberIntervals, v_PrimaryRho );
+  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
+               NumberIntervals, v_PrimaryRho );
 
-  serialize( group, "SecondaryRho", netCDF::NcDouble(),
-             NumberIntervals, v_SecondaryRho );
+  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
+               NumberIntervals, v_SecondaryRho );
 
-  serialize( group, "QuadTerm", netCDF::NcDouble(),
-             NumberIntervals, v_QuadTerm );
+  ::serialize( group, "QuadTerm", netCDF::NcDouble(),
+               NumberIntervals, v_QuadTerm );
 
-  serialize( group, "LinearTerm", netCDF::NcDouble(),
-             NumberIntervals, v_LinearTerm );
+  ::serialize( group, "LinearTerm", netCDF::NcDouble(),
+               NumberIntervals, v_LinearTerm );
 
-  serialize( group, "ConstTerm", netCDF::NcDouble(),
-             NumberIntervals, v_ConstTerm );
+  ::serialize( group, "ConstTerm", netCDF::NcDouble(),
+               NumberIntervals, v_ConstTerm );
 
 }  // end( ThermalUnitBlock::serialize )
 

@@ -43,8 +43,6 @@
 #include <map>
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
-#include "Serialization.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -76,15 +74,12 @@ NetworkBlock::~NetworkBlock() { }
 
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-  using SMSpp_di_unipi_it::Serialization::deserialize;
-  using SMSpp_di_unipi_it::Serialization::deserialize_dim;
-
   // Default values for optional dimensions
-  f_number_nodes           = 1;
+  f_number_nodes = 1;
 
-  deserialize_dim( group, "NumberNodes",   f_number_nodes );
+  ::deserialize_dim( group, "NumberNodes",   f_number_nodes );
 
-  deserialize( group, "ActiveDemand", v_active_demand, { f_number_nodes } );
+  ::deserialize( group, "ActiveDemand", v_active_demand, { f_number_nodes } );
 
 }  // end( NetworkBlock::deserialize )
 
@@ -126,12 +121,12 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
   // TODO Put these constraints in the DCNetworkBlock when (and if) it
   // is created.
 
-  for( int line_id = 0; line_id < f_number_lines; ++line_id ) {
+  for( Index line_id = 0; line_id < f_number_lines; ++line_id ) {
 
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
-    for( int node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
+    for( Index node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
 
       double coefficient = 0.0; // TODO Compute the Power Transfer
                                 // Distribution Factor Matrix
@@ -174,10 +169,9 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "NetworkBlock" );
 
   auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
-  using SMSpp_di_unipi_it::Serialization::serialize;
 
-  serialize( group, "ActiveDemand", netCDF::NcDouble(),
-             { dim_number_nodes}, v_active_demand);
+  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
+               { dim_number_nodes}, v_active_demand);
 }    // end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
