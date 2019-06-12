@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 05 - 2019
+ * \date 12 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,6 +43,8 @@
 #include <map>
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
+#include "Serialization.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -74,81 +76,15 @@ NetworkBlock::~NetworkBlock() { }
 
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-  std::vector < size_t > start = { 0 };
-  std::vector < size_t > count_nodes = { (size_t) f_number_nodes };
-  std::vector < size_t > count_lines = { (size_t) f_number_lines };
+  using SMSpp_di_unipi_it::Serialization::deserialize;
+  using SMSpp_di_unipi_it::Serialization::deserialize_dim;
 
-  // Read the number of nodes and lines
+  // Default values for optional dimensions
+  f_number_nodes           = 1;
 
-  netCDF::NcDim number_nodes_NcDim = group.getDim( "NumberNodes" );
-  if( number_nodes_NcDim.isNull() )
-    throw( std::logic_error( "NumberNodes dimension is required" ) );
-  f_number_nodes = number_nodes_NcDim.getSize();
+  deserialize_dim( group, "NumberNodes",   f_number_nodes );
 
-  netCDF::NcDim number_lines_NcDim = group.getDim( "NumberLines" );
-  if( number_lines_NcDim.isNull() )
-    throw( std::logic_error( "NumberLines dimension is required" ) );
-  f_number_lines = number_lines_NcDim.getSize();
-
-  // Read starting lines
-
-  netCDF::NcVar start_line_NcVar = group.getVar( "StartLine" );
-  if( start_line_NcVar.isNull() )
-    throw( std::logic_error( "StartLine not found" ) );
-
-  v_startline.resize( f_number_nodes );
-  start_line_NcVar.getVar( start , count_nodes , v_startline.data() );
-
-  // Read ending lines
-
-  netCDF::NcVar end_line_NcVar = group.getVar( "EndLine" );
-  if( end_line_NcVar.isNull() )
-    throw( std::logic_error( "EndLine not found" ) );
-
-  v_endline.resize( f_number_nodes );
-  start_line_NcVar.getVar( start , count_nodes , v_endline.data() );
-
-  // Read active demand
-
-  netCDF::NcVar active_demand_NcVar = group.getVar( "ActiveDemand" );
-  if( active_demand_NcVar.isNull() )
-    throw( std::logic_error( "ActiveDemand not found" ) );
-
-  v_active_demand.resize( f_number_nodes );
-  active_demand_NcVar.getVar( start , count_nodes , v_active_demand.data() );
-
-  // Read susceptance
-
-  netCDF::NcVar susceptance_NcVar = group.getVar( "Susceptance" );
-  if( susceptance_NcVar.isNull() )
-    throw( std::logic_error( "Susceptance not found" ) );
-
-  v_susceptance.resize( f_number_lines );
-  susceptance_NcVar.getVar( start , count_lines , v_susceptance.data() );
-
-  // Read minimum power flow
-
-  netCDF::NcVar min_power_flow_NcVar = group.getVar( "MinPowerFlow" );
-  if( min_power_flow_NcVar.isNull() )
-    throw( std::logic_error( "MinPowerFlow not found" ) );
-
-  v_minimum_power_flow.resize( f_number_lines );
-  min_power_flow_NcVar.getVar( start , count_lines , v_minimum_power_flow.data() );
-
-  // Read maximum power flow
-
-  netCDF::NcVar max_power_flow_NcVar = group.getVar( "MaxPowerFlow" );
-  if( max_power_flow_NcVar.isNull() )
-    throw( std::logic_error( "MaxPowerFlow not found" ) );
-
-  v_maximum_power_flow.resize( f_number_lines );
-  max_power_flow_NcVar.getVar( start , count_lines , v_maximum_power_flow.data() );
-
-  // Issue Modification. Note: this is a NBModification, the "nuclear
-  // option"
-
-  if( anyone_there() )
-    add_Modification( std::make_shared<NBModification>( this ) );
+  deserialize( group, "ActiveDemand", v_active_demand, { f_number_nodes } );
 
 }  // end( NetworkBlock::deserialize )
 
@@ -235,43 +171,13 @@ void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
 void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
- group.putAtt( "type" , "NetworkBlock" );
+  group.putAtt( "type" , "NetworkBlock" );
 
- netCDF::NcDim number_nodes_NcDim =
-   group.addDim( "NumberNodes" , f_number_nodes );
+  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+  using SMSpp_di_unipi_it::Serialization::serialize;
 
- netCDF::NcDim number_lines_NcDim =
-   group.addDim( "NumberLines" , f_number_lines );
-
- std::vector < size_t > start = { 0 };
- std::vector < size_t > count_nodes = { (size_t) f_number_nodes };
- std::vector < size_t > count_lines = { (size_t) f_number_lines };
-
-
-  if( v_startline.size() )
-    ( group.addVar( "StartLine" , netCDF::NcUint64() , number_nodes_NcDim )
-    ).putVar( start , count_nodes , v_startline.data() );
-
-  if( v_endline.size() )
-    ( group.addVar( "EndLine" , netCDF::NcUint64() , number_nodes_NcDim )
-    ).putVar( start , count_nodes , v_endline.data() );
-
- if( v_active_demand.size() )
-   ( group.addVar( "ActiveDemand" , netCDF::NcDouble() , number_nodes_NcDim )
-     ).putVar( start , count_nodes , v_active_demand.data() );
-
- if( v_susceptance.size() )
-   ( group.addVar( "Susceptance" , netCDF::NcDouble() , number_lines_NcDim )
-     ).putVar( start , count_lines , v_susceptance.data() );
-
- if( v_minimum_power_flow.size() )
-   ( group.addVar( "MinPowerFlow" , netCDF::NcDouble() , number_lines_NcDim )
-     ).putVar( start , count_lines , v_minimum_power_flow.data() );
-
- if( v_maximum_power_flow.size() )
-   ( group.addVar( "MaxPowerFlow" , netCDF::NcDouble() , number_lines_NcDim )
-     ).putVar( start , count_lines , v_maximum_power_flow.data() );
-
+  serialize( group, "ActiveDemand", netCDF::NcDouble(),
+             { dim_number_nodes}, v_active_demand);
 }    // end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

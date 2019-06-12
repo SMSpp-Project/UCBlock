@@ -27,7 +27,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 06 - 2019
+ * \date 12 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -117,6 +117,17 @@ class NetworkBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
 public:
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * NetworkBlock defines a main public type:
+ *
+ * - Index, the type of indices;
+ @{ */
+
+    typedef unsigned int Index;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -250,10 +261,10 @@ protected:
 /*--------------------------------------------------------------------------*/
 
  /// number of nodes of the network
- int f_number_nodes = -1;
+ Index f_number_nodes;
 
  /// number of lines of the network
- int f_number_lines = -1;
+ Index f_number_lines;
 
  /// set starting lines
   std::vector< int > v_startline;
