@@ -16,7 +16,9 @@
  * - Maximum and minimum power output constraints;
  * - Ramp-up/down rate constraints;
  * - Minimum up and down time constraints;
- * - Start-up cost constraints.
+ * - Active power relation with primary and secondary spinning reserves.
+ * - Active power relation with primary spinning reserves.
+ * - Active power relation with secondary spinning reserves.
  *
  * Based on the above description the class has been constructed having the
  * following elements:
@@ -43,7 +45,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 06 - 2019
+ * \date 13 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -189,21 +191,19 @@ namespace SMSpp_di_unipi_it
  *   \f$ t \in \{2, ..., T-1\}  \f$:
  * \f[
  *   p_t^{ac}  \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \underline{p}^0_t  ) v_t - ( \bar{p}_t -
- *   \bar{p}^0_t )  w_{t+1}  \quad t \in \{2, ..., T-1\}\quad  (6)
+ *   \underline{p}_t  ) v_t - ( \bar{p}_t -
+ *   \underline{p}_t )  w_{t+1}  \quad t \in \{2, ..., T-1\}\quad  (6)
  * \f]
  *
  *  and in the case  \f$ \tau_+ = 1 \f$:
  *
  *  \f[
  *   p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \bar{p}^0_t ) w_{t+1} - max( \bar{p}^0_t -
- *   \underline{p}^0_t , 0 ) v_t   \quad t \in \{2, ..., T-1\} \quad  (7)
+ *   \underline{p}_t ) w_{t+1}   \quad t \in \{2, ..., T-1\} \quad  (7)
  * \f]
  * \f[
  *   p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \underline{p}^0_t ) v_t - max( \underline{p}^0_t-
- *   \bar{p}^0_t  , 0 ) w_{t+1}   \quad t \in \{2, ..., T-1\} \quad  (8)
+ *   \underline{p}_t ) v_t    \quad t \in \{2, ..., T-1\} \quad  (8)
  * \f]
  *
  *   and for the \f$ t \in \{1, ..., T\}  \f$ following inequalities ensure
@@ -320,14 +320,6 @@ public:
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
  *   maximum power output value of the unit for the corresponding time steps;
  *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
- *
- * - the scalar variable "ShutDownCapability", of type double and not indexed
- *   over any dimension; it indicates the amount of shut down capability when
- *   the unit is getting OFF;
- *
- * - the scalar variable "StartUpCapability", of type double and not indexed
- *   over any dimension; it indicates the amount of start up capability when
- *   the unit is getting ON;
  *
  * - the variable "DeltaRampUp", of type double and indexed over the dimension
  *   "NumberIntervals"; each entry of the variable is assumed to contain the
@@ -467,16 +459,25 @@ public:
  *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
  *   (f_time_horizon) - 1 being the ramp up/down time constraints at time t;
  *
- *
  * - Power output Constraints, a std::vector<FRowConstraint> with
  *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
  *   (f_time_horizon) - 1 being the power output constraints at time t;
  *
- * - Time dependent Start-Up Cost Constraints
- * //TODO if any exist
+ * - Relation between Power output, Primary and Secondary Spinning reserves
+ *   Constraints, a std::vector<FRowConstraint> with exactly f_time_horizon
+ *   entries, the entry a = 0, ..., (f_time_horizon) - 1 being the relation
+ *   between Power output Primary and Secondary Spinning reserves constraints
+ *   at time t;
  *
- * - Other Constraints,
- * //TODO if any exist
+ * - Relation between Power output and Primary Spinning reserves Constraints,
+ *   a std::vector<FRowConstraint> with exactly f_time_horizon entries, the
+ *   entry a = 0, ..., (f_time_horizon) - 1 being the relation between Power
+ *   output and Primary Spinning reserves constraints at time t;
+ *
+ * - Relation between Power output and Secondary Spinning reserves Constraints
+ *   a std::vector<FRowConstraint> with exactly f_time_horizon entries, the
+ *   entry a = 0, ..., (f_time_horizon) - 1 being the relation between Power
+ *   output and Secondary Spinning reserves constraints at time t;
  */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
@@ -584,9 +585,9 @@ public:
  double f_StartUpCost;
 
  /// the shut down and start up capabilities
- double f_shut_down_capability;
+ //double f_shut_down_capability;
 
- double f_start_up_capability;
+ //double f_start_up_capability;
 
  /// the InitialPower value
  double f_initial_power;
@@ -619,8 +620,14 @@ public:
 
 /*----------------------------constraints-----------------------------------*/
 
- /// the power out put constraints //TODO
- std::vector< FRowConstraint > Power_Output_Constraints;
+ /// the connection power out put constraints
+ std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Constraints;
+
+ /// the Start Up power out put constraints
+ std::vector< FRowConstraint > Power_StartUp_Variable_Constraints;
+
+ /// the Shut Down power out put constraints
+ std::vector< FRowConstraint > Power_ShutDown_Variable_Constraints;
 
  /// the connection min up and down time constraints
  std::vector< FRowConstraint > StartUp_ShutDown_Variables_Constraints;
