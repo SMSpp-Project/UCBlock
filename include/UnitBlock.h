@@ -314,12 +314,45 @@ typedef unsigned int Index;                 ///< index of parameters
 /** @name Methods for modifying the UnitBlock
  *  @{ */
 
- /// Set the time horizon \\TODO
- /** Better comment again when this is supposed to be called and why: should
-  * be called by the father just before calling deserialize(), it says tha
-  * the object is just going to be deserialized and it should use the value
-  * passed here if it does not find one in the netCDF file. If there is a
-  * value in the netCDF and the two disagre ...
+ /** Set the time horizon method
+  *
+  * there exist two possibilities:
+  *
+  * (i)  If the dimension TimeHorizon in netCDF input has no contents;
+  *
+  *      - call the father block (get_f_Block()); by method
+  *        get_time_horizon() take the f_time_horizon of the father and save
+  *        it as time_horizon_father; there are two possibilities:
+  *
+  *      (1) if f_time_horizon == 0; by method set_time_horizon(), take the
+  *        time horizon of the father block(time_horizon_father);
+  *
+  *      (2) if f_time_horizon != time_horizon_father; that's a logic error;
+  *        throw( std::logic_error
+  *        ( "UnitBlock::deserialize: TimeHorizon is not present in the
+  *        netCDF. The (nonzero) time horizon of UnitBlock is different from
+  *        that of its father, but they should be equal."));
+  *
+  *      - if the dimension f_time_horizon != 0; that's an invalid argument;
+  *        throw( std::invalid_argument
+  *           ( "UnitBlock::deserialize: TimeHorizon is not present in the
+  *             "netCDF input and UnitBlock does not have a father."));
+  *
+  * (ii) If the dimension TimeHorizon is present in the netCDF input of
+  *      UnitBlock; save time_horizon_netcdf = TimeHorizon.getSize();
+  *
+  *      If this case:
+  *
+  *      (1) if f_time_horizon == 0; use the time horizon provided by the
+  *          netCDF;
+  *
+  *      (2) if f_time_horizon != time_horizon_netcdf; that's a logic error;
+  *        throw( std::invalid_error
+  *        ("UnitBlock::deserialize: TimeHorizon in netCDF is different from
+  *        that (nonzero) currently specified in UnitBlock." ));
+  *
+  *      Otherwise replace the current time horizon (and possibly reset this
+  *      UnitBlock); f_time_horizon = time_horizon_netcdf
   */
 
  void set_time_horizon( Index t );
