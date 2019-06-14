@@ -59,7 +59,7 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS UnitBlock -------------------------------*/
+/*-------------------------- CLASS UnitBlock -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -90,8 +90,7 @@ namespace SMSpp_di_unipi_it {
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the unit may not have reserve).
-
+ *   not exist (for instance, the unit may not have reserve). */
 
 class UnitBlock : public Block {
 

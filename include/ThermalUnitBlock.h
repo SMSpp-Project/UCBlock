@@ -63,78 +63,98 @@ namespace SMSpp_di_unipi_it
 
 /// implementation of the Block concept for the thermal unit problem
 /** The ThermalUnitBlock class implements the Block concept [see Block.h]
- * for the EDF Unit Commitment Problem.
+ * for a "reasonably standard" thermal unit of a Unit Commitment Problem.
+ * That is, the class is designed in order to give mathematical formulation to
+ * describe the operation of large set of conventional power plants (such as
+ * nuclear, hard coal, gas turbine, gas, combined cycle, oil, ...)  which
+ * are directly connected to the transmission grid. The technical and physical
+ * constraints are mainly divided in four different categories:
  *
- * A ThermalUnitBlock class is designed in order to give mathematical
- * formulation to describe the operation of large conventional power
- * plants (such as nuclear, hard coal, gas turbine, gas, combined
- * cycle, oil, ...)  which directly connected to the transmission
- * grid. The technical and physical constraints are mainly divided in
- * four different categories as bellow:
+ * - maximum and minimum power output constraints;
+ * - ramp-up/down rate constraints;
+ * - minimum up and down time constraints;
+ * - active power relation with primary and secondary spinning reserves.
  *
- * - Maximum and minimum power output constraints;
- * - Ramp-up/down rate constraints;
- * - Minimum up and down time constraints;
- * - Active power relation with primary and secondary spinning reserves.
- * - Active power relation with primary spinning reserves.
- * - Active power relation with secondary spinning reserves.
+ * The operations of the thermal generating unit are described on a discrete
+ * time horizon as dictated by the UnitBlock interface; in this description
+ * we indicate it with T.
  *
+ * TODO: notational problem: here you indicate with T the set of time
+ *       instants, but later you use { 1, ... , T }; choose one notation
+ *       and stick with it.
  *
- * Consider a thermal generating unit and a set of time horizon \f$ T \f$
- * which is usually divided in a set of discrete time steps \f$ t \in T \f$.
- * Three binary decision variables are introduced as:
- * - \f$ u_t  \in \{ 0 , 1 \} \f$ : the commitment state of thermal unit at
- *   time period \f$ t \in T \f$.
- * - \f$  v_t \in \{ 0 , 1 \}  \f$: the start up of thermal unit at time
- *   period \f$ t \in T \f$.
- * - \f$  w_t \in \{ 0 , 1 \} \f$: the shut down of thermal unit at time
- *   period \f$ t \in T \f$. The main thermal unit constraints are categorized
- *   as following:
+ * TODO: introduce the concept of "first" time instant, and discuss the issue
+ *       of the unit being on/off before and how this impact min up- and
+ *       down-time constraints and ramping ones.
  *
- * - Min Up/Down-time Constraints:
- *   In the unit commitment problem, a thermal unit may has a
- *   minimum up time \f$ \tau_+ \f$ and a minimum down time
- *   \f$ \tau_- \f$ value. They refer to the minimum allowed up and down
- *   time of a generating thermal unit. It means, if thermal unit is committed
- *   in time \f$t\f$, then it must remain ON for the next \f$ \tau_+ - 1\f$
- *   time periods (and the same when shut down). By considering 3-binary
- *   variables \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ as defined above,
- *   the following constraints will be introduced as minimum up and down time
- *   constraints:
+ * TODO: the formulation discussed here is not the only possible one. In
+ *       fact, I'd like to have the DP one. So, the formulation should be
+ *       discussed as a mean for making it mathematically clear what each
+ *       constraint does, without implying that it is necessarily what the
+ *       ThermalUnitBlock produces.
  *
- * \f[
- *  \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
- *               u_t \quad t \in \{ \tau_+ + 1, ..., T \}  \quad  (1)
- * \f]
- * \f[
- *  \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
- *               1 - u_t \quad t \in \{ \tau_- + 1, ..., T \} \quad (2)
- * \f]
- * \f[
- *  u_t - u_{t-1} = v_t - w_t
- *                             \quad t \in \{ 2, ..., T \}  \quad (3)
- * \f]
+ * A possible MIP formulation of the problem uses three sets of binary
+ * variables for each time instant \f$ t \in T \f$:
  *
- * When unit in time \f$ t \f$ is OFF (\f$u_t = 0\f$), it could not have been
- * turned on in the last \f$ \tau_+ \f$ periods (including period \f$t\f$)
- * because of the minimum up constraints. But this is exactly what the turn on
- * inequality (1) for time period \f$t\f$ says. On the other hand, when unit in
- * time \f$t\f$ is ON (\f$u_t = 1\f$), it could have been turned on at most
- * once in the last \f$\tau_+ + \tau_- \f$ periods (including \f$t\f$).
- * Similarly for turn off inequality (2), when unit in the time \f$t\f$ is OFF
- * (\f$u_t = 0\f$), it could have been turned off at most once in the last
- * \f$ \tau_+ + \tau_-\f$ periods (including \f$t\f$). On the other hand, when
- * unit in time \f$t\f$ is ON (\f$u_t = 1\f$), it could not have been turned
- * off in the last \f$ \tau_-\f$ periods (including period \f$t\f$).
- * Since \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
- * can ensure (for all periods \f$t \in \{ 2, ..., T \} \f$) that
- * \f$v_t = 1\f$ if and only if \f$u_t = 1\f$ and \f$u_{t-1} = 0\f$. It also
- * obvious \f$w_t = 1\f$ if and only if \f$u_t = 0\f$ and \f$u_{t-1} = 1\f$.
- * These conditions are satisfied by equality (3).
+ * - \f$ u_t \f$: 1 if the unit is on at time period t;
  *
+ * - \f$ v_t \f$: 1 if the unit has started in time period t, i.e., 
+ *   \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
  *
+ * - \f$  w_t \f$: 1 if the unit shuts down in time period t, i.e.,
+ *   TODO explain: is \f$ u_t = 1 \f$ but \f$ u_{t+1} = 0 \f$, or
+ *        rather \f$ u_{t-1}= 1 \f$ but \f$ u_t = 0 \f$ ??
+ *
+ * The main thermal unit constraints are categorized as following:
+ *
+ * - Min Up/Down-time Constraints: a thermal unit has a minimum up time
+ *   \f$ \tau_+ \f$ and a minimum down time \f$ \tau_- \f$ value. It means
+ *   that if thermal unit is committed (on) in time \f$t\f$, then it must
+ *   remain ON for the next \f$ \tau_+ - 1 \f$ time periods
+ *
+ *   THIS IS WRONG: if it *starts* at t, it must remain on. Also comment
+ *   that \f$ \tau_+ \geq 1 \f$, and that \f$ \tau_+ = 1 \f$ means that
+ *   there is no constraint.
+ *
+ *   One possible representation of the constraint in terms of the 3 binary
+ *   variables \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ defined above is
+ *   \f[
+ *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
+ *                     u_t \quad t \in \{ \tau_+ + 1, ..., T \}   \quad (1)
+ *   \f]
+ *   \f[
+ *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
+ *                   1 - u_t \quad t \in \{ \tau_- + 1, ..., T \} \quad (2)
+ *   \f]
+ *   \f[
+ *     u_t - u_{t-1} = v_t - w_t \quad t \in \{ 2, ..., T \}      \quad (3)
+ *   \f]
+ *
+ *   TODO: discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1
+ *
+ *   When unit in time t is OFF (\f$ u_t = 0 \f$), it could not have been
+ *   turned on in the last \f$ \tau_+ \f$ periods (including period t)
+ *   because of the minimum up constraints. But this is exactly what the turn on
+ *   inequality (1) for time period t\ says. On the other hand, when unit in
+ *   time t is ON (\f$ u_t = 1 \f$), it could have been turned on at most
+ *   once in the last \f$ \tau_+ + \tau_- \f$ periods (including t). Similarly
+ *   for turn off inequality (2), when unit in the time t is OFF (\f$ u_t = 0 
+ *   \f$), it could have been turned off at most once in the last
+ *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
+ *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
+ *   off in the last \f$ \tau_- \f$ periods (including period t). Since
+ *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
+ *   can ensure (for all periods \f$t \in \{ 2, ..., T \} \f$) that
+ *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
+ *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
+ *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (3).
  *
  * - Ramp Up/Down-time Constraints:
+ *
+ *   TODO: first discuss what the constraints should logically achieve
+ *         (p_{t+1} \leq p_t + \Delta^+_t ...), then introduce one possible
+ *         implementation in terms of the three binary variables.
+
  *   Another set of constraints where each thermal unit may has are ramp
  *   constraints. Here the two-period ramp up inequality is defined separately
  *   and the following constraints are proposed and shown to be valid for
@@ -142,58 +162,53 @@ namespace SMSpp_di_unipi_it
  *   are the constants defining ramp-up and ramp-down threshold and
  *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining
  *   minimum and maximum output respectively:
- *
- *
- * \f[
- *   p_{t+1}^{ac} - p_t ^{ac} \leq
- *  ( - \Delta^+_t)  v_{t+1}
- *  + (\underline{p}_t- \Delta^{+}_t)  u_{t+1} -
- *  \underline{p}_t  u_t \quad t \in \{1, ..., T-1 \} \quad    (4)
- * \f]
- *
+ *   \f[
+ *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
+ *        + (\underline{p}_t- \Delta^+_t) u_{t+1} - \underline{p}_t u_t
+ *                              \quad t \in \{ 1, ..., T - 1 \} \quad (4)
+ *   \f]
  *   Using the symmetry between ramping up and ramping down constraints, we
  *   can derive the ramp-down analogues of the ramp-up inequality as below:
- * \f[
- *   p_t^{ac} - p_{t+1} ^{ac} \leq
- *  ( - \Delta^{-}_t)  w_{t+1}
- *  + (\underline{p}_t - \Delta^{-}_t)  u_t -
- *  \underline{p}_t  u_{t+1} \quad t \in \{1, ..., T-1 \}   \quad   (5)
- * \f]
- *
+ *   \f[
+ *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
+ *       + (\underline{p}_t - \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
+ *                               \quad t \in \{1, ..., T-1 \}   \quad   (5)
+ *   \f]
  *
  * - Power output Constraints:
+ *
+ *   TODO: again it is not very clear what is the logical condition that
+ *         the power output constraint should satisfy. Please discuss
+ *
  *   There are several types of power out put inequalities which are
  *   considered below. More specially in case  \f$ 2 \leq \tau_+ \f$, the
  *   following constraint is introduced, which is valid for
  *   \f$ t \in \{2, ..., T-1\}  \f$:
- * \f[
- *   p_t^{ac}  \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \underline{p}_t  ) v_t - ( \bar{p}_t -
- *   \underline{p}_t )  w_{t+1}  \quad t \in \{2, ..., T-1\}\quad  (6)
- * \f]
- *
- *  and in the case  \f$ \tau_+ = 1 \f$:
- *
- *  \f[
- *   p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \underline{p}_t ) w_{t+1}   \quad t \in \{2, ..., T-1\} \quad  (7)
- * \f]
- * \f[
- *   p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t -
- *   \underline{p}_t ) v_t    \quad t \in \{2, ..., T-1\} \quad  (8)
- * \f]
- *
- *   and for the \f$ t \in \{1, ..., T\}  \f$ following inequalities ensure
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
+ *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
+ *                                  \quad t \in \{2, ..., T-1\} \quad  (6)
+ *   \f]
+ *   and in the case  \f$ \tau_+ = 1 \f$:
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
+ *                                   \quad t \in \{2, ..., T-1\} \quad  (7)
+ *   \f]
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
+ *                                    \quad t \in \{2, ..., T-1\} \quad  (8)
+ *   \f]
+ *   for the \f$ t \in \{1, ..., T\}  \f$ following inequalities ensure
  *   the relation between active output and primary and secondary spinning
  *   reserves:
- * \f[
- *   p_t^{ac} + p_t^{pr} + p_t^{sc}\leq \bar{p}_t  u_t  \quad (9)
+ *   \f[
+ *     p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (9)
+ *   \f]
+ *   \f[
+ *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (10)
+ *   \f]
+ *   TODO: the part below should be deleted, shoudln't it?
  *
- * \f]
- * \f[
- *
- *   \underline{p}_t  u_t \leq  p_t^{ac} - p_t^{pr} - p_t^{sc} \quad (10)
- * \f]
  *   considering an additional variable \f$ p_t \in R^{|T|}\f$ representing
  *   the power injected in to the grid by the power plant which differ from
  *   \f$ p_t^{ac} \f$, because the power plant in consuming a given power
@@ -201,44 +216,39 @@ namespace SMSpp_di_unipi_it
  *   \f$ t \in \{1, ..., T\}  \f$:
  *
  * - Active power relation with primary and secondary spinning reserves:
- *   for each
- *   \f$ t \in \{1, ..., T\}  \f$:
- * \f[
- *
- *   p_t^{pr} \leq \rho_t^{pr} p_t^{ac} \quad (12)
- * \f]
+ *   for each \f$ t \in \{ 1 , ..., T \} \f$:
+ *   \f[
+ *     p_t^{pr} \leq \rho_t^{pr} p_t^{ac}                      \quad (12)
+ *   \f]
  *   and
+ *   \f[
+ *     p_t^{sc} \leq \rho_t^{sc} p_t^{ac}                      \quad (13)
+ *   \f]
+ *   TODO: explain what these do.
  *
- * \f[
+ * - Objective function: the objective function of the ThermalUnitBlock
+ *   representing the total power production cost to be minimized has the
+ *   form:
+ *   \f[
+ *     \min ( s \sum_{ t \in T } v_t +
+ *            \sum_{ t \in T } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *   \f]
+ *   where \f$ s \sum_{ t \in T } v_t \f$ is the start-up cost of the unit,
+ *   which we assume to be time-independent
  *
- *   p_t^{sc} \leq \rho_t^{sc} p_t^{ac} \quad (13)
- * \f]
+ *   TODO: are we sure it's not s_t? time-independent means "independent from
+ *         how long the unit has been off", not "always equal at each time
+ *         instant"
  *
+ *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
+ *   quadratic, linear, and constant terms of the power cost function of the
+ *   unit at time period t.
  *
- * - Time independent Start-Up Costs:
- *   Here we just consider time independent star up cost which is simply equal
- *   to
- *
- * \f[
- *            s \sum_{ t \in T } v_t
- * \f]
- *   where \f$ s \f$ denotes the start up cost value of the unit when the
- *   start up thermal variable \f$ v_t = 1 \f$ at time \f$ t \f$.
- *
- * - objective function:
- * Given the constants and variables defined above, the objective function of
- * the unit commitment representing the total power production cost to be
- * minimized has the form:
- *
- * \f[
- *     min \quad ( s \sum_{ t \in T } v_t +
- *                 \sum_{ t \in T } (a_t p_t^2 + b_t p_t + c_t u_t) )
- * \f]
- *
- * where \f$ s \sum_{ t \in T } v_t \f$ is the total start-up cost of
- * the unit and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are,
- * respectively, the quadratic, linear, and constant terms of the
- * power cost function of the unit at time period \f$t\f$.
+ * TODO: I pulled up this part from the file description, but it is not
+ *       clear to me. It is very vague. "A virtual public method" says
+ *       nothing: which one? Either you specify the name of the methods,
+ *       or just delete the part: all these methods are described one by
+ *       one in the interface.
  *
  * Based on the above description the class has been constructed having the
  * following elements:
@@ -278,8 +288,13 @@ public:
 /** @name Constructor and Destructor
  *  @{ */
 
+/// constructor, takes the father and the time horizon
 /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
- * father Block. */
+ * father Block.
+ *
+ * TODO: if the constructor of UnitBlock takes the time horizon, why this
+ *       one does not?
+ */
 
  ThermalUnitBlock( Block * flbock = nullptr ): UnitBlock( flbock ) { }
 
@@ -301,127 +316,218 @@ public:
  * ThermalUnitBlock then a NBModification (the "nuclear option") is issued.
  * */
 
- virtual void load( std::istream &input ) override { };
+ virtual void load( std::istream &input ) override {
+  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
+  };
 
 /*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
- * the group should contain the following:
+ * the group must contain all the data required by the base UnitBlock, as
+ * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
+ * In particular, we refer to that description for the crucial dimensions
+ * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
+ * must then also contain:
  *
- * - the dimension "TimeHorizon" containing the time horizon;
+ * - The variable "MinPower", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector MnP[ t ] which,
+ *   for each time instant t, contains the minimum power output value of the
+ *   unit for the corresponding time steps; it must be that MnP[ t ] >= 0 for
+ *   all t. MinPower[ i ] is the fixed value of MnP[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - the variable "MinPower", of type double and indexed over the dimension
- *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   minimum power output value of the unit for the corresponding time steps;
- *   it must be that MinPower[ i ] >= 0 for all i;
+ * - The variable "MaxPower", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector MxP[ t ] which,
+ *   for each time instant t, contains the maximum power output value of the
+ *   unit for the corresponding time steps; it must be that MxP[ t ] >=
+ *   MnP[ t ] >= 0 for all t. MaxPower[ i ] is the fixed value of MxP[ t ]
+ *   for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
- * - the variable "MaxPower", of type double and indexed over the dimension
- *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   maximum power output value of the unit for the corresponding time steps;
- *   it must be that MinPower[ i ] <= MaxPower[ i ] for all i;
+ * - The variable "DeltaRampUp", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector DP[ t ] which,
+ *   for each time instant t, contains the maximum possible increase of power
+ *   production w.r.t. the power that had been produced in time instant t - 1,
+ *   if any. This variable is optional; if it is not provided then it is
+ *   assumed that DP[ t ] == MxP[ t ], i.e., the unit can ramp up by an
+ *   arbitrary amount, i.e., there are no ramp-up constraints.
+ *   DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - the variable "DeltaRampUp", of type double and indexed over the dimension
- *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   increases of power production value of the unit for the corresponding
- *   time steps in same interval whereas it may change(or not) in the other
- *   intervals (if exist any); this variable is optional, if it is not
- *   provided then it is assumed that DeltaRampUp == MaxPower, i.e., the unit
- *   can ramp up by an arbitrary amount, i.e., there are no ramp-up
- *   constraints;
- *
- * - the scalar variable "InitialDeltaRampUp", of type double and not indexed
+ * - The scalar variable "InitialDeltaRampUp", of type double and not indexed
  *   over any dimension; it indicates the delta ramp up value at time instant
  *   zero(the initial condition);
  *
- * - the variable "DeltaRampDown", of type double and indexed over the
- *   dimension "NumberIntervals"; each entry of the variable is assumed to
- *   contain the decreases of power production value of the unit for the
- *   corresponding time steps in same interval whereas it may change(or not)
- *   in the other intervals  (if exist any); this variable is optional, if it
- *   is not provided then it is assumed that DeltaRampDown == MaxPower, i.e.,
- *   the unit can ramp down by an arbitrary amount, i.e., there are no
- *   ramp-down constraints;
+ *   TODO: I don't agree with the name, and anyway the comment in unclear.
+ *         What we need is InitialPower, i.e., the amount of power that the
+ *         unit was producing at the time instant before 1. And you already
+ *         have it below.
+ *
+ * - The variable "DeltaRampDown", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector DM[ t ] which,
+ *   for each time instant t, contains the maximum possible decrease of power
+ *   production w.r.t. the power that had been produced in time instant t - 1,
+ *   if any. This variable is optional; if it is not provided then it is
+ *   assumed that DM[ t ] == MxP[ t ], i.e., the unit can ramp down by an
+ *   arbitrary amount, i.e., there are no ramp-down constraints.
+ *   DeltaRampDown[ i ] is the fixed value of DM[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * TODO: I don't agree with this, ActiveP0 should work both for the ramp-up
+ *       and for the ramp-down constraints
  *
  * - the scalar variable "InitialDeltaRampDown", of type double and not
  *   indexed over any dimension; it indicates the delta ramp down value at
  *   time instant zero(the initial condition);
  *
- * - the variable "PrimaryRho", of type double and indexed over the dimension
- *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   maximum fraction factor between primary power and the active power of
- *   the unit for the corresponding time steps in same interval whereas it may
- *   change(or not) in the other intervals (if exist any);
+ * - The variable "PrimaryRho", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector PR[ t ] which,
+ *   for each time instant t, contains the maximum possible fraction of
+ *   active power that can be used as primary reserve.
  *
- * - the variable "SecondaryRho", of type double and indexed over the
- *   dimension "NumberIntervals"; each entry of the variable is assumed to
- *   contain the maximum fraction factor between secondary power and the
- *   active power of the unit for the corresponding time steps in same
- *   interval whereas it may change(or not) in the other intervals (if exist
- *   any);
+ *   TODO: is this variable optional? Is is possible that a unit may not be
+ *         capable of producing any primary reserve, which correspond to
+ *         PR[ t ] == 0 for all t?
  *
- * - the variable "QuadTerm", of type double and indexed over the dimension
- *   "NumberIntervals"; each entry of the variable is assumed to contain the
- *   quadratic term of power cost function of the unit for the corresponding
- *   time steps in same interval whereas it may change(or not) in the other
- *   intervals (if exist any);
+ *   PrimaryRho[ i ] is the fixed value of PR[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "SecondaryRho", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector SR[ t ] which,
+ *   for each time instant t, contains the maximum possible fraction of
+ *   active power that can be used as secondary reserve.
+ *
+ *   TODO: is this variable optional? Is is possible that a unit may not be
+ *         capable of producing any primary reserve, which correspond to
+ *         SR[ t ] == 0 for all t? Is there a logic relationship with
+ *         PrimaryRho, like PR[ i ] == 0 ==> SR[ i ] == 0??
+ *
+ *   SecondaryRho[ i ] is the fixed value of SR[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "QuadTerm", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector A[ t ] which,
+ *   for each time instant t, contains the quadratic term of power cost
+ *   function of the unit for the corresponding time steps. This variable is
+ *   optional; if it is not provided then it is assumed that A[ t ] == 0,
+ *   i.e., the cost of the unit is linear in the produced power. QuadTerm[ i ]
+ *   is the fixed value of A[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * TODO: I don't agree, start-up cost can be time-dependent in the sense
+ *       of being s_t, although not (for us) in the sense that it depends
+ *       on how much the unit has been off beforw restarting
  *
  * - the scalar variable "StartUpCost", of type double and not indexed over
  *   any dimension and indicates the start up cost in this unit;
  *
- * - the variable "LinearTerm", of type double and indexed over the
- *   dimension "NumberIntervals"; each entry of the variable is assumed to
- *   contain the linear term of power cost function of the unit for the
- *   corresponding time steps in same interval whereas it may change(or not)
- *   in the other intervals (if exist any);
+ * - The variable "LinearTerm", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector B[ t ] which,
+ *   for each time instant t, contains the linear term of power cost
+ *   function of the unit for the corresponding time steps. This variable is
+ *   optional; if it is not provided then it is assumed that B[ t ] == 0,
+ *   i.e., the cost of the unit has no linear dependence on the produced power
+ *   (say, only the quadratic one). LinearTerm[ i ] is the fixed value of
+ *   B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - the variable "ConstTerm", of type double and indexed over the
- *   dimension "NumberIntervals"; each entry of the variable is assumed to
- *   contain the constant term of power cost function of the unit for the
- *   corresponding time steps if the unit is on;
+ * - The variable "ConstTerm", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector C[ t ] which,
+ *   for each time instant t, contains the constant term of power cost
+ *   function of the unit for the corresponding time steps. This variable is
+ *   optional; if it is not provided then it is assumed that C[ t ] == 0,
+ *   i.e., the cost of the unit has no fixed term, only those depening
+ *   (linearly or quadratically) on the produced power. ConstTerm[ i ] is
+ *   the fixed value of C[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - the scalar variable "InitUpDownTime", of type UInt64 and not indexed over
- *   any dimension and indicates the initial time to generating the unit;
- *   if InitUpDownTime > 0, this means that the unit has been on for
+ * - The scalar variable "InitUpDownTime", of type UInt64 and not indexed over
+ *   any dimension and indicates the initial time to generating the unit.
+ *   If InitUpDownTime > 0, this means that the unit has been on for
  *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
- *   horizon); if, instead, InitUpDownTime <= 0, this means that the unit
+ *   horizon). If, instead, InitUpDownTime <= 0, this means that the unit
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
  *   note that InitUpDownTime == 0 means that the unit has been just shut
  *   down at the end of time instant -1, i.e., the beginning of time
  *   instant 0;
+ *   TODO: please check, is the first time instant 0 or 1? In the
+ *         description of the constraints you seem to use 1, be sure to
+ *         be consistent.
  *
- * - the scalar variable "InitialPower", of type double and not
- *   indexed over any dimension; if InitUpDownTime > 0, it means that
- *   the unit was on at time instant -1 (prior to the beginning of the
- *   horizon), and then InitialPower indicates the amount of the power
+ * - The scalar variable "InitialPower", of type double and not indexed over
+ *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
+ *   time instant -1 (prior to the beginning of the horizon),
+ *
+ *   TODO: see above, is it -1 or 0?
+ *
+ *   and then InitialPower indicates the amount of the power
  *   that the unit was producing at time instant -1; if InitUpDownTime
  *   <= 0 then this variable need not be defined since it is not
  *   loaded, if the variable is provided then it must be that MaxPower
  *   >= its value >= MinPower;
  *
- * - the scalar variable "InitialMinPower", of type double and not indexed
+ * TODO: I don't understand, what't this for??
+ *
+ * - The scalar variable "InitialMinPower", of type double and not indexed
  *   over any dimension; it indicates the minimum power at time instant zero
  *   (the initial condition);
  *
- * - the scalar variable "MinUpTime", of type UInt64 and not indexed over
- *   any dimension and indicates the minimum allowed down time in this unit;
- *   this variable is optional, if it is not provided it is taken to be
+ * - The scalar variable "MinUpTime", of type UInt64 and not indexed over
+ *   any dimension, which indicates the minimum allowed down time in this
+ *   unit. This variable is optional, if it is not provided it is taken to be
  *   MinUpTime == 0, which mean that the unit can shut down in the very
- *   same time stamp in which it starts up;
+ *   same time stamp in which it starts up.
  *
- * - the scalar variable "MinDownTime", of type UInt64 and not indexed over
- *   any dimension and indicates the minimum allowed up time in this unit;
- *   this variable is optional, if it is not provided it is taken to be
+ * - The scalar variable "MinDownTime", of type UInt64 and not indexed over
+ *   any dimension, which indicates the minimum allowed up time in this unit.
+ *   This variable is optional, if it is not provided it is taken to be
  *   MinDownTime == 0, which mean that the unit can start up in the very
- *   same time stamp in which it starts up;
- *
- */
+ *   same time stamp in which it starts up. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the ThermalUnit
 /** Method that generates the abstract variables of the ThermalUnitBlock.
+ *
+ * TODO: this comment is not very clear, please rewrite. In particular,
+ *       you give access to these variables with start_up() and shut_down(),
+ *       right? Why don't you mention these?
+ *
+ * TODO: in UnitBlock we allow not to generate some of the variables with
+ *       the stvv, why don't we here? Even if we don't, let's comment it.
+ *
+ * TODO: one day we will do the DP formulation, and we will possibly have
+ *       different groups of variables.
+ *
  * These are as std::vector< ColVariable >  with exactly :
  *
  *  i). f_time_horizon entries, the entry a = 0, ...,
@@ -434,6 +540,10 @@ public:
  *
  *  Note1: commitment variable are fixed to 0 or 1 for the entry a = 0, ...,
  *      init_t - 1.
+ *
+ *
+ * TODO: this remark is about constraints, so it should go in
+ *       generate_abstract_constraints()
  *
  *  Note2: for the entry a = 0, ..., init_t - 1 when commitment variables fix
  *  to 0 then active power variables fix to 0, but when commitment variables
@@ -449,6 +559,13 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the ThermalUnit
 /** Method that generates the static constraint of the ThermalUnitBlock.
+ *
+ * TODO: we could allow to only generate a subset of those via stcc.
+ *       Maybe we don't want to.
+ *
+ * TODO: one day we will do the DP formulation, and we will possibly have
+ *       different groups of constraints.
+ *
  * These are the:
  *
  * - Min Up/Down-time Constraints, a std::vector<FRowConstraint> with
@@ -481,15 +598,13 @@ public:
  */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-   override ;
+   override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
-/** Method that generates the objective of the ThermalUnitBlock.
- *
- */
- virtual void generate_objective( Configuration *objc = nullptr )
-   override;
+/** Method that generates the objective of the ThermalUnitBlock. */
+ 
+ virtual void generate_objective( Configuration *objc = nullptr ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- Methods for reading the data of the ThermalUnitBlock ---------*/
@@ -506,9 +621,7 @@ public:
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * ThermalUnitBlock. See ThermalUnitBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- *
- * */
+ * details of the format of the created netCDF group. */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
