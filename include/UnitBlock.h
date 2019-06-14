@@ -3,13 +3,13 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for the *derived* class UnitBlock, which derives from
- * the Block, in order to define a base for any possible unit that can
- * be attached to a UCBlock. It has very basic information that can
- * characterize almost any different kind of unit, which includes four
- * sets of Variables: power variables, commitment variables, and the
- * primary and secondary spinning reserve variables. This class has
- * thus been constructed having the following elements:
+ * Header file for the class UnitBlock, which derives from the Block, in
+ * order to define a base class for any possible unit that can be attached to
+ * a UCBlock. It has very basic information that can characterize almost any
+ * different kind of unit, which includes four sets of Variables: power
+ * variables, commitment variables, primary and secondary spinning reserve
+ * variables. This class has thus been constructed having the following
+ * elements:
  *
  * - A virtual public method that is used to initialize and read the
  *   data of any possible derived UnitBlock class.
@@ -64,8 +64,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
-#define __UnitBlock
-/* self-identification: #endif at the end of the file */
+#define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -73,13 +72,43 @@
 
 #include "Block.h"
 #include "ColVariable.h"
-#include <map>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 namespace SMSpp_di_unipi_it {
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- CLASS UnitBlock -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** Rhe class UnitBlock, which derives from the Block, defines a base class
+ * for any possible unit that can be attached to a UCBlock. It has very basic
+ * information that can characterize almost any different kind of unit, which
+ * includes four sets of Variables: power variables, commitment variables,
+ * primary and secondary spinning reserve variables. This class has thus been
+ * constructed having the following elements:
+ *
+ * - A virtual public method that is used to initialize and read the
+ *   data of any possible derived UnitBlock class.
+ *
+ * - The time horizon of the problem.
+ *
+ * - Four vectors of ColVariable objects, that are used to store the
+ *   information regarding:
+ *
+ *     (i)   the commitment of the unit;
+ *
+ *     (ii) the primary spinning reserve of the unit;
+ *
+ *     (iii)  the secondary spinning reserve of the unit;
+ *
+ *     (iv)  the active power produced by the unit.
+ *
+ *   Each of these vectors either have size equal to the time horizon
+ *   or is empty, in which case the corresponding variables simply do
+ *   not exist (for instance, the unit may not have reserve).
+
 
 class UnitBlock : public Block {
 
@@ -110,6 +139,7 @@ typedef unsigned int Index;                 ///< index of parameters
 /** @name Constructor and Destructor
  *  @{ */
 
+/// constructor, takes the father and the time horizon
 /** Constructor of UnitBlock, taking possibly a pointer of its father
  * Block and the time horizon. */
  UnitBlock( Block * father_block = nullptr , Index t = 0 )
@@ -131,115 +161,136 @@ typedef unsigned int Index;                 ///< index of parameters
  * the UnitBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
  *
- * - the dimension "TimeHorizon" containing the time horizon.
+ * - The dimension "TimeHorizon" containing the time horizon. The dimension
+ *   is optional because the same information may be passed via the method
+ *   set_time_horizon(), or directly retrieved from the father if it is a
+ *   UCBlock; see the comments to set_time_horizon() for details.
  *
- * Note 1: consider set time horizon \f$\{0, \dots,
- * "TimeHorizon-1"\}\f$ with dimension "TimeHorizon". It can be
- * presented as the union of some intervals.
+ * - The dimension "NumberIntervals", that is provided to allow that all
+ *   time-dependent data in the UnitBlock can only change at a subset of
+ *   the time time instants of the time interval, being therefore
+ *   piecewise-constant (possibly, constant). "NumberIntervals" should
+ *   therefore be <= "TimeHorizon", with three distict cases:
+ *  
+ *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
+ *        == 1; this is what is assumed if the dimension, that is
+ *        optional, is not there. This means that the value of each 
+ *        relevant data in the UnitBlock (see e.g. "FixedConsumption",
+ *        "InertiaCommitment" and "InertiaPower" below) is the same for
+ *        each time instant 0, ..., "TimeHorizon" - 1 in the time horizon.
+ *        In this case, also the variable "ChangeIntervals" (see below) is
+ *        ignored.
  *
- * Note 2: let's suppose the values of each variable may change independently,
- * and may have different values for some intervals along the set time horizon
- * \f$\{0, \dots, "TimeHorizon-1"\}\f$. It means each variable has its own
- * changes along some intervals independently. Without loss of generality,
- * let's take the union of the intersection of all the intervals between each
- * two variables separately. It means, at the end we may have a set of
- * intervals such as: \f$ [0 , a], [a+1 , b], \dots, [j+1 , k], [k+1 ,
- * TimeHorizon-1] \f$which where they cover all the changes for all the
- * variables. Then in each interval, one variable may change or not(if not,
- * copy the corresponding value of its' previous interval).
+ *   ii)  1 < "NumberIntervals" < "TimeHorizon", which means that in some
+ *        time instants, *but not all of them*, the values of some of the
+ *        relevant data are changing; the intervals are then described in
+ *        variable "ChangeIntervals".
  *
- * - the dimension "NumberIntervals" which is a subset of \f$ \{1, ...,
- *   "TimeHorizon"\}\f$ and indicates the number of above intervals \f$([0
- *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, TimeHorizon-1])\f$ where the
- *   variables change. This dimension is optional. If it is not
- *   provided then it is taken to be 1.
+ *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of 
+ *        the relevant data changes at every time interval (in principle;
+ *	  of course there is nothing preventing the same value to be
+ *        repeated in the netCDF input). Also in this case the variable
+ *        "ChangeIntervals" is ignored, since it is useless.
  *
- *   Three scenarios may happen:
+ *   Note that this (together with "ChangeIntervals", if defined) obviously
+ *   sets the "maximum frequency" at which data can change; is some data
+ *   changes less frequently (say, it is constant), then the same value
+ *   will have to be repeated. Individual data can also have specific
+ *   provisions for the case where the data is all equal despite
+ *   "NumberIntervals" saying differently, see "FixedConsumption" etc.
+ *   for instances.
  *
- *    i). In the simplest case scenario, "NumberIntervals = 1" which
- *        means that the value of each variable does not change, i.e.,
- *        it is the same for each period in \f$ \{1, \dots ,
- *        "TimeHorizon"\}\f$.
+ * - The variable "ChangeIntervals", of type integer and indexed over the
+ *   dimension "NumberIntervals". The time horizon is subdivided into
+ *   NumberIntervals = k of the form [ 0 , i_1 ], [ i_1 + 1 , i_2 ], ...
+ *   [ i_{k-1} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to
+ *   contain [ i_1 , i_2 , ... i_{k-1} ]. Note that, therefore,
+ *   "ChangeIntervals" has one significant value less than
+ *   "NumberIntervals", which means that
+ *   ChangeIntervals[ NumberIntervals - 1 ] is ignored. Anyway, the whole
+ *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
+ *   is not defined), or "NumberIntervals" >= "TimeHorizon".
  *
- *   ii). In the average case scenario, "1 < NumberIntervals <
- *        TimeHorizon", which means that in some time steps the values
- *        of some of the variables are changing.
+ * - The variable "FixedConsumption", of type double and indexed over the
+ *   dimension "NumberIntervals". This is meant to represent the vector
+ *   FC[ t ] which, for each time instant t, contains the fixed consumption
+ *   of the power plant if it is OFF at time t. The variable is optional; if
+ *   it is not defined, FC[ t ] == 0 for all time instants. If it is defined,
+ *   it can either have size 1 or size "NumberIntervals". If it has size 1,
+ *   then FC[ t ] == FixedConsumption[ 0 ] for all t, regardless to what
+ *   "NumberIntervals" says. Otherwise, FixedConsumption[ i ] is the fixed
+ *   value of FC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
- *  iii). In the worst case scenario, "NumberIntervals = TimeHorizon",
- *        which means that in every time step, the value of each
- *        variable may change.
+ * - The variable "InertiaCommitment", of type double and indexed over the
+ *   dimension "NumberIntervals". This is meant to represent the vector
+ *   IC[ t ] which, for each time instant t, contains the contribution that
+ *   the unit can give to the inertia constrant for the sole fact that is 
+ *   is on (basically, the constant to be multiplied to the commitment
+ *   variable) at time t. The variable is optional; if it is not defined,
+ *   IC[ t ] == 0 for all time instants. If it is defined, it can either
+ *   have size 1 or size "NumberIntervals". If it has size 1, then IC[ t ]
+ *   == InertiaCommitment[ 0 ] for all t, regardless to what
+ *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the fixed
+ *   value of IC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
- * - the variable "ChangeIntervals", of type integer and indexed over
- *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
- *   variable indicates the positive number of \f$ a, b, ..., k,
- *   TimeHorizon-1\f$ on the above example.
- *
- * - the variable "FixedConsumption", of type double and indexed over the
- *   dimension "NumberIntervals"; the entry  FixedConsumption[ t ] shows the
- *   fixed consumption of the power plant when it is OFF; this means that when
- *   the unit is off, it has a fixed consumption for the corresponding time
- *   steps in same interval whereas it may change(or not) in the other
- *   intervals  (if exist any); the variable is optional; if not defined,
- *   FixedConsumption[ t ] == 0 for all time steps in the all intervals; if it
- *   is defined it can either have size 1 or size NumberIntervals if it has
- *   size 1 then the value is the same for all time steps in all intervals;
- *
- * - the variable "InertiaCommitment", of type double and indexed over the
- *   dimension "NumberIntervals"; the entry InertiaCommitment[ t ] shows the
- *   value of inertia commitment parameter of thermal units for the
- *   corresponding time steps in same interval whereas it may change(or not)
- *   in the other intervals(if exist any); this means that the unit gives a
- *   contribution to the inertia at each time step t of each interval which is
- *   get_commitment()[ t ] * InertiaCommitment[ t ]; the variable is optional.
- *   if not defined, InertiaCommitment[ t ] == 0 for all time steps of the all
- *   intervals. if it is defined it can either have size 1 or size
- *   NumberIntervals if it has size 1 then the value is the same for all t;
- *
- * - the variable "InertiaPower", of type double and indexed over the
- *   dimension "NumberIntervals"; the entry InertiaPower[ t ] shows the amount
- *   of inertia power value of the thermal units for the corresponding time
- *   steps in same interval whereas it may change(or not) in the other
- *   intervals(if exist any); this means that the unit gives a contribution to
- *   the inertia at time step t of each interval which is
- *   get_active_power()[ t ] * InertiaCommitment[ t ]; the variable is
- *   optional. if not defined, InertiaCommitment[ t ] == 0 for all time steps
- *   of the all intervals. if it is defined it can either have size 1 or size
- *   NumberIntervals if it has size 1 then the value is the same for all t;
- */
+ * - The variable "InertiaPower", of type double and indexed over the
+ *   dimension "NumberIntervals". This is meant to represent the vector
+ *   IP[ t ] which, for each time instant t, contains the contribution that
+ *   the unit can give to the inertia constrant which depends on the active
+ *   power that it is currently generating (basically, the constant to be
+ *   multiplied to the active power variable) at time t. The variable is
+ *   optional; if it is not defined, IP[ t ] == 0 for all time instants. If
+ *   it is defined, it can either have size 1 or size "NumberIntervals". If
+ *   it has size 1, then IP[ t ] == InertiaPower[ 0 ] for all t, regardless
+ *   to what "NumberIntervals" says. Otherwise, InertiaPower[ i ] is the
+ *   fixed value of IP[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// generate the static variables of UnitBlock
- /** Method that generates the static variables of this
-  * UnitBlock. These may be:
+ /** Method that generates the static variables of this UnitBlock. The base
+  * UnitBlock class has four different "groups" of variables:
   *
-  * - the commitment variables [bit 0]
+  * - the commitment variables;
   *
-  * - the primary spinning reserve variables [bit 1]
+  * - the primary spinning reserve variables;
   *
-  * - the secondary spinning reserve variables [bit 2]
+  * - the secondary spinning reserve variables;
   *
-  * - the active power variables [bit 3]
+  * - the active power variables.
   *
-  * All of these variables are optional, except the active power
-  * variables. The parameter stvv is used to decide which of the
-  * optional variables should be used. If stvv is not nullptr and it
-  * is a SimpleConfiguration<int> or if
+  * All of these variables are optional, except the active power variables,
+  * in the sense that the model may just not have them (say, because the
+  * unit does not have 0-1 commitment decisions, or it cannot generate
+  * spinning reserve). However, it is also possible to restrict which of
+  * the subsets are generated with the parameter stvv.
+  *
+  * If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
   * f_BlockConfig->f_static_variables_Configuration is not nullptr
-  * and it is a SimpleConfiguration<int>, then the f_value (an int of
-  * this (the first possible) Configuration indicates whether each of
-  * the optional variables should be used. This is done according to
-  * the corresponding bit of f_value. If the bit associated with a
-  * variable is 1, then the variable should be used; otherwise, it
-  * should not. The first bit is associated with the commitment
-  * variables, the second one with the primary spinning reserve
-  * variables and so on according to the order the variables are
-  * listed above. Whenever a group of variables should be used, its
-  * size will be the time horizon. In any other case (i.e., if a
-  * SimpleConfiguration<int> is not present), none of the variables
-  * above is considered. */
+  * and it is a SimpleConfiguration<int>, then the f_value (an int)
+  * indicates whether each of the optional variables should be created.
+  * If the Configuration is not available, the default value is taken to
+  * be 0. The value of the int is interpreted bit-wise, with commitment
+  * variables being bit 0, primary spinning reserve variables being bit 1,
+  * secondary spinning reserve variables being bit 2, and active power
+  * variables being bit 3. If the bit associated with a variable is 0 then
+  * the variable (assuming the model actually has it) *is* created,
+  * otherwise it is *not*; hence, the default value of 0 means that all the
+  * variables (that the model has) are created.
+  *
+  * Whenever a group of variables is created, its size will be the time
+  * horizon.
+  *
+  * Note that derived classes are free to use the other bits of the int to
+  * similarly encode for creation of their own specific groups of variables.
+  */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override ;
@@ -250,49 +301,109 @@ typedef unsigned int Index;                 ///< index of parameters
 /** @name Reading the data of the UnitBlock
     @{ */
 
- /// Method for returning the time horizon
- Index get_time_horizon( void ) const { return f_time_horizon; }
+ /// method for returning the time horizon
+ Index get_time_horizon( void ) const { return( f_time_horizon ); }
 
- /// Method for returning the vector of fixed consumption
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of fixed consumption
+ /** Method for returning the vector of fixed consumption. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the fixed consumption is 0;
+  *
+  * - if the vector only has one element, then the fixed consumption is
+  *   always equal to the value of that element;
+  *
+  * - otherwise the vector must have the size of the time horizon, and the
+  *   t-th entry gives the fixed consumption at time instant t.
+  */
+ 
  const std::vector< double > & get_fixed_consumption( void ) const {
-   return v_fixed_consumption;
- }
+  return( v_fixed_consumption );
+  }
 
- /// Method for returning the vector of inertia commitment
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of inertia commitment
+ /** Method for returning the vector of inertia commitment. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the inertia commitment is 0;
+  *
+  * - if the vector only has one element, then the inertia commitment is
+  *   always equal to the value of that element;
+  *
+  * - otherwise the vector must have the size of the time horizon, and the
+  *   t-th entry gives the inertia commitment at time instant t.
+  */
+
  const std::vector< double > & get_inertia_commitment( void ) const {
-   return v_inertia_commitment;
- }
+  return( v_inertia_commitment );
+  }
 
- /// Method for returning the vector of inertia power
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of inertia power
+ /** Method for returning the vector of inertia commitment. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the inertia commitment is 0;
+  *
+  * - if the vector only has one element, then the inertia commitment is
+  *   always equal to the value of that element;
+  *
+  * - otherwise the vector must have the size of the time horizon, and the
+  *   t-th entry gives the inertia commitment at time instant t.
+  */
+
  const std::vector< double > & get_inertia_power( void ) const {
-   return v_inertia_power;
- }
+  return( v_inertia_power );
+  }
 
- /// Method for returning the vector of commitment variables
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of commitment variables
  const std::vector<ColVariable> & get_commitment( void ) const {
-   return v_commitment;
- }
+  return( v_commitment );
+  }
 
- /// Method for returning the pointer to the commitment variable at time t
- ColVariable * get_commitment( int t ) { return & ( v_commitment[ t ] ); }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method for returning a pointer to the commitment variable at time t
+ ColVariable * get_commitment( int t ) const {
+  return( & ( v_commitment[ t ] ) );
+  }
 
- /// Method for returning the vector of primary spinning reserve variables
-  const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
-   return v_primary_spinning_reserve;
- }
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of primary spinning reserve variables
+ const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
+  return( v_primary_spinning_reserve );
+  }
 
- /// Method for returning the vector of secondary reserve variables
- const std::vector<ColVariable> & get_secondary_spinning_reserve( void ) const {
-   return v_secondary_spinning_reserve;
- }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method for returning a pointer to the primary spinning reserve at time t
+ ColVariable * get_primary_spinning_reserve( int t ) const {
+  return( & ( v_primary_spinning_reserve[ t ] ) );
+  }
 
- /// Method for returning the vector of power variables
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of secondary reserve variables
+ const std::vector<ColVariable> & get_secondary_spinning_reserve( void )
+  const { return( v_secondary_spinning_reserve ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method for returning a pointer to the secondary spinning reserve at time t
+ ColVariable * get_secondary_spinning_reserve( int t ) const {
+  return( & ( v_secondary_spinning_reserve[ t ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method for returning the vector of power variables
  const std::vector<ColVariable> & get_active_power( void ) const {
-   return v_active_power;
- }
+  return( v_active_power );
+  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Method for returning the pointer to the power variable at time t
- ColVariable * get_active_power( int i ) { return & ( v_active_power[i] ); }
+ ColVariable * get_active_power( int t ) const {
+  return( &( v_active_power[ t ] ) );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
@@ -303,8 +414,7 @@ typedef unsigned int Index;                 ///< index of parameters
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- */
+ * details of the format of the created netCDF group. */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -314,48 +424,45 @@ typedef unsigned int Index;                 ///< index of parameters
 /** @name Methods for modifying the UnitBlock
  *  @{ */
 
- /** Set the time horizon method
+ /// set the time horizon method
+ /** Set the time horizon method.
   *
-  * there exist two possibilities:
+  * This method can be called *before* that deserialize() is called to
+  * provide the UnitBlock with the time horizon. This allows the information
+  * not to be duplicated in the netCDF group that describes the unit, since
+  * usually (bit not necessarily) a UnitBlock is deserialized inside a
+  * UCBlock, and all units have the same time horizon, that can therefore be
+  * read once and for all by the father UCBlock.
   *
-  * (i)  If the dimension TimeHorizon in netCDF input has no contents;
+  * If this method is *not* called, which means that f_time_horizon is at its
+  * initial value of 0 (not initialized), then when deserialize() is called
+  * the information has to be available by other means, i.e.:
   *
-  *      - call the father block (get_f_Block()); by method
-  *        get_time_horizon() take the f_time_horizon of the father and save
-  *        it as time_horizon_father; there are two possibilities:
-  *
-  *      (1) if f_time_horizon == 0; by method set_time_horizon(), take the
-  *        time horizon of the father block(time_horizon_father);
-  *
-  *      (2) if f_time_horizon != time_horizon_father; that's a logic error;
-  *        throw( std::logic_error
-  *        ( "UnitBlock::deserialize: TimeHorizon is not present in the
-  *        netCDF. The (nonzero) time horizon of UnitBlock is different from
-  *        that of its father, but they should be equal."));
-  *
-  *      - if the dimension f_time_horizon != 0; that's an invalid argument;
-  *        throw( std::invalid_argument
-  *           ( "UnitBlock::deserialize: TimeHorizon is not present in the
-  *             "netCDF input and UnitBlock does not have a father."));
+  * (i)  If there is no dimension TimeHorizon in netCDF input, then the
+  *      UnitBlock must have a father, which must be a UCBlock: the
+  *      time horizon is then taken to be that of the father. If the
+  *      UCBlock does not have a father (or it is not a UCBlock), then
+  *      exception is thrown.
   *
   * (ii) If the dimension TimeHorizon is present in the netCDF input of
-  *      UnitBlock; save time_horizon_netcdf = TimeHorizon.getSize();
+  *      UnitBlock, the value provided there is used with no check that
+  *      the UCBlock has a father at all, that the father is a UCBlock,
+  *      or that the two time horizon agree.
   *
-  *      If this case:
+  * If this method *is* called, which has to happen before that deserialize()
+  * is called, and f_time_horizon is set at a value != 0, then if the 
+  * dimension TimeHorizon is present in netCDF input, then the two values must
+  * agree. If the dimension TimeHorizon is not present, then the value set by
+  * this method is used. Note that, of course, the data in the netCDF file (if
+  * the unit has any data indiced over the time horizon) has to agree with the
+  * value set by this method.
   *
-  *      (1) if f_time_horizon == 0; use the time horizon provided by the
-  *          netCDF;
-  *
-  *      (2) if f_time_horizon != time_horizon_netcdf; that's a logic error;
-  *        throw( std::invalid_error
-  *        ("UnitBlock::deserialize: TimeHorizon in netCDF is different from
-  *        that (nonzero) currently specified in UnitBlock." ));
-  *
-  *      Otherwise replace the current time horizon (and possibly reset this
-  *      UnitBlock); f_time_horizon = time_horizon_netcdf
-  */
+  * If this method is called *after* that deserialize() is called, this is
+  * taken to mean that the UnitBlock is being "reset", and that immediatley
+  * after deserialize() will be called again. The same rules as above are to
+  * be followed for that subsequent call to deserialize(). */
 
- void set_time_horizon( Index t );
+ void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
@@ -363,8 +470,9 @@ typedef unsigned int Index;                 ///< index of parameters
 /** @name Handling the data of the UnitBlock
     @{ */
 
- virtual void load( std::istream &input ) override {};
-
+ virtual void load( std::istream &input ) override {
+  throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
+  };
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -389,7 +497,7 @@ protected:
  Index f_number_intervals;
 
  /// the vector of change intervals
- std::vector< int > v_change_intervals;
+ std::vector< Index > v_change_intervals;
 
  /// Vector of fixed consumption
  std::vector< double > v_fixed_consumption;
@@ -434,19 +542,22 @@ private:
 /*--------------------------------------------------------------------------*/
 
  /// returns which variables must be generated
- /** This method returns an int that indicates which variables of
-  * UnitBlock must be generated by the generate_abstract_variables()
-  * method. This value may be given in stvv as explained in
-  * generate_abstract_variables(). If this value is not given in stvv,
-  * then this method returns the appropriate value according to what
-  * is specified in the generate_abstract_variables() method. */
+ /** This method returns an int that indicates which variables of UnitBlock
+  * must be generated by the generate_abstract_variables() method. This value
+  * may be given in stvv as explained in generate_abstract_variables(). If
+  * this value is not given in stvv, then this method returns the appropriate
+  * value according to what is specified in the generate_abstract_variables()
+  * method. */
+
  int get_variables_to_be_generated( Configuration *stvv );
 
  void deserialize_time_horizon( netCDF::NcGroup & group );
 
  void deserialize_change_intervals( netCDF::NcGroup & group );
 
-};  // end( class( UnitBlock ) )
+ };  // end( class( UnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 

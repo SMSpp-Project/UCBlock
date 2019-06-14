@@ -63,58 +63,37 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group )
+{
+ netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
+ if( TimeHorizon.isNull() ) {
+  // dimension TimeHorizon is not present in the netCDF input
 
-  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
-  if( TimeHorizon.isNull() ) {
-
-    // Dimension TimeHorizon is not present in the netCDF input.
-
-    auto f_Block = get_f_Block();
-
-    if( f_Block ) {
-
-      // The father Block is available. Take time horizon from it.
-      auto time_horizon_father =
-        static_cast<UCBlock *>( get_f_Block() )->get_time_horizon();
-
-      if( f_time_horizon == 0 )
-        this->set_time_horizon( time_horizon_father );
-
-      else if( f_time_horizon != time_horizon_father )
-        throw( std::logic_error
-               ( "UnitBlock::deserialize: TimeHorizon is not present in the "
-                 "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                 "from that of its father, but they should be equal." ) );
-    }
-    else if( f_time_horizon != 0 )
-      throw( std::invalid_argument
-             ( "UnitBlock::deserialize: TimeHorizon is not present in the "
+  if( f_time_horizon == 0 ) {
+   auto f_B = dynamic_cast< UCBlock * >( get_f_Block() );
+   if( f_B )
+    // The father Block is available. Take time horizon from it.
+    this->set_time_horizon( f_B->get_time_horizon() );
+   else
+    throw( std::invalid_argument(
+	       "UnitBlock::deserialize: TimeHorizon is not present in the "
                "netCDF input and UnitBlock does not have a father." ) );
+   }
   }
-  else {
+ else {
+  // dimension TimeHorizon is present in the netCDF input
 
-    auto time_horizon_netcdf = TimeHorizon.getSize();
-
-    if( true ) { // TODO The condition should be that this object was
-                 // just created and only the time horizon may have
-                 // been set so far.
-
-      if( f_time_horizon == 0 )
-        // Use the time horizon provided by the netCDF
-        f_time_horizon = time_horizon_netcdf;
-
-      else if( f_time_horizon != time_horizon_netcdf )
-        throw( std::invalid_argument
-               ( "UnitBlock::deserialize: TimeHorizon in netCDF is different "
-                 "from that (nonzero) currently specified in UnitBlock." ) );
-    }
-    else {
-      // Replace the current time horizon (and possibly reset this UnitBlock)
-      f_time_horizon = time_horizon_netcdf;
-    }
+  auto th = TimeHorizon.getSize();
+  if( f_time_horizon == 0 )
+   this->set_time_horizon( th );
+  else
+   if( f_time_horizon != th )
+    throw( std::logic_error(
+		 "UnitBlock::deserialize: TimeHorizon is not present in the "
+                 "netCDF. The (nonzero) time horizon of UnitBlock is different "
+                 "from that of its father, but they should be equal." ) );   
   }
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -177,7 +156,7 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   ::deserialize( group, "InertiaPower", v_inertia_power,
                  {f_number_intervals} );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -252,17 +231,6 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR MODIFYING THE UnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
-
-void UnitBlock::set_time_horizon( Index t ) {
-  if( f_time_horizon == t )
-    return;
-
-  if( f_time_horizon != 0 )
-    throw std::logic_error( "UnitBlock::set_time_horizon: "
-                            "time horizon has already been set.");
-
-  f_time_horizon = t;
-}
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
