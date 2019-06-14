@@ -2,26 +2,10 @@
 /*---------------------------- File HeatBlock.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *derived* class HeatBlock, which derives from
- * the Block, in order to define a base for any possible unit that produces
- * heat and can be attached to a UCBlock. It has very basic information that
- * can characterize almost any different kind of heat-unit, which includes a
- * set of heat variables. This class has thus been constructed having the
- * following elements:
  *
- * - A virtual public method that is used to initialize and read the
- *   data of any possible derived HeatBlock class.
- *
- * - The time horizon of the problem.
- *
- * - a vector of ColVariable objects, that are used to store the
- *   information regarding:
- *
- *     (i)   the heat produced by the unit.
- *
- *   This vector either have size equal to the time horizon
- *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the unit may not produce heat).
+ * Header file for cass HeatBlock, which derives from Block, in order to
+ * define a class representing set of "nearby" units (and a storage) that
+ * can be used to satisfy a demand for (a single type of) heat.
  *
  * \version 0.11
  *
@@ -50,18 +34,15 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __HeatBlock
-#define __HeatBlock
-/* self-identification: #endif at the end of the file */
+ #define __HeatBlock  /* self-identification: #endif at the end of the file */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
 #include "ColVariable.h"
-#include <map>
 #include "FRowConstraint.h"
 #include "FRealObjective.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -71,104 +52,112 @@
 
 namespace SMSpp_di_unipi_it {
 
-
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS HeatBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the heat unit problem
-/** The HeatBlock class implements the Block concept [see Block.h]
- * for the EDF Unit Commitment Problem.
+/// implementation of the Block concept for a set of "heat unit"
+/** The HeatBlock class implements the Block concept [see Block.h] for a
+ * set of "heat units" as required in the plan4res project.
  *
- *  The constraints regarding heat management can be described separately for
- *  each “heat block” (HB). In SMS++ parlance, a HB is the intersection of an
- *  Energy Cell and a heat-ID: a set of heat-producing units that are
- *  geographically near enough to exchange heat of the same type, together
- *  with demand and possibly storage of this heat. HBs are only connected to
- *  each other because some heat-producing units are also electricity
- *  producing ones, where heat is a by-product or a co-product of electricity.
- *  However, this linking “happens at the level of the main UC model”, and
- *  therefore it is not required for the description of the internal
- *  constraints of a HB.
+ * The constraints regarding heat management in the plan4res project can be
+ * described separately for each HeatBlock. In the parlance of plan4res, a HB
+ * is the intersection of an Energy Cell and a heat-ID: a set of
+ * heat-producing units that are geographically close enough to exchange heat
+ * of the same type, together with possibly a (single) storage for this type
+ * of heat, in order to satisfy a given heat demand. HBs are only connected to
+ * each other because some heat-producing units are also electricity-producing
+ * ones, where heat is a by-product or a co-product of electricity. However,
+ * this linking “happens at the level of the main UC model”, and therefore it
+ * is not required for the description of the internal constraints of a HB.
+ * All this on a given time horizon, as in the UC problem.
  *
- *  The variable to the HB portion of the EUC model are the following:
+ * TODO: the description of the time horizon (T, or { 1 , ... , T }) should
+ *       be consistent with the notation used by [Thermal]UnitBlock
  *
- * - \f$ p^{he}_{t,i} \f$ : representing the power produced by heat unit
- *   \f$ i \in \mathcal{I}(h) \f$ at time \f$ t \in \mathcal{T} \f$;
+ * The HB therefore has as primary data the description of a set I of heat
+ * units, possibly of a single heat storage, and of the demand that has to
+ * be satisfied.
+ *
+ * The variables of the HB are the following:
+ *
+ * - \f$ p^{he}_t \f$ : representing the power produced by heat unit
+ *   \f$ i \in I \f$ at time \f$ t \in T \f$;
  *
  * - if the heat storage is defined, \f$ s_{t,+} \geq 0 \f$ and \f$ s_{t,-}
  *   \geq 0 \f$ representing respectively the amount of heat added to and
- *   removed from the storage at time instant \f$ t \in \mathcal{T} \f$ ;
+ *   removed from the storage at time instant \f$ t \in \mathcal{T} \f$;
  *
- * - if the heat storage is defined, \f$ v_t \f$ representing respectively the
- *   amount of heat available in the storage at time instant
- *   \f$ t \in \mathcal{T} \f$;
+ * - if the heat storage is defined, \f$ v_t \f$ representing the amount of
+ *   heat available in the storage at time instant \f$ t \in T \f$.
  *
- *  The heat constraints of unit commitment problem, on the time horizon
- *  \f$ \mathcal{T} \f$ write as follow:
+ *  The constraintsin the HB write as follow:
  *
- * - Demand Constraints:
- *   In the unit commitment problem, \f$ D^h_{t} \f$ denotes the heat demand
- *   of the each heat block \f$ h \in \mathcal{H} \f$ for each time period
- *   \f$ t \in \mathcal{T} \f$ will be satisfied as follow:
+ * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
+ *   at time period \f$ t \in T \f$:
+ *   \f[
+ *     \sum_{ i \in I } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
+       \geq D_t                          \quad t \in T           \quad     (1)
+ *   \f]
  *
- * \f[
- *  \sum_{ i \in \mathcal{I}_h } (p^{h , he}_{t,i} - s^{h}_{t , +} +
- *  s^{h}_{t , -} \geq D^h_{t} \quad t \in \mathcal{T}           \quad     (1)
- * \f]
+ * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
+ *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
+ *   production of unit \f$ i \in I \f$ at time \f$ t \in T \f$, the heat
+ *   production bounds are
+ *   \f[
+ *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
+ *                       \quad i \in I    \quad t \in T         \quad     (2)
+ *   \f]
  *
- * - Heat production bounds Constraints:
- *   Let \f$ P^{h , mn}_{t , i} \f$ and \f$ P^{h , mx}_{t , i} \f$ denotes the
- *   minimum and maximum heat production respectively. For each heat unit
- *   \f$ i \in \mathcal{I}(h) \f$ in heat block \f$ h \in \mathcal{H}\f$ and
- *   at time \f$ t \in \mathcal{T} \f$, the heat production bounds will be
- *   satisfied as follow:
+ * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
+ *   \f$ V^{mx}_t \f$ denoting respectively the minimum and maximum heat
+ *   storage . For each heat block at time \f$ t \in T \f$, the heat
+ *   storage bounds are
+ *   \f[
+ *     v^{mn}_{t} v_t \leq V^{mx}_t       \quad t \in T          \quad   (3)
+ *   \f]
  *
- * \f[
- *   p^{he}_{t,i} \in [ P^{h , mn}_{t , i} ,  P^{h , mx}_{t , i}]
- *    \quad i \in \mathcal{I}(h) \quad t \in \mathcal{T}         \quad     (2)
- * \f]
+ * - Evolution in the stored heat Constraints. Let three constants
+ *   \f$ \rho_+ \f$, \f$ \rho_- \f$, and \f$ \rho \f$ be given representing
+ *   inefficiencies in, respectively, storing heat in the heat storage,
+ *   extracting heat from the heat storage, and keeping heat in the heat
+ *   storage; then the evolution in the stored heat can be written as
+ *   \f[
+ *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
+ *    NOTE: it was "+ ... +", INSTEAD IT MUST BE "+ ... -"
+ *                                        \quad t \in T          \quad  (4)
+ *   \f]
  *
- * - Heat storage bounds Constraints:
- *   Let \f$ V^{h , mn}_{t} \f$ and \f$ V^{h , mx}_{t} \f$ denotes the
- *   minimum and maximum heat storage respectively. For each heat block
- *   \f$ h \in \mathcal{H} \f$  and at time \f$ t \in \mathcal{T} \f$, the heat
- *   storage bounds will be presented as follow:
+ * - Objective Function: the objective function of HB simply reads
+ *   \f[
+ *     \min \sum_{ i \in I } \sum_{ t \in T } C_{t,i} p^{he}_{t,i}
+ *   \f]
+ *   where \f$  C_{t,i} \f$ is the cost of producing one heat unit by unit
+ *   \f$ i \in I \f$ at time \f$ t \in T \f$. Note that storing heat has no
+ *   cost.
  *
- * \f[
- *      v^h_{t} \in [v^{h , mn}_{t} , V^{h , mx}_{t}]
- *                          \quad t \in \mathcal{T}           \quad        (3)
- * \f]
+ * TODO: again this part is too vague, see comment in ThermalUnitBlock;
+ *       either be more specific, or delete it.
  *
- * - Evolution in the stored heat Constraints:
- *   Let three constants \f$ \rho^{h}_{+} \f$, \f$ \rho^{h}_{-} \f$, and
- *   \f$ \rho^{h} \f$ representing inefficiencies in, respectively, storing
- *   heat in the heat storage, extracting heat from the heat storage, and
- *   keeping heat in the heat storage. Then the evolution in the stored heat
- *   constraints will be presented as follow:
+ * This class has thus been constructed having the following elements:
  *
- * \f[
- *   v^{h}_{t} = \rho^{h} v^{h}_{t-1} + \rho^{h}_{+} s^{h}_{t , +} +
- *     \rho^{h}_{-} s^{h}_{t , -}  \quad t \in \mathcal{T}          \quad  (4)
- * \f]
+ * - A virtual public method that is used to initialize and read the
+ *   data of any possible derived HeatBlock class.
  *
- * - Objective Function:
- *   We will now consider one specific fixed HB \f$ h \in \mathcal{H} \f$. The
- *   portion of the objective function of the EUC corresponding to this HB
- *   simply reads:
+ * - The time horizon of the problem.
  *
- * \f[
- *   min \sum_{ i \in \mathcal{I}_h } \sum_{ t \in \mathcal{T} }
- *                       C^h_{t,i}p^{h , he}_{t,i}
- * \f]
- *   Where \f$  C^h_{t,i} \f$ is the cost of producing one heat unit
- *   \f$ i \in \mathcal{I}(h) \f$ at time \f$ t \in \mathcal{T} \f$.
- */
+ * - a vector of ColVariable objects, that are used to store the
+ *   information regarding:
+ *
+ *     (i)   the heat produced by the unit.
+ *
+ *   This vector either have size equal to the time horizon
+ *   or is empty, in which case the corresponding variables simply do
+ *   not exist (for instance, the unit may not produce heat). */
 
-  class HeatBlock : public Block {
-
+ class HeatBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -197,18 +186,17 @@ namespace SMSpp_di_unipi_it {
 /** @name Constructor and Destructor
  *  @{ */
 
-/** Constructor of HeatBlock, taking possibly a pointer of its
- * father Block. */
+/// constructor, takes the father and the time horizon
+/** Constructor of HeatBlock, taking possibly a pointer of its father
+ * Block and the time horizon. */
 
-    HeatBlock( Block * father_block = nullptr , Index t = 0 )
-        : Block( father_block ), f_time_horizon( t ) {}
+ HeatBlock( Block * father_block = nullptr , Index t = 0 )
+  : Block( father_block ), f_time_horizon( t ) { }
 
 /*--------------------------------------------------------------------------*/
 
-/// destructor of HeatBlock
-
-    virtual ~HeatBlock() { };
-
+/// destructor of HeatBlock: it is virtual, and empty
+ virtual ~HeatBlock() { }
 
 /*@}------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -216,13 +204,10 @@ namespace SMSpp_di_unipi_it {
 /** @name Other initializations
  *  @{ */
 
-/// loads the HeatBlock instance from memory
-/** Loads the HeatBlock instance from memory.
- * Like load( std::istream & ), if there is any Solver attached to this
- * HeatBlock then a NBModification (the "nuclear option") is issued.
- * */
-
-    virtual void load( std::istream &input ) override { };
+/// loads the HeatBlock instance from a stream
+ virtual void load( std::istream &input ) override {
+  throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
+  };
 
 /*--------------------------------------------------------------------------*/
 /// extends Block::deserialize( netCDF::NcGroup )
@@ -230,59 +215,83 @@ namespace SMSpp_di_unipi_it {
  * the HeatBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
  *
- * - the dimension "NumberHeatUnits" containing the number heat-producing
- *   units;
+ * - The dimension "NumberHeatUnits" containing the number heat-producing
+ *   units. This is not optional, and has to be >= 1.
  *
- * - the dimension "TimeHorizon" containing the time horizon;
+ * - The dimension "TimeHorizon" containing the time horizon. The dimension
+ *   is optional because the same information may be passed via the method
+ *   set_time_horizon(), or directly retrieved from the father if it is a
+ *   UCBlock; see the comments to set_time_horizon() for details.
  *
- * Note 1: consider set time horizon \f$\{0, \dots, "TimeHorizon-1"\}\f$ with
- * dimension "TimeHorizon". It can be presented as the union of some
- * intervals.
+ * - The dimension "NumberIntervals", that is provided to allow that all
+ *   time-dependent data in the HeatBlock can only change at a subset of
+ *   the time time instants of the time interval, being therefore
+ *   piecewise-constant (possibly, constant). "NumberIntervals" should
+ *   therefore be <= "TimeHorizon", with three distict cases:
+ *  
+ *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
+ *        == 1; this is what is assumed if the dimension, that is
+ *        optional, is not there. This means that the value of each 
+ *        relevant data in the HeatBlock (see e.g. "CostHeatUnit",
+ *        "MinHeatProduction" and "MaxHeatProduction" below) is the same for
+ *        each time instant 0, ..., "TimeHorizon" - 1 in the time horizon.
+ *        In this case, also the variable "ChangeIntervals" (see below) is
+ *        ignored.
  *
- * Note 2: let's suppose the values of each variable may change independently,
- * and may have different values for some intervals along the set time horizon
- * \f$\{0, \dots, "TimeHorizon-1"\}\f$. It means each variable has its own
- * changes along some intervals independently. Without loss of generality,
- * let's take the union of the intersection of all the intervals between each
- * two variables separately. It means, at the end we may have a set of
- * intervals such as: \f$ [0 , a], [a+1 , b], \dots, [j+1 , k], [k+1 ,
- * TimeHorizon-1] \f$which where they cover all the changes for all the
- * variables. Then in each interval, one variable may change or not(if not,
- * copy the corresponding value of its' previous interval).
+ *   ii)  1 < "NumberIntervals" < "TimeHorizon", which means that in some
+ *        time instants, *but not all of them*, the values of some of the
+ *        relevant data are changing; the intervals are then described in
+ *        variable "ChangeIntervals".
  *
- * - the dimension "NumberIntervals" which is a subset of \f$ \{1, ...,
- *   "TimeHorizon"\}\f$ and indicates the number of above intervals \f$([0
- *   , a] , [a+1 , b], ... , [j+1 , k] , [k+1, TimeHorizon-1])\f$ where the
- *   variables change. This dimension is optional. If it is not
- *   provided then it is taken to be 1.
+ *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of 
+ *        the relevant data changes at every time interval (in principle;
+ *	  of course there is nothing preventing the same value to be
+ *        repeated in the netCDF input). Also in this case the variable
+ *        "ChangeIntervals" is ignored, since it is useless.
  *
- *   Three scenarios may happen:
+ *   Note that this (together with "ChangeIntervals", if defined) obviously
+ *   sets the "maximum frequency" at which data can change; is some data
+ *   changes less frequently (say, it is constant), then the same value
+ *   will have to be repeated. Individual data can also have specific
+ *   provisions for the case where the data is all equal despite
+ *   "NumberIntervals" saying differently, see "CostHeatUnit" etc.
+ *   for instances.
  *
- *    i). In the simplest case scenario, "NumberIntervals = 1" which
- *        means that the value of each variable does not change, i.e.,
- *        it is the same for each period in \f$ \{1, \dots ,
- *        "TimeHorizon"\}\f$.
+ * - The variable "ChangeIntervals", of type integer and indexed over the
+ *   dimension "NumberIntervals". The time horizon is subdivided into
+ *   NumberIntervals = k of the form [ 0 , i_1 ], [ i_1 + 1 , i_2 ], ...
+ *   [ i_{k-1} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to
+ *   contain [ i_1 , i_2 , ... i_{k-1} ]. Note that, therefore,
+ *   "ChangeIntervals" has one significant value less than
+ *   "NumberIntervals", which means that
+ *   ChangeIntervals[ NumberIntervals - 1 ] is ignored. Anyway, the whole
+ *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
+ *   is not defined), or "NumberIntervals" >= "TimeHorizon".
  *
- *   ii). In the average case scenario, "1 < NumberIntervals <
- *        TimeHorizon", which means that in some time steps the values
- *        of some of the variables are changing.
- *
- *  iii). In the worst case scenario, "NumberIntervals = TimeHorizon",
- *        which means that in every time step, the value of each
- *        variable may change.
- *
- * - the variable "ChangeIntervals", of type integer and indexed over
- *   the dimension "NumberIntervals"; the \f$t_{th}\f$ entry of the
- *   variable indicates the positive number of \f$ a, b, ..., k,
- *   TimeHorizon-1\f$ on the above example.
- *
- * - the variable "TotalHeatDemand", of type double and indexed over the
- *   dimensions "NumberIntervals": entry HeatDemand[ t ] is assumed to contain
+ * NOTE: unlike in all other cases, I made TotalHeatDemand indexed over
+ *       TotalHeatDemand instead of NumberIntervals. This is because the
+ *       demand is expected to change over time, while all the rest of
+ *       the data is technical data of the unit(s) and therefore can be
+ *       expected to be "more constant". This comment could be added.
+ * 
+ * - The variable "TotalHeatDemand", of type double and indexed over the
+ *   dimensions "TimeHorizon": entry HeatDemand[ t ] is assumed to contain
  *   the total heat demand of this heat block to be satisfied for the
- *   corresponding interval t;
+ *   corresponding time instant t.
  *
- * - the variable "CostHeatUnit", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberHeatUnits"; the entry
+ * - The variable "CostHeatUnit", of type double and indexed both over the
+ *   dimensions "NumberIntervals" and "NumberHeatUnits". This is meant to
+ *   represent the matrix C[ t , i ] which, for each time instant t, contains
+ *   cost of heat production for unit i at time t. 
+ *
+ * TODO: update comments in the same style as ThermalUnitBlock as soon as
+ *       we have understood if we can say the thing "it can either have
+ *       size 1 or size "NumberIntervals""
+ *
+ * TODO: you comment that "NumberHeatUnits == 0" is possible, but I don't
+ *       think it can be. If there are no heat units there is no way to
+ *       produce heat and therefore satisfy demand. I'd say 
+ *       NumberHeatUnits >= 1
  *   CostHeatUnit[ t , i ] indicates the cost of producing value for each
  *   interval t of heat unit i in this heat block; if NumberHeatUnits == 0
  *   (say, it is not provided at all) then this variable need not be defined,
@@ -305,46 +314,67 @@ namespace SMSpp_di_unipi_it {
  * - the variable "MinHeatStorage", of type double and indexed over the
  *   dimensions "NumberIntervals": entry MinHeatStorage[ t ] is assumed to
  *   contain the minimum heat storage of this heat block for each interval t;
+ *   THE VARIABLE IS OPTIONAL, IF NOT PROVIDED IS ZERO
  *
  * - the variable "MaxHeatStorage", of type double and indexed over the
  *   dimensions "NumberIntervals": entry MaxHeatStorage[ t ] is assumed to
  *   contain the maximum heat storage of this heat block for each interval t;
+ *   IT MUST BE MaxHeatStorage[ t ] >= MinHeatStorage[ t ]
+ *   THE VARIABLE IS OPTIONAL, IF NOT PROVIDED IS ZERO, WHICH IMPLIES
+ *   THAT MinHeatStorage == 0, WHICH IMPLIES THERE IS NO STORAGE
  *
- * - the scalar variable "InitialHeatAvailable", of type double and not
- *   indexed over any dimension and indicates the the initial amount of heat
- *   in the storage at the time -1 in this heat block; this variable is
+ * END TODO: end of set of comments to be updated
+ *
+ * - The scalar variable "InitialHeatAvailable", of type double and not
+ *   indexed over any dimension, which indicates the the initial amount of
+ *   heat in the storage at the time -1
+ *
+ *   TODO: again, let's be consistent if the time before the beginning
+ *         is 0 or -1
+ *
+ *   in this HB; this variable is
  *   optional, if it is not provided it is taken to be
- *   InitialHeatAvailable == MinHeatStorage [ 0 ];
+ *   InitialHeatAvailable == MinHeatStorage[ 0 ];
  *
- * - the scalar variable "StoringHeatRho", of type double and not indexed over
- *   any dimension and indicates the storing heat in the heat storage(if any)
- *   in this heat block; this variable is optional and always
- *   StoringHeatRho <= 1, if it is not provided it is taken to be
- *   StoringHeatRho == 0; if for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the heat block has no
- *   heat storage then this variable need not be defined, since they are not
- *   loaded;
+ * - The scalar variable "StoringHeatRho", of type double and not indexed
+ *   over any dimension, which indicates the inefficiency of storing heat
+ *   in the heat storage (if any) in this HB. This variable is optional and
+ *   it must always be StoringHeatRho <= 1, if it is not provided it is taken
+ *   to be StoringHeatRho == 1.
  *
- * - the scalar variable "ExtractingHeatRho", of type double and not indexed
- *   over any dimension and indicates the extracting heat in the heat storage(
- *   if any) in this heat block; this variable is optional and always
- *   ExtractingHeatRho >= 1, if it is not provided it is taken to be
- *   ExtractingHeatRho == 0; if for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the heat block has no
- *   heat storage then this variable need not be defined, since they are not
- *   loaded;
+ *   NOTE: you wrote "StoringHeatRho == 0", but it should be == 1
  *
- * - the scalar variable "KeepingHeatRho", of type double and not indexed over
- *   any dimension and indicates the keeping heat in the heat storage(if any)
- *   in this heat block; this variable is optional and always
- *   KeepingHeatRho <= 1, if it is not provided it is taken to be
- *   KeepingHeatRho == 0; if for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the heat block has no
- *   heat storage then this variable need not be defined, since they are not
- *   loaded;
- */
+ *   If for all intervals t,
+ *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the HB has no
+ *   heat storage then this variable need not be defined, since it is not
+ *   loaded.
+ *
+ * - The scalar variable "ExtractingHeatRho", of type double and not indexed
+ *   over any dimension, and which indicates the inefficiency of extracting
+ *   heat from the heat storage (if any) in this HB. This variable is
+ *   optional and it must always be ExtractingHeatRho >= 1, if it is not
+ *   provided it is taken to be ExtractingHeatRho == 1.
+ *
+ *   NOTE: see above
+ *
+ *   If for all intervals t,
+ *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the HB has no
+ *   heat storage then this variable need not be defined, since it is not
+ *   loaded.
+ *
+ * - The scalar variable "KeepingHeatRho", of type double and not indexed over
+ *   any dimension, which indicates the double of keeping heat in the heat
+ *   storage (if any) in this HB. Yhis variable is optional and it must always
+ *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
+ *   KeepingHeatRho == 1.
+ *
+ *   NOTE: see above
+ *
+ *   If for all intervals t, MaxHeatStorage[ t ] == MinHeatStorage[ t ] then
+ *   the HB has no heat storage, then this variable need not be defined,
+ *   since is not loaded. */
 
-    virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -354,6 +384,8 @@ namespace SMSpp_di_unipi_it {
 /// generate the abstract variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.
  *
+ * TODO: update this comment taking from that of UnitBlock
+ * 
  * - the heat added variables [bit 0]
  *
  * - the heat removed variables [bit 1]
@@ -400,18 +432,17 @@ namespace SMSpp_di_unipi_it {
  * //TODO
  */
 
-    virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-    override ;
-
-
+ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
+  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HeatBlock
 /** Method that generates the objective of the HeatBlock.
  *
 */
-    virtual void generate_objective( Configuration *objc = nullptr )
-    override ;
+
+ virtual void generate_objective( Configuration *objc = nullptr )  override;
+
 /*@} -----------------------------------------------------------------------*/
 /*-------------- Methods for reading the data of the HeatBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -472,8 +503,45 @@ namespace SMSpp_di_unipi_it {
 /** @name Methods for modifying the HeatBlock
  *  @{ */
 
-/// Set the time horizon
-    void set_time_horizon( Index t );
+ /// set the time horizon method
+ /** Set the time horizon method.
+  *
+  * This method can be called *before* that deserialize() is called to
+  * provide the HeatBlock with the time horizon. This allows the information
+  * not to be duplicated in the netCDF group that describes the HB, since
+  * usually (bit not necessarily) a HeatBlock is deserialized inside a
+  * UCBlock, and all HB have the same time horizon, that can therefore be
+  * read once and for all by the father UCBlock.
+  *
+  * If this method is *not* called, which means that f_time_horizon is at its
+  * initial value of 0 (not initialized), then when deserialize() is called
+  * the information has to be available by other means, i.e.:
+  *
+  * (i)  If there is no dimension TimeHorizon in netCDF input, then the
+  *      HeatBlock must have a father, which must be a UCBlock: the
+  *      time horizon is then taken to be that of the father. If the
+  *      HeatBlock does not have a father (or it is not a UCBlock), then
+  *      exception is thrown.
+  *
+  * (ii) If the dimension TimeHorizon is present in the netCDF input of
+  *      HeatBlock, the value provided there is used with no check that
+  *      the UCBlock has a father at all, that the father is a UCBlock,
+  *      or that the two time horizon agree.
+  *
+  * If this method *is* called, which has to happen before that deserialize()
+  * is called, and f_time_horizon is set at a value != 0, then if the 
+  * dimension TimeHorizon is present in netCDF input, then the two values must
+  * agree. If the dimension TimeHorizon is not present, then the value set by
+  * this method is used. Note that, of course, the data in the netCDF file (if
+  * the unit has any data indiced over the time horizon) has to agree with the
+  * value set by this method.
+  *
+  * If this method is called *after* that deserialize() is called, this is
+  * taken to mean that the UnitBlock is being "reset", and that immediatley
+  * after deserialize() will be called again. The same rules as above are to
+  * be followed for that subsequent call to deserialize(). */
+
+ void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
