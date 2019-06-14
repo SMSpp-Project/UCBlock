@@ -43,7 +43,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
-#define __UnitBlock  /* self-identification: #endif at the end of the file */
+ #define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -59,9 +59,13 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- CLASS UnitBlock -----------------------------*/
+/*-------------------------- CLASS UnitBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** Rhe class UnitBlock, which derives from the Block, defines a base class
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// implementation of the Block concept for "a generic unit" in UC
+/** The class UnitBlock, which derives from the Block, defines a base class
  * for any possible unit that can be attached to a UCBlock. It has very basic
  * information that can characterize almost any different kind of unit, which
  * includes four sets of Variables: power variables, commitment variables,

@@ -2,46 +2,9 @@
 /*------------------------- File ThermalUnitBlock.h ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *derived* class ThermalUnitBlock, which derives from
- * UnitBlock [see UnitBlock.h], in order to define the thermal unit of EDF
- * unit commitment Problem.
- *
- * A ThermalUnitBlock class is designed in order to give mathematical
- * formulation to describe the operation of large conventional power
- * plants (such as nuclear, hard coal, gas turbine, gas, combined
- * cycle, oil, ...)  which directly connected to the transmission
- * grid. The technical and physical constraints are mainly divided in
- * four different categories as bellow:
- *
- * - Maximum and minimum power output constraints;
- * - Ramp-up/down rate constraints;
- * - Minimum up and down time constraints;
- * - Active power relation with primary and secondary spinning reserves.
- * - Active power relation with primary spinning reserves.
- * - Active power relation with secondary spinning reserves.
- *
- * Based on the above description the class has been constructed having the
- * following elements:
- *
- * - A virtual public method is used in order to initialize and read
- *   the data of any possible derived ThermalUnitBlock class.
- *
- * - A set of protected methods, one for the initialization of each different
- *   type of constraints for the mathematical formulations with the methods
- *   also passing the constraints to the vector of static constraints of the
- *   Block.
- *
- * - A number of different vectors of FRowConstraint Objects that are used
- *   to store all the information of the different sets of constraints of
- *   the thermal unit.
- *
- * - An object of DQuadFunction and one of FRealFunction that are used to
- *   store the information of the quadratic or linear objective function of
- *   the unit.
- *
- * - Several different double variables that are used in order to store all
- *   the different values needed to describe the above mentioned constraints
- *   and costs.
+ * Header file for the class ThermalUnitBlock, which derives from UnitBlock
+ * [see UnitBlock.h], in order to define a "reasonably standard" thermal unit
+ * of a Unit Commitment Problem.
  *
  * \version 0.11
  *
@@ -70,19 +33,18 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ThermalUnitBlock
-#define __ThermalUnitBlock
-/* self-identification: #endif at the end of the file */
+ #define __ThermalUnitBlock
+                      /* self-identification: #endif at the end of the file */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "ColVariable.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
 #include "UnitBlock.h"
-#include "Block.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -102,6 +64,21 @@ namespace SMSpp_di_unipi_it
 /// implementation of the Block concept for the thermal unit problem
 /** The ThermalUnitBlock class implements the Block concept [see Block.h]
  * for the EDF Unit Commitment Problem.
+ *
+ * A ThermalUnitBlock class is designed in order to give mathematical
+ * formulation to describe the operation of large conventional power
+ * plants (such as nuclear, hard coal, gas turbine, gas, combined
+ * cycle, oil, ...)  which directly connected to the transmission
+ * grid. The technical and physical constraints are mainly divided in
+ * four different categories as bellow:
+ *
+ * - Maximum and minimum power output constraints;
+ * - Ramp-up/down rate constraints;
+ * - Minimum up and down time constraints;
+ * - Active power relation with primary and secondary spinning reserves.
+ * - Active power relation with primary spinning reserves.
+ * - Active power relation with secondary spinning reserves.
+ *
  *
  * Consider a thermal generating unit and a set of time horizon \f$ T \f$
  * which is usually divided in a set of discrete time steps \f$ t \in T \f$.
@@ -262,6 +239,29 @@ namespace SMSpp_di_unipi_it
  * the unit and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are,
  * respectively, the quadratic, linear, and constant terms of the
  * power cost function of the unit at time period \f$t\f$.
+ *
+ * Based on the above description the class has been constructed having the
+ * following elements:
+ *
+ * - A virtual public method is used in order to initialize and read
+ *   the data of any possible derived ThermalUnitBlock class.
+ *
+ * - A set of protected methods, one for the initialization of each different
+ *   type of constraints for the mathematical formulations with the methods
+ *   also passing the constraints to the vector of static constraints of the
+ *   Block.
+ *
+ * - A number of different vectors of FRowConstraint Objects that are used
+ *   to store all the information of the different sets of constraints of
+ *   the thermal unit.
+ *
+ * - An object of DQuadFunction and one of FRealFunction that are used to
+ *   store the information of the quadratic or linear objective function of
+ *   the unit.
+ *
+ * - Several different double variables that are used in order to store all
+ *   the different values needed to describe the above mentioned constraints
+ *   and costs.
  */
 
 class ThermalUnitBlock : public UnitBlock {
