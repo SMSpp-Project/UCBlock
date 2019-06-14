@@ -8,28 +8,7 @@
  * a UCBlock. It has very basic information that can characterize almost any
  * different kind of unit, which includes four sets of Variables: power
  * variables, commitment variables, primary and secondary spinning reserve
- * variables. This class has thus been constructed having the following
- * elements:
- *
- * - A virtual public method that is used to initialize and read the
- *   data of any possible derived UnitBlock class.
- *
- * - The time horizon of the problem.
- *
- * - Four vectors of ColVariable objects, that are used to store the
- *   information regarding:
- *
- *     (i)   the commitment of the unit;
- *
- *     (ii) the primary spinning reserve of the unit;
- *
- *     (iii)  the secondary spinning reserve of the unit;
- *
- *     (iv)  the active power produced by the unit.
- *
- *   Each of these vectors either have size equal to the time horizon
- *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the unit may not have reserve).
+ * variables.
  *
  * \version 0.11
  *
