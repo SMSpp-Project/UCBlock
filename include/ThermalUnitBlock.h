@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 06 - 2019
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -98,7 +98,7 @@ namespace SMSpp_di_unipi_it
  *
  * - \f$ u_t \f$: 1 if the unit is on at time period t;
  *
- * - \f$ v_t \f$: 1 if the unit has started in time period t, i.e., 
+ * - \f$ v_t \f$: 1 if the unit has started in time period t, i.e.,
  *   \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
  *
  * - \f$  w_t \f$: 1 if the unit shuts down in time period t, i.e.,
@@ -138,7 +138,7 @@ namespace SMSpp_di_unipi_it
  *   inequality (1) for time period t\ says. On the other hand, when unit in
  *   time t is ON (\f$ u_t = 1 \f$), it could have been turned on at most
  *   once in the last \f$ \tau_+ + \tau_- \f$ periods (including t). Similarly
- *   for turn off inequality (2), when unit in the time t is OFF (\f$ u_t = 0 
+ *   for turn off inequality (2), when unit in the time t is OFF (\f$ u_t = 0
  *   \f$), it could have been turned off at most once in the last
  *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
  *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
@@ -603,7 +603,7 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
 /** Method that generates the objective of the ThermalUnitBlock. */
- 
+
  virtual void generate_objective( Configuration *objc = nullptr ) override;
 
 /*@} -----------------------------------------------------------------------*/

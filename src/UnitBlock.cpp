@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 12 - 06 - 2019
+ * \date 16 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -91,7 +91,7 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group )
     throw( std::logic_error(
 		 "UnitBlock::deserialize: TimeHorizon is not present in the "
                  "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                 "from that of its father, but they should be equal." ) );   
+                 "from that of its father, but they should be equal." ) );
   }
  }
 
@@ -148,14 +148,9 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
   deserialize_time_horizon( group );
   deserialize_change_intervals( group );
 
-  ::deserialize( group, "FixedConsumption", v_fixed_consumption,
-                 {f_number_intervals} );
-
-  ::deserialize( group, "InertiaCommitment", v_inertia_commitment,
-                 {f_number_intervals} );
-
-  ::deserialize( group, "InertiaPower", v_inertia_power,
-                 {f_number_intervals} );
+  ::deserialize( group, "FixedConsumption", v_fixed_consumption );
+  ::deserialize( group, "InertiaCommitment", v_inertia_commitment );
+  ::deserialize( group, "InertiaPower", v_inertia_power );
  }
 
 /*--------------------------------------------------------------------------*/

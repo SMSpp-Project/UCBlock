@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 06 - 2019
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -163,7 +163,7 @@ namespace SMSpp_di_unipi_it {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
@@ -178,7 +178,7 @@ namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 
-    typedef unsigned int Index;
+ typedef std::size_t Index;
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -275,7 +275,7 @@ namespace SMSpp_di_unipi_it {
  *       expected to be "more constant". This comment could be added.
  * 
  * - The variable "TotalHeatDemand", of type double and indexed over the
- *   dimensions "TimeHorizon": entry HeatDemand[ t ] is assumed to contain
+ *   dimension "TimeHorizon": entry HeatDemand[ t ] is assumed to contain
  *   the total heat demand of this heat block to be satisfied for the
  *   corresponding time instant t.
  *
@@ -312,12 +312,12 @@ namespace SMSpp_di_unipi_it {
  *   need not be defined, since it is not loaded;
  *
  * - the variable "MinHeatStorage", of type double and indexed over the
- *   dimensions "NumberIntervals": entry MinHeatStorage[ t ] is assumed to
+ *   dimension "NumberIntervals": entry MinHeatStorage[ t ] is assumed to
  *   contain the minimum heat storage of this heat block for each interval t;
  *   THE VARIABLE IS OPTIONAL, IF NOT PROVIDED IS ZERO
  *
  * - the variable "MaxHeatStorage", of type double and indexed over the
- *   dimensions "NumberIntervals": entry MaxHeatStorage[ t ] is assumed to
+ *   dimension "NumberIntervals": entry MaxHeatStorage[ t ] is assumed to
  *   contain the maximum heat storage of this heat block for each interval t;
  *   IT MUST BE MaxHeatStorage[ t ] >= MinHeatStorage[ t ]
  *   THE VARIABLE IS OPTIONAL, IF NOT PROVIDED IS ZERO, WHICH IMPLIES

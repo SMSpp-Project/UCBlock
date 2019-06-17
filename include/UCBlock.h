@@ -36,7 +36,7 @@
  *
  * \version 0.11
  *
- * \date 07 - 06 - 2019
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -269,7 +269,7 @@ public:
  * - Index, the type of indices;
  @{ */
 
- typedef unsigned int Index;
+ typedef std::size_t Index;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -385,7 +385,7 @@ public:
  *   this variable need not be defined, since it is not loaded;
  *
  * - the variable "PowerHeatRho", of type double and indexed over the
- *   dimensions "NumberUnits": entry PowerHeatRho[ i ] is assumed to
+ *   dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to
  *   contain the electrical-power-to-heat ratio for each unit i;
  *
  * - the dimension "NumberPrimaryZones" is associated with one specific primary

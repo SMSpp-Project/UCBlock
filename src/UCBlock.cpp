@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 12 - 06 - 2019
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -134,86 +134,73 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize_dim( group, "NumberPollutants",     f_number_pollutants );
 
   if( f_number_nodes > 1 ) {
-    ::deserialize( group, "StartLine", v_start_line, { f_number_nodes } );
-  }
-
-  if( f_number_nodes > 1 ) {
-    ::deserialize( group, "EndLine", v_end_line, { f_number_nodes } );
-  }
-
-
-  if( f_number_nodes > 1 ) {
-    ::deserialize( group, "MinPowerFlow", v_min_power_flow,
-                   { f_number_lines } );
-  }
-
-  if( f_number_nodes > 1 ) {
-    ::deserialize( group, "MaxPowerFlow", v_max_power_flow,
-                   { f_number_lines } );
-  }
-
-  if( f_number_nodes > 1 ) {
-    ::deserialize( group, "Susceptance", v_susceptance, { f_number_lines } );
+    ::deserialize( group, "StartLine", f_number_nodes, v_start_line );
+    ::deserialize( group, "EndLine", f_number_nodes, v_end_line );
+    ::deserialize( group, "MinPowerFlow", f_number_lines, v_min_power_flow );
+    ::deserialize( group, "MaxPowerFlow", f_number_lines, v_max_power_flow );
+    ::deserialize( group, "Susceptance", f_number_lines, v_susceptance );
   }
 
   if( f_number_heat_blocks >= 1 ) {
-    ::deserialize( group, "HeatSet", v_heat_set,
-                   { f_number_units, f_number_heat_blocks } );
+    ::deserialize( group, "HeatSet", { f_number_units, f_number_heat_blocks },
+                   v_heat_set );
   }
 
   if( f_number_primary_zones >= 1 ) {
-    ::deserialize( group, "PrimaryZones", v_primary_zones, { f_number_nodes } );
+    ::deserialize( group, "PrimaryZones", f_number_nodes, v_primary_zones );
 
-    ::deserialize( group, "PrimaryDemand", v_primary_demand,
-                   { f_number_primary_zones, f_time_horizon } );
+    ::deserialize( group, "PrimaryDemand",
+                   { f_number_primary_zones, f_time_horizon },
+                   v_primary_demand );
   }
 
   if( f_number_secondary_zones >= 1 ) {
-    ::deserialize( group, "SecondaryZones", v_secondary_zones,
-                   { f_number_nodes } );
+    ::deserialize( group, "SecondaryZones", f_number_nodes, v_secondary_zones );
 
-    ::deserialize( group, "SecondaryDemand", v_secondary_demand,
-                   { f_number_secondary_zones, f_time_horizon } );
+    ::deserialize( group, "SecondaryDemand",
+                   { f_number_secondary_zones, f_time_horizon },
+                   v_secondary_demand );
   }
 
   if( f_number_inertia_zones >= 1 ) {
-    ::deserialize( group, "InertiaZones", v_inertia_zones,
-                   { f_number_nodes } );
+    ::deserialize( group, "InertiaZones", f_number_nodes, v_inertia_zones );
 
-    ::deserialize( group, "InertiaDemand", v_inertia_demand,
-                   { f_number_inertia_zones, f_time_horizon } );
+    ::deserialize( group, "InertiaDemand",
+                   { f_number_inertia_zones, f_time_horizon },
+                   v_inertia_demand );
   }
 
   if( f_number_pollutants >= 1 ) {
 
-    ::deserialize( group, "NumberPollutantZones", v_number_pollutant_zones,
-                   { f_number_pollutants } );
+    ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
+                   v_number_pollutant_zones );
 
-    ::deserialize( group, "PollutantZones", v_pollutant_zones,
-                   { f_number_pollutants, f_number_nodes } );
+    ::deserialize( group, "PollutantZones",
+                   { f_number_pollutants, f_number_nodes }, v_pollutant_zones );
 
-    ::deserialize( group, "PollutantBudget", v_pollutant_budget,
-                   { f_number_pollutants } );
+    ::deserialize( group, "PollutantBudget", f_number_pollutants,
+                   v_pollutant_budget );
 
-    ::deserialize( group, "PollutantRho", v_pollutant_rho,
-                   { f_time_horizon, f_number_pollutants, f_number_units } );
+    ::deserialize( group, "PollutantRho",
+                   { f_time_horizon, f_number_pollutants, f_number_units },
+                   v_pollutant_rho );
 
     if( f_number_heat_blocks >= 1 ) {
 
-      ::deserialize( group, "PollutantHeatRho", v_pollutant_heat_rho,
+      ::deserialize( group, "PollutantHeatRho",
                      { f_time_horizon, f_number_pollutants,
-                         f_number_heat_blocks } );
+                         f_number_heat_blocks }, v_pollutant_heat_rho );
     }
   }
 
   if( f_number_nodes > 1 ) {
-    ::deserialize( group, "UnitNode", v_unit_node, { f_number_units } );
+    ::deserialize( group, "UnitNode", f_number_units, v_unit_node );
   }
 
-  ::deserialize( group, "PowerHeatRho", v_power_heat_rho, { f_number_units } );
+  ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho );
 
   if( f_number_heat_blocks > 0 && f_number_pollutants > 0 ) {
-    ::deserialize( group, "HeatNode", v_heat_node, { f_number_heat_blocks } );
+    ::deserialize( group, "HeatNode", f_number_heat_blocks, v_heat_node );
 
     // TODO
     /* Notice that for units into a HeatBlock that also are electrical
@@ -277,12 +264,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         auto linear_function = static_cast<LinearFunction *>
           ( v_node_injection_constraints[ t ][ node_id ].get_function() );
 
-        linear_function->
-          add_variable( get_unit_block( unit_id )->get_active_power( t ), 1.0 );
+        auto power = & get_unit_block( unit_id )->get_active_power( t );
+        auto commitment = & ( get_unit_block( unit_id )->get_commitment( t ) );
 
-        linear_function->add_variable
-          ( get_unit_block( unit_id )->get_commitment( t ),
-            - fixed_consumption );
+        linear_function->add_variable( power , 1.0 );
+        linear_function->add_variable( commitment , - fixed_consumption );
       }
     }
 
@@ -325,12 +311,12 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           continue; // this unit does not belong to any zone
 
         auto primary_spinning_reserve = get_unit_block( unit_id )
-          ->get_primary_spinning_reserve();
+          ->get_primary_spinning_reserve( t );
 
         auto linear_function = static_cast<LinearFunction *>
           ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function() );
         linear_function->
-          add_variable( & primary_spinning_reserve[ t ], 1.0 );
+          add_variable( & primary_spinning_reserve, 1.0 );
       }
     }
 
@@ -373,11 +359,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           continue; // this unit does not belong to any zone
 
         auto secondary_spinning_reserve = get_unit_block( unit_id )->
-          get_secondary_spinning_reserve();
+          get_secondary_spinning_reserve( t );
 
         auto linear_function = static_cast<LinearFunction *>
           ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function() );
-        linear_function->add_variable( & secondary_spinning_reserve[ t ], 1.0 );
+        linear_function->add_variable( & secondary_spinning_reserve, 1.0 );
       }
     }
 
@@ -420,13 +406,13 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           continue; // this unit does not belong to any zone
 
         auto commitment_variable =
-          get_unit_block( unit_id )->get_commitment( t );
+          & get_unit_block( unit_id )->get_commitment( t );
 
         auto inertia_commitment =
           get_unit_block( unit_id )->get_inertia_commitment()[ t ];
 
         auto active_power_variable =
-          get_unit_block( unit_id )->get_active_power( t );
+          & get_unit_block( unit_id )->get_active_power( t );
 
         auto inertia_power =
           get_unit_block( unit_id )->get_inertia_power()[ t ];
@@ -487,12 +473,12 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
             continue; // this unit does not belong to any zone
 
           auto rho = get_pollutant_rho( t, pollutant, unit_id );
-          auto active_power = get_unit_block( unit_id )->get_active_power();
+          auto active_power = get_unit_block( unit_id )->get_active_power( t );
 
           auto linear_function = static_cast<LinearFunction *>
           ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-          linear_function->add_variable( & active_power[ t ], rho );
+          linear_function->add_variable( & active_power, rho );
         }
 
         // Terms associated with heat-only generation units
@@ -599,7 +585,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto linear_function = static_cast<LinearFunction *>
             ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() );
           linear_function->add_variable( heat, 1,0 );
-          linear_function->add_variable( active_power, - power_heat_rho );
+          linear_function->add_variable( & active_power, - power_heat_rho );
         }
       }
     }

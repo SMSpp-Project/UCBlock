@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 10 - 06 - 2019
+ * \date 16 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,7 +113,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-typedef unsigned int Index;                 ///< index of parameters
+typedef std::size_t Index;                 ///< index of parameters
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -153,10 +153,10 @@ typedef unsigned int Index;                 ///< index of parameters
  *   the time time instants of the time interval, being therefore
  *   piecewise-constant (possibly, constant). "NumberIntervals" should
  *   therefore be <= "TimeHorizon", with three distict cases:
- *  
+ *
  *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
  *        == 1; this is what is assumed if the dimension, that is
- *        optional, is not there. This means that the value of each 
+ *        optional, is not there. This means that the value of each
  *        relevant data in the UnitBlock (see e.g. "FixedConsumption",
  *        "InertiaCommitment" and "InertiaPower" below) is the same for
  *        each time instant 0, ..., "TimeHorizon" - 1 in the time horizon.
@@ -168,7 +168,7 @@ typedef unsigned int Index;                 ///< index of parameters
  *        relevant data are changing; the intervals are then described in
  *        variable "ChangeIntervals".
  *
- *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of 
+ *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of
  *        the relevant data changes at every time interval (in principle;
  *	  of course there is nothing preventing the same value to be
  *        repeated in the netCDF input). Also in this case the variable
@@ -193,45 +193,48 @@ typedef unsigned int Index;                 ///< index of parameters
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
  *   is not defined), or "NumberIntervals" >= "TimeHorizon".
  *
- * - The variable "FixedConsumption", of type double and indexed over the
- *   dimension "NumberIntervals". This is meant to represent the vector
- *   FC[ t ] which, for each time instant t, contains the fixed consumption
- *   of the power plant if it is OFF at time t. The variable is optional; if
- *   it is not defined, FC[ t ] == 0 for all time instants. If it is defined,
- *   it can either have size 1 or size "NumberIntervals". If it has size 1,
- *   then FC[ t ] == FixedConsumption[ 0 ] for all t, regardless to what
- *   "NumberIntervals" says. Otherwise, FixedConsumption[ i ] is the fixed
- *   value of FC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ * - The variable "FixedConsumption", of type double and either is
+ *   indexed over the dimension "NumberIntervals" or has size 1. This
+ *   is meant to represent the vector FC[ t ] which, for each time
+ *   instant t, contains the fixed consumption of the power plant if
+ *   it is OFF at time t. The variable is optional; if it is not
+ *   defined, FC[ t ] == 0 for all time instants. If it is defined, it
+ *   can either have size 1 or size "NumberIntervals". If it has size
+ *   1, then FC[ t ] == FixedConsumption[ 0 ] for all t, regardless to
+ *   what "NumberIntervals" says. Otherwise, FixedConsumption[ i ] is
+ *   the fixed value of FC[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
- * - The variable "InertiaCommitment", of type double and indexed over the
- *   dimension "NumberIntervals". This is meant to represent the vector
- *   IC[ t ] which, for each time instant t, contains the contribution that
- *   the unit can give to the inertia constrant for the sole fact that is 
- *   is on (basically, the constant to be multiplied to the commitment
- *   variable) at time t. The variable is optional; if it is not defined,
- *   IC[ t ] == 0 for all time instants. If it is defined, it can either
- *   have size 1 or size "NumberIntervals". If it has size 1, then IC[ t ]
- *   == InertiaCommitment[ 0 ] for all t, regardless to what
- *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the fixed
- *   value of IC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ * - The variable "InertiaCommitment", of type double and either is
+ *   indexed over the dimension "NumberIntervals" or has size 1. This
+ *   is meant to represent the vector IC[ t ] which, for each time
+ *   instant t, contains the contribution that the unit can give to
+ *   the inertia constrant for the sole fact that is is on (basically,
+ *   the constant to be multiplied to the commitment variable) at time
+ *   t. The variable is optional; if it is not defined, IC[ t ] == 0
+ *   for all time instants. If it is defined, it can either have size
+ *   1 or size "NumberIntervals". If it has size 1, then IC[ t ] ==
+ *   InertiaCommitment[ 0 ] for all t, regardless to what
+ *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
+ *   fixed value of IC[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
- * - The variable "InertiaPower", of type double and indexed over the
- *   dimension "NumberIntervals". This is meant to represent the vector
- *   IP[ t ] which, for each time instant t, contains the contribution that
- *   the unit can give to the inertia constrant which depends on the active
- *   power that it is currently generating (basically, the constant to be
- *   multiplied to the active power variable) at time t. The variable is
- *   optional; if it is not defined, IP[ t ] == 0 for all time instants. If
- *   it is defined, it can either have size 1 or size "NumberIntervals". If
- *   it has size 1, then IP[ t ] == InertiaPower[ 0 ] for all t, regardless
- *   to what "NumberIntervals" says. Otherwise, InertiaPower[ i ] is the
- *   fixed value of IP[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. */
+ * - The variable "InertiaPower", of type double and either is indexed
+ *   over the dimension "NumberIntervals" or has size 1. This is meant
+ *   to represent the vector IP[ t ] which, for each time instant t,
+ *   contains the contribution that the unit can give to the inertia
+ *   constrant which depends on the active power that it is currently
+ *   generating (basically, the constant to be multiplied to the
+ *   active power variable) at time t. The variable is optional; if it
+ *   is not defined, IP[ t ] == 0 for all time instants. If it is
+ *   defined, it can either have size 1 or size "NumberIntervals". If
+ *   it has size 1, then IP[ t ] == InertiaPower[ 0 ] for all t,
+ *   regardless to what "NumberIntervals" says. Otherwise,
+ *   InertiaPower[ i ] is the fixed value of IP[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -275,7 +278,7 @@ typedef unsigned int Index;                 ///< index of parameters
   */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override ;
+   override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE UnitBlock -------------*/
@@ -299,10 +302,21 @@ typedef unsigned int Index;                 ///< index of parameters
   * - otherwise the vector must have the size of the time horizon, and the
   *   t-th entry gives the fixed consumption at time instant t.
   */
- 
+
  const std::vector< double > & get_fixed_consumption( void ) const {
-  return( v_fixed_consumption );
-  }
+   return( v_fixed_consumption );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the fixed consumption at time t
+ /** Method for returning the fixed consumption at time t, for t
+  * between 0 and time horizon minus 1.
+  */
+ inline double get_fixed_consumption( Index t ) const {
+   if( v_fixed_consumption.size() == 0 )
+     return 0.0;
+   return v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1 , t ) ];
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of inertia commitment
@@ -319,73 +333,96 @@ typedef unsigned int Index;                 ///< index of parameters
   */
 
  const std::vector< double > & get_inertia_commitment( void ) const {
-  return( v_inertia_commitment );
-  }
+   return( v_inertia_commitment );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the inertia commitment at time t
+ /** Method for returning the inertia commitment at time t, for t
+  * between 0 and time horizon minus 1.
+  */
+ inline double get_inertia_commitment( Index t ) const {
+   if( v_inertia_commitment.size() == 0 )
+     return 0.0;
+   return v_inertia_commitment
+     [ std::min( v_inertia_commitment.size() - 1 , t ) ];
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of inertia power
- /** Method for returning the vector of inertia commitment. There are three
+ /** Method for returning the vector of inertia power. There are three
   * possible cases:
   *
-  * - if the vector is empty, then the inertia commitment is 0;
+  * - if the vector is empty, then the inertia power is 0;
   *
-  * - if the vector only has one element, then the inertia commitment is
+  * - if the vector only has one element, then the inertia power is
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the inertia commitment at time instant t.
+  *   t-th entry gives the inertia power at time instant t.
   */
 
  const std::vector< double > & get_inertia_power( void ) const {
-  return( v_inertia_power );
-  }
+   return( v_inertia_power );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the inertia power at time t
+ /** Method for returning the inertia power at time t, for t
+  * between 0 and time horizon minus 1.
+  */
+ inline double get_inertia_power( Index t ) const {
+   if( v_inertia_power.size() == 0 )
+     return 0.0;
+   return v_inertia_power[ std::min( v_inertia_power.size() - 1 , t ) ];
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of commitment variables
  const std::vector<ColVariable> & get_commitment( void ) const {
-  return( v_commitment );
-  }
+   return( v_commitment );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method for returning a pointer to the commitment variable at time t
- ColVariable * get_commitment( int t ) const {
-  return( & ( v_commitment[ t ] ) );
-  }
+ ColVariable & get_commitment( Index t ) {
+   return( v_commitment[ t ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of primary spinning reserve variables
  const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
-  return( v_primary_spinning_reserve );
-  }
+   return( v_primary_spinning_reserve );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method for returning a pointer to the primary spinning reserve at time t
- ColVariable * get_primary_spinning_reserve( int t ) const {
-  return( & ( v_primary_spinning_reserve[ t ] ) );
-  }
+ ColVariable & get_primary_spinning_reserve( Index t ) {
+   return( v_primary_spinning_reserve[ t ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of secondary reserve variables
  const std::vector<ColVariable> & get_secondary_spinning_reserve( void )
-  const { return( v_secondary_spinning_reserve ); }
+   const { return( v_secondary_spinning_reserve ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method for returning a pointer to the secondary spinning reserve at time t
- ColVariable * get_secondary_spinning_reserve( int t ) const {
-  return( & ( v_secondary_spinning_reserve[ t ] ) );
-  }
+ ColVariable & get_secondary_spinning_reserve( Index t ) {
+   return( v_secondary_spinning_reserve[ t ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of power variables
  const std::vector<ColVariable> & get_active_power( void ) const {
-  return( v_active_power );
-  }
+   return( v_active_power );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Method for returning the pointer to the power variable at time t
- ColVariable * get_active_power( int t ) const {
-  return( &( v_active_power[ t ] ) );
-  }
+ ColVariable & get_active_power( Index t ) {
+   return( v_active_power[ t ] );
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
@@ -432,7 +469,7 @@ typedef unsigned int Index;                 ///< index of parameters
   *      or that the two time horizon agree.
   *
   * If this method *is* called, which has to happen before that deserialize()
-  * is called, and f_time_horizon is set at a value != 0, then if the 
+  * is called, and f_time_horizon is set at a value != 0, then if the
   * dimension TimeHorizon is present in netCDF input, then the two values must
   * agree. If the dimension TimeHorizon is not present, then the value set by
   * this method is used. Note that, of course, the data in the netCDF file (if

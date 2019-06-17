@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 12 - 06 - 2019
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -175,28 +175,31 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
     deserialize_time_horizon( group );
     deserialize_change_intervals( group );
 
-    ::deserialize( group, "TotalHeatDemand", v_heat_demand,
-                   {f_number_intervals} );
+    ::deserialize( group, "TotalHeatDemand", f_number_intervals,
+                   v_heat_demand );
 
-    ::deserialize( group, "CostHeatUnit", v_cost_heat_unit,
-                   {f_number_intervals , f_number_heat_units});
+    ::deserialize( group, "CostHeatUnit",
+                   { f_number_intervals , f_number_heat_units },
+                   v_cost_heat_unit );
 
-    ::deserialize( group, "MinHeatProduction", v_min_heat_production,
-                   {f_number_intervals , f_number_heat_units});
+    ::deserialize( group, "MinHeatProduction",
+                   { f_number_intervals , f_number_heat_units },
+                   v_min_heat_production );
 
-    ::deserialize( group, "MaxHeatProduction", v_max_heat_production,
-                   {f_number_intervals , f_number_heat_units});
+    ::deserialize( group, "MaxHeatProduction",
+                   { f_number_intervals , f_number_heat_units },
+                   v_max_heat_production );
 
-    ::deserialize( group, "MinHeatStorage", v_min_heat_storage,
-                   {f_number_intervals} );
+    ::deserialize( group, "MinHeatStorage", f_number_intervals,
+                   v_min_heat_storage );
 
-    ::deserialize( group, "MaxHeatStorage", v_max_heat_storage,
-                   {f_number_intervals} );
+    ::deserialize( group, "MaxHeatStorage", f_number_intervals,
+                   v_max_heat_storage );
 
     ::deserialize( group, "StoringHeatRho",       & f_storing_heat_rho );
-    ::deserialize( group, "ExtractingHeatRho",    & f_extracting_heat_rho);
-    ::deserialize( group, "KeepingHeatRho",       & f_keeping_heat_rho);
-    ::deserialize( group, "InitialHeatAvailable", & f_initial_heat_storage);
+    ::deserialize( group, "ExtractingHeatRho",    & f_extracting_heat_rho );
+    ::deserialize( group, "KeepingHeatRho",       & f_keeping_heat_rho );
+    ::deserialize( group, "InitialHeatAvailable", & f_initial_heat_storage );
 
 }  // end( HeatBlock::deserialize )
 
