@@ -74,48 +74,48 @@ namespace SMSpp_di_unipi_it {
  * is not required for the description of the internal constraints of a HB.
  * All this on a given time horizon, as in the UC problem. The operations of
  * the heat generating unit are described on a discrete time horizon which in
- * this description we indicate it with \f$ T \f$.
+ * this description we indicate it with \f$ \mathcal{T} \f$.
  *
- * The HB therefore has as primary data the description of a set \f$ I \f$ of
- * heat-producing  units, possibly of a single heat storage, and of the demand
- * that has to be satisfied.
+ * The HB therefore has as primary data the description of a set
+ * \f$ \mathcal{I} \f$ of heat-producing units, possibly of a single heat
+ * storage, and of the demand that has to be satisfied.
  *
  * The variables of the HB are the following:
  *
  * - \f$ p^{he}_t \f$ : representing the power produced by heat unit
- *   \f$ i \in I \f$ at time \f$ t \in T \f$;
+ *   \f$ i \in I \f$ at time \f$ t \in \mathcal{T} \f$;
  *
  * - if the heat storage is defined, \f$ s_{t,+} \geq 0 \f$ and \f$ s_{t,-}
  *   \geq 0 \f$ representing respectively the amount of heat added to and
  *   removed from the storage at time instant \f$ t \in \mathcal{T} \f$;
  *
  * - if the heat storage is defined, \f$ v_t \f$ representing the amount of
- *   heat available in the storage at time instant \f$ t \in T \f$.
+ *   heat available in the storage at time instant \f$ t \in \mathcal{T} \f$.
  *
  *  The constraints in the HB write as follow:
  *
  * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
- *   at time period \f$ t \in T \f$:
+ *   at time period \f$ t \in \mathcal{T} \f$:
  *   \f[
  *     \sum_{ i \in I } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
-       \geq D_t                          \quad t \in T           \quad     (1)
+       \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
  *   \f]
  *
  * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
  *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
- *   production of unit \f$ i \in I \f$ at time \f$ t \in T \f$, the heat
- *   production bounds are
+ *   production of unit \f$ i \in I \f$ at time \f$ t \in \mathcal{T} \f$, the
+ *   heat production bounds are
  *   \f[
  *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
- *                       \quad i \in I    \quad t \in T         \quad     (2)
+ *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
  *   \f]
  *
  * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
  *   \f$ V^{mx}_t \f$ denoting respectively the minimum and maximum heat
- *   storage . For each heat block at time \f$ t \in T \f$, the heat
+ *   storage . For each heat block at time \f$ t \in \mathcal{T} \f$, the heat
  *   storage bounds are
  *   \f[
- *     v^{mn}_{t} v_t \leq V^{mx}_t       \quad t \in T          \quad   (3)
+ *     v^{mn}_{t} v_t \leq V^{mx}_t    \quad t \in \mathcal{T}    \quad   (3)
  *   \f]
  *
  * - Evolution in the stored heat Constraints. Let three constants
@@ -125,17 +125,17 @@ namespace SMSpp_di_unipi_it {
  *   storage; then the evolution in the stored heat can be written as
  *   \f[
  *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
- *    NOTE: it was "+ ... +", INSTEAD IT MUST BE "+ ... -"
- *                                        \quad t \in T          \quad  (4)
+ *                                   \quad t \in \mathcal{T}      \quad  (4)
  *   \f]
  *
  * - Objective Function: the objective function of HB simply reads
  *   \f[
- *     \min \sum_{ i \in I } \sum_{ t \in T } C_{t,i} p^{he}_{t,i}
+ *     \min \sum_{ i \in \mathcal{I}} \sum_{ t \in \mathcal{T}}
+ *          C_{t,i} p^{he}_{t,i}
  *   \f]
  *   where \f$  C_{t,i} \f$ is the cost of producing one heat unit by unit
- *   \f$ i \in I \f$ at time \f$ t \in T \f$. Note that storing heat has no
- *   cost.
+ *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
+ *   storing heat has no cost.
  */
 
  class HeatBlock : public Block {
