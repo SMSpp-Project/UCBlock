@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 16 - 06 - 2019
+ * \date 19 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -82,11 +82,11 @@ namespace SMSpp_di_unipi_it {
  *
  *     (i)   the commitment of the unit;
  *
- *     (ii) the primary spinning reserve of the unit;
+ *     (ii)  the primary spinning reserve of the unit;
  *
- *     (iii)  the secondary spinning reserve of the unit;
+ *     (iii) the secondary spinning reserve of the unit;
  *
- *     (iv)  the active power produced by the unit.
+ *     (iv)  the active power produced by the unit;
  *
  *   Each of these vectors either have size equal to the time horizon
  *   or is empty, in which case the corresponding variables simply do
@@ -152,7 +152,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *   time-dependent data in the UnitBlock can only change at a subset of
  *   the time time instants of the time interval, being therefore
  *   piecewise-constant (possibly, constant). "NumberIntervals" should
- *   therefore be <= "TimeHorizon", with three distict cases:
+ *   therefore be <= "TimeHorizon", with three distinct cases:
  *
  *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
  *        == 1; this is what is assumed if the dimension, that is
@@ -170,7 +170,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *
  *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of
  *        the relevant data changes at every time interval (in principle;
- *	  of course there is nothing preventing the same value to be
+ *	      of course there is nothing preventing the same value to be
  *        repeated in the netCDF input). Also in this case the variable
  *        "ChangeIntervals" is ignored, since it is useless.
  *
@@ -210,7 +210,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *   indexed over the dimension "NumberIntervals" or has size 1. This
  *   is meant to represent the vector IC[ t ] which, for each time
  *   instant t, contains the contribution that the unit can give to
- *   the inertia constrant for the sole fact that is is on (basically,
+ *   the inertia constraint for the sole fact that is is on (basically,
  *   the constant to be multiplied to the commitment variable) at time
  *   t. The variable is optional; if it is not defined, IC[ t ] == 0
  *   for all time instants. If it is defined, it can either have size
@@ -225,7 +225,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *   over the dimension "NumberIntervals" or has size 1. This is meant
  *   to represent the vector IP[ t ] which, for each time instant t,
  *   contains the contribution that the unit can give to the inertia
- *   constrant which depends on the active power that it is currently
+ *   constraint which depends on the active power that it is currently
  *   generating (basically, the constant to be multiplied to the
  *   active power variable) at time t. The variable is optional; if it
  *   is not defined, IP[ t ] == 0 for all time instants. If it is
@@ -460,12 +460,12 @@ typedef std::size_t Index;                 ///< index of parameters
   * (i)  If there is no dimension TimeHorizon in netCDF input, then the
   *      UnitBlock must have a father, which must be a UCBlock: the
   *      time horizon is then taken to be that of the father. If the
-  *      UCBlock does not have a father (or it is not a UCBlock), then
+  *      UnitBlock does not have a father (or it is not a UCBlock), then
   *      exception is thrown.
   *
   * (ii) If the dimension TimeHorizon is present in the netCDF input of
   *      UnitBlock, the value provided there is used with no check that
-  *      the UCBlock has a father at all, that the father is a UCBlock,
+  *      the UnitBlock has a father at all, that the father is a UCBlock,
   *      or that the two time horizon agree.
   *
   * If this method *is* called, which has to happen before that deserialize()
@@ -477,7 +477,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * value set by this method.
   *
   * If this method is called *after* that deserialize() is called, this is
-  * taken to mean that the UnitBlock is being "reset", and that immediatley
+  * taken to mean that the UnitBlock is being "reset", and that immediately
   * after deserialize() will be called again. The same rules as above are to
   * be followed for that subsequent call to deserialize(). */
 
@@ -574,7 +574,7 @@ private:
 
  void deserialize_change_intervals( netCDF::NcGroup & group );
 
- };  // end( class( UnitBlock ) )
+  };  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 
