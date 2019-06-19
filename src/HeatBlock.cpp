@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 06 - 2019
+ * \date 19 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -68,63 +68,37 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
-
-    netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
+void HeatBlock::deserialize_time_horizon( netCDF::NcGroup & group )
+{
+ netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
     if( TimeHorizon.isNull() ) {
+        // dimension TimeHorizon is not present in the netCDF input
 
-        // Dimension TimeHorizon is not present in the netCDF input.
-
-        auto f_Block = get_f_Block();
-
-        if( f_Block ) {
-
-            // The father Block is available. Take time horizon from it.
-            auto time_horizon_father =
-                static_cast<UCBlock *>( get_f_Block() )->get_time_horizon();
-
-            if( f_time_horizon == 0 )
-                this->f_time_horizon = time_horizon_father;
-
-            else if( f_time_horizon != time_horizon_father )
-                throw( std::logic_error
-                    ( "HeatBlock::deserialize: TimeHorizon is not present in "
-                      "the netCDF. The (nonzero) time horizon of HeatBlock"
-                      "is different from that of its father, but they should "
-                      "be equal." ) );
+        if( f_time_horizon == 0 ) {
+            auto f_B = dynamic_cast< UCBlock * >( get_f_Block() );
+            if( f_B )
+                // The father Block is available. Take time horizon from it.
+                this->set_time_horizon( f_B->get_time_horizon() );
+            else
+                throw( std::invalid_argument(
+                    "HeatBlock::deserialize: TimeHorizon is not present in the "
+                    "netCDF input and HeatBlock does not have a father." ) );
         }
-        else if( f_time_horizon != 0 )
-            throw( std::invalid_argument
-                ( "HeatBlock::deserialize: TimeHorizon is not present in the "
-                  "netCDF input and HeatBlock does not have a father." ) );
     }
     else {
+        // dimension TimeHorizon is present in the netCDF input
 
-        auto time_horizon_netcdf = TimeHorizon.getSize();
-
-        if( true ) { // TODO The condition should be that this object was
-            // just created and only the time horizon may have
-            // been set so far.
-
-            if( f_time_horizon == 0 )
-                // Use the time horizon provided by the netCDF
-                f_time_horizon = time_horizon_netcdf;
-
-            else if( f_time_horizon != time_horizon_netcdf )
-                throw( std::invalid_argument
-                    ( "HeatBlock::deserialize: TimeHorizon in netCDF is "
-                      "different from that (nonzero) currently specified in "
-                      "HeatBlock." ) );
-        }
-        else {
-            // Replace the current time horizon (and possibly reset this
-            //HeatBlock)
-
-            f_time_horizon = time_horizon_netcdf;
-        }
+        auto th = TimeHorizon.getSize();
+        if( f_time_horizon == 0 )
+            this->set_time_horizon( th );
+        else
+        if( f_time_horizon != th )
+            throw( std::logic_error(
+                "HeatBlock::deserialize: TimeHorizon is not present in the "
+                "netCDF. The (nonzero) time horizon of HeatBlock is different "
+                "from that of its father, but they should be equal." ) );
     }
 }
-
 /*--------------------------------------------------------------------------*/
 
 void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
@@ -175,7 +149,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
     deserialize_time_horizon( group );
     deserialize_change_intervals( group );
 
-    ::deserialize( group, "TotalHeatDemand", f_number_intervals,
+    ::deserialize( group, "TotalHeatDemand", f_time_horizon,
                    v_heat_demand );
 
     ::deserialize( group, "CostHeatUnit",
