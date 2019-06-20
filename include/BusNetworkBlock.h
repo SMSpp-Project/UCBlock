@@ -1,39 +1,26 @@
 /*--------------------------------------------------------------------------*/
-/*--------------------------- File BusNetWorkBlock.h -----------------------*/
+/*-------------------------- File BusNetworkBlock.h ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *derived* class BusNetworkBlcok, which derives from the 
- * NetworkBlock, in order to define the Network of the Academic Version of the 
- * Unit Commitement Problem. The BusNetworkBlock class is characterized by the 
- * following ingredinets:
+ * Header file for the class BusNetworkBlock, which derives from NetworkBlock
+ * [see NetworkBlock.h], in order to define a "reasonably standard"
+ * bus-network of a Unit Commitment Problem.
  *
- * - A global Demand Constraint that needs to be satisfied from all the diffe-
- *   rent Units of the Academic UC throughout all the time steps of the opti-
- *   misation horizon.
- - - A global Reserve Power Constraint that needs to be satisfied from all the 
- *   different Units of the Academic UC throughout all the time steps of the 
- *   optimisation horizon. 
+ * \version 0.11
  *
- * Based on the above description the class has been constructed having the
- * following elements:
- *
- * - A public method that reads and initializes all the data that descri-
- *   bes the BusNetwork instance.
- * - A public method that initializes and stores in the static vector of the
- *   Block the Demand and Reserve Power Constraints.
- * - A vector of doubles to store the rhs values of the Reserve Power Constra-
- *   ints
- * - Two vectors of Linear Constraint Objects that are used in order to store
- *   the information regarding the Demand and Reserve Power Constraints.
- * - A small private class with sole purpose of defining a static member, which 
- *   has to be initialized when main() is executed. Τhe class constructos is 
- *   set to register BusNetworkBlock in the Factory of BusNetwork.
- *
- * \version 0.10
- *
- * \date 03 - 09 - 2016
+ * \date 17 - 06 - 2019
  *
  * \author Antonio Frangioni \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \author Ali Ghezelsoflu \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -43,129 +30,163 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Kostas Tavlaridis-Gyparakis
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
+
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
-#ifndef BUSNETWORKBLOCK_H_
-#define BUSNETWORKBLOCK_H_
+
+#ifndef __BusNetworkBlock
+#define __BusNetworkBlock
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "NetWorkBlock.h"
-#include "UnitBlock.h"
-#include "LinearConstraint.h"
+#include "Block.h"
+#include "FRowConstraint.h"
+#include "NetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+
 namespace SMSpp_di_unipi_it {
 
-class BusNetworkBlock : public NetWorkBlock {
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS BusNetworkBlock ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// implementation of the Block concept for the bus-network
+/** The BusNetworkBlock class implements the Block concept [see Block.h] for
+ *  a "reasonably standard" bus-network of a Unit Commitment Problem.
+ *  A bus-network defined when the NetworkBlock has just one node. The demand
+ *  satisfaction should be constructed as follow:
+ *
+ * \f[
+ *  p^{ac}_{t} = D^{ac}_{t}) \quad t \in \mathcal{T}
+ * \f]
+ *   Where \f$ p^{ac}_{t} \f$  and \f$ D^{ac}_{t} \f$ are the active power
+ *   variable and the active demand in the network.
+ */
+  class BusNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- public:
+  public:
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * BusNetworkBlock defines a main public type:
+ *
+ * - Index, the type of indices;
+ @{ */
+
+typedef std::size_t Index;
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
- /** constructor of BusNetWorkBlock, taking possibly a pointer of its father 
-     Block */
- BusNetworkBlock(UCBlock * flbock = nullptr);
+
+/// constructor of BusNetworkBlock, taking possibly a pointer to its father
+
+ BusNetworkBlock( Block * f_block = nullptr ): NetworkBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
+
+/// destructor of BusNetworkBlock
 
  virtual ~BusNetworkBlock();
-///< destructor of BusNetWorkBlock: it is virtual, and empty
+
 /*@} -----------------------------------------------------------------------*/
-/*------------ METHODS FOR READING THE DATA OF THE BusNetworkBlock ---------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the BusNetworkBlock
-    @{ */
-
- void load(std::istream& inStream);
- ///< Method for receiving data and constructing the constraints of the Network
-
-/*@}------------------------------------------------------------------------*/
-/*--------- METHODS CONSTRUCTING THE CONSTRAINTS OF BusNetworkBlock --------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods constructing the constraints of BusNetworkBlock
+/** @name Other initializations
  *  @{ */
 
- void generate_static_constraints( void );
- ///< Method for generating and adding the demand and reserve constraint
+/// loads the BusNetworkBlock instance from memory
+/** Loads the BusNetworkBlock instance from memory.
+ * Like load( std::istream & ), if there is any Solver attached to this
+ * BusNetworkBlock then a NBModification (the "nuclear option") is issued.
+ * */
+
+virtual void load( std::istream &input ) override {
+   throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+};
+
+/*--------------------------------------------------------------------------*/
+
+/// extends Block::deserialize( netCDF::NcGroup )
+/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+ * the BusNetworkBlock. Besides the mandatory "type" attribute of any :Block,
+ * the group should contain the following:
+ *
+ * - the variable "ActiveDemand", of type double and indexed over the
+ *   dimension "NumberNodes" when NumberNodes == 1; the entry of the variable
+ *   is assumed to contain the active power demand at node 1 in the network;
+ *   the variable is optional and has to be defined when NumberNodes == 1; if
+ *   NumberNodes > 1 there is no Bus-Network then this variable need not be
+ *   defined, since is not loaded.
+ */
+
+virtual void deserialize( netCDF::NcGroup & group ) override;
+/*--------------------------------------------------------------------------*/
+
+
+virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
+    override;
 
 /*@} -----------------------------------------------------------------------*/
-/*----------- METHODS FOR HANDLING THE DATA OF THE BusNetworkBlock ---------*/
+/*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Handling the data of the UnitBlock
-    @{ */
+/** @name Methods for loading, printing & saving the BusNetworkBlock
+ *  @{ */
 
-    std::vector<LinearConstraint>* get_Demand_Constraint() {return &Demand_Const;} 
-    ///< Method for returning the vector of commitement variables
-    
-    LinearConstraint * get_D(int i) {return &Demand_Const[i];} 
-    ///< Method for returning the i-th commitement variables
+/// extends Block::serialize( netCDF::NcGroup )
+/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+ * BusNetworkBlock. See BusNetworkBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group.
+ */
 
-    std::vector<LinearConstraint> * get_Reserve_Constraint() {return &Reserve_Const;} 
-    ///< Method for returning the vector of power variables
+virtual void serialize( netCDF::NcGroup & group ) const override;
 
-    LinearConstraint * get_R(int i) {return &Reserve_Const[i];} 
-    ///< Method for returning the i-th commitement variables
+/*@} -----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
-    
-/*@}------------------------------------------------------------------------*/
+  protected:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+    SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+/// Active-Demand satisfaction
+
+    std::vector<FRowConstraint> v_active_demand_satisfaction;
+
+  };   // end( class( BusNetworkBlock ) )
+
+}  /* namespace SMSpp_di_unipi_it */
+
+#endif /* BusNetworkBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*------------------------------ CONSTRAINTS  ------------------------------*/
+/*----------------------- End File BusNetworkBlock.h -----------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constraints of BusNetworkBlock
- *  @{ */
- std::vector<LinearConstraint > Demand_Const;
- ///< vector to store Demand Constraints
- 
-std::vector<LinearConstraint> Reserve_Const;
-///< vector to store Reserve Power Constraints
-
-/*@} -----------------------------------------------------------------------*/
-/*----------------------- VARIABLES OF THE CLASS ---------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Variables of BusNetworkBlock
- *  @{ */
-
- std::vector<double> r; 
- ///< vector to store the spinning reserve values
-
-
-/*@} -----------------------------------------------------------------------*/
-/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
-
- private:
-
-/*--------------------------------------------------------------------------*/
-/**< Very small, "fake" class _initializer. Its only meaning is to define a
-   static member _init that is initialized at the very beginning of the
-   main(). Hence the constructor is called, and the constructor registers
-   the BusNetworkBlock class into the (static) NetWorkBlock::f_factory. */
-
- static class _init {
-         public:
-          _init();
-         }_initializer;
- };
- } /* namespace SMSpp_di_unipi_it */
-
-#endif /* BUSNETWORKBLOCK_H_ */
