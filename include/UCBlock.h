@@ -2,41 +2,17 @@
 /*--------------------------- File UCBlock.h -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *derived* class UCBlock, which implements the
- * base class Block, in order to define a very basic Unit Commitment
- * Block, that will be able to fit and be used as a base for almost
- * any different variation of the Unit Commitment Problem. As a
- * result of this, the UCBlock class is characterized by the following
- * ingredients:
  *
- * - A time horizon of the optimization problem.
- *
- * - A set of units (UnitBlock; that may be referring to any different
- *   kind of unit, such as thermal, hydro, etc).
- *
- * - A set of networks (NetworkBlock; that can potentially refer to
- *   demand satisfaction, transmission line capacities, etc.). This
- *   set is either empty, which means that there is no network in the
- *   model, or has size equals the time horizon.
- *
- * - A multi_array of node injection constraints.
- *
- * - A multi_array of primary demand constraints.
- *
- * - A multi_array of secondary demand constraints.
- *
- * - A multi_array of inertia demand constraints.
- *
- * - A multi_array of pollutant budget constraints.
- *
- * - A multi_array of heat constraints.
- *
- * - Some basic public methods to read the data and initialize the
- *   optimisation problem.
+ * Header file for the class UCBlock, which derives from the Block, in order
+ * to define a base class for the unit commitment problem that can be
+ * considered as a father block of any other possible blocks(such as
+ * UnitBlocks and NetworkBlocks) which are attached to it. It has very basic
+ * information that can characterize almost any different different variation
+ * of the Unit Commitment Problem.
  *
  * \version 0.11
  *
- * \date 17 - 06 - 2019
+ * \date 19 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -85,9 +61,10 @@
 
 namespace SMSpp_di_unipi_it {
 
-class FRowConstraint; ///< forward declaration of FRowConstraint
-class NetworkBlock;   ///< forward declaration of NetworkBlock
-class UnitBlock;      ///< forward declaration of UnitBlock
+class FRowConstraint;   ///< forward declaration of FRowConstraint
+class NetworkBlock;     ///< forward declaration of NetworkBlock
+class UnitBlock;        ///< forward declaration of UnitBlock
+class NetworkData;      ///< forward declaration of NetworkData
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -96,8 +73,41 @@ class UnitBlock;      ///< forward declaration of UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /// implementation of the Block concept for the unit commitment problem
-/** The UCBlock class implements the Block concept [see Block.h] for the EDF
+/** The class UCBlock, implements the Block concept [see Block.h] for the EDF
  *  Unit Commitment Problem.
+ *
+ * The class UCBlock, which derives from the Block, in order
+ * to define a base class for the unit commitment problem that can be
+ * considered as a father block of any other possible blocks(such as
+ * UnitBlocks and NetworkBlocks) which are attached to it. It has very basic
+ * information that can characterize almost any different different variation
+ * of the Unit Commitment Problem. This class has thus been constructed having
+ * the following elements:
+ *
+ * - A virtual public method that is used to initialize and read the
+ *   data of any possible derived UCBlock class.
+ *
+ * - The time horizon of the problem.
+ *
+ * - A set of units (UnitBlock; that may be referring to any different
+ *   kind of unit, such as thermal, hydro, etc).
+ *
+ * - A set of networks (NetworkBlock; that can potentially refer to
+ *   demand satisfaction, transmission line capacities, etc.). This
+ *   set is either empty, which means that there is no network in the
+ *   model, or has size equals the time horizon.
+ *
+ * - A multi_array of node injection FRowConstraints.
+ *
+ * - A multi_array of primary demand FRowConstraints.
+ *
+ * - A multi_array of secondary demand FRowConstraints.
+ *
+ * - A multi_array of inertia demand FRowConstraints.
+ *
+ * - A multi_array of pollutant budget FRowConstraints.
+ *
+ * - A multi_array of heat FRowConstraints.
  *
  *  The unit commitment corresponds to the short-term problem (with for
  *  instance one week or one day time horizon or even longer when the SSV is
@@ -349,7 +359,7 @@ public:
  *   be present since it is not loaded.
  *
  * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
- *   with t = TimeHorizon - 1, containing each the state of the interconnect
+ *   with t =   - 1, containing each the state of the interconnect
  *   network at time t;
  *
  * - the variable "UnitNode", of type int and indexed over the
@@ -487,23 +497,29 @@ public:
  *   NumberPollutants == 0 (say, there is no pollutant) then this
  *   variable need not be defined, since it is not loaded;
  *
- * - the variable "PollutantRho", of type double and indexed over the
- *   dimensions "TimeHorizon", "NumberPollutants", and "NumberUnits";
- *   the entry PollutantRho[ t , p , i ] is assumed to contain the
- *   conversion factor of pollutant p due to the generation of unit i
- *   at time t; if NumberPollutants == 0 (say, there is no pollutant)
- *   then this variable need not be defined, since it is not loaded;
+ * - the variable "PollutantRho", of type double and indexed over three
+ *   dimensions. The first dimension can have size 1 or TimeHorizon. The
+ *   second and third dimensions have sizes "NumberPollutants" and
+ *   "NumberUnits", respectively. The entry PollutantRho[ t , p , i ] is
+ *   assumed to contain the conversion factor of pollutant p due to the
+ *   generation of unit i for "each" time instant t (when the first dimension
+ *   has full size TimeHorizon) or for "all" time instants (when the first
+ *   dimension has size 1); if NumberPollutants == 0 (say, there is no
+ *   pollutant) then this variable need not be defined, since it's not loaded;
  *
- * - the variable "PollutantHeatRho", of type double and indexed over the
- *   dimensions "TimeHorizon", "NumberPollutants", and "NumberHeatBlocks"; the
- *   entry PollutantRho[ t , p , h ] is assumed to contain the conversion
- *   factor of pollutant p due to the generation of every heat-only unit in
- *   HeatBlock h at time t. If NumberPollutants == 0 (say, there is no
- *   pollutant) then this variable does not need be defined, since it is not
- *   loaded; if NumberHeatBlocks == 0 (say, there is no heat-only unit) then
- *   this variable need not be defined, since it is not loaded;
+ * - the variable "PollutantHeatRho", of type double and indexed over three
+ *   dimensions. The first dimension can have size 1 or TimeHorizon. The
+ *   second and third dimensions have sizes "NumberPollutants" and
+ *   "NumberHeatBlocks", respectively; the entry PollutantRho[ t , p , h ] is
+ *   assumed to contain the conversion factor of pollutant p due to the
+ *   generation of every heat-only unit in HeatBlock h for "each" time instant
+ *   t (when the first dimension has full size TimeHorizon) or for "all" time
+ *   instants (when the first dimension has size 1); If NumberPollutants == 0
+ *   (say, there is no pollutant) then this variable does not need be defined,
+ *   since it is not loaded; if NumberHeatBlocks == 0 (say, there is no
+ *   heat-only unit) then this variable need not be defined, since it is not
+ *   loaded;
  */
-
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -720,7 +736,7 @@ public:
  * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override final;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UCBlock ---------------------*/
@@ -729,13 +745,17 @@ public:
  *  @{ */
 
  /// sets the time horizon of the problem
- void set_time_horizon( int t ) { f_time_horizon = t; }
+ void set_time_horizon( Index t ) { f_time_horizon = t; }
+
+ void set_NetworkData( Index t ) { f_time_horizon = t; }
+
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 protected:
+
 
  /// The time horizon of the problem
  Index f_time_horizon;
@@ -880,7 +900,9 @@ private:
                               const std::string sub_group_name_prefix,
                               const int num_sub_blocks );
 
-};   // end( class( UCBlock ) )
+ void deserialize_network_data( const netCDF::NcGroup & group );
+
+  };   // end( class( UCBlock ) )
 
 } /* namespace SMSpp_di_unipi_it */
 

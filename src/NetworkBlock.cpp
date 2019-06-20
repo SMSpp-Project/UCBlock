@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 12 - 06 - 2019
+ * \date 14 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -31,11 +31,6 @@
  * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -61,13 +56,6 @@ SMSpp_insert_in_factory_cpp_1( NetworkBlock );
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-NetworkBlock::NetworkBlock( Block * block ) : Block( block ) { }
-
-/*--------------------------------------------------------------------------*/
-
-NetworkBlock::~NetworkBlock() { }
-
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -76,104 +64,75 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
   // Default values for optional dimensions
   f_number_nodes = 1;
+  f_number_lines = 0;
 
-  ::deserialize_dim( group, "NumberNodes",   f_number_nodes );
+  ::deserialize_dim(group, "NumberNodes", f_number_nodes);
+  ::deserialize_dim(group, "NumberLines", f_number_lines);
 
-  ::deserialize( group, "ActiveDemand", v_active_demand, { f_number_nodes } );
+  ::deserialize(group, "ActiveDemand", f_number_nodes, v_active_demand);
 
-}  // end( NetworkBlock::deserialize )
 
+  if (f_number_nodes > 1) {
+    ::deserialize(group, "StartLine", f_number_nodes, v_start_line);
+    ::deserialize(group, "EndLine", f_number_nodes, v_end_line);
+    ::deserialize(group, "MinPowerFlow", f_number_lines, v_min_power_flow);
+    ::deserialize(group, "MaxPowerFlow", f_number_lines, v_max_power_flow);
+    ::deserialize(group, "Susceptance", f_number_lines, v_susceptance);
+
+
+  }  // end( NetworkBlock::deserialize )
+}
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::generate_abstract_variables( Configuration *stvv ) {
+  void NetworkBlock::generate_abstract_variables(Configuration *stvv) {
 
-  if( f_number_nodes < 0 ) {
-    throw( std::logic_error( "NetworkBlock::generate_abstract_variables: "
-                             "number of nodes of NetworkBlock is not set" ) );
+    if (f_number_nodes < 0) {
+      throw (std::logic_error("NetworkBlock::generate_abstract_variables: "
+                              "number of nodes of NetworkBlock is not set"));
+    }
+
+    if (v_node_injection.size() != f_number_nodes) {
+      assert(v_node_injection.size() == 0); // this should only happen once
+      v_node_injection.resize(f_number_nodes);
+      add_static_variable(v_node_injection);
+    }
   }
-
-  if( v_node_injection.size() != f_number_nodes ) {
-    assert( v_node_injection.size() == 0 ); // this should only happen once
-    v_node_injection.resize( f_number_nodes );
-    add_static_variable( v_node_injection );
-  }
-}
-
-/*--------------------------------------------------------------------------*/
-
-void NetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
-
-  if( f_number_lines < 0 ) {
-    throw( std::logic_error( "NetworkBlock::generate_abstract_constraints: "
-                             "number of lines of NetworkBlock is not set" ) );
-  }
-
-  if( v_flow_limit_constraints.size() != f_number_lines ) {
-    // this should only happen once
-    assert( v_flow_limit_constraints.size() == 0 );
-    v_flow_limit_constraints.resize( f_number_lines );
-  }
-
-  // Flow limit constraints
-
-  // TODO Put these constraints in the DCNetworkBlock when (and if) it
-  // is created.
-
-  for( Index line_id = 0; line_id < f_number_lines; ++line_id ) {
-
-    auto linear_function = new LinearFunction();
-    double constant_term = 0;
-
-    for( Index node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
-
-      double coefficient = 0.0; // TODO Compute the Power Transfer
-                                // Distribution Factor Matrix
-
-      if( coefficient == 0.0 )
-        continue;
-
-      linear_function->add_variable
-        ( & v_node_injection[node_id] , coefficient );
-
-      constant_term -= coefficient * v_active_demand[node_id];
-
-    } // for each node
-
-    // Set the function of the constraint
-
-    v_flow_limit_constraints[line_id].set_function( linear_function );
-
-    // Set the left- and right-hand sides
-
-    v_flow_limit_constraints[line_id].set_lhs
-      ( v_minimum_power_flow[line_id] - constant_term );
-
-    v_flow_limit_constraints[line_id].set_rhs
-      ( v_maximum_power_flow[line_id] - constant_term );
-
-  } // for each line
-
-  add_static_constraint( v_flow_limit_constraints );
-}
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
+  void NetworkBlock::serialize(netCDF::NcGroup &group) const {
 
-  group.putAtt( "type" , "NetworkBlock" );
+    group.putAtt("type", "NetworkBlock");
 
-  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+    auto dim_number_nodes = group.addDim("NumberNodes", f_number_nodes);
+    auto dim_number_lines = group.addDim("NumberLines", f_number_lines);
 
-  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
-               { dim_number_nodes}, v_active_demand);
-}    // end( NetworkBlock::serialize )
+    ::serialize(group, "ActiveDemand", netCDF::NcDouble(),
+                {dim_number_nodes}, v_active_demand);
 
+    if (f_number_nodes > 1) {
+      ::serialize(group, "StartLine", netCDF::NcUint64(),
+                  {dim_number_nodes}, v_start_line);
+
+      ::serialize(group, "EndLine", netCDF::NcUint64(),
+                  {dim_number_nodes}, v_end_line);
+
+      ::serialize(group, "MinPowerFlow", netCDF::NcDouble(),
+                  {dim_number_lines}, v_min_power_flow);
+
+      ::serialize(group, "MaxPowerFlow", netCDF::NcDouble(),
+                  {dim_number_lines}, v_max_power_flow);
+
+      ::serialize(group, "Susceptance", netCDF::NcDouble(),
+                  {dim_number_lines}, v_susceptance);
+    }
+
+  }    // end( NetworkBlock::serialize )
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

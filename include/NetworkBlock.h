@@ -3,31 +3,16 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for the *derived* class NetworkBlock, which derives
- * from Block, in order to define a very basic interface for any
- * possible derived type of network of a UCBlock. Τhe basis of
- * NetworkBlock is considered to be very generic and thus with the
- * minimum possible ingredients. Based on the above description, the
- * class has been constructed having the following elements:
- *
- * - The number of nodes and lines of the network.
- *
- * - A vector of doubles used to store the values of the demand at
- *   each node of the network.
- *
- * - A vector of doubles used to store the values of the susceptance
- *   of each line of the network.
- *
- * - Two vectors of doubles to store the minimum and maximum power
- *   flow in each line of the network.
- *
- * - Variables representing the power injection at each node.
- *
- * - Flow limit constraints.
+ * Header file for the class NetworkBlock, which derives from the Block, in
+ * order to define a vary basic interface for any possible network that can be
+ * attached to a UCBlock. It has very basic information that can characterize
+ * almost any different kind of network(such as BusNetworkBlock,
+ * DCNetworkBlock, and ACNetworkBlock , ..), which includes a set of node
+ * injection variables.
  *
  * \version 0.11
  *
- * \date 12 - 06 - 2019
+ * \date 20 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -75,43 +60,41 @@
 
 namespace SMSpp_di_unipi_it {
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS NetworkBlock ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** The class NetworkBlock, which derives from the Block, defines a base class
+ * for any possible network that can be attached to a UCBlock. It has very
+ * basic information that can characterize almost any different kind of
+ * network(such as BusNetworkBlock, DCNetworkBlock, and ACNetworkBlock , ..),
+ * which includes a set of node injection variables. This class has thus been
+ * constructed having the following elements:
+ *
+ * - A virtual public method that is used to initialize and read the
+ *   data of any possible derived NetworkBlock class.
+ *
+ * - The number of nodes and lines of the network.
+ *
+ * - A vector of doubles used to store the values of the demand at
+ *   each node of the network, which have size equal to the number of nodes
+ *   or is empty, in which case the corresponding variables simply do
+ *   not exist (for instance, the network may not have reserve).
+ *
+ * - A vector of doubles used to store the values of the susceptance
+ *   of each line of the network, which has size equal to the number of lines
+ *   or is empty, in which case the corresponding variables simply do
+ *   not exist (for instance, the network may not have reserve).
+ *
+ * - Two vectors of doubles to store the minimum and maximum power
+ *   flow in each line of the network, , which have size equal to the number
+ *   of nodes or is empty, in which case the corresponding variables simply do
+ *   not exist (for instance, the network may not have reserve).
+ *
+ * - A vector of ColVariable objects, that are used to store the power
+ *   injection to each node. */
+
 class NetworkBlock : public Block {
 
-
-/*--------------------------------------------------------------------------*/
-/*------------------------- CLASS NetworkBlock -----------------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------------------------- GENERAL NOTES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-/// implementation of the Block concept for the unit commitment problem
-/** The NetworkBlock class implements the Block concept [see Block.h] for the
- *  EDF Unit Commitment Problem.
- *
- *  A network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
- *  of arcs connecting the nodes \f$ \mathcal{L} \f$.
- *
- *  The decision variable is introduced as:
- *
- * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
- *
- *   By considering a \f$ |\mathcal{L}| \times |\mathcal{N}| \f$ matrix
- *   \f$ B_t \f$, which constitutes the so-called Power Transfer Distribution
- *   Factor matrix which represents the linear relationship between power
- *   injections at each node of the grid and active power flows through the
- *   transmission lines. The flow limit equations can be written as follow:
- *
- * \f[
- *  P^{mn}_{\ell , t} \leq \sum_{ n' \in \mathcal{N}} (B_t)_({\ell, n'})
- *  (\sum_{ i \in \mathcal{I}_n'}p^{ac}_{t,i} - D^{ac}_{n' , t}) \leq
- *  P^{mx}_{\ell , t} \quad t \in \mathcal{T} \quad \ell \in \mathcal{L} \quad
- * \f]
- *   Where \f$ P^{mn}_{\ell , t}\f$ and \f$ P^{mx}_{\ell , t}\f$ are minimum
- *   and maximum power flow at each line \f$ \ell \in \mathcal{L}\f$ and
- *   \f$ D^{ac}_{n' , t} \f$ is the active power demand at node
- *   \f$ n \in \mathcal{N} \f$ in the network.
- */
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -127,17 +110,18 @@ public:
  * - Index, the type of indices;
  @{ */
 
-    typedef unsigned int Index;
+typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
+/// constructor, takes the father and the network-class data
+/** Constructor of NetworkBlock, taking possibly a pointer of its father
+ * Block and the network class data. */
 
- /// constructor of NetworkBlock, taking possibly a pointer to its father Block
-
- NetworkBlock( Block * fblock = nullptr );
+ NetworkBlock( Block * father_block = nullptr ): Block( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -156,7 +140,6 @@ public:
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
  *
- * //TODO instead of ActiveDemand, we may consider all of them like TimeHorizon and put them into the UCBlock
  * - the dimension "NumberNodes" containing the number of nodes in the
  *   problem; this dimension is optional, if it is not provided then it is
  *   taken to be == 1;
@@ -195,13 +178,21 @@ public:
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
+/*--------------------------------------------------------------------------*/
+/// generate the static variables of NetworkBlock
+ /** Method that generates the static variables of this NetworkBlock. The base
+  * NetworkBlock class has just the node injection variables;
+  */
+
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
 
- virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-   override;
+/*--------------------------------------------------------------------------*/
 
- virtual void load( std::istream &input ) override { };
+
+ virtual void load( std::istream &input ) override {
+      throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ };
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -209,15 +200,42 @@ public:
 /** @name Methods for modifying the NetworkBlock
  *  @{ */
 
- /// sets the number of nodes of the network
- void set_number_nodes( int number_nodes ) {
-   f_number_nodes = number_nodes;
- }
+ /// set the network data method
+ /** Set the network data method.
+  * This method can be called *before* that deserialize() is called to provide
+  * the NetworkBlock with all data needed. This allows the information not to
+  * be duplicated in the netCDF group that describes the network, since
+  * usually (bit not necessarily) a NetworkBlock is deserialized inside a
+  * UCBlock, and all networks have the same data, that can therefore be read
+  * once and for all by the father UCBlock.
+  *
+  * If this method is *not* called, which means that the set_NetworkData() has
+  * no object, then when deserialize() is called the information has to be
+  * available by other means, i.e.:
+  *
+  * (i)  If there is no data for the NetworkBlock in netCDF input, then the
+  *
+  *      NetworkBlock must have a father, which must be a UCBlock: the
+  *      network data is then taken to be that of the father. If the
+  *      NetworkBlock does not have a father (or it is not a UCBlock), then
+  *      exception is thrown.
+  *
+  * (ii) If all the data is presented in the netCDF input of NetworkBlock,
+  *      the data provided there is used with no check that the NetworkBlock
+  *      has a father at all, or the father is a UCBlock.
+  *
+  * If this method *is* called, which has to happen before that deserialize()
+  * is called, then if the network data is present in netCDF input, then
+  * without checking any thing with father, uses it. If the network data is
+  * not presented in netCDF input, it must have been passed from father which
+  * is UCBlock.
+  *
+  * If this method is called *after* that deserialize() is called, this is
+  * taken to mean that the NetworkBlock is being "reset", and that immediately
+  * after deserialize() will be called again. The same rules as above are to
+  * be followed for that subsequent call to deserialize(). */
 
- /// sets the number of lines of the network
- void set_number_lines( int number_lines ) {
-   f_number_lines = number_lines;
- }
+ void set_NetworkData( );
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -267,10 +285,10 @@ protected:
  Index f_number_lines;
 
  /// set starting lines
-  std::vector< int > v_startline;
+  std::vector< int > v_start_line;
 
  /// set ending lines
- std::vector< int > v_endline;
+ std::vector< int > v_end_line;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
@@ -279,16 +297,16 @@ protected:
  std::vector< double > v_susceptance;
 
  /// vector to store the minimum power flow at each line
- std::vector< double > v_minimum_power_flow;
+ std::vector< double > v_min_power_flow;
 
  /// vector to store the maximum power flow at each line
- std::vector< double > v_maximum_power_flow;
+ std::vector< double > v_max_power_flow;
 
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
  /// flow limit constraints
- std::vector<FRowConstraint> v_flow_limit_constraints;
+// std::vector<FRowConstraint> v_flow_limit_constraints;
 
 };   // end( class( NetworkBlock ) )
 

@@ -111,6 +111,14 @@ inline void UCBlock::deserialize_sub_blocks
 
 /*--------------------------------------------------------------------------*/
 
+void UCBlock::deserialize_network_data( const netCDF::NcGroup & group )
+{
+
+
+};
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
   ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
