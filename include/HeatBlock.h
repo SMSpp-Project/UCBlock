@@ -254,33 +254,33 @@ namespace SMSpp_di_unipi_it {
  *   the total heat demand of this heat block to be satisfied for the
  *   corresponding time instant t.
  *
- * - The variable "CostHeatUnit", of type double and either is indexed over
- *   the dimension "NumberIntervals" or has size 1 corresponding to different
- *   values for each heat-producing unit i where i belongs to the set
- *   \f$\{1 , \dot , "NumberHeatUnits"\}\f$. This is meant to
- *   represent the matrix C[ t , i ] which has just one row with the dimension
- *   "NumberIntervals" or 1 that contains the cost of heat production for each
- *   heat-producing unit i. Note that always we should consider the same
+ * - The variable "CostHeatUnit", of type double double and indexed over two
+ *   dimensions. The The first dimension can have size 1 or "NumberIntervals".
+ *   The second dimension has size "NumberHeatUnits". The entry of matrix
+ *   CostHeatUnit[ t , i ] assumed to contain the cost of heat production of
+ *   each heat-producing unit i for "each" time instant t (when the first
+ *   dimension has size NumberIntervals) or for "all" time instants (when the
+ *   first dimension has size 1); Note that always we should consider the same
  *   across time for the same heat-producing unit i in this heat block;
  *
- * - the variable "MinHeatProduction", of type double and either is indexed
- *   over the dimension "NumberIntervals" or has size 1 corresponding to
- *   different values for each heat-producing unit i where i belongs to the
- *   set \f$\{1 , \dot , "NumberHeatUnits"\}\f$. This is meant to
- *   represent the matrix MinHP[ t , i ] which has just one row with the
- *   dimension "NumberIntervals" or 1 that contains the minimum heat
- *   production for each heat-producing unit i. Note that always we should
+ * - the variable "MinHeatProduction", of type double double and indexed over
+ *   two dimensions. The The first dimension can have size 1 or
+ *   "NumberIntervals". The second dimension has size "NumberHeatUnits". The
+ *   entry of matrix MinHP[ t , i ] assumed to contain the minimum heat
+ *   production for each heat-producing unit i for "each" time instant t (when
+ *   the first dimension has size NumberIntervals) or for "all" time instants
+ *   (when the first dimension has size 1); Note that always we should
  *   consider the same across time for the same heat-producing unit i in this
  *   heat block; The variable is optional, if it is not provided at all is
  *   equal to zero for each heat-producing unit i;
  *
- * - the variable "MaxHeatProduction", of type double and either is indexed
- *   over the dimension "NumberIntervals" or has size 1 corresponding to
- *   different values for each heat-producing unit i where i belongs to the
- *   set \f$\{1 , \dot , "NumberHeatUnits"\}\f$. This is meant to
- *   represent the matrix MaxHP[ t , i ] which has just one row with the
- *   dimension "NumberIntervals" or 1 that contains the maximum heat
- *   production for each heat-producing unit i. Note that always we should
+ * - the variable "MaxHeatProduction", of type double double and indexed over
+ *   two dimensions. The The first dimension can have size 1 or
+ *   "NumberIntervals". The second dimension has size "NumberHeatUnits". The
+ *   entry of matrix MaxHP[ t , i ] assumed to contain the maximum heat
+ *   production for each heat-producing unit i for "each" time instant t (when
+ *   the first dimension has size NumberIntervals) or for "all" time instants
+ *   (when the first dimension has size 1); Note that always we should
  *   consider the same across time for the same heat-producing unit i in this
  *   heat block; The variable is optional, if it is not provided at all is
  *   equal to zero for each heat-producing unit i;
