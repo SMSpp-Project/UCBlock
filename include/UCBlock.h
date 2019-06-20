@@ -324,42 +324,15 @@ public:
  *   to one energy cell; when NumberHeatBlocks == 0, there is no heat
  *   constraint anywhere in the problem;
  *
- * - the dimension "NumberNodes" containing the number of nodes in
- *   the problem; the dimension is optional, if it is not provided then it is
- *   taken to be 1, which means that all the Unit belong to the same node
- *   (the network is a bus);
- *
- * - the dimension "NumberLines" containing the number of arcs in the problem;
- *   if NumberNodes == 1 then this dimension need not to be present since it
- *   is not loaded;
- *
- * - the variable "StartLine", of type int and indexed over the dimension
- *   "NumberNodes"; the n-th entry of the variable is the starting point of
- *   the line (however, lines are not oriented); if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "EndLine", of type int and indexed over the dimension
- *   "NumberNodes"; the n-th entry of the variable is the ending point of the
- *   line (however, lines are not oriented); if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the l-th entry of the variable is assumed to
- *   contain the minimum power flow at line l; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the l-th entry of the variable is assumed to
- *   contain the maximum power flow at line l; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "Susceptance", of type double and indexed over the
- *   "NumberLines"; the l-th entry of this variable is assumed to contain the
- *   susceptance of line l; if NumberNodes == 1 then this variable need not to
- *   be present since it is not loaded.
+ * - possibly, the dimensionbs and variables necessary to a NetworkData
+ *   object, that describe the transmission network; see
+ *   NetworkData::deserialize() for details. All that is optional, if it
+ *   is not provided (basically, "NumberNodes" is not provided or it is
+ *   == 1) then the transmission network is taken to have only one node
+ *   (a bus);
  *
  * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
- *   with t =   - 1, containing each the state of the interconnect
+ *   with t = TimeHorizon - 1, containing each the state of the transmission
  *   network at time t;
  *
  * - the variable "UnitNode", of type int and indexed over the

@@ -143,10 +143,23 @@ virtual void load( std::istream &input ) override {
 virtual void deserialize( netCDF::NcGroup & group ) override;
 /*--------------------------------------------------------------------------*/
 
-
 virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
     override;
 
+/*@} -----------------------------------------------------------------------*/
+/*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the BusNetworkBlock
+ *  @{ */
+
+ /// method to set the NetworkData object
+ /** Method to set the NetworkData object. This method does nothing in
+  * BusNetworkBlock because by definition the network is made by only one
+  * node. */
+ 
+ void set_NetworkData( NetworkData * nd = nullptr ) { }
+
+ 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
 /*--------------------------------------------------------------------------*/

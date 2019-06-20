@@ -108,7 +108,15 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Reading the data of the NetworkData
     @{ */
 
-static NetworkData * new_NetworkData( netCDF::NcGroup & group );
+ static NetworkData * new_NetworkData( netCDF::NcGroup & group )
+ {
+  if( /* the dimension NumberNodes is *not* there or it is == 1 */ )
+   return( nullptr );
+
+  auto nd = new NetworkData();
+  nd->deserialize( group );
+  return( nd );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

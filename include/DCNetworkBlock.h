@@ -122,7 +122,8 @@ namespace SMSpp_di_unipi_it {
 /** Constructor of DCNetworkBlock, taking possibly a pointer of its
  * father Block. */
 
-DCNetworkBlock( Block * fblock = nullptr ): NetworkBlock( fblock ) { }
+  DCNetworkBlock( Block * fblock = nullptr ): NetworkBlock( fblock ) ,
+     f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -166,7 +167,15 @@ virtual void load( std::istream &input ) override { };
 /** @name Methods for modifying the DCNetworkBlock
  *  @{ */
 
-// TODO IF ANY
+ void set_NetworkData( NetworkData * nd = nullptr )
+ {
+  // if there was a previous NetworkData and it was local, delete it
+  if( f_NetworkData && f_local_NetworkData )
+   delete f_NetworkData;
+
+  f_NetworkData = nd;
+  f_local_NetworkData = false;
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DCNetworkBlock -----------*/
@@ -206,13 +215,23 @@ SMSpp_insert_in_factory_h;
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// flow limit constraints
+ /// the NetworkData object
+ NetworkData * f_NetworkData;
 
-std::vector<FRowConstraint> v_flow_limit_constraints;
+ /// true if the NetworkData object has not been passed from outside
+ bool f_local_NetworkData;
+ 
+ /// flow limit constraints
+ std::vector<FRowConstraint> v_flow_limit_constraints;
 
   };   // end( class( DCNetworkBlock ) )
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 }  /* namespace SMSpp_di_unipi_it */
+
+/*--------------------------------------------------------------------------*/
 
 #endif /* DCNetworkBlock.h included */
 

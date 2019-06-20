@@ -121,10 +121,9 @@ typedef std::size_t Index;                 ///< index of parameters
 /** Constructor of NetworkBlock, taking possibly a pointer of its father
  * Block and the network class data. */
 
- NetworkBlock( Block * father_block = nullptr ): Block( father_block ) {}
+ NetworkBlock( Block * father_block = nullptr ) : Block( father_block ) { }
 
 /*--------------------------------------------------------------------------*/
-
  /// destructor of NetworkBlock
 
  virtual ~NetworkBlock();
@@ -144,37 +143,18 @@ typedef std::size_t Index;                 ///< index of parameters
  *   problem; this dimension is optional, if it is not provided then it is
  *   taken to be == 1;
  *
- * - the dimension "NumberLines" containing the number of arcs in the problem;
- *   if NumberNodes == 1 then this dimension need not to be present since it
- *   is not loaded;
- *
- * - the variable "StartLine", of type int and indexed over the dimension
- *   "NumberNodes"; the i-th entry of the variable is the starting point of
- *   the line (however, lines are not oriented)
- *
- * - the variable "EndLine", of type int and indexed over the dimension
- *   "NumberNodes"; the i-th entry of the variable is the ending point of the
- *   line (however, lines are not oriented)
- *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
  *   contain the active power demand at node i in the network;
  *
- * - the variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the minimum power flow at line i; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the maximum power flow at line i; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
- *
- * - the variable "Susceptance", of type double and indexed over the
- *   "NumberLines"; the i-th entry of this variable is assumed to contain the
- *   susceptance of line i; if NumberNodes == 1 then this variable need not to
- *   be present since it is not loaded.
- */
+ * Furthermore, there may be the dimensionbs and variables necessary to a
+ * NetworkData object, that describe the transmission network. See
+ * NetworkData::deserialize() for details. All that is optional, because the
+ * NetworkData object can alternatively be passed to the NetworkBlock via a
+ * call to set_NetworkData(). Note that if set_NetworkData() is called, but
+ * the representation of a NetworkData object is found in the NcGroup, then
+ * the NetworkData passed by set_NetworkData() is ignored, and a new
+ * NetworkData object is read from the NcGroup and used instead. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -200,42 +180,53 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Methods for modifying the NetworkBlock
  *  @{ */
 
- /// set the network data method
- /** Set the network data method.
+ /// method to set the NetworkData object
+ /** Method to set the NetworkData object.
   * This method can be called *before* that deserialize() is called to provide
-  * the NetworkBlock with all data needed. This allows the information not to
-  * be duplicated in the netCDF group that describes the network, since
-  * usually (bit not necessarily) a NetworkBlock is deserialized inside a
-  * UCBlock, and all networks have the same data, that can therefore be read
-  * once and for all by the father UCBlock.
+  * the NetworkBlock with the data corresponding to the transmisson network
+  * description. This allows the information not to be duplicated in the
+  * netCDF group that describes the NetworkBlock, since usually (but not
+  * necessarily) a NetworkBlock is deserialized inside a UCBlock, and all
+  *  networks have the same data, that can therefore be read once and for all
+  * by the father UCBlock.
   *
-  * If this method is *not* called, which means that the set_NetworkData() has
-  * no object, then when deserialize() is called the information has to be
+  * If this method is *not* called, which means that no NetworkData has been
+  * provided, then when deserialize() is called the information has to be
   * available by other means, i.e.:
   *
-  * (i)  If there is no data for the NetworkBlock in netCDF input, then the
-  *
+  * (i)  If there is no data for the NetworkData in netCDF input, then the
   *      NetworkBlock must have a father, which must be a UCBlock: the
   *      network data is then taken to be that of the father. If the
   *      NetworkBlock does not have a father (or it is not a UCBlock), then
   *      exception is thrown.
   *
-  * (ii) If all the data is presented in the netCDF input of NetworkBlock,
-  *      the data provided there is used with no check that the NetworkBlock
-  *      has a father at all, or the father is a UCBlock.
+  * (ii) If all the data for the NetworkData is present in the netCDF input
+  *      of NetworkBlock, the data provided there is used with no check that
+  *      the NetworkBlock has a father at all, or the father is a UCBlock.
   *
   * If this method *is* called, which has to happen before that deserialize()
-  * is called, then if the network data is present in netCDF input, then
-  * without checking any thing with father, uses it. If the network data is
-  * not presented in netCDF input, it must have been passed from father which
-  * is UCBlock.
+  * is called, then if the data for the NetworkData is present in netCDF
+  * input, then it is used by the NetworkBlock, disregarding the NetworkData
+  * object that was passed with this method. If the data for the NetworkData
+  * is not present in netCDF input, it must have been passed from outside
+  * with this method.
   *
   * If this method is called *after* that deserialize() is called, this is
   * taken to mean that the NetworkBlock is being "reset", and that immediately
   * after deserialize() will be called again. The same rules as above are to
-  * be followed for that subsequent call to deserialize(). */
+  * be followed for that subsequent call to deserialize().
+  *
+  * Note that passing a new NetworkData causes all references to any previous
+  * NetworkData to be lost. If the NetworkData was an "externally provided"
+  * one this is no problem, but it means that it is responsibility of who
+  * set it in the first place to delete it. If the NetworkData was created
+  * by the NetworkBlock, it is the NetworkBlock's responsibility to delete
+  * it during this call. This is not done in the base NetworkBlock class
+  * because it has no data structures to hold the NetworkData pointer (in
+  * fact, this method is pure virtual), so it is demanded to derived classes.
+  */
 
- void set_NetworkData( );
+ void set_NetworkData( NetworkData * nd = nullptr ) = 0;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -278,37 +269,18 @@ protected:
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// number of nodes of the network
- Index f_number_nodes;
-
- /// number of lines of the network
- Index f_number_lines;
-
- /// set starting lines
-  std::vector< int > v_start_line;
-
- /// set ending lines
- std::vector< int > v_end_line;
-
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
-
- /// vector to store the susceptance of each line of the network
- std::vector< double > v_susceptance;
-
- /// vector to store the minimum power flow at each line
- std::vector< double > v_min_power_flow;
-
- /// vector to store the maximum power flow at each line
- std::vector< double > v_max_power_flow;
 
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
  /// flow limit constraints
-// std::vector<FRowConstraint> v_flow_limit_constraints;
+ // std::vector<FRowConstraint> v_flow_limit_constraints;
 
-};   // end( class( NetworkBlock ) )
+ };   // end( class( NetworkBlock ) )
+
+/*--------------------------------------------------------------------------*/
 
 }  /* namespace SMSpp_di_unipi_it */
 

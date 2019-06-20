@@ -60,35 +60,19 @@ SMSpp_insert_in_factory_cpp_1( NetworkBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
+void NetworkBlock::deserialize( netCDF::NcGroup & group )
+{
+ ::deserialize(group, "ActiveDemand", f_number_nodes, v_active_demand);
 
-  // Default values for optional dimensions
-  f_number_nodes = 1;
-  f_number_lines = 0;
+ }  // end( NetworkBlock::deserialize )
 
-  ::deserialize_dim(group, "NumberNodes", f_number_nodes);
-  ::deserialize_dim(group, "NumberLines", f_number_lines);
-
-  ::deserialize(group, "ActiveDemand", f_number_nodes, v_active_demand);
-
-
-  if (f_number_nodes > 1) {
-    ::deserialize(group, "StartLine", f_number_nodes, v_start_line);
-    ::deserialize(group, "EndLine", f_number_nodes, v_end_line);
-    ::deserialize(group, "MinPowerFlow", f_number_lines, v_min_power_flow);
-    ::deserialize(group, "MaxPowerFlow", f_number_lines, v_max_power_flow);
-    ::deserialize(group, "Susceptance", f_number_lines, v_susceptance);
-
-
-  }  // end( NetworkBlock::deserialize )
-}
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  void NetworkBlock::generate_abstract_variables(Configuration *stvv) {
-
-    if (f_number_nodes < 0) {
+void NetworkBlock::generate_abstract_variables(Configuration *stvv)
+{
+ if( f_number_nodes < 0 ) {
       throw (std::logic_error("NetworkBlock::generate_abstract_variables: "
                               "number of nodes of NetworkBlock is not set"));
     }

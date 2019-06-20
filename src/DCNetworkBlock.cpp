@@ -55,16 +55,34 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::deserialize( netCDF::NcGroup & group ) {
+void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
+{
+ NetworkBlock::deserialize( group );
 
-  // Default values for optional dimensions
-  f_number_nodes = 1;
+ auto nd = NetworkData::new_NetworkData( group );
+ if( nd ) {  // there is a NetworkData object in the group
+  // use it, whatever has happened before
+  // if there was a previous NetworkData and it was local, delete it
+  if( f_NetworkData && f_local_NetworkData )
+   delete f_NetworkData;
 
-  ::deserialize_dim(group, "NumberNodes", f_number_nodes);
+  // set the new NetworkData, and recall it is local
+  f_NetworkData = nd;
+  f_local_NetworkData = true;
+  }
+ else        // there is no NetworkData object in the group
+  if( ! f_NetworkData ) {
+   // if the NetworkData has not been passed from outside
+   auto father = dynamic_cast<UCBlock>( f_Block );
+   if( ! father )
+    throw( logic::error( "NetworkBlock has no NetworkData access" ) );
 
-  ::deserialize(group, "ActiveDemand", f_number_nodes, v_active_demand);
+   // now read the NetworkData from the father
+   f_NetworkData = father->get_NetworkData();
+   f_local_NetworkData = false;
+   }
 
-}  // end( DCNetworkBlock::deserialize )
+ }  // end( DCNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
