@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2019
+ * \date 21 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -53,6 +53,8 @@
 #include "Block.h"
 #include "ColVariable.h"
 #include "FRowConstraint.h"
+#include "UCBlock.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -73,25 +75,10 @@ namespace SMSpp_di_unipi_it {
  * - A virtual public method that is used to initialize and read the
  *   data of any possible derived NetworkBlock class.
  *
- * - The number of nodes and lines of the network.
- *
  * - A vector of doubles used to store the values of the demand at
  *   each node of the network, which have size equal to the number of nodes
  *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the network may not have reserve).
- *
- * - A vector of doubles used to store the values of the susceptance
- *   of each line of the network, which has size equal to the number of lines
- *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the network may not have reserve).
- *
- * - Two vectors of doubles to store the minimum and maximum power
- *   flow in each line of the network, , which have size equal to the number
- *   of nodes or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the network may not have reserve).
- *
- * - A vector of ColVariable objects, that are used to store the power
- *   injection to each node. */
+ *   not exist (for instance, the network may not have reserve). */
 
 class NetworkBlock : public Block {
 
@@ -121,7 +108,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /** Constructor of NetworkBlock, taking possibly a pointer of its father
  * Block and the network class data. */
 
- NetworkBlock( Block * father_block = nullptr ) : Block( father_block ) { }
+ NetworkBlock( Block * father = nullptr ) : Block( father ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
@@ -139,15 +126,11 @@ typedef std::size_t Index;                 ///< index of parameters
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
  *
- * - the dimension "NumberNodes" containing the number of nodes in the
- *   problem; this dimension is optional, if it is not provided then it is
- *   taken to be == 1;
- *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
  *   contain the active power demand at node i in the network;
  *
- * Furthermore, there may be the dimensionbs and variables necessary to a
+ * Furthermore, there may be the dimensions and variables necessary to a
  * NetworkData object, that describe the transmission network. See
  * NetworkData::deserialize() for details. All that is optional, because the
  * NetworkData object can alternatively be passed to the NetworkBlock via a
@@ -157,16 +140,6 @@ typedef std::size_t Index;                 ///< index of parameters
  * NetworkData object is read from the NcGroup and used instead. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
-
-/*--------------------------------------------------------------------------*/
-/// generate the static variables of NetworkBlock
- /** Method that generates the static variables of this NetworkBlock. The base
-  * NetworkBlock class has just the node injection variables;
-  */
-
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
-
 /*--------------------------------------------------------------------------*/
 
 
@@ -183,11 +156,11 @@ typedef std::size_t Index;                 ///< index of parameters
  /// method to set the NetworkData object
  /** Method to set the NetworkData object.
   * This method can be called *before* that deserialize() is called to provide
-  * the NetworkBlock with the data corresponding to the transmisson network
+  * the NetworkBlock with the data corresponding to the transmission network
   * description. This allows the information not to be duplicated in the
   * netCDF group that describes the NetworkBlock, since usually (but not
   * necessarily) a NetworkBlock is deserialized inside a UCBlock, and all
-  *  networks have the same data, that can therefore be read once and for all
+  * networks have the same data, that can therefore be read once and for all
   * by the father UCBlock.
   *
   * If this method is *not* called, which means that no NetworkData has been
@@ -226,8 +199,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- void set_NetworkData( NetworkData * nd = nullptr ) = 0;
-
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ){}
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -235,9 +207,14 @@ typedef std::size_t Index;                 ///< index of parameters
     @{ */
 
  /// returns the vector of node injection variables
- const std::vector<ColVariable> & get_node_injection() const {
+ const std::vector<ColVariable> & get_node_injection( void ) const {
    return v_node_injection;
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+    /// method for returning a pointer to the node injection variable at node n
+    ColVariable & get_node_injection( Index n ) {
+      return( v_node_injection[ n ] );
+    }
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
@@ -268,15 +245,14 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
+ /// the NetworkData object
+ UCBlock::NetworkData * f_NetworkData;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
 
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
-
- /// flow limit constraints
- // std::vector<FRowConstraint> v_flow_limit_constraints;
 
  };   // end( class( NetworkBlock ) )
 

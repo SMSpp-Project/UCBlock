@@ -7,28 +7,11 @@
  * NetworkBlock, in order to define a very basic interface for any possible
  * derived type of dc-network of a UCBlock. Τhe basis of DCNetworkBlock is
  * considered to be very generic and thus with the minimum possible
- * ingredients. The DCNetworkBlock class is characterized by the
- * following:
- *
- * - The Demand Constraint that needs to be satisfied from all the different
- *   units of the UC problem throughout all the time steps of the optimisation
- *   horizon.
- *
- * Based on the above description the class has been constructed having the
- * following elements:
- *
- * - A public method that reads and initializes all the data that describes
- *   the DCNetwork instance.
- *
- * - A public method that initializes and stores in the static vector of the
- *   Block the Demand Constraints.
- *
- * - The vector of FRowConstraint Objects that is used in order to store
- *   the information regarding the Demand Constraints.
+ * ingredients.
  *
  * \version 0.11
  *
- * \date 14 - 06 - 2019
+ * \date 22 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -58,6 +41,8 @@
 #include "Block.h"
 #include "FRowConstraint.h"
 #include "NetworkBlock.h"
+#include "UCBlock.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -74,8 +59,18 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** The DCNetworkBlock class implements the Block concept [see Block.h] for
- *  the EDF Unit Commitment Problem.
+/** The DCNetworkBlock class derives from NetworkBlock, in order to define a
+ *  very basic interface for any possible derived type of dc-network of a
+ *  NetworkBlock. Τhe basis of DCNetworkBlock is considered to be very generic
+ *  and thus with the minimum possible ingredients. Based on the above
+ *  description the class has been constructed having the following elements:
+ *
+ * - A public method that reads and initializes all the data that describes
+ *   the DCNetwork instance.
+ *
+ * - The Demand Constraint that needs to be satisfied from all the different
+ *   units of the UC problem throughout all the time steps of the optimisation
+ *   horizon.
  *
  *  A dc-network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
  *  of lines connecting the nodes \f$ \mathcal{L} \f$.
@@ -111,7 +106,7 @@ namespace SMSpp_di_unipi_it {
  * - Index, the type of indices;
  @{ */
 
-    typedef unsigned int Index;
+typedef unsigned int Index;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -151,7 +146,13 @@ virtual ~DCNetworkBlock();
  */
 
 virtual void deserialize( netCDF::NcGroup & group ) override;
+/*--------------------------------------------------------------------------*/
+/// generate the static variables of DCNetworkBlock
+/** Method that generates the static variables of this DCNetworkBlock. The
+ * base DCNetworkBlock class has just the node injection variables. */
 
+virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+    override;
 /*--------------------------------------------------------------------------*/
 
 
@@ -167,23 +168,15 @@ virtual void load( std::istream &input ) override { };
 /** @name Methods for modifying the DCNetworkBlock
  *  @{ */
 
- void set_NetworkData( NetworkData * nd = nullptr )
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr )
  {
   // if there was a previous NetworkData and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
-  f_NetworkData = nd;
+  f_NetworkData = network_data;
   f_local_NetworkData = false;
   }
-
-/*@} -----------------------------------------------------------------------*/
-/*----------- METHODS FOR READING THE DATA OF THE DCNetworkBlock -----------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the data of the DCNetworkBlock
-    @{ */
-
-    // TODO IF ANY
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE DCNetworkBlock --------------*/
@@ -216,11 +209,11 @@ SMSpp_insert_in_factory_h;
 /*--------------------------------------------------------------------------*/
 
  /// the NetworkData object
- NetworkData * f_NetworkData;
+ UCBlock::NetworkData * f_NetworkData;
 
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;
- 
+
  /// flow limit constraints
  std::vector<FRowConstraint> v_flow_limit_constraints;
 

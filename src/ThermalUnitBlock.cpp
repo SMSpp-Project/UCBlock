@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 06 - 2019
+ * \date 19 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -86,14 +86,12 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "LinearTerm",    f_number_intervals, v_LinearTerm );
   ::deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
   ::deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
+  ::deserialize( group, "StartUpCost",   f_number_intervals,  v_StartUpCost );
 
- // ::deserialize( group, "ShutDownCapability",   & f_shut_down_capability );
- // ::deserialize( group, "StartUpCapability",    & f_start_up_capability );
   ::deserialize( group, "InitialPower",         & f_initial_power );
   ::deserialize( group, "InitialMinPower",      & f_initial_min_power );
   ::deserialize( group, "InitialDeltaRampUp",   & f_initial_delta_ramp_up );
   ::deserialize( group, "InitialDeltaRampDown", & f_initial_delta_ramp_down );
-  ::deserialize( group, "StartUpCost",          & f_StartUpCost );
   ::deserialize( group, "MinUpTime",            & f_MinUpTime );
   ::deserialize( group, "MinDownTime",          & f_MinDownTime );
   ::deserialize( group, "InitUpDownTime",       & f_InitUpDownTime );
@@ -627,7 +625,7 @@ void ThermalUnitBlock::generate_objective( Configuration *objc ) {
   auto dquad_function = new DQuadFunction();
 
   for( Index t = init_t; t < f_time_horizon; ++t ) {
-    dquad_function->add_variable( & start_up( t ), f_StartUpCost, 0.0 );
+    dquad_function->add_variable( & start_up( t ), v_StartUpCost[ t ], 0.0 );
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -654,7 +652,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   group.addDim( "TimeHorizon" , f_time_horizon );
 
   ::serialize( group, "InitialPower",   netCDF::NcDouble(), f_initial_power );
-  ::serialize( group, "StartUpCost",    netCDF::NcDouble(), f_StartUpCost );
   ::serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
   ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
   ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
@@ -699,6 +696,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
   ::serialize( group, "ConstTerm", netCDF::NcDouble(),
                NumberIntervals, v_ConstTerm );
+  ::serialize( group, "StartUpCost",    netCDF::NcDouble(),
+               NumberIntervals, v_StartUpCost );
 
 }  // end( ThermalUnitBlock::serialize )
 

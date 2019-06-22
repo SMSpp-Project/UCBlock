@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 06 - 2019
+ * \date 21 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -47,6 +47,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+#include "UCBlock.h"
 #include "FRowConstraint.h"
 #include "NetworkBlock.h"
 
@@ -63,11 +64,11 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the bus-network
+/// implementation of the Block concept for the BusNetworkBlock
 /** The BusNetworkBlock class implements the Block concept [see Block.h] for
  *  a "reasonably standard" bus-network of a Unit Commitment Problem.
- *  A bus-network defined when the NetworkBlock has just one node. The demand
- *  satisfaction should be constructed as follow:
+ *  A BusNetworkBlock defined when the NetworkBlock has just one node. The
+ *  demand satisfaction should be constructed as follow:
  *
  * \f[
  *  p^{ac}_{t} = D^{ac}_{t}) \quad t \in \mathcal{T}
@@ -93,6 +94,7 @@ namespace SMSpp_di_unipi_it {
  @{ */
 
 typedef std::size_t Index;
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -157,9 +159,8 @@ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
   * BusNetworkBlock because by definition the network is made by only one
   * node. */
  
- void set_NetworkData( NetworkData * nd = nullptr ) { }
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) { }
 
- 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
 /*--------------------------------------------------------------------------*/
@@ -190,9 +191,11 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Active-Demand satisfaction
+/// the demand of node
 
-    std::vector<FRowConstraint> v_active_demand_satisfaction;
+ double f_active_demand;
+
+ std::vector<FRowConstraint> v_active_demand_satisfaction;
 
   };   // end( class( BusNetworkBlock ) )
 

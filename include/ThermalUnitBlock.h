@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 17 - 06 - 2019
+ * \date 19 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -77,32 +77,31 @@ namespace SMSpp_di_unipi_it
  *
  * The operations of the thermal generating unit are described on a discrete
  * time horizon as dictated by the UnitBlock interface; in this description
- * we indicate it with T.
+ * we indicate it with \f$ \mathcal{T} = \{0, \dot , |T|\} \f$ where \f$|T|\f$
+ * its cardinality. For simplicity of notation it is assumed that time steps
+ * are homogeneous with size \f$ \delta t\f$ in hours.
  *
- * TODO: notational problem: here you indicate with T the set of time
- *       instants, but later you use { 1, ... , T }; choose one notation
- *       and stick with it.
- *
- * TODO: introduce the concept of "first" time instant, and discuss the issue
+ * The first time instant is 0
+ * //TODO: introduce the concept of "first" time instant, and discuss the issue
  *       of the unit being on/off before and how this impact min up- and
  *       down-time constraints and ramping ones.
  *
- * TODO: the formulation discussed here is not the only possible one. In
+ * //TODO: the formulation discussed here is not the only possible one. In
  *       fact, I'd like to have the DP one. So, the formulation should be
  *       discussed as a mean for making it mathematically clear what each
  *       constraint does, without implying that it is necessarily what the
  *       ThermalUnitBlock produces.
  *
  * A possible MIP formulation of the problem uses three sets of binary
- * variables for each time instant \f$ t \in T \f$:
+ * variables for each time instant \f$ t \in \mathcal{T} \f$:
  *
- * - \f$ u_t \f$: 1 if the unit is on at time period t;
+ * - \f$ u_t \f$: 1 if the unit is on at time period \f$ t \in \mathcal{T}\f$;
  *
- * - \f$ v_t \f$: 1 if the unit has started in time period t, i.e.,
- *   \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
+ * - \f$ v_t \f$: 1 if the unit has started in time period
+ *   \f$ t \in \mathcal{T} \f$, i.e., \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
  *
- * - \f$  w_t \f$: 1 if the unit shuts down in time period t, i.e.,
- *   TODO explain: is \f$ u_t = 1 \f$ but \f$ u_{t+1} = 0 \f$, or
+ * - \f$  w_t \f$: 1 if the unit shuts down in time period \f$ t \in \mathcal{T} \f$, i.e., //TODO
+ *   explain: is \f$ u_t = 1 \f$ but \f$ u_{t+1} = 0 \f$, or
  *        rather \f$ u_{t-1}= 1 \f$ but \f$ u_t = 0 \f$ ??
  *
  * The main thermal unit constraints are categorized as following:
@@ -112,7 +111,7 @@ namespace SMSpp_di_unipi_it
  *   that if thermal unit is committed (on) in time \f$t\f$, then it must
  *   remain ON for the next \f$ \tau_+ - 1 \f$ time periods
  *
- *   THIS IS WRONG: if it *starts* at t, it must remain on. Also comment
+ *   THIS IS WRONG: if it *starts* at t, it must remain on. Also comment //TODO
  *   that \f$ \tau_+ \geq 1 \f$, and that \f$ \tau_+ = 1 \f$ means that
  *   there is no constraint.
  *
@@ -120,17 +119,20 @@ namespace SMSpp_di_unipi_it
  *   variables \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ defined above is
  *   \f[
  *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
- *                     u_t \quad t \in \{ \tau_+ + 1, ..., T \}   \quad (1)
+ *           u_t \quad t \in \{ \tau_+ + 1, ..., \mathcal{T}\}
+ *                                                                   \quad (1)
  *   \f]
  *   \f[
  *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
- *                   1 - u_t \quad t \in \{ \tau_- + 1, ..., T \} \quad (2)
+ *         1 - u_t \quad t \in \{ \tau_- + 1, ...,\mathcal{T} \}
+ *                                                                   \quad (2)
  *   \f]
  *   \f[
- *     u_t - u_{t-1} = v_t - w_t \quad t \in \{ 2, ..., T \}      \quad (3)
+ *     u_t - u_{t-1} = v_t - w_t
+ *          \quad t \in \{ 2, ...,\mathcal{T} \}      \quad (3)
  *   \f]
  *
- *   TODO: discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1
+ *  : discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1  //TODO
  *
  *   When unit in time t is OFF (\f$ u_t = 0 \f$), it could not have been
  *   turned on in the last \f$ \tau_+ \f$ periods (including period t)
@@ -144,7 +146,8 @@ namespace SMSpp_di_unipi_it
  *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
  *   off in the last \f$ \tau_- \f$ periods (including period t). Since
  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
- *   can ensure (for all periods \f$t \in \{ 2, ..., T \} \f$) that
+ *   can ensure (for all periods
+ *   \f$ t \in \{ 2, ..., \mathcal{T} \} \f$) that
  *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
  *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
  *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (3).
@@ -158,21 +161,22 @@ namespace SMSpp_di_unipi_it
  *   Another set of constraints where each thermal unit may has are ramp
  *   constraints. Here the two-period ramp up inequality is defined separately
  *   and the following constraints are proposed and shown to be valid for
- *   \f$ t= \{ 1, ..,T-1\}\f$ where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$
- *   are the constants defining ramp-up and ramp-down threshold and
+ *   \f$ t= \{ 1, ..,\mathcal{T} - 1\}\f$ where
+ *   \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants defining
+ *   ramp-up and ramp-down threshold and
  *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining
  *   minimum and maximum output respectively:
  *   \f[
  *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
  *        + (\underline{p}_t- \Delta^+_t) u_{t+1} - \underline{p}_t u_t
- *                              \quad t \in \{ 1, ..., T - 1 \} \quad (4)
+ *            \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (4)
  *   \f]
  *   Using the symmetry between ramping up and ramping down constraints, we
  *   can derive the ramp-down analogues of the ramp-up inequality as below:
  *   \f[
  *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
  *       + (\underline{p}_t - \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
- *                               \quad t \in \{1, ..., T-1 \}   \quad   (5)
+ *            \quad t \in \{1, ..., \mathcal{T} - 1 \}   \quad (5)
  *   \f]
  *
  * - Power output Constraints:
@@ -183,95 +187,50 @@ namespace SMSpp_di_unipi_it
  *   There are several types of power out put inequalities which are
  *   considered below. More specially in case  \f$ 2 \leq \tau_+ \f$, the
  *   following constraint is introduced, which is valid for
- *   \f$ t \in \{2, ..., T-1\}  \f$:
+ *   \f$ t \in \{2, ..., \mathcal{T} - 1\}  \f$:
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
  *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *                                  \quad t \in \{2, ..., T-1\} \quad  (6)
+ *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (6)
  *   \f]
  *   and in the case  \f$ \tau_+ = 1 \f$:
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *                                   \quad t \in \{2, ..., T-1\} \quad  (7)
+ *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (7)
  *   \f]
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
- *                                    \quad t \in \{2, ..., T-1\} \quad  (8)
+ *             \quad t \in \{2, ...,  \mathcal{T} - 1\} \quad  (8)
  *   \f]
- *   for the \f$ t \in \{1, ..., T\}  \f$ following inequalities ensure
- *   the relation between active output and primary and secondary spinning
- *   reserves:
+ *   for the \f$ t \in \{1, ...,  \mathcal{T} \}  \f$ following
+ *   inequalities ensure the relation between active output and primary and
+ *   secondary spinning reserves:
  *   \f[
  *     p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (9)
  *   \f]
  *   \f[
  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (10)
  *   \f]
- *   TODO: the part below should be deleted, shoudln't it?
  *
- *   considering an additional variable \f$ p_t \in R^{|T|}\f$ representing
- *   the power injected in to the grid by the power plant which differ from
- *   \f$ p_t^{ac} \f$, because the power plant in consuming a given power
- *   when it is off. we have the following relation for each
- *   \f$ t \in \{1, ..., T\}  \f$:
- *
- * - Active power relation with primary and secondary spinning reserves:
- *   for each \f$ t \in \{ 1 , ..., T \} \f$:
- *   \f[
- *     p_t^{pr} \leq \rho_t^{pr} p_t^{ac}                      \quad (12)
- *   \f]
- *   and
- *   \f[
- *     p_t^{sc} \leq \rho_t^{sc} p_t^{ac}                      \quad (13)
- *   \f]
  *   TODO: explain what these do.
  *
  * - Objective function: the objective function of the ThermalUnitBlock
  *   representing the total power production cost to be minimized has the
  *   form:
  *   \f[
- *     \min ( s \sum_{ t \in T } v_t +
- *            \sum_{ t \in T } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *     \min ( \sum_{ t \in  \mathcal{T}  } s_t v_t +
+ *            \sum_{ t \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
  *   \f]
- *   where \f$ s \sum_{ t \in T } v_t \f$ is the start-up cost of the unit,
- *   which we assume to be time-independent
+ *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
+ *   start-up cost of the unit, which we assume to be time-independent
  *
- *   TODO: are we sure it's not s_t? time-independent means "independent from
- *         how long the unit has been off", not "always equal at each time
- *         instant"
+ *   Note: time-independent means here start-up cost is "independent from how
+ *         long the unit has been off", and it is not meaning "always should
+ *         be equal at each time instant"
  *
  *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
  *   quadratic, linear, and constant terms of the power cost function of the
- *   unit at time period t.
- *
- * TODO: I pulled up this part from the file description, but it is not
- *       clear to me. It is very vague. "A virtual public method" says
- *       nothing: which one? Either you specify the name of the methods,
- *       or just delete the part: all these methods are described one by
- *       one in the interface.
- *
- * Based on the above description the class has been constructed having the
- * following elements:
- *
- * - A virtual public method is used in order to initialize and read
- *   the data of any possible derived ThermalUnitBlock class.
- *
- * - A set of protected methods, one for the initialization of each different
- *   type of constraints for the mathematical formulations with the methods
- *   also passing the constraints to the vector of static constraints of the
- *   Block.
- *
- * - A number of different vectors of FRowConstraint Objects that are used
- *   to store all the information of the different sets of constraints of
- *   the thermal unit.
- *
- * - An object of DQuadFunction and one of FRealFunction that are used to
- *   store the information of the quadratic or linear objective function of
- *   the unit.
- *
- * - Several different double variables that are used in order to store all
- *   the different values needed to describe the above mentioned constraints
- *   and costs.
+ *   unit at time period \f$ t \in \mathcal{T} \f$.
  */
 
 class ThermalUnitBlock : public UnitBlock {
@@ -292,11 +251,11 @@ public:
 /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
  * father Block.
  *
- * TODO: if the constructor of UnitBlock takes the time horizon, why this
+ * //TODO: if the constructor of UnitBlock takes the time horizon, why this
  *       one does not?
  */
 
- ThermalUnitBlock( Block * flbock = nullptr ): UnitBlock( flbock ) { }
+ ThermalUnitBlock( Block * f_block = nullptr ): UnitBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -368,7 +327,7 @@ public:
  *   over any dimension; it indicates the delta ramp up value at time instant
  *   zero(the initial condition);
  *
- *   TODO: I don't agree with the name, and anyway the comment in unclear.
+ *   //TODO: I don't agree with the name, and anyway the comment in unclear.
  *         What we need is InitialPower, i.e., the amount of power that the
  *         unit was producing at the time instant before 1. And you already
  *         have it below.
@@ -386,7 +345,7 @@ public:
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: I don't agree with this, ActiveP0 should work both for the ramp-up
+ * //TODO: I don't agree with this, ActiveP0 should work both for the ramp-up
  *       and for the ramp-down constraints
  *
  * - the scalar variable "InitialDeltaRampDown", of type double and not
@@ -398,7 +357,7 @@ public:
  *   for each time instant t, contains the maximum possible fraction of
  *   active power that can be used as primary reserve.
  *
- *   TODO: is this variable optional? Is is possible that a unit may not be
+ *   //TODO: is this variable optional? Is is possible that a unit may not be
  *         capable of producing any primary reserve, which correspond to
  *         PR[ t ] == 0 for all t?
  *
@@ -413,7 +372,7 @@ public:
  *   for each time instant t, contains the maximum possible fraction of
  *   active power that can be used as secondary reserve.
  *
- *   TODO: is this variable optional? Is is possible that a unit may not be
+ *   //TODO: is this variable optional? Is is possible that a unit may not be
  *         capable of producing any primary reserve, which correspond to
  *         SR[ t ] == 0 for all t? Is there a logic relationship with
  *         PrimaryRho, like PR[ i ] == 0 ==> SR[ i ] == 0??
@@ -436,12 +395,14 @@ public:
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: I don't agree, start-up cost can be time-dependent in the sense
+ * //TODO: I don't agree, start-up cost can be time-dependent in the sense
  *       of being s_t, although not (for us) in the sense that it depends
  *       on how much the unit has been off beforw restarting
  *
- * - the scalar variable "StartUpCost", of type double and not indexed over
- *   any dimension and indicates the start up cost in this unit;
+ * - the variable "StartUpCost", of type double and indexed over the dimension
+ *   "NumberIntervals". This is meant to represent the vector SC[ t ] which,
+ *   for each time instant t, contains the start up cost value of the
+ *   unit for the corresponding time steps;
  *
  * - The variable "LinearTerm", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector B[ t ] which,
@@ -478,15 +439,10 @@ public:
  *   note that InitUpDownTime == 0 means that the unit has been just shut
  *   down at the end of time instant -1, i.e., the beginning of time
  *   instant 0;
- *   TODO: please check, is the first time instant 0 or 1? In the
- *         description of the constraints you seem to use 1, be sure to
- *         be consistent.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
  *   time instant -1 (prior to the beginning of the horizon),
- *
- *   TODO: see above, is it -1 or 0?
  *
  *   and then InitialPower indicates the amount of the power
  *   that the unit was producing at time instant -1; if InitUpDownTime
@@ -494,7 +450,7 @@ public:
  *   loaded, if the variable is provided then it must be that MaxPower
  *   >= its value >= MinPower;
  *
- * TODO: I don't understand, what't this for??
+ * //TODO: I don't understand, what't this for??
  *
  * - The scalar variable "InitialMinPower", of type double and not indexed
  *   over any dimension; it indicates the minimum power at time instant zero
@@ -518,14 +474,14 @@ public:
 /// generate the abstract variables of the ThermalUnit
 /** Method that generates the abstract variables of the ThermalUnitBlock.
  *
- * TODO: this comment is not very clear, please rewrite. In particular,
+ * //TODO: this comment is not very clear, please rewrite. In particular,
  *       you give access to these variables with start_up() and shut_down(),
  *       right? Why don't you mention these?
  *
- * TODO: in UnitBlock we allow not to generate some of the variables with
+ * //TODO: in UnitBlock we allow not to generate some of the variables with
  *       the stvv, why don't we here? Even if we don't, let's comment it.
  *
- * TODO: one day we will do the DP formulation, and we will possibly have
+ * //TODO: one day we will do the DP formulation, and we will possibly have
  *       different groups of variables.
  *
  * These are as std::vector< ColVariable >  with exactly :
@@ -542,7 +498,7 @@ public:
  *      init_t - 1.
  *
  *
- * TODO: this remark is about constraints, so it should go in
+ * //TODO: this remark is about constraints, so it should go in
  *       generate_abstract_constraints()
  *
  *  Note2: for the entry a = 0, ..., init_t - 1 when commitment variables fix
@@ -560,10 +516,10 @@ public:
 /// generate the static constraint of the ThermalUnit
 /** Method that generates the static constraint of the ThermalUnitBlock.
  *
- * TODO: we could allow to only generate a subset of those via stcc.
+ * //TODO: we could allow to only generate a subset of those via stcc.
  *       Maybe we don't want to.
  *
- * TODO: one day we will do the DP formulation, and we will possibly have
+ * //TODO: one day we will do the DP formulation, and we will possibly have
  *       different groups of constraints.
  *
  * These are the:
@@ -694,13 +650,8 @@ public:
  /// the vector of ConstTerm
  std::vector< double >  v_ConstTerm;
 
- /// the StartUpCost value
- double f_StartUpCost;
-
- /// the shut down and start up capabilities
- //double f_shut_down_capability;
-
- //double f_start_up_capability;
+ /// the vector of StartUpCost
+ std::vector< double > v_StartUpCost;
 
  /// the InitialPower value
  double f_initial_power;

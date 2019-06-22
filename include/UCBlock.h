@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 06 - 2019
+ * \date 22 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -64,7 +64,6 @@ namespace SMSpp_di_unipi_it {
 class FRowConstraint;   ///< forward declaration of FRowConstraint
 class NetworkBlock;     ///< forward declaration of NetworkBlock
 class UnitBlock;        ///< forward declaration of UnitBlock
-class NetworkData;      ///< forward declaration of NetworkData
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -86,6 +85,9 @@ class NetworkData;      ///< forward declaration of NetworkData
  *
  * - A virtual public method that is used to initialize and read the
  *   data of any possible derived UCBlock class.
+ *
+ * - A public sub-class NetworkData that contains all the information related
+ *   to the networks;
  *
  * - The time horizon of the problem.
  *
@@ -294,6 +296,181 @@ public:
 
  virtual ~UCBlock() {};   ///< destructor of UCBlock: it is virtual, and empty
 
+/*--------------------------------------------------------------------------*/
+/*---------------------------- sub-CLASS -----------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup the NetworkData sub_Class in UCBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS NetworkData -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// The NetworkData class
+/** The NetworkData class is a nested sub_class into the UCBlock. It is
+ * characterized by a set of nodes (NetworkNodes) and a set of lines (or arcs)
+ * and all the data needed to construct the network (instead of the demand
+ * of each node).
+ * */
+ class  NetworkData {
+
+/*--------------------------------------------------------------------------*/
+/*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*@} -----------------------------------------------------------------------*/
+/*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the NetworkData
+    @{ */
+
+ static NetworkData * new_NetworkData( netCDF::NcGroup & group )
+ {
+   auto network_data = new_NetworkData( group );
+   network_data->deserialize( group );
+   return( network_data );
+ }
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/// extends UCBlock::deserialize( netCDF::NcGroup )
+/** Extends UCBlock::deserialize( netCDF::NcGroup ) to the specific format of
+ * the NetworkData. Besides the mandatory "type" attribute of any :Block, the
+ * group should contain the following:
+ *
+ * - the dimension "NumberNodes" containing the number of nodes in the
+ *   problem; this dimension is optional, if it is not provided then it is
+ *   taken to be == 1;
+ *
+ * - the dimension "NumberLines" containing the number of arcs in the problem;
+ *   if NumberNodes == 1 then this dimension need not to be present since it
+ *   is not loaded;
+ *
+ * - the variable "StartLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the starting point of
+ *   the line (however, lines are not oriented)
+ *
+ * - the variable "EndLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the ending point of the
+ *   line (however, lines are not oriented)
+ *
+ * - the variable "MinPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the minimum power flow at line i; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "MaxPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the maximum power flow at line i; if NumberNodes == 1 then this
+ *   variable need not to be present since it is not loaded;
+ *
+ * - the variable "Susceptance", of type double and indexed over the
+ *   "NumberLines"; the i-th entry of this variable is assumed to contain the
+ *   susceptance of line i; if NumberNodes == 1 then this variable need not to
+ *   be present since it is not loaded.
+ */
+ virtual void deserialize( netCDF::NcGroup & group ) ;
+/*--------------------------------------------------------------------------*/
+
+ virtual void load( std::istream &input )  {
+     throw( std::logic_error( "NetworkData::load() not implemented yet" ) );
+ };
+
+/*@} -----------------------------------------------------------------------*/
+/*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the NetworkData
+ *  @{ */
+
+/// extends UCBlock::serialize( netCDF::NcGroup )
+/** Extends UCBlock::serialize( netCDF::NcGroup ) to the specific format of a
+ * NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group.
+ */
+ virtual void serialize( netCDF::NcGroup & group ) const ;
+
+/*--------------------------------------------------------------------------*/
+/*---------------- PUBLIC FIELDS OF THE NetworkData CLASS ------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// number of nodes of the network
+ Index f_number_nodes;
+
+/// number of lines of the network
+ Index f_number_lines;
+
+/// set starting lines
+ std::vector< int > v_start_line;
+
+/// set ending lines
+ std::vector< int > v_end_line;
+
+/// vector to store the susceptance of each line of the network
+ std::vector< double > v_susceptance;
+
+/// vector to store the minimum power flow at each line
+ std::vector< double > v_min_power_flow;
+
+/// vector to store the maximum power flow at each line
+ std::vector< double > v_max_power_flow;
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+    protected:
+
+/*@} -----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE NetworkData -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the NetworkData
+ *  @{ */
+
+
+ /// returns the start line where the given node belongs to
+  inline Index get_start_line( Index node ) const {
+    if( v_start_line.size() > 0 )
+      return v_start_line[ node ];
+        return 0;
+ }
+
+ /// returns the end line where the given node belongs to
+  inline Index get_end_line( Index node ) const {
+   if( v_end_line.size() > 0 )
+     return v_end_line[ node ];
+   return 0;
+ }
+
+ /// returns the minimum power flow for the given line l
+  inline Index get_min_power_flow( Index line ) const {
+    if( v_min_power_flow.size() > 0 )
+      return v_min_power_flow[ line ];
+        return 0;
+ }
+
+ /// returns the maximum power flow for the given line l
+ inline Index get_max_power_flow( Index line ) const {
+   if( v_max_power_flow.size() > 0 )
+     return v_max_power_flow[ line ];
+   return 0;
+ }
+
+ /// returns the Susceptance for the given line l
+ inline Index get_susceptance( Index line ) const {
+   if( v_susceptance.size() > 0 )
+     return v_susceptance[ line ];
+   return 0;
+ }
+
+ };   // end( class( NetworkData) )
+
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -324,7 +501,7 @@ public:
  *   to one energy cell; when NumberHeatBlocks == 0, there is no heat
  *   constraint anywhere in the problem;
  *
- * - possibly, the dimensionbs and variables necessary to a NetworkData
+ * - possibly, the dimensions and variables necessary to a NetworkData
  *   object, that describe the transmission network; see
  *   NetworkData::deserialize() for details. All that is optional, if it
  *   is not provided (basically, "NumberNodes" is not provided or it is
@@ -555,46 +732,8 @@ public:
  /// returns the time horizon of the problem
  Index get_time_horizon( void ) const { return f_time_horizon; }
 
- /// returns the number of nodes the network
- Index get_number_nodes( void ) const { return f_number_nodes; }
-
- /// returns the number of lines the network
- Index get_number_lines( void ) const { return f_number_lines; }
-
- /// returns the start line where the given node belongs to
- inline Index get_start_line( Index node ) const {
-   if( v_start_line.size() > 0 )
-     return v_start_line[ node ];
-   return 0;
- }
-
- /// returns the end line where the given node belongs to
- inline Index get_end_line( Index node ) const {
-   if( v_end_line.size() > 0 )
-     return v_end_line[ node ];
-   return 0;
- }
-
- /// returns the minimum power flow for the given line l
- inline Index get_min_power_flow( Index line ) const {
-   if( v_min_power_flow.size() > 0 )
-     return v_min_power_flow[ line ];
-   return 0;
- }
-
- /// returns the maximum power flow for the given line l
- inline Index get_max_power_flow( Index line ) const {
-   if( v_max_power_flow.size() > 0 )
-     return v_max_power_flow[ line ];
-   return 0;
- }
-
- /// returns the Susceptance for the given line l
- inline Index get_susceptance( Index line ) const {
-   if( v_susceptance.size() > 0 )
-     return v_susceptance[ line ];
-   return 0;
- }
+ /// returns the NetworkData object
+ NetworkData * get_NetworkData( void ) const { return f_NetworkData; }
 
  /// returns the vector of (pointers to) NetworkBlocks
  const std::vector<NetworkBlock *> & get_network_blocks( void ) const {
@@ -639,7 +778,8 @@ public:
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
  inline Index get_pollutant_zone( Index pollutant, Index node ) const {
-   return v_pollutant_zones[ pollutant * f_number_nodes + node ];
+   return v_pollutant_zones[ pollutant * f_NetworkData->f_number_nodes
+                             + node ];
  }
 
  /** returns the heat unit that represents the given unit in the given
@@ -666,7 +806,7 @@ public:
 
  /// returns the node where the given unit belongs to
  inline Index get_unit_node( Index unit ) const {
-   if( f_number_nodes > 1 )
+   if( f_NetworkData->f_number_nodes > 1 )
      return v_unit_node[ unit ];
    return 0;
  }
@@ -717,11 +857,6 @@ public:
 /** @name Methods for modifying the UCBlock
  *  @{ */
 
- /// sets the time horizon of the problem
- void set_time_horizon( Index t ) { f_time_horizon = t; }
-
- void set_NetworkData( Index t ) { f_time_horizon = t; }
-
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -736,11 +871,8 @@ protected:
  /// The number of units of the problem
  Index f_number_units;
 
- /// The number of nodes in the network
- Index f_number_nodes;
-
- /// The number of nodes in the network
- Index f_number_lines;
+ /// the NetworkData object
+ NetworkData * f_NetworkData;
 
  /// The number of heat block
  Index f_number_heat_blocks;
@@ -784,20 +916,6 @@ protected:
   * PrimaryZones and TimeHorizon */
  std::vector<double> v_primary_demand;
 
- /// the vector of StartLine
- std::vector<Index> v_start_line;
-
- /// the vector of EndLine
- std::vector<Index> v_end_line;
-
- /// the vector of MinPowerFlow
- std::vector<Index> v_min_power_flow;
-
- /// the vector of MaxPowerFlow
- std::vector<Index> v_max_power_flow;
-
- /// the vector of Susceptance
- std::vector<Index> v_susceptance;
 
  /// the vector of SecondaryZones
  std::vector<Index> v_secondary_zones;
@@ -873,7 +991,6 @@ private:
                               const std::string sub_group_name_prefix,
                               const int num_sub_blocks );
 
- void deserialize_network_data( const netCDF::NcGroup & group );
 
   };   // end( class( UCBlock ) )
 

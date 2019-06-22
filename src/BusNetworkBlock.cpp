@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 06 - 2019
+ * \date 22 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -65,12 +65,8 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-	// Default values for optional dimensions
-	f_number_nodes = 1;
+  ::deserialize( group, "ActiveDemand",         & f_active_demand );
 
-	::deserialize_dim(group, "NumberNodes", f_number_nodes);
-
-	::deserialize(group, "ActiveDemand", f_number_nodes, v_active_demand);
 
 }  // end( BusNetworkBlock::deserialize )
 
@@ -80,9 +76,12 @@ void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
 void BusNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
-	//TODO
-}
 
+  // active demand satisfaction   // TODO
+
+
+
+}
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -93,10 +92,8 @@ void BusNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
 	group.putAtt( "type" , "BusNetworkBlock" );
 
-	auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
-
-	::serialize( group, "ActiveDemand", netCDF::NcDouble(),
-							 { dim_number_nodes}, v_active_demand);
+  ::serialize( group, "ActiveDemand",
+               netCDF::NcDouble(), f_active_demand );
 }    // end( BusNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

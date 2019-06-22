@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 14 - 06 - 2019
+ * \date 22 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -33,6 +33,8 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "DCNetworkBlock.h"
+#include "UCBlock.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -57,29 +59,29 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 {
- NetworkBlock::deserialize( group );
 
- auto nd = NetworkData::new_NetworkData( group );
- if( nd ) {  // there is a NetworkData object in the group
+ auto network_data = UCBlock::NetworkData::new_NetworkData( group );
+ if( network_data ) {  // there is a NetworkData object in the group
   // use it, whatever has happened before
   // if there was a previous NetworkData and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
   // set the new NetworkData, and recall it is local
-  f_NetworkData = nd;
   f_local_NetworkData = true;
   }
  else        // there is no NetworkData object in the group
   if( ! f_NetworkData ) {
    // if the NetworkData has not been passed from outside
-   auto father = dynamic_cast<UCBlock>( f_Block );
-   if( ! father )
-    throw( logic::error( "NetworkBlock has no NetworkData access" ) );
+   auto father = dynamic_cast< UCBlock *>( get_f_Block() );
+   if( !father )
+    throw( std::logic_error( "NetworkBlock has no NetworkData access" ) );
+   else
+   // now read the NetworkData from the father this->set_time_horizon
+    this->set_NetworkData( father->get_NetworkData() );
+    f_NetworkData = father->get_NetworkData();
 
-   // now read the NetworkData from the father
-   f_NetworkData = father->get_NetworkData();
-   f_local_NetworkData = false;
+    f_local_NetworkData = false;
    }
 
  }  // end( DCNetworkBlock::deserialize )
@@ -88,8 +90,25 @@ void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
+void DCNetworkBlock::generate_abstract_variables(Configuration *stvv)
+{
+  if( f_NetworkData->f_number_nodes < 0 ) {
+    throw (std::logic_error("NetworkBlock::generate_abstract_variables: "
+                            "number of nodes of NetworkBlock is not set"));
+  }
 
+  if (v_node_injection.size() != f_NetworkData->f_number_nodes) {
+    assert(v_node_injection.size() == 0); // this should only happen once
+    v_node_injection.resize(f_NetworkData->f_number_nodes);
+    add_static_variable(v_node_injection);
+  }
+}
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
+/*
   if( f_number_lines < 0 ) {
     throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                              "number of lines of DCNetworkBlock is not set"));
@@ -140,6 +159,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
   } // for each line
 
   add_static_constraint( v_flow_limit_constraints );
+  */
 }
 
 /*--------------------------------------------------------------------------*/
@@ -152,7 +172,8 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   group.putAtt( "type" , "DCNetworkBlock" );
 
-  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+  auto dim_number_nodes = group.addDim( "NumberNodes",
+                                        f_NetworkData->f_number_nodes );
 
   ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
                { dim_number_nodes}, v_active_demand);
