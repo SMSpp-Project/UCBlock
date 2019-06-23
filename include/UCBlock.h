@@ -321,17 +321,16 @@ public:
  public:
 
 /*@} -----------------------------------------------------------------------*/
-/*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the NetworkData
-    @{ */
+/** @name Constructor and Destructor
+ *  @{ */
 
- static NetworkData * new_NetworkData( netCDF::NcGroup & group )
- {
-   auto network_data = new NetworkData();
-   network_data->deserialize( group );
-   return( network_data );
- }
+ /// constructor of NetworkData
+ NetworkData() {}
+
+ /// destructor of NetworkData: it is virtual, and empty
+ virtual ~NetworkData() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -375,7 +374,8 @@ public:
  *   susceptance of line i; if NumberNodes == 1 then this variable need not to
  *   be present since it is not loaded.
  */
- virtual void deserialize( netCDF::NcGroup & group ) ;
+ virtual void deserialize( netCDF::NcGroup & group );
+
 /*--------------------------------------------------------------------------*/
 
  virtual void load( std::istream &input )  {
@@ -393,7 +393,7 @@ public:
  * NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group.
  */
- virtual void serialize( netCDF::NcGroup & group ) const ;
+ virtual void serialize( netCDF::NcGroup & group ) const;
 
 /*--------------------------------------------------------------------------*/
 /*---------------- PUBLIC FIELDS OF THE NetworkData CLASS ------------------*/

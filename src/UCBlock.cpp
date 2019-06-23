@@ -152,7 +152,9 @@ void UCBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
-  auto network_data = NetworkData::new_NetworkData( group );
+  auto network_data = new NetworkData();
+  network_data->deserialize( group );
+
   if( network_data ) {  // there is a NetworkData object in the group
     // use it, whatever has happened before
     // if there was a previous NetworkData, delete it
