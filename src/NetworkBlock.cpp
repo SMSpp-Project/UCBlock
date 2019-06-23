@@ -46,14 +46,6 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- STATIC MEMBERS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-// register NetworkBlock to the Block factory
-
-SMSpp_insert_in_factory_cpp_1( NetworkBlock );
-
-/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -61,10 +53,12 @@ SMSpp_insert_in_factory_cpp_1( NetworkBlock );
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
-  ::deserialize_dim( group, "NumberNodes",   f_NetworkData->f_number_nodes );
 
-  ::deserialize( group, "ActiveDemand", f_NetworkData->f_number_nodes,
-                 v_active_demand );
+  auto dim_number_nodes = group.getDim( "NumberNodes" );
+
+  if( ! dim_number_nodes.isNull() )
+    ::deserialize( group, "ActiveDemand", dim_number_nodes.getSize(),
+                   v_active_demand );
 
 } // end( NetworkBlock::deserialize )
 
@@ -76,12 +70,12 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
 void NetworkBlock::serialize(netCDF::NcGroup &group) const {
 
-  group.putAtt("type", "NetworkBlock");
-  auto dim_number_nodes = group.addDim
-    ( "NumberNodes", f_NetworkData ? f_NetworkData->f_number_nodes : 1 );
+  group.putAtt( "type", "NetworkBlock" );
+  auto dim_number_nodes = group.getDim( "NumberNodes" );
 
-  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
-              { dim_number_nodes }, v_active_demand );
+  if( ! dim_number_nodes.isNull() )
+    ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
+                 { dim_number_nodes }, v_active_demand );
 
 } // end( NetworkBlock::serialize )
 

@@ -197,9 +197,8 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) {
-   // TODO
- }
+ virtual void set_NetworkData
+ ( UCBlock::NetworkData * network_data = nullptr ) = 0;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -240,17 +239,8 @@ typedef std::size_t Index;                 ///< index of parameters
 protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
- SMSpp_insert_in_factory_h;
-
-/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
-
- /// the NetworkData object
- UCBlock::NetworkData * f_NetworkData;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
