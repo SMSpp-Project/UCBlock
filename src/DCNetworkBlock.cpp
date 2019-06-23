@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -60,7 +60,8 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 {
 
- auto network_data = UCBlock::NetworkData::new_NetworkData( group );
+ auto network_data = new UCBlock::NetworkData();
+ network_data->deserialize( group );
  if( network_data ) {  // there is a NetworkData object in the group
   // use it, whatever has happened before
   // if there was a previous NetworkData and it was local, delete it

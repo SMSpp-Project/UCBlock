@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -55,7 +55,6 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
@@ -76,6 +75,7 @@ namespace SMSpp_di_unipi_it {
  *   Where \f$ p^{ac}_{t} \f$  and \f$ D^{ac}_{t} \f$ are the active power
  *   variable and the active demand in the network.
  */
+
   class BusNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
@@ -83,6 +83,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 
   public:
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -109,7 +110,7 @@ typedef std::size_t Index;
 
 /// destructor of BusNetworkBlock
 
- virtual ~BusNetworkBlock();
+ virtual ~BusNetworkBlock() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -123,9 +124,9 @@ typedef std::size_t Index;
  * BusNetworkBlock then a NBModification (the "nuclear option") is issued.
  * */
 
-virtual void load( std::istream &input ) override {
+ virtual void load( std::istream &input ) override {
    throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
-};
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -142,11 +143,12 @@ virtual void load( std::istream &input ) override {
  *   defined, since is not loaded.
  */
 
-virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
+
 /*--------------------------------------------------------------------------*/
 
-virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-    override;
+ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
+   override;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
@@ -159,7 +161,8 @@ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
   * BusNetworkBlock because by definition the network is made by only one
   * node. */
  
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) { }
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr )
+   override { }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
@@ -173,7 +176,7 @@ virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
  * details of the format of the created netCDF group.
  */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -185,14 +188,13 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-    SMSpp_insert_in_factory_h;
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// the demand of node
-
+ /// the demand of node
  double f_active_demand;
 
  std::vector<FRowConstraint> v_active_demand_satisfaction;

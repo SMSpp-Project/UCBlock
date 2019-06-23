@@ -124,7 +124,7 @@ typedef unsigned int Index;
 
 /// destructor of DCNetworkBlock
 
-virtual ~DCNetworkBlock();
+ virtual ~DCNetworkBlock() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -168,7 +168,7 @@ virtual void load( std::istream &input ) override { };
 /** @name Methods for modifying the DCNetworkBlock
  *  @{ */
 
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr )
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) override
  {
   // if there was a previous NetworkData and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
