@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,8 +43,11 @@
 #include <iostream>
 #include <vector>
 #include "FRowConstraint.h"
+#include "HeatBlock.h"
 #include "LinearFunction.h"
+#include "NetworkBlock.h"
 #include "UCBlock.h"
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -60,6 +63,26 @@ using namespace SMSpp_di_unipi_it;
  *  @{ */
 
 //void UCBlock::load( ) { }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// returns the i-th UnitBlock
+inline UnitBlock * UCBlock::get_unit_block( Index i ) const {
+  return static_cast<UnitBlock *>( v_Block[ i ] );
+}
+
+/// returns the t-th NetworkBlock
+inline NetworkBlock * UCBlock::get_network_block( Index t ) const {
+  return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+}
+
+/// returns the i-th HeatBlock
+inline HeatBlock * UCBlock::get_heat_block( Index i ) const {
+  return static_cast<HeatBlock *>
+    ( v_Block[ f_number_units + f_time_horizon + i ] );
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -111,12 +134,10 @@ inline void UCBlock::deserialize_sub_blocks
 
 /*--------------------------------------------------------------------------*/
 
-
 void UCBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
 
   ::deserialize_dim( group, "NumberNodes",     f_number_nodes );
   ::deserialize_dim( group, "NumberLines",     f_number_nodes );
-
 
   if( f_number_nodes > 1 ) {
     ::deserialize( group, "StartLine",         f_number_nodes, v_start_line );
@@ -125,7 +146,8 @@ void UCBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
     ::deserialize( group, "MaxPowerFlow",  f_number_lines, v_max_power_flow );
     ::deserialize( group, "Susceptance",      f_number_lines, v_susceptance );
   }
-};
+}
+
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
@@ -242,8 +264,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 }  // end( UCBlock::deserialize )
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::generate_abstract_constraints( Configuration *stcc ) {

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -60,14 +60,13 @@ SMSpp_insert_in_factory_cpp_1( NetworkBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::deserialize( netCDF::NcGroup & group )
-{
+void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize_dim( group, "NumberNodes",   f_NetworkData->f_number_nodes );
 
-  ::deserialize(group, "ActiveDemand", f_NetworkData->f_number_nodes,
-                v_active_demand);
+  ::deserialize( group, "ActiveDemand", f_NetworkData->f_number_nodes,
+                 v_active_demand );
 
- }  // end( NetworkBlock::deserialize )
+} // end( NetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -75,16 +74,17 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group )
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-  void NetworkBlock::serialize(netCDF::NcGroup &group) const {
+void NetworkBlock::serialize(netCDF::NcGroup &group) const {
 
-    group.putAtt("type", "NetworkBlock");
-  auto dim_number_nodes = group.addDim("NumberNodes",
-                          f_NetworkData ? f_NetworkData->f_number_nodes : 1);
+  group.putAtt("type", "NetworkBlock");
+  auto dim_number_nodes = group.addDim
+    ( "NumberNodes", f_NetworkData ? f_NetworkData->f_number_nodes : 1 );
 
-    ::serialize(group, "ActiveDemand", netCDF::NcDouble(),
-                {dim_number_nodes}, v_active_demand);
+  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
+              { dim_number_nodes }, v_active_demand );
 
-  }    // end( NetworkBlock::serialize )
+} // end( NetworkBlock::serialize )
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

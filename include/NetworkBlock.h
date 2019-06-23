@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -54,7 +54,6 @@
 #include "ColVariable.h"
 #include "FRowConstraint.h"
 #include "UCBlock.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -113,7 +112,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
 
- virtual ~NetworkBlock();
+ virtual ~NetworkBlock() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -142,10 +141,9 @@ typedef std::size_t Index;                 ///< index of parameters
  virtual void deserialize( netCDF::NcGroup & group ) override;
 /*--------------------------------------------------------------------------*/
 
-
  virtual void load( std::istream &input ) override {
-      throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
- };
+   throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -199,7 +197,10 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ){}
+ void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) {
+   // TODO
+ }
+
 /*@} -----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -210,11 +211,13 @@ typedef std::size_t Index;                 ///< index of parameters
  const std::vector<ColVariable> & get_node_injection( void ) const {
    return v_node_injection;
  }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-    /// method for returning a pointer to the node injection variable at node n
-    ColVariable & get_node_injection( Index n ) {
-      return( v_node_injection[ n ] );
-    }
+
+ /// method for returning a pointer to the node injection variable at node n
+ ColVariable & get_node_injection( Index n ) {
+   return( v_node_injection[ n ] );
+ }
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
@@ -245,6 +248,7 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
+
  /// the NetworkData object
  UCBlock::NetworkData * f_NetworkData;
 

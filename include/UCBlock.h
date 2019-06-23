@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 06 - 2019
+ * \date 23 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -51,9 +51,7 @@
 #include <boost/multi_array.hpp>
 #include <vector>
 #include "Block.h"
-#include "NetworkBlock.h"
-#include "UnitBlock.h"
-#include "HeatBlock.h"
+#include "FRowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -61,9 +59,10 @@
 
 namespace SMSpp_di_unipi_it {
 
-class FRowConstraint;   ///< forward declaration of FRowConstraint
-class NetworkBlock;     ///< forward declaration of NetworkBlock
-class UnitBlock;        ///< forward declaration of UnitBlock
+// forward declaration
+class HeatBlock;
+class NetworkBlock;
+class UnitBlock;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -313,7 +312,7 @@ public:
  * and all the data needed to construct the network (instead of the demand
  * of each node).
  * */
- class  NetworkData {
+ class NetworkData {
 
 /*--------------------------------------------------------------------------*/
 /*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
@@ -789,20 +788,13 @@ public:
  }
 
  /// returns the i-th UnitBlock
- inline UnitBlock * get_unit_block( Index i ) const {
-   return static_cast<UnitBlock *>( v_Block[ i ] );
- }
+ UnitBlock * get_unit_block( Index i ) const;
 
  /// returns the t-th NetworkBlock
- inline NetworkBlock * get_network_block( Index t ) const {
-   return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
- }
+ NetworkBlock * get_network_block( Index t ) const;
 
  /// returns the i-th HeatBlock
- inline HeatBlock * get_heat_block( Index i ) const {
-   return static_cast<HeatBlock *>
-     ( v_Block[ f_number_units + f_time_horizon + i ] );
- }
+ HeatBlock * get_heat_block( Index i ) const;
 
  /// returns the node where the given unit belongs to
  inline Index get_unit_node( Index unit ) const {
