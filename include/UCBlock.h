@@ -328,7 +328,7 @@ public:
 
  static NetworkData * new_NetworkData( netCDF::NcGroup & group )
  {
-   auto network_data = new_NetworkData( group );
+   auto network_data = new NetworkData();
    network_data->deserialize( group );
    return( network_data );
  }
