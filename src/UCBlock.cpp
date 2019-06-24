@@ -406,7 +406,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         auto node_id = get_unit_node( unit_id );
 
-        assert( node_id >= 0 && node_id < f_NetworkData->f_number_nodes );
+        assert( node_id >= 0 && node_id < number_nodes );
 
         auto zone_id = get_secondary_zone( node_id );
         if( zone_id >= f_number_secondary_zones )
@@ -453,7 +453,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         auto node_id = get_unit_node( unit_id );
 
-        assert( node_id >= 0 && node_id < f_NetworkData->f_number_nodes );
+        assert( node_id >= 0 && node_id < number_nodes );
 
         auto zone_id = get_inertia_zone( node_id );
         if( zone_id >= f_number_inertia_zones )
