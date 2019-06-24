@@ -44,6 +44,8 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "BusNetworkBlock.h"
+#include "FRowConstraint.h"
+#include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -65,22 +67,31 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-  ::deserialize( group, "ActiveDemand",         & f_active_demand );
 
+  unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
+      f_number_nodes : 1;
 
+  if (number_nodes == 1) {
+
+    ::deserialize(group, "ActiveDemand", &f_active_demand);
+  }
 }  // end( BusNetworkBlock::deserialize )
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
+void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
+  unsigned int number_nodes =  f_NetworkData ? f_NetworkData->
+      f_number_nodes : 1;
 
-  // active demand satisfaction   // TODO
+  if (number_nodes == 1) {
 
-
-
+    v_node_injection[number_nodes].set_value(f_active_demand);
+    v_node_injection[number_nodes].is_fixed(true);
+  } else {
+    throw (std::logic_error("BusNetworkBlock has not define"));
+  }
 }
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

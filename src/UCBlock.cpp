@@ -152,7 +152,7 @@ void UCBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
-  auto network_data = new NetworkData();
+  auto network_data = new NetworkData(); //TODO not Implemented well
   network_data->deserialize( group );
 
   if( network_data ) {  // there is a NetworkData object in the group
@@ -161,16 +161,19 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     if( f_NetworkData )
       delete f_NetworkData;
   }
-  else        // there is no NetworkData object in the group
+  else
   if( ! network_data ) {
     // if the NetworkData has not been passed from outside
       throw( std::logic_error( "UCBlock has no NetworkData access" ) );
   }
-
+/*--------------------------------------------------------------------------*/
 
   ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
   ::deserialize_dim( group, "NumberUnits", f_number_units, false );
-  ::deserialize_dim( group, "NumberNodes", f_NetworkData->f_number_nodes );
+  unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
+      f_number_nodes : 1;
+
+  ::deserialize_dim( group, "NumberNodes", number_nodes );
 
   // Default values for optional dimensions
   f_number_heat_blocks     = 0;
@@ -193,7 +196,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
 
   if( f_number_primary_zones >= 1 ) {
-    ::deserialize( group, "PrimaryZones", f_NetworkData->f_number_nodes,
+    ::deserialize( group, "PrimaryZones", number_nodes,
                    v_primary_zones );
 
     ::deserialize( group, "PrimaryDemand",
@@ -202,7 +205,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
 
   if( f_number_secondary_zones >= 1 ) {
-    ::deserialize( group, "SecondaryZones", f_NetworkData->f_number_nodes,
+    ::deserialize( group, "SecondaryZones", number_nodes,
                    v_secondary_zones );
 
     ::deserialize( group, "SecondaryDemand",
@@ -211,7 +214,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
 
   if( f_number_inertia_zones >= 1 ) {
-    ::deserialize( group, "InertiaZones", f_NetworkData->f_number_nodes,
+    ::deserialize( group, "InertiaZones", number_nodes,
                    v_inertia_zones );
 
     ::deserialize( group, "InertiaDemand",
@@ -225,7 +228,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
                    v_number_pollutant_zones );
 
     ::deserialize( group, "PollutantZones",
-                   { f_number_pollutants, f_NetworkData->f_number_nodes },
+                   { f_number_pollutants, number_nodes },
                    v_pollutant_zones );
 
     ::deserialize( group, "PollutantBudget", f_number_pollutants,
@@ -243,7 +246,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     }
   }
 
-  if( f_NetworkData->f_number_nodes > 1 ) {
+  if( number_nodes > 1 ) {
     ::deserialize( group, "UnitNode", f_number_units, v_unit_node );
   }
 
@@ -270,6 +273,9 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
+  unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
+      f_number_nodes : 1;
+
   // Node injection constraints.
 
   if( v_node_injection_constraints.size() != f_time_horizon ) {
@@ -278,16 +284,16 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     v_node_injection_constraints.resize
       ( boost::multi_array<FRowConstraint, 2>::
-        extent_gen()[ f_time_horizon ][ f_NetworkData->f_number_nodes ] );
+        extent_gen()[ f_time_horizon ][ number_nodes ] );
   }
 
-  if( f_NetworkData->f_number_nodes > 0 ) {
+  if( number_nodes > 0 ) {
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
 
       auto node_injection = v_network_blocks[ t ]->get_node_injection();
 
-      for( Index node_id = 0; node_id < f_NetworkData->f_number_nodes; ++node_id ) {
+      for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
         auto linear_function = new LinearFunction();
 
@@ -352,7 +358,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
         auto node_id = get_unit_node( unit_id );
 
-        assert( node_id >= 0 && node_id < f_NetworkData->f_number_nodes );
+        assert( node_id >= 0 && node_id < number_nodes);
 
         auto zone_id = get_primary_zone( node_id );
         if( zone_id >= f_number_primary_zones )

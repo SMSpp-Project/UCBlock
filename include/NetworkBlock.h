@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 06 - 2019
+ * \date 24 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -51,9 +51,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-#include "ColVariable.h"
-#include "FRowConstraint.h"
 #include "UCBlock.h"
+#include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -71,13 +70,15 @@ namespace SMSpp_di_unipi_it {
  * which includes a set of node injection variables. This class has thus been
  * constructed having the following elements:
  *
- * - A virtual public method that is used to initialize and read the
- *   data of any possible derived NetworkBlock class.
+ * - A virtual public method that is used to initialize and read the data of
+ *   any possible derived NetworkBlock class.
  *
- * - A vector of doubles used to store the values of the demand at
- *   each node of the network, which have size equal to the number of nodes
- *   or is empty, in which case the corresponding variables simply do
- *   not exist (for instance, the network may not have reserve). */
+ * - A vector of doubles used to store the values of the demand at each node
+ *   of the network, which have size equal to the number of nodes or is empty,
+ *   in which case the corresponding variables simply do not exist.
+ *
+ * - A vector of ColVariable objects, that are used to store the information
+ *   regarding the node injection variable for each node. */
 
 class NetworkBlock : public Block {
 
@@ -139,6 +140,13 @@ typedef std::size_t Index;                 ///< index of parameters
  * NetworkData object is read from the NcGroup and used instead. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
+/*--------------------------------------------------------------------------*/
+/// generate the static variables of NetworkBlock
+/** Method that generates the static variables of this NetworkBlock. The
+ * base NetworkBlock class has just the node injection variables. */
+
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+   override;
 /*--------------------------------------------------------------------------*/
 
  virtual void load( std::istream &input ) override {
@@ -211,13 +219,6 @@ typedef std::size_t Index;                 ///< index of parameters
    return v_node_injection;
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- /// method for returning a pointer to the node injection variable at node n
- ColVariable & get_node_injection( Index n ) {
-   return( v_node_injection[ n ] );
- }
-
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -241,6 +242,8 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
+ /// the NetworkData object
+ UCBlock::NetworkData * f_NetworkData;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;

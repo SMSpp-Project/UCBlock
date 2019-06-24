@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 06 - 2019
+ * \date 24 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -83,13 +83,14 @@ namespace SMSpp_di_unipi_it {
  *
  * \f[
  *  P^{mn}_{\ell , t} \leq \sum_{ n' \in \mathcal{N}} (B_t)_({\ell, n'})
- *  (\sum_{ i \in \mathcal{I}_n'}p^{ac}_{t,i} - D^{ac}_{n' , t}) \leq
+ *  (S_{t, n'} - D^{ac}_{n' , t}) \leq
  *  P^{mx}_{\ell , t} \quad t \in \mathcal{T} \quad \ell \in \mathcal{L} \quad
  * \f]
  *   Where \f$ P^{mn}_{\ell , t}\f$ and \f$ P^{mx}_{\ell , t}\f$ are minimum
  *   and maximum power flow at each line \f$ \ell \in \mathcal{L}\f$ and
- *   \f$ D^{ac}_{n' , t} \f$ is the active power demand at node
- *   \f$ n \in \mathcal{N} \f$ in the network.
+ *   \f$ S_{t, n'} \f$ and \f$ D^{ac}_{n' , t} \f$ is the node injection
+ *   variable and active power demand at node \f$ n \in \mathcal{N} \f$ in the
+ *   network respectively.
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -146,13 +147,7 @@ typedef unsigned int Index;
  */
 
 virtual void deserialize( netCDF::NcGroup & group ) override;
-/*--------------------------------------------------------------------------*/
-/// generate the static variables of DCNetworkBlock
-/** Method that generates the static variables of this DCNetworkBlock. The
- * base DCNetworkBlock class has just the node injection variables. */
 
-virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-    override;
 /*--------------------------------------------------------------------------*/
 
 

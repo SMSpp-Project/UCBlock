@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 06 - 2019
+ * \date 24 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -47,9 +47,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-#include "UCBlock.h"
-#include "FRowConstraint.h"
 #include "NetworkBlock.h"
+#include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -70,10 +69,10 @@ namespace SMSpp_di_unipi_it {
  *  demand satisfaction should be constructed as follow:
  *
  * \f[
- *  p^{ac}_{t} = D^{ac}_{t}) \quad t \in \mathcal{T}
+ *  S_{t} = D^{ac}_{t}) \quad t \in \mathcal{T}
  * \f]
- *   Where \f$ p^{ac}_{t} \f$  and \f$ D^{ac}_{t} \f$ are the active power
- *   variable and the active demand in the network.
+ *   Where \f$ S_{t} \f$  and \f$ D^{ac}_{t} \f$ are the node injection
+ *   variable of each node and the active demand in the network.
  */
 
   class BusNetworkBlock : public NetworkBlock {
@@ -146,9 +145,14 @@ typedef std::size_t Index;
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+/// generate the static variables of BusNetworkBlock
+/** Method that generates the static variables of this BusNetworkBlock. The
+ * base BusNetworkBlock class has just the node injection variables. Since,
+ * there exists just one node in this class, the variable node injection is
+ * fixed by the active demand value for that node. */
 
- virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-   override;
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+    override;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
@@ -194,10 +198,9 @@ typedef std::size_t Index;
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+
  /// the demand of node
  double f_active_demand;
-
- std::vector<FRowConstraint> v_active_demand_satisfaction;
 
   };   // end( class( BusNetworkBlock ) )
 
