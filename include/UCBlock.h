@@ -34,7 +34,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 
@@ -69,55 +69,73 @@ class UnitBlock;
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the unit commitment problem
-/** The class UCBlock, implements the Block concept [see Block.h] for the EDF
- *  Unit Commitment Problem.
+/// implementation of the Block concept for the Unit Commitment problem
+/** The class UCBlock, implements the Block concept [see Block.h] for the
+ * Unit Commitment (UC) problem in electrical power production. This is
+ * typically a short-term (across for instance one week or one day time
+ * horizon) *deterministic* problem regarding finding an optimal schedule
+ * of the production of electrical generators satisfying a (large) set of
+ * technical constraints.
  *
- * The class UCBlock, which derives from the Block, in order to define a base
- * class for the unit commitment problem that can be considered as a father
- * block of any other possible blocks(such as UnitBlocks and NetworkBlocks)
- * which are attached to it. It has very basic information that can
- * characterize almost any different different variation of the Unit
- * Commitment Problem. This class has thus been constructed having the
- * following elements:
+ * The model is quite flexible due to the fact that different types of units
+ * and network constraints can be used by means of the fact that the class
+ * manages son Block of type UnitBlock and NetworkBlock. Also, UCBlock handles
+ * a reasonably large variety of constraints, regarding not only active power
+ * but also primary and secondary reserve and inertia. Admittedly, some
+ * choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
+ * specific of the UC of the plan4res project; however, all the "nonstandard"
+ * aspects of UC can be switched away from the model (by simply not providing
+ * the data describing them).
  *
- * - A virtual public method that is used to initialize and read the
- *   data of any possible derived UCBlock class.
+ * The main elements that UCBlock handles are:
  *
- * - A public sub-class NetworkData that contains all the information related
- *   to the networks;
+ * - The time horizon of the problem, i.e., a discrete set of (typically,
+ *   equally-spaced) time instants at which decisions are made (like, the
+ *   24 hours in a day).
  *
- * - The time horizon of the problem.
+ * - A set of electricity generating units, represented by derived classes
+ *   of the base class UnitBlock.
  *
- * - A set of units (UnitBlock; that may be referring to any different
- *   kind of unit, such as thermal, hydro, etc).
+ * - A set of NetworkBlock, one for each time instant in the time horizon,
+ *   which represent the constraints on the electricity demand satisfaction
+ *   and the technical constraints on the transmission network. These can be
+ *   basically "empty" if the capacity of the transmission network is such
+ *   as to never really impact generation decisions (a "bus").
  *
- * - A set of networks (NetworkBlock; that can potentially refer to
- *   demand satisfaction, transmission line capacities, etc.). This
- *   set is either empty, which means that there is no network in the
- *   model, or has size equals the time horizon.
+ * - An optional set of HeatBlock, each representing the satisfaction of
+ *   some specific "type of heat" on a close geographical area by
+ *   heat-generating units possibly coupled with a heat storage. The link
+ *   with the rest of the UC model lies in the fact that some of the
+ *   heat-generating units in a HeatBlock may also be electricity generating
+ *   ones (i.e., a UnitBlock); actually, the same UnitBlock can generate
+ *   heat of "different types", and therefore appear as a heat-generating
+ *   units in more than one HeatBlock.
  *
- * - A multi_array of node injection FRowConstraints.
+ * - Constraints linking the production decisions at the units and ensuring:
  *
- * - A multi_array of primary demand FRowConstraints.
+ *   = balance between production of active power and injection in the
+ *     transmission network, at each node and for each time instant;
  *
- * - A multi_array of secondary demand FRowConstraints.
+ *   = possibly, primary and secondary reserve constraints for each "zone"
+ *     (appropriately defined subset of the nodes of the transmission
+ *     network) and for each time instant;
  *
- * - A multi_array of inertia demand FRowConstraints.
+ *   = possibly, constraints about inertia  for each "zone" (appropriately
+ *     defined subset of the nodes of the transmission network) and for
+ *     each time instant;
  *
- * - A multi_array of pollutant budget FRowConstraints.
+ *   = possibly, constraints maximum pollutants emision for different kinds
+ *     of pollutamt, each "zone" (appropriately defined subset of the nodes
+ *     of the transmission network) and for each time instant;
  *
- * - A multi_array of heat FRowConstraints.
+ *   = possibly, constraints linking the electricity production of some
+ *     UnitBlock with the heat production of some unit in a HeatBlock,
+ *     for the appropriate units and for each time instant.
  *
- *  The unit commitment corresponds to the short-term problem (with for
- *  instance one week or one day time horizon or even longer when the SSV is
- *  not considered and feasible regarding computational limitations) arising
- *  at each stage of the mid-term problem. This consists of a deterministic
- *  optimization problem involving a large number of power plants, load
- *  flexibilities and storage devices intended to jointly satisfy a
- *  deterministic demand at each node of the network. The goal of these
- *  problems is to find an optimal (or near optimal) schedule satisfying the
- *  set of technical constraints.
+ * TODO: move all that is below this point into the comment of
+ *       generate_abstract_constraints(), merging it with the current
+ *       comment (in this way, each time you talk of a block of
+ *       constraints you also describe exactly what they are).
  *
  *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
  *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
@@ -325,7 +343,7 @@ public:
 /** @name Constructor and Destructor
  *  @{ */
 
- /// constructor of NetworkData
+ /// constructor of NetworkData, does nothing
  NetworkData() {}
 
  /// destructor of NetworkData: it is virtual, and empty
@@ -337,42 +355,62 @@ public:
 /** @name Other initializations
  *  @{ */
 
-/// extends UCBlock::deserialize( netCDF::NcGroup )
-/** Extends UCBlock::deserialize( netCDF::NcGroup ) to the specific format of
- * the NetworkData. Besides the mandatory "type" attribute of any :Block, the
- * group should contain the following:
+/// deserialize a NetworkData out of a netCDF::NcGroup
+/** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
+ * the following:
  *
- * - the dimension "NumberNodes" containing the number of nodes in the
+ * - The dimension "NumberNodes" containing the number of nodes in the
  *   problem; this dimension is optional, if it is not provided then it is
- *   taken to be == 1;
+ *   taken to be == 1.
  *
- * - the dimension "NumberLines" containing the number of arcs in the problem;
- *   if NumberNodes == 1 then this dimension need not to be present since it
- *   is not loaded;
+ * If NumberNodes == 1 (equivalently, it is not provided), the network is a
+ * "bus" formed of only one node, and therefore all the subsequent information
+ * need not to be present since it is not loaded. If NumberNodes > 1, then all
+ * the subsequent information is mandatory:
  *
- * - the variable "StartLine", of type int and indexed over the dimension
+ * - The dimension "NumberLines" containing the number of lines in the
+ *   transmission network.
+ *
+ * - The variable "StartLine", of type int and indexed over the dimension
  *   "NumberNodes"; the i-th entry of the variable is the starting point of
- *   the line (however, lines are not oriented)
+ *   the line (a number in 0, ..., NumberNodes - 1). Note that lines are not
+ *   oriented, but the flow of energy is; that is, a positive flow along
+ *   line i means that energy is being taken away from StartLine[ i ] and
+ *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
  *
- * - the variable "EndLine", of type int and indexed over the dimension
+ * TODO: please check from the equations that the characterization of the
+ *       direction of energy flow is correct, otherwise change it,
+ *
+ * - The variable "EndLine", of type int and indexed over the dimension
  *   "NumberNodes"; the i-th entry of the variable is the ending point of the
- *   line (however, lines are not oriented)
+ *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
+ *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
+ *   but multiple lines between the same pair of nodes are.
  *
- * - the variable "MinPowerFlow", of type double and indexed over the
+ * - The variable "MinPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the minimum power flow at line i; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
+ *   contain the minimum power flow on line i (note that this is typically
+ *   a negative number as lines are bi-directional, see above).
  *
- * - the variable "MaxPowerFlow", of type double and indexed over the
+ * - The variable "MaxPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the maximum power flow at line i; if NumberNodes == 1 then this
- *   variable need not to be present since it is not loaded;
+ *   contain the maximum power flow at line i (a non-negative number).
  *
- * - the variable "Susceptance", of type double and indexed over the
+ * - The variable "Susceptance", of type double and indexed over the dimension
  *   "NumberLines"; the i-th entry of this variable is assumed to contain the
- *   susceptance of line i; if NumberNodes == 1 then this variable need not to
- *   be present since it is not loaded.
+ *   susceptance of line i.
+ *
+ * TODO: Is Susceptance[ i ] assumed ro be > 0? If so let's say it.
+ *
+ * TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
+ *       read if NumberNodes == 1 (or not present). Also, we have to make
+ *       the basic checks on data:
+ *       - nodes starting and ending names are in 0 ... NumNodes - 1
+ *       - self loops are not allowed
+ *       - min capacity <= 0 <= max capacity
+ *       - susceptance > 0 (if it is)
  */
+
  virtual void deserialize( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
@@ -387,6 +425,8 @@ public:
 /** @name Methods for loading, printing & saving the NetworkData
  *  @{ */
 
+// TODO: NetworkData does *not* derive from Block, and therefore this does
+//       *not* extend [UC]Block::serialize. Please be careful
 /// extends UCBlock::serialize( netCDF::NcGroup )
 /** Extends UCBlock::serialize( netCDF::NcGroup ) to the specific format of a
  * NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for
@@ -398,6 +438,8 @@ public:
 /*---------------- PUBLIC FIELDS OF THE NetworkData CLASS ------------------*/
 /*--------------------------------------------------------------------------*/
 
+// TODO: didn't we say to make the fields protected and put accessors?
+ 
 /// number of nodes of the network
  Index f_number_nodes;
 
@@ -431,7 +473,17 @@ public:
 /** @name Methods for modifying the NetworkData
  *  @{ */
 
+ // TODO: these must be public, the fields protected
+ // TODO: these methods are not for *modifying* the NetworkData but for
+ //       *reading* it, please be careful
 
+ // TODO: I like it better
+
+ const std::vector< int > & get_start_line( void ) const {
+  return( v_start_line );
+  }
+ 
+ 
  /// returns the start line where the given node belongs to
   inline Index get_start_line( Index node ) const {
     if( v_start_line.size() > 0 )
@@ -480,48 +532,51 @@ public:
  *  the UCBlock. Besides the mandatory "type" attribute of any :Block, the
  *  group should contain the following:
  *
- * - the dimension "TimeHorizon" containing the number of time steps in the
- *   problem;
+ * - The dimension "TimeHorizon" containing the number of time steps in the
+ *   problem.
  *
- * - the dimension "NumberUnits" containing the number of units in the
- *   problem;
+ * - The dimension "NumberUnits" containing the number of electricity 
+ *   generating units (UnitBlock) in the problem;
  *
- * - the dimension "NumberHeatBlocks" containing the number of heat blocks in
- *   the problem; the dimension is optional: if it is not provided then it is
- *   taken to be 0, which means that there is no heat block in the problem;
+ * - The dimension "NumberHeatBlocks" containing the number of heat blocks in
+ *   the problem. The dimension is optional: if it is not provided then it is
+ *   taken to be 0, which means that there is no heat block in the problem.
  *
- * - the groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
+ * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
  *   n == NumberUnits - 1, containing each one UnitBlock corresponding
- *   to one unit;
+ *   to one electricity generating unit.
  *
- * - the groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
- *   n == NumberHeatBlocks - 1, containing each one a HeatBlock corresponding
- *   to one energy cell; when NumberHeatBlocks == 0, there is no heat
- *   constraint anywhere in the problem;
+ * - The groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
+ *   n == NumberHeatBlocks - 1, containing each one a HeatBlock. When
+ *   NumberHeatBlocks == 0, these groups need not be there since they are
+ *   not read.
  *
- * - possibly, the dimensions and variables necessary to a NetworkData object,
+ * - Possibly, the dimensions and variables necessary to a NetworkData object,
  *   that describe the transmission network; see NetworkData::deserialize()
  *   for details. All that is optional, if it is not provided (basically,
  *   "NumberNodes" is not provided or it is == 1) then the transmission
- *   network is taken to have only one node (a bus);
+ *   network is taken to have only one node (a bus).
  *
- * - the groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
- *   with t = TimeHorizon - 1, containing each the state of the transmission
- *   network at time t;
+ * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
+ *   with t = TimeHorizon - 1, containing each the constraints on the
+ *   transmission network at time t.
  *
- * - the variable "UnitNode", of type int and indexed over the dimension
- *   "NumberUnits"; the entry UnitNode[ i ] tells to which node unit i
- *   belongs; if NumberNodes == 1 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
+ * - The variable "UnitNode", of type int and indexed over the dimension
+ *   "NumberUnits"; the entry UnitNode[ i ] tells to which node of the
+ *   transmission network unit i belongs. If NumberNodes == 1 (say, it is
+ *   not provided at all), then this variable need not be defined, since it
+ *   is not loaded.
  *
- * - the variable "HeatNode", of type int and indexed over the dimension
- *   "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node the
- *   HeatBlock h belongs; if NumberHeatBlocks == 0 (say, it is not provided at
- *   all), then this variable need not be defined, since it is not loaded.
- *   This information is actually only used to determine in which Pollutant
- *   Zone a HeatBlock is located, in order to add the corresponding heat units
- *   (that are not also electrical units) to the pollution constraints. This
- *   means that also if NumberPollutants == 0 (say, it is not provided at all)
+ * - The variable "HeatNode", of type int and indexed over the dimension
+ *   "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node of the
+ *   transmission network all the heat-generating units that are also
+ *   electricity-generating ones in HeatBlock h belong. If NumberHeatBlocks
+ *   == 0 (say, it is not provided at all), then this variable need not be
+ *   defined, since it is not loaded. This information is actually only used
+ *   to determine in which Pollutant Zone a HeatBlock is located, in order to
+ *   add the corresponding heat-generating units (that are not also
+ *   electricity-generating ones) to the pollution constraints. This means
+ *   that also if NumberPollutants == 0 (say, it is not provided at all)
  *   this variable is useless and therefore need not be defined, since it is
  *   not loaded. Finally, notice that for units into a HeatBlock that also
  *   are electrical units, this variable provides another time an information
@@ -529,133 +584,135 @@ public:
  *   two information must agree*, otherwise the input file is ill-defined and
  *   exception is thrown.
  *
- * - the variable "HeatSet", of type int and indexed both over the dimensions
- *   "NumberUnits" and "NumberHeatBlocks"; if HeatSet[ i , h ] = k, with
+ * - The variable "HeatSet", of type int and indexed both over the dimensions
+ *   "NumberUnits" and "NumberHeatBlocks". If HeatSet[ i , h ] = k, with
  *   k < number of heat units in HeatBlock h, then electrical unit i is
- *   represented into HeatBlock h as the heat unit k; if, instead,
+ *   represented into HeatBlock h as the heat unit k. If, instead,
  *   HeatSet[ i , h ] = k, with k >= number of heat units in HeatBlock h, then
- *   none of the heat units in HeatBlock h represents the electrical unit i;
- *   if NumberHeatBlocks == 0 (say, there is no HeatBlock) then this variable
- *   need not be defined, since it is not loaded;
- *
- * - the variable "PowerHeatRho", of type double and indexed over the
- *   dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to contain
- *   the electrical-power-to-heat ratio for each unit i;
- *
- * - the dimension "NumberPrimaryZones" is associated with one specific primary
- *   spinning reserve in the problem. The dimension is optional, if it is not
- *   provided then it is taken to be 0, which means that no primary reserve
- *   constraints are presented in the problem;
- *
- * - the variable "PrimaryZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry PrimaryZones[ i ] tells to which primary zone
- *   the node i belongs; if PrimaryZones[ i ] >= NumberPrimaryZones, this
- *   means that node i does not belong to any primary zone, and hence the
- *   corresponding units are not involved into the primary reserve
- *   constraints; if NumberPrimaryZones == 0  (say, it is not provided at all)
- *   then this variable need not be defined, since it is not loaded; if
- *   NumberPrimaryZones == 1 and this variable is not defined, then there is
- *   only one primary zone and all the nodes belong to it;
- *
- * - the variable "PrimaryDemand", of type double and indexed both over the
- *   dimensions "PrimaryZones" and "TimeHorizon": entry PrimaryDemand[ i , t ]
- *   is assumed to contain the primary reserves requirement which are
- *   specified on the primary reserves zone i in the time t; if
- *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
- *
- * - the dimension "NumberSecondaryZones" is associated with one specific
- *   secondary spinning reserve in the problem. The dimension is optional, if
- *   it is not provided then it is taken to be 0, which means that no
- *   secondary reserve constraints are presented in the problem;
- *
- * - the variable "SecondaryZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry SecondaryZones[ i ] tells to which secondary
- *   zone the node i belongs; if SecondaryZones[ i ] >= NumberSecondaryZones,
- *   this means that node i does not belong to any secondary zone, and hence
- *   the corresponding units are not involved into the secondary reserve
- *   constraints; if NumberSecondaryZones == 0(say, it is not provided at all)
- *   then this variable need not be defined, since it is not loaded; if
- *   NumberSecondaryZones == 1 and this variable is not defined, then there is
- *   only one secondary zone and all the nodes belong to it;
- *
- * - the variable "SecondaryDemand", of type double and indexed both over the
- *   dimensions "SecondaryZones" and "TimeHorizon": entry
- *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserves
- *   requirement which are specified on the secondary reserves zone i in the
- *   time t; if NumberSecondaryZones == 0 (say, it is not provided at all),
- *   then this variable need not be defined, since it is not loaded;
- *
- * - the dimension "NumberInertiaZones" is associated with one specific
- *   inertia zone in the problem. The dimension is optional, if it is not
- *   provided then it is taken to be 0;
- *
- * - the variable "InertiaZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry InertiaZones[ n ] tells to which inertia zone
- *   the node n belongs; if InertiaZones[ n ] >= NumberInertiaZones, this
- *   means that node n does not belong to any inertia zone, and hence the
- *   corresponding units are not involved into the inertia reserve
- *   constraints; if NumberInertiaZones == 0 (say, it is not provided at all)
- *   then this variable need not be defined, since it is not loaded; if
- *   NumberInertiaZones == 1 and this variable is not defined, then there is
- *   only one inertia zone and all the nodes belong to it;
- *
- * - the variable "InertiaDemand", of type double and indexed both over the
- *   dimensions "InertiaZones" and "TimeHorizon": entry InertiaDemand[ i , t ]
- *   is assumed to contain the inertia reserves requirement which are
- *   specified on the inertia reserves zone i in the time t; if
- *   NumberInertiaZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded;
- *
- * - the dimension "NumberPollutants" containing the number of pollutants in
- *   the problem. The dimension is optional, if it is not provided then it is
- *   taken to be 0;
- *
- * - the variable "NumberPollutantZones" of type int indexed over the
- *   dimension "NumberPollutants"; the p-th entry of the variable is assumed
- *   to contain the number of pollutant zones associated with pollutant p; if
- *   NumberPollutants == 0 (say, there is no pollutant) then this variable
+ *   none of the heat units in HeatBlock h represents the electrical unit i.
+ *   If NumberHeatBlocks == 0 (say, there is no HeatBlock) then this variable
  *   need not be defined, since it is not loaded.
  *
- * - the variable "PollutantZones", of type int and indexed over the
- *   dimensions "NumberPollutants" and "NumberNodes"; the entry
+ * - The variable "PowerHeatRho", of type double and indexed over the
+ *   dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to contain
+ *   the electrical-power-to-heat ratio for unit i.
+ *
+ * - The dimension "NumberPrimaryZones" tells how many "primary spinning
+ *   reserve zones" are there in the problem. The dimension is optional, if it
+ *   is not provided then it is taken to be 0, which means that no primary
+ *   reserve constraints are present in the problem.
+ *
+ * - The variable "PrimaryZones", of type int and indexed over the dimension
+ *   "NumberNodes". The entry PrimaryZones[ i ] tells to which primary zone
+ *   the node i belongs: if PrimaryZones[ i ] >= NumberPrimaryZones, this
+ *   means that node i does not belong to any primary zone, and hence the
+ *   corresponding units are not involved into the primary reserve
+ *   constraints. If NumberPrimaryZones == 0  (say, it is not provided at all)
+ *   then this variable need not be defined, since it is not loaded. If
+ *   NumberPrimaryZones == 1 and this variable is not defined, then there is
+ *   only one primary zone and all the nodes belong to it.
+ *
+ * - The variable "PrimaryDemand", of type double and indexed both over the
+ *   dimensions "PrimaryZones" and "TimeHorizon": entry PrimaryDemand[ i , t ]
+ *   is assumed to contain the primary reserves requirement which are
+ *   specified on the primary reserve zone i in the time t. If
+ *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
+ *   variable need not be defined, since it is not loaded.
+ *
+ * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
+ *   reserve zones" are there in the problem. The dimension is optional, if it
+ *   is not provided then it is taken to be 0, which means that no secondary
+ *   reserve constraints are present in the problem.
+ *
+ * - The variable "SecondaryZones", of type int and indexed over the dimension
+ *   "NumberNodes"; the entry SecondaryZones[ i ] tells to which secondary
+ *   zone the node i belongs. If SecondaryZones[ i ] >= NumberSecondaryZones,
+ *   this means that node i does not belong to any secondary zone, and hence
+ *   the corresponding units are not involved into the secondary reserve
+ *   constraints. If NumberSecondaryZones == 0 (say, it is not provided at
+ *   all) then this variable need not be defined, since it is not loaded. If
+ *   NumberSecondaryZones == 1 and this variable is not defined, then there is
+ *   only one secondary zone and all the nodes belong to it.
+ *
+ * - The variable "SecondaryDemand", of type double and indexed both over the
+ *   dimensions "SecondaryZones" and "TimeHorizon": entry
+ *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
+ *   requirement which are specified on the secondary reserve zone i in the
+ *   time t. If NumberSecondaryZones == 0 (say, it is not provided at all),
+ *   then this variable need not be defined, since it is not loaded.
+ *
+ * - The dimension "NumberInertiaZones" tells how many "inertia constraints
+ *   zones" are there in the problem. The dimension is optional, if it is not
+ *   provided then it is taken to be 0, which means that no inertia
+ *   constraints are present in the problem.
+ *
+ * - The variable "InertiaZones", of type int and indexed over the dimension
+ *   "NumberNodes"; the entry InertiaZones[ n ] tells to which inertia zone
+ *   the node n belongs. If InertiaZones[ n ] >= NumberInertiaZones, this
+ *   means that node n does not belong to any inertia zone, and hence the
+ *   corresponding units are not involved into the inertia reserve
+ *   constraints. If NumberInertiaZones == 0 (say, it is not provided at all)
+ *   then this variable need not be defined, since it is not loaded. If
+ *   NumberInertiaZones == 1 and this variable is not defined, then there is
+ *   only one inertia zone and all the nodes belong to it.
+ *
+ * - The variable "InertiaDemand", of type double and indexed both over the
+ *   dimensions "InertiaZones" and "TimeHorizon": entry InertiaDemand[ i , t ]
+ *   is assumed to contain the inertia reserves requirement which are
+ *   specified on the inertia constraints zone i in the time t. If
+ *   NumberInertiaZones == 0 (say, it is not provided at all), then this
+ *   variable need not be defined, since it is not loaded.
+ *
+ * - The dimension "NumberPollutants" containing the number of pollutants in
+ *   the problem. The dimension is optional, if it is not provided then it is
+ *   taken to be 0, which means that no pollutants  constraints are present in
+ *   the problem.
+ *
+ * - The variable "NumberPollutantZones" of type int indexed over the
+ *   dimension "NumberPollutants": the entry NumberPollutantZones[ p ] is
+ *   assumed to contain the number of pollutant zones associated with
+ *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then
+ *   this variable need not be defined, since it is not loaded.
+ *
+ * - The variable "PollutantZones", of type int and indexed over the
+ *   dimensions "NumberPollutants" and "NumberNodes": the entry
  *   PollutantZones[ p , n ] tells to which pollutant zone associated
- *   with pollutant p the node n belongs; if PollutantZones[ p , n ]
- *   >= NumberPollutantZones[ p ], this means that node n does not belong to
+ *   with pollutant p the node n belongs. If PollutantZones[ p , n ] >=
+ *   NumberPollutantZones[ p ], this means that node n does not belong to
  *   any pollutant zone, and hence the corresponding units are not involved
- *   into the pollutant demand constraints associated with pollutant p; if
- *   NumberPollutants == 0 (say, there is no pollutant) then this variable
- *   need not be defined, since it is not loaded;
+ *   into the pollutant demand constraints associated with pollutant p. If
+ *   NumberPollutants == 0 (say, it is not provided) then this variable
+ *   need not be defined, since it is not loaded.
  *
- * - the variable "PollutantBudget", of type double and indexed over the
- *   dimension "NumberPollutants"; the i-th entry of the variable is assumed
- *   to contain the limit of pollutant i; if NumberPollutants == 0 (say, there
- *   is no pollutant) then this variable need not be defined, since it is not
- *   loaded;
+ * - The variable "PollutantBudget", of type double and indexed over the
+ *   dimension "NumberPollutants": the entry PollutantBudget[ i ] is assumed
+ *   to contain the total limit (across all the time horizon) of pollutant i.
+ *   If NumberPollutants == 0 (say, it is not provided) then this variable
+ *   need not be defined, since it is not loaded.
  *
- * - the variable "PollutantRho", of type double and indexed over three
- *   dimensions. The first dimension can have size 1 or TimeHorizon. The
- *   second and third dimensions have sizes "NumberPollutants" and
+ * - The variable "PollutantRho", of type double and indexed over three
+ *   dimensions. The first dimension can have either size 1 or TimeHorizon.
+ *   The second and third dimensions have sizes "NumberPollutants" and
  *   "NumberUnits", respectively. The entry PollutantRho[ t , p , i ] is
  *   assumed to contain the conversion factor of pollutant p due to the
  *   generation of unit i for "each" time instant t (when the first dimension
  *   has full size TimeHorizon) or for "all" time instants (when the first
- *   dimension has size 1); if NumberPollutants == 0 (say, there is no
- *   pollutant) then this variable need not be defined, since it's not loaded;
+ *   dimension has size 1). If NumberPollutants == 0 (say, it is not
+ *   provided) then this variable need not be defined, since it's not loaded.
  *
- * - the variable "PollutantHeatRho", of type double and indexed over three
+ * - The variable "PollutantHeatRho", of type double and indexed over three
  *   dimensions. The first dimension can have size 1 or TimeHorizon. The
  *   second and third dimensions have sizes "NumberPollutants" and
- *   "NumberHeatBlocks", respectively; the entry PollutantRho[ t , p , h ] is
+ *   "NumberHeatBlocks", respectively. The entry PollutantRho[ t , p , h ] is
  *   assumed to contain the conversion factor of pollutant p due to the
  *   generation of every heat-only unit in HeatBlock h for "each" time instant
  *   t (when the first dimension has full size TimeHorizon) or for "all" time
- *   instants (when the first dimension has size 1); If NumberPollutants == 0
- *   (say, there is no pollutant) then this variable does not need be defined,
- *   since it is not loaded; if NumberHeatBlocks == 0 (say, there is no
+ *   instants (when the first dimension has size 1). If NumberPollutants == 0
+ *   (say, it is not provided) then this variable does not need be defined,
+ *   since it is not loaded. If NumberHeatBlocks == 0 (say, there is no
  *   heat-only unit) then this variable need not be defined, since it is not
- *   loaded;
- */
+ *   loaded. */
+
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -713,12 +770,15 @@ public:
  *  @{ */
 
  /// Method that initializes the instance and passes all the needed data
+ // TODO: what is that?? Block has load() for this, why a different name?
+ //       besides, this does not *read* anything, it must not be there
  void instance( std::istream& inStream );
 
  /// returns the time horizon of the problem
  Index get_time_horizon( void ) const { return f_time_horizon; }
 
  /// returns the NetworkData object
+ // TODO: a bit more comments regarding the fact that it may return nullptr
  NetworkData * get_NetworkData( void ) const { return f_NetworkData; }
 
  /// returns the vector of (pointers to) NetworkBlocks
@@ -726,6 +786,8 @@ public:
    return v_network_blocks;
  }
 
+ // TODO: again consider returning const references to the vector
+ //       but I'm open to discussing this
  /// returns the primary demand of the given zone at the given time
  inline double get_primary_demand( Index zone, Index time ) const {
    return v_primary_demand[ zone * f_time_horizon + time ];
