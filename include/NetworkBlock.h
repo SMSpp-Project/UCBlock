@@ -4,11 +4,10 @@
 /** @file
  *
  * Header file for the class NetworkBlock, which derives from the Block, in
- * order to define a vary basic interface for any possible network that can be
- * attached to a UCBlock. It has very basic information that can characterize
- * almost any different kind of network(such as BusNetworkBlock,
- * DCNetworkBlock, and ACNetworkBlock , ..), which includes a set of node
- * injection variables.
+ * order to define the basic interface for the constraints/optimization
+ * problems which describe the behaviour of the transmission network in a
+ * specific time instant in the Unit Commitment (UC) problem, as represented
+ * in UCBlock.
  *
  * \version 0.11
  *
@@ -34,23 +33,24 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __NetworkBlock
 #define __NetworkBlock
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+//TODO: when NetworkData is defined in NetworkBlock, remove the
+//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
 #include "UCBlock.h"
 #include "ColVariable.h"
 
@@ -63,22 +63,21 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** The class NetworkBlock, which derives from the Block, defines a base class
- * for any possible network that can be attached to a UCBlock. It has very
- * basic information that can characterize almost any different kind of
- * network(such as BusNetworkBlock, DCNetworkBlock, and ACNetworkBlock , ..),
- * which includes a set of node injection variables. This class has thus been
- * constructed having the following elements:
+
+/// Block that described the transmission network in the UC problem
+/** The class NetworkBlock, which derives from the Block, defines the basic
+ * interface for the constraints/optimization problems which describe the
+ * behaviour of the transmission network in a specific time instant in the
+ * Unit Commitment (UC) problem, as represented in UCBlock.
  *
- * - A virtual public method that is used to initialize and read the data of
- *   any possible derived NetworkBlock class.
- *
- * - A vector of doubles used to store the values of the demand at each node
- *   of the network, which have size equal to the number of nodes or is empty,
- *   in which case the corresponding variables simply do not exist.
- *
- * - A vector of ColVariable objects, that are used to store the information
- *   regarding the node injection variable for each node. */
+ * The base class handles only basic information: it allows to read/set the
+ * topology (and capacity/susceptances) of the network, and the active power
+ * demand at the different nodes in the given time instant. Details of the
+ * kind of network that is implemented ("bus", DC equations, AC equations,
+ * OPF, ...) are entirely demanded to derived variables. The interface
+ * between a NetworkBlock and the rest of the UC is just the vector of
+ * node injection variables, which will have to satisfy the technical
+ * constraints of the transmission network. */
 
 class NetworkBlock : public Block {
 
@@ -104,18 +103,19 @@ typedef std::size_t Index;                 ///< index of parameters
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
-/// constructor, takes the father and the network-class data
+
+/// constructor, takes the father
 /** Constructor of NetworkBlock, taking possibly a pointer of its father
- * Block and the network class data. */
+ * Block. */
 
  NetworkBlock( Block * father = nullptr ) : Block( father ) { }
 
 /*--------------------------------------------------------------------------*/
- /// destructor of NetworkBlock
+/// destructor of NetworkBlock
 
  virtual ~NetworkBlock() {}
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -125,6 +125,13 @@ typedef std::size_t Index;                 ///< index of parameters
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
+ *
+ * TODO: comment is not clear: you mention "NumberNodes" before defining it.
+ *       first discuss the NetworkData object, then mention that if the
+ *       NetworkData is present (either in the NcGroup or because it has
+ *       been passed) then ActiveDemand is long
+ *       NetworkData::get_number_nodes(), if no NetworkData is present then
+ *       the network is a bus and ActiveDemand is long 1.
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
@@ -140,6 +147,7 @@ typedef std::size_t Index;                 ///< index of parameters
  * NetworkData object is read from the NcGroup and used instead. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
+
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of NetworkBlock
 /** Method that generates the static variables of this NetworkBlock. The
@@ -153,7 +161,7 @@ typedef std::size_t Index;                 ///< index of parameters
    throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
  }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the NetworkBlock
@@ -205,10 +213,9 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- virtual void set_NetworkData
- ( UCBlock::NetworkData * network_data = nullptr ) = 0;
+ virtual void set_NetworkData( UCBlock::NetworkData * nd = nullptr ) = 0;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
@@ -219,7 +226,9 @@ typedef std::size_t Index;                 ///< index of parameters
    return v_node_injection;
  }
 
-/*@} -----------------------------------------------------------------------*/
+ // TODO: how about getting the NetworkData abd the demands as well?
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkBlock
@@ -233,7 +242,7 @@ typedef std::size_t Index;                 ///< index of parameters
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

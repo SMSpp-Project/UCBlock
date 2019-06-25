@@ -3,11 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for the *derived* class DCNetworkBlock, which derives from
- * NetworkBlock, in order to define a very basic interface for any possible
- * derived type of dc-network of a UCBlock. Τhe basis of DCNetworkBlock is
- * considered to be very generic and thus with the minimum possible
- * ingredients.
+ * Header file for class DCNetworkBlock, which derives from NetworkBlock and
+ * defines the standard linear constraints corresponding to the "DC model"
+ * of the transmission network in the Unit Commitment problem.
  *
  * \version 0.11
  *
@@ -23,16 +21,15 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, and Ali Ghezelsoflu
+ * Copyright &copy; by Antonio Frangioni, and Ali Ghezelsoflu
  */
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DCNetworkBlock
 #define __DCNetworkBlock
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -41,8 +38,9 @@
 #include "Block.h"
 #include "FRowConstraint.h"
 #include "NetworkBlock.h"
+//TODO: when NetworkData is defined in NetworkBlock, remove the
+//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
 #include "UCBlock.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -50,57 +48,61 @@
 
 namespace SMSpp_di_unipi_it {
 
-  class DCNetworkBlock : public NetworkBlock {
-
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-/** The DCNetworkBlock class derives from NetworkBlock, in order to define a
- *  very basic interface for any possible derived type of dc-network of a
- *  NetworkBlock. Τhe basis of DCNetworkBlock is considered to be very generic
- *  and thus with the minimum possible ingredients. Based on the above
- *  description the class has been constructed having the following elements:
+// TODO: short vesion is missing
+/** The DCNetworkBlock class derives from NetworkBlock, and defines the
+ * standard linear constraints corresponding to the "DC model" of the
+ * transmission network in the Unit Commitment problem.
  *
- * - A public method that reads and initializes all the data that describes
- *   the DCNetwork instance.
+ * TODO: move this part into the comments of
+ *       generate_abstract_constraints()
  *
- * - The Demand Constraint that needs to be satisfied from all the different
- *   units of the UC problem throughout all the time steps of the optimisation
- *   horizon.
+ *  The topology of the transmission network is defined by a set of nodes
+ *   \f$ N \f$ and a set of lines connecting the nodes \f$ L \f$.
  *
- *  A dc-network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
- *  of lines connecting the nodes \f$ \mathcal{L} \f$.
- *
- *   By considering a \f$ |\mathcal{L}| \times |\mathcal{N}| \f$ matrix
+ *   By considering a \f$ |L| \times |N| \f$ matrix
  *   \f$ B_t \f$, which constitutes the so-called Power Transfer Distribution
  *   Factor matrix which represents the linear relationship between power
  *   injections at each node of the grid and active power flows through the
- *   transmission lines. The flow limit equations can be written as follow:
+ *   transmission lines.
+ *
+ * TODO: you have to drop the index t everywhere, the time instant is fixed 
+ *
+ * TODO: but how is B defined out of the data of the NetworkBlock??
+ *
+ * The flow limit equations can be written as follow:
  *
  * \f[
- *  P^{mn}_{\ell , t} \leq \sum_{ n' \in \mathcal{N}} (B_t)_({\ell, n'})
+ *  P^{mn}_{\ell , t} \leq \sum_{ n' \in N} (B_t)_({\ell, n'})
  *  (S_{t, n'} - D^{ac}_{n' , t}) \leq
  *  P^{mx}_{\ell , t} \quad t \in \mathcal{T} \quad \ell \in \mathcal{L} \quad
  * \f]
  *   Where \f$ P^{mn}_{\ell , t}\f$ and \f$ P^{mx}_{\ell , t}\f$ are minimum
- *   and maximum power flow at each line \f$ \ell \in \mathcal{L}\f$ and
+ *   and maximum power flow at each line \f$ \ell \in L \f$ and
  *   \f$ S_{t, n'} \f$ and \f$ D^{ac}_{n' , t} \f$ is the node injection
- *   variable and active power demand at node \f$ n \in \mathcal{N} \f$ in the
+ *   variable and active power demand at node \f$ n \in N \f$ in the
  *   network respectively.
  */
+
+class DCNetworkBlock : public NetworkBlock {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  public:
+ public:
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public types
+ *
+ * TODO: no, erase. Index is already defined in NetworkBlock, BTW with a
+ *       different definition. It makes no sense to have two.
  *
  * DCNetworkBlock defines a main public type:
  *
@@ -115,16 +117,17 @@ typedef unsigned int Index;
 /** @name Constructor and Destructor
  *  @{ */
 
+/// TODO: short version
 /** Constructor of DCNetworkBlock, taking possibly a pointer of its
  * father Block. */
 
-  DCNetworkBlock( Block * fblock = nullptr ): NetworkBlock( fblock ) ,
-     f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
+ DCNetworkBlock( Block * fblock = nullptr ) : NetworkBlock( fblock ) ,
+  f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
 
 /*--------------------------------------------------------------------------*/
 
 /// destructor of DCNetworkBlock
-
+// TODO: it must destruct the NetworkData if it is local!!
  virtual ~DCNetworkBlock() {}
 
 /*@} -----------------------------------------------------------------------*/
@@ -133,6 +136,7 @@ typedef unsigned int Index;
 /** @name Other initializations
  *  @{ */
 
+ // TODO: no, ActiveDemand is already there in NetworkBlock!
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the DCNetworkBlock. Besides the mandatory "type" attribute of any :Block,
@@ -149,7 +153,6 @@ typedef unsigned int Index;
 virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
 
 virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
     override;

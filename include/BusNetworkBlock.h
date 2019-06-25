@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class BusNetworkBlock, which derives from NetworkBlock
- * [see NetworkBlock.h], in order to define a "reasonably standard"
- * bus-network of a Unit Commitment Problem.
+ * [see NetworkBlock.h] in order to define a "bus" transmission network in
+ * the Unit Commitment problem.
  *
  * \version 0.11
  *
@@ -30,17 +30,16 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BusNetworkBlock
-#define __BusNetworkBlock
-/* self-identification: #endif at the end of the file */
+ #define __BusNetworkBlock
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
