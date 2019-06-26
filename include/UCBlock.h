@@ -306,11 +306,11 @@ public:
  *  @{ */
 
  /// constructor of UCBlock, taking possibly a pointer of its father Block
- UCBlock( Block *father = nullptr ) : Block( father ) {}
+ explicit UCBlock( Block *father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
 
- virtual ~UCBlock() {};   ///< destructor of UCBlock: it is virtual, and empty
+ ~UCBlock() override = default;   ///< destructor of UCBlock: it is virtual, and empty
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- sub-CLASS -----------------------------------*/
@@ -344,10 +344,10 @@ public:
  *  @{ */
 
  /// constructor of NetworkData, does nothing
- NetworkData() {}
+ NetworkData() = default;
 
  /// destructor of NetworkData: it is virtual, and empty
- virtual ~NetworkData() {}
+ virtual ~NetworkData() = default;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -439,12 +439,12 @@ public:
 /*--------------------------------------------------------------------------*/
 
 // TODO: didn't we say to make the fields protected and put accessors?
- 
+
 /// number of nodes of the network
- Index f_number_nodes;
+ Index f_number_nodes{};
 
 /// number of lines of the network
- Index f_number_lines;
+ Index f_number_lines{};
 
 /// set starting lines
  std::vector< int > v_start_line;
@@ -482,39 +482,39 @@ public:
  const std::vector< int > & get_start_line( void ) const {
   return( v_start_line );
   }
- 
- 
+
+
  /// returns the start line where the given node belongs to
   inline Index get_start_line( Index node ) const {
-    if( v_start_line.size() > 0 )
+    if( !v_start_line.empty() )
       return v_start_line[ node ];
         return 0;
  }
 
  /// returns the end line where the given node belongs to
   inline Index get_end_line( Index node ) const {
-   if( v_end_line.size() > 0 )
+   if( !v_end_line.empty() )
      return v_end_line[ node ];
    return 0;
  }
 
  /// returns the minimum power flow for the given line l
-  inline Index get_min_power_flow( Index line ) const {
-    if( v_min_power_flow.size() > 0 )
+  inline double get_min_power_flow( Index line ) const {
+    if( !v_min_power_flow.empty() )
       return v_min_power_flow[ line ];
-        return 0;
+    return 0;
  }
 
  /// returns the maximum power flow for the given line l
- inline Index get_max_power_flow( Index line ) const {
-   if( v_max_power_flow.size() > 0 )
+ inline double get_max_power_flow( Index line ) const {
+   if( !v_max_power_flow.empty() )
      return v_max_power_flow[ line ];
    return 0;
  }
 
  /// returns the Susceptance for the given line l
- inline Index get_susceptance( Index line ) const {
-   if( v_susceptance.size() > 0 )
+ inline double get_susceptance( Index line ) const {
+   if( !v_susceptance.empty() )
      return v_susceptance[ line ];
    return 0;
  }
@@ -535,7 +535,7 @@ public:
  * - The dimension "TimeHorizon" containing the number of time steps in the
  *   problem.
  *
- * - The dimension "NumberUnits" containing the number of electricity 
+ * - The dimension "NumberUnits" containing the number of electricity
  *   generating units (UnitBlock) in the problem;
  *
  * - The dimension "NumberHeatBlocks" containing the number of heat blocks in
@@ -712,8 +712,9 @@ public:
  *   since it is not loaded. If NumberHeatBlocks == 0 (say, there is no
  *   heat-only unit) then this variable need not be defined, since it is not
  *   loaded. */
+ void deserialize( netCDF::NcGroup & group ) override;
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the UCBlock
@@ -760,8 +761,7 @@ public:
   *   some HeatBlock.
   */
 
- virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-   override;
+ void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
@@ -775,14 +775,14 @@ public:
  void instance( std::istream& inStream );
 
  /// returns the time horizon of the problem
- Index get_time_horizon( void ) const { return f_time_horizon; }
+ Index get_time_horizon() const { return f_time_horizon; }
 
  /// returns the NetworkData object
  // TODO: a bit more comments regarding the fact that it may return nullptr
- NetworkData * get_NetworkData( void ) const { return f_NetworkData; }
+ NetworkData * get_NetworkData() const { return f_NetworkData; }
 
  /// returns the vector of (pointers to) NetworkBlocks
- const std::vector<NetworkBlock *> & get_network_blocks( void ) const {
+ const std::vector<NetworkBlock *> & get_network_blocks() const {
    return v_network_blocks;
  }
 
@@ -854,14 +854,14 @@ public:
 
  /// returns the primary zone where the given node belongs to
  inline Index get_primary_zone( Index node ) const {
-   if( v_primary_zones.size() > 0 )
+   if( !v_primary_zones.empty() )
      return v_primary_zones[ node ];
    return 0;
  }
 
  /// returns the secondary zone where the given node belongs to
  inline Index get_secondary_zone( Index node ) const {
-   if( v_secondary_zones.size() > 0 )
+   if( !v_secondary_zones.empty() )
      return v_secondary_zones[ node ];
    return 0;
  }
@@ -869,7 +869,7 @@ public:
 
  /// returns the inertia zone where the given node belongs to
  inline Index get_inertia_zone( Index node ) const {
-   if( v_inertia_zones.size() > 0 )
+   if( !v_inertia_zones.empty() )
      return v_inertia_zones[ node ];
    return 0;
  }
@@ -890,7 +890,7 @@ public:
  * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UCBlock ---------------------*/
@@ -905,28 +905,28 @@ public:
 protected:
 
  /// The time horizon of the problem
- Index f_time_horizon;
+ Index f_time_horizon{};
 
  /// The number of units of the problem
- Index f_number_units;
+ Index f_number_units{};
 
  /// the NetworkData object
- NetworkData * f_NetworkData;
+ NetworkData * f_NetworkData{};
 
  /// The number of heat block
- Index f_number_heat_blocks;
+ Index f_number_heat_blocks{};
 
  /// The number of nodes in primary zones of the network
- Index f_number_primary_zones;
+ Index f_number_primary_zones{};
 
  /// The number of nodes in secondary zones of the network
- Index f_number_secondary_zones;
+ Index f_number_secondary_zones{};
 
  /// The number of nodes in inertia zones of the network
- Index f_number_inertia_zones;
+ Index f_number_inertia_zones{};
 
  /// The number of pollutants
- Index f_number_pollutants;
+ Index f_number_pollutants{};
 
  /// The set of UnitBlocks
  std::vector<UnitBlock *> v_unit_blocks;
@@ -1026,8 +1026,8 @@ private:
 
  /// Deserialize the sub-blocks of UCBlock that have the given prefix name
  void deserialize_sub_blocks( const netCDF::NcGroup & group,
-                              const std::string sub_group_name_prefix,
-                              const int num_sub_blocks );
+                              const std::string& sub_group_name_prefix,
+                              int num_sub_blocks );
 
 
   };   // end( class( UCBlock ) )
