@@ -26,7 +26,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
  * Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
@@ -35,6 +35,7 @@
 
 #ifndef __HeatBlock
  #define __HeatBlock  /* self-identification: #endif at the end of the file */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -58,7 +59,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for a set of "heat unit"
+/// implementation of the Block concept for a set of "heat units"
 /** The HeatBlock class implements the Block concept [see Block.h] for a
  * set of "heat units" as required in the plan4res project.
  *
@@ -74,48 +75,51 @@ namespace SMSpp_di_unipi_it {
  * is not required for the description of the internal constraints of a HB.
  * All this on a given time horizon, as in the UC problem. The operations of
  * the heat generating unit are described on a discrete time horizon which in
- * this description we indicate it with \f$ \mathcal{T} \f$.
+ * this description we indicate it with \f$ T \f$.
  *
- * The HB therefore has as primary data the description of a set
- * \f$ \mathcal{I} \f$ of heat-producing units, possibly of a single heat
- * storage, and of the demand that has to be satisfied.
+ * The HB therefore has as primary data the description of a set \f$ I \f$
+ * of heat-producing units, possibly of a single heat storage, and of the
+ * demand that has to be satisfied.
+ *
+ * TODO: move the above in the comments togenerate_abstract_variables(),
+ *       generate_abstract_constraints() and generate_objective()
  *
  * The variables of the HB are the following:
  *
  * - \f$ p^{he}_t \f$ : representing the power produced by heat unit
- *   \f$ i \in I \f$ at time \f$ t \in \mathcal{T} \f$;
+ *   \f$ i \in I \f$ at time \f$ t \in T \f$;
  *
  * - if the heat storage is defined, \f$ s_{t,+} \geq 0 \f$ and \f$ s_{t,-}
  *   \geq 0 \f$ representing respectively the amount of heat added to and
- *   removed from the storage at time instant \f$ t \in \mathcal{T} \f$;
+ *   removed from the storage at time instant \f$ t \in T \f$;
  *
  * - if the heat storage is defined, \f$ v_t \f$ representing the amount of
- *   heat available in the storage at time instant \f$ t \in \mathcal{T} \f$.
+ *   heat available in the storage at time instant \f$ t \in T \f$.
  *
  *  The constraints in the HB write as follow:
  *
  * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
- *   at time period \f$ t \in \mathcal{T} \f$:
+ *   at time period \f$ t \in T \f$:
  *   \f[
  *     \sum_{ i \in I } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
-       \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
+       \geq D_t                     \quad t \in T     \quad     (1)
  *   \f]
  *
  * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
  *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
- *   production of unit \f$ i \in I \f$ at time \f$ t \in \mathcal{T} \f$, the
+ *   production of unit \f$ i \in I \f$ at time \f$ t \in T \f$, the
  *   heat production bounds are
  *   \f[
  *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
- *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
+ *         \quad i \in I    \quad t \in T   \quad     (2)
  *   \f]
  *
  * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
  *   \f$ V^{mx}_t \f$ denoting respectively the minimum and maximum heat
- *   storage . For each heat block at time \f$ t \in \mathcal{T} \f$, the heat
+ *   storage . For each heat block at time \f$ t \in T \f$, the heat
  *   storage bounds are
  *   \f[
- *     v^{mn}_{t} v_t \leq V^{mx}_t    \quad t \in \mathcal{T}    \quad   (3)
+ *     v^{mn}_{t} v_t \leq V^{mx}_t    \quad t \in T    \quad   (3)
  *   \f]
  *
  * - Evolution in the stored heat Constraints. Let three constants
@@ -125,20 +129,20 @@ namespace SMSpp_di_unipi_it {
  *   storage; then the evolution in the stored heat can be written as
  *   \f[
  *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
- *                                   \quad t \in \mathcal{T}      \quad  (4)
+ *                                   \quad t \in T      \quad  (4)
  *   \f]
  *
  * - Objective Function: the objective function of HB simply reads
  *   \f[
- *     \min \sum_{ i \in \mathcal{I}} \sum_{ t \in \mathcal{T}}
+ *     \min \sum_{ i \in I} \sum_{ t \in T}
  *          C_{t,i} p^{he}_{t,i}
  *   \f]
  *   where \f$  C_{t,i} \f$ is the cost of producing one heat unit by unit
- *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
+ *   \f$ i \in I \f$ at time \f$ t \in T \f$. Note that
  *   storing heat has no cost.
  */
 
- class HeatBlock : public Block {
+class HeatBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -161,7 +165,7 @@ namespace SMSpp_di_unipi_it {
 
  typedef std::size_t Index;
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -172,11 +176,11 @@ namespace SMSpp_di_unipi_it {
  * Block and the time horizon. */
 
  HeatBlock( Block * father_block = nullptr , Index t = 0 )
-  : Block( father_block ), f_time_horizon( t ) { }
+  : Block( father_block )c, f_time_horizon( t ) { }
 
 /*--------------------------------------------------------------------------*/
-
 /// destructor of HeatBlock: it is virtual, and empty
+
  virtual ~HeatBlock() { }
 
 /*@}------------------------------------------------------------------------*/
@@ -186,6 +190,7 @@ namespace SMSpp_di_unipi_it {
  *  @{ */
 
 /// loads the HeatBlock instance from a stream
+
  virtual void load( std::istream &input ) override {
   throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
   };
@@ -211,13 +216,12 @@ namespace SMSpp_di_unipi_it {
  *   therefore be <= "TimeHorizon", with three distinct cases:
  *  
  *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
- *        == 1; this is what is assumed if the dimension, that is
- *        optional, is not there. This means that the value of each 
- *        relevant data in the HeatBlock (see e.g. "CostHeatUnit",
- *        "MinHeatProduction" and "MaxHeatProduction" below) is the same for
- *        each time instant 0, ..., "TimeHorizon" - 1 in the time horizon.
- *        In this case, also the variable "ChangeIntervals" (see below) is
- *        ignored.
+ *        == 1; this is what is assumed if the dimension, that is optional,
+ *        is not there. This means that the value of each  relevant data in
+ *        the HeatBlock (see e.g. "CostHeatUnit", "MinHeatProduction" and
+ *        "MaxHeatProduction" below) is the same for each time instant
+ *        0, ..., "TimeHorizon" - 1 in the time horizon. In this case, also
+ *        the variable "ChangeIntervals" (see below) is ignored.
  *
  *   ii)  1 < "NumberIntervals" < "TimeHorizon", which means that in some
  *        time instants, *but not all of them*, the values of some of the
@@ -252,86 +256,107 @@ namespace SMSpp_di_unipi_it {
  * - The variable "TotalHeatDemand", of type double and indexed over the
  *   dimension "TimeHorizon": entry HeatDemand[ t ] is assumed to contain
  *   the total heat demand of this heat block to be satisfied for the
- *   corresponding time instant t.
+ *   corresponding time instant t. Note that this variable does *not*
+ *   use the NumberIntervals / ChangeIntervals system, as demand is
+ *   usually changing from one time instant to the next.
  *
  * - The variable "CostHeatUnit", of type double double and indexed over two
- *   dimensions. The The first dimension can have size 1 or "NumberIntervals".
- *   The second dimension has size "NumberHeatUnits". The entry of matrix
- *   CostHeatUnit[ t , i ] assumed to contain the cost of heat production of
- *   each heat-producing unit i for "each" time instant t (when the first
- *   dimension has size NumberIntervals) or for "all" time instants (when the
- *   first dimension has size 1); Note that always we should consider the same
- *   across time for the same heat-producing unit i in this heat block;
+ *   dimensions. The first dimension can have size 1 or "NumberIntervals".
+ *   The second dimension has size "NumberHeatUnits". This is meant to
+ *   represent the matrix CHU[ t , i ] which is assumed to contain the
+ *   unitary cost of heat production of heat-producing unit i for time
+ *   instant t. If the first dimension has size 1, then the cost is the
+ *   same for all time instants (for the same unit). Otherwise,
+ *   CostHeatUnit[ h , i ] is the fixed value of FC[ t , i ] for all t in
+ *   the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0.
  *
- * - the variable "MinHeatProduction", of type double double and indexed over
- *   two dimensions. The The first dimension can have size 1 or
- *   "NumberIntervals". The second dimension has size "NumberHeatUnits". The
- *   entry of matrix MinHP[ t , i ] assumed to contain the minimum heat
- *   production for each heat-producing unit i for "each" time instant t (when
- *   the first dimension has size NumberIntervals) or for "all" time instants
- *   (when the first dimension has size 1); Note that always we should
- *   consider the same across time for the same heat-producing unit i in this
- *   heat block; The variable is optional, if it is not provided at all is
- *   equal to zero for each heat-producing unit i;
+ * - The variable "MinHeatProduction", of type double double and indexed over
+ *   two dimensions. The first dimension can have size 1 or
+ *   "NumberIntervals". The second dimension has size "NumberHeatUnits". This
+ *   is meant to represent the matrix MnHP[ t , i ] which is assumed to
+ *   contain the minimum heat production of heat-producing unit i for time
+ *   instant t. The variable is optional: if it is not provided at all, it
+ *   is intended MnHP[ t , i ] == 0 for all i and t. If the first dimension
+ *   has size 1, then the minimum heat production is the same for all time
+ *   instants (for the same unit). Otherwise, MinHeatProduction[ h , i ] is
+ *   the fixed value of MnHP[ t , i ] for all t in the interval
+ *   [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0.
  *
- * - the variable "MaxHeatProduction", of type double double and indexed over
- *   two dimensions. The The first dimension can have size 1 or
- *   "NumberIntervals". The second dimension has size "NumberHeatUnits". The
- *   entry of matrix MaxHP[ t , i ] assumed to contain the maximum heat
- *   production for each heat-producing unit i for "each" time instant t (when
- *   the first dimension has size NumberIntervals) or for "all" time instants
- *   (when the first dimension has size 1); Note that always we should
- *   consider the same across time for the same heat-producing unit i in this
- *   heat block; The variable is optional, if it is not provided at all is
- *   equal to zero for each heat-producing unit i;
+ * - The variable "MaxHeatProduction", of type double double and indexed over
+ *   two dimensions. The first dimension can have size 1 or
+ *   "NumberIntervals". The second dimension has size "NumberHeatUnits". This
+ *   is meant to represent the matrix MxHP[ t , i ] which is assumed to
+ *   contain the maximum heat production of heat-producing unit i for time
+ *   instant t. It is assumed MxHP[ t , i ] >= MnHP[ t , i ] >= 0 for all
+ *   i and t, with strict inequality holding for at least some t for each
+ *   unit i (otherwise the production of unit i is fixed and there is
+ *   nothing to decide).
  *
- * - the variable "MinHeatStorage", of type double and either is indexed over
+ *   NOTE: I don't think it makes sense that the maximum heat production is
+ *         0, it would mean no heat ever, what would be the point?
+ *
+ *   If the first dimension has size 1, then the maximum heat production is
+ *   the same for all time instants (for the same unit). Otherwise,
+ *   MaxHeatProduction[ h , i ] is  the fixed value of MxHP[ t , i ] for all
+ *   t in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+ *
+ * - The variable "MinHeatStorage", of type double and either indexed over
  *   the dimension "NumberIntervals" or has size 1. This is meant to represent
- *   the vector MinHeatStorage[ t ] which, for each time instant t, contains
- *   the minimum heat storage of this heat block. Note that for each time
- *   instant t it must be MaxHeatStorage[ t ] >= MinHeatStorage[ t ]. The
- *   variable is optional, if it is not provided at all is equal to zero which
- *   implies that MinHeatStorage[ t ] == 0, and it is meant there is no heat
- *   storage;
+ *   the vector MnHS[ t ] which, for each time instant t, contains the
+ *   minimum heat storage of this HB. The variable is optional, if it is not
+ *   provided at all it is intended that MnHS[ t ] == 0 for all t. If the
+ *   variable has size 1, then the minimum heat storage is the same for all
+ *   time instants. Otherwise, MinHeatStorage[ h ] is the fixed value of
+ *   MnHS[ t ] for all t in the interval [ ChangeIntervals[ h - 1 ],
+ *   ChangeIntervals[ h ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0.
  *
- * - the variable "MaxHeatStorage", of type double and either is indexed over
+ * - The variable "MaxHeatStorage", of type double and either indexed over
  *   the dimension "NumberIntervals" or has size 1. This is meant to represent
- *   the vector MaxHeatStorage[ t ] which, for each time instant t, contains
- *   the maximum heat storage of this heat block. Note that for each time
- *   instant t it must be MaxHeatStorage[ t ] >= MinHeatStorage[ t ]. The
- *   variable is optional, if it is not provided at all is equal to zero which
- *   implies that MaxHeatStorage[ t ] == MinHeatStorage[ t ] == 0, and it is
- *   meant there is no heat storage;
+ *   the vector MxHS[ t ] which, for each time instant t, contains the
+ *   maximum heat storage of this HB. The variable is optional, if it is not
+ *   provided at all it is intended that MxHS[ t ] == 0 for all t. Since it
+ *   is assumed that MxHS[ t ] >= MnHS[ t ] >= 0 for all t, this means that
+ *   there is no heat storage in this HB. If the variable has size 1, then
+ *   the maximum heat storage is the same for all time instants. Otherwise,
+ *   MaxHeatStorage[ h ] is the fixed value of MxHS[ t ] for all t in the
+ *   interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
  * - The scalar variable "InitialHeatAvailable", of type double and not
- *   indexed over any dimension, which indicates the the initial amount of
- *   heat in the storage at the time -1 in this HB; this variable is optional,
- *   if it is not provided it is taken to be
- *   InitialHeatAvailable == MinHeatStorage[ 0 ];
+ *   indexed over any dimension, which indicates the the amount of heat in
+ *   the storage at the beginning of the first time instant in this HB. It
+ *   is assumed that MxHS[ 0 ] >= InitialHeatAvailable >= MnHS[ 0 ]. This
+ *   variable is optional, if it is not provided it is taken to be
+ *   InitialHeatAvailable == MnHS[ 0 ]. If there is no heat storage (say,
+ *   MaxHeatStorage is not defined) then this variable is not read, because
+ *   it is not used.
  *
  * - The scalar variable "StoringHeatRho", of type double and not indexed
  *   over any dimension, which indicates the inefficiency of storing heat
  *   in the heat storage (if any) in this HB. This variable is optional and
  *   it must always be StoringHeatRho <= 1, if it is not provided it is taken
- *   to be StoringHeatRho == 1. If for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the HB has no heat
- *   storage then this variable need not be defined, since it is not loaded.
+ *   to be StoringHeatRho == 1. If there is no heat storage (say,
+ *   MaxHeatStorage is not defined) then this variable is not read, because
+ *   it is not used.
  *
  * - The scalar variable "ExtractingHeatRho", of type double and not indexed
  *   over any dimension, and which indicates the inefficiency of extracting
  *   heat from the heat storage (if any) in this HB. This variable is
  *   optional and it must always be ExtractingHeatRho >= 1, if it is not
- *   provided it is taken to be ExtractingHeatRho == 1. If for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the HB has no heat
- *   storage then this variable need not be defined, since it is not loaded.
+ *   provided it is taken to be ExtractingHeatRho == 1. If there is no heat
+ *   storage (say, MaxHeatStorage is not defined) then this variable is not
+ *   read, because it is not used.
  *
  * - The scalar variable "KeepingHeatRho", of type double and not indexed over
  *   any dimension, which indicates the double of keeping heat in the heat
  *   storage (if any) in this HB. This variable is optional and it must always
  *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
- *   KeepingHeatRho == 1. If for all intervals t,
- *   MaxHeatStorage[ t ] == MinHeatStorage[ t ] then the HB has no heat
- *   storage, then this variable need not be defined, since is not loaded. */
+ *   KeepingHeatRho == 1. If there is no heat storage (say, MaxHeatStorage is
+ *   not defined) then this variable is not read, because it is not used. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -389,13 +414,14 @@ namespace SMSpp_di_unipi_it {
  * Note that derived classes are free to use the other bits of the int to
  * similarly encode for creation of their own specific groups of variables.*/
 
-virtual void generate_abstract_variables( Configuration *stvv = nullptr )
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
     override;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the HeatBlock
 /** Method that generates the static constraint of the HeatBlock.
  *
- */
+ * TODO: add comments moving out from the comments to the class */
 
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
   override;
@@ -404,7 +430,8 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
 /// generate the objective of the HeatBlock
 /** Method that generates the objective of the HeatBlock.
  *
-*/
+ * TODO: add comments moving out from the comments to the class */
+
  virtual void generate_objective( Configuration *objc = nullptr )  override;
 
 /*@} -----------------------------------------------------------------------*/
@@ -414,16 +441,28 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
  *  @{  */
 
 /// returns the time horizon of the problem
-    Index get_time_horizon( void ) const { return f_time_horizon; }
+ Index get_time_horizon( void ) const { return( f_time_horizon ); }
 
 /// returns the number of units in this HeatBlock
-    Index get_number_heat_units( void ) const { return f_number_heat_units; }
+ Index get_number_heat_units( void ) const { return( f_number_heat_units ); }
 
-/** returns the minimum heat production of the given block for interval t of
+ // TODO: I do not think these implementations are correct, because the
+ //       vectors may have 1st dimension == 1. In this case you should
+ //       not duplicate the vectors for all time instants
+ //
+ //       Anyway, you should not have "interval" as first argument, but
+ //       rather "time". This is different.
+ //
+ //       Finally, you are using std::vector<> to represent matrices, but
+ //       we have boost::multi_array<> to do the same thing in a more
+ //       natural way, you should consider using these (although the final
+ //       choice is yours)
+
+ /** returns the minimum heat production of the given block for interval t of
  * unit i */
-    inline double get_min_heat_production(  Index interval , Index unit) const {
-        return v_min_heat_production[ interval * f_number_heat_units + unit ];
-    }
+ inline double get_min_heat_production( Index interval , Index unit ) const {
+  return v_min_heat_production[ interval * f_number_heat_units + unit ];
+  }
 
 /** returns the cost of heat unit of the given block for interval t of
  * unit i */
@@ -437,15 +476,34 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
         return v_max_heat_production[ interval * f_number_heat_units + unit ];
     }
 
-/// Method for returning the vector of heat variables
-    const std::vector<ColVariable> & get_heat( void ) const {
-        return v_heat;
-    }
-/// Method for returning the pointer to the heat variable at time t
-    ColVariable * get_heat( int t ) { return & ( v_heat[t] ); }
+/**@} ----------------------------------------------------------------------*/
+/*------------- METHODS FOR READING THE Variable OF THE HeatBlock ----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the HeatBlock
+ *
+ * These methods allow to read the only Variable of the HeatBlock that must
+ * be "known" outside of it, i.e., the heat variables.
+ *
+ * TODO: the second method is surely wrong, for each t there is a separate
+ *       heat variable for each unit i
+ *
+ * TODO: you should use boost::multi_array< ColVariable > for
+ *       multi-dimensional groups of Variable like the heat ones, which
+ *       would change the signature of the first method
+ *
+ * @{ */
 
+ /// Method for returning the vector of heat variables
 
-/*@} -----------------------------------------------------------------------*/
+ const std::vector<ColVariable> & get_heat( void ) const {
+  return( v_heat );
+  }
+
+ /// Method for returning the pointer to the heat variable at time t
+
+ ColVariable * get_heat( int t ) { return & ( v_heat[ t ] ); }
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE HeatBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the HeatBlock
@@ -454,11 +512,9 @@ virtual void generate_abstract_variables( Configuration *stvv = nullptr )
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * HeatBlock. See HeatBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- *
- * */
+ * details of the format of the created netCDF group. */
 
-virtual void serialize( netCDF::NcGroup & group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE HeatBlock --------------------*/
@@ -510,113 +566,124 @@ virtual void serialize( netCDF::NcGroup & group ) const override;
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  protected:
+ protected:
 
-/// the time horizon of the problem
-    Index f_time_horizon;
+/*--------------------------------------------------------------------------*/
 
-/// The number of units of the problem
-    Index f_number_heat_units;
+ Index f_time_horizon;  ///< the time horizon of the HB
 
-/// the number of intervals
-    Index f_number_intervals;
+ Index f_number_heat_units;  ///< The number of units of the HB
 
-/// the vector of change interval
-    std::vector< int >  v_change_intervals;
+ Index f_number_intervals;   ///< the number of intervals
 
-/// the vector of HeatDemand indexed over the dimensions NumberIntervals
-    std::vector< double > v_heat_demand;
+ std::vector< int >  v_change_intervals;  ///< the vector of change interval
 
-/** the matrix of MinHeatProduction indexed over the dimensions
- * NumberIntervals and NumberHeatUnits */
-    std::vector< double > v_min_heat_production;
+ // TODO: no, HeatDemand is indexed over TimeHorizon!!
 
-/** the matrix of MaxHeatProduction indexed over the dimensions
- * NumberIntervals and NumberHeatUnits */
-    std::vector< double > v_max_heat_production;
+ /// the vector of HeatDemand indexed over the dimensions NumberIntervals
+ std::vector< double > v_heat_demand;
 
-/// the vector of MinHeatStorage indexed over the dimensions NumberIntervals
-    std::vector< double > v_min_heat_storage;
+ // TODO: if it's a matrix, why not using a boost::multi_array<>?
 
-/// the vector of MaxHeatStorage indexed over the dimensions NumberIntervals
-    std::vector< double > v_max_heat_storage;
+ /** the matrix of MinHeatProduction indexed over the dimensions
+  * NumberIntervals and NumberHeatUnits */
+ std::vector< double > v_min_heat_production;
 
-/** the matrix of CostHeatUnit indexed over the dimensions
- * NumberIntervals and NumberHeatUnits */
-    std::vector< double > v_cost_heat_unit;
+ /** the matrix of MaxHeatProduction indexed over the dimensions
+  * NumberIntervals and NumberHeatUnits */
+ std::vector< double > v_max_heat_production;
 
-/// Value of storing heat rho
-    double f_storing_heat_rho;
+ /// the vector of MinHeatStorage indexed over the dimensions NumberIntervals
+ std::vector< double > v_min_heat_storage;
 
-/// Value of extracting heat rho
-    double f_extracting_heat_rho;
+ /// the vector of MaxHeatStorage indexed over the dimensions NumberIntervals
+ std::vector< double > v_max_heat_storage;
 
-/// Value of keeping heat rho
-    double f_keeping_heat_rho;
+ /** the matrix of CostHeatUnit indexed over the dimensions
+  * NumberIntervals and NumberHeatUnits */
+ std::vector< double > v_cost_heat_unit;
 
-/// the initial amount of heat in the storage at the beginning of the time t
-    double f_initial_heat_storage;
+ /// Value of storing heat rho
+ double f_storing_heat_rho;
+
+ /// Value of extracting heat rho
+ double f_extracting_heat_rho;
+
+ /// Value of keeping heat rho
+ double f_keeping_heat_rho;
+
+ /// the initial amount of heat in the storage at the beginning of the time t
+ double f_initial_heat_storage;
+
 /*-----------------------------variables------------------------------------*/
 
-/// Vector of Heat variables
-    std::vector< ColVariable > v_heat;
+ // TODO: that's a matrix, you should be using a boost::multi_array<>
+ /// Vector of Heat variables
+ std::vector< ColVariable > v_heat;
 
-/// Vector of HeatAdded variables
-    std::vector< ColVariable > v_heat_added;
+ /// Vector of HeatAdded variables
+ std::vector< ColVariable > v_heat_added;
 
-/// Vector of HeatRemoved variables
-    std::vector< ColVariable > v_heat_removed;
+ /// Vector of HeatRemoved variables
+ std::vector< ColVariable > v_heat_removed;
 
-/// Vector of HeatAvailable variables
-    std::vector< ColVariable > v_heat_available;
+ /// Vector of HeatAvailable variables
+ std::vector< ColVariable > v_heat_available;
 
 /*----------------------------constraints-----------------------------------*/
-/// the heat demand satisfaction constraints
-    std::vector< FRowConstraint > v_HeatDemand_Constraints;
 
-/// the heat bound satisfaction constraints
-    boost::multi_array<FRowConstraint, 2> v_HeatBounds_Constraints;
+ /// the heat demand satisfaction constraints
+ std::vector< FRowConstraint > v_HeatDemand_Constraints;
 
-/// the heat storage bound satisfaction constraints
-    std::vector< FRowConstraint > v_HeatStorageBounds_Constraints;
+ /// the heat bound satisfaction constraints
+ boost::multi_array<FRowConstraint, 2> v_HeatBounds_Constraints;
 
-/// the evolution in the  stored heat constraints
-    std::vector< FRowConstraint > v_EvolutionStoredHeat_Constraints;
+ /// the heat storage bound satisfaction constraints
+ std::vector< FRowConstraint > v_HeatStorageBounds_Constraints;
 
-/// the objective function
-    FRealObjective objective;
+ /// the evolution in the  stored heat constraints
+ std::vector< FRowConstraint > v_EvolutionStoredHeat_Constraints;
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
-  private:
 
-    SMSpp_insert_in_factory_h;
+ private:
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// returns which variables must be generated
-/** This method returns an int that indicates which variables of HeatBlock
+// returns which variables must be generated
+/* This method returns an int that indicates which variables of HeatBlock
  * must be generated by the generate_abstract_variables() method. This value
  * may be given in stvv as explained in generate_abstract_variables(). If this
  * value is not given in stvv, then this method returns the appropriate value
  * according to what is specified in the generate_abstract_variables() method.
- * */
-    int get_variables_to_be_generated( Configuration *stvv );
+ */
 
-    void deserialize_time_horizon( netCDF::NcGroup & group );
+ int get_variables_to_be_generated( Configuration *stvv );
 
-    void deserialize_change_intervals( netCDF::NcGroup & group );
+ void deserialize_time_horizon( netCDF::NcGroup & group );
 
+ void deserialize_change_intervals( netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
 
   }; // end( class( HeatBlock ) )
 
-/*@}  end( class( HeatBlock ) ) --------------------------------------------*/
 /*--------------------------------------------------------------------------*/
-}; // end( namespace SMSpp_di_unipi_it )
+/*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
+ }; // end( namespace SMSpp_di_unipi_it )
+
 /*--------------------------------------------------------------------------*/
 
 #endif /* HeatBlock.h included */
