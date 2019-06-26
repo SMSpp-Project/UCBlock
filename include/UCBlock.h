@@ -124,159 +124,13 @@ class UnitBlock;
  *     defined subset of the nodes of the transmission network) and for
  *     each time instant;
  *
- *   = possibly, constraints maximum pollutants emision for different kinds
- *     of pollutamt, each "zone" (appropriately defined subset of the nodes
+ *   = possibly, constraints maximum pollutants emission for different kinds
+ *     of pollutant, each "zone" (appropriately defined subset of the nodes
  *     of the transmission network) and for each time instant;
  *
  *   = possibly, constraints linking the electricity production of some
  *     UnitBlock with the heat production of some unit in a HeatBlock,
  *     for the appropriate units and for each time instant.
- *
- * TODO: move all that is below this point into the comment of
- *       generate_abstract_constraints(), merging it with the current
- *       comment (in this way, each time you talk of a block of
- *       constraints you also describe exactly what they are).
- *
- *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
- *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
- *  three partitions of the set of nodes which may or may not be identical:
- *
- *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
- *  in several zones (sets of nodes) each one being associated with one
- *  specific primary spinning reserve requirement;
- *
- *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
- *  \f$ in several zones each one being associated with one specific secondary
- *  spinning reserve requirement;
- *
- *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
- *  \f$ in several zones each one being associated with one specific inertia
- *  requirement;
- *
- *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
- *  \f$ corresponding to zones which are associated with an emissions
- *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
- *  \f$ \mathcal{P} \f$.
- *
- *  The electrical system contains a set of “units” (e.g., power plants, load
- *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
- *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
- *  \in \mathcal{N} \f$.
- *
- *  The decision variables are introduced as:
- *
- * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
- *
- * - \f$ S_{t,n} \f$ : the node injection variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$;
- *
- * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$;
- *
- * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$;
- *
- * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
- *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$;
- *
- * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
- *
- *  The global constraints of unit commitment problem, on the time horizon
- *  \f$ \mathcal{T} \f$ write as follow:
- *
- * - Node injection Constraints:
- *   In the unit commitment problem, \f$ P^{au}_{t , i} \f$ denotes the fixed
- *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
- *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
- *   and each node \f$ n \in \mathcal{N} \f$. The node injection constraints
- *   will be satisfied as follow:
- *
- * \f[
- *  \sum_{ i \in \mathcal{I}_n } (p^{ac}_{t,i} + P^{au}_{t , i}(1 - u_{t,i}))
- *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
- * \f]
- *
- * - Primary Demand Constraints:
- *   In the unit commitment problem, the primary demand
- *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
- *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
- *   be satisfied as follow:
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in I_n } p^{pr}_{t,i} \geq
- *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
- *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
- * \f]
- *
- * - Secondary Demand Constraints:
- *   In the unit commitment problem, the secondary demand
- *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
- *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
- *   be satisfied as follow:
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } p^{sc}_{t,i} \geq
- *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
- *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
- * \f]
- *
- * - Inertia Demand Constraints:
- *   In the unit commitment problem, the inertia demand
- *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
- *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
- *   parameters \f$ \alpha_{t , i} \f$ and \f$ \beta_{t , i} \f$ will be
- *   satisfied as follow:
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } (\alpha_{t , i}
- *  u_{t,i} + \beta_{t , i} p^{ac}_{t,i}) \geq D^{in}_{\mathcal{B} , t}
- *        \quad t \in \mathcal{T}
- *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
- * \f]
- *
- * - Pollutant Budget Constraints:
- *   In the unit commitment problem, the pollutant budget \f$ \mathcal{O}_p
- *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
- *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
- *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
- *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
- *   \rho'_{t , p , i} \f$ where considered as pollutant ratio and
- *   pollutant heat ratio respectively; is defined  as follow:
- *
- * \f[
- *
- *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ i \in
- *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{h \in \mathcal{H}_n}
- *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
- *  \leq \mathcal{O}_p  \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
- *  \quad p \in \mathcal{P} \quad                                          (5)
- * \f]
- *
- *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
- *
- * - Heat Constraints:
- *   In the unit commitment problem, the Heat Constraints link the UCBlock
- *   variables with the HeatBlock, where for each heat block
- *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
- *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat
- *   Constraints are defined as below:
- *
- * \f[
- *  \sum_{h \in \mathcal{H} , j \in \mathcal{I}^{ec}(h): e^h(j)=i}
- *   p^{h , he}_{t , j}  \leq \varrho_i p^{ac}_{t,i} \quad i \in \mathcal{I}
- *                                 \quad t \in \mathcal{T} \quad           (6)
- * \f]
- *   where \f$ j \in \mathcal{I}^{ec}(h) \f$ is an electricity producing unit
- *   in heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
- *   \mathcal{I}^{ec}(h) \f$, there is the need to know which electrical unit
- *   \f$ j \f$ is representing. Thus, we need a mapping
- *   \f$ e^h : \mathcal{I}^{ec}(h) \to \mathcal{I} \f$, where \f$ \mathcal{I}
- *   \f$ is the set of electricity producing units (standard units in UC
- *   parlance).
  */
 
 class UCBlock : public Block {
@@ -299,7 +153,7 @@ public:
 
  typedef std::size_t Index;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -312,7 +166,7 @@ public:
 
  ~UCBlock() override = default;   ///< destructor of UCBlock: it is virtual, and empty
 
-/*--------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- sub-CLASS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup the NetworkData sub_Class in UCBlock
@@ -337,7 +191,7 @@ public:
 
  public:
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -349,7 +203,7 @@ public:
  /// destructor of NetworkData: it is virtual, and empty
  virtual ~NetworkData() = default;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -378,9 +232,6 @@ public:
  *   line i means that energy is being taken away from StartLine[ i ] and
  *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
  *
- * TODO: please check from the equations that the characterization of the
- *       direction of energy flow is correct, otherwise change it,
- *
  * - The variable "EndLine", of type int and indexed over the dimension
  *   "NumberNodes"; the i-th entry of the variable is the ending point of the
  *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
@@ -400,9 +251,10 @@ public:
  *   "NumberLines"; the i-th entry of this variable is assumed to contain the
  *   susceptance of line i.
  *
- * TODO: Is Susceptance[ i ] assumed ro be > 0? If so let's say it.
+ * //TODO: Is Susceptance[ i ] assumed ro be > 0? If so let's say it.
+ *    //I HAVENT FOUND IT INTO THE DOCUMENTATION
  *
- * TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
+ * //TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
  *       read if NumberNodes == 1 (or not present). Also, we have to make
  *       the basic checks on data:
  *       - nodes starting and ending names are in 0 ... NumNodes - 1
@@ -419,16 +271,14 @@ public:
      throw( std::logic_error( "NetworkData::load() not implemented yet" ) );
  };
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkData
  *  @{ */
 
-// TODO: NetworkData does *not* derive from Block, and therefore this does
-//       *not* extend [UC]Block::serialize. Please be careful
-/// extends UCBlock::serialize( netCDF::NcGroup )
-/** Extends UCBlock::serialize( netCDF::NcGroup ) to the specific format of a
+/// serialize a NetworkData out of a netCDF::NcGroup
+/** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of a
  * NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group.
  */
@@ -438,46 +288,13 @@ public:
 /*---------------- PUBLIC FIELDS OF THE NetworkData CLASS ------------------*/
 /*--------------------------------------------------------------------------*/
 
-// TODO: didn't we say to make the fields protected and put accessors?
+ /// returns the number of nodes of the problem
+ Index get_number_nodes( void ) const { return f_number_nodes; }
 
-/// number of nodes of the network
- Index f_number_nodes{};
+ /// returns the number of nodes of the problem
+ Index get_number_lines( void ) const { return f_number_lines; }
 
-/// number of lines of the network
- Index f_number_lines{};
-
-/// set starting lines
- std::vector< int > v_start_line;
-
-/// set ending lines
- std::vector< int > v_end_line;
-
-/// vector to store the susceptance of each line of the network
- std::vector< double > v_susceptance;
-
-/// vector to store the minimum power flow at each line
- std::vector< double > v_min_power_flow;
-
-/// vector to store the maximum power flow at each line
- std::vector< double > v_max_power_flow;
-
-/*@} -----------------------------------------------------------------------*/
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-    protected:
-
-/*@} -----------------------------------------------------------------------*/
-/*---------------- METHODS FOR MODIFYING THE NetworkData -------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the NetworkData
- *  @{ */
-
- // TODO: these must be public, the fields protected
- // TODO: these methods are not for *modifying* the NetworkData but for
- //       *reading* it, please be careful
-
- // TODO: I like it better
+ // TODO: I like it better??
 
  const std::vector< int > & get_start_line( void ) const {
   return( v_start_line );
@@ -519,9 +336,43 @@ public:
    return 0;
  }
 
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE NetworkData -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the NetworkData
+ *  @{ */
+
+ /// number of nodes of the network
+ Index f_number_nodes;
+
+/// number of lines of the network
+ Index f_number_lines;
+
+/// set starting lines
+ std::vector< int > v_start_line;
+
+/// set ending lines
+ std::vector< int > v_end_line;
+
+/// vector to store the susceptance of each line of the network
+ std::vector< double > v_susceptance;
+
+/// vector to store the minimum power flow at each line
+ std::vector< double > v_min_power_flow;
+
+/// vector to store the maximum power flow at each line
+ std::vector< double > v_max_power_flow;
+
+
  };   // end( class( NetworkData) )
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -759,20 +610,156 @@ public:
   *   constraints at time t and unit M[ i ], where M maps the
   *   constraint into an electricity-producing unit that belongs to
   *   some HeatBlock.
+  *
+ *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
+ *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
+ *  three partitions of the set of nodes which may or may not be identical:
+ *
+ *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
+ *  in several zones (sets of nodes) each one being associated with one
+ *  specific primary spinning reserve requirement;
+ *
+ *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+ *  \f$ in several zones each one being associated with one specific secondary
+ *  spinning reserve requirement;
+ *
+ *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+ *  \f$ in several zones each one being associated with one specific inertia
+ *  requirement;
+ *
+ *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
+ *  \f$ corresponding to zones which are associated with an emissions
+ *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
+ *  \f$ \mathcal{P} \f$.
+ *
+ *  The electrical system contains a set of “units” (e.g., power plants, load
+ *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
+ *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
+ *  \in \mathcal{N} \f$.
+ *
+ *  The decision variables are introduced as:
+ *
+ * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *
+ * - \f$ S_{t,n} \f$ : the node injection variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$;
+ *
+ * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
+ *   \f$;
+ *
+ * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
+ *   \f$;
+ *
+ * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
+ *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$;
+ *
+ * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *
+ *  The global constraints of unit commitment problem, on the time horizon
+ *  \f$ \mathcal{T} \f$ write as follow:
+ *
+ * - Node injection Constraints:
+ *   In the unit commitment problem, \f$ P^{au}_{t , i} \f$ denotes the fixed
+ *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
+ *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
+ *   and each node \f$ n \in \mathcal{N} \f$. The node injection constraints
+ *   will be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{ i \in \mathcal{I}_n } (p^{ac}_{t,i} + P^{au}_{t , i}(1 - u_{t,i}))
+ *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
+ * \f]
+ *
+ * - Primary Demand Constraints:
+ *   In the unit commitment problem, the primary demand
+ *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
+ *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
+ *   be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in I_n } p^{pr}_{t,i} \geq
+ *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+ *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
+ * \f]
+ *
+ * - Secondary Demand Constraints:
+ *   In the unit commitment problem, the secondary demand
+ *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
+ *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
+ *   be satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } p^{sc}_{t,i} \geq
+ *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+ *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
+ * \f]
+ *
+ * - Inertia Demand Constraints:
+ *   In the unit commitment problem, the inertia demand
+ *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
+ *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
+ *   parameters \f$ \alpha_{t , i} \f$ and \f$ \beta_{t , i} \f$ will be
+ *   satisfied as follow:
+ *
+ * \f[
+ *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } (\alpha_{t , i}
+ *  u_{t,i} + \beta_{t , i} p^{ac}_{t,i}) \geq D^{in}_{\mathcal{B} , t}
+ *        \quad t \in \mathcal{T}
+ *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
+ * \f]
+ *
+ * - Pollutant Budget Constraints:
+ *   In the unit commitment problem, the pollutant budget \f$ \mathcal{O}_p
+ *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
+ *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
+ *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
+ *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
+ *   \rho'_{t , p , i} \f$ where considered as pollutant ratio and
+ *   pollutant heat ratio respectively; is defined  as follow:
+ *
+ * \f[
+ *
+ *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ i \in
+ *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{h \in \mathcal{H}_n}
+ *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
+ *  \leq \mathcal{O}_p  \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
+ *  \quad p \in \mathcal{P} \quad                                          (5)
+ * \f]
+ *
+ *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
+ *
+ * - Heat Constraints:
+ *   In the unit commitment problem, the Heat Constraints link the UCBlock
+ *   variables with the HeatBlock, where for each heat block
+ *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
+ *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat
+ *   Constraints are defined as below:
+ *
+ * \f[
+ *  \sum_{h \in \mathcal{H} , j \in \mathcal{I}^{ec}(h): e^h(j)=i}
+ *   p^{h , he}_{t , j}  \leq \varrho_i p^{ac}_{t,i} \quad i \in \mathcal{I}
+ *                                 \quad t \in \mathcal{T} \quad           (6)
+ * \f]
+ *   where \f$ j \in \mathcal{I}^{ec}(h) \f$ is an electricity producing unit
+ *   in heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
+ *   \mathcal{I}^{ec}(h) \f$, there is the need to know which electrical unit
+ *   \f$ j \f$ is representing. Thus, we need a mapping
+ *   \f$ e^h : \mathcal{I}^{ec}(h) \to \mathcal{I} \f$, where \f$ \mathcal{I}
+ *   \f$ is the set of electricity producing units (standard units in UC
+ *   parlance).
   */
 
  void generate_abstract_constraints( Configuration *stcc ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UCBlock
  *  @{ */
-
- /// Method that initializes the instance and passes all the needed data
- // TODO: what is that?? Block has load() for this, why a different name?
- //       besides, this does not *read* anything, it must not be there
- void instance( std::istream& inStream );
 
  /// returns the time horizon of the problem
  Index get_time_horizon() const { return f_time_horizon; }
@@ -826,7 +813,7 @@ public:
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
  inline Index get_pollutant_zone( Index pollutant, Index node ) const {
-   return v_pollutant_zones[ pollutant * f_NetworkData->f_number_nodes
+   return v_pollutant_zones[ pollutant * f_NetworkData->get_number_nodes()
                              + node ];
  }
 
@@ -847,7 +834,7 @@ public:
 
  /// returns the node where the given unit belongs to
  inline Index get_unit_node( Index unit ) const {
-   if( f_NetworkData->f_number_nodes > 1 )
+   if( f_NetworkData->get_number_nodes() > 1 )
      return v_unit_node[ unit ];
    return 0;
  }
@@ -879,7 +866,7 @@ public:
    return v_power_heat_rho[ unit ];
  }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the UCBlock
@@ -892,14 +879,17 @@ public:
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*@} -----------------------------------------------------------------------*/
-/*------------------ METHODS FOR MODIFYING THE UCBlock ---------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*------------------ METHODS FOR INITIALIZING THE UCBlock ------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the UCBlock
- *  @{ */
+/** @name Handling the data of the UCBlock
+    @{ */
 
+ virtual void load( std::istream &input ) override {
+   throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
+ };
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 protected:
