@@ -424,7 +424,7 @@ typedef std::size_t Index;  ///< index of parameters
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// method for returning a pointer to the commitment variable at time t
 
- ColVariable & get_commitment( Index t ) const {
+ ColVariable & get_commitment( Index t )  {
   return( v_commitment[ t ] );
   }
 
@@ -438,7 +438,7 @@ typedef std::size_t Index;  ///< index of parameters
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// method for returning a pointer to the primary spinning reserve at time t
 
- ColVariable & get_primary_spinning_reserve( Index t ) const {
+ ColVariable & get_primary_spinning_reserve( Index t )  {
   return( v_primary_spinning_reserve[ t ] );
   }
 
@@ -451,7 +451,7 @@ typedef std::size_t Index;  ///< index of parameters
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// method for returning a pointer to the secondary spinning reserve at time t
 
- ColVariable & get_secondary_spinning_reserve( Index t ) const {
+ ColVariable & get_secondary_spinning_reserve( Index t )  {
   return( v_secondary_spinning_reserve[ t ] );
   }
 
