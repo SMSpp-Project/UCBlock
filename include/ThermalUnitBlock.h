@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 06 - 2019
+ * \date 25 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -70,93 +70,112 @@ namespace SMSpp_di_unipi_it
  * are directly connected to the transmission grid. The technical and physical
  * constraints are mainly divided in four different categories:
  *
- * - maximum and minimum power output constraints;
- * - ramp-up/down rate constraints;
  * - minimum up and down time constraints;
+ * - ramp-up/down rate constraints;
+ * - maximum and minimum power output constraints;
  * - active power relation with primary and secondary spinning reserves.
  *
  * The operations of the thermal generating unit are described on a discrete
  * time horizon as dictated by the UnitBlock interface; in this description
- * we indicate it with \f$ \mathcal{T} = \{0, \dot , |T|\} \f$ where \f$|T|\f$
- * its cardinality. For simplicity of notation it is assumed that time steps
- * are homogeneous with size \f$ \delta t\f$ in hours.
+ * we indicate it with \f$ \mathcal{T} \f$. For simplicity of notation it is
+ * assumed that time steps are homogeneous with size \f$ \delta t\f$ in hours.
+ * The first time instant is called "init_t" and depending on the presented
+ * parameters InitUpDownTime(\f$ \tau_0 \f$), MinUpTime(\f$ \tau_+ \f$) and
+ * MinDownTime(\f$ \tau_- \f$) is defined as below:
  *
- * The first time instant is 0
- * //TODO: introduce the concept of "first" time instant, and discuss the issue
- *       of the unit being on/off before and how this impact min up- and
- *       down-time constraints and ramping ones.
+ * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
+ *   \f$ \tau_0 \f$ time stamps prior to time stamp 0 (the beginning of the
+ *   time horizon):
  *
- * //TODO: the formulation discussed here is not the only possible one. In
- *       fact, I'd like to have the DP one. So, the formulation should be
- *       discussed as a mean for making it mathematically clear what each
- *       constraint does, without implying that it is necessarily what the
- *       ThermalUnitBlock produces.
+ *   init_t = ( \f$ \tau_0 \f$ >= \f$ \tau_+ \f$ ? 0 :
+ *              \f$ \tau_+ \f$ - \f$ \tau_0 \f$ );
+ *
+ * - If, instead, \f$ \tau_0 < 0 \f$, this means that the unit has
+ *   been off for \f$ - \tau_0 \f$ time stamps prior to time stamp 0:
+ *
+ *   init_t = ( - \f$ \tau_0 \f$ >= \f$ \tau_- \f$ ? 0 :
+ *              \f$ \tau_- \f$ + \f$ \tau_0 \f$ );
+ *
+ * - Note that \f$ \tau_0 == 0\f$ means that the unit has been just shut down
+ *   at the end of time instant -1, i.e., the beginning of time instant 0.
+ *
+ * The value of \f$ \tau_0 \f$ impacts the minimum up and down time
+ * constraints or ram-up and down constraints which are discussed in details
+ * below.
  *
  * A possible MIP formulation of the problem uses three sets of binary
  * variables for each time instant \f$ t \in \mathcal{T} \f$:
  *
- * - \f$ u_t \f$: 1 if the unit is on at time period \f$ t \in \mathcal{T}\f$;
+ * - \f$ u_t = 1\f$ if the unit is on at time period t;
+ *   Note that the dimension of variable \f$ u_t \f$ is equal the dimension of
+ *   time horizon \f$ \mathcal{T} \f$, and since other two variables below
+ *   have the dimensions (\f$ \mathcal{T} \f$ - init_t) which is shorter than
+ *   \f$ \mathcal{T} \f$, we need to fix this variable to 1 or 0 for the first
+ *   init_t times(from 0 till init_t - 1), so:
  *
- * - \f$ v_t \f$: 1 if the unit has started in time period
- *   \f$ t \in \mathcal{T} \f$, i.e., \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
+ *   - If \f$ \tau_0 \f$ < 0 and - \f$ \tau_0 \f$ < \f$ \tau_- \f$;
+ *     then \f$ u_t\f$ must be fixed to 0 from 0 till init_t - 1 time steps
  *
- * - \f$  w_t \f$: 1 if the unit shuts down in time period \f$ t \in \mathcal{T} \f$, i.e., //TODO
- *   explain: is \f$ u_t = 1 \f$ but \f$ u_{t+1} = 0 \f$, or
- *        rather \f$ u_{t-1}= 1 \f$ but \f$ u_t = 0 \f$ ??
+ *   - If \f$ \tau_0 \f$ > 0 and  \f$ \tau_0 \f$ < \f$ \tau_+ \f$;
+ *     then \f$ u_t\f$ must be fixed to 1 from 0 till init_t - 1 time steps
+ *
+ *
+ * - \f$ v_t = 1 \f$ if the unit has started in time period t, i.e.,
+ *   \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
+ *
+ * - \f$  w_t = 1 \f$ if the unit shuts down in time period t, i.e.,
+ *        \f$ u_{t-1}= 1 \f$ but \f$ u_t = 0 \f$.
  *
  * The main thermal unit constraints are categorized as following:
  *
  * - Min Up/Down-time Constraints: a thermal unit has a minimum up time
  *   \f$ \tau_+ \f$ and a minimum down time \f$ \tau_- \f$ value. It means
- *   that if thermal unit is committed (on) in time \f$t\f$, then it must
- *   remain ON for the next \f$ \tau_+ - 1 \f$ time periods
- *
- *   THIS IS WRONG: if it *starts* at t, it must remain on. Also comment //TODO
- *   that \f$ \tau_+ \geq 1 \f$, and that \f$ \tau_+ = 1 \f$ means that
- *   there is no constraint.
+ *   that if thermal unit is started up in time \f$t\f$, then it must
+ *   remain ON for the next \f$ \tau_+ - 1 \f$ time periods, it means if
+ *   \f$ \tau_0 \geq 1 \f$, and that \f$ \tau_+ = 1 \f$ according to the
+ *   definition of the first time step concept init_t there is no constraint.
  *
  *   One possible representation of the constraint in terms of the 3 binary
  *   variables \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ defined above is
  *   \f[
+ *     u_t - u_{t-1} = v_t - w_t
+ *          \quad t \in \{ 2, ...,\mathcal{T} \}                     \quad (1)
+ *   \f]
+ *   \f[
  *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
  *           u_t \quad t \in \{ \tau_+ + 1, ..., \mathcal{T}\}
- *                                                                   \quad (1)
+ *                                                                   \quad (2)
  *   \f]
  *   \f[
  *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
  *         1 - u_t \quad t \in \{ \tau_- + 1, ...,\mathcal{T} \}
- *                                                                   \quad (2)
+ *                                                                   \quad (3)
  *   \f]
- *   \f[
- *     u_t - u_{t-1} = v_t - w_t
- *          \quad t \in \{ 2, ...,\mathcal{T} \}      \quad (3)
- *   \f]
- *
- *  : discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1  //TODO
  *
  *   When unit in time t is OFF (\f$ u_t = 0 \f$), it could not have been
  *   turned on in the last \f$ \tau_+ \f$ periods (including period t)
  *   because of the minimum up constraints. But this is exactly what the turn on
- *   inequality (1) for time period t\ says. On the other hand, when unit in
+ *   inequality (2) for time period t\ says. On the other hand, when unit in
  *   time t is ON (\f$ u_t = 1 \f$), it could have been turned on at most
  *   once in the last \f$ \tau_+ + \tau_- \f$ periods (including t). Similarly
- *   for turn off inequality (2), when unit in the time t is OFF (\f$ u_t = 0
+ *   for turn off inequality (3), when unit in the time t is OFF (\f$ u_t = 0
  *   \f$), it could have been turned off at most once in the last
  *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
  *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
  *   off in the last \f$ \tau_- \f$ periods (including period t). Since
  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
- *   can ensure (for all periods
- *   \f$ t \in \{ 2, ..., \mathcal{T} \} \f$) that
+ *   can ensure (for all periods \f$ t \in \{ 2, ..., \mathcal{T} \} \f$) that
  *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
  *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
- *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (3).
+ *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
+ *
+ *   //TODO: discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1
+ *   does above explanation is enough?
  *
  * - Ramp Up/Down-time Constraints:
  *
  *   TODO: first discuss what the constraints should logically achieve
- *         (p_{t+1} \leq p_t + \Delta^+_t ...), then introduce one possible
- *         implementation in terms of the three binary variables.
+ *         (p_{t+1} \leq p_t + \Delta^+_t ...), then introduce
 
  *   Another set of constraints where each thermal unit may has are ramp
  *   constraints. Here the two-period ramp up inequality is defined separately
@@ -165,18 +184,45 @@ namespace SMSpp_di_unipi_it
  *   \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants defining
  *   ramp-up and ramp-down threshold and
  *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining
- *   minimum and maximum output respectively:
+ *   minimum and maximum output respectively. Let \f$ p_t^{ac} \f$ be the
+ *   active power variable in time period t in all time horizon
+ *   \f$ \mathcal{T} \f$.
+ *
+ *   Note that since commitment variable \f$ u_{t} \f$ is fixed to one or zero
+ *   for "init_t" time steps(look above comments), and because of power output
+ *   constraint (look constraint (9))we also fixed \f$ p_t^{ac} \f$ to zero
+ *   for "init_t" time steps.
+ *
+ *   Analyzing the left hand side of the ramping constraint, in any integral
+ *   feasible solution we can see that \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be
+ *   bounded from above based on the values of \f$ u_{t+1}\f$, \f$ u_{t}\f$
+ *   and \f$ v_{t+1}\f$. It may illustrate in four different ways:
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = 0 \f$.
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
+ *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} =  \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = - \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = \Delta^+_t \f$.
+ *
+ *   Considering the same logic for the ramp-down inequalities, nne possible
+ *   implementation in terms of the three binary variables:
  *   \f[
  *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
- *        + (\underline{p}_t- \Delta^+_t) u_{t+1} - \underline{p}_t u_t
+ *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
  *            \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (4)
  *   \f]
- *   Using the symmetry between ramping up and ramping down constraints, we
- *   can derive the ramp-down analogues of the ramp-up inequality as below:
+ *   Using the symmetry between ramp up and ramp down constraints, we can
+ *   derive the ramp-down analogues of the ramp-up inequality as below:
  *   \f[
  *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
- *       + (\underline{p}_t - \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
- *            \quad t \in \{1, ..., \mathcal{T} - 1 \}   \quad (5)
+ *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
+ *            \quad t \in \{1, ..., \mathcal{T} - 1 \}             \quad (5)
  *   \f]
  *
  * - Power output Constraints:
