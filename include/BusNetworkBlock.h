@@ -45,9 +45,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Block.h"
 #include "NetworkBlock.h"
-#include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -61,38 +59,26 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the BusNetworkBlock
-/** The BusNetworkBlock class implements the Block concept [see Block.h] for
- *  a "reasonably standard" bus-network of a Unit Commitment Problem.
- *  A BusNetworkBlock defined when the NetworkBlock has just one node. The
- *  demand satisfaction should be constructed as follow:
+/// a NetworkBlock with only one node, i.e., a "bus" transmission network
+/** The BusNetworkBlock class, which derives from NetworkBlock [see
+ * NetworkBlock.h] implements the Block concept [see Block.h] in order to
+ * define a "bus" transmission network in the Unit Commitment problem for a
+ * given instant in the time horizon. A "bus" network has just one node,
+ * and therefore a single value D for the demand and a single injection
+ * variable s, which can hardly be called a variable since the only possible
+ * way to satisfy the constraints is by having
  *
- * \f[
- *  S_{t} = D^{ac}_{t}) \quad t \in \mathcal{T}
- * \f]
- *   Where \f$ S_{t} \f$  and \f$ D^{ac}_{t} \f$ are the node injection
- *   variable of each node and the active demand in the network.
- */
+ *    s = D
+ *
+ * which in fact makes the variable a constant. */
 
-  class BusNetworkBlock : public NetworkBlock {
+ class BusNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
   public:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * BusNetworkBlock defines a main public type:
- *
- * - Index, the type of indices;
- @{ */
-
-typedef std::size_t Index;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -106,11 +92,11 @@ typedef std::size_t Index;
 
 /*--------------------------------------------------------------------------*/
 
-/// destructor of BusNetworkBlock
+/// destructor of BusNetworkBlock, (understandably) doea nothing
 
  virtual ~BusNetworkBlock() {}
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -123,8 +109,8 @@ typedef std::size_t Index;
  * */
 
  virtual void load( std::istream &input ) override {
-   throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
- }
+  throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -132,6 +118,10 @@ typedef std::size_t Index;
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the BusNetworkBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
+ *
+ * TODO: no, ActiveDemand is loaded by NetworkBlock already. I think we don't
+ *       need to do anything here bacause the base NetworkBlock should have
+ *       done it all (see the e-mail about get_NetworkData())
  *
  * - the variable "ActiveDemand", of type double and indexed over the
  *   dimension "NumberNodes" when NumberNodes == 1; the entry of the variable
@@ -148,26 +138,26 @@ typedef std::size_t Index;
 /** Method that generates the static variables of this BusNetworkBlock. The
  * base BusNetworkBlock class has just the node injection variables. Since,
  * there exists just one node in this class, the variable node injection is
- * fixed by the active demand value for that node. */
+ * fixed to the active demand value for that node. */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
     override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the BusNetworkBlock
  *  @{ */
 
+ // TODO: no
  /// method to set the NetworkData object
  /** Method to set the NetworkData object. This method does nothing in
   * BusNetworkBlock because by definition the network is made by only one
   * node. */
  
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr )
-   override { }
+ void set_NetworkData( UCBlock::NetworkData * nd = nullptr ) override { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the BusNetworkBlock
@@ -181,7 +171,7 @@ typedef std::size_t Index;
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -197,13 +187,19 @@ typedef std::size_t Index;
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-
+ // TODO: no, NetworkBlock already has v_active_demand, why should you have
+ //       this??
  /// the demand of node
  double f_active_demand;
 
   };   // end( class( BusNetworkBlock ) )
 
-}  /* namespace SMSpp_di_unipi_it */
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+}  /* end namespace SMSpp_di_unipi_it */
+
+/*--------------------------------------------------------------------------*/
 
 #endif /* BusNetworkBlock.h included */
 
