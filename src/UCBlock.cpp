@@ -70,17 +70,17 @@ using namespace SMSpp_di_unipi_it;
 
 /// returns the i-th UnitBlock
 inline UnitBlock * UCBlock::get_unit_block( Index i ) const {
-  return static_cast<UnitBlock *>( v_Block[ i ] );
+  return dynamic_cast<UnitBlock *>( v_Block[ i ] );
 }
 
 /// returns the t-th NetworkBlock
 inline NetworkBlock * UCBlock::get_network_block( Index t ) const {
-  return static_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+  return dynamic_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
 }
 
 /// returns the i-th HeatBlock
 inline HeatBlock * UCBlock::get_heat_block( Index i ) const {
-  return static_cast<HeatBlock *>
+  return dynamic_cast<HeatBlock *>
     ( v_Block[ f_number_units + f_time_horizon + i ] );
 }
 
@@ -102,7 +102,7 @@ inline void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 inline void UCBlock::deserialize_sub_blocks
-( const netCDF::NcGroup & group, const std::string sub_group_name_prefix,
+( const netCDF::NcGroup & group, const std::string& sub_group_name_prefix,
   const int num_sub_blocks ) {
 
   for( int i = 0; i < num_sub_blocks; ++i ) {
@@ -155,18 +155,19 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   auto network_data = new NetworkData();
   network_data->deserialize( group );
 
-  if( network_data ) {  // there is a NetworkData object in the group
-    // use it, whatever has happened before
-    // if there was a previous NetworkData, delete it
-    if( f_NetworkData )
-      delete f_NetworkData;
-  }
-  else        // there is no NetworkData object in the group
-  if( ! network_data ) {
-    // if the NetworkData has not been passed from outside
-      throw( std::logic_error( "UCBlock has no NetworkData access" ) );
-  }
+  delete f_NetworkData; // This is equivalent to commented code below
 
+  // if( network_data ) {  // there is a NetworkData object in the group
+  //   // use it, whatever has happened before
+  //   // if there was a previous NetworkData, delete it
+  //   if( f_NetworkData )
+  //     delete f_NetworkData;
+  // }
+  // else        // there is no NetworkData object in the group
+  // if( ! network_data ) {
+  //   // if the NetworkData has not been passed from outside
+  //     throw( std::logic_error( "UCBlock has no NetworkData access" ) );
+  // }
 
   ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
   ::deserialize_dim( group, "NumberUnits", f_number_units, false );
@@ -274,7 +275,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   if( v_node_injection_constraints.size() != f_time_horizon ) {
     // this should only happen once
-    assert( v_node_injection_constraints.size() == 0 );
+    assert( v_node_injection_constraints.empty() );
 
     v_node_injection_constraints.resize
       ( boost::multi_array<FRowConstraint, 2>::
@@ -309,7 +310,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
             - fixed_consumption );
 
-        auto linear_function = static_cast<LinearFunction *>
+        auto linear_function = dynamic_cast<LinearFunction *>
           ( v_node_injection_constraints[ t ][ node_id ].get_function() );
 
         auto power = & get_unit_block( unit_id )->get_active_power( t );
@@ -331,7 +332,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if( v_PrimaryDemand_Const.size() != f_time_horizon ) {
       // this should only happen once
-      assert( v_PrimaryDemand_Const.size() == 0 );
+      assert( v_PrimaryDemand_Const.empty() );
 
       v_PrimaryDemand_Const.resize
         ( boost::multi_array<FRowConstraint, 2>::
@@ -361,7 +362,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         auto primary_spinning_reserve = get_unit_block( unit_id )
           ->get_primary_spinning_reserve( t );
 
-        auto linear_function = static_cast<LinearFunction *>
+        auto linear_function = dynamic_cast<LinearFunction *>
           ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function() );
         linear_function->
           add_variable( & primary_spinning_reserve, 1.0 );
@@ -379,7 +380,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if( v_SecondaryDemand_Const.size() != f_time_horizon ) {
       // this should only happen once
-      assert( v_SecondaryDemand_Const.size() == 0 );
+      assert( v_SecondaryDemand_Const.empty() );
 
       v_SecondaryDemand_Const.resize
         ( boost::multi_array<FRowConstraint, 2>::
@@ -409,7 +410,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         auto secondary_spinning_reserve = get_unit_block( unit_id )->
           get_secondary_spinning_reserve( t );
 
-        auto linear_function = static_cast<LinearFunction *>
+        auto linear_function = dynamic_cast<LinearFunction *>
           ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function() );
         linear_function->add_variable( & secondary_spinning_reserve, 1.0 );
       }
@@ -426,7 +427,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if ( v_InertiaDemand_Const.size() != f_time_horizon ) {
       // this should only happen once
-      assert( v_InertiaDemand_Const.size() == 0 );
+      assert( v_InertiaDemand_Const.empty() );
 
       v_InertiaDemand_Const.resize
         ( boost::multi_array<FRowConstraint *, 2>::
@@ -465,7 +466,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         auto inertia_power =
           get_unit_block( unit_id )->get_inertia_power()[ t ];
 
-        auto linear_function = static_cast<LinearFunction *>
+        auto linear_function = dynamic_cast<LinearFunction *>
           ( v_InertiaDemand_Const[ t ][ zone_id ].get_function() );
 
         linear_function->
@@ -486,7 +487,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if( v_PollutantBudget_Const.size() != f_number_pollutants ) {
       // this should only happen once
-      assert( v_PollutantBudget_Const.size() == 0 );
+      assert( v_PollutantBudget_Const.empty() );
 
       v_PollutantBudget_Const.resize( f_number_pollutants );
       for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant )
@@ -523,7 +524,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto rho = get_pollutant_rho( t, pollutant, unit_id );
           auto active_power = get_unit_block( unit_id )->get_active_power( t );
 
-          auto linear_function = static_cast<LinearFunction *>
+          auto linear_function = dynamic_cast<LinearFunction *>
           ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
           linear_function->add_variable( & active_power, rho );
@@ -548,7 +549,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
               auto heat = get_heat_block( heat_id )->get_heat( heat_id );
               auto rho  = get_pollutant_heat_rho( t, pollutant, heat_id );
 
-              auto linear_function = static_cast<LinearFunction *>
+              auto linear_function = dynamic_cast<LinearFunction *>
               ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
               linear_function->add_variable( & heat[ t ], rho );
@@ -576,7 +577,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
     if ( v_power_Heat_Rho_Const.size() != f_time_horizon ) {
 
       // this should only happen once
-      assert( v_power_Heat_Rho_Const.size() == 0 );
+      assert( v_power_Heat_Rho_Const.empty() );
 
       auto is_electricity_producing_inside_a_heat_block =
         [ this ]( Index unit ) {
@@ -589,8 +590,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         return false;
       };
 
-      Index num_constraints_per_time = 0;
-      for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+     for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
         if( is_electricity_producing_inside_a_heat_block( unit_id ) ) {
           electricity_units_inside_a_heat_block
             [ num_constraints_per_time++ ] = unit_id;
@@ -630,7 +630,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
           auto heat = get_heat_block( heat_unit_id )->get_heat( t );
           auto power_heat_rho = get_power_heat_rho( unit_id );
 
-          auto linear_function = static_cast<LinearFunction *>
+          auto linear_function = dynamic_cast<LinearFunction *>
             ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() );
           linear_function->add_variable( heat, 1,0 );
           linear_function->add_variable( & active_power, - power_heat_rho );

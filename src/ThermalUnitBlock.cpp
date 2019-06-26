@@ -123,10 +123,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration *stvv ) {
     if( v_start_up.size() != startup_shutdown_size &&
         v_shut_down.size() != startup_shutdown_size ) {
 
-      assert( v_start_up.size() == 0 ); // this should only happen once
+      assert( v_start_up.empty() ); // this should only happen once
       v_start_up.resize( startup_shutdown_size );
 
-      assert( v_shut_down.size() == 0 ); // this should only happen once
+      assert( v_shut_down.empty() ); // this should only happen once
       v_shut_down.resize( startup_shutdown_size );
 
       for( Index i = 0; i < startup_shutdown_size; ++i ) {
@@ -156,14 +156,14 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration *stvv ) {
       v_active_power[ t ].is_fixed( true );
     }
 
-    if( v_primary_spinning_reserve.size() > 0 ) {
+    if( !v_primary_spinning_reserve.empty() ) {
       for( Index t = 0; t < init_t; ++t ) {
         v_primary_spinning_reserve[ t ].set_value( 0.0 );
         v_primary_spinning_reserve[ t ].is_fixed( true );
       }
     }
 
-    if( v_secondary_spinning_reserve.size() > 0 ) {
+    if( !v_secondary_spinning_reserve.empty() ) {
       for( Index t = 0; t < init_t; ++t ) {
         v_secondary_spinning_reserve[ t ].set_value( 0.0 );
         v_secondary_spinning_reserve[ t ].is_fixed( true );
@@ -191,6 +191,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
+ // FIXME: multiple linear_function declarations shadow the local variable
 
 
   // POWER OUTPUT CONSTRAINTS

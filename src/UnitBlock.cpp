@@ -155,7 +155,7 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
+unsigned int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
 
   if( ! stvv )
     return 0;
@@ -187,10 +187,10 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
     return;
   }
 
-  if( v_commitment.size() != 0 ||
-      v_primary_spinning_reserve.size() != 0 ||
-      v_secondary_spinning_reserve.size() != 0 ||
-      v_active_power.size() != 0 ) {
+  if( !v_commitment.empty() ||
+      !v_primary_spinning_reserve.empty() ||
+      !v_secondary_spinning_reserve.empty() ||
+      !v_active_power.empty() ) {
     // the abstract variables should be generated only once
     return;
   }
@@ -209,9 +209,9 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
   // The active power variables must be always present
   variables_to_be_generated |=
-    (int) std::pow( 2, variables_and_types.size() - 1 );
+    (unsigned int) std::pow( 2, variables_and_types.size() - 1 );
 
-  int k = 1;
+  unsigned int k = 1;
   for( auto [ variables, variable_type ] : variables_and_types ) {
     if( variables_to_be_generated & k ) {
       variables->resize( f_time_horizon );
@@ -256,7 +256,7 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::guts_of_destructor( void ) {
+void UnitBlock::guts_of_destructor() {
 
   // delete all Variables
   v_commitment.clear();

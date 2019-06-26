@@ -124,13 +124,13 @@ typedef std::size_t Index;                 ///< index of parameters
 /// constructor, takes the father and the time horizon
 /** Constructor of UnitBlock, taking possibly a pointer of its father
  * Block and the time horizon. */
- UnitBlock( Block * father_block = nullptr , Index t = 0 )
+ explicit UnitBlock( Block * father_block = nullptr , Index t = 0 )
    : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
 
  /// destructor of UnitBlock: it is virtual, and empty
- virtual ~UnitBlock() { }
+ ~UnitBlock() override = default;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -236,7 +236,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
  *   with the assumption that ChangeIntervals[ - 1 ] = 0. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of UnitBlock
@@ -277,8 +277,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * similarly encode for creation of their own specific groups of variables.
   */
 
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
+ void generate_abstract_variables( Configuration *stvv ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE UnitBlock -------------*/
@@ -287,7 +286,7 @@ typedef std::size_t Index;                 ///< index of parameters
     @{ */
 
  /// method for returning the time horizon
- Index get_time_horizon( void ) const { return( f_time_horizon ); }
+ Index get_time_horizon() const { return( f_time_horizon ); }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of fixed consumption
@@ -303,7 +302,7 @@ typedef std::size_t Index;                 ///< index of parameters
   *   t-th entry gives the fixed consumption at time instant t.
   */
 
- const std::vector< double > & get_fixed_consumption( void ) const {
+ const std::vector< double > & get_fixed_consumption() const {
    return( v_fixed_consumption );
  }
 
@@ -313,7 +312,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * between 0 and time horizon minus 1.
   */
  inline double get_fixed_consumption( Index t ) const {
-   if( v_fixed_consumption.size() == 0 )
+   if( v_fixed_consumption.empty() )
      return 0.0;
    return v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1 , t ) ];
  }
@@ -332,7 +331,7 @@ typedef std::size_t Index;                 ///< index of parameters
   *   t-th entry gives the inertia commitment at time instant t.
   */
 
- const std::vector< double > & get_inertia_commitment( void ) const {
+ const std::vector< double > & get_inertia_commitment() const {
    return( v_inertia_commitment );
  }
 
@@ -342,7 +341,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * between 0 and time horizon minus 1.
   */
  inline double get_inertia_commitment( Index t ) const {
-   if( v_inertia_commitment.size() == 0 )
+   if( v_inertia_commitment.empty() )
      return 0.0;
    return v_inertia_commitment
      [ std::min( v_inertia_commitment.size() - 1 , t ) ];
@@ -362,7 +361,7 @@ typedef std::size_t Index;                 ///< index of parameters
   *   t-th entry gives the inertia power at time instant t.
   */
 
- const std::vector< double > & get_inertia_power( void ) const {
+ const std::vector< double > & get_inertia_power() const {
    return( v_inertia_power );
  }
 
@@ -372,14 +371,14 @@ typedef std::size_t Index;                 ///< index of parameters
   * between 0 and time horizon minus 1.
   */
  inline double get_inertia_power( Index t ) const {
-   if( v_inertia_power.size() == 0 )
+   if( v_inertia_power.empty() )
      return 0.0;
    return v_inertia_power[ std::min( v_inertia_power.size() - 1 , t ) ];
  }
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of commitment variables
- const std::vector<ColVariable> & get_commitment( void ) const {
+ const std::vector<ColVariable> & get_commitment() const {
    return( v_commitment );
  }
 
@@ -391,7 +390,7 @@ typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of primary spinning reserve variables
- const std::vector<ColVariable> & get_primary_spinning_reserve( void ) const {
+ const std::vector<ColVariable> & get_primary_spinning_reserve() const {
    return( v_primary_spinning_reserve );
  }
 
@@ -403,8 +402,9 @@ typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of secondary reserve variables
- const std::vector<ColVariable> & get_secondary_spinning_reserve( void )
-   const { return( v_secondary_spinning_reserve ); }
+ const std::vector<ColVariable> & get_secondary_spinning_reserve() const {
+  return( v_secondary_spinning_reserve );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method for returning a pointer to the secondary spinning reserve at time t
@@ -414,7 +414,7 @@ typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of power variables
- const std::vector<ColVariable> & get_active_power( void ) const {
+ const std::vector<ColVariable> & get_active_power() const {
    return( v_active_power );
  }
 
@@ -435,7 +435,7 @@ typedef std::size_t Index;                 ///< index of parameters
  * UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE UnitBlock --------------------*/
@@ -489,7 +489,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Handling the data of the UnitBlock
     @{ */
 
- virtual void load( std::istream &input ) override {
+ void load( std::istream &input ) override {
   throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
   };
 
@@ -503,7 +503,7 @@ protected:
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void guts_of_destructor( void );
+ void guts_of_destructor();
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -513,7 +513,7 @@ protected:
  Index f_time_horizon;
 
  /// the number of intervals
- Index f_number_intervals;
+ Index f_number_intervals{};
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
@@ -568,7 +568,7 @@ private:
   * value according to what is specified in the generate_abstract_variables()
   * method. */
 
- int get_variables_to_be_generated( Configuration *stvv );
+ unsigned int get_variables_to_be_generated( Configuration *stvv );
 
  void deserialize_time_horizon( netCDF::NcGroup & group );
 

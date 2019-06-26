@@ -255,13 +255,13 @@ public:
  *       one does not?
  */
 
- ThermalUnitBlock( Block * f_block = nullptr ): UnitBlock( f_block ) { }
+ explicit ThermalUnitBlock( Block * f_block = nullptr ): UnitBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
 
  /// destructor of ThermalUnitBlock
 
- virtual ~ThermalUnitBlock() { };
+ ~ThermalUnitBlock() override = default;
 
 /*@}------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -275,7 +275,7 @@ public:
  * ThermalUnitBlock then a NBModification (the "nuclear option") is issued.
  * */
 
- virtual void load( std::istream &input ) override {
+ void load( std::istream &input ) override {
   throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
   };
 
@@ -468,7 +468,7 @@ public:
  *   MinDownTime == 0, which mean that the unit can start up in the very
  *   same time stamp in which it starts up. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the ThermalUnit
@@ -510,8 +510,7 @@ public:
  *
  * */
 
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
+ void generate_abstract_variables( Configuration *stvv ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the ThermalUnit
 /** Method that generates the static constraint of the ThermalUnitBlock.
@@ -553,14 +552,13 @@ public:
  *   output and Secondary Spinning reserves constraints at time t;
  */
 
- virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-   override;
+ void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
 /** Method that generates the objective of the ThermalUnitBlock. */
 
- virtual void generate_objective( Configuration *objc = nullptr ) override;
+ void generate_objective( Configuration *objc ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*----------- Methods for reading the data of the ThermalUnitBlock ---------*/
@@ -579,7 +577,7 @@ public:
  * ThermalUnitBlock. See ThermalUnitBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -654,25 +652,25 @@ public:
  std::vector< double > v_StartUpCost;
 
  /// the InitialPower value
- double f_initial_power;
+ double f_initial_power{};
 
- double f_initial_min_power;
+ double f_initial_min_power{};
 
- double f_initial_delta_ramp_up;
+ double f_initial_delta_ramp_up{};
 
- double f_initial_delta_ramp_down;
+ double f_initial_delta_ramp_down{};
 
  /// the MinUpTime value
- int f_MinUpTime;
+ int f_MinUpTime{};
 
  /// the MinDownTime value
- int f_MinDownTime;
+ int f_MinDownTime{};
 
  /// the InitUpDownTime value
- int f_InitUpDownTime;
+ int f_InitUpDownTime{};
 
  /// variable denoting the time-steps unit is subjected to initial conditions
- Index init_t;
+ Index init_t{};
 
 /*-----------------------------variables------------------------------------*/
 
@@ -732,7 +730,7 @@ private:
 
 /*@}  end( class( ThermalUnitBlock ) ) -------------------------------------*/
 /*--------------------------------------------------------------------------*/
-}; // end( namespace SMSpp_di_unipi_it )
+} // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
