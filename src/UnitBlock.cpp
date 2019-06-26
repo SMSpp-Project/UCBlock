@@ -239,9 +239,7 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
   ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
                NumberIntervals, v_change_intervals );
-
-  //::serialize( group, "FixedConsPower", netCDF::NcDouble(), f_FixedConsPower );
-
+  
   ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
                { NumberIntervals }, v_fixed_consumption);
 
