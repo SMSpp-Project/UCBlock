@@ -320,7 +320,7 @@ typedef std::size_t Index;  ///< index of parameters
  /** Method for returning the fixed consumption at time t, for t
   * between 0 and time horizon minus 1.
   */
- inline double get_fixed_consumption( Index t ) const {
+ double get_fixed_consumption( Index t ) const {
   return( v_fixed_consumption.empty() ? 0 :
 	  v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1 ,
 					 t ) ] );
@@ -353,7 +353,7 @@ typedef std::size_t Index;  ///< index of parameters
   * unit is on (basically, the constant to be multiplied by the commitment
   * variable at time t). */
 
- inline double get_inertia_commitment( Index t ) const {
+ double get_inertia_commitment( Index t ) const {
   return( v_inertia_commitment.empty() ? 0 :
 	  v_inertia_commitment[ std::min( v_inertia_commitment.size() - 1 ,
 					  t ) ] );
@@ -386,7 +386,7 @@ typedef std::size_t Index;  ///< index of parameters
   * proportional to the active power generated at that time (basically, the
   * constant to be multiplied by the active power variable at time t). */
 
- inline double get_inertia_power( Index t ) const {
+ double get_inertia_power( Index t ) const {
   return( v_inertia_power.empty() ? 0 :
 	  v_inertia_power[ std::min( v_inertia_power.size() - 1 , t ) ] );
   }
