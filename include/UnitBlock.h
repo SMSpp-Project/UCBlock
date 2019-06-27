@@ -130,12 +130,13 @@ typedef std::size_t Index;  ///< index of parameters
 /** Constructor of UnitBlock, taking possibly a pointer of its father
  * Block and the time horizon. By default the time horizon is initialized
  * to 0, which means "not set yet". */
+
  explicit UnitBlock( Block * father_block = nullptr , Index t = 0 )
    : Block( father_block ), f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
-
 /// destructor of UnitBlock: it is virtual, and empty
+
  ~UnitBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
@@ -309,17 +310,17 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the fixed consumption at time instant t.
-  */
+  *   t-th entry gives the fixed consumption at time instant t. */
+
  const std::vector< double > & get_fixed_consumption() const {
   return( v_fixed_consumption );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the fixed consumption at time t
- /** Method for returning the fixed consumption at time t, for t
-  * between 0 and time horizon minus 1.
-  */
+ /** Method for returning the fixed consumption at time t, for t between 0
+  * and time horizon minus 1. */
+
  double get_fixed_consumption( Index t ) const {
   return( v_fixed_consumption.empty() ? 0 :
 	  v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1 ,
@@ -339,8 +340,7 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the inertia commitment at time instant t.
-  */
+  *   t-th entry gives the inertia commitment at time instant t. */
 
  const std::vector< double > & get_inertia_commitment() const {
   return( v_inertia_commitment );
@@ -372,8 +372,7 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the inertia power at time instant t.
-  */
+  *   t-th entry gives the inertia power at time instant t. */
 
  const std::vector< double > & get_inertia_power() const {
   return( v_inertia_power );
@@ -416,7 +415,7 @@ typedef std::size_t Index;  ///< index of parameters
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// method for returning a pointer to the commitment variable at time t
+/// method for returning a reference to the commitment variable at time t
 
  ColVariable & get_commitment( Index t )  {
   return( v_commitment[ t ] );
@@ -424,12 +423,13 @@ typedef std::size_t Index;  ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
 /// method for returning the vector of primary spinning reserve variables
+
  const std::vector<ColVariable> & get_primary_spinning_reserve() const {
   return( v_primary_spinning_reserve );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// method for returning a pointer to the primary spinning reserve at time t
+/// returning a reference to the primary spinning reserve variable at time t
 
  ColVariable & get_primary_spinning_reserve( Index t )  {
   return( v_primary_spinning_reserve[ t ] );
@@ -437,11 +437,12 @@ typedef std::size_t Index;  ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
 /// method for returning the vector of secondary reserve variables
+
  const std::vector<ColVariable> & get_secondary_spinning_reserve()
    const { return( v_secondary_spinning_reserve ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// method for returning a pointer to the secondary spinning reserve at time t
+/// returning a reference to the secondary spinning reserve variable at time t
 
  ColVariable & get_secondary_spinning_reserve( Index t )  {
   return( v_secondary_spinning_reserve[ t ] );
@@ -449,12 +450,13 @@ typedef std::size_t Index;  ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the vector of power variables
+
  const std::vector<ColVariable> & get_active_power() const {
   return( v_active_power );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Method for returning the pointer to the power variable at time t
+ /// returning the reference to the power variable at time t
 
  ColVariable & get_active_power( Index t ) { return( v_active_power[ t ] ); }
 
@@ -543,46 +545,45 @@ protected:
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// The time horizon of the problem
- Index f_time_horizon;
+ // TODO: again, where does that ugly "{}" comes from??
 
- /// the number of intervals
- Index f_number_intervals{};
+ Index f_time_horizon;        ///< the time horizon of the problem
+
+ Index f_number_intervals{};  ///< the number of intervals
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
 
- /// Vector of fixed consumption
+ /// the vector of fixed consumption
  std::vector< double > v_fixed_consumption;
 
- /// Vector of inertia commitment
+ /// the vector of inertia commitment
  std::vector< double > v_inertia_commitment;
 
- /// Vector of inertia power
+ /// the vector of inertia power
  std::vector< double > v_inertia_power;
 
- /* Each of the following vectors of Variables should either have size
+ /* Each of the following vectors of Variable should either have size
   * f_time_horizon, meaning that there is one Variable for each time
-  * step, or be empty, in which case the variables simply do not
-  * exist. */
+  * step, or be empty, in which case the variables simply do not exist. */
 
- /// Vector of commitment variables
+ /// the vector of commitment variables
  std::vector<ColVariable> v_commitment;
 
- /// Vector of power variables
+ /// the vector of power variables
  std::vector<ColVariable> v_active_power;
 
- /// Vector of primary spinning reserve variables
+ /// the vector of primary spinning reserve variables
  std::vector<ColVariable> v_primary_spinning_reserve;
 
- /// Vector of secondary spinning reserve variables
+ /// the vector of secondary spinning reserve variables
  std::vector<ColVariable> v_secondary_spinning_reserve;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-private:
+ private:
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
