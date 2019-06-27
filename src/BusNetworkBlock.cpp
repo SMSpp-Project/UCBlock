@@ -41,11 +41,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include <map>
-#include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "BusNetworkBlock.h"
-#include "FRowConstraint.h"
-#include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -67,14 +64,6 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-
-  unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
-      f_number_nodes : 1;
-
-  if (number_nodes == 1) {
-
-    ::deserialize(group, "ActiveDemand", &f_active_demand);
-  }
 }  // end( BusNetworkBlock::deserialize )
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -82,13 +71,18 @@ void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
 void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  unsigned int number_nodes =  f_NetworkData ? f_NetworkData->
-      f_number_nodes : 1;
+  auto network_data = new UCBlock::NetworkData();
+
+  unsigned int number_nodes =  network_data ->get_number_nodes();
+
 
   if (number_nodes == 1) {
 
-    v_node_injection[number_nodes].set_value(f_active_demand);
+    auto active_demand = get_active_demand()[number_nodes];
+
+    v_node_injection[number_nodes].set_value(active_demand);
     v_node_injection[number_nodes].is_fixed(true);
+
   } else {
     throw (std::logic_error("BusNetworkBlock has not define"));
   }
@@ -101,10 +95,6 @@ void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
 void BusNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-	group.putAtt( "type" , "BusNetworkBlock" );
-
-  ::serialize( group, "ActiveDemand",
-               netCDF::NcDouble(), f_active_demand );
 }    // end( BusNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

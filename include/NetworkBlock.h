@@ -49,11 +49,10 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-//TODO: when NetworkData is defined in NetworkBlock, remove the
-//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
 #include "UCBlock.h"
 #include "ColVariable.h"
-
+//TODO: when NetworkData is defined in NetworkBlock, remove the
+//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -63,7 +62,8 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
 /// Block that described the transmission network in the UC problem
 /** The class NetworkBlock, which derives from the Block, defines the basic
  * interface for the constraints/optimization problems which describe the
@@ -126,32 +126,49 @@ typedef std::size_t Index;                 ///< index of parameters
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
  *
- * TODO: comment is not clear: you mention "NumberNodes" before defining it.
- *       first discuss the NetworkData object, then mention that if the
- *       NetworkData is present (either in the NcGroup or because it has
- *       been passed) then ActiveDemand is long
- *       NetworkData::get_number_nodes(), if no NetworkData is present then
- *       the network is a bus and ActiveDemand is long 1.
- *
- * - the variable "ActiveDemand", of type double and indexed over the
- *   dimension "NumberNodes"; the i-th entry of the variable is assumed to
- *   contain the active power demand at node i in the network;
- *
- * Furthermore, there may be the dimensions and variables necessary to a
- * NetworkData object, that describe the transmission network. See
+ * Note, there may be the dimensions and variables necessary to a NetworkData
+ * object, that describe the transmission network. See
  * NetworkData::deserialize() for details. All that is optional, because the
  * NetworkData object can alternatively be passed to the NetworkBlock via a
  * call to set_NetworkData(). Note that if set_NetworkData() is called, but
  * the representation of a NetworkData object is found in the NcGroup, then
  * the NetworkData passed by set_NetworkData() is ignored, and a new
- * NetworkData object is read from the NcGroup and used instead. */
+ * NetworkData object is read from the NcGroup and used instead.
+ *
+ * - if NetworkData object is not provided (basically, "NumberNodes" is not
+ *   provided or it is == 1) then the transmission network is taken to have
+ *   only one node (a bus) and the variable "ActiveDemand" is long 1.
+ *
+ * - if the NetworkData object is present (either in the NcGroup or because it
+ *   has been passed) then the variable "ActiveDemand", of type double and
+ *   indexed over the dimension "NumberNodes" where is present in
+ *   UCBlock::NetworkData::get_number_nodes(),
+ * */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of NetworkBlock
 /** Method that generates the static variables of this NetworkBlock. The
- * base NetworkBlock class has just the node injection variables. */
+ * base NetworkBlock class has just the node injection variables. which is
+ * mandatory as that's how the NetworkBlock is linked to the rest of the UC
+ * model.
+ *
+ * This variable is not optional, in the sense that the model needs to have it
+ * (say, because that's how the NetworkBlock is linked to the rest of the UC).
+ * Whenever a this of variable is created, its size will be the number of
+ * nodes.
+ *
+ * - if NetworkData object is not provided (basically, "NumberNodes" is not
+ *   provided or it is == 1) then the transmission network is taken to have
+ *   only one node (a bus) and the this variable is fixed to "ActiveDemand"
+ *   which has long 1.
+ *
+ * - if the NetworkData object is present (either in the NcGroup or because it
+ *   has been passed and NumberNodes > 1) then this variable has size
+ *   "NumberNodes" where is present in
+ *   UCBlock::NetworkData::get_number_nodes(),
+ * */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
@@ -221,13 +238,42 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Reading the data of the NetworkBlock
     @{ */
 
+ /// returns the the active demand for each node
+ double get_active_demand( Index node ) const {
+    if( !v_active_demand.empty() )
+      return v_active_demand[ node ];
+   return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the active demand
+ const std::vector< double > & get_active_demand( void ) const {
+   return(v_active_demand);
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the NetworkData object
+ UCBlock::NetworkData * get_NetworkData() const { return ( nullptr ); }
+
+/**@} ----------------------------------------------------------------------*/
+/*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the NetworkBlock
+ *
+ * These methods allow to read the just one Variable (which is node injection
+ * variable )that NetworkBlock in principle has.
+ *
+ * @{ */
+
  /// returns the vector of node injection variables
  const std::vector<ColVariable> & get_node_injection( void ) const {
    return v_node_injection;
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns the vector of node injection variables at node n
 
- // TODO: how about getting the NetworkData abd the demands as well?
-
+ ColVariable & get_node_injection( Index node )  {
+   return( v_node_injection[ node ] );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -251,8 +297,6 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
- /// the NetworkData object
- UCBlock::NetworkData * f_NetworkData;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;

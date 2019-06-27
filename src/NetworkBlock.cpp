@@ -54,6 +54,9 @@ using namespace SMSpp_di_unipi_it;
 
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
+  auto network_data = new UCBlock::NetworkData();
+  network_data->deserialize( group );
+
   auto dim_number_nodes = group.getDim( "NumberNodes" );
 
   if( ! dim_number_nodes.isNull() )

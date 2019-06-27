@@ -63,14 +63,7 @@ namespace SMSpp_di_unipi_it {
 /** The BusNetworkBlock class, which derives from NetworkBlock [see
  * NetworkBlock.h] implements the Block concept [see Block.h] in order to
  * define a "bus" transmission network in the Unit Commitment problem for a
- * given instant in the time horizon. A "bus" network has just one node,
- * and therefore a single value D for the demand and a single injection
- * variable s, which can hardly be called a variable since the only possible
- * way to satisfy the constraints is by having
- *
- *    s = D
- *
- * which in fact makes the variable a constant. */
+ * given instant in the time horizon. */
 
  class BusNetworkBlock : public NetworkBlock {
 
@@ -92,7 +85,7 @@ namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 
-/// destructor of BusNetworkBlock, (understandably) doea nothing
+/// destructor of BusNetworkBlock, (understandably) does nothing
 
  virtual ~BusNetworkBlock() {}
 
@@ -119,16 +112,11 @@ namespace SMSpp_di_unipi_it {
  * the BusNetworkBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
  *
- * TODO: no, ActiveDemand is loaded by NetworkBlock already. I think we don't
- *       need to do anything here bacause the base NetworkBlock should have
- *       done it all (see the e-mail about get_NetworkData())
- *
- * - the variable "ActiveDemand", of type double and indexed over the
- *   dimension "NumberNodes" when NumberNodes == 1; the entry of the variable
- *   is assumed to contain the active power demand at node 1 in the network;
- *   the variable is optional and has to be defined when NumberNodes == 1; if
- *   NumberNodes > 1 there is no Bus-Network then this variable need not be
- *   defined, since is not loaded.
+ * When the NetworkData object is not provided by NetworkBlock (basically,
+ * "NumberNodes" is not provided or it is == 1) then the transmission
+ * network is taken to have only one node (a bus) and variable "ActiveDemand"
+ * is long 1 which is provided by NetworkBlock *get_active_demand(). This part
+ * does not do anything since the base NetworkBlock should have done it all
  */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -136,9 +124,11 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of BusNetworkBlock
 /** Method that generates the static variables of this BusNetworkBlock. The
- * base BusNetworkBlock class has just the node injection variables. Since,
- * there exists just one node in this class, the variable node injection is
- * fixed to the active demand value for that node. */
+ * base BusNetworkBlock class has just the node injection variables. Since, a
+ * "bus" network has just one node, and therefore a single value D for the
+ * demand and a single injection variable s, which can hardly be called a
+ * variable since the only possible way to satisfy the constraints is by
+ * having s = D which in fact makes the variable a constant.*/
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
     override;
@@ -149,7 +139,6 @@ namespace SMSpp_di_unipi_it {
 /** @name Methods for modifying the BusNetworkBlock
  *  @{ */
 
- // TODO: no
  /// method to set the NetworkData object
  /** Method to set the NetworkData object. This method does nothing in
   * BusNetworkBlock because by definition the network is made by only one
@@ -186,11 +175,6 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
-
- // TODO: no, NetworkBlock already has v_active_demand, why should you have
- //       this??
- /// the demand of node
- double f_active_demand;
 
   };   // end( class( BusNetworkBlock ) )
 
