@@ -37,12 +37,11 @@
  * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 #ifndef __UCBlock
-#define __UCBlock /* self-identification: #endif at the end of the file */
+ #define __UCBlock /* self-identification: #endif at the end of the file */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -164,8 +163,8 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- ~UCBlock() override = default;   ///< destructor of UCBlock: it is virtual, and empty
-
+ ~UCBlock() override = default;   ///< destructor of UCBlock: it is virtual,
+                                  ///< and empty
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- sub-CLASS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -262,7 +261,6 @@ public:
  *       - min capacity <= 0 <= max capacity
  *       - susceptance > 0 (if it is)
  */
-
  virtual void deserialize( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
@@ -271,6 +269,86 @@ public:
      throw( std::logic_error( "NetworkData::load() not implemented yet" ) );
  };
 
+/**@} ----------------------------------------------------------------------*/
+/*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of nodes of the problem
+ Index get_number_nodes( void ) const { return f_number_nodes; }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of nodes of the problem
+ Index get_number_lines( void ) const { return f_number_lines; }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the start line where the given node belongs to
+ Index get_start_line( Index node ) const {
+   if( !v_start_line.empty() )
+     return v_start_line[ node ];
+   return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the start line
+ const std::vector< int > & get_start_line( void ) const {
+   return( v_start_line );
+ }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the end line where the given node belongs to
+ Index get_end_line( Index node ) const {
+   if( !v_end_line.empty() )
+     return v_end_line[ node ];
+   return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the end line
+ const std::vector< int > & get_end_line( void ) const {
+   return( v_end_line );
+ }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the minimum power flow for the given line l
+ double get_min_power_flow( Index line ) const {
+    if( !v_min_power_flow.empty() )
+      return v_min_power_flow[ line ];
+    return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the minimum power flow
+ const std::vector< double > & get_min_power_flow( void ) const {
+    return( v_min_power_flow );
+ }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the maximum power flow for the given line l
+ double get_max_power_flow( Index line ) const {
+   if( !v_max_power_flow.empty() )
+     return v_max_power_flow[ line ];
+   return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the maximum power flow
+ const std::vector< double > & get_max_power_flow( void ) const {
+     return( v_max_power_flow );
+ }
+/*--------------------------------------------------------------------------*/
+
+ /// returns the Susceptance for the given line l
+ double get_susceptance( Index line ) const {
+   if( !v_susceptance.empty() )
+     return v_susceptance[ line ];
+   return 0;
+ }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the Susceptance
+ const std::vector< double > & get_susceptance( void ) const {
+     return( v_susceptance );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -282,62 +360,10 @@ public:
  * NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group.
  */
- virtual void serialize( netCDF::NcGroup & group ) const;
-
-/*--------------------------------------------------------------------------*/
-/*---------------- PUBLIC FIELDS OF THE NetworkData CLASS ------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// returns the number of nodes of the problem
- Index get_number_nodes( void ) const { return f_number_nodes; }
-
- /// returns the number of nodes of the problem
- Index get_number_lines( void ) const { return f_number_lines; }
-
- // TODO: I like it better??
-
- const std::vector< int > & get_start_line( void ) const {
-  return( v_start_line );
-  }
-
-
- /// returns the start line where the given node belongs to
-  inline Index get_start_line( Index node ) const {
-    if( !v_start_line.empty() )
-      return v_start_line[ node ];
-        return 0;
- }
-
- /// returns the end line where the given node belongs to
-  inline Index get_end_line( Index node ) const {
-   if( !v_end_line.empty() )
-     return v_end_line[ node ];
-   return 0;
- }
-
- /// returns the minimum power flow for the given line l
-  inline double get_min_power_flow( Index line ) const {
-    if( !v_min_power_flow.empty() )
-      return v_min_power_flow[ line ];
-    return 0;
- }
-
- /// returns the maximum power flow for the given line l
- inline double get_max_power_flow( Index line ) const {
-   if( !v_max_power_flow.empty() )
-     return v_max_power_flow[ line ];
-   return 0;
- }
-
- /// returns the Susceptance for the given line l
- inline double get_susceptance( Index line ) const {
-   if( !v_susceptance.empty() )
-     return v_susceptance[ line ];
-   return 0;
- }
+      virtual void serialize( netCDF::NcGroup & group ) const;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
@@ -565,8 +591,6 @@ public:
  *   loaded. */
  void deserialize( netCDF::NcGroup & group ) override;
 
-
-
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the UCBlock
  /** Method that generates the abstract constraint of the UCBlock. These are:
@@ -759,113 +783,170 @@ public:
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UCBlock
- *  @{ */
+ *
+ * These methods allow to read data that must be common to (in principle) all
+ * the related blocks to the UC problem
+ * @{ */
 
  /// returns the time horizon of the problem
  Index get_time_horizon() const { return f_time_horizon; }
+/*--------------------------------------------------------------------------*/
 
  /// returns the NetworkData object
- // TODO: a bit more comments regarding the fact that it may return nullptr
- NetworkData * get_NetworkData() const { return f_NetworkData; }
+ /** Method for returning the NetworkData object. There are two
+  * possible cases:
+  * - if there is the data for a NetworkData, UCBlock should use that data;
+  *
+  * - if there is no data for a NetworkData, UCBlock should return nullptr;
+  * */
+
+  NetworkData * get_NetworkData() const { return f_NetworkData; }
+/*--------------------------------------------------------------------------*/
 
  /// returns the vector of (pointers to) NetworkBlocks
  const std::vector<NetworkBlock *> & get_network_blocks() const {
    return v_network_blocks;
  }
+/*--------------------------------------------------------------------------*/
 
- // TODO: again consider returning const references to the vector
- //       but I'm open to discussing this
  /// returns the primary demand of the given zone at the given time
- inline double get_primary_demand( Index zone, Index time ) const {
+ double get_primary_demand( Index zone, Index time ) const {
    return v_primary_demand[ zone * f_time_horizon + time ];
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the primary demand
+ const std::vector< double > & get_primary_demand( void ) const {
+   return( v_primary_demand );
+ }
+/*--------------------------------------------------------------------------*/
 
  /// returns the secondary demand of the given zone at the given time
- inline double get_secondary_demand( Index zone, Index time ) const {
+ double get_secondary_demand( Index zone, Index time ) const {
    return v_secondary_demand[ zone * f_time_horizon + time ];
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the secondary demand
+ const std::vector< double > & get_secondary_demand( void ) const {
+      return( v_secondary_demand );
+ }
+/*--------------------------------------------------------------------------*/
 
  /// returns the inertia demand of the given zone at the given time
- inline double get_inertia_demand( Index zone, Index time ) const {
+ double get_inertia_demand( Index zone, Index time ) const {
    return v_inertia_demand[ zone * f_time_horizon + time ];
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the inertia demand
+ const std::vector< double > & get_inertia_demand( void ) const {
+   return(v_inertia_demand);
+ }
+/*--------------------------------------------------------------------------*/
 
  /** returns the conversion factor of the given pollutant due to the
   * generation of the given unit at the given time */
- inline double get_pollutant_rho( Index time, Index pollutant, Index unit )
+ double get_pollutant_rho( Index time, Index pollutant, Index unit )
    const {
    auto index = time * f_number_pollutants * f_number_units +
      pollutant * f_number_units + unit;
    return v_pollutant_rho[ index ];
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns conversion factor of the given pollutant
+ const std::vector< double > & get_pollutant_rho( void ) const {
+   return(v_pollutant_rho);
+ }
+/*--------------------------------------------------------------------------*/
 
  /** returns the conversion factor of the given pollutant due to the
   *  generation of every heat-only unit in the given heat block at the
   *  given time. */
- inline double get_pollutant_heat_rho( Index time, Index pollutant,
+ double get_pollutant_heat_rho( Index time, Index pollutant,
                                        Index heat_block )
    const {
    auto index = time * f_number_pollutants * f_number_heat_blocks +
      pollutant * f_number_heat_blocks + heat_block;
    return v_pollutant_heat_rho[ index ];
  }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns conversion factor of the given heat pollutant
+ const std::vector< double > & get_pollutant_heat_rho( void ) const {
+   return(v_pollutant_heat_rho);
+ }
+/*--------------------------------------------------------------------------*/
 
  /** returns the pollutant zone associated with the given pollutant
   * the given node belongs to */
- inline Index get_pollutant_zone( Index pollutant, Index node ) const {
+ Index get_pollutant_zone( Index pollutant, Index node ) const {
    return v_pollutant_zones[ pollutant * f_NetworkData->get_number_nodes()
                              + node ];
  }
+/*--------------------------------------------------------------------------*/
 
  /** returns the heat unit that represents the given unit in the given
   * HeatBlock */
- inline Index get_heat_unit( Index unit, Index heat_block ) const {
+ Index get_heat_unit( Index unit, Index heat_block ) const {
    return v_heat_set[ unit * f_number_heat_blocks + heat_block ];
  }
+/*--------------------------------------------------------------------------*/
 
  /// returns the i-th UnitBlock
  UnitBlock * get_unit_block( Index i ) const;
+/*--------------------------------------------------------------------------*/
 
  /// returns the t-th NetworkBlock
  NetworkBlock * get_network_block( Index t ) const;
+/*--------------------------------------------------------------------------*/
 
  /// returns the i-th HeatBlock
  HeatBlock * get_heat_block( Index i ) const;
+/*--------------------------------------------------------------------------*/
 
  /// returns the node where the given unit belongs to
- inline Index get_unit_node( Index unit ) const {
+ Index get_unit_node( Index unit ) const {
    if( f_NetworkData->get_number_nodes() > 1 )
      return v_unit_node[ unit ];
    return 0;
  }
+/*--------------------------------------------------------------------------*/
 
  /// returns the primary zone where the given node belongs to
- inline Index get_primary_zone( Index node ) const {
+ Index get_primary_zone( Index node ) const {
    if( !v_primary_zones.empty() )
      return v_primary_zones[ node ];
    return 0;
  }
+/*--------------------------------------------------------------------------*/
 
  /// returns the secondary zone where the given node belongs to
- inline Index get_secondary_zone( Index node ) const {
+ Index get_secondary_zone( Index node ) const {
    if( !v_secondary_zones.empty() )
      return v_secondary_zones[ node ];
    return 0;
  }
 
+/*--------------------------------------------------------------------------*/
 
  /// returns the inertia zone where the given node belongs to
- inline Index get_inertia_zone( Index node ) const {
+ Index get_inertia_zone( Index node ) const {
    if( !v_inertia_zones.empty() )
      return v_inertia_zones[ node ];
    return 0;
  }
+/*--------------------------------------------------------------------------*/
 
  /// returns the electrical-power-to-heat ratio of the given unit
- inline double get_power_heat_rho( Index unit ) const {
+ double get_power_heat_rho( Index unit ) const {
    return v_power_heat_rho[ unit ];
  }
-
+ /// returns the electrical-power-to-heat ratio
+ const std::vector< double > & get_power_heat_rho( void ) const {
+   return(v_power_heat_rho);
+ }
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
