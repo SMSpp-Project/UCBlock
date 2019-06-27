@@ -85,8 +85,9 @@ class NetworkBlock : public Block {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
-/*--------------------------------------------------------------------------*/
+ public:
+
+ *--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public types
@@ -94,7 +95,8 @@ public:
  * NetworkBlock defines a main public type:
  *
  * - Index, the type of indices;
- @{ */
+ *
+ *  @{ */
 
 typedef std::size_t Index;                 ///< index of parameters
 
@@ -140,10 +142,9 @@ typedef std::size_t Index;                 ///< index of parameters
  *   only one node (a bus) and the variable "ActiveDemand" is long 1.
  *
  * - if the NetworkData object is present (either in the NcGroup or because it
- *   has been passed) then the variable "ActiveDemand", of type double and
- *   indexed over the dimension "NumberNodes" where is present in
- *   UCBlock::NetworkData::get_number_nodes(),
- * */
+ *   has been passed) then the variable "ActiveDemand", of type double, is
+ *   indexed over the dimension "NumberNodes", which can be read via
+ *   UCBlock::NetworkData::get_number_nodes(). */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -154,29 +155,26 @@ typedef std::size_t Index;                 ///< index of parameters
  * mandatory as that's how the NetworkBlock is linked to the rest of the UC
  * model.
  *
- * This variable is not optional, in the sense that the model needs to have it
- * (say, because that's how the NetworkBlock is linked to the rest of the UC).
- * Whenever a this of variable is created, its size will be the number of
- * nodes.
+ * This variable is not optional, because that's how the NetworkBlock is
+ * linked to the rest of the UC; its size will be the number of nodes.
  *
  * - if NetworkData object is not provided (basically, "NumberNodes" is not
  *   provided or it is == 1) then the transmission network is taken to have
- *   only one node (a bus) and the this variable is fixed to "ActiveDemand"
- *   which has long 1.
+ *   only one node (a bus) and there is only one variable.
  *
  * - if the NetworkData object is present (either in the NcGroup or because it
  *   has been passed and NumberNodes > 1) then this variable has size
- *   "NumberNodes" where is present in
- *   UCBlock::NetworkData::get_number_nodes(),
- * */
+ *   "NumberNodes", which can be read via
+ *    UCBlock::NetworkData::get_number_nodes(). */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
+
 /*--------------------------------------------------------------------------*/
 
  virtual void load( std::istream &input ) override {
-   throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
- }
+  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -238,21 +236,27 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Reading the data of the NetworkBlock
     @{ */
 
- /// returns the the active demand for each node
- double get_active_demand( Index node ) const {
-    if( !v_active_demand.empty() )
-      return v_active_demand[ node ];
-   return 0;
- }
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the the active demand for the given node
 
- /// returns the active demand
+ double get_active_demand( Index node ) const {
+  return( v_active_demand.empty() ? 0 : v_active_demand[ node ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the vector of active demands
+
  const std::vector< double > & get_active_demand( void ) const {
-   return(v_active_demand);
+  return( v_active_demand );
  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
- UCBlock::NetworkData * get_NetworkData() const { return ( nullptr ); }
+ /** Returns the NetworkData object. The method of the base class always
+  * returns nullptr, because the base class does not handle the NetworkData
+  * object. This is OK for derived classes that only habdle the "bus" case.
+  */
+
+ virtual UCBlock::NetworkData * get_NetworkData() const { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -264,16 +268,19 @@ typedef std::size_t Index;                 ///< index of parameters
  *
  * @{ */
 
- /// returns the vector of node injection variables
+/// returns the vector of node injection variables
+
  const std::vector<ColVariable> & get_node_injection( void ) const {
-   return v_node_injection;
- }
+  return( v_node_injection );
+  }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns the vector of node injection variables at node n
+/// returns thenode injection variable of node n
 
  ColVariable & get_node_injection( Index node )  {
-   return( v_node_injection[ node ] );
- }
+  return( v_node_injection[ node ] );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -283,8 +290,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- */
+ * details of the format of the created netCDF group. */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -292,7 +298,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -304,11 +310,15 @@ protected:
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
- };   // end( class( NetworkBlock ) )
+/*--------------------------------------------------------------------------*/
+
+};   // end( class( NetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 
 }  /* namespace SMSpp_di_unipi_it */
+
+/*--------------------------------------------------------------------------*/
 
 #endif /* NetworkBlock.h included */
 
