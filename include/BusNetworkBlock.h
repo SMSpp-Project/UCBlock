@@ -84,7 +84,6 @@ namespace SMSpp_di_unipi_it {
  BusNetworkBlock( Block * f_block = nullptr ): NetworkBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
-
 /// destructor of BusNetworkBlock, (understandably) does nothing
 
  virtual ~BusNetworkBlock() {}
@@ -111,6 +110,11 @@ namespace SMSpp_di_unipi_it {
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the BusNetworkBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
+ *
+ * TODO: this comment is not very clear. The NetworkData object is *never*
+ *       provided to the BusNetworkBlock, because even if it is the
+ *       BusNetworkBlock *ignores* it.
+ *       Must this method be defined at all?
  *
  * When the NetworkData object is not provided by NetworkBlock (basically,
  * "NumberNodes" is not provided or it is == 1) then the transmission
@@ -155,8 +159,7 @@ namespace SMSpp_di_unipi_it {
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * BusNetworkBlock. See BusNetworkBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group.
- */
+ * details of the format of the created netCDF group. */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -172,8 +175,6 @@ namespace SMSpp_di_unipi_it {
 
  SMSpp_insert_in_factory_h;
 
-/*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
   };   // end( class( BusNetworkBlock ) )
