@@ -545,11 +545,9 @@ protected:
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- // TODO: again, where does that ugly "{}" comes from??
-
  Index f_time_horizon;        ///< the time horizon of the problem
 
- Index f_number_intervals{};  ///< the number of intervals
+ Index f_number_intervals;  ///< the number of intervals
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
