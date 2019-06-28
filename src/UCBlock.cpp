@@ -189,7 +189,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   //   // if the NetworkData has not been passed from outside
   //     throw( std::logic_error( "UCBlock has no NetworkData access" ) );
   // }
-
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
   ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
   ::deserialize_dim( group, "NumberUnits", f_number_units, false );
   unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
@@ -211,51 +211,51 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize_dim( group, "NumberPollutants",     f_number_pollutants );
 
 
-
+/*
   if( f_number_heat_blocks >= 1 ) {
     ::deserialize( group, "HeatSet", { f_number_units, f_number_heat_blocks },
-                   v_heat_set );
+                   v_heat_set);
   }
-
+*/
   if( f_number_primary_zones >= 1 ) {
     ::deserialize( group, "PrimaryZones", number_nodes,
                    v_primary_zones );
-
+/*
     ::deserialize( group, "PrimaryDemand",
                    { f_number_primary_zones, f_time_horizon },
-                   v_primary_demand );
+                   v_primary_demand );*/
   }
 
   if( f_number_secondary_zones >= 1 ) {
     ::deserialize( group, "SecondaryZones", number_nodes,
                    v_secondary_zones );
-
+/*
     ::deserialize( group, "SecondaryDemand",
                    { f_number_secondary_zones, f_time_horizon },
-                   v_secondary_demand );
+                   v_secondary_demand );  */
   }
 
   if( f_number_inertia_zones >= 1 ) {
     ::deserialize( group, "InertiaZones", number_nodes,
                    v_inertia_zones );
-
+/*
     ::deserialize( group, "InertiaDemand",
                    { f_number_inertia_zones, f_time_horizon },
-                   v_inertia_demand );
+                   v_inertia_demand );  */
   }
 
   if( f_number_pollutants >= 1 ) {
 
     ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
                    v_number_pollutant_zones );
-
+/*
     ::deserialize( group, "PollutantZones",
                    { f_number_pollutants, number_nodes },
                    v_pollutant_zones );
-
+*/
     ::deserialize( group, "PollutantBudget", f_number_pollutants,
                    v_pollutant_budget );
-
+/*
     ::deserialize( group, "PollutantRho",
                    { f_time_horizon, f_number_pollutants, f_number_units },
                    v_pollutant_rho );
@@ -265,7 +265,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
       ::deserialize( group, "PollutantHeatRho",
                      { f_time_horizon, f_number_pollutants,
                          f_number_heat_blocks }, v_pollutant_heat_rho );
-    }
+    }*/
   }
 
   if( number_nodes > 1 ) {
@@ -370,7 +370,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index zone_id = 0; zone_id < f_number_primary_zones; ++zone_id ) {
         v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
-          ( get_primary_demand( zone_id, t ) );
+          ( get_primary_demand()[zone_id][ t ]);
         v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf<double>() );
         v_PrimaryDemand_Const[ t ][ zone_id ].set_function
           ( new LinearFunction() );
@@ -418,7 +418,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index zone_id = 0; zone_id < f_number_secondary_zones; ++zone_id ) {
         v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs
-          ( get_secondary_demand( zone_id, t ) );
+          ( get_secondary_demand()[zone_id][ t ] );
         v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf<double>() );
         v_SecondaryDemand_Const[ t ][ zone_id ].
           set_function( new LinearFunction() );
@@ -465,7 +465,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index zone_id = 0; zone_id < f_number_inertia_zones; ++zone_id ) {
         v_InertiaDemand_Const[ t ][ zone_id ].set_lhs
-          ( get_inertia_demand( zone_id, t ) );
+          ( get_inertia_demand()[zone_id][ t ] );
         v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf<double>() );
         v_InertiaDemand_Const[ t ][ zone_id ].set_function
           ( new LinearFunction() );
@@ -543,12 +543,12 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
           auto node_id = get_unit_node( unit_id );
-          auto zone_id = get_pollutant_zone( pollutant, node_id );
+          auto zone_id = get_pollutant_zone()[pollutant][ node_id ];
 
           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
             continue; // this unit does not belong to any zone
 
-          auto rho = get_pollutant_rho( t, pollutant, unit_id );
+          auto rho = get_pollutant_rho()[t][pollutant][ unit_id ];
           auto active_power = get_unit_block( unit_id )->get_active_power( t );
 
           auto linear_function = dynamic_cast<LinearFunction *>
@@ -565,11 +565,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
             for( std::vector<Index>::size_type i = 0;
                  i <= f_number_units; ++i ) {
-
+             /* //TODO
               //auto unit_id = v_heat_only_units[ i ];
               auto heat_id = v_heat_set[ i ];
 
-              auto zone_id = get_pollutant_zone( pollutant, h );
+              auto zone_id = get_pollutant_zone()[pollutant][h];
               if( zone_id >= v_number_pollutant_zones[ pollutant ] )
                 continue; // this unit does not belong to any zone
 
@@ -579,7 +579,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
               auto linear_function = dynamic_cast<LinearFunction *>
               ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-              linear_function->add_variable( & heat[ t ], rho );
+              linear_function->add_variable( & heat[ t ], rho );*/
             }
           }
 
@@ -610,7 +610,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         [ this ]( Index unit ) {
         for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
              ++heat_block_id ) {
-          if( get_heat_unit( unit, heat_block_id ) <
+          if( get_heat_set()[ unit ][ heat_block_id ] <
               v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
             return true;
         }
@@ -639,7 +639,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
              ++heat_block_id ) {
 
-          auto heat_unit_id = get_heat_unit( unit_id, heat_block_id );
+          auto heat_unit_id = get_heat_set()[ unit_id ] [ heat_block_id ];
 
           if( heat_unit_id >=
               v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
@@ -723,43 +723,44 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
   auto dim_number_pollutants =
     group.addDim( "NumberPollutants",     f_number_pollutants );
 
+/*
   if( f_number_heat_blocks >= 1 ) {
     ::serialize( group, "HeatSet", netCDF::NcUint64(),
                  { dim_number_units, dim_number_heat_blocks }, v_heat_set );
-  }
+  }*/
 
   if( f_number_primary_zones >= 1 ) {
     ::serialize( group, "PrimaryZones", netCDF::NcUint64(),
                  { dim_number_nodes }, v_primary_zones );
-
+/*
     ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
                  { dim_number_primary_zones, dim_time_horizon },
-                 v_primary_demand );
+                 v_primary_demand ); */
   }
 
   if( f_number_secondary_zones >= 1 ) {
     ::serialize( group, "SecondaryZones", netCDF::NcUint64(),
                  { dim_number_nodes }, v_secondary_zones );
-
+/*
     ::serialize( group, "SecondaryDemand", netCDF::NcDouble(),
                  { dim_number_secondary_zones, dim_time_horizon },
-                 v_secondary_demand );
+                 v_secondary_demand ); */
   }
 
   if( f_number_inertia_zones >= 1 ) {
     ::serialize( group, "InertiaZones", netCDF::NcUint64(),
                  { dim_number_nodes }, v_inertia_zones );
-
+/*
     ::serialize( group, "InertiaDemand", netCDF::NcDouble(),
                  { dim_number_inertia_zones, dim_time_horizon } ,
-                 v_inertia_demand );
+                 v_inertia_demand ); */
   }
 
   if( f_number_pollutants >= 1 ) {
 
     ::serialize( group, "NumberPollutantZones", netCDF::NcUint64(),
                  { dim_number_pollutants }, v_number_pollutant_zones );
-
+/*
      ::serialize( group, "PollutantZones", netCDF::NcUint64(),
                  { dim_number_pollutants, dim_number_nodes },
                  v_pollutant_zones );
@@ -774,7 +775,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
     ::serialize( group, "PollutantHeatRho", netCDF::NcDouble(),
                  { dim_time_horizon, dim_number_pollutants,
                      dim_number_heat_blocks },
-                 v_pollutant_heat_rho );
+                 v_pollutant_heat_rho ); */
   }
 
   ::serialize( group, "PowerHeatRho", netCDF::NcDouble(),

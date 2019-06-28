@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 06 - 2019
+ * \date 28 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -223,12 +223,14 @@ public:
  *   oriented, but the flow of energy is; that is, a positive flow along
  *   line i means that energy is being taken away from StartLine[ i ] and
  *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
+ *   Note that node names here go from 0 to NNodes.getSize() - 1;
  *
  * - The variable "EndLine", of type int and indexed over the dimension
  *   "NumberNodes"; the i-th entry of the variable is the ending point of the
  *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
  *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
- *   but multiple lines between the same pair of nodes are.
+ *   but multiple lines between the same pair of nodes are. Note that node
+ *   names here go from 0 to NNodes.getSize() - 1;
  *
  * - The variable "MinPowerFlow", of type double and indexed over the
  *   dimension "NumberLines"; the i-th entry of the variable is assumed to
@@ -249,21 +251,12 @@ public:
  * //TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
  *       read if NumberNodes == 1 (or not present). Also, we have to make
  *       the basic checks on data:
- *       - nodes starting and ending names are in 0 ... NumNodes - 1
  *       - self loops are not allowed
  *       - min capacity <= 0 <= max capacity
  *       - susceptance > 0 (if it is)
  */
  virtual void deserialize( netCDF::NcGroup & group );
 
-/*--------------------------------------------------------------------------*/
-/* TODO: since NeteorkData does not derive from Block there is no need to
-         define a load() method that we don't implement. Just not define it!!
-
- virtual void load( std::istream &input )  {
-     throw( std::logic_error( "NetworkData::load() not implemented yet" ) );
- };
-*/
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
@@ -365,9 +358,8 @@ public:
 
  protected:
 
- // TODO: THIS ARE NOT METHODS, ARE PROTECTED FIELDS!
 /*--------------------------------------------------------------------------*/
-/*---------------- METHODS FOR MODIFYING THE NetworkData -------------------*/
+/*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the NetworkData
  *  @{ */
@@ -606,55 +598,10 @@ public:
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
- /// generate the static constraint of the UCBlock
- /** Method that generates the abstract constraint of the UCBlock. These are:
-  *
-  * TODO: you have just *moved* the comments from before to here, but I
-  *       asked you to *merge* them. Please list each kind of constraint
-  *       only once, describing it in terms of the boost::multi_array<> ...
-  *       and then immediately after giving the mathematical definition.
-  *       Put the definitions of the set before everything.
-  *
-  * - if f_number_nodes > 0, a boost::multi_array<FRowConstraint, 2>; with two
-  *   dimensions which are f_time_horizon, and f_number_nodes entries, the
-  *   entry t = 0, ..., f_time_horizon - 1 and the entry
-  *   n = 1, ..., f_number_nodes being the node injection constraints at time
-  *   t and node n;
-  *
-  * - if f_number_primary_zones > 0, a boost::multi_array<FRowConstraint, 2>;
-  *   with two dimensions which are f_time_horizon, and f_number_primary_zones
-  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
-  *   z = 1, ..., f_number_primary_zones being the primary demand constraints
-  *   at time t and primary zone z;
-  *
-  * - if f_number_secondary_zones > 0, a boost::multi_array<FRowConstraint,2>;
-  *   with two dimensions which are f_time_horizon, and
-  *   f_number_secondary_zones entries, the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry
-  *   z = 1, ..., f_number_secondary_zones being the secondary demand
-  *   constraints at time t and secondary zone z;
-  *
-  * - if f_number_inertia_zones > 0, a boost::multi_array<FRowConstraint, 2>;
-  *   with two dimensions which are f_time_horizon, and f_number_inertia_zones
-  *   entries, the entry t = 0, ..., f_time_horizon - 1 and the entry
-  *   z = 1, ..., f_number_inertia_zones being the inertia demand constraints
-  *   at time t and inertia zone z;
-  *
-  * - if f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>;
-  *   with two dimensions which are f_number_pollutants, and
-  *   v_number_pollutant_zones entries, the entry
-  *   p = 1, ..., f_number_pollutants and the entry
-  *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
-  *   constraints at pollutant p and pollutant zones z;
-  *
-  * - if f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2>
-  *   with two dimensions which are f_time_horizon and the number of
-  *   UnitBlocks that produce electricity and belong to some
-  *   HeatBlock; the constraint at position ( t, i ) being the heat
-  *   constraints at time t and unit M[ i ], where M maps the
-  *   constraint into an electricity-producing unit that belongs to
-  *   some HeatBlock.
-  *
+/// generate the static constraint of the UCBlock
+/** The formulation of the problem and the methods that generate the abstract
+ * constraint of the UCBlock.
+ *
  *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
  *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
  *  three partitions of the set of nodes which may or may not be identical:
@@ -681,27 +628,33 @@ public:
  *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
  *  \in \mathcal{N} \f$.
  *
- *  The decision variables are introduced as:
+ *  In the UCBlock there is not defined any variable but the decision
+ *  variables here are present by using method get_variable() from UnitBlock,
+ *  HeatBlock and NetworkBlock as follow:
  *
  * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$ is
+ *   called from UnitBlock by get_active_power() method;
  *
  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$;
+ *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
+ *   called from NetworkBlock by get_node_injection() method;
  *
  * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
  *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$;
+ *   \f$ is called from UnitBlock by get_primary_spinning_reserve() method;
  *
  * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
  *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$;
+ *   \f$ is called from UnitBlock by get_secondary_spinning_reserve() method;
  *
  * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
- *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$;
+ *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$ is called from
+ *   UnitBlock by get_commitment() method;
  *
  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$;
+ *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$ is
+ *   called from HeatBlock by get_heat() method;
  *
  *  The global constraints of unit commitment problem, on the time horizon
  *  \f$ \mathcal{T} \f$ write as follow:
@@ -710,8 +663,12 @@ public:
  *   In the unit commitment problem, \f$ P^{au}_{t , i} \f$ denotes the fixed
  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
  *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
- *   and each node \f$ n \in \mathcal{N} \f$. The node injection constraints
- *   will be satisfied as follow:
+ *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
+ *   f_number_nodes > 0, a boost::multi_array<FRowConstraint, 2>; with two
+ *   dimensions which are f_time_horizon and f_number_nodes entries, where the
+ *   entry t = 0, ..., f_time_horizon - 1 and the entry
+ *   n = 1, ..., f_number_nodes being the node injection constraints at time
+ *   t and node n as follow:
  *
  * \f[
  *  \sum_{ i \in \mathcal{I}_n } (p^{ac}_{t,i} + P^{au}_{t , i}(1 - u_{t,i}))
@@ -722,7 +679,12 @@ public:
  *   In the unit commitment problem, the primary demand
  *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
- *   be satisfied as follow:
+ *   be satisfied. Therefore, if the f_number_primary_zones > 0,
+ *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_primary_zones entries, where the entry
+ *   t = 0, ..., f_time_horizon - 1 and the entry
+ *   z = 1, ..., f_number_primary_zones being the primary demand constraints
+ *   at time t and primary zone z as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ i \in I_n } p^{pr}_{t,i} \geq
@@ -734,7 +696,12 @@ public:
  *   In the unit commitment problem, the secondary demand
  *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
- *   be satisfied as follow:
+ *   be satisfied. So, if the f_number_secondary_zones > 0,
+ *   a boost::multi_array<FRowConstraint,2>; with two dimensions which are
+ *   f_time_horizon, and f_number_secondary_zones entries, which the entry
+ *   t = 0, ..., f_time_horizon - 1 and the entry
+ *   z = 1, ..., f_number_secondary_zones being the secondary demand
+ *   constraints at time t and secondary zone z as follow;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } p^{sc}_{t,i} \geq
@@ -747,7 +714,12 @@ public:
  *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
  *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
  *   parameters \f$ \alpha_{t , i} \f$ and \f$ \beta_{t , i} \f$ will be
- *   satisfied as follow:
+ *   satisfied. Therefore, if the f_number_inertia_zones > 0,
+ *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_inertia_zones entries, where the entry
+ *   t = 0, ..., f_time_horizon - 1 and the entry
+ *   z = 1, ..., f_number_inertia_zones being the inertia demand constraints
+ *   at time t and inertia zone z as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } (\alpha_{t , i}
@@ -763,7 +735,12 @@ public:
  *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
  *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
  *   \rho'_{t , p , i} \f$ where considered as pollutant ratio and
- *   pollutant heat ratio respectively; is defined  as follow:
+ *   pollutant heat ratio respectively. So, if the f_number_pollutants > 0,
+ *   a std::vector<std::vector<FRowConstraint>>; with two dimensions which are
+ *   f_number_pollutants, and v_number_pollutant_zones entries, that the entry
+ *   p = 1, ..., f_number_pollutants and the entry
+ *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
+ *   constraints at pollutant p and pollutant zones z as below;
  *
  * \f[
  *
@@ -780,8 +757,13 @@ public:
  *   In the unit commitment problem, the Heat Constraints link the UCBlock
  *   variables with the HeatBlock, where for each heat block
  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
- *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$; the Heat
- *   Constraints are defined as below:
+ *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$. Therefore, if the
+ *   f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2> with
+ *   two dimensions which are f_time_horizon and the number of UnitBlocks that
+ *   produce electricity and belong to some HeatBlock; the constraint at
+ *   position ( t, i ) being the heat constraints at time t and unit M[ i ],
+ *   where M maps the constraint into an electricity-producing unit that
+ *   belongs to some HeatBlock. The Heat Constraints are defined as below:
  *
  * \f[
  *  \sum_{h \in \mathcal{H} , j \in \mathcal{I}^{ec}(h): e^h(j)=i}
@@ -806,15 +788,6 @@ public:
  *
  * These methods allow to read data that must be common to (in principle) all
  * the related blocks to the UC problem.
- *
- * GENERAL TODO: you disregarded my comment about using boost::multi_array<>
- * instead of std::vector<> to hold matrix data. However, you then return
- * the vector, but you don't say in the comments how the data is arranged
- * in it. Either you:
- * - don't return the vector
- * - comment what format the vector have
- * - (better) use boost::multi_array<> instead of std::vector<>
- *
  * @{ */
 
  /// returns the time horizon of the problem
@@ -837,105 +810,57 @@ public:
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the primary demand of the given zone at the given time
+ /// returns the primary demand matrix of the given zone at the given time
 
- double get_primary_demand( Index zone, Index time ) const {
-  return v_primary_demand[ zone * f_time_horizon + time ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the vector of the primary demand
-
- const std::vector< double > & get_primary_demand( void ) const {
+ const boost::multi_array< double, 2 >& get_primary_demand() const {
   return( v_primary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the secondary demand of the given zone at the given time
+ /// returns the secondary demand matrix of the given zone at the given time
 
- double get_secondary_demand( Index zone, Index time ) const {
-  return v_secondary_demand[ zone * f_time_horizon + time ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the vector of the secondary demand
- const std::vector< double > & get_secondary_demand( void ) const {
+ const boost::multi_array< double, 2 > & get_secondary_demand() const {
   return( v_secondary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia demand of the given zone at the given time
+ /// returns the inertia demand matrix of the given zone at the given time
 
- double get_inertia_demand( Index zone, Index time ) const {
-  return v_inertia_demand[ zone * f_time_horizon + time ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the the vector of inertia demand
-
- const std::vector< double > & get_inertia_demand( void ) const {
+ const boost::multi_array< double, 2 > & get_inertia_demand() const {
   return( v_inertia_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- // TODO: brief missing
- /** returns the conversion factor of the given pollutant due to the
+ /** returns the matrix of conversion factor of the given pollutant due to the
   * generation of the given unit at the given time */
 
- double get_pollutant_rho( Index time , Index pollutant , Index unit ) const
- {
-  auto index = time * f_number_pollutants * f_number_units +
-               pollutant * f_number_units + unit;
-  return v_pollutant_rho[ index ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns conversion factor of the given pollutant
-
- const std::vector< double > & get_pollutant_rho( void ) const {
+ const boost::multi_array< double, 3 > & get_pollutant_rho() const {
   return(v_pollutant_rho);
   }
 
 /*--------------------------------------------------------------------------*/
- // TODO: brief missing
- /** returns the conversion factor of the given pollutant due to the
-  *  generation of every heat-only unit in the given heat block at the
-  *  given time. */
+ /** returns the matrix of conversion factor of the given pollutant due to the
+  *  generation of every heat-only unit i in the given heat block h at the
+  *  given time t. */
 
- double get_pollutant_heat_rho( Index time , Index pollutant ,
-				Index heat_block ) const {
-  auto index = time * f_number_pollutants * f_number_heat_blocks +
-               pollutant * f_number_heat_blocks + heat_block;
-  return v_pollutant_heat_rho[ index ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns conversion factor of the given heat pollutant
-
- const std::vector< double > & get_pollutant_heat_rho( void ) const {
+ const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
   return v_pollutant_heat_rho ;
   }
 
 /*--------------------------------------------------------------------------*/
- // TODO: brief missing
- /** returns the pollutant zone associated with the given pollutant
+ /** returns the matrix of pollutant zone associated with the given pollutant
   * the given node belongs to */
 
- Index get_pollutant_zone( Index pollutant , Index node ) const {
-  return v_pollutant_zones[ pollutant * f_NetworkData->get_number_nodes()
-			    // TODO: this is surely wrong, as f_NetworkData
-			    //       can be nullptr
-                             + node ];
-  }
+ const boost::multi_array< double, 2 > & get_pollutant_zone() const {
+   return v_pollutant_zones;
+ }
 
 /*--------------------------------------------------------------------------*/
- // TODO: brief missing
- /** returns the heat unit that represents the given unit in the given
+ /** returns the matrix of heat set that represents the given unit in the given
   * HeatBlock */
-
- Index get_heat_unit( Index unit, Index heat_block ) const {
-  return v_heat_set[ unit * f_number_heat_blocks + heat_block ];
-  }
+ const boost::multi_array< double, 2 > & get_heat_set() const {
+   return v_heat_set;
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the i-th UnitBlock
@@ -956,8 +881,7 @@ public:
  /// returns the node where the given unit belongs to
 
  Index get_unit_node( Index unit ) const {
-  // TODO: this is surely wrong, as f_NetworkData can be nullptr
-   if( f_NetworkData->get_number_nodes() > 1 )
+   if( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 )
      return v_unit_node[ unit ];
    return 0;
  }
@@ -1026,31 +950,29 @@ public:
 
  protected:
 
- // TODO: why all these "{}"?? what are they for? they should not be there
- 
  /// The time horizon of the problem
- Index f_time_horizon{};
+ Index f_time_horizon;
 
  /// The number of units of the problem
- Index f_number_units{};
+ Index f_number_units;
 
  /// the NetworkData object
- NetworkData * f_NetworkData{};
+ NetworkData * f_NetworkData;
 
  /// The number of heat block
- Index f_number_heat_blocks{};
+ Index f_number_heat_blocks;
 
  /// The number of nodes in primary zones of the network
- Index f_number_primary_zones{};
+ Index f_number_primary_zones;
 
  /// The number of nodes in secondary zones of the network
- Index f_number_secondary_zones{};
+ Index f_number_secondary_zones;
 
  /// The number of nodes in inertia zones of the network
- Index f_number_inertia_zones{};
+ Index f_number_inertia_zones;
 
  /// The number of pollutants
- Index f_number_pollutants{};
+ Index f_number_pollutants;
 
  /// The set of UnitBlocks
  std::vector<UnitBlock *> v_unit_blocks;
@@ -1063,7 +985,7 @@ public:
 
  /** The matrix PollutantZones indexed over the dimensions
   *  NumberPollutants and NumberNodes */
- std::vector<Index> v_pollutant_zones;
+ boost::multi_array< double, 2 > v_pollutant_zones;
 
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
@@ -1077,32 +999,32 @@ public:
 
  /** the matrix of PrimaryDemand indexed over the dimensions
   * PrimaryZones and TimeHorizon */
- std::vector<double> v_primary_demand;
+ boost::multi_array< double, 2 > v_primary_demand;
 
  /// the vector of SecondaryZones
  std::vector<Index> v_secondary_zones;
 
  /** the matrix of SecondaryDemand indexed over the dimensions
   * SecondaryZones and TimeHorizon */
- std::vector<double> v_secondary_demand;
+ boost::multi_array< double, 2 > v_secondary_demand;
 
  /// the vector InertiaZones
  std::vector<Index> v_inertia_zones;
 
  /** the matrix of InertiaDemand indexed over the dimensions
   * InertiaZones and TimeHorizon */
- std::vector< double > v_inertia_demand;
+ boost::multi_array< double, 2 >v_inertia_demand;
 
  /// the vector of PollutantDemand
  std::vector< double > v_pollutant_budget;
 
  /** the PollutantRho matrix index over the dimensions
   * TimeHorizon, NumberPollutants, and NumberUnits */
- std::vector< double > v_pollutant_rho;
+ boost::multi_array< double, 3 > v_pollutant_rho;
 
  /** the PollutantHeatRho matrix index over the dimensions
   * TimeHorizon, NumberPollutants, and NumberHeatBlocks */
- std::vector< double > v_pollutant_heat_rho;
+ boost::multi_array< double, 3 > v_pollutant_heat_rho;
 
  /// The entry v_unit_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_unit_node;
@@ -1112,7 +1034,7 @@ public:
 
  /** the HeatSet matrix index over the dimensions
   * NumberUnits, and NumberHeatBlocks */
- std::vector< Index > v_heat_set;
+ boost::multi_array< double, 2 > v_heat_set;
 
  /// Vector of heat rho
  std::vector< double > v_power_heat_rho;
