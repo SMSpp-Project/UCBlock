@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 06 - 2019
+ * \date 01 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -243,10 +243,7 @@ public:
  *
  * - The variable "Susceptance", of type double and indexed over the dimension
  *   "NumberLines"; the i-th entry of this variable is assumed to contain the
- *   susceptance of line i.
- *
- * //TODO: Is Susceptance[ i ] assumed ro be > 0? If so let's say it.
- *    //I HAVENT FOUND IT INTO THE DOCUMENTATION
+ *   susceptance of line i. Note that this is strictly a positive value.
  *
  * //TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
  *       read if NumberNodes == 1 (or not present). Also, we have to make
@@ -261,80 +258,123 @@ public:
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
  /// returns the number of nodes of the network
-
+ /** Method for returning the number of nodes of the network.
+  * */
  Index get_number_nodes( void ) const { return f_number_nodes; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of lines of the network
-
+ /** Method for returning the number of lines of the network.
+  * */
  Index get_number_lines( void ) const { return f_number_lines; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the start node of the given line
-
+ /** Method for returning the vector of starting point of each line. There are
+  *  two possible cases:
+  *
+  *  - if f_number_nodes == 1, this vector have empty size which means there is
+  *    no line at network (bus network).
+  *
+  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+  *    element of the vectors gives starting point of each line in the network.
+  * */
  Index get_start_line( Index node ) const {
   return( v_start_line.empty() ? 0 : v_start_line[ node ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the vector of start nodes
-
+ /** Method for returning the vector of starting point of each line.*/
  const std::vector< int > & get_start_line( void ) const {
   return( v_start_line );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the end node of the given line
-
+ /** Method for returning the vector of ending point of each line. There are
+  *  two possible cases:
+  *
+  *  - if f_number_nodes == 1, this vector have empty size which means there is
+  *    no line at network (bus network).
+  *
+  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+  *    element of the vectors gives ending point of each line in the network.
+  * */
  Index get_end_line( Index node ) const {
   return( v_end_line.empty() ? 0 : v_end_line[ node ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns vector of end nodes
-
+ /** Method for returning the vector of ending point of each line.*/
  const std::vector< int > & get_end_line( void ) const {
   return( v_end_line );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power flow for the given line l
-
+ /** Method for returning the vector of minimum power flow of each line. There
+  *  are two possible cases:
+  *
+  *  - if f_number_lines == 0, this vector have empty size which means there is
+  *    no line at network (bus network).
+  *
+  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+  *    element of the vectors gives minimum power flow of each line in the network.
+  * */
  double get_min_power_flow( Index line ) const {
   return( v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of the minimum power flows
-
+ /// returns vector of the minimum power flow
+ /** Method for returning the vector of minimum power flow of each line.*/
  const std::vector< double > & get_min_power_flow( void ) const {
   return( v_min_power_flow );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power flow for the given line l
-
+ /** Method for returning the vector of maximum power flow of each line. There
+  *  are two possible cases:
+  *
+  *  - if f_number_lines == 0, this vector have empty size which means there is
+  *    no line at network (bus network).
+  *
+  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+  *    element of the vectors gives maximum power flow of each line in the network.
+  * */
  double get_max_power_flow( Index line ) const {
   return( v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of the maximum power flows
-
+ /// returns vector of the maximum power flow
+ /** Method for returning the vector of maximum power flow of each line.*/
  const std::vector< double > & get_max_power_flow( void ) const {
   return( v_max_power_flow );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the Susceptance for the given line l
-
+ /** Method for returning the vector of Susceptance of each line. There
+  *  are two possible cases:
+  *
+  *  - if f_number_lines == 0, this vector have empty size which means there is
+  *    no line at network (bus network).
+  *
+  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+  *    element of the vectors gives the Susceptance value for each line in the
+  *    network.
+  * */
  double get_susceptance( Index line ) const {
   return( v_susceptance.empty() ? 0 : v_susceptance[ line ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns vector of the Susceptances
-
+ /** Method for returning the vector of Susceptances for each line.*/
  const std::vector< double > & get_susceptance( void ) const {
   return( v_susceptance );
   }
@@ -791,6 +831,7 @@ public:
  * @{ */
 
  /// returns the time horizon of the problem
+ /** Method for returning the time horizon of the problem */
  Index get_time_horizon() const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
@@ -804,82 +845,214 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of (pointers to) NetworkBlocks
-
+ /** Method for returning the vector of network blocks. This vector may have
+  *  empty size which means there is no network block or may have size of
+  *  f_time_horizon where in this case each element of the vector gives the
+  *  network block at time instant t.
+  * */
  const std::vector<NetworkBlock *> & get_network_blocks() const {
   return v_network_blocks;
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the primary demand matrix of the given zone at the given time
-
+ /// method for returning the matrix of primary demand
+ /** Method for returning the matrix of primary demand of the given primary
+  *  zone at the time instant t. This matrix may have f_number_primary_zones
+  *  rows and must have f_time_horizon columns, otherwise it's empty and there
+  *  is no primary demand. Therefore, there are two possible cases:
+  *
+  * - if f_number_primary_zones  == 0 then the number of rows of this matrix
+  *   is zero, in this case the matrix is empty since there is no primary
+  *   zone.
+  *
+  * - if f_number_primary_zones != 0 , in this case each row must have size
+  *   f_time_horizon and each element of that row gives the primary demand at
+  *   time instant t.*/
  const boost::multi_array< double, 2 >& get_primary_demand() const {
   return( v_primary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the secondary demand matrix of the given zone at the given time
-
+ /// returns the matrix of secondary demand
+ /** Method for returning the matrix of secondary demand of the given
+  *  secondary zone at the time instant t. This matrix may have
+  *  f_number_secondary_zones rows and must have f_time_horizon columns,
+  *  otherwise it's empty and there is no secondary demand. Therefore, there
+  *  are two possible cases:
+  *
+  * - if f_number_secondary_zones  == 0 then the number of rows of this matrix
+  *   is zero, in this case the matrix is empty since there is no secondary
+  *   zone.
+  *
+  * - if f_number_secondary_zones != 0 , in this case each row must have size
+  *   f_time_horizon and each element of that row gives the secondary demand
+  *   at time instant t.*/
  const boost::multi_array< double, 2 > & get_secondary_demand() const {
   return( v_secondary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia demand matrix of the given zone at the given time
-
+ /// returns the matrix of inertia demand of the given zone at the given time
+ /** Method for returning the matrix of inertia demand of the given inertia
+  *  zone at the time instant t. This matrix may have  f_number_inertia_zones
+  *  rows and must have f_time_horizon columns, otherwise it's empty and there
+  *  is no inertia demand. Therefore, there are two possible cases:
+  *
+  * - if f_number_inertia_zones  == 0 then the number of rows of this matrix
+  *   is zero, in this case the matrix is empty since there is no inertia
+  *   zone.
+  *
+  * - if f_number_inertia_zones != 0 , in this case each row must have size
+  *   f_time_horizon and each element of that row gives the inertia demand
+  *   at time instant t.*/
  const boost::multi_array< double, 2 > & get_inertia_demand() const {
   return( v_inertia_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /** returns the matrix of conversion factor of the given pollutant due to the
-  * generation of the given unit at the given time */
-
+ /// returns the matrix of conversion factor of the given pollutant
+ /** Method for returning the matrix of conversion factor of the given
+  *  pollutant due to the generation of the given unit at the given time t.
+  *  This matrix considers two possible cases:
+  *
+  * - if f_time_horizon has size 1, then depending on the size of
+  *   f_number_pollutants and f_number_units there exist these possibilities:
+  *
+  *   - if size of f_number_pollutants == 0 or f_number_units == 0 it means
+  *     this matrix is empty.
+  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
+  *     element of this matrix gives the conversion factor of pollutant due to
+  *     the generation of unit i which for all time instants would be the same
+  *     value.
+  *
+  * - if f_time_horizon has full size, then depending on the size of
+  *   f_number_pollutants and f_number_units may happen these cases:
+  *
+  *   - if size of f_number_pollutants == 0 or f_number_units == 0 it means
+  *     this matrix is empty.
+  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
+  *     element of this matrix gives the conversion factor of pollutant due to
+  *     the generation of unit i for each time instants t. */
  const boost::multi_array< double, 3 > & get_pollutant_rho() const {
   return(v_pollutant_rho);
   }
 
 /*--------------------------------------------------------------------------*/
- /** returns the matrix of conversion factor of the given pollutant due to the
-  *  generation of every heat-only unit i in the given heat block h at the
-  *  given time t. */
+ /// returns the matrix of conversion factor of the given pollutant due to the
+ /// generation of every heat-only unit
+ /** Method for returning the matrix of conversion factor of the given
+  *  pollutant due to the pollutant due to the generation of every heat-only
+  *  unit i in the given heat block h at the given time t.
+  *  This matrix considers two possible cases:
+  *
+  * - if f_time_horizon has size 1, then depending on the size of
+  *   f_number_pollutants and f_number_heat_blocks there exist these
+  *   possibilities:
+  *
+  *   - if size of f_number_pollutants == 0 or f_number_heat_blocks == 0 it
+  *     means this matrix is empty.
+  *   - if size of f_number_pollutants != 0 and or f_number_heat_blocks != 0
+  *     each element of this matrix gives the conversion factor of pollutant
+  *     due to the generation of every heat-only unit in heat block h which
+  *     for all time instants would be the same value.
+  *
+  * - if f_time_horizon has full size, then depending on the size of
+  *   f_number_pollutants and f_number_heat_blocks may happen these cases:
+  *
+  *   - if size of f_number_pollutants == 0 or f_number_heat_blocks == 0 it
+  *     means this matrix is empty.
+  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
+  *     element of this matrix gives the conversion factor of pollutant due to
+  *     the generation of every heat-only unit in HeatBlock h for each time
+  *     instants t. */
 
  const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
   return v_pollutant_heat_rho ;
   }
 
 /*--------------------------------------------------------------------------*/
- /** returns the matrix of pollutant zone associated with the given pollutant
-  * the given node belongs to */
-
- const boost::multi_array< double, 2 > & get_pollutant_zone() const {
+ /// returns the matrix of pollutant zone
+ /** Method for returning the matrix of pollutant zone associated with the
+  *  given pollutant the given node belongs to. This matrix indexed over the
+  *  dimensions NumberPollutants and NumberNodes. and there are these possible
+  *  cases:
+  *
+  * - if each dimension of the matrix is not present then the matrix is empty
+  *   and there is not any pollutant zone.
+  *
+  * - if the matrix has non-zero f_number_pollutants rows then:
+  *
+  *   - if f_number_nodes == 1, then the matrix is a vector with the
+  *     f_number_pollutants rows and one column which implies that all the
+  *     pollutants belong to just one node.
+  *
+  *   - if f_number_nodes > 1, then the matrix has f_number_pollutants rows
+  *     and f_number_nodes columns where each element of the matrix shows
+  *     which pollutant p belong to which node.
+  *
+  * - if the f_number_pollutants == 0, this matrix is empty and there is not
+  *    any pollutant zone. */
+ const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
    return v_pollutant_zones;
  }
 
 /*--------------------------------------------------------------------------*/
- /** returns the matrix of heat set that represents the given unit in the given
-  * HeatBlock */
- const boost::multi_array< double, 2 > & get_heat_set() const {
+ /// returns the matrix of heat set
+ /** Method for returning the matrix of heat set that represents the given
+  *  unit in the given HeatBlock. This matrix indexed over the dimensions
+  *  NumberUnits and NumberHeatBlocks. and there are these possible cases:
+  *
+  * - if each dimension of the matrix is not present then the matrix is empty
+  *   and there is not any heat set.
+  *
+  * - if the matrix has non-zero f_number_units rows then:
+  *
+  *   - if f_number_heat_blocks == 0, then this matrix is empty and there is
+  *     not any heat set.
+  *
+  *   - if non-zero f_number_heat_blocks is present, then the matrix has
+  *     f_number_units rows and f_number_heat_blocks columns, and each element
+  *     of the matrix tells to which heat block h, electrical unit i belongs.
+  *
+  * - if the f_number_units == 0, this matrix is empty and there is not any heat set.
+  *  */
+ const boost::multi_array< Index, 2 > & get_heat_set() const {
    return v_heat_set;
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the i-th UnitBlock
-
+ /** Method for returning the unit block i. */
  UnitBlock * get_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the t-th NetworkBlock
-
+ /** Method for returning the network block at time instant t. */
  NetworkBlock * get_network_block( Index t ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the i-th HeatBlock
-
- HeatBlock * get_heat_block( Index i ) const;
+ /** Method for returning the heat block h. */
+ HeatBlock * get_heat_block( Index h ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the node where the given unit belongs to
-
+ /** Method for returning the node where the given unit belongs to.
+  *
+  *  - if f_number_units is not present or its present but f_number_units == 0
+  *    this vector is empty.
+  *
+  *  - if f_number_units >= 1, then this vector have size f_number_units and
+  *    there are two possible cases:
+  *
+  *    - if the NetworkData is not defined (see comments to deserialize()) or
+  *      it's defined and f_number_nodes == 1 then transmission network is a
+  *      "bus", then all the elements of this vector belong to that node.
+  *
+  *    - if the NetworkData is defined (see comments to deserialize()) and
+  *      f_number_nodes > 1 then each element of this vector gives which unit
+  *      belongs to which node.
+  * */
  Index get_unit_node( Index unit ) const {
    if( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 )
      return v_unit_node[ unit ];
@@ -888,35 +1061,56 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary zone where the given node belongs to
-
+ /** Method for returning the vector of primary zones. This vector may have
+  *  empty size which means there is no primary zone or may have size of
+  *  f_number_nodes where in this case each element of the vector implies the
+  *  primary zone at node n.
+  * */
  Index get_primary_zone( Index node ) const {
   return( v_primary_zones.empty() ? 0 : v_primary_zones[ node ] );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary zone where the given node belongs to
-
+ /** Method for returning the vector of secondary zones. This vector may have
+  *  empty size which means there is no secondary zone or may have size of
+  *  f_number_nodes where in this case each element of the vector implies the
+  *  secondary zone at node n.
+  * */
  Index get_secondary_zone( Index node ) const {
   return( v_secondary_zones.empty() ? 0 : v_secondary_zones[ node ] );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia zone where the given node belongs to
-
+ /** Method for returning the vector of inertia zones. This vector may have
+  *  empty size which means there is no inertia zone or may have size of
+  *  f_number_nodes where in this case each element of the vector implies the
+  *  inertia zone at node n.
+  * */
  Index get_inertia_zone( Index node ) const {
   return( v_inertia_zones.empty() ? 0 : v_inertia_zones[ node ] );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the electrical-power-to-heat ratio of the given unit
-
+ /** Method for returning the vector of electrical power to heat. This vector
+  *  may have empty size which means there is no inertia zone or may have size
+  *  of f_number_nodes where in this case each element of this vector implies
+  *  the inertia zone at node n.
+  * */
  double get_power_heat_rho( Index unit ) const {
   return v_power_heat_rho[ unit ];
   }
-
 /*--------------------------------------------------------------------------*/
  /// returns the vector of electrical-power-to-heat ratio
-
+ /** Method for returning the vector electrical-power-to-heat ratio for each
+  *  unit i of heat block h. This vector may have  empty size which means
+  *  there no power heat rho or may have size of f_number_units where in this
+  *  case each element of this vector gives the power heat rho for each heat
+  *  block h. Note that if the f_number_heat_blocks is not present or it's
+  *  equal to zero, this vector is empty.
+  * */
  const std::vector< double > & get_power_heat_rho( void ) const {
   return v_power_heat_rho ;
   }
@@ -929,8 +1123,8 @@ public:
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
- * format of the created netCDF group. */
+ *  UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
+ *  format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -985,7 +1179,7 @@ public:
 
  /** The matrix PollutantZones indexed over the dimensions
   *  NumberPollutants and NumberNodes */
- boost::multi_array< double, 2 > v_pollutant_zones;
+ boost::multi_array< Index, 2 > v_pollutant_zones;
 
  /** Vector of pointers to the NetworkBlocks. This vector either is
   * empty or has size f_time_horizon. If it is empty, it means there
@@ -1034,7 +1228,7 @@ public:
 
  /** the HeatSet matrix index over the dimensions
   * NumberUnits, and NumberHeatBlocks */
- boost::multi_array< double, 2 > v_heat_set;
+ boost::multi_array< Index, 2 > v_heat_set;
 
  /// Vector of heat rho
  std::vector< double > v_power_heat_rho;
