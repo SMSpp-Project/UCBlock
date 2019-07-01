@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 06 - 2019
+ * \date 01 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -237,14 +237,25 @@ typedef std::size_t Index;                 ///< index of parameters
     @{ */
 
  /// returns the the active demand for the given node
-
+ /** Method for returning the active demand for the given node.
+  * */
  double get_active_demand( Index node ) const {
   return( v_active_demand.empty() ? 0 : v_active_demand[ node ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the vector of active demands
-
+ /** Method for returning the active demand for the given node. There are
+  *  two possible cases:
+  *
+  *  - if f_number_nodes == 1 then transmission network is a "bus" and this
+  *    vector just has one element which implies active demand of bus
+  *    network.
+  *
+  *  - if f_number_nodes > 1, then each element of this vector gives the
+  *    active demand of corresponding node in the existing network.
+  *
+  * */
  const std::vector< double > & get_active_demand( void ) const {
   return( v_active_demand );
  }
@@ -253,7 +264,7 @@ typedef std::size_t Index;                 ///< index of parameters
  /// returns the NetworkData object
  /** Returns the NetworkData object. The method of the base class always
   * returns nullptr, because the base class does not handle the NetworkData
-  * object. This is OK for derived classes that only habdle the "bus" case.
+  * object. This is OK for derived classes that only handle the "bus" case.
   */
 
  virtual UCBlock::NetworkData * get_NetworkData() const { return( nullptr ); }
@@ -275,7 +286,7 @@ typedef std::size_t Index;                 ///< index of parameters
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns thenode injection variable of node n
+/// returns the node injection variable of node n
 
  ColVariable & get_node_injection( Index node )  {
   return( v_node_injection[ node ] );
