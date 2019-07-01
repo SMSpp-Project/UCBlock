@@ -60,7 +60,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 {
 //TODO Implementation is not ready
- auto network_data = new UCBlock::NetworkData();
+ auto network_data = new NetworkBlock::NetworkData();
  network_data->deserialize( group );
  if( network_data ) {  // there is a NetworkData object in the group
   // use it, whatever has happened before
@@ -99,23 +99,26 @@ void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
-  if( f_NetworkData->f_number_lines < 0 ) {
+  if( f_NetworkData->get_number_lines() < 0 ) {
     throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                              "number of lines of DCNetworkBlock is not set"));
   }
 
-  if( v_flow_limit_constraints.size() != f_NetworkData->f_number_lines  ) {
+  if( v_flow_limit_constraints.size() != f_NetworkData->get_number_lines() ) {
     // this should only happen once
     assert( v_flow_limit_constraints.size() == 0 );
-    v_flow_limit_constraints.resize( f_NetworkData->f_number_lines  );
+    v_flow_limit_constraints.resize( f_NetworkData->get_number_lines() );
   }
 
   // Flow limit constraints
 
   // TODO
 
-  for( Index line_id = 0; line_id < f_NetworkData->f_number_lines ; ++line_id ) {
+  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines() ;
+       ++line_id ) {
 
+    auto min_power_flow = f_NetworkData-> get_min_power_flow(line_id);
+    auto max_power_flow = f_NetworkData-> get_max_power_flow(line_id);
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
@@ -141,10 +144,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
     // Set the left- and right-hand sides
 
     v_flow_limit_constraints[line_id].set_lhs
-        ( f_NetworkData-> v_min_power_flow[line_id] - constant_term );
+        ( min_power_flow - constant_term );
 
     v_flow_limit_constraints[line_id].set_rhs
-        ( f_NetworkData-> v_max_power_flow[line_id] - constant_term );
+        ( max_power_flow - constant_term );
 
   } // for each line
 
@@ -163,7 +166,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , "DCNetworkBlock" ); //TODO
 
   auto dim_number_nodes = group.addDim( "NumberNodes",
-                                        f_NetworkData->f_number_nodes );
+                                        f_NetworkData->get_number_nodes() );
 
   ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
                { dim_number_nodes}, v_active_demand);

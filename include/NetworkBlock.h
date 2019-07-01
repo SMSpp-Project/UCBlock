@@ -49,10 +49,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-#include "UCBlock.h"
 #include "ColVariable.h"
-//TODO: when NetworkData is defined in NetworkBlock, remove the
-//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -96,9 +94,293 @@ class NetworkBlock : public Block {
  *
  * - Index, the type of indices;
  *
+ * - NetworkData, a small auxiliary class to bunch together the basic
+ *   data (topology and electrical characteristics) of the transmission
+ *   network.
  *  @{ */
 
 typedef std::size_t Index;                 ///< index of parameters
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// auxiliary class to hold basic data about the transmission network
+/** The NetworkData class is a nested sub_class into the NetworkBlock, which
+ * only serves to have a quick way to load all the basic data (topology and
+ * electrical characteristics) that describes the transmission network.
+ * The rationale is that while often the network does not change during the
+ * (short) time horizon of UC, it makes sense to allow for this to happen.
+ * This means that individual NetworkBlock objects may in principle have
+ * different NetworkData, but most often they can share the same. By bunching
+ * all the information together we make it easy for this sharing to happen. */
+
+ class NetworkData {
+
+/*--------------------------------------------------------------------------*/
+/*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructor and Destructor
+ *  @{ */
+
+ /// constructor of NetworkData, does nothing
+ NetworkData() = default;
+
+/// destructor of NetworkData: it is virtual, and empty
+ virtual ~NetworkData() = default;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/// deserialize a NetworkData out of a netCDF::NcGroup
+/** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
+ * the following:
+ *
+ * - The dimension "NumberNodes" containing the number of nodes in the
+ *   problem; this dimension is optional, if it is not provided then it is
+ *   taken to be == 1.
+ *
+ * If NumberNodes == 1 (equivalently, it is not provided), the network is a
+ * "bus" formed of only one node, and therefore all the subsequent information
+ * need not to be present since it is not loaded. If NumberNodes > 1, then all
+ * the subsequent information is mandatory:
+ *
+ * - The dimension "NumberLines" containing the number of lines in the
+ *   transmission network.
+ *
+ * - The variable "StartLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the starting point of
+ *   the line (a number in 0, ..., NumberNodes - 1). Note that lines are not
+ *   oriented, but the flow of energy is; that is, a positive flow along
+ *   line i means that energy is being taken away from StartLine[ i ] and
+ *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
+ *   Note that node names here go from 0 to NNodes.getSize() - 1;
+ *
+ * - The variable "EndLine", of type int and indexed over the dimension
+ *   "NumberNodes"; the i-th entry of the variable is the ending point of the
+ *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
+ *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
+ *   but multiple lines between the same pair of nodes are. Note that node
+ *   names here go from 0 to NNodes.getSize() - 1;
+ *
+ * - The variable "MinPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the minimum power flow on line i (note that this is typically
+ *   a negative number as lines are bi-directional, see above).
+ *
+ * - The variable "MaxPowerFlow", of type double and indexed over the
+ *   dimension "NumberLines"; the i-th entry of the variable is assumed to
+ *   contain the maximum power flow at line i (a non-negative number).
+ *
+ * - The variable "Susceptance", of type double and indexed over the dimension
+ *   "NumberLines"; the i-th entry of this variable is assumed to contain the
+ *   susceptance of line i. Note that this is strictly a positive value.
+ *
+ * //TODO: In NetworkBlock::NetworkData::deserialize(), NumberLines need not be
+ *       read if NumberNodes == 1 (or not present). Also, we have to make
+ *       the basic checks on data:
+ *       - self loops are not allowed
+ *       - min capacity <= 0 <= max capacity
+ *       - susceptance > 0 (if it is)
+ */
+ virtual void deserialize( netCDF::NcGroup & group );
+
+/**@} ----------------------------------------------------------------------*/
+/*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
+/*--------------------------------------------------------------------------*/
+/// returns the number of nodes of the network
+/** Method for returning the number of nodes of the network. This number
+ *  should change between 1 and f_number_nodes. When it is equal to one, it
+ *  means the transmission network is bus, otherwise this gives the number of
+ *  nodes in the available transmission network in the UC problem.
+ * */
+ Index get_number_nodes( void ) const { return f_number_nodes; }
+
+/*--------------------------------------------------------------------------*/
+/// returns the number of lines of the network
+/** Method for returning the number of lines of the network. This number
+ *  should change between 0 and f_number_lines. When it is equal to zero, it
+ *  means the transmission network is bus and we dont have any line(not
+ *  needed to be defined), otherwise this gives the number of lines in the
+ *  available transmission network in the UC problem.
+ * */
+ Index get_number_lines( void ) const { return f_number_lines; }
+
+/*--------------------------------------------------------------------------*/
+/// returns the start node of the given line
+/** Method for returning the vector of starting point of each line.
+ * */
+ Index get_start_line( Index node ) const {
+       return( v_start_line.empty() ? 0 : v_start_line[ node ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns the vector of start nodes
+/** Method for returning the vector of starting point of each line. This
+ *  vector may have empty size (bus network) or the size of number of nodes,
+ *  then there are two possible cases:
+ *
+ *  - if f_number_nodes == 1, this vector has empty size which means there
+ *    is no line at network (bus network), and this vector is not needed to
+ *    be defined.
+ *
+ *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+ *    element of the vectors gives starting point of each line in the network.
+ * */
+ const std::vector< int > & get_start_line( void ) const {
+       return( v_start_line );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// returns the end node of the given line
+/** Method for returning the vector of ending point of each line. */
+ Index get_end_line( Index node ) const {
+       return( v_end_line.empty() ? 0 : v_end_line[ node ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns vector of end nodes
+/** Method for returning the vector of ending point of each line. This
+ *  vector may have empty size (bus network) or the size of number of nodes,
+ *  then there are two possible cases:
+ *
+ *  - if f_number_nodes == 1, this vector has empty size which means there
+ *    is no line at network (bus network), and this vector is not needed to
+ *    be defined.
+ *
+ *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+ *    element of the vectors gives ending point of each line in the network.
+ * */
+ const std::vector< int > & get_end_line( void ) const {
+       return( v_end_line );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// returns the minimum power flow for the given line l
+/** Method for returning the vector of minimum power flow of each line. */
+ double get_min_power_flow( Index line ) const {
+       return( v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns vector of the minimum power flow
+/** Method for returning the vector of minimum power flow of each line. This
+ *  vector may have empty size (bus network) or the size of number of nodes,
+ *  then there are two possible cases:
+ *
+ *  - if f_number_lines == 0, this vector has empty size which means there is
+ *    no line at network (bus network).
+ *
+ *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+ *    element of the vectors gives minimum power flow of each line in the network.
+ * */
+ const std::vector< double > & get_min_power_flow( void ) const {
+       return( v_min_power_flow );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// returns the maximum power flow for the given line l
+/** Method for returning the vector of maximum power flow of each line.*/
+ double get_max_power_flow( Index line ) const {
+       return( v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns vector of the maximum power flow
+/** Method for returning the vector of maximum power flow of each line. This
+ *  vector may have empty size (bus network) or the size of number of nodes,
+ *  then there are two possible cases:
+ *
+ *  - if f_number_lines == 0, this vector has empty size which means there is
+ *    no line at network (bus network).
+ *
+ *  - if f_number_lines >= 1, this vector have size of f_number_lines and
+ *    each element of the vectors gives maximum power flow of each line in
+ *    the network.*/
+ const std::vector< double > & get_max_power_flow( void ) const {
+       return( v_max_power_flow );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// returns the Susceptance for the given line l
+/** Method for returning the vector of Susceptance of each line. */
+ double get_susceptance( Index line ) const {
+       return( v_susceptance.empty() ? 0 : v_susceptance[ line ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// returns vector of the Susceptances
+/** Method for returning the vector of Susceptances for each line.  This
+ *  vector may have empty size (bus network) or the size of number of nodes,
+ *  then there are two possible cases:
+ *
+ *  - if f_number_lines == 0, this vector has empty size which means there is
+ *    no line at network (bus network).
+ *
+ *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
+ *    element of the vectors gives the Susceptance value for each line in the
+ *    network.
+ **/
+ const std::vector< double > & get_susceptance( void ) const {
+       return( v_susceptance );
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the NetworkData
+ *  @{ */
+
+/// serialize a NetworkData out of a netCDF::NcGroup
+/** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
+ * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
+ * of the format of the created netCDF group. */
+
+ virtual void serialize( netCDF::NcGroup & group ) const;
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*--------------------------------------------------------------------------*/
+/*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the NetworkData
+ *  @{ */
+
+ Index f_number_nodes;    ///< number of nodes of the network
+
+ Index f_number_lines;    ///< number of lines of the network
+
+ std::vector< int > v_start_line;  ///< vector of starting nodes
+
+ std::vector< int > v_end_line;    ///< vector of ending nodes
+
+ /// vector to store the susceptance of each line of the network
+ std::vector< double > v_susceptance;
+
+ /// vector to store the minimum power flow at each line
+ std::vector< double > v_min_power_flow;
+
+ /// vector to store the maximum power flow at each line
+ std::vector< double > v_max_power_flow;
+
+/*--------------------------------------------------------------------------*/
+
+    };   // end( class( NetworkData ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -144,7 +426,7 @@ typedef std::size_t Index;                 ///< index of parameters
  * - if the NetworkData object is present (either in the NcGroup or because it
  *   has been passed) then the variable "ActiveDemand", of type double, is
  *   indexed over the dimension "NumberNodes", which can be read via
- *   UCBlock::NetworkData::get_number_nodes(). */
+ *   NetworkData::get_number_nodes(). */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -164,8 +446,7 @@ typedef std::size_t Index;                 ///< index of parameters
  *
  * - if the NetworkData object is present (either in the NcGroup or because it
  *   has been passed and NumberNodes > 1) then this variable has size
- *   "NumberNodes", which can be read via
- *    UCBlock::NetworkData::get_number_nodes(). */
+ *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
    override;
@@ -228,7 +509,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- virtual void set_NetworkData( UCBlock::NetworkData * nd = nullptr ) = 0;
+ virtual void set_NetworkData( NetworkData * nd = nullptr ) = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -267,7 +548,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * object. This is OK for derived classes that only handle the "bus" case.
   */
 
- virtual UCBlock::NetworkData * get_NetworkData() const { return( nullptr ); }
+ virtual NetworkData * get_NetworkData() const { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/

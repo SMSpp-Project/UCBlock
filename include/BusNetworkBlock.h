@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 06 - 2019
+ * \date 01 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -61,9 +61,9 @@ namespace SMSpp_di_unipi_it {
 
 /// a NetworkBlock with only one node, i.e., a "bus" transmission network
 /** The BusNetworkBlock class, which derives from NetworkBlock [see
- * NetworkBlock.h] implements the Block concept [see Block.h] in order to
- * define a "bus" transmission network in the Unit Commitment problem for a
- * given instant in the time horizon. */
+ *  NetworkBlock.h] implements the Block concept [see Block.h] in order to
+ *  define a "bus" transmission network in the Unit Commitment problem for a
+ *  given instant in the time horizon. */
 
  class BusNetworkBlock : public NetworkBlock {
 
@@ -96,34 +96,13 @@ namespace SMSpp_di_unipi_it {
 
 /// loads the BusNetworkBlock instance from memory
 /** Loads the BusNetworkBlock instance from memory.
- * Like load( std::istream & ), if there is any Solver attached to this
- * BusNetworkBlock then a NBModification (the "nuclear option") is issued.
+ *  Like load( std::istream & ), if there is any Solver attached to this
+ *  BusNetworkBlock then a NBModification (the "nuclear option") is issued.
  * */
 
  virtual void load( std::istream &input ) override {
   throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
   }
-
-/*--------------------------------------------------------------------------*/
-
-/// extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the BusNetworkBlock. Besides the mandatory "type" attribute of any :Block,
- * the group should contain the following:
- *
- * TODO: this comment is not very clear. The NetworkData object is *never*
- *       provided to the BusNetworkBlock, because even if it is the
- *       BusNetworkBlock *ignores* it.
- *       Must this method be defined at all?
- *
- * When the NetworkData object is not provided by NetworkBlock (basically,
- * "NumberNodes" is not provided or it is == 1) then the transmission
- * network is taken to have only one node (a bus) and variable "ActiveDemand"
- * is long 1 which is provided by NetworkBlock *get_active_demand(). This part
- * does not do anything since the base NetworkBlock should have done it all
- */
-
- virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of BusNetworkBlock
@@ -137,7 +116,7 @@ namespace SMSpp_di_unipi_it {
  virtual void generate_abstract_variables( Configuration *stvv = nullptr )
     override;
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the BusNetworkBlock
@@ -148,20 +127,7 @@ namespace SMSpp_di_unipi_it {
   * BusNetworkBlock because by definition the network is made by only one
   * node. */
  
- void set_NetworkData( UCBlock::NetworkData * nd = nullptr ) override { }
-
-/**@} ----------------------------------------------------------------------*/
-/*-------------------- METHODS FOR SAVING THE BusNetworkBlock --------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the BusNetworkBlock
- *  @{ */
-
-/// extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * BusNetworkBlock. See BusNetworkBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group. */
-
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override { }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

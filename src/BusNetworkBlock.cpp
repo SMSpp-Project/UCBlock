@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 06 - 2019
+ * \date 01 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -62,16 +62,14 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-}  // end( BusNetworkBlock::deserialize )
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 
-  auto network_data = new UCBlock::NetworkData();
+  auto network_data = new NetworkBlock::NetworkData();
 
   unsigned int number_nodes =  network_data ->get_number_nodes();
 
@@ -93,9 +91,7 @@ void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE BusNetworkBlock ----*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-}    // end( BusNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File BusNetworkBlock.cpp -----------------------*/

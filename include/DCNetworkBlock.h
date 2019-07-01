@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 06 - 2019
+ * \date 01 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -38,15 +38,13 @@
 #include "Block.h"
 #include "FRowConstraint.h"
 #include "NetworkBlock.h"
-//TODO: when NetworkData is defined in NetworkBlock, remove the
-//      #include "UCBlock.h". Add a forward definition of UCBlock if necessary
-#include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 namespace SMSpp_di_unipi_it {
+  class UCBlock;     // forward declaration of UCBlock
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
@@ -166,7 +164,7 @@ virtual void load( std::istream &input ) override { };
 /** @name Methods for modifying the DCNetworkBlock
  *  @{ */
 
- void set_NetworkData( UCBlock::NetworkData * network_data = nullptr ) override
+ void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr ) override
  {
   // if there was a previous NetworkData and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
@@ -207,7 +205,7 @@ SMSpp_insert_in_factory_h;
 /*--------------------------------------------------------------------------*/
 
  /// the NetworkData object
- UCBlock::NetworkData * f_NetworkData;
+ NetworkBlock::NetworkData * f_NetworkData;
 
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;

@@ -48,9 +48,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <boost/multi_array.hpp>
-#include <vector>
 #include "Block.h"
+#include "NetworkBlock.h"
 #include "FRowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
@@ -60,9 +59,6 @@
 namespace SMSpp_di_unipi_it {
 
 class HeatBlock;     // forward declaration of HeatBlock
- 
-class NetworkBlock;  // forward declaration of NetworkBlock
-
 class UnitBlock;     // forward declaration of UnitBlock
 
 /*--------------------------------------------------------------------------*/
@@ -152,278 +148,9 @@ public:
  *
  * - Index, the type of indices;
  *
- * - NetworkData, a small auxiliary class to bunch together the basic
- *   data (topology and electrical characteristics) of the transmission
- *   network.
  *  @{ */
 
  typedef std::size_t Index;
-
-/*--------------------------------------------------------------------------*/
-/*----------------------- CLASS UCBlock::NetworkData -----------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------------------------- GENERAL NOTES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-/// auxiliary class to hold basic data about the transmission network
-/** The NetworkData class is a nested sub_class into the UCBlock, which
- * only serves to have a quick way to load all the basic data (topology and
- * electrical characteristics) that describes the transmission network.
- * The rationale is that while often the network does not change during the
- * (short) time horizon of UC, it makes sense to allow for this to happen.
- * This means that individual NetworkBlock objects may in principle have
- * different NetworkData, but most often they can share the same. By bunching
- * all the information together we make it easy for this sharing to happen. */
-
- class NetworkData {
-
-/*--------------------------------------------------------------------------*/
-/*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
-/*--------------------------------------------------------------------------*/
-
- public:
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Constructor and Destructor
- *  @{ */
-
- /// constructor of NetworkData, does nothing
- NetworkData() = default;
-
- /// destructor of NetworkData: it is virtual, and empty
- virtual ~NetworkData() = default;
-
-/**@} ----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/// deserialize a NetworkData out of a netCDF::NcGroup
-/** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
- * the following:
- *
- * - The dimension "NumberNodes" containing the number of nodes in the
- *   problem; this dimension is optional, if it is not provided then it is
- *   taken to be == 1.
- *
- * If NumberNodes == 1 (equivalently, it is not provided), the network is a
- * "bus" formed of only one node, and therefore all the subsequent information
- * need not to be present since it is not loaded. If NumberNodes > 1, then all
- * the subsequent information is mandatory:
- *
- * - The dimension "NumberLines" containing the number of lines in the
- *   transmission network.
- *
- * - The variable "StartLine", of type int and indexed over the dimension
- *   "NumberNodes"; the i-th entry of the variable is the starting point of
- *   the line (a number in 0, ..., NumberNodes - 1). Note that lines are not
- *   oriented, but the flow of energy is; that is, a positive flow along
- *   line i means that energy is being taken away from StartLine[ i ] and
- *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
- *   Note that node names here go from 0 to NNodes.getSize() - 1;
- *
- * - The variable "EndLine", of type int and indexed over the dimension
- *   "NumberNodes"; the i-th entry of the variable is the ending point of the
- *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
- *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
- *   but multiple lines between the same pair of nodes are. Note that node
- *   names here go from 0 to NNodes.getSize() - 1;
- *
- * - The variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the minimum power flow on line i (note that this is typically
- *   a negative number as lines are bi-directional, see above).
- *
- * - The variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the maximum power flow at line i (a non-negative number).
- *
- * - The variable "Susceptance", of type double and indexed over the dimension
- *   "NumberLines"; the i-th entry of this variable is assumed to contain the
- *   susceptance of line i. Note that this is strictly a positive value.
- *
- * //TODO: In UCBlock::NetworkData::deserialize(), NumberLines need not be
- *       read if NumberNodes == 1 (or not present). Also, we have to make
- *       the basic checks on data:
- *       - self loops are not allowed
- *       - min capacity <= 0 <= max capacity
- *       - susceptance > 0 (if it is)
- */
- virtual void deserialize( netCDF::NcGroup & group );
-
-/**@} ----------------------------------------------------------------------*/
-/*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
-/*--------------------------------------------------------------------------*/
- /// returns the number of nodes of the network
- /** Method for returning the number of nodes of the network.
-  * */
- Index get_number_nodes( void ) const { return f_number_nodes; }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of lines of the network
- /** Method for returning the number of lines of the network.
-  * */
- Index get_number_lines( void ) const { return f_number_lines; }
-
-/*--------------------------------------------------------------------------*/
- /// returns the start node of the given line
- /** Method for returning the vector of starting point of each line. There are
-  *  two possible cases:
-  *
-  *  - if f_number_nodes == 1, this vector have empty size which means there is
-  *    no line at network (bus network).
-  *
-  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
-  *    element of the vectors gives starting point of each line in the network.
-  * */
- Index get_start_line( Index node ) const {
-  return( v_start_line.empty() ? 0 : v_start_line[ node ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the vector of start nodes
- /** Method for returning the vector of starting point of each line.*/
- const std::vector< int > & get_start_line( void ) const {
-  return( v_start_line );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the end node of the given line
- /** Method for returning the vector of ending point of each line. There are
-  *  two possible cases:
-  *
-  *  - if f_number_nodes == 1, this vector have empty size which means there is
-  *    no line at network (bus network).
-  *
-  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
-  *    element of the vectors gives ending point of each line in the network.
-  * */
- Index get_end_line( Index node ) const {
-  return( v_end_line.empty() ? 0 : v_end_line[ node ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of end nodes
- /** Method for returning the vector of ending point of each line.*/
- const std::vector< int > & get_end_line( void ) const {
-  return( v_end_line );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum power flow for the given line l
- /** Method for returning the vector of minimum power flow of each line. There
-  *  are two possible cases:
-  *
-  *  - if f_number_lines == 0, this vector have empty size which means there is
-  *    no line at network (bus network).
-  *
-  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-  *    element of the vectors gives minimum power flow of each line in the network.
-  * */
- double get_min_power_flow( Index line ) const {
-  return( v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of the minimum power flow
- /** Method for returning the vector of minimum power flow of each line.*/
- const std::vector< double > & get_min_power_flow( void ) const {
-  return( v_min_power_flow );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum power flow for the given line l
- /** Method for returning the vector of maximum power flow of each line. There
-  *  are two possible cases:
-  *
-  *  - if f_number_lines == 0, this vector have empty size which means there is
-  *    no line at network (bus network).
-  *
-  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-  *    element of the vectors gives maximum power flow of each line in the network.
-  * */
- double get_max_power_flow( Index line ) const {
-  return( v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of the maximum power flow
- /** Method for returning the vector of maximum power flow of each line.*/
- const std::vector< double > & get_max_power_flow( void ) const {
-  return( v_max_power_flow );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the Susceptance for the given line l
- /** Method for returning the vector of Susceptance of each line. There
-  *  are two possible cases:
-  *
-  *  - if f_number_lines == 0, this vector have empty size which means there is
-  *    no line at network (bus network).
-  *
-  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-  *    element of the vectors gives the Susceptance value for each line in the
-  *    network.
-  * */
- double get_susceptance( Index line ) const {
-  return( v_susceptance.empty() ? 0 : v_susceptance[ line ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns vector of the Susceptances
- /** Method for returning the vector of Susceptances for each line.*/
- const std::vector< double > & get_susceptance( void ) const {
-  return( v_susceptance );
-  }
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the NetworkData
- *  @{ */
-
-/// serialize a NetworkData out of a netCDF::NcGroup
-/** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
- * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
- * of the format of the created netCDF group. */
-
- virtual void serialize( netCDF::NcGroup & group ) const;
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
-
- protected:
-
-/*--------------------------------------------------------------------------*/
-/*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the NetworkData
- *  @{ */
-
- Index f_number_nodes;    ///< number of nodes of the network
-
- Index f_number_lines;    ///< number of lines of the network
-
- std::vector< int > v_start_line;  ///< vector of starting nodes
-
- std::vector< int > v_end_line;    ///< vector of ending nodes
-
- /// vector to store the susceptance of each line of the network
- std::vector< double > v_susceptance;
-
- /// vector to store the minimum power flow at each line
- std::vector< double > v_min_power_flow;
-
- /// vector to store the maximum power flow at each line
- std::vector< double > v_max_power_flow;
-
-/*--------------------------------------------------------------------------*/
-
- };   // end( class( NetworkData ) )
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -471,10 +198,11 @@ public:
  *   not read.
  *
  * - Possibly, the dimensions and variables necessary to a NetworkData object,
- *   that describe the transmission network; see NetworkData::deserialize()
- *   for details. All that is optional, if it is not provided (basically,
- *   "NumberNodes" is not provided or it is == 1) then the transmission
- *   network is taken to have only one node (a bus).
+ *   that describe the transmission network; see
+ *   NetworkBlock::NetworkData::deserialize() for details. All that is
+ *   optional, if it is not provided (basically, "NumberNodes" is not provided
+ *   or it is == 1) then the transmission network is taken to have only one
+ *   node (a bus).
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the constraints on the
@@ -799,7 +527,7 @@ public:
  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
  *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$. Therefore, if the
  *   f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2> with
- *   two dimensions which are f_time_horizon and the number of UnitBlocks that
+ *   two dimensions which are f_time_horizon and the number of UnitBlock that
  *   produce electricity and belong to some HeatBlock; the constraint at
  *   position ( t, i ) being the heat constraints at time t and unit M[ i ],
  *   where M maps the constraint into an electricity-producing unit that
@@ -837,18 +565,18 @@ public:
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
  /** Method for returning the NetworkData object. Note that no NetworkData
-  * may be defined (see comments to deserialize()), which means that the
-  * transmission network is a "bus"; in this case, this method will return
-  * nullptr. */
+  *  may be defined (see comments to deserialize()), which means that the
+  *  transmission network is a "bus"; in this case, this method will return
+  *  nullptr. */
 
- NetworkData * get_NetworkData() const { return f_NetworkData; }
+ NetworkBlock::NetworkData * get_NetworkData() const { return f_NetworkData; }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of (pointers to) NetworkBlocks
- /** Method for returning the vector of network blocks. This vector may have
-  *  empty size which means there is no network block or may have size of
-  *  f_time_horizon where in this case each element of the vector gives the
-  *  network block at time instant t.
+ /// returns the vector of (pointers to) NetworkBlock
+ /** Method for returning the vector of network blocks. Since there always is
+  *  a NetworkBlock for each time instant t, this vector may have size of
+  *  f_time_horizon where each element of the vector gives the network block
+  *  at time instant t.
   * */
  const std::vector<NetworkBlock *> & get_network_blocks() const {
   return v_network_blocks;
@@ -856,83 +584,93 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// method for returning the matrix of primary demand
- /** Method for returning the matrix of primary demand of the given primary
-  *  zone at the time instant t. This matrix may have f_number_primary_zones
-  *  rows and must have f_time_horizon columns, otherwise it's empty and there
-  *  is no primary demand. Therefore, there are two possible cases:
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  *  M[ n , t ] gives the matrix of primary demand of the given primary
+  *  zone at the time instant t. This two-dimensional boost::multi_array<> M
+  *  considers two possible cases:
   *
-  * - if f_number_primary_zones  == 0 then the number of rows of this matrix
-  *   is zero, in this case the matrix is empty since there is no primary
-  *   zone.
+  *  - if the first dimension of the boost::multi_array<> M has size zero it
+  *    means the boost::multi_array<> M is empty() since there is no primary
+  *    zone.
   *
-  * - if f_number_primary_zones != 0 , in this case each row must have size
-  *   f_time_horizon and each element of that row gives the primary demand at
-  *   time instant t.*/
+  *  - if the first dimension of the boost::multi_array<> M has size non-zero
+  *    in this case each row of two-dimensional boost::multi_array<> M must
+  *    have size of f_time_horizon where each element of M[ n , t ] gives the
+  *    primary demand at time instant t.*/
  const boost::multi_array< double, 2 >& get_primary_demand() const {
   return( v_primary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of secondary demand
- /** Method for returning the matrix of secondary demand of the given
-  *  secondary zone at the time instant t. This matrix may have
-  *  f_number_secondary_zones rows and must have f_time_horizon columns,
-  *  otherwise it's empty and there is no secondary demand. Therefore, there
-  *  are two possible cases:
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  *  M[ n , t ] gives the matrix of secondary demand of the given secondary
+  *  zone at the time instant t. This two-dimensional boost::multi_array<> M
+  *  considers two possible cases:
   *
-  * - if f_number_secondary_zones  == 0 then the number of rows of this matrix
-  *   is zero, in this case the matrix is empty since there is no secondary
-  *   zone.
+  *  - if the first dimension of the boost::multi_array<> M has size zero it
+  *    means the boost::multi_array<> M is empty() since there is no secondary
+  *    zone.
   *
-  * - if f_number_secondary_zones != 0 , in this case each row must have size
-  *   f_time_horizon and each element of that row gives the secondary demand
-  *   at time instant t.*/
+  *  - if the first dimension of the boost::multi_array<> M has size non-zero
+  *    in this case each row of two-dimensional boost::multi_array<> M must
+  *    have size of f_time_horizon where each element of M[ n , t ] gives the
+  *    secondary demand at time instant t.*/
  const boost::multi_array< double, 2 > & get_secondary_demand() const {
   return( v_secondary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia demand of the given zone at the given time
- /** Method for returning the matrix of inertia demand of the given inertia
-  *  zone at the time instant t. This matrix may have  f_number_inertia_zones
-  *  rows and must have f_time_horizon columns, otherwise it's empty and there
-  *  is no inertia demand. Therefore, there are two possible cases:
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  *  M[ n , t ] gives the matrix of inertia demand of the given inertia zone
+  *  at the time instant t. This two-dimensional boost::multi_array<> M
+  *  considers two possible cases:
   *
-  * - if f_number_inertia_zones  == 0 then the number of rows of this matrix
-  *   is zero, in this case the matrix is empty since there is no inertia
-  *   zone.
+  *  - if the first dimension of the boost::multi_array<> M has size zero it
+  *    means the boost::multi_array<> M is empty() since there is no inertia
+  *    zone.
   *
-  * - if f_number_inertia_zones != 0 , in this case each row must have size
-  *   f_time_horizon and each element of that row gives the inertia demand
-  *   at time instant t.*/
+  *  - if the first dimension of the boost::multi_array<> M has size non-zero
+  *    in this case each row of two-dimensional boost::multi_array<> M must
+  *    have size of f_time_horizon where each element of M[ n , t ] gives the
+  *    inertia demand at time instant t.*/
  const boost::multi_array< double, 2 > & get_inertia_demand() const {
   return( v_inertia_demand );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of conversion factor of the given pollutant
- /** Method for returning the matrix of conversion factor of the given
-  *  pollutant due to the generation of the given unit at the given time t.
-  *  This matrix considers two possible cases:
+ /** The method returns a three-dimensional boost::multi_array<> M such that
+  *  M[ t , p , i ] gives the production of pollutant p from unit i at time t.
+  *  This three-dimensional boost::multi_array<> M considers two possible
+  *  cases:
   *
-  * - if f_time_horizon has size 1, then depending on the size of
-  *   f_number_pollutants and f_number_units there exist these possibilities:
+  * - if the first dimension of the boost::multi_array<> M can has size one,
+  *   then depending on the other two dimensions (f_number_pollutants and
+  *   f_number_units)there exist these possibilities:
   *
-  *   - if size of f_number_pollutants == 0 or f_number_units == 0 it means
-  *     this matrix is empty.
-  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
-  *     element of this matrix gives the conversion factor of pollutant due to
-  *     the generation of unit i which for all time instants would be the same
-  *     value.
+  *   - if the second dimension of the boost::multi_array<> M has size zero it
+  *     means the boost::multi_array<> M is empty().
   *
-  * - if f_time_horizon has full size, then depending on the size of
-  *   f_number_pollutants and f_number_units may happen these cases:
+  *   - if the second the boost::multi_array<> M has non zero size and since
+  *     the third dimension(f_number_units) must always have non-zero size,
+  *     then each element of the matrix M[ t , p , i ] gives the conversion
+  *     factor of pollutant due to the generation of unit i which for "all"
+  *     time instants would be the same value.
   *
-  *   - if size of f_number_pollutants == 0 or f_number_units == 0 it means
-  *     this matrix is empty.
-  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
-  *     element of this matrix gives the conversion factor of pollutant due to
-  *     the generation of unit i for each time instants t. */
+  * - if the first dimension of the boost::multi_array<> M can have full size,
+  *   then depending on the size of second and third dimension may happen
+  *   these cases:
+  *
+  *   - if the second dimension of the boost::multi_array<> M has zero size,
+  *     then it means that the boost::multi_array<> M is empty().
+  *
+  *   - if the second dimension of the boost::multi_array<> M has non zero
+  *     size, and since the third dimension(f_number_units) must always have
+  *     non-zero size, then each element of the matrix M[ t , p , i ] gives
+  *     the conversion factor of pollutant due to the generation of unit i
+  *     for "each" time instant t. */
  const boost::multi_array< double, 3 > & get_pollutant_rho() const {
   return(v_pollutant_rho);
   }
@@ -940,31 +678,37 @@ public:
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of conversion factor of the given pollutant due to the
  /// generation of every heat-only unit
- /** Method for returning the matrix of conversion factor of the given
-  *  pollutant due to the pollutant due to the generation of every heat-only
-  *  unit i in the given heat block h at the given time t.
-  *  This matrix considers two possible cases:
+ /** The method returns a three-dimensional boost::multi_array<> M such that
+  *  M[ t , p , i ] gives the conversion factor of the given pollutant due to
+  *  the pollutant due to the generation of every heat-only unit i in the
+  *  given heat block h at the given time t.
+  *  This three-dimensional boost::multi_array<> M considers two possible
+  *  cases:
   *
-  * - if f_time_horizon has size 1, then depending on the size of
-  *   f_number_pollutants and f_number_heat_blocks there exist these
-  *   possibilities:
+  * - if the first dimension of the boost::multi_array<> M can have size one,
+  *   then depending on the other two dimensions (f_number_pollutants and
+  *   f_number_heat_blocks)there exist these possibilities:
   *
-  *   - if size of f_number_pollutants == 0 or f_number_heat_blocks == 0 it
-  *     means this matrix is empty.
-  *   - if size of f_number_pollutants != 0 and or f_number_heat_blocks != 0
-  *     each element of this matrix gives the conversion factor of pollutant
-  *     due to the generation of every heat-only unit in heat block h which
-  *     for all time instants would be the same value.
+  *   - if the second or third dimension of the boost::multi_array<> M has
+  *     size zero it means the boost::multi_array<> M is empty().
   *
-  * - if f_time_horizon has full size, then depending on the size of
-  *   f_number_pollutants and f_number_heat_blocks may happen these cases:
+  *   - if both second and third dimensions of the boost::multi_array<> M have
+  *     non zero size, then each element of the matrix M[ t , p , i ] gives
+  *     the conversion factor of pollutant due to the generation of every
+  *     heat-only unit in heat block h which for "all" time instants would be
+  *     the same value.
   *
-  *   - if size of f_number_pollutants == 0 or f_number_heat_blocks == 0 it
-  *     means this matrix is empty.
-  *   - if size of f_number_pollutants != 0 and or f_number_units != 0 each
-  *     element of this matrix gives the conversion factor of pollutant due to
-  *     the generation of every heat-only unit in HeatBlock h for each time
-  *     instants t. */
+  * - if the first dimension of the boost::multi_array<> M can have full size,
+  *   then depending on the size of second and third dimension may happen
+  *   these cases:
+  *
+  *   - if second or third or both dimensions of the boost::multi_array<> M
+  *     have zero size, it means the boost::multi_array<> M is empty().
+  *
+  *   - if both second and third dimensions of the boost::multi_array<> M have
+  *     non-zero size, then each element of the matrix M[ t , p , i ] gives
+  *     the conversion factor of pollutant due to the generation of every
+  *     heat-only unit in HeatBlock h for each time instants t. */
 
  const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
   return v_pollutant_heat_rho ;
@@ -972,49 +716,47 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant zone
- /** Method for returning the matrix of pollutant zone associated with the
-  *  given pollutant the given node belongs to. This matrix indexed over the
-  *  dimensions NumberPollutants and NumberNodes. and there are these possible
-  *  cases:
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  *  M[ p , n ] gives the pollutant zone associated with the given pollutant
+  *  the given node belongs to. This matrix indexed over the dimensions
+  *  NumberPollutants and NumberNodes. There are these possible cases:
   *
-  * - if each dimension of the matrix is not present then the matrix is empty
-  *   and there is not any pollutant zone.
+  * - if the first dimension of the matrix is not present then the the
+  *   two-dimensional boost::multi_array<> M is empty since, there is not any
+  *   pollutant zone.
   *
-  * - if the matrix has non-zero f_number_pollutants rows then:
+  * - if the first dimension of the matrix has non-zero size then:
   *
-  *   - if f_number_nodes == 1, then the matrix is a vector with the
-  *     f_number_pollutants rows and one column which implies that all the
-  *     pollutants belong to just one node.
+  *   - if the second dimension of the matrix has size one, then the
+  *     transmission network in the problem becomes a bus and M[ p , n ] has
+  *     f_number_pollutants rows and just one column which implies that all
+  *     the pollutants belong to just one node.
   *
-  *   - if f_number_nodes > 1, then the matrix has f_number_pollutants rows
-  *     and f_number_nodes columns where each element of the matrix shows
-  *     which pollutant p belong to which node.
+  *   - if the second dimension of the matrix has size strictly greater than
+  *     one, then the matrix M[ p , n ] has f_number_pollutants rows and
+  *     f_number_nodes columns where each element of the matrix M[ p , n ]
+  *     shows which pollutant p belong to which node.
   *
-  * - if the f_number_pollutants == 0, this matrix is empty and there is not
-  *    any pollutant zone. */
+  * - if the f_number_pollutants == 0, the boost::multi_array<> M  is empty
+  *   since, there is not any pollutant zone. */
  const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
    return v_pollutant_zones;
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of heat set
- /** Method for returning the matrix of heat set that represents the given
-  *  unit in the given HeatBlock. This matrix indexed over the dimensions
-  *  NumberUnits and NumberHeatBlocks. and there are these possible cases:
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  *  M[ i , h ] gives the heat set and represents the given unit in the given
+  *  HeatBlock. This matrix indexed over the dimensions NumberUnits and
+  *  NumberHeatBlocks. Since the number of units in the problem always are
+  *  non-zero then
   *
-  * - if each dimension of the matrix is not present then the matrix is empty
-  *   and there is not any heat set.
+  * - if second dimension of this boost::multi_array<> M has non-zero size,
+  *   then each element of M[ i , h ] tells to which heat block h, electrical
+  *   unit i belongs.
   *
-  * - if the matrix has non-zero f_number_units rows then:
-  *
-  *   - if f_number_heat_blocks == 0, then this matrix is empty and there is
-  *     not any heat set.
-  *
-  *   - if non-zero f_number_heat_blocks is present, then the matrix has
-  *     f_number_units rows and f_number_heat_blocks columns, and each element
-  *     of the matrix tells to which heat block h, electrical unit i belongs.
-  *
-  * - if the f_number_units == 0, this matrix is empty and there is not any heat set.
+  * - if second dimension of this boost::multi_array<> M has zero size, then
+  *   boost::multi_array<> M is empty, since there is no heat block.
   *  */
  const boost::multi_array< Index, 2 > & get_heat_set() const {
    return v_heat_set;
@@ -1022,7 +764,8 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the i-th UnitBlock
- /** Method for returning the unit block i. */
+ /** Method for returning the unit block i.
+  * */
  UnitBlock * get_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -1037,21 +780,19 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the node where the given unit belongs to
- /** Method for returning the node where the given unit belongs to.
+ /** Method for returning the node where the given unit i belongs to.
   *
-  *  - if f_number_units is not present or its present but f_number_units == 0
-  *    this vector is empty.
+  *  - since always the f_number_units >= 1, then this vector has size
+  *    f_number_units and there are two possible cases:
   *
-  *  - if f_number_units >= 1, then this vector have size f_number_units and
-  *    there are two possible cases:
+  *    - if the NetworkData is not defined (see comments to
+  *      NetworkBlock::NetworkData::deserialize()) or it's defined and
+  *      f_number_nodes == 1 then transmission network is a "bus", then all
+  *      the elements of this vector belong to that node.
   *
-  *    - if the NetworkData is not defined (see comments to deserialize()) or
-  *      it's defined and f_number_nodes == 1 then transmission network is a
-  *      "bus", then all the elements of this vector belong to that node.
-  *
-  *    - if the NetworkData is defined (see comments to deserialize()) and
-  *      f_number_nodes > 1 then each element of this vector gives which unit
-  *      belongs to which node.
+  *    - if the NetworkData is defined (see comments to
+  *      NetworkBlock::NetworkData::deserialize()) and f_number_nodes > 1 then
+  *      each element of this vector gives which unit belongs to which node.
   * */
  Index get_unit_node( Index unit ) const {
    if( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 )
@@ -1151,7 +892,7 @@ public:
  Index f_number_units;
 
  /// the NetworkData object
- NetworkData * f_NetworkData;
+ NetworkBlock::NetworkData * f_NetworkData;
 
  /// The number of heat block
  Index f_number_heat_blocks;
@@ -1168,10 +909,10 @@ public:
  /// The number of pollutants
  Index f_number_pollutants;
 
- /// The set of UnitBlocks
+ /// The set of UnitBlock
  std::vector<UnitBlock *> v_unit_blocks;
 
- /// The set of HeatBlocks
+ /// The set of HeatBlock
  std::vector<HeatBlock *> v_heat_blocks;
 
  /// The number of pollutant zones of each pollutant
@@ -1181,11 +922,9 @@ public:
   *  NumberPollutants and NumberNodes */
  boost::multi_array< Index, 2 > v_pollutant_zones;
 
- /** Vector of pointers to the NetworkBlocks. This vector either is
-  * empty or has size f_time_horizon. If it is empty, it means there
-  * is no network. If it has positive size, then the NetworkBlock at
-  * position i in this vector refers to the network at the i-th time
-  * step. */
+ /** Vector of pointers to the NetworkBlock. This vector has size
+  *  f_time_horizon. So the NetworkBlock at position t in this vector refers
+  *  to the network at the t-th time step. */
  std::vector<NetworkBlock *> v_network_blocks;
 
  /// the vector of PrimaryZones
@@ -1223,7 +962,7 @@ public:
  /// The entry v_unit_node[ i ] tells to which node unit i belongs
  std::vector<Index> v_unit_node;
 
- /// The entry v_heat_node[ h ] tells to which node the HeatBlock h belongs
+ /// The entry v_heat_node[ h ] tells to which node the heat block h belongs
  std::vector<Index> v_heat_node;
 
  /** the HeatSet matrix index over the dimensions

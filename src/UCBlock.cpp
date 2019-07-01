@@ -66,24 +66,24 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 /// returns the i-th UnitBlock
-inline UnitBlock * UCBlock::get_unit_block( Index i ) const {
+ UnitBlock * UCBlock::get_unit_block( Index i ) const {
   return dynamic_cast<UnitBlock *>( v_Block[ i ] );
 }
 
 /// returns the t-th NetworkBlock
-inline NetworkBlock * UCBlock::get_network_block( Index t ) const {
+ NetworkBlock * UCBlock::get_network_block( Index t ) const {
   return dynamic_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
 }
 
 /// returns the i-th HeatBlock
-inline HeatBlock * UCBlock::get_heat_block( Index i ) const {
+ HeatBlock * UCBlock::get_heat_block( Index i ) const {
   return dynamic_cast<HeatBlock *>
     ( v_Block[ f_number_units + f_time_horizon + i ] );
 }
 
 /*--------------------------------------------------------------------------*/
 
-inline void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
+ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
   for( auto block : v_Block )
     delete block;
@@ -98,7 +98,7 @@ inline void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-inline void UCBlock::deserialize_sub_blocks
+ void UCBlock::deserialize_sub_blocks
 ( const netCDF::NcGroup & group, const std::string& sub_group_name_prefix,
   const int num_sub_blocks ) {
 
@@ -129,39 +129,12 @@ inline void UCBlock::deserialize_sub_blocks
 
 }
 
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
-
-  ::deserialize_dim( group, "NumberNodes",     f_number_nodes );
-
-  if( f_number_nodes > 1 ) {
-    ::deserialize_dim( group, "NumberLines",     f_number_nodes );
-
-    ::deserialize( group, "StartLine",         f_number_nodes, v_start_line );
-    ::deserialize( group, "EndLine",             f_number_nodes, v_end_line );
-
-    for (Index line = 0; line < f_number_lines; ++line){
-    if(v_min_power_flow[ line ] <= 0  && 0 <= v_max_power_flow[ line ]){
-
-    ::deserialize( group, "MinPowerFlow",  f_number_lines, v_min_power_flow );
-    ::deserialize( group, "MaxPowerFlow",  f_number_lines, v_max_power_flow );
-    }
-    else{
-      throw( std::logic_error( "UCBlock::NetworkData::deserialize: "
-                               "MinPowerFlow larger than MaxPowerFlow" ) );
-    }
-    }
-    ::deserialize( group, "Susceptance",      f_number_lines, v_susceptance );
-  }
-
-}
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
-  auto network_data = new NetworkData(); //TODO not Implemented well
+  auto network_data = new NetworkBlock::NetworkData(); //TODO not Implemented well
   network_data->deserialize( group );
 
   if( network_data ) {  // there is a NetworkData object in the group
@@ -677,31 +650,6 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
-
-  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
-
-  if( f_number_nodes > 1 ) {
-    auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
-
-    ::serialize( group, "StartLine", netCDF::NcUint64(),
-                 { dim_number_nodes }, v_start_line );
-
-    ::serialize( group, "EndLine", netCDF::NcUint64(),
-                 { dim_number_nodes }, v_end_line );
-
-    ::serialize( group, "MinPowerFlow", netCDF::NcDouble(),
-                 { dim_number_lines }, v_min_power_flow );
-
-    ::serialize( group, "MaxPowerFlow", netCDF::NcDouble(),
-                 { dim_number_lines }, v_max_power_flow );
-
-    ::serialize( group, "Susceptance", netCDF::NcDouble(),
-                 { dim_number_lines }, v_susceptance );
-  }
-
-}
-/*--------------------------------------------------------------------------*/
 void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
   group.putAtt( "type" , "UCBlock" );

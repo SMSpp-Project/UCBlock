@@ -51,10 +51,37 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
+void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
+
+  ::deserialize_dim( group, "NumberNodes",     f_number_nodes );
+
+  if( f_number_nodes > 1 ) {
+    ::deserialize_dim( group, "NumberLines",     f_number_nodes );
+
+    ::deserialize( group, "StartLine",         f_number_nodes, v_start_line );
+    ::deserialize( group, "EndLine",             f_number_nodes, v_end_line );
+
+    for (Index line = 0; line < f_number_lines; ++line){
+      if(v_min_power_flow[ line ] <= 0  && 0 <= v_max_power_flow[ line ]){
+
+    ::deserialize( group, "MinPowerFlow",  f_number_lines, v_min_power_flow );
+    ::deserialize( group, "MaxPowerFlow",  f_number_lines, v_max_power_flow );
+      }
+      else{
+        throw( std::logic_error( "UCBlock::NetworkData::deserialize: "
+                                 "MinPowerFlow larger than MaxPowerFlow" ) );
+      }
+    }
+    ::deserialize( group, "Susceptance",      f_number_lines, v_susceptance );
+  }
+
+}
+/*--------------------------------------------------------------------------*/
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-  auto network_data = new UCBlock::NetworkData();
+  auto network_data = new NetworkBlock::NetworkData();
   network_data->deserialize( group );
 
   auto dim_number_nodes = group.getDim( "NumberNodes" );
@@ -71,6 +98,31 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
+void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
+
+  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+
+  if( f_number_nodes > 1 ) {
+    auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
+
+    ::serialize( group, "StartLine", netCDF::NcUint64(),
+                 { dim_number_nodes }, v_start_line );
+
+    ::serialize( group, "EndLine", netCDF::NcUint64(),
+                 { dim_number_nodes }, v_end_line );
+
+    ::serialize( group, "MinPowerFlow", netCDF::NcDouble(),
+                 { dim_number_lines }, v_min_power_flow );
+
+    ::serialize( group, "MaxPowerFlow", netCDF::NcDouble(),
+                 { dim_number_lines }, v_max_power_flow );
+
+    ::serialize( group, "Susceptance", netCDF::NcDouble(),
+                 { dim_number_lines }, v_susceptance );
+  }
+
+}
+/*--------------------------------------------------------------------------*/
 void NetworkBlock::serialize(netCDF::NcGroup &group) const {
 
   group.putAtt( "type", "NetworkBlock" );
