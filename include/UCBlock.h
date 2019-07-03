@@ -874,7 +874,7 @@ class UCBlock : public Block {
  * @param input an input stream
  */
  void load( std::istream & input ) override {
-  throw ( std::logic_error( "UCBlock::load() not implemented yet" ));
+  throw ( std::logic_error( "UCBlock::load() not implemented yet" ) );
  }
 
 /**@} ----------------------------------------------------------------------*/

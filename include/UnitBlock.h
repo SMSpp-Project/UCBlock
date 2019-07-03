@@ -38,7 +38,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
@@ -46,7 +46,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
- #define __UnitBlock  /* self-identification: #endif at the end of the file */
+#define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -67,7 +67,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for "a generic unit" in UC
+/// Implementation of the Block concept for "a generic unit" in UC
 /** The class UnitBlock, which derives from the Block, defines a base class
  * for any possible unit that can be attached to a UCBlock. It has very basic
  * information that can characterize almost any different kind of unit, which
@@ -75,7 +75,7 @@ namespace SMSpp_di_unipi_it {
  * primary and secondary spinning reserve variables. This class has thus been
  * constructed having the following elements:
  *
- * - The time horizon of the problem.
+ * - The time horizon of the problem;
  *
  * - Four vectors of ColVariable objects, that are used to store the
  *   information regarding:
@@ -95,7 +95,8 @@ namespace SMSpp_di_unipi_it {
  * The class also outputs some general information regarding how the active
  * power and/or commitment status of the unit at a given time instant impact
  * the unit's capability of satisfying inertia constraints, and the fixed
- * consumption of the unit (if any) when it is off. */
+ * consumption of the unit (if any) when it is off.
+ */
 
 class UnitBlock : public Block {
 
@@ -103,7 +104,7 @@ class UnitBlock : public Block {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
@@ -118,7 +119,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-typedef std::size_t Index;  ///< index of parameters
+ typedef std::size_t Index;  ///< index of parameters
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -126,16 +127,16 @@ typedef std::size_t Index;  ///< index of parameters
 /** @name Constructor and Destructor
  *  @{ */
 
-/// constructor, takes the father and the time horizon
-/** Constructor of UnitBlock, taking possibly a pointer of its father
- * Block and the time horizon. By default the time horizon is initialized
- * to 0, which means "not set yet". */
+ /// Constructor, takes the father and the time horizon
+ /** Constructor of UnitBlock, taking possibly a pointer of its father
+  *  Block and the time horizon. By default the time horizon is initialized
+  *  to 0, which means "not set yet".
+  */
 
- explicit UnitBlock( Block * father_block = nullptr , Index t = 0 )
-   : Block( father_block ), f_time_horizon( t ) {}
+ explicit UnitBlock( Block * father_block = nullptr, Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
-/// destructor of UnitBlock: it is virtual, and empty
+ /// Destructor of UnitBlock: it is virtual, and empty
 
  ~UnitBlock() override = default;
 
@@ -145,10 +146,10 @@ typedef std::size_t Index;  ///< index of parameters
 /** @name Other initializations
  *  @{ */
 
-/// extends Block::deserialize( netCDF::NcGroup )
+/// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the UnitBlock. Besides the mandatory "type" attribute of any :Block,
- * the group should contain the following:
+ *  the UnitBlock. Besides the mandatory "type" attribute of any :Block,
+ *  the group should contain the following:
  *
  * - The dimension "TimeHorizon" containing the time horizon. The dimension
  *   is optional because the same information may be passed via the method
@@ -236,14 +237,14 @@ typedef std::size_t Index;  ///< index of parameters
  *   for all t, regardless to what "NumberIntervals" says. Otherwise,
  *   InertiaPower[ i ] is the fixed value of IP[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. */
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
+ */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
- /// generate the static variables of UnitBlock
- /** Method that generates the static variables of this UnitBlock. The base
-  * UnitBlock class has four different "groups" of variables:
+ /// Generates the static variables of UnitBlock
+ /** The base UnitBlock class has four different "groups" of variables:
   *
   * - the commitment variables;
   *
@@ -278,7 +279,7 @@ typedef std::size_t Index;  ///< index of parameters
   * similarly encode for creation of their own specific groups of variables.
   */
 
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration * stvv ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE UnitBlock -------------*/
@@ -296,13 +297,12 @@ typedef std::size_t Index;  ///< index of parameters
  *
  * @{ */
 
- /// method for returning the time horizon
- Index get_time_horizon() const { return( f_time_horizon ); }
+ /// Returns the time horizon of the problem
+ Index get_time_horizon() const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
- /// method for returning the vector of fixed consumption
- /** Method for returning the vector of fixed consumption. There are three
-  * possible cases:
+ /// Returns the vector of fixed consumption
+ /** There are three possible cases:
   *
   * - if the vector is empty, then the fixed consumption is 0;
   *
@@ -310,29 +310,27 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the fixed consumption at time instant t. */
-
+  *   t-th entry gives the fixed consumption at time instant t.
+  */
  const std::vector< double > & get_fixed_consumption() const {
-  return( v_fixed_consumption );
-  }
+  return v_fixed_consumption;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the fixed consumption at time t
- /** Method for returning the fixed consumption at time t, for t between 0
-  * and time horizon minus 1. */
-
+ /// Returns the fixed consumption at time t
+ /** It the fixed consumption at time t,
+  *  for t between 0 and time horizon minus 1.
+  */
  double get_fixed_consumption( Index t ) const {
-  return( v_fixed_consumption.empty() ? 0 :
-	  v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1 ,
-					 t ) ] );
-  }
+  return v_fixed_consumption.empty() ? 0 :
+         v_fixed_consumption[ std::min( v_fixed_consumption.size() - 1, t ) ];
+ }
 
 /*--------------------------------------------------------------------------*/
- /// method for returning the vector of inertia commitment
- /** Method for returning the vector of "inertia commitment", i.e., the
-  * contribution to inertia that the unit at each time t if the unit is on
-  * (basically, the constants to be multiplied by the commitment variables).
-  * There are three possible cases:
+ /// It returns the vector of inertia commitment
+ /** The returned vector implies the contribution to inertia of the
+  *  unit at each time t if the unit is on (basically, the constants to be
+  *  multiplied by the commitment variables). There are three possible cases:
   *
   * - if the vector is empty, then the inertia commitment is 0;
   *
@@ -340,31 +338,30 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the inertia commitment at time instant t. */
-
+  *   t-th entry gives the inertia commitment at time instant t.
+  */
  const std::vector< double > & get_inertia_commitment() const {
-  return( v_inertia_commitment );
-  }
+  return v_inertia_commitment;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia commitment at time t
+ /// Returns the inertia commitment at time t
  /** Method for returning the contribution to the inertia that the unit
-  * can give at time t, for t between 0 and time horizon minus 1, if the
-  * unit is on (basically, the constant to be multiplied by the commitment
-  * variable at time t). */
-
+  *  can give at time t, for t between 0 and time horizon minus 1, if the
+  *  unit is on (basically, the constant to be multiplied by the commitment
+  *  variable at time t).
+  */
  double get_inertia_commitment( Index t ) const {
-  return( v_inertia_commitment.empty() ? 0 :
-	  v_inertia_commitment[ std::min( v_inertia_commitment.size() - 1 ,
-					  t ) ] );
-  }
+  return v_inertia_commitment.empty() ? 0 :
+         v_inertia_commitment[ std::min( v_inertia_commitment.size() - 1, t ) ];
+ }
 
 /*--------------------------------------------------------------------------*/
- /// method for returning the vector of inertia power
+ /// Returns the vector of inertia power
  /** Method for returning the vector of "inertia power", i.e., the
-  * contribution to inertia that the unit at each time t that is proportional
-  * to the active power generated (basically, the constants to be multiplied
-  * by the active power variables). There are three possible cases:
+  *  contribution to inertia that the unit at each time t that is proportional
+  *  to the active power generated (basically, the constants to be multiplied
+  *  by the active power variables). There are three possible cases:
   *
   * - if the vector is empty, then the inertia power is 0;
   *
@@ -372,27 +369,29 @@ typedef std::size_t Index;  ///< index of parameters
   *   always equal to the value of that element;
   *
   * - otherwise the vector must have the size of the time horizon, and the
-  *   t-th entry gives the inertia power at time instant t. */
-
+  *   t-th entry gives the inertia power at time instant t.
+  */
  const std::vector< double > & get_inertia_power() const {
-  return( v_inertia_power );
-  }
+  return v_inertia_power;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia power at time t
+ /// Returns the inertia power at time t
  /** Method for returning the contribution to the inertia that the unit
-  * can give at time t, for t between 0 and time horizon minus 1, that is
-  * proportional to the active power generated at that time (basically, the
-  * constant to be multiplied by the active power variable at time t). */
+  *  can give at time t, for t between 0 and time horizon minus 1, that is
+  *  proportional to the active power generated at that time (basically, the
+  *  constant to be multiplied by the active power variable at time t).
+  */
 
  double get_inertia_power( Index t ) const {
-  return( v_inertia_power.empty() ? 0 :
-	  v_inertia_power[ std::min( v_inertia_power.size() - 1 , t ) ] );
-  }
+  return v_inertia_power.empty() ? 0 :
+         v_inertia_power[ std::min( v_inertia_power.size() - 1, t ) ];
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/
+
 /** @name Reading the Variable of the UnitBlock
  *
  * These methods allow to read the four groups of Variable that any UnitBlock
@@ -408,80 +407,76 @@ typedef std::size_t Index;  ///< index of parameters
  *
  * @{ */
 
-/// method for returning the vector of commitment variables
-
- const std::vector<ColVariable> & get_commitment() const {
-  return( v_commitment );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// method for returning a reference to the commitment variable at time t
-
- ColVariable & get_commitment( Index t )  {
-  return( v_commitment[ t ] );
-  }
+ /// Returns the vector of commitment variables
+ const std::vector< ColVariable > & get_commitment() const {
+  return v_commitment;
+ }
 
 /*--------------------------------------------------------------------------*/
-/// method for returning the vector of primary spinning reserve variables
-
- const std::vector<ColVariable> & get_primary_spinning_reserve() const {
-  return( v_primary_spinning_reserve );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returning a reference to the primary spinning reserve variable at time t
-
- ColVariable & get_primary_spinning_reserve( Index t )  {
-  return( v_primary_spinning_reserve[ t ] );
-  }
+ /// Returns a reference to the commitment variable at time t
+ ColVariable & get_commitment( Index t ) {
+  return v_commitment[ t ];
+ }
 
 /*--------------------------------------------------------------------------*/
-/// method for returning the vector of secondary reserve variables
-
- const std::vector<ColVariable> & get_secondary_spinning_reserve()
-   const { return( v_secondary_spinning_reserve ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returning a reference to the secondary spinning reserve variable at time t
-
- ColVariable & get_secondary_spinning_reserve( Index t )  {
-  return( v_secondary_spinning_reserve[ t ] );
-  }
+ /// Returns the vector of primary spinning reserve variables
+ const std::vector< ColVariable > & get_primary_spinning_reserve() const {
+  return v_primary_spinning_reserve;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// method for returning the vector of power variables
+ /// Returns a reference to to the primary spinning reserve variable at time t
+ ColVariable & get_primary_spinning_reserve( Index t ) {
+  return v_primary_spinning_reserve[ t ];
+ }
 
- const std::vector<ColVariable> & get_active_power() const {
-  return( v_active_power );
-  }
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of secondary reserve variables
+ const std::vector< ColVariable > & get_secondary_spinning_reserve() const {
+  return v_secondary_spinning_reserve;
+ }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returning the reference to the power variable at time t
+/*--------------------------------------------------------------------------*/
+ /// Returns a reference to the secondary spinning reserve variable at time t
+ ColVariable & get_secondary_spinning_reserve( Index t ) {
+  return v_secondary_spinning_reserve[ t ];
+ }
 
- ColVariable & get_active_power( Index t ) { return( v_active_power[ t ] ); }
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of power variables
+ const std::vector< ColVariable > & get_active_power() const {
+  return v_active_power;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// Returns the reference to the power variable at time t
+ ColVariable & get_active_power( Index t ) {
+  return v_active_power[ t ];
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
+
 /** @name Methods for loading, printing & saving the UnitBlock
  *  @{ */
 
-/// extends Block::serialize( netCDF::NcGroup )
+/// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group. */
-
+ *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
+ *  details of the format of the created netCDF group.
+ */
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE UnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
+
 /** @name Methods for modifying the UnitBlock
  *  @{ */
 
- /// set the time horizon method
- /** Set the time horizon method.
-  *
+ /// Sets the time horizon method
+ /**
   * This method can be called *before* that deserialize() is called to
   * provide the UnitBlock with the time horizon. This allows the information
   * not to be duplicated in the netCDF group that describes the unit, since
@@ -515,67 +510,71 @@ typedef std::size_t Index;  ///< index of parameters
   * If this method is called *after* that deserialize() is called, this is
   * taken to mean that the UnitBlock is being "reset", and that immediately
   * after deserialize() will be called again. The same rules as above are to
-  * be followed for that subsequent call to deserialize(). */
-
+  * be followed for that subsequent call to deserialize().
+  */
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
+
 /** @name Handling the data of the UnitBlock
     @{ */
 
- void load( std::istream &input ) override {
-  throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
-  };
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "UnitBlock::load() not implemented yet" ) );
+ };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Utility method for resetting all the Variables
  void guts_of_destructor();
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- Index f_time_horizon;        ///< the time horizon of the problem
+ /// The time horizon of the problem
+ Index f_time_horizon;
 
- Index f_number_intervals;  ///< the number of intervals
+ /// The number of intervals
+ Index f_number_intervals;
 
- /// the vector of change intervals
+ /// The vector of change intervals
  std::vector< Index > v_change_intervals;
 
- /// the vector of fixed consumption
+ /// The vector of fixed consumption
  std::vector< double > v_fixed_consumption;
 
- /// the vector of inertia commitment
+ /// The vector of inertia commitment
  std::vector< double > v_inertia_commitment;
 
- /// the vector of inertia power
+ /// The vector of inertia power
  std::vector< double > v_inertia_power;
 
  /* Each of the following vectors of Variable should either have size
   * f_time_horizon, meaning that there is one Variable for each time
   * step, or be empty, in which case the variables simply do not exist. */
 
- /// the vector of commitment variables
- std::vector<ColVariable> v_commitment;
+ /// The vector of commitment variables
+ std::vector< ColVariable > v_commitment;
 
- /// the vector of power variables
- std::vector<ColVariable> v_active_power;
+ /// The vector of power variables
+ std::vector< ColVariable > v_active_power;
 
- /// the vector of primary spinning reserve variables
- std::vector<ColVariable> v_primary_spinning_reserve;
+ /// The vector of primary spinning reserve variables
+ std::vector< ColVariable > v_primary_spinning_reserve;
 
- /// the vector of secondary spinning reserve variables
- std::vector<ColVariable> v_secondary_spinning_reserve;
+ /// The vector of secondary spinning reserve variables
+ std::vector< ColVariable > v_secondary_spinning_reserve;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -593,23 +592,25 @@ protected:
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- // returns which variables must be generated
- /* This method returns an int that indicates which variables of UnitBlock
-  * must be generated by the generate_abstract_variables() method. This value
-  * may be given in stvv as explained in generate_abstract_variables(). If
-  * this value is not given in stvv, then this method returns the appropriate
-  * value according to what is specified in the generate_abstract_variables()
-  * method. */
+ /// Teturns which variables must be generated
+ /** This method returns an int that indicates which variables of UnitBlock
+  *  must be generated by the generate_abstract_variables() method. This value
+  *  may be given in stvv as explained in generate_abstract_variables(). If
+  *  this value is not given in stvv, then this method returns the appropriate
+  *  value according to what is specified in the generate_abstract_variables()
+  *  method.
+  */
+ unsigned int get_variables_to_be_generated( Configuration * stvv );
 
- unsigned int get_variables_to_be_generated( Configuration *stvv );
-
+ /// Deserializes the time horizon from a netCDF group
  void deserialize_time_horizon( netCDF::NcGroup & group );
 
+ /// Deserializes the change intervals vector from a netCDF group
  void deserialize_change_intervals( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( UnitBlock ) )
+};  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

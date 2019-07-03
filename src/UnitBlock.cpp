@@ -62,9 +62,12 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+UnitBlock::UnitBlock( Block * father_block, UnitBlock::Index t )
+ : Block( father_block ), f_time_horizon( t ) {
+ f_number_intervals = 0;
+}
 
-void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group )
-{
+void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -75,152 +78,150 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group )
     // The father Block is available. Take time horizon from it.
     this->set_time_horizon( f_B->get_time_horizon() );
    else
-    throw( std::invalid_argument(
-	       "UnitBlock::deserialize: TimeHorizon is not present in the "
-               "netCDF input and UnitBlock does not have a father." ) );
-   }
+    throw ( std::invalid_argument(
+     "UnitBlock::deserialize: TimeHorizon is not present in the "
+     "netCDF input and UnitBlock does not have a father." ) );
   }
- else {
+ } else {
   // dimension TimeHorizon is present in the netCDF input
 
   auto th = TimeHorizon.getSize();
   if( f_time_horizon == 0 )
    this->set_time_horizon( th );
-  else
-   if( f_time_horizon != th )
-    throw( std::logic_error(
-		 "UnitBlock::deserialize: TimeHorizon is not present in the "
-                 "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                 "from that of its father, but they should be equal." ) );
-  }
+  else if( f_time_horizon != th )
+   throw ( std::logic_error(
+    "UnitBlock::deserialize: TimeHorizon is not present in the "
+    "netCDF. The (nonzero) time horizon of UnitBlock is different "
+    "from that of its father, but they should be equal." ) );
  }
+}
 
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
-  auto NumberIntervals = group.getDim( "NumberIntervals" );
-  if( NumberIntervals.isNull() )
-    f_number_intervals = 0;
-  else {
-    f_number_intervals = NumberIntervals.getSize();
-    if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-      throw( std::invalid_argument
-             ( "UnitBlock::deserialize: invalid NumberIntervals. "
-               "It must be between 1 and TimeHorizon." ) );
+ auto NumberIntervals = group.getDim( "NumberIntervals" );
+ if( NumberIntervals.isNull() )
+  f_number_intervals = 0;
+ else {
+  f_number_intervals = NumberIntervals.getSize();
+  if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
+   throw ( std::invalid_argument
+    ( "UnitBlock::deserialize: invalid NumberIntervals. "
+      "It must be between 1 and TimeHorizon." ) );
+ }
+
+ if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
+
+  ::deserialize( group, "ChangeIntervals", f_number_intervals,
+                 v_change_intervals );
+
+  // Check that all numbers are between 1 and f_time_horizon, that
+  // the last number is == f_time_horizon, and that they are ordered
+  // in increasing sense
+
+  if( v_change_intervals.back() != f_time_horizon ) {
+   throw ( std::invalid_argument
+    ( "UnitBlock::deserialize: invalid value in ChangeIntervals: "
+      "the last element must be TimeHorizon." ) );
   }
 
-  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
+  Index previous_t = 0;
 
-    ::deserialize( group, "ChangeIntervals", f_number_intervals,
-                   v_change_intervals );
+  for( auto t : v_change_intervals ) {
+   if( !( t > previous_t && t < f_time_horizon - 1 ) )
+    throw ( std::invalid_argument
+     ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
+       std::to_string( t ) + ". All values must be between 1 and "
+                             "TimeHorizon and in strictly increasing order." ) );
 
-    // Check that all numbers are between 1 and f_time_horizon, that
-    // the last number is == f_time_horizon, and that they are ordered
-    // in increasing sense
-
-    if( v_change_intervals.back() != f_time_horizon ) {
-      throw( std::invalid_argument
-             ( "UnitBlock::deserialize: invalid value in ChangeIntervals: "
-               "the last element must be TimeHorizon." ) );
-    }
-
-    Index previous_t = 0;
-
-    for( auto t : v_change_intervals ) {
-      if( ! ( t > previous_t && t < f_time_horizon - 1 ) )
-        throw( std::invalid_argument
-               ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
-                 std::to_string( t ) + ". All values must be between 1 and "
-                 "TimeHorizon and in strictly increasing order." ) );
-
-      previous_t = t;
-    }
+   previous_t = t;
   }
+ }
 }
 
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
-  guts_of_destructor();
+ guts_of_destructor();
 
-  deserialize_time_horizon( group );
-  deserialize_change_intervals( group );
+ deserialize_time_horizon( group );
+ deserialize_change_intervals( group );
 
-  ::deserialize( group, "FixedConsumption", v_fixed_consumption );
-  ::deserialize( group, "InertiaCommitment", v_inertia_commitment );
-  ::deserialize( group, "InertiaPower", v_inertia_power );
- }
-
-/*--------------------------------------------------------------------------*/
-
-unsigned int UnitBlock::get_variables_to_be_generated( Configuration *stvv ) {
-
-  if( ! stvv )
-    return 0;
-
-  // informs which variables must be generated
-  int variables_to_be_generated = 0;
-
-  auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
-
-  if( ( ! tstvv ) && f_BlockConfig &&
-      f_BlockConfig->f_static_variables_Configuration ) {
-
-    tstvv = dynamic_cast<SimpleConfiguration<int> *>
-      ( f_BlockConfig->f_static_variables_Configuration );
-  }
-
-  if( tstvv )
-    variables_to_be_generated = tstvv->f_value;
-
-  return variables_to_be_generated;
+ ::deserialize( group, "FixedConsumption", v_fixed_consumption );
+ ::deserialize( group, "InertiaCommitment", v_inertia_commitment );
+ ::deserialize( group, "InertiaPower", v_inertia_power );
 }
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
+unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
-  if( f_time_horizon == 0 ) {
-    // there are no variables to be generated
-    return;
+ if( !stvv )
+  return 0;
+
+ // informs which variables must be generated
+ int variables_to_be_generated = 0;
+
+ auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
+
+ if( ( !tstvv ) && f_BlockConfig &&
+     f_BlockConfig->f_static_variables_Configuration ) {
+
+  tstvv = dynamic_cast<SimpleConfiguration< int > *>
+  ( f_BlockConfig->f_static_variables_Configuration );
+ }
+
+ if( tstvv )
+  variables_to_be_generated = tstvv->f_value;
+
+ return variables_to_be_generated;
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
+
+ if( f_time_horizon == 0 ) {
+  // there are no variables to be generated
+  return;
+ }
+
+ if( !v_commitment.empty() ||
+     !v_primary_spinning_reserve.empty() ||
+     !v_secondary_spinning_reserve.empty() ||
+     !v_active_power.empty() ) {
+  // the abstract variables should be generated only once
+  return;
+ }
+
+ typedef std::vector< std::pair< std::vector< ColVariable > *, int > > v_pairs;
+
+ v_pairs variables_and_types = {
+  std::make_pair( &v_commitment, ColVariable::kBinary ),
+  std::make_pair( &v_primary_spinning_reserve, ColVariable::kNonNegative ),
+  std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
+  std::make_pair( &v_active_power, ColVariable::kNonNegative )
+  // v_active_power must be the last one in this list
+ };
+
+ auto variables_to_be_generated = get_variables_to_be_generated( stvv );
+
+ // The active power variables must be always present
+ variables_to_be_generated |=
+  ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
+
+ unsigned int k = 1;
+ for( auto[variables, variable_type] : variables_and_types ) {
+  if( variables_to_be_generated & k ) {
+   variables->resize( f_time_horizon );
+   for( auto & variable : *variables )
+    variable.set_type( variable_type );
+   add_static_variable( *variables );
   }
-
-  if( !v_commitment.empty() ||
-      !v_primary_spinning_reserve.empty() ||
-      !v_secondary_spinning_reserve.empty() ||
-      !v_active_power.empty() ) {
-    // the abstract variables should be generated only once
-    return;
-  }
-
-  typedef std::vector< std::pair< std::vector<ColVariable> * , int > > v_pairs;
-
-  v_pairs variables_and_types = {
-    std::make_pair( &v_commitment,                 ColVariable::kBinary ),
-    std::make_pair( &v_primary_spinning_reserve,   ColVariable::kNonNegative ),
-    std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
-    std::make_pair( &v_active_power,               ColVariable::kNonNegative )
-    // v_active_power must be the last one in this list
-  };
-
-  auto variables_to_be_generated = get_variables_to_be_generated( stvv );
-
-  // The active power variables must be always present
-  variables_to_be_generated |=
-    (unsigned int) std::pow( 2, variables_and_types.size() - 1 );
-
-  unsigned int k = 1;
-  for( auto [ variables, variable_type ] : variables_and_types ) {
-    if( variables_to_be_generated & k ) {
-      variables->resize( f_time_horizon );
-      for( auto & variable : * variables )
-        variable.set_type( variable_type );
-      add_static_variable( * variables );
-    }
-    k *= 2;
-  }
+  k *= 2;
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -232,22 +233,22 @@ void UnitBlock::generate_abstract_variables( Configuration *stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::serialize( netCDF::NcGroup & group ) const {
-  group.putAtt( "type" , "UnitBlock" );
-  group.addDim( "TimeHorizon" , f_time_horizon );
+ group.putAtt( "type", "UnitBlock" );
+ group.addDim( "TimeHorizon", f_time_horizon );
 
-  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
+ auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
-  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-               NumberIntervals, v_change_intervals );
-  
-  ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
-               { NumberIntervals }, v_fixed_consumption);
+ ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+              NumberIntervals, v_change_intervals );
 
-  ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
-               { NumberIntervals }, v_inertia_commitment);
+ ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
+              { NumberIntervals }, v_fixed_consumption );
 
-  ::serialize( group, "InertiaPower", netCDF::NcDouble(),
-               { NumberIntervals }, v_inertia_power);
+ ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
+              { NumberIntervals }, v_inertia_commitment );
+
+ ::serialize( group, "InertiaPower", netCDF::NcDouble(),
+              { NumberIntervals }, v_inertia_power );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -256,18 +257,18 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
 void UnitBlock::guts_of_destructor() {
 
-  // delete all Variables
-  v_commitment.clear();
-  v_active_power.clear();
-  v_primary_spinning_reserve.clear();
-  v_secondary_spinning_reserve.clear();
+ // delete all Variables
+ v_commitment.clear();
+ v_active_power.clear();
+ v_primary_spinning_reserve.clear();
+ v_secondary_spinning_reserve.clear();
 
-  // explicitly reset all Variables
+ // explicitly reset all Variables
 
-  // this is done for the case where this method is called prior to
-  // re-loading a new instance: if not, the new representation would
-  // be added to the previous one
-  reset_static_variables();
+ // this is done for the case where this method is called prior to
+ // re-loading a new instance: if not, the new representation would
+ // be added to the previous one
+ reset_static_variables();
 }
 
 /*--------------------------------------------------------------------------*/
