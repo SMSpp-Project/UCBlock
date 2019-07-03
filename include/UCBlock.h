@@ -34,7 +34,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * \copyright &copy; Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
@@ -42,7 +42,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UCBlock
- #define __UCBlock  /* self-identification: #endif at the end of the file */
+#define __UCBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -67,7 +67,7 @@ class UnitBlock;     // forward declaration of UnitBlock
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the Unit Commitment problem
+/// Implementation of the Block concept for the Unit Commitment problem
 /** The class UCBlock, implements the Block concept [see Block.h] for the
  * Unit Commitment (UC) problem in electrical power production. This is
  * typically a short-term (across for instance one week or one day time
@@ -111,22 +111,22 @@ class UnitBlock;     // forward declaration of UnitBlock
  *
  * - Constraints linking the production decisions at the units and ensuring:
  *
- *   = balance between production of active power and injection in the
+ *   - balance between production of active power and injection in the
  *     transmission network, at each node and for each time instant;
  *
- *   = possibly, primary and secondary reserve constraints for each "zone"
+ *   - possibly, primary and secondary reserve constraints for each "zone"
  *     (appropriately defined subset of the nodes of the transmission
  *     network) and for each time instant;
  *
- *   = possibly, constraints about inertia  for each "zone" (appropriately
+ *   - possibly, constraints about inertia  for each "zone" (appropriately
  *     defined subset of the nodes of the transmission network) and for
  *     each time instant;
  *
- *   = possibly, constraints maximum pollutants emission for different kinds
+ *   - possibly, constraints maximum pollutants emission for different kinds
  *     of pollutant, each "zone" (appropriately defined subset of the nodes
  *     of the transmission network) and for each time instant;
  *
- *   = possibly, constraints linking the electricity production of some
+ *   - possibly, constraints linking the electricity production of some
  *     UnitBlock with the heat production of some unit in a HeatBlock,
  *     for the appropriate units and for each time instant.
  */
@@ -137,43 +137,36 @@ class UCBlock : public Block {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * UCBlock defines two main public types:
- *
- * - Index, the type of indices;
- *
- *  @{ */
 
- typedef std::size_t Index;
+ typedef std::size_t Index; ///< Type for indices
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
 
- /// constructor of UCBlock, taking possibly a pointer of its father Block
+ /// Constructor of UCBlock, taking possibly a pointer of its father Block
 
- explicit UCBlock( Block *father = nullptr ) : Block( father ) {}
+ explicit UCBlock( Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
-  /// destructor of UCBlock: it is virtual, and empty
+ /// Destructor of UCBlock: it is virtual, and empty
 
  ~UCBlock() override = default;
-                                  
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
 
-/// extends Block::deserialize( netCDF::NcGroup )
+/// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  *  the UCBlock. Besides the mandatory "type" attribute of any :Block, the
  *  group should contain the following:
@@ -366,9 +359,8 @@ public:
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the static constraint of the UCBlock
-/** The formulation of the problem and the methods that generate the abstract
- * constraint of the UCBlock.
+/// Generates the static constraint of the UCBlock
+/** This method generates the abstract constraints of the UCBlock.
  *
  *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
  *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
@@ -547,7 +539,7 @@ public:
  *   parlance).
  */
 
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
@@ -558,85 +550,83 @@ public:
  * the related blocks to the UC problem.
  * @{ */
 
- /// returns the time horizon of the problem
- /** Method for returning the time horizon of the problem */
+ /// Returns the time horizon of the problem
  Index get_time_horizon() const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
- /// returns the NetworkData object
- /** Method for returning the NetworkData object. Note that no NetworkData
-  *  may be defined (see comments to deserialize()), which means that the
-  *  transmission network is a "bus"; in this case, this method will return
-  *  nullptr. */
+ /// Returns the NetworkData object
+ /** Note that no NetworkData may be defined (see comments to deserialize()),
+  *  which means that the transmission network is a "bus"; in this case,
+  *  this method will return nullptr.
+  */
  NetworkBlock::NetworkData * get_NetworkData() const { return f_NetworkData; }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of (pointers to) NetworkBlock
- /** Method for returning the vector of network blocks. Since there always is
-  *  a NetworkBlock for each time instant t, this vector should have size of
-  *  f_time_horizon where each element of the vector gives the network block
-  *  at time instant t.
-  * */
- const std::vector<NetworkBlock *> & get_network_blocks() const {
+ /// Returns the vector of (pointers to) NetworkBlock elements.
+ /** Since there always is a NetworkBlock for each time instant t, this vector
+  *  should have size of f_time_horizon where each element of the vector gives
+  *  the network block at time instant t.
+  */
+ const std::vector< NetworkBlock * > & get_network_blocks() const {
   return v_network_blocks;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary zones
- /** Method for returning the vector of primary zones that implies to which
-  *  primary zone node n belongs. There are three possible cases:
+ /// Returns the vector of primary zones
+ /** The returned vector implies to which primary zone node n belongs.
+  *  There are three possible cases:
   *
   * - if the vector is empty, then no primary zones are defined, and there are
   *   no primary reserve constraints;
   *
   * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the primary zone.
+  *   bus and that unique node belongs to the primary zone;
   *
   * - otherwise, the vector must have size of number nodes and the n_th element
-  *   of the vector tells to which primary zone the node n may belong;
+  *   of the vector tells to which primary zone the node n may belong.
   */
  const std::vector< Index > & get_primary_zone() const {
   return v_primary_zones;
  }
 /*--------------------------------------------------------------------------*/
- /// returns the vector of secondary zones
- /** Method for returning the vector of secondary zones that implies to which
-  *  secondary zone node n belongs. There are three possible cases:
+ /// Returns the vector of secondary zones
+ /** The returned vector implies to which secondary zone node n belongs.
+  *  There are three possible cases:
   *
   * - if the vector is empty, then no secondary zones are defined, and there
   *   no secondary reserve constraints;
   *
   * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the secondary zone.
+  *   bus and that unique node belongs to the secondary zone;
   *
   * - otherwise, the vector must have size of number nodes and the n_th element
-  *   of the vector tells to which secondary zone the node n may belong;
+  *   of the vector tells to which secondary zone the node n may belong.
   */
  const std::vector< Index > & get_secondary_zone() const {
   return v_secondary_zones;
  }
 /*--------------------------------------------------------------------------*/
- /// returns the vector of inertia zones
- /** Method for returning the vector of inertia zones that implies to which
-  *  inertia zone node n belongs. There are three possible cases:
+ /// Returns the vector of inertia zones
+ /** The returned vector implies to which inertia zone node n belongs.
+  *  There are three possible cases:
   *
   * - if the vector is empty, then no inertia zones are defined, and there
   *   no inertia reserve constraints;
   *
   * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the inertia zone.
+  *   bus and that unique node belongs to the inertia zone;
   *
   * - otherwise, the vector must have size of number nodes and the n_th
-  *   element of the vector tells to which inertia zone the node n may belong;
+  *   element of the vector tells to which inertia zone the node n may belong.
   */
  const std::vector< Index > & get_inertia_zone() const {
   return v_inertia_zones;
  }
 /*--------------------------------------------------------------------------*/
- /// method for returning the matrix of primary demand
+ /// Returns the matrix of primary demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the matrix of primary demand of the given primary
-  *  zone at the time instant t. This two-dimensional boost::multi_array<> M
+  *  M[ n , t ] gives the primary demand of the primary zone n at
+  *  the time instant t. This two-dimensional boost::multi_array<> M
   *  considers three possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no primary zones are
@@ -652,15 +642,15 @@ public:
   *    f_number_primary_zones row where each row must have size of
   *    f_time_horizon and each element of M[ n , t ] gives the primary demand
   *    of primary zone n at time instant t.*/
- const boost::multi_array< double, 2 >& get_primary_demand() const {
-  return( v_primary_demand );
-  }
+ const boost::multi_array< double, 2 > & get_primary_demand() const {
+  return v_primary_demand;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of secondary demand
+ /// Returns the matrix of secondary demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the matrix of secondary demand of the given secondary
-  *  zone at the time instant t. This two-dimensional boost::multi_array<> M
+  *  M[ n , t ] gives the secondary demand of the secondary zone n at
+  *  the time instant t. This two-dimensional boost::multi_array<> M
   *  considers three possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no secondary zones are
@@ -678,14 +668,14 @@ public:
   *    f_time_horizon and each element of M[ n , t ] gives the secondary
   *    demand of secondary zone n at time instant t.*/
  const boost::multi_array< double, 2 > & get_secondary_demand() const {
-  return( v_secondary_demand );
+  return v_secondary_demand;
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of inertia demand
+ /// Returns the matrix of inertia demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the matrix of inertia demand of the given inertia zone
-  *  at the time instant t. This two-dimensional boost::multi_array<> M
+  *  M[ n , t ] gives the inertia demand of the inertia zone n at
+  *  the time instant t. This two-dimensional boost::multi_array<> M
   *  considers three possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no inertia zones are
@@ -700,39 +690,41 @@ public:
   *  - otherwise the two-dimensional boost::multi_array<> M may have
   *    f_number_inertia_zones row where each row must have size of
   *    f_time_horizon and each element of M[ n , t ] gives the inertia demand
-  *    of inertia zone n at time instant t.*/
+  *    of inertia zone n at time instant t.
+  */
  const boost::multi_array< double, 2 > & get_inertia_demand() const {
-  return( v_inertia_demand );
-  }
+  return v_inertia_demand;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of pollutant zone
+ /// Returns the matrix of pollutant zones
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ p , n ] gives the pollutant zone associated with the given pollutant
-  *  p the given node n belongs. There are four possible cases:
+  *  M[ p , n ] tells to which pollutant zone associated with pollutant p
+  *  the node n belongs. There are four possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no pollutant zones are
   *    defined, and there are no pollutant budget constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size of f_number_nodes
-  *    and it means there exist just one pollutant zone in the problem where
-  *    the nodes may belong(or not) to that pollutant zone. Then, each n_th
-  *    element of this vector tells the node n belongs to that unique
-  *    pollutant zone or not;
+  *  - if the boost::multi_array<> M has only one row, it is a vector
+  *    with size of f_number_nodes. In this case only one pollutant zone
+  *    exists in the problem, and the nodes may belong (or not) to that
+  *    pollutant zone. Therefore, each n_th element of the vector tells if
+  *    the node n belongs to the unique pollutant zone or not;
   *
-  *  - if the boost::multi_array<> M has only one element which in this case
+  *  - if the boost::multi_array<> M has only one element,
   *    the transmission network is a bus with one pollutant zone;
   *
-  * - otherwise, the two-dimensional boost::multi_array<> M must have
-  *   f_number_pollutants rows and f_number_nodes columns, and each element of
-  *   matrix M[ p , n ] tells to which pollutant zone associated with
-  *   pollutant p, the node n belongs; */
+  *  - otherwise, the two-dimensional boost::multi_array<> M must have
+  *    f_number_pollutants rows and f_number_nodes columns, and each element of
+  *    matrix M[ p , n ] tells to which pollutant zone associated with
+  *    pollutant p the node n belongs.
+  */
  const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
-   return v_pollutant_zones;
+  return v_pollutant_zones;
  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of heat set
+ /// Returns the matrix of heat set
  /** The method returns a two-dimensional boost::multi_array<> M such that
   *  M[ i , h ] tells either the unit i in the given heat block h is an
   *  electrical unit or not. There are two possible cases:
@@ -740,16 +732,17 @@ public:
   *  - if the boost::multi_array<> M is empty() then no heat blocks are
   *    defined, and there are no heat constraints;
   *
-  * - otherwise, the two-dimensional boost::multi_array<> M may have
-  *   f_number_units rows and f_number_heat_blocks columns, and each element
-  *   of matrix M[ i , h ] tells  either the unit i in the given heat block h
-  *   is an electrical unit or not;
-  *  */
+  *  - otherwise, the two-dimensional boost::multi_array<> M may have
+  *    f_number_units rows and f_number_heat_blocks columns, and each element
+  *    of matrix M[ i , h ] tells either the unit i in the given heat block h
+  *    is an electrical unit or not.
+  */
  const boost::multi_array< Index, 2 > & get_heat_set() const {
-   return v_heat_set;
+  return v_heat_set;
  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of pollutant rho
+ /// Returns the matrix of pollutant rho
  /** The method returns a three-dimensional boost::multi_array<> M such that
   *  M[ t , p , i ] gives the production of pollutant p from unit i at time t.
   *  This three-dimensional boost::multi_array<> M considers two possible
@@ -763,18 +756,19 @@ public:
   *
   *   - if the first dimension of the boost::multi_array<> M has size one,
   *     then each element of the matrix M [ 0 , p , i ] gives the conversion
-  *     factor of pollutant p due to the generation of unit i.
+  *     factor of pollutant p due to the generation of unit i;
   *
   *   - if the first dimension of the boost::multi_array<> M has full size
   *     then, each element of the matrix M[ t , p , i ] gives the conversion
   *     factor of pollutant p due to the generation of unit i for "each" time
-  *     instant t. */
+  *     instant t.
+  */
  const boost::multi_array< double, 3 > & get_pollutant_rho() const {
-  return(v_pollutant_rho);
-  }
+  return v_pollutant_rho;
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of pollutant heat rho
+ /// Returns the matrix of pollutant heat rho
  /** The method returns a three-dimensional boost::multi_array<> M such that
   *  M[ t , p , i ] gives the conversion factor of the given pollutant p due
   *  to the generation of every heat-only unit i in the given heat block h at
@@ -784,13 +778,13 @@ public:
   * - if the boost::multi_array<> M is empty() then three possible cases are:
   *
   *   - neither any pollutant zones nor any heat block are defined, then there
-  *     are not defined any pollutant budget constraints.
+  *     are not defined any pollutant budget constraints;
   *
   *   - may exist pollutant zones but no exist any heat block, then into
-  *     pollutant budget constraints there is not heat-rho-linking part.
+  *     pollutant budget constraints there is not heat-rho-linking part;
   *
   *   - may not exist any pollutant zone and my exist heat block, and by the
-  *     way there are not defined any pollutant budget constraints.
+  *     way there are not defined any pollutant budget constraints;
   *
   * - otherwise, two possible cases may happen to the first dimension of the
   *    M [ t , p , i ];
@@ -798,49 +792,47 @@ public:
   *   - if the first dimension of the boost::multi_array<> M has size one,
   *     then each element of the matrix M [ 0 , p , i ] gives the conversion
   *     factor of pollutant p due to the of every heat-only unit i in the
-  *     given heat block h.
+  *     given heat block h;
   *
   *   - if the first dimension of the boost::multi_array<> M has full size
   *     then, each element of the matrix M[ t , p , i ] gives the conversion
   *     factor of pollutant p due to the generation of every heat-only unit i
-  *     in the given heat block h for "each" time instant t. */
- const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
-  return v_pollutant_heat_rho ;
-  }
-/*--------------------------------------------------------------------------*/
- /// returns the i-th UnitBlock
- /** Method for returning the unit block i.
-  * */
- UnitBlock * get_unit_block( Index i ) const;
-
-/*--------------------------------------------------------------------------*/
- /// returns the t-th NetworkBlock
- /** Method for returning the network block at time instant t. */
- NetworkBlock * get_network_block( Index t ) const;
-
-/*--------------------------------------------------------------------------*/
- /// returns the h-th HeatBlock
- /** Method for returning the heat block h. */
- HeatBlock * get_heat_block( Index h ) const;
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of unit node
- /** Method for returning the vector of unit node that implies to which
-  *  node n unit i belongs. There are two possible cases:
-  *
-  * - if the vector has only one element, then the transmission network is a
-  *   bus and all the units belong to that unique node.
-  *
-  * - otherwise, the vector must have size of number of units and the i_th
-  *   element of the vector tells to which node n unit i belongs;
-  * */
- const std::vector< Index > & get_unit_node( void ) const {
-  return v_unit_node ;
+  *     in the given heat block h for "each" time instant t.
+  */
+ const boost::multi_array< double, 3 > & get_pollutant_heat_rho() const {
+  return v_pollutant_heat_rho;
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of electrical-power-to-heat ratio
- /** Method for returning the vector electrical-power-to-heat ratio for each
+ /// Returns the i-th UnitBlock
+ UnitBlock * get_unit_block( Index i ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// Returns the NetworkBlock at time instant t
+ NetworkBlock * get_network_block( Index t ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// Returns the h-th HeatBlock
+ HeatBlock * get_heat_block( Index h ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of unit node
+ /** The returned vector implies to which node n unit i belongs.
+  *  There are two possible cases:
+  *
+  *  - if the vector has only one element, then the transmission network is a
+  *    bus and all the units belong to that unique node;
+  *
+  *  - otherwise, the vector must have size of number of units and the i_th
+  *    element of the vector tells to which node n unit i belongs.
+  */
+ const std::vector< Index > & get_unit_node() const {
+  return v_unit_node;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of electrical-power-to-heat ratio
+ /** The vector contains the electrical-power-to-heat ratio for each
   *  unit i of heat block h. There are three possible cases:
   *
   * - if the vector is empty, then the there is no heat block;
@@ -850,33 +842,40 @@ public:
   *
   * - otherwise the vector must have the size of the number of units, and the
   *   i-th entry gives the power heat rho for each heat block h.
-  * */
- const std::vector< double > & get_power_heat_rho( void ) const {
-  return v_power_heat_rho ;
-  }
+  */
+ const std::vector< double > & get_power_heat_rho() const {
+  return v_power_heat_rho;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the UCBlock
+
+/** @name Methods for loading, printing and saving the UCBlock
  *  @{ */
 
-/// extends Block::serialize( netCDF::NcGroup )
+/// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  *  UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
- *  format of the created netCDF group. */
-
+ *  format of the created netCDF group.
+ */
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UCBlock ------------------*/
 /*--------------------------------------------------------------------------*/
+
 /** @name Handling the data of the UCBlock
     @{ */
 
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
-  }
+/**
+ * @brief It loads a UCBlock from a input standard stream.
+ * @warning This method is not implemented yet.
+ * @param input an input stream
+ */
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "UCBlock::load() not implemented yet" ));
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -909,91 +908,96 @@ public:
  Index f_number_pollutants;
 
  /// The set of UnitBlock
- std::vector<UnitBlock *> v_unit_blocks;
+ std::vector< UnitBlock * > v_unit_blocks;
 
  /// The set of HeatBlock
- std::vector<HeatBlock *> v_heat_blocks;
+ std::vector< HeatBlock * > v_heat_blocks;
 
  /// The number of pollutant zones of each pollutant
- std::vector<Index> v_number_pollutant_zones;
+ std::vector< Index > v_number_pollutant_zones;
 
- /** The matrix PollutantZones indexed over the dimensions
-  *  NumberPollutants and NumberNodes */
+ /// The matrix of pollutant zones
+ /** Indexed over the dimensions NumberPollutants and NumberNodes. */
  boost::multi_array< Index, 2 > v_pollutant_zones;
 
- /** Vector of pointers to the NetworkBlock. This vector has size
-  *  f_time_horizon. So the NetworkBlock at position t in this vector refers
-  *  to the network at the t-th time step. */
- std::vector<NetworkBlock *> v_network_blocks;
+ /// Vector of pointers to the NetworkBlock.
+ /** This vector has size f_time_horizon. So the NetworkBlock at
+  *  position t in this vector refers to the network at the t-th time step.
+  */
+ std::vector< NetworkBlock * > v_network_blocks;
 
- /// the vector of PrimaryZones
- std::vector<Index> v_primary_zones;
+ /// The vector of PrimaryZones
+ std::vector< Index > v_primary_zones;
 
- /** the matrix of PrimaryDemand indexed over the dimensions
-  * PrimaryZones and TimeHorizon */
+ /// The matrix of PrimaryDemand
+ /** Indexed over the dimensions PrimaryZones and TimeHorizon. */
  boost::multi_array< double, 2 > v_primary_demand;
 
  /// the vector of SecondaryZones
- std::vector<Index> v_secondary_zones;
+ std::vector< Index > v_secondary_zones;
 
- /** the matrix of SecondaryDemand indexed over the dimensions
-  * SecondaryZones and TimeHorizon */
+ /// The matrix of SecondaryDemand
+ /** Indexed over the dimensions SecondaryZones and TimeHorizon. */
  boost::multi_array< double, 2 > v_secondary_demand;
 
- /// the vector InertiaZones
- std::vector<Index> v_inertia_zones;
+ /// The vector InertiaZones
+ std::vector< Index > v_inertia_zones;
 
- /** the matrix of InertiaDemand indexed over the dimensions
-  * InertiaZones and TimeHorizon */
- boost::multi_array< double, 2 >v_inertia_demand;
+ /// The matrix of InertiaDemand
+ /** Indexed over the dimensions InertiaZones and TimeHorizon. */
+ boost::multi_array< double, 2 > v_inertia_demand;
 
  /// the vector of PollutantDemand
  std::vector< double > v_pollutant_budget;
 
- /** the PollutantRho matrix index over the dimensions
-  * TimeHorizon, NumberPollutants, and NumberUnits */
+ /// The PollutantRho matrix
+ /** Indexed over the dimensions
+  *  TimeHorizon, NumberPollutants, and NumberUnits.
+  */
  boost::multi_array< double, 3 > v_pollutant_rho;
 
- /** the PollutantHeatRho matrix index over the dimensions
-  * TimeHorizon, NumberPollutants, and NumberHeatBlocks */
+ /// The PollutantHeatRho matrix
+ /** Indexed over the dimensions
+  *  TimeHorizon, NumberPollutants, and NumberHeatBlocks.
+  */
  boost::multi_array< double, 3 > v_pollutant_heat_rho;
 
- /// The entry v_unit_node[ i ] tells to which node unit i belongs
- std::vector<Index> v_unit_node;
+ /// v_unit_node[ i ] tells to which node unit i belongs
+ std::vector< Index > v_unit_node;
 
- /// The entry v_heat_node[ h ] tells to which node the heat block h belongs
- std::vector<Index> v_heat_node;
+ /// v_heat_node[ h ] tells to which node the heat block h belongs
+ std::vector< Index > v_heat_node;
 
- /** the HeatSet matrix index over the dimensions
-  * NumberUnits, and NumberHeatBlocks */
+ /// The HeatSet matrix
+ /** Indexed over the dimensions NumberUnits, and NumberHeatBlocks */
  boost::multi_array< Index, 2 > v_heat_set;
 
  /// Vector of heat rho
  std::vector< double > v_power_heat_rho;
 
  /// Node injection constraints for each time and node
- boost::multi_array<FRowConstraint, 2> v_node_injection_constraints;
+ boost::multi_array< FRowConstraint, 2 > v_node_injection_constraints;
 
  /// Primary demand constraints for each time and primary zone
- boost::multi_array<FRowConstraint, 2> v_PrimaryDemand_Const;
+ boost::multi_array< FRowConstraint, 2 > v_PrimaryDemand_Const;
 
  /// Secondary demand constraints for each time and secondary zone
- boost::multi_array<FRowConstraint, 2>  v_SecondaryDemand_Const;
+ boost::multi_array< FRowConstraint, 2 > v_SecondaryDemand_Const;
 
  /// Inertia demand constraints for each time and inertia zone
- boost::multi_array<FRowConstraint, 2>  v_InertiaDemand_Const;
+ boost::multi_array< FRowConstraint, 2 > v_InertiaDemand_Const;
 
  /// heat constraints for each time and index unit
- boost::multi_array<FRowConstraint, 2>  v_power_Heat_Rho_Const;
+ boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector<std::vector<FRowConstraint>> v_PollutantBudget_Const;
+ std::vector< std::vector< FRowConstraint>> v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-private:
+ private:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -1004,13 +1008,13 @@ private:
 
  /// Deserialize the sub-blocks of UCBlock that have the given prefix name
  void deserialize_sub_blocks( const netCDF::NcGroup & group,
-                              const std::string& sub_group_name_prefix,
+                              const std::string & sub_group_name_prefix,
                               int num_sub_blocks );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  };   // end( class( UCBlock ) )
+};   // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
 

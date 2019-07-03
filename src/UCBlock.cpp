@@ -65,17 +65,25 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// returns the i-th UnitBlock
+UCBlock::UCBlock( Block * father ) : Block( father ) {
+ f_time_horizon = 0;
+ f_number_units = 0;
+ f_NetworkData = nullptr;
+ f_number_heat_blocks = 0;
+ f_number_primary_zones = 0;
+ f_number_secondary_zones = 0;
+ f_number_inertia_zones = 0;
+ f_number_pollutants = 0;
+}
+
  UnitBlock * UCBlock::get_unit_block( Index i ) const {
   return dynamic_cast<UnitBlock *>( v_Block[ i ] );
 }
 
-/// returns the t-th NetworkBlock
  NetworkBlock * UCBlock::get_network_block( Index t ) const {
   return dynamic_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
 }
 
-/// returns the i-th HeatBlock
  HeatBlock * UCBlock::get_heat_block( Index i ) const {
   return dynamic_cast<HeatBlock *>
     ( v_Block[ f_number_units + f_time_horizon + i ] );
@@ -129,11 +137,11 @@ using namespace SMSpp_di_unipi_it;
 
 }
 
-
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
+  // FIXME delete f_NetworkData; // This is equivalent to commented code below
   auto network_data = new NetworkBlock::NetworkData(); //TODO not Implemented well
   network_data->deserialize( group );
 
@@ -148,21 +156,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     // if the NetworkData has not been passed from outside
       throw( std::logic_error( "UCBlock has no NetworkData access" ) );
   }
-/*--------------------------------------------------------------------------*/
-  delete f_NetworkData; // This is equivalent to commented code below
 
-  // if( network_data ) {  // there is a NetworkData object in the group
-  //   // use it, whatever has happened before
-  //   // if there was a previous NetworkData, delete it
-  //   if( f_NetworkData )
-  //     delete f_NetworkData;
-  // }
-  // else        // there is no NetworkData object in the group
-  // if( ! network_data ) {
-  //   // if the NetworkData has not been passed from outside
-  //     throw( std::logic_error( "UCBlock has no NetworkData access" ) );
-  // }
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
   ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
   ::deserialize_dim( group, "NumberUnits", f_number_units, false );
   unsigned int  number_nodes =  f_NetworkData ? f_NetworkData->
