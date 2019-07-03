@@ -301,7 +301,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-        Index node_id = get_unit_node( unit_id );
+        Index node_id = get_unit_node() [ unit_id ];
 
         auto fixed_consumption =
           get_unit_block( unit_id )->get_fixed_consumption()[ t ];
@@ -351,11 +351,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-        auto node_id = get_unit_node( unit_id );
+        auto node_id = get_unit_node()[ unit_id ];
 
         assert( node_id >= 0 && node_id < number_nodes);
 
-        auto zone_id = get_primary_zone( node_id );
+        auto zone_id = get_primary_zone() [ node_id ] ;
         if( zone_id >= f_number_primary_zones )
           continue; // this unit does not belong to any zone
 
@@ -399,11 +399,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-        auto node_id = get_unit_node( unit_id );
+        auto node_id = get_unit_node()[ unit_id ];
 
         assert( node_id >= 0 && node_id < number_nodes );
 
-        auto zone_id = get_secondary_zone( node_id );
+        auto zone_id = get_secondary_zone() [ node_id ];
         if( zone_id >= f_number_secondary_zones )
           continue; // this unit does not belong to any zone
 
@@ -446,11 +446,11 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-        auto node_id = get_unit_node( unit_id );
+        auto node_id = get_unit_node()[ unit_id ];
 
         assert( node_id >= 0 && node_id < number_nodes );
 
-        auto zone_id = get_inertia_zone( node_id );
+        auto zone_id = get_inertia_zone() [ node_id ];
         if( zone_id >= f_number_inertia_zones )
           continue; // this unit does not belong to any zone
 
@@ -515,7 +515,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
         // Terms associated with active power
         for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-          auto node_id = get_unit_node( unit_id );
+          auto node_id = get_unit_node()[ unit_id ];
           auto zone_id = get_pollutant_zone()[pollutant][ node_id ];
 
           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
@@ -538,7 +538,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
             for( std::vector<Index>::size_type i = 0;
                  i <= f_number_units; ++i ) {
-             /* //TODO
+              //TODO
               //auto unit_id = v_heat_only_units[ i ];
               auto heat_id = v_heat_set[ i ];
 
@@ -546,13 +546,13 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
               if( zone_id >= v_number_pollutant_zones[ pollutant ] )
                 continue; // this unit does not belong to any zone
 
-              auto heat = get_heat_block( heat_id )->get_heat( heat_id );
-              auto rho  = get_pollutant_heat_rho( t, pollutant, heat_id );
+              auto heat = get_heat_block( h )->get_heat()[t];
+              auto rho  = get_pollutant_heat_rho() [t][pollutant][h];
 
               auto linear_function = dynamic_cast<LinearFunction *>
               ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-              linear_function->add_variable( & heat[ t ], rho );*/
+              linear_function->add_variable( & heat, rho );
             }
           }
 
@@ -628,7 +628,7 @@ void UCBlock::generate_abstract_constraints( Configuration *stcc ) {
 
           auto active_power = get_unit_block( unit_id )->get_active_power( t );
           auto heat = get_heat_block( heat_unit_id )->get_heat( t );
-          auto power_heat_rho = get_power_heat_rho( unit_id );
+          auto power_heat_rho = get_power_heat_rho() [ unit_id ];
 
           auto linear_function = dynamic_cast<LinearFunction *>
             ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() );

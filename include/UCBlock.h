@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 01 - 07 - 2019
+ * \date 03 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -568,13 +568,12 @@ public:
   *  may be defined (see comments to deserialize()), which means that the
   *  transmission network is a "bus"; in this case, this method will return
   *  nullptr. */
-
  NetworkBlock::NetworkData * get_NetworkData() const { return f_NetworkData; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of (pointers to) NetworkBlock
  /** Method for returning the vector of network blocks. Since there always is
-  *  a NetworkBlock for each time instant t, this vector may have size of
+  *  a NetworkBlock for each time instant t, this vector should have size of
   *  f_time_horizon where each element of the vector gives the network block
   *  at time instant t.
   * */
@@ -583,20 +582,76 @@ public:
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of primary zones
+ /** Method for returning the vector of primary zones that implies to which
+  *  primary zone node n belongs. There are three possible cases:
+  *
+  * - if the vector is empty, then no primary zones are defined, and there are
+  *   no primary reserve constraints;
+  *
+  * - if the vector has only one element, then the transmission network is a
+  *   bus and that unique node belongs to the primary zone.
+  *
+  * - otherwise, the vector must have size of number nodes and the n_th element
+  *   of the vector tells to which primary zone the node n may belong;
+  */
+ const std::vector< Index > & get_primary_zone() const {
+  return v_primary_zones;
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary zones
+ /** Method for returning the vector of secondary zones that implies to which
+  *  secondary zone node n belongs. There are three possible cases:
+  *
+  * - if the vector is empty, then no secondary zones are defined, and there
+  *   no secondary reserve constraints;
+  *
+  * - if the vector has only one element, then the transmission network is a
+  *   bus and that unique node belongs to the secondary zone.
+  *
+  * - otherwise, the vector must have size of number nodes and the n_th element
+  *   of the vector tells to which secondary zone the node n may belong;
+  */
+ const std::vector< Index > & get_secondary_zone() const {
+  return v_secondary_zones;
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of inertia zones
+ /** Method for returning the vector of inertia zones that implies to which
+  *  inertia zone node n belongs. There are three possible cases:
+  *
+  * - if the vector is empty, then no inertia zones are defined, and there
+  *   no inertia reserve constraints;
+  *
+  * - if the vector has only one element, then the transmission network is a
+  *   bus and that unique node belongs to the inertia zone.
+  *
+  * - otherwise, the vector must have size of number nodes and the n_th
+  *   element of the vector tells to which inertia zone the node n may belong;
+  */
+ const std::vector< Index > & get_inertia_zone() const {
+  return v_inertia_zones;
+ }
+/*--------------------------------------------------------------------------*/
  /// method for returning the matrix of primary demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
   *  M[ n , t ] gives the matrix of primary demand of the given primary
   *  zone at the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers two possible cases:
+  *  considers three possible cases:
   *
-  *  - if the first dimension of the boost::multi_array<> M has size zero it
-  *    means the boost::multi_array<> M is empty() since there is no primary
-  *    zone.
+  *  - if the boost::multi_array<> M is empty() then no primary zones are
+  *    defined, and there are no primary reserve constraints;
   *
-  *  - if the first dimension of the boost::multi_array<> M has size non-zero
-  *    in this case each row of two-dimensional boost::multi_array<> M must
-  *    have size of f_time_horizon where each element of M[ n , t ] gives the
-  *    primary demand at time instant t.*/
+  *  - if the boost::multi_array<> M has only one row which in this case the
+  *    boost::multi_array<> M is a vector with size of f_time_horizon and it
+  *    means there exist just one primary zone in the problem where the
+  *    node(s) belongs to that primary zone. Each element of this vector gives
+  *    the primary demand of the unique primary zone at time instant t;
+  *
+  *  - otherwise the two-dimensional boost::multi_array<> M may have
+  *    f_number_primary_zones row where each row must have size of
+  *    f_time_horizon and each element of M[ n , t ] gives the primary demand
+  *    of primary zone n at time instant t.*/
  const boost::multi_array< double, 2 >& get_primary_demand() const {
   return( v_primary_demand );
   }
@@ -606,162 +661,152 @@ public:
  /** The method returns a two-dimensional boost::multi_array<> M such that
   *  M[ n , t ] gives the matrix of secondary demand of the given secondary
   *  zone at the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers two possible cases:
+  *  considers three possible cases:
   *
-  *  - if the first dimension of the boost::multi_array<> M has size zero it
-  *    means the boost::multi_array<> M is empty() since there is no secondary
-  *    zone.
+  *  - if the boost::multi_array<> M is empty() then no secondary zones are
+  *    defined, and there are no secondary reserve constraints;
   *
-  *  - if the first dimension of the boost::multi_array<> M has size non-zero
-  *    in this case each row of two-dimensional boost::multi_array<> M must
-  *    have size of f_time_horizon where each element of M[ n , t ] gives the
-  *    secondary demand at time instant t.*/
+  *  - if the boost::multi_array<> M has only one row which in this case the
+  *    boost::multi_array<> M is a vector with size of f_time_horizon and it
+  *    means there exist just one secondary zone in the problem where the
+  *    node(s) belongs to that secondary zone. Each element of this vector
+  *    gives the secondary demand of the unique secondary zone at time instant
+  *    t;
+  *
+  *  - otherwise the two-dimensional boost::multi_array<> M may have
+  *    f_number_secondary_zones row where each row must have size of
+  *    f_time_horizon and each element of M[ n , t ] gives the secondary
+  *    demand of secondary zone n at time instant t.*/
  const boost::multi_array< double, 2 > & get_secondary_demand() const {
   return( v_secondary_demand );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of inertia demand of the given zone at the given time
+ /// returns the matrix of inertia demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
   *  M[ n , t ] gives the matrix of inertia demand of the given inertia zone
   *  at the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers two possible cases:
+  *  considers three possible cases:
   *
-  *  - if the first dimension of the boost::multi_array<> M has size zero it
-  *    means the boost::multi_array<> M is empty() since there is no inertia
-  *    zone.
+  *  - if the boost::multi_array<> M is empty() then no inertia zones are
+  *    defined, and there are no inertia reserve constraints;
   *
-  *  - if the first dimension of the boost::multi_array<> M has size non-zero
-  *    in this case each row of two-dimensional boost::multi_array<> M must
-  *    have size of f_time_horizon where each element of M[ n , t ] gives the
-  *    inertia demand at time instant t.*/
+  *  - if the boost::multi_array<> M has only one row which in this case the
+  *    boost::multi_array<> M is a vector with size of f_time_horizon and it
+  *    means there exist just one inertia zone in the problem where the
+  *    node(s) belongs to that inertia zone. Each element of this vector gives
+  *    the inertia demand of the unique inertia zone at time instant t;
+  *
+  *  - otherwise the two-dimensional boost::multi_array<> M may have
+  *    f_number_inertia_zones row where each row must have size of
+  *    f_time_horizon and each element of M[ n , t ] gives the inertia demand
+  *    of inertia zone n at time instant t.*/
  const boost::multi_array< double, 2 > & get_inertia_demand() const {
   return( v_inertia_demand );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the matrix of conversion factor of the given pollutant
- /** The method returns a three-dimensional boost::multi_array<> M such that
-  *  M[ t , p , i ] gives the production of pollutant p from unit i at time t.
-  *  This three-dimensional boost::multi_array<> M considers two possible
-  *  cases:
-  *
-  * - if the first dimension of the boost::multi_array<> M can has size one,
-  *   then depending on the other two dimensions (f_number_pollutants and
-  *   f_number_units)there exist these possibilities:
-  *
-  *   - if the second dimension of the boost::multi_array<> M has size zero it
-  *     means the boost::multi_array<> M is empty().
-  *
-  *   - if the second the boost::multi_array<> M has non zero size and since
-  *     the third dimension(f_number_units) must always have non-zero size,
-  *     then each element of the matrix M[ t , p , i ] gives the conversion
-  *     factor of pollutant due to the generation of unit i which for "all"
-  *     time instants would be the same value.
-  *
-  * - if the first dimension of the boost::multi_array<> M can have full size,
-  *   then depending on the size of second and third dimension may happen
-  *   these cases:
-  *
-  *   - if the second dimension of the boost::multi_array<> M has zero size,
-  *     then it means that the boost::multi_array<> M is empty().
-  *
-  *   - if the second dimension of the boost::multi_array<> M has non zero
-  *     size, and since the third dimension(f_number_units) must always have
-  *     non-zero size, then each element of the matrix M[ t , p , i ] gives
-  *     the conversion factor of pollutant due to the generation of unit i
-  *     for "each" time instant t. */
- const boost::multi_array< double, 3 > & get_pollutant_rho() const {
-  return(v_pollutant_rho);
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the matrix of conversion factor of the given pollutant due to the
- /// generation of every heat-only unit
- /** The method returns a three-dimensional boost::multi_array<> M such that
-  *  M[ t , p , i ] gives the conversion factor of the given pollutant due to
-  *  the pollutant due to the generation of every heat-only unit i in the
-  *  given heat block h at the given time t.
-  *  This three-dimensional boost::multi_array<> M considers two possible
-  *  cases:
-  *
-  * - if the first dimension of the boost::multi_array<> M can have size one,
-  *   then depending on the other two dimensions (f_number_pollutants and
-  *   f_number_heat_blocks)there exist these possibilities:
-  *
-  *   - if the second or third dimension of the boost::multi_array<> M has
-  *     size zero it means the boost::multi_array<> M is empty().
-  *
-  *   - if both second and third dimensions of the boost::multi_array<> M have
-  *     non zero size, then each element of the matrix M[ t , p , i ] gives
-  *     the conversion factor of pollutant due to the generation of every
-  *     heat-only unit in heat block h which for "all" time instants would be
-  *     the same value.
-  *
-  * - if the first dimension of the boost::multi_array<> M can have full size,
-  *   then depending on the size of second and third dimension may happen
-  *   these cases:
-  *
-  *   - if second or third or both dimensions of the boost::multi_array<> M
-  *     have zero size, it means the boost::multi_array<> M is empty().
-  *
-  *   - if both second and third dimensions of the boost::multi_array<> M have
-  *     non-zero size, then each element of the matrix M[ t , p , i ] gives
-  *     the conversion factor of pollutant due to the generation of every
-  *     heat-only unit in HeatBlock h for each time instants t. */
-
- const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
-  return v_pollutant_heat_rho ;
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant zone
  /** The method returns a two-dimensional boost::multi_array<> M such that
   *  M[ p , n ] gives the pollutant zone associated with the given pollutant
-  *  the given node belongs to. This matrix indexed over the dimensions
-  *  NumberPollutants and NumberNodes. There are these possible cases:
+  *  p the given node n belongs. There are four possible cases:
   *
-  * - if the first dimension of the matrix is not present then the the
-  *   two-dimensional boost::multi_array<> M is empty since, there is not any
-  *   pollutant zone.
+  *  - if the boost::multi_array<> M is empty() then no pollutant zones are
+  *    defined, and there are no pollutant budget constraints;
   *
-  * - if the first dimension of the matrix has non-zero size then:
+  *  - if the boost::multi_array<> M has only one row which in this case the
+  *    boost::multi_array<> M is a vector with size of f_number_nodes
+  *    and it means there exist just one pollutant zone in the problem where
+  *    the nodes may belong(or not) to that pollutant zone. Then, each n_th
+  *    element of this vector tells the node n belongs to that unique
+  *    pollutant zone or not;
   *
-  *   - if the second dimension of the matrix has size one, then the
-  *     transmission network in the problem becomes a bus and M[ p , n ] has
-  *     f_number_pollutants rows and just one column which implies that all
-  *     the pollutants belong to just one node.
+  *  - if the boost::multi_array<> M has only one element which in this case
+  *    the transmission network is a bus with one pollutant zone;
   *
-  *   - if the second dimension of the matrix has size strictly greater than
-  *     one, then the matrix M[ p , n ] has f_number_pollutants rows and
-  *     f_number_nodes columns where each element of the matrix M[ p , n ]
-  *     shows which pollutant p belong to which node.
-  *
-  * - if the f_number_pollutants == 0, the boost::multi_array<> M  is empty
-  *   since, there is not any pollutant zone. */
+  * - otherwise, the two-dimensional boost::multi_array<> M must have
+  *   f_number_pollutants rows and f_number_nodes columns, and each element of
+  *   matrix M[ p , n ] tells to which pollutant zone associated with
+  *   pollutant p, the node n belongs; */
  const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
    return v_pollutant_zones;
  }
-
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of heat set
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ i , h ] gives the heat set and represents the given unit in the given
-  *  HeatBlock. This matrix indexed over the dimensions NumberUnits and
-  *  NumberHeatBlocks. Since the number of units in the problem always are
-  *  non-zero then
+  *  M[ i , h ] tells either the unit i in the given heat block h is an
+  *  electrical unit or not. There are two possible cases:
   *
-  * - if second dimension of this boost::multi_array<> M has non-zero size,
-  *   then each element of M[ i , h ] tells to which heat block h, electrical
-  *   unit i belongs.
+  *  - if the boost::multi_array<> M is empty() then no heat blocks are
+  *    defined, and there are no heat constraints;
   *
-  * - if second dimension of this boost::multi_array<> M has zero size, then
-  *   boost::multi_array<> M is empty, since there is no heat block.
+  * - otherwise, the two-dimensional boost::multi_array<> M may have
+  *   f_number_units rows and f_number_heat_blocks columns, and each element
+  *   of matrix M[ i , h ] tells  either the unit i in the given heat block h
+  *   is an electrical unit or not;
   *  */
  const boost::multi_array< Index, 2 > & get_heat_set() const {
    return v_heat_set;
  }
+/*--------------------------------------------------------------------------*/
+ /// returns the matrix of pollutant rho
+ /** The method returns a three-dimensional boost::multi_array<> M such that
+  *  M[ t , p , i ] gives the production of pollutant p from unit i at time t.
+  *  This three-dimensional boost::multi_array<> M considers two possible
+  *  cases:
+  *
+  * - if the boost::multi_array<> M is empty() then no pollutant zones are
+  *   defined, and there are no pollutant budget constraints;
+  *
+  * - otherwise, two possible cases may happen to the first dimension of the
+  *    M [ t , p , i ];
+  *
+  *   - if the first dimension of the boost::multi_array<> M has size one,
+  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
+  *     factor of pollutant p due to the generation of unit i.
+  *
+  *   - if the first dimension of the boost::multi_array<> M has full size
+  *     then, each element of the matrix M[ t , p , i ] gives the conversion
+  *     factor of pollutant p due to the generation of unit i for "each" time
+  *     instant t. */
+ const boost::multi_array< double, 3 > & get_pollutant_rho() const {
+  return(v_pollutant_rho);
+  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the matrix of pollutant heat rho
+ /** The method returns a three-dimensional boost::multi_array<> M such that
+  *  M[ t , p , i ] gives the conversion factor of the given pollutant p due
+  *  to the generation of every heat-only unit i in the given heat block h at
+  *  the given time t. This three-dimensional boost::multi_array<> M considers
+  *  two possible cases:
+  *
+  * - if the boost::multi_array<> M is empty() then three possible cases are:
+  *
+  *   - neither any pollutant zones nor any heat block are defined, then there
+  *     are not defined any pollutant budget constraints.
+  *
+  *   - may exist pollutant zones but no exist any heat block, then into
+  *     pollutant budget constraints there is not heat-rho-linking part.
+  *
+  *   - may not exist any pollutant zone and my exist heat block, and by the
+  *     way there are not defined any pollutant budget constraints.
+  *
+  * - otherwise, two possible cases may happen to the first dimension of the
+  *    M [ t , p , i ];
+  *
+  *   - if the first dimension of the boost::multi_array<> M has size one,
+  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
+  *     factor of pollutant p due to the of every heat-only unit i in the
+  *     given heat block h.
+  *
+  *   - if the first dimension of the boost::multi_array<> M has full size
+  *     then, each element of the matrix M[ t , p , i ] gives the conversion
+  *     factor of pollutant p due to the generation of every heat-only unit i
+  *     in the given heat block h for "each" time instant t. */
+ const boost::multi_array< double, 3 > & get_pollutant_heat_rho( ) const {
+  return v_pollutant_heat_rho ;
+  }
 /*--------------------------------------------------------------------------*/
  /// returns the i-th UnitBlock
  /** Method for returning the unit block i.
@@ -774,83 +819,37 @@ public:
  NetworkBlock * get_network_block( Index t ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the i-th HeatBlock
+ /// returns the h-th HeatBlock
  /** Method for returning the heat block h. */
  HeatBlock * get_heat_block( Index h ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the node where the given unit belongs to
- /** Method for returning the node where the given unit i belongs to.
+ /// returns the vector of unit node
+ /** Method for returning the vector of unit node that implies to which
+  *  node n unit i belongs. There are two possible cases:
   *
-  *  - since always the f_number_units >= 1, then this vector has size
-  *    f_number_units and there are two possible cases:
+  * - if the vector has only one element, then the transmission network is a
+  *   bus and all the units belong to that unique node.
   *
-  *    - if the NetworkData is not defined (see comments to
-  *      NetworkBlock::NetworkData::deserialize()) or it's defined and
-  *      f_number_nodes == 1 then transmission network is a "bus", then all
-  *      the elements of this vector belong to that node.
-  *
-  *    - if the NetworkData is defined (see comments to
-  *      NetworkBlock::NetworkData::deserialize()) and f_number_nodes > 1 then
-  *      each element of this vector gives which unit belongs to which node.
+  * - otherwise, the vector must have size of number of units and the i_th
+  *   element of the vector tells to which node n unit i belongs;
   * */
- Index get_unit_node( Index unit ) const {
-   if( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 )
-     return v_unit_node[ unit ];
-   return 0;
+ const std::vector< Index > & get_unit_node( void ) const {
+  return v_unit_node ;
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the primary zone where the given node belongs to
- /** Method for returning the vector of primary zones. This vector may have
-  *  empty size which means there is no primary zone or may have size of
-  *  f_number_nodes where in this case each element of the vector implies the
-  *  primary zone at node n.
-  * */
- Index get_primary_zone( Index node ) const {
-  return( v_primary_zones.empty() ? 0 : v_primary_zones[ node ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the secondary zone where the given node belongs to
- /** Method for returning the vector of secondary zones. This vector may have
-  *  empty size which means there is no secondary zone or may have size of
-  *  f_number_nodes where in this case each element of the vector implies the
-  *  secondary zone at node n.
-  * */
- Index get_secondary_zone( Index node ) const {
-  return( v_secondary_zones.empty() ? 0 : v_secondary_zones[ node ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the inertia zone where the given node belongs to
- /** Method for returning the vector of inertia zones. This vector may have
-  *  empty size which means there is no inertia zone or may have size of
-  *  f_number_nodes where in this case each element of the vector implies the
-  *  inertia zone at node n.
-  * */
- Index get_inertia_zone( Index node ) const {
-  return( v_inertia_zones.empty() ? 0 : v_inertia_zones[ node ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the electrical-power-to-heat ratio of the given unit
- /** Method for returning the vector of electrical power to heat. This vector
-  *  may have empty size which means there is no inertia zone or may have size
-  *  of f_number_nodes where in this case each element of this vector implies
-  *  the inertia zone at node n.
-  * */
- double get_power_heat_rho( Index unit ) const {
-  return v_power_heat_rho[ unit ];
-  }
-/*--------------------------------------------------------------------------*/
  /// returns the vector of electrical-power-to-heat ratio
  /** Method for returning the vector electrical-power-to-heat ratio for each
-  *  unit i of heat block h. This vector may have  empty size which means
-  *  there no power heat rho or may have size of f_number_units where in this
-  *  case each element of this vector gives the power heat rho for each heat
-  *  block h. Note that if the f_number_heat_blocks is not present or it's
-  *  equal to zero, this vector is empty.
+  *  unit i of heat block h. There are three possible cases:
+  *
+  * - if the vector is empty, then the there is no heat block;
+  *
+  * - if the vector only has one element, then the power heat rho is
+  *   always equal to the value of that element;
+  *
+  * - otherwise the vector must have the size of the number of units, and the
+  *   i-th entry gives the power heat rho for each heat block h.
   * */
  const std::vector< double > & get_power_heat_rho( void ) const {
   return v_power_heat_rho ;
