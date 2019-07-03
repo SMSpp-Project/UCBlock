@@ -669,7 +669,7 @@ class UCBlock : public Block {
   *    demand of secondary zone n at time instant t.*/
  const boost::multi_array< double, 2 > & get_secondary_demand() const {
   return v_secondary_demand;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of inertia demand
