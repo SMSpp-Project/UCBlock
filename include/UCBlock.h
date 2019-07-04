@@ -336,25 +336,29 @@ class UCBlock : public Block {
  * - The variable "PollutantRho", of type double and indexed over three
  *   dimensions. The first dimension can have either size 1 or TimeHorizon.
  *   The second and third dimensions have sizes "NumberPollutants" and
- *   "NumberUnits", respectively. The entry PollutantRho[ t , p , i ] is
- *   assumed to contain the conversion factor of pollutant p due to the
- *   generation of unit i for "each" time instant t (when the first dimension
- *   has full size TimeHorizon) or for "all" time instants (when the first
- *   dimension has size 1). If NumberPollutants == 0 (say, it is not
- *   provided) then this variable need not be defined, since it's not loaded.
+ *   "NumberUnits", respectively. Then, the entry PollutantRho[ 0 , p , i ]
+ *   is assumed to contain the conversion factor of pollutant p due to the
+ *   generation of unit i which is equal for "all" time instant t (the first
+ *   dimension has size one). Whereas, the entry PollutantRho[ t , p , i ]
+ *   gives the conversion factor of pollutant p due to the generation of unit
+ *   i for "each" time t (the first dimension has full size TimeHorizon). If
+ *   NumberPollutants == 0 (it is not provided) then this variable need not be
+ *   defined, since it's not loaded.
  *
  * - The variable "PollutantHeatRho", of type double and indexed over three
  *   dimensions. The first dimension can have size 1 or TimeHorizon. The
  *   second and third dimensions have sizes "NumberPollutants" and
- *   "NumberHeatBlocks", respectively. The entry PollutantRho[ t , p , h ] is
- *   assumed to contain the conversion factor of pollutant p due to the
- *   generation of every heat-only unit in HeatBlock h for "each" time instant
- *   t (when the first dimension has full size TimeHorizon) or for "all" time
- *   instants (when the first dimension has size 1). If NumberPollutants == 0
- *   (say, it is not provided) then this variable does not need be defined,
- *   since it is not loaded. If NumberHeatBlocks == 0 (say, there is no
- *   heat-only unit) then this variable need not be defined, since it is not
- *   loaded. */
+ *   "NumberHeatBlocks", respectively. Therefor, the entry
+ *   PollutantRho[ 0 , p , h ] is assumed to contain the conversion factor of
+ *   pollutant p due to the generation of every heat-only unit in HeatBlock h
+ *   which is equal for "all" time instant t (the first dimension has size
+ *   one). Whereas, the entry PollutantRho[ t , p , h ] gives the conversion
+ *   factor of pollutant p due to the generation of every heat-only unit in
+ *   HeatBlock h for "each" time instant t (the first dimension has size 1).
+ *   If NumberPollutants == 0 (it is not provided) then this variable does not
+ *   need be defined, since it is not loaded. If NumberHeatBlocks == 0 (there
+ *   is no heat-only unit) then this variable need not be defined, since it is
+ *   not loaded. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -413,8 +417,11 @@ class UCBlock : public Block {
  *   UnitBlock by get_commitment() method;
  *
  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$ is
- *   called from HeatBlock by get_heat() method;
+ *   \f$ t \in \mathcal{T} \f$ and each heat unit
+ *   \f$ i \in \mathcal{I}(h)= \mathcal{I}^{ho}(h) \cup \mathcal{I}^{ec}(h)\f$
+ *   is called from HeatBlock by get_heat() method, where
+ *   \f$\mathcal{I}^{ho}(h)\f$  and \f$\mathcal{I}^{ec}(h)\f$ are heat-only-
+ *   producing unit and electricity-producing one, respectively;
  *
  *  The global constraints of unit commitment problem, on the time horizon
  *  \f$ \mathcal{T} \f$ write as follow:
@@ -775,16 +782,14 @@ class UCBlock : public Block {
   *  the given time t. This three-dimensional boost::multi_array<> M considers
   *  two possible cases:
   *
-  * - if the boost::multi_array<> M is empty() then three possible cases are:
+  * - if the boost::multi_array<> M is empty() then two possible cases are:
   *
-  *   - neither any pollutant zones nor any heat block are defined, then there
-  *     are not defined any pollutant budget constraints;
+  *   - not exist any pollutant zone, then there are not defined any pollutant
+  *     budget constraints;
   *
-  *   - may exist pollutant zones but no exist any heat block, then into
-  *     pollutant budget constraints there is not heat-rho-linking part;
+  *   - no exist any heat block, then into, pollutant budget constraints there
+  *     is not heat-rho-linking part;
   *
-  *   - may not exist any pollutant zone and my exist heat block, and by the
-  *     way there are not defined any pollutant budget constraints;
   *
   * - otherwise, two possible cases may happen to the first dimension of the
   *    M [ t , p , i ];
@@ -812,9 +817,20 @@ class UCBlock : public Block {
  NetworkBlock * get_network_block( Index t ) const;
 
 /*--------------------------------------------------------------------------*/
- /// Returns the h-th HeatBlock
- HeatBlock * get_heat_block( Index h ) const;
-
+ /// Returns the vector of (pointers to) HeatBlock elements.
+ /** The vector of heat blocks in the problem. There are three possible cases:
+  *
+  * - if the vector is empty, then the there is no heat block;
+  *
+  * - if the vector only has one element, then the is just one heat block in
+  *   the problem;
+  *
+  * - otherwise the vector must have the size of the number of heat blocks,
+  *   and the h-th entry gives the corresponding heat block h.
+  */
+ const std::vector< HeatBlock * > & get_heat_block() const {
+  return v_heat_blocks;
+ }
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of unit node
  /** The returned vector implies to which node n unit i belongs.

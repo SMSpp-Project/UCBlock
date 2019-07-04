@@ -84,11 +84,6 @@ NetworkBlock * UCBlock::get_network_block( Index t ) const {
  return dynamic_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
 }
 
-HeatBlock * UCBlock::get_heat_block( Index i ) const {
- return dynamic_cast<HeatBlock *>
- ( v_Block[ f_number_units + f_time_horizon + i ] );
-}
-
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
@@ -537,7 +532,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        if( zone_id >= v_number_pollutant_zones[ pollutant ] )
         continue; // this unit does not belong to any zone
 
-       auto heat = get_heat_block( h )->get_heat()[ t ];
+       auto heat = get_heat_block() [ h ]->get_heat()[ t ];
        auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
        auto linear_function = dynamic_cast<LinearFunction *>
@@ -618,7 +613,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      auto active_power = get_unit_block( unit_id )->get_active_power( t );
-     auto heat = get_heat_block( heat_unit_id )->get_heat( t );
+     auto heat = get_heat_block() [ heat_unit_id ]->get_heat( t );
      auto power_heat_rho = get_power_heat_rho()[ unit_id ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
@@ -745,7 +740,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  }
 
  for( Index i = 0; i < f_number_heat_blocks; ++i ) {
-  auto sub_block = get_heat_block( i );
+  auto sub_block = get_heat_block() [ i ];
   auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
  }
