@@ -243,41 +243,41 @@ class UnitBlock : public Block {
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generates the static variables of UnitBlock
- /** The base UnitBlock class has four different "groups" of variables:
-  *
-  * - the commitment variables;
-  *
-  * - the primary spinning reserve variables;
-  *
-  * - the secondary spinning reserve variables;
-  *
-  * - the active power variables.
-  *
-  * All of these variables are optional, except the active power variables,
-  * in the sense that the model may just not have them (say, because the
-  * unit does not have 0-1 commitment decisions, or it cannot generate
-  * spinning reserve). However, it is also possible to restrict which of
-  * the subsets are generated with the parameter stvv.
-  *
-  * If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
-  * f_BlockConfig->f_static_variables_Configuration is not nullptr and it is
-  * a SimpleConfiguration<int>, then the f_value (an int) indicates whether
-  * each of the optional variables should be created. If the Configuration is
-  * not available, the default value is taken to be 0. The value of the int
-  * is interpreted bit-wise, with commitment variables being bit 0, primary
-  * spinning reserve variables being bit 1, secondary spinning reserve
-  * variables being bit 2, and active power variables being bit 3. If the bit
-  * associated with a variable is 0 then the variable (assuming the model
-  * actually has it) *is* created, otherwise it is *not*; hence, the default
-  * value of 0 means that all the variables (that the model has) are created.
-  *
-  * Whenever a group of variables is created, its size will be the time
-  * horizon.
-  *
-  * Note that derived classes are free to use the other bits of the int to
-  * similarly encode for creation of their own specific groups of variables.
-  */
+/// Generates the static variables of UnitBlock
+/** The base UnitBlock class has four different "groups" of variables:
+ *
+ * - the commitment variables;
+ *
+ * - the primary spinning reserve variables;
+ *
+ * - the secondary spinning reserve variables;
+ *
+ * - the active power variables.
+ *
+ * All of these variables are optional, except the active power variables,
+ * in the sense that the model may just not have them (say, because the
+ * unit does not have 0-1 commitment decisions, or it cannot generate
+ * spinning reserve). However, it is also possible to restrict which of
+ * the subsets are generated with the parameter stvv.
+ *
+ * If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
+ * f_BlockConfig->f_static_variables_Configuration is not nullptr and it is
+ * a SimpleConfiguration<int>, then the f_value (an int) indicates whether
+ * each of the optional variables should be created. If the Configuration is
+ * not available, the default value is taken to be 0. The value of the int
+ * is interpreted bit-wise, with commitment variables being bit 0, primary
+ * spinning reserve variables being bit 1, secondary spinning reserve
+ * variables being bit 2, and active power variables being bit 3. If the bit
+ * associated with a variable is 0 then the variable (assuming the model
+ * actually has it) *is* created, otherwise it is *not*; hence, the default
+ * value of 0 means that all the variables (that the model has) are created.
+ *
+ * Whenever a group of variables is created, its size will be the time
+ * horizon.
+ *
+ * Note that derived classes are free to use the other bits of the int to
+ * similarly encode for creation of their own specific groups of variables.
+ */
 
  void generate_abstract_variables( Configuration * stvv ) override;
 

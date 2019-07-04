@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 06 - 2019
+ * \date 03 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -61,7 +61,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for the thermal unit problem
+/// Implementation of the Block concept for the thermal unit problem
 /** The ThermalUnitBlock class implements the Block concept [see Block.h]
  * for a "reasonably standard" thermal unit of a Unit Commitment Problem.
  * That is, the class is designed in order to give mathematical formulation to
@@ -74,210 +74,7 @@ namespace SMSpp_di_unipi_it
  * - ramp-up/down rate constraints;
  * - maximum and minimum power output constraints;
  * - active power relation with primary and secondary spinning reserves.
- *
- * The operations of the thermal generating unit are described on a discrete
- * time horizon as dictated by the UnitBlock interface; in this description
- * we indicate it with \f$ \mathcal{T} \f$. For simplicity of notation it is
- * assumed that time steps are homogeneous with size \f$ \delta t\f$ in hours.
- * The first time instant is called "init_t" and depending on the presented
- * parameters InitUpDownTime(\f$ \tau_0 \f$), MinUpTime(\f$ \tau_+ \f$) and
- * MinDownTime(\f$ \tau_- \f$) is defined as below:
- *
- * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
- *   \f$ \tau_0 \f$ time stamps prior to time stamp 0 (the beginning of the
- *   time horizon):
- *
- *   init_t = ( \f$ \tau_0 \f$ >= \f$ \tau_+ \f$ ? 0 :
- *              \f$ \tau_+ \f$ - \f$ \tau_0 \f$ );
- *
- * - If, instead, \f$ \tau_0 < 0 \f$, this means that the unit has
- *   been off for \f$ - \tau_0 \f$ time stamps prior to time stamp 0:
- *
- *   init_t = ( - \f$ \tau_0 \f$ >= \f$ \tau_- \f$ ? 0 :
- *              \f$ \tau_- \f$ + \f$ \tau_0 \f$ );
- *
- * - Note that \f$ \tau_0 == 0\f$ means that the unit has been just shut down
- *   at the end of time instant -1, i.e., the beginning of time instant 0.
- *
- * The value of \f$ \tau_0 \f$ impacts the minimum up and down time
- * constraints or ram-up and down constraints which are discussed in details
- * below.
- *
- * A possible MIP formulation of the problem uses three sets of binary
- * variables for each time instant \f$ t \in \mathcal{T} \f$:
- *
- * - \f$ u_t = 1\f$ if the unit is on at time period t;
- *   Note that the dimension of variable \f$ u_t \f$ is equal the dimension of
- *   time horizon \f$ \mathcal{T} \f$, and since other two variables below
- *   have the dimensions (\f$ \mathcal{T} \f$ - init_t) which is shorter than
- *   \f$ \mathcal{T} \f$, we need to fix this variable to 1 or 0 for the first
- *   init_t times(from 0 till init_t - 1), so:
- *
- *   - If \f$ \tau_0 \f$ < 0 and - \f$ \tau_0 \f$ < \f$ \tau_- \f$;
- *     then \f$ u_t\f$ must be fixed to 0 from 0 till init_t - 1 time steps
- *
- *   - If \f$ \tau_0 \f$ > 0 and  \f$ \tau_0 \f$ < \f$ \tau_+ \f$;
- *     then \f$ u_t\f$ must be fixed to 1 from 0 till init_t - 1 time steps
- *
- *
- * - \f$ v_t = 1 \f$ if the unit has started in time period t, i.e.,
- *   \f$ u_t = 1 \f$ but \f$ u_{t-1} = 0 \f$;
- *
- * - \f$  w_t = 1 \f$ if the unit shuts down in time period t, i.e.,
- *        \f$ u_{t-1}= 1 \f$ but \f$ u_t = 0 \f$.
- *
- * The main thermal unit constraints are categorized as following:
- *
- * - Min Up/Down-time Constraints: a thermal unit has a minimum up time
- *   \f$ \tau_+ \f$ and a minimum down time \f$ \tau_- \f$ value. It means
- *   that if thermal unit is started up in time \f$t\f$, then it must
- *   remain ON for the next \f$ \tau_+ - 1 \f$ time periods, it means if
- *   \f$ \tau_0 \geq 1 \f$, and that \f$ \tau_+ = 1 \f$ according to the
- *   definition of the first time step concept init_t there is no constraint.
- *
- *   One possible representation of the constraint in terms of the 3 binary
- *   variables \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ defined above is
- *   \f[
- *     u_t - u_{t-1} = v_t - w_t
- *          \quad t \in \{ 2, ...,\mathcal{T} \}                     \quad (1)
- *   \f]
- *   \f[
- *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
- *           u_t \quad t \in \{ \tau_+ + 1, ..., \mathcal{T}\}
- *                                                                   \quad (2)
- *   \f]
- *   \f[
- *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
- *         1 - u_t \quad t \in \{ \tau_- + 1, ...,\mathcal{T} \}
- *                                                                   \quad (3)
- *   \f]
- *
- *   When unit in time t is OFF (\f$ u_t = 0 \f$), it could not have been
- *   turned on in the last \f$ \tau_+ \f$ periods (including period t)
- *   because of the minimum up constraints. But this is exactly what the turn on
- *   inequality (2) for time period t\ says. On the other hand, when unit in
- *   time t is ON (\f$ u_t = 1 \f$), it could have been turned on at most
- *   once in the last \f$ \tau_+ + \tau_- \f$ periods (including t). Similarly
- *   for turn off inequality (3), when unit in the time t is OFF (\f$ u_t = 0
- *   \f$), it could have been turned off at most once in the last
- *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
- *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
- *   off in the last \f$ \tau_- \f$ periods (including period t). Since
- *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
- *   can ensure (for all periods \f$ t \in \{ 2, ..., \mathcal{T} \} \f$) that
- *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
- *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
- *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
- *
- *   //TODO: discuss what happens when t <  \tau_+ + 1 or t <  \tau_- + 1
- *   does above explanation is enough?
- *
- * - Ramp Up/Down-time Constraints:
- *
- *   TODO: first discuss what the constraints should logically achieve
- *         (p_{t+1} \leq p_t + \Delta^+_t ...), then introduce
-
- *   Another set of constraints where each thermal unit may has are ramp
- *   constraints. Here the two-period ramp up inequality is defined separately
- *   and the following constraints are proposed and shown to be valid for
- *   \f$ t= \{ 1, ..,\mathcal{T} - 1\}\f$ where
- *   \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants defining
- *   ramp-up and ramp-down threshold and
- *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining
- *   minimum and maximum output respectively. Let \f$ p_t^{ac} \f$ be the
- *   active power variable in time period t in all time horizon
- *   \f$ \mathcal{T} \f$.
- *
- *   Note that since commitment variable \f$ u_{t} \f$ is fixed to one or zero
- *   for "init_t" time steps(look above comments), and because of power output
- *   constraint (look constraint (9))we also fixed \f$ p_t^{ac} \f$ to zero
- *   for "init_t" time steps.
- *
- *   Analyzing the left hand side of the ramping constraint, in any integral
- *   feasible solution we can see that \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be
- *   bounded from above based on the values of \f$ u_{t+1}\f$, \f$ u_{t}\f$
- *   and \f$ v_{t+1}\f$. It may illustrate in four different ways:
- *
- *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
- *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = 0 \f$.
- *
- *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
- *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} =  \underline{p}_t \f$.
- *
- *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
- *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = - \underline{p}_t \f$.
- *
- *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
- *     upper bound on LHS \f$ p_{t+1}^{ac} - p_t^{ac} = \Delta^+_t \f$.
- *
- *   Considering the same logic for the ramp-down inequalities, nne possible
- *   implementation in terms of the three binary variables:
- *   \f[
- *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
- *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
- *            \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (4)
- *   \f]
- *   Using the symmetry between ramp up and ramp down constraints, we can
- *   derive the ramp-down analogues of the ramp-up inequality as below:
- *   \f[
- *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
- *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
- *            \quad t \in \{1, ..., \mathcal{T} - 1 \}             \quad (5)
- *   \f]
- *
- * - Power output Constraints:
- *
- *   TODO: again it is not very clear what is the logical condition that
- *         the power output constraint should satisfy. Please discuss
- *
- *   There are several types of power out put inequalities which are
- *   considered below. More specially in case  \f$ 2 \leq \tau_+ \f$, the
- *   following constraint is introduced, which is valid for
- *   \f$ t \in \{2, ..., \mathcal{T} - 1\}  \f$:
- *   \f[
- *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
- *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (6)
- *   \f]
- *   and in the case  \f$ \tau_+ = 1 \f$:
- *   \f[
- *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (7)
- *   \f]
- *   \f[
- *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
- *             \quad t \in \{2, ...,  \mathcal{T} - 1\} \quad  (8)
- *   \f]
- *   for the \f$ t \in \{1, ...,  \mathcal{T} \}  \f$ following
- *   inequalities ensure the relation between active output and primary and
- *   secondary spinning reserves:
- *   \f[
- *     p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (9)
- *   \f]
- *   \f[
- *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (10)
- *   \f]
- *
- *   TODO: explain what these do.
- *
- * - Objective function: the objective function of the ThermalUnitBlock
- *   representing the total power production cost to be minimized has the
- *   form:
- *   \f[
- *     \min ( \sum_{ t \in  \mathcal{T}  } s_t v_t +
- *            \sum_{ t \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
- *   \f]
- *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
- *   start-up cost of the unit, which we assume to be time-independent
- *
- *   Note: time-independent means here start-up cost is "independent from how
- *         long the unit has been off", and it is not meaning "always should
- *         be equal at each time instant"
- *
- *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
- *   quadratic, linear, and constant terms of the power cost function of the
- *   unit at time period \f$ t \in \mathcal{T} \f$.
- */
+ * */
 
 class ThermalUnitBlock : public UnitBlock {
 
@@ -286,14 +83,28 @@ class ThermalUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 public:
+/*--------------------------------------------------------------------------*/
+/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * ThermalUnitBlock defines the following main public types:
+ *
+ * - Index, the type of parameters indices;
+ *
+ * @{ */
 
 /*--------------------------------------------------------------------------*/
+
+ typedef std::size_t Index;  ///< index of parameters
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
 
-/// constructor, takes the father and the time horizon
+/// Constructor, takes the father and the time horizon
 /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
  * father Block.
  *
@@ -305,28 +116,17 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- /// destructor of ThermalUnitBlock
+ /// Destructor of ThermalUnitBlock
 
  ~ThermalUnitBlock() override = default;
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
 
-/// loads the ThermalUnitBlock instance from memory
-/** Loads the ThermalUnitBlock instance from memory.
- * Like load( std::istream & ), if there is any Solver attached to this
- * ThermalUnitBlock then a NBModification (the "nuclear option") is issued.
- * */
-
- void load( std::istream &input ) override {
-  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
-  };
-
-/*--------------------------------------------------------------------------*/
-/// extends Block::deserialize( netCDF::NcGroup )
+/// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
  * the group must contain all the data required by the base UnitBlock, as
@@ -441,10 +241,6 @@ public:
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * //TODO: I don't agree, start-up cost can be time-dependent in the sense
- *       of being s_t, although not (for us) in the sense that it depends
- *       on how much the unit has been off beforw restarting
- *
  * - the variable "StartUpCost", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector SC[ t ] which,
  *   for each time instant t, contains the start up cost value of the
@@ -517,49 +313,333 @@ public:
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the ThermalUnit
-/** Method that generates the abstract variables of the ThermalUnitBlock.
+/// Generate the abstract variables of the ThermalUnitBlock
+/** The ThermalUnitBlock class use get_variable() method to access to each
+ *  "group" of variable that are created in UnitBlock class which are:
  *
- * //TODO: this comment is not very clear, please rewrite. In particular,
- *       you give access to these variables with start_up() and shut_down(),
- *       right? Why don't you mention these?
+ *  - the binary commitment variables which takes the value of 1 if unit is ON
+ *    at time instant t and 0 otherwise;
  *
- * //TODO: in UnitBlock we allow not to generate some of the variables with
- *       the stvv, why don't we here? Even if we don't, let's comment it.
+ *  - the primary spinning reserve variables;
  *
- * //TODO: one day we will do the DP formulation, and we will possibly have
- *       different groups of variables.
+ *  - the secondary spinning reserve variables;
  *
- * These are as std::vector< ColVariable >  with exactly :
+ *  - the active power variables;
  *
- *  i). f_time_horizon entries, the entry a = 0, ...,
- *      (f_time_horizon) - 1 corresponding commitment and active power
- *       variables.
+ *  All of those variables are optional except the active power variables in
+ *  the sense that the model may just not have them and whenever a group of
+ *  above variables is created, its size will be the time horizon. Moreover,
+ *  ThermalUnitBlock is defined more groups of variables as follow:
  *
- * ii). ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
- *      (f_time_horizon) - 1 corresponding start_up and
- *      shut_down variables.
+ *  - the binary variable start_up status of the unit which takes the value of
+ *    1 if the unit starts up in time instant t and 0 otherwise;
  *
- *  Note1: commitment variable are fixed to 0 or 1 for the entry a = 0, ...,
- *      init_t - 1.
+ *  - the binary variable shut_down status of the unit which takes the value
+ *    of 1 if the unit shuts down at time instant t and 0 otherwise;
  *
+ *  These two groups of variables have size f_time_horizon - init_t, and
+ *  provide the unit commitment problem with a tight 3-binary MIP formulation.
+ *  Since these two variables may have shorter size (when init_t > 0), the
+ *  commitment variable needs to be fixed to 0 or 1 for the first init_t time
+ *  steps 0, ..., init_t - 1 (see initial time step concept in the
+ *  generate_abstract_constraints()).
  *
- * //TODO: this remark is about constraints, so it should go in
- *       generate_abstract_constraints()
- *
- *  Note2: for the entry a = 0, ..., init_t - 1 when commitment variables fix
- *  to 0 then active power variables fix to 0, but when commitment variables
- *  fix to 1 the bound constraints, a std::vector<LB0Constraint> with exactly
- *  init_t entries, the entry a = 0, ..., init_t - 1 being the bound
- *  constraints of the ColVariable corresponding to the active power
- *  production of the unit.
- *
+ *  All of these variables are optional,and it is also possible to restrict
+ *  which of the subsets are generated with the parameter stvv. If stvv is not
+ *  nullptr and it is a SimpleConfiguration<int>, or if
+ *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
+ *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
+ *  of the optional variables should be created. If the Configuration is not
+ *  available, the default value is taken to be 0.
  * */
 
  void generate_abstract_variables( Configuration *stvv ) override;
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the static constraint of the ThermalUnit
-/** Method that generates the static constraint of the ThermalUnitBlock.
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
+/*--------------------------------------------------------------------------*/
+
+/** @name Reading the Variable of the ThermalUnitBlock
+ *
+ * These methods allow to read the each group of Variable that any
+ * ThermalUnitBlock in principle has (although some may not):
+ *
+ * - start_up variables;
+ *
+ * - shut_down variables;
+ *
+ * @{ */
+
+ /// Returns the vector of start_up variables
+ const std::vector< ColVariable > & get_start_up() const {
+  return v_start_up;
+ }
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of shut_down variables
+ const std::vector< ColVariable > & get_shut_down() const {
+  return v_shut_down;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// Generate the static constraint of the ThermalUnitBlock
+/** This method generates the abstract constraints of the ThermalUnitBlock.
+ *
+ * The operations of the thermal generating unit are described on a discrete
+ * time horizon as dictated by the UnitBlock interface. In this description
+ * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
+ * Considering three parameters: InitUpDownTime \f$ \tau_0 \f$ which can be a
+ * positive or negative(or 0 )integer number and tells for how many time steps
+ * before time step 0 the unit was ON(when\f$ \tau_0 > 0 \f$) or OFF (when
+ * \f$ \tau_0 < 0 \f$), MaxUpTime \f$ \tau_+ \f$ which is a positive
+ * integer number and indicates for how many time steps after time step
+ * 0, the unit can remain ON, and MinDownTime \f$ \tau_- \f$ that is also a
+ * positive integer number and indicates for how many time steps after time
+ * step 0, the unit can remain off). Therefor, the starting-up (shutting-down)
+ * of generating of each unit depends on these three parameters. Then, the
+ * firs time instant may not be always equal to zero. For this matter the
+ * concept of first time instant which is called "init_t" is defined as below:
+ *
+ * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
+ *   \f$ \tau_0 \f$ time stamps prior to time stamp 0 (the beginning of the
+ *   time horizon):
+ *
+ *   - if  \f$ \tau_0 \geq \tau_+ \f$ then init_t = 0 ;
+ *
+ *   - otherwise init_t = \f$ \tau_+ \f$ - \f$ \tau_0 \f$ ;
+ *
+ * - If, instead, \f$ \tau_0 < 0 \f$, this means that the unit has
+ *   been off for \f$ - \tau_0 \f$ time stamps prior to time stamp 0:
+ *
+ *   - if \f$ - \tau_0  \geq \tau_- \f$  then init_t = 0;
+ *
+ *   - otherwise init_t = \f$ \tau_- \f$ + \f$ \tau_0 \f$;
+ *
+ * - If the \f$ \tau_0 == 0\f$ means that the unit has been just shutdown at
+ *   the end of time instant -1, i.e., the beginning of time instant 0 and
+ *   init_t == 0.
+ *
+ * - Note: for the entry a = 0, ..., init_t - 1 when commitment variables fix
+ *   to 0 then active power variables fix to 0, but when commitment variables
+ *   fix to 1 the bound constraints, a std::vector<LB0Constraint> with exactly
+ *   init_t entries, the entry a = 0, ..., init_t - 1 being the bound
+ *   constraints of the ColVariable corresponding to the active power
+ *   production of the unit.
+ *
+ * Then the main thermal unit constraints with three 3 binary variables
+ * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$are are presented as following:
+ *
+ * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
+ *   time constraints and one possible representation of the constraint in
+ *   terms of the
+ *   defined above is:
+ *
+ *   \f[
+ *     u_t - u_{t-1} = v_t - w_t
+ *          \quad t \in \{ 1, ...,\mathcal{T} \}                     \quad (1)
+ *   \f]
+ *   \f[
+ *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
+ *           u_t \quad t \in \{ \tau_+ + 1, ..., \mathcal{T}\}
+ *                                                                   \quad (2)
+ *   \f]
+ *   \f[
+ *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
+ *         1 - u_t \quad t \in \{ \tau_- + 1, ...,\mathcal{T} \}
+ *                                                                   \quad (3)
+ *   \f]
+ *
+ * - since the variables commitment \f$ u_t \f$ have full size of time horizon
+ *   and other two remain variables which are startup \f$ v_t \f$ and shutdown
+ *   \f$ w_t \f$ have size (f_time_horizon - init_t), the equalities (1) show
+ *   a std::vector<FRowConstraint> with exactly (f_time_horizon - init_t)
+ *   entries, the entry a = init_t, ...,(f_time_horizon - 1) being the startup
+ *   and shutdown connecting constraints at time t. According to the concept
+ *   of init_t when \f$ \tau_0 < 0 \f$  and \f$ -\tau_0 < \tau_- \f$ the
+ *   commitment variables \f$ u_t \f$  are fixed to zero for init_t time
+ *   steps(starting from zero till init_t - 1). When \f$ \tau_0 > 0 \f$  and
+ *   \f$ \tau_0 < \tau_+ \f$ the commitment variables \f$ u_t \f$  are fixed
+ *   to one for init_t time steps(starting from zero till init_t - 1). Since
+ *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
+ *   can ensure (for all periods \f$ t \in \{ 1, ..., \mathcal{T} \} \f$) that
+ *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
+ *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
+ *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
+ *
+ *   Considering the above description about the size of each existing binary
+ *   variable, the inequalities (2) show a std::vector<FRowConstraint> with
+ *   exactly (f_time_horizon - init_t - f_MinUpTime) entries, the entry
+ *   a = init_t + f_MinUpTime, ...,(f_time_horizon - 1) being the startup
+ *   constraints at time t. when unit in time t is OFF (\f$ u_t = 0 \f$), it
+ *   could not have been turned on in the last \f$ \tau_+ \f$ periods
+ *   (including period t) because of the minimum up constraints. But this is
+ *   exactly what the turn on inequalities (2) for time period t say. On the
+ *   other hand, when unit in time t is ON (\f$ u_t = 1 \f$), it could have
+ *   been turned on at most once in the last \f$ \tau_+ + \tau_- \f$ periods
+ *   (including t).
+ *
+ *   Similarly for turn off inequalities (3), where it is a
+ *   std::vector<FRowConstraint> with exactly
+ *   (f_time_horizon - init_t - f_MinDownTime) entries, the entry
+ *   a = init_t + f_MinDownTime, ...,(f_time_horizon - 1) being the shutdown
+ *   constraints at time t. when unit in the time t is OFF (\f$ u_t = 0
+ *   \f$), it could have been turned off at most once in the last
+ *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
+ *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
+ *   off in the last \f$ \tau_- \f$ periods (including period t).
+ *
+ * - Ramp Up/Down-time Constraints:
+ *
+ *   Another set of constraints where each thermal unit may have are ramping
+ *   constraints. The ramp-up constraints is a std::vector<FRowConstraint>
+ *   with exactly f_time_horizon entries, which are
+ *   a = 0, ..., (f_time_horizon - 1). The one possible implementation in
+ *   terms of the three binary variables for ramp-up constraints is:
+ *   \f[
+ *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
+ *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
+ *            \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (4)
+ *   \f]
+ *
+ *   where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants
+ *   defining ramp-up threshold and \f$ \underline{p}_t  \f$ and
+ *   \f$ \bar{p}_t \f$  are the defining minimum and maximum output
+ *   respectively. Let \f$ p_t^{ac} \f$ be the active power variable in time
+ *   period t in all time horizon \f$ \mathcal{T} \f$.
+ *
+ *   According to above definition about the size of variables and since the
+ *   variables commitment \f$ u_t \f$ have full size of time horizon and
+ *   startup \f$ v_t \f$ variables have size (f_time_horizon - init_t).
+ *   Analyzing the left hand side of the ramp-up constraint(4), in any
+ *   integral feasible solution we can see that
+ *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
+ *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ v_{t+1}\f$. Then for each
+ *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>
+ *   there are four possible cases:
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
+ *
+ *   Using the symmetry between ramp up and ramp down constraints, we can
+ *   derive the ramp-down analogues of the ramp-up inequality as below:
+ *   \f[
+ *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
+ *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
+ *            \quad t \in \{1, ..., \mathcal{T} - 1 \}             \quad (5)
+ *   \f]
+ *
+ *   The sam analyzing the left hand side of the ramp-down constraint(5), in
+ *   any integral feasible solution we can see that
+ *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
+ *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ w_{t+1}\f$. Then for each
+ *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>
+ *   there are four possible cases:
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+ *
+ *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^-_t \f$.
+ *
+ * - Power output Constraints:
+ *   Since commitment variable \f$ u_{t} \f$ is fixed to one or zero
+ *   for "init_t" time steps(look above comments), because of power output
+ *   constraint (look constraint (6)) when for the (0, ..., init_t - 1) time
+ *   steps, commitment variable \f$ u_{t} \f$ is fixed to zero we must fix
+ *   \f$ p_t^{ac} \f$, \f$ p_t^{pr} \f$, and \f$ p_t^{sc}\f$ to zero for the same
+ *   time steps.
+ *
+ *   Maximum and minimum power output constraints according to active power,
+ *   primary and secondary spinning reserves variables are presented in
+ *   inequalities (6) and (7) respectively. Each of them is a
+ *   std::vector<FRowConstraint> with exactly f_time_horizon entries
+ *   (0, ..., (f_time_horizon) - 1) and ensures the maximum(or minimum) amount
+ *   of energy that unit can produce(or use) when it is on(or off).
+ *   \f[
+ *
+ *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (6)
+ *
+ *   \f]
+ *
+ *   \f[
+ *
+ *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (7)
+ *
+ *   \f]
+ *
+ *   The same as inequalities(6)-(7), the inequalities(8)-(9) ensure that
+ *   maximum amount of primary and secondary spinning reserve in the problem
+ *   respectively. Each of them is a std::vector<FRowConstraint> with exactly
+ *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:
+ *
+ *   \f[
+ *     p_t^{pr} \leq \rho{pr}_t p_t^{ac}                       \quad (8)
+ *   \f]
+ *   \f[
+ *     p_t^{sc} \leq \rho{sc}_t p_t^{ac}                        \quad (9)
+ *   \f]
+ *   There are two more power out put tighter formulations which make the
+ *   maximum power output being a function of three binary variables
+ *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ as below. More specifically in
+ *   the case  \f$ \tau_+ \geq 2 \f$, the
+ *   following constraint is introduced, which is valid for
+ *   \f$ t \in \{2, ..., \mathcal{T} - 1\}  \f$:
+ *
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
+ *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
+ *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (10)
+ *   \f]
+ *
+ *   and in the case  \f$ \tau_+ = 1 \f$:
+ *
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
+ *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (11)
+ *   \f]
+ *
+ *   \f[
+ *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
+ *             \quad t \in \{2, ...,  \mathcal{T} - 1\} \quad  (12)
+ *   \f]
+ *
+ *   for the \f$ t \in \{0, ...,  \mathcal{T} - 1 \}  \f$ following
+ *   inequalities ensure the relation between active output and primary and
+ *   //TODO: explain what these do.
+ *
+ * - Objective function: the objective function of the ThermalUnitBlock
+ *   representing the total power production cost to be minimized has the
+ *   form:
+ *
+ *   \f[
+ *     \min ( \sum_{ t \in  \mathcal{T}  } s_t v_t +
+ *            \sum_{ t \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *   \f]
+ *
+ *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
+ *   start-up cost of the unit, which we assume to be time-independent
+ *
+ *   Note: time-independent means here start-up cost is "independent from how
+ *         long the unit has been off", and it is not meaning "always should
+ *         be equal at each time instant"
+ *
+ *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
+ *   quadratic, linear, and constant terms of the power cost function of the
+ *   unit at time period \f$ t \in \mathcal{T} \f$.
  *
  * //TODO: we could allow to only generate a subset of those via stcc.
  *       Maybe we don't want to.
@@ -569,13 +649,6 @@ public:
  *
  * These are the:
  *
- * - Min Up/Down-time Constraints, a std::vector<FRowConstraint> with
- *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
- *   (f_time_horizon) - 1 being the minimum up/down constraints at time t;
- *
- * - Ramp Up/Down-time Constraints, a std::vector<FRowConstraint> with
- *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
- *   (f_time_horizon) - 1 being the ramp up/down time constraints at time t;
  *
  * - Power output Constraints, a std::vector<FRowConstraint> with
  *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
@@ -625,11 +698,22 @@ public:
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*-------------- METHODS FOR INITIALIZING THE ThermalUnitBlock -------------*/
+/*--------------------------------------------------------------------------*/
+
+/** @name Handling the data of the ThermalUnitBlock
+    @{ */
+
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet") );
+ };
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
@@ -655,14 +739,14 @@ public:
    return v_shut_down[ t - init_t ];
  }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
 
  /// the vector of change interval
- std::vector< int >  v_change_interval;
+ std::vector< Index >  v_change_interval;
 
  /// the vector of MinPower
  std::vector< double >  v_MinPower;
@@ -707,16 +791,16 @@ public:
  double f_initial_delta_ramp_down{};
 
  /// the MinUpTime value
- int f_MinUpTime{};
+ Index f_MinUpTime;
 
  /// the MinDownTime value
- int f_MinDownTime{};
+ Index f_MinDownTime;
 
  /// the InitUpDownTime value
- int f_InitUpDownTime{};
+ Index f_InitUpDownTime;
 
  /// variable denoting the time-steps unit is subjected to initial conditions
- Index init_t{};
+ Index init_t;
 
 /*-----------------------------variables------------------------------------*/
 
