@@ -28,7 +28,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 
@@ -67,23 +67,23 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::generate_abstract_variables( Configuration *stvv ) {
+void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
-  auto network_data = new NetworkBlock::NetworkData();
+ auto network_data = new NetworkBlock::NetworkData();
 
-  unsigned int number_nodes =  network_data ->get_number_nodes();
+ unsigned int number_nodes = network_data->get_number_nodes();
 
 
-  if (number_nodes == 1) {
+ if( number_nodes == 1 ) {
 
-    auto active_demand = get_active_demand()[number_nodes];
+  auto active_demand = get_active_demand()[ number_nodes ];
 
-    v_node_injection[number_nodes].set_value(active_demand);
-    v_node_injection[number_nodes].is_fixed(true);
+  v_node_injection[ number_nodes ].set_value( active_demand );
+  v_node_injection[ number_nodes ].is_fixed( true );
 
-  } else {
-    throw (std::logic_error("BusNetworkBlock has not define"));
-  }
+ } else {
+  throw ( std::logic_error( "BusNetworkBlock has not define" ) );
+ }
 }
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

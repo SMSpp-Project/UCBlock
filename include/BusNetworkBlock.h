@@ -30,7 +30,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
@@ -38,8 +38,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BusNetworkBlock
- #define __BusNetworkBlock
-                      /* self-identification: #endif at the end of the file */
+#define __BusNetworkBlock
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -59,19 +59,19 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// a NetworkBlock with only one node, i.e., a "bus" transmission network
+/// A NetworkBlock with only one node, i.e., a "bus" transmission network
 /** The BusNetworkBlock class, which derives from NetworkBlock [see
  *  NetworkBlock.h] implements the Block concept [see Block.h] in order to
  *  define a "bus" transmission network in the Unit Commitment problem for a
  *  given instant in the time horizon. */
 
- class BusNetworkBlock : public NetworkBlock {
+class BusNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -79,14 +79,15 @@ namespace SMSpp_di_unipi_it {
 /** @name Constructor and Destructor
  *  @{ */
 
-/// constructor of BusNetworkBlock, taking possibly a pointer to its father
+ /// Constructor of BusNetworkBlock, taking possibly a pointer to its father
 
- BusNetworkBlock( Block * f_block = nullptr ): NetworkBlock( f_block ) { }
+ explicit BusNetworkBlock( Block * f_block = nullptr ) :
+  NetworkBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
-/// destructor of BusNetworkBlock, (understandably) does nothing
+ /// Destructor of BusNetworkBlock, (understandably) does nothing
 
- virtual ~BusNetworkBlock() {}
+ ~BusNetworkBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -94,27 +95,24 @@ namespace SMSpp_di_unipi_it {
 /** @name Other initializations
  *  @{ */
 
-/// loads the BusNetworkBlock instance from memory
-/** Loads the BusNetworkBlock instance from memory.
- *  Like load( std::istream & ), if there is any Solver attached to this
+/// Loads the BusNetworkBlock instance from memory
+/** Like load( std::istream & ), if there is any Solver attached to this
  *  BusNetworkBlock then a NBModification (the "nuclear option") is issued.
- * */
+ */
 
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
-  }
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
-/// generate the static variables of BusNetworkBlock
-/** Method that generates the static variables of this BusNetworkBlock. The
- * base BusNetworkBlock class has just the node injection variables. Since, a
- * "bus" network has just one node, and therefore a single value D for the
- * demand and a single injection variable s, which can hardly be called a
+/// Generates the static variables of BusNetworkBlock
+/** The base BusNetworkBlock class has just the node injection variables.
+ * Since a "bus" network has just one node, and therefore a single value D for
+ * the demand and a single injection variable s, which can hardly be called a
  * variable since the only possible way to satisfy the constraints is by
  * having s = D which in fact makes the variable a constant.*/
 
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-    override;
+ void generate_abstract_variables( Configuration * stvv ) override;
 
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE BusNetworkBlock ----------------*/
@@ -122,18 +120,17 @@ namespace SMSpp_di_unipi_it {
 /** @name Methods for modifying the BusNetworkBlock
  *  @{ */
 
- /// method to set the NetworkData object
- /** Method to set the NetworkData object. This method does nothing in
-  * BusNetworkBlock because by definition the network is made by only one
-  * node. */
- 
- void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override { }
+ /// Method to set the NetworkData object
+ /** This method does nothing in BusNetworkBlock because by definition
+  * the network is made by only one node. */
+
+ void set_NetworkData( NetworkBlock::NetworkData * nd ) override {}
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
@@ -143,7 +140,7 @@ namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 
-  };   // end( class( BusNetworkBlock ) )
+};   // end( class( BusNetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
