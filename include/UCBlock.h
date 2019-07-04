@@ -822,7 +822,7 @@ class UCBlock : public Block {
   *
   * - if the vector is empty, then the there is no heat block;
   *
-  * - if the vector only has one element, then the is just one heat block in
+  * - if the vector only has one element, then there is just one heat block in
   *   the problem;
   *
   * - otherwise the vector must have the size of the number of heat blocks,
