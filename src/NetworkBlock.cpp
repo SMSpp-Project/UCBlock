@@ -28,7 +28,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
+ * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
  * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
@@ -53,44 +53,49 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group  ) {
+NetworkBlock::NetworkData::NetworkData() {
+ f_number_lines = 0;
+ f_number_nodes = 0;
+}
 
-  ::deserialize_dim( group, "NumberNodes",     f_number_nodes );
+void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
-  if( f_number_nodes > 1 ) {
-    ::deserialize_dim( group, "NumberLines",     f_number_nodes );
+ ::deserialize_dim( group, "NumberNodes", f_number_nodes );
 
-    ::deserialize( group, "StartLine",         f_number_nodes, v_start_line );
-    ::deserialize( group, "EndLine",             f_number_nodes, v_end_line );
+ if( f_number_nodes > 1 ) {
+  ::deserialize_dim( group, "NumberLines", f_number_nodes );
 
-    for (Index line = 0; line < f_number_lines; ++line){
-      if(v_min_power_flow[ line ] <= 0  && 0 <= v_max_power_flow[ line ]){
+  ::deserialize( group, "StartLine", f_number_nodes, v_start_line );
+  ::deserialize( group, "EndLine", f_number_nodes, v_end_line );
 
-    ::deserialize( group, "MinPowerFlow",  f_number_lines, v_min_power_flow );
-    ::deserialize( group, "MaxPowerFlow",  f_number_lines, v_max_power_flow );
-      }
-      else{
-        throw( std::logic_error( "UCBlock::NetworkData::deserialize: "
-                                 "MinPowerFlow larger than MaxPowerFlow" ) );
-      }
-    }
-    ::deserialize( group, "Susceptance",      f_number_lines, v_susceptance );
+  for( Index line = 0; line < f_number_lines; ++line ) {
+   if( v_min_power_flow[ line ] <= 0 && 0 <= v_max_power_flow[ line ] ) {
+
+    ::deserialize( group, "MinPowerFlow", f_number_lines, v_min_power_flow );
+    ::deserialize( group, "MaxPowerFlow", f_number_lines, v_max_power_flow );
+   } else {
+    throw ( std::logic_error( "UCBlock::NetworkData::deserialize: "
+                              "MinPowerFlow larger than MaxPowerFlow" ) );
+   }
   }
+  ::deserialize( group, "Susceptance", f_number_lines, v_susceptance );
+ }
 
 }
+
 /*--------------------------------------------------------------------------*/
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
-  auto network_data = new NetworkBlock::NetworkData();
-  network_data->deserialize( group );
+ auto network_data = new NetworkBlock::NetworkData();
+ network_data->deserialize( group );
 
-  auto dim_number_nodes = group.getDim( "NumberNodes" );
+ auto dim_number_nodes = group.getDim( "NumberNodes" );
 
-  if( ! dim_number_nodes.isNull() )
-    ::deserialize( group, "ActiveDemand", dim_number_nodes.getSize(),
-                   v_active_demand );
+ if( !dim_number_nodes.isNull() )
+  ::deserialize( group, "ActiveDemand", dim_number_nodes.getSize(),
+                 v_active_demand );
 
-} // end( NetworkBlock::deserialize )
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -100,37 +105,38 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 
-  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
+ auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
 
-  if( f_number_nodes > 1 ) {
-    auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
+ if( f_number_nodes > 1 ) {
+  auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
 
-    ::serialize( group, "StartLine", netCDF::NcUint64(),
-                 { dim_number_nodes }, v_start_line );
+  ::serialize( group, "StartLine", netCDF::NcUint64(),
+               { dim_number_nodes }, v_start_line );
 
-    ::serialize( group, "EndLine", netCDF::NcUint64(),
-                 { dim_number_nodes }, v_end_line );
+  ::serialize( group, "EndLine", netCDF::NcUint64(),
+               { dim_number_nodes }, v_end_line );
 
-    ::serialize( group, "MinPowerFlow", netCDF::NcDouble(),
-                 { dim_number_lines }, v_min_power_flow );
+  ::serialize( group, "MinPowerFlow", netCDF::NcDouble(),
+               { dim_number_lines }, v_min_power_flow );
 
-    ::serialize( group, "MaxPowerFlow", netCDF::NcDouble(),
-                 { dim_number_lines }, v_max_power_flow );
+  ::serialize( group, "MaxPowerFlow", netCDF::NcDouble(),
+               { dim_number_lines }, v_max_power_flow );
 
-    ::serialize( group, "Susceptance", netCDF::NcDouble(),
-                 { dim_number_lines }, v_susceptance );
-  }
+  ::serialize( group, "Susceptance", netCDF::NcDouble(),
+               { dim_number_lines }, v_susceptance );
+ }
 
 }
+
 /*--------------------------------------------------------------------------*/
-void NetworkBlock::serialize(netCDF::NcGroup &group) const {
+void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-  group.putAtt( "type", "NetworkBlock" );
-  auto dim_number_nodes = group.getDim( "NumberNodes" );
+ group.putAtt( "type", "NetworkBlock" );
+ auto dim_number_nodes = group.getDim( "NumberNodes" );
 
-  if( ! dim_number_nodes.isNull() )
-    ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
-                 { dim_number_nodes }, v_active_demand );
+ if( !dim_number_nodes.isNull() )
+  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
+               { dim_number_nodes }, v_active_demand );
 
 } // end( NetworkBlock::serialize )
 

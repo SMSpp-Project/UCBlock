@@ -42,7 +42,7 @@
 
 #ifndef __NetworkBlock
 #define __NetworkBlock
-                      /* self-identification: #endif at the end of the file */
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -62,7 +62,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Block that described the transmission network in the UC problem
+/// Block that describes the transmission network in the UC problem
 /** The class NetworkBlock, which derives from the Block, defines the basic
  * interface for the constraints/optimization problems which describe the
  * behaviour of the transmission network in a specific time instant in the
@@ -72,7 +72,7 @@ namespace SMSpp_di_unipi_it {
  * topology (and capacity/susceptances) of the network, and the active power
  * demand at the different nodes in the given time instant. Details of the
  * kind of network that is implemented ("bus", DC equations, AC equations,
- * OPF, ...) are entirely demanded to derived variables. The interface
+ * OPF, ...) are entirely demanded to derived objects. The interface
  * between a NetworkBlock and the rest of the UC is just the vector of
  * node injection variables, which will have to satisfy the technical
  * constraints of the transmission network. */
@@ -99,7 +99,7 @@ class NetworkBlock : public Block {
  *   network.
  *  @{ */
 
-typedef std::size_t Index;                 ///< index of parameters
+ typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
@@ -107,10 +107,10 @@ typedef std::size_t Index;                 ///< index of parameters
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// auxiliary class to hold basic data about the transmission network
-/** The NetworkData class is a nested sub_class into the NetworkBlock, which
- * only serves to have a quick way to load all the basic data (topology and
- * electrical characteristics) that describes the transmission network.
+/// Auxiliary class holding basic data about the transmission network
+/** The NetworkData class is a nested sub-class which only serves to have a
+ * quick way to load all the basic data (topology and electrical
+ * haracteristics) that describe the transmission network.
  * The rationale is that while often the network does not change during the
  * (short) time horizon of UC, it makes sense to allow for this to happen.
  * This means that individual NetworkBlock objects may in principle have
@@ -123,7 +123,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
 /*--------------------------------------------------------------------------*/
 
- public:
+  public:
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -131,11 +131,11 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Constructor and Destructor
  *  @{ */
 
- /// constructor of NetworkData, does nothing
- NetworkData() = default;
+  /// Constructor of NetworkData
+  NetworkData();
 
-/// destructor of NetworkData: it is virtual, and empty
- virtual ~NetworkData() = default;
+  /// Destructor of NetworkData: it is virtual, and empty
+  virtual ~NetworkData() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -143,7 +143,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Other initializations
  *  @{ */
 
-/// deserialize a NetworkData out of a netCDF::NcGroup
+/// Deserialize a NetworkData out of a netCDF::NcGroup
 /** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
  * the following:
  *
@@ -194,39 +194,39 @@ typedef std::size_t Index;                 ///< index of parameters
  *       - min capacity <= 0 <= max capacity
  *       - susceptance > 0 (if it is)
  */
- virtual void deserialize( netCDF::NcGroup & group );
+  virtual void deserialize( netCDF::NcGroup & group );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
-/// returns the number of nodes of the network
+/// Returns the number of nodes of the network
 /** Method for returning the number of nodes of the network. This number
  *  should change between 1 and f_number_nodes. When it is equal to one, it
  *  means the transmission network is bus, otherwise this gives the number of
  *  nodes in the available transmission network in the UC problem.
  * */
- Index get_number_nodes( void ) const { return f_number_nodes; }
+  Index get_number_nodes() const { return f_number_nodes; }
 
 /*--------------------------------------------------------------------------*/
-/// returns the number of lines of the network
+/// Returns the number of lines of the network
 /** Method for returning the number of lines of the network. This number
  *  should change between 0 and f_number_lines. When it is equal to zero, it
  *  means the transmission network is bus and we dont have any line(not
  *  needed to be defined), otherwise this gives the number of lines in the
  *  available transmission network in the UC problem.
  * */
- Index get_number_lines( void ) const { return f_number_lines; }
+  Index get_number_lines() const { return f_number_lines; }
 
 /*--------------------------------------------------------------------------*/
-/// returns the start node of the given line
+/// Returns the start node of the given line
 /** Method for returning the vector of starting point of each line.
  * */
- Index get_start_line( Index node ) const {
-       return( v_start_line.empty() ? 0 : v_start_line[ node ] );
- }
+  Index get_start_line( Index node ) const {
+   return v_start_line.empty() ? 0 : v_start_line[ node ];
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns the vector of start nodes
+/// Returns the vector of start nodes
 /** Method for returning the vector of starting point of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
  *  then there are two possible cases:
@@ -238,19 +238,19 @@ typedef std::size_t Index;                 ///< index of parameters
  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
  *    element of the vectors gives starting point of each line in the network.
  * */
- const std::vector< int > & get_start_line( void ) const {
-       return( v_start_line );
- }
+  const std::vector< int > & get_start_line() const {
+   return v_start_line;
+  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the end node of the given line
+/// Returns the end node of the given line
 /** Method for returning the vector of ending point of each line. */
- Index get_end_line( Index node ) const {
-       return( v_end_line.empty() ? 0 : v_end_line[ node ] );
- }
+  Index get_end_line( Index node ) const {
+   return v_end_line.empty() ? 0 : v_end_line[ node ];
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns vector of end nodes
+/// Returns vector of end nodes
 /** Method for returning the vector of ending point of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
  *  then there are two possible cases:
@@ -262,19 +262,19 @@ typedef std::size_t Index;                 ///< index of parameters
  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
  *    element of the vectors gives ending point of each line in the network.
  * */
- const std::vector< int > & get_end_line( void ) const {
-       return( v_end_line );
- }
+  const std::vector< int > & get_end_line() const {
+   return v_end_line;
+  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the minimum power flow for the given line l
+/// Returns the minimum power flow for the given line l
 /** Method for returning the vector of minimum power flow of each line. */
- double get_min_power_flow( Index line ) const {
-       return( v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ] );
- }
+  double get_min_power_flow( Index line ) const {
+   return v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ];
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns vector of the minimum power flow
+/// Returns vector of the minimum power flow
 /** Method for returning the vector of minimum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
  *  then there are two possible cases:
@@ -285,19 +285,19 @@ typedef std::size_t Index;                 ///< index of parameters
  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
  *    element of the vectors gives minimum power flow of each line in the network.
  * */
- const std::vector< double > & get_min_power_flow( void ) const {
-       return( v_min_power_flow );
- }
+  const std::vector< double > & get_min_power_flow() const {
+   return v_min_power_flow;
+  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the maximum power flow for the given line l
+/// Returns the maximum power flow for the given line l
 /** Method for returning the vector of maximum power flow of each line.*/
- double get_max_power_flow( Index line ) const {
-       return( v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ] );
- }
+  double get_max_power_flow( Index line ) const {
+   return v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ];
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns vector of the maximum power flow
+/// Returns vector of the maximum power flow
 /** Method for returning the vector of maximum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
  *  then there are two possible cases:
@@ -308,19 +308,19 @@ typedef std::size_t Index;                 ///< index of parameters
  *  - if f_number_lines >= 1, this vector have size of f_number_lines and
  *    each element of the vectors gives maximum power flow of each line in
  *    the network.*/
- const std::vector< double > & get_max_power_flow( void ) const {
-       return( v_max_power_flow );
- }
+  const std::vector< double > & get_max_power_flow() const {
+   return v_max_power_flow;
+  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the Susceptance for the given line l
+/// Returns the Susceptance for the given line l
 /** Method for returning the vector of Susceptance of each line. */
- double get_susceptance( Index line ) const {
-       return( v_susceptance.empty() ? 0 : v_susceptance[ line ] );
- }
+  double get_susceptance( Index line ) const {
+   return v_susceptance.empty() ? 0 : v_susceptance[ line ];
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns vector of the Susceptances
+/// Returns vector of the Susceptances
 /** Method for returning the vector of Susceptances for each line.  This
  *  vector may have empty size (bus network) or the size of number of nodes,
  *  then there are two possible cases:
@@ -332,9 +332,9 @@ typedef std::size_t Index;                 ///< index of parameters
  *    element of the vectors gives the Susceptance value for each line in the
  *    network.
  **/
- const std::vector< double > & get_susceptance( void ) const {
-       return( v_susceptance );
- }
+  const std::vector< double > & get_susceptance() const {
+   return v_susceptance;
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -342,18 +342,18 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Methods for loading, printing & saving the NetworkData
  *  @{ */
 
-/// serialize a NetworkData out of a netCDF::NcGroup
+/// Serialize a NetworkData out of a netCDF::NcGroup
 /** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
  * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
  * of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const;
+  virtual void serialize( netCDF::NcGroup & group ) const;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
- protected:
+  protected:
 
 /*--------------------------------------------------------------------------*/
 /*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
@@ -361,43 +361,43 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Methods for modifying the NetworkData
  *  @{ */
 
- Index f_number_nodes;    ///< number of nodes of the network
+  Index f_number_nodes;    ///< Number of nodes of the network
 
- Index f_number_lines;    ///< number of lines of the network
+  Index f_number_lines;    ///< Number of lines of the network
 
- std::vector< int > v_start_line;  ///< vector of starting nodes
+  std::vector< int > v_start_line;  ///< Vector of starting nodes
 
- std::vector< int > v_end_line;    ///< vector of ending nodes
+  std::vector< int > v_end_line;    ///< Vector of ending nodes
 
- /// vector to store the susceptance of each line of the network
- std::vector< double > v_susceptance;
+  /// Vector to store the susceptance of each line of the network
+  std::vector< double > v_susceptance;
 
- /// vector to store the minimum power flow at each line
- std::vector< double > v_min_power_flow;
+  /// Vector to store the minimum power flow at each line
+  std::vector< double > v_min_power_flow;
 
- /// vector to store the maximum power flow at each line
- std::vector< double > v_max_power_flow;
-
-/*--------------------------------------------------------------------------*/
-
-    };   // end( class( NetworkData ) )
+  /// Vector to store the maximum power flow at each line
+  std::vector< double > v_max_power_flow;
 
 /*--------------------------------------------------------------------------*/
+
+ };   // end( class( NetworkData ) )
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
 
-/// constructor, takes the father
+/// Constructor, takes the father
 /** Constructor of NetworkBlock, taking possibly a pointer of its father
  * Block. */
 
- NetworkBlock( Block * father = nullptr ) : Block( father ) { }
+ explicit NetworkBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
-/// destructor of NetworkBlock
+/// Destructor of NetworkBlock
 
- virtual ~NetworkBlock() {}
+ ~NetworkBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -405,7 +405,7 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Other initializations
  *  @{ */
 
-/// extends Block::deserialize( netCDF::NcGroup )
+/// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
@@ -428,10 +428,10 @@ typedef std::size_t Index;                 ///< index of parameters
  *   indexed over the dimension "NumberNodes", which can be read via
  *   NetworkData::get_number_nodes(). */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the static variables of NetworkBlock
+/// Generate the static variables of NetworkBlock
 /** Method that generates the static variables of this NetworkBlock. The
  * base NetworkBlock class has just the node injection variables. which is
  * mandatory as that's how the NetworkBlock is linked to the rest of the UC
@@ -448,14 +448,18 @@ typedef std::size_t Index;                 ///< index of parameters
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-   override;
+ void generate_abstract_variables( Configuration * stvv ) override = 0;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
-  }
+/**
+ * @brief It loads a NetworkBlock from a input standard stream.
+ * @warning This method is not implemented yet.
+ * @param input an input stream
+ */
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -463,9 +467,8 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Methods for modifying the NetworkBlock
  *  @{ */
 
- /// method to set the NetworkData object
- /** Method to set the NetworkData object.
-  * This method can be called *before* that deserialize() is called to provide
+ /// Method to set the NetworkData object
+ /** This method can be called *before* that deserialize() is called to provide
   * the NetworkBlock with the data corresponding to the transmission network
   * description. This allows the information not to be duplicated in the
   * netCDF group that describes the NetworkBlock, since usually (but not
@@ -509,7 +512,7 @@ typedef std::size_t Index;                 ///< index of parameters
   * fact, this method is pure virtual), so it is demanded to derived classes.
   */
 
- virtual void set_NetworkData( NetworkData * nd = nullptr ) = 0;
+ virtual void set_NetworkData( NetworkData * nd ) = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -517,15 +520,13 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Reading the data of the NetworkBlock
     @{ */
 
- /// returns the the active demand for the given node
- /** Method for returning the active demand for the given node.
-  * */
+ /// Returns the the active demand for the given node
  double get_active_demand( Index node ) const {
-  return( v_active_demand.empty() ? 0 : v_active_demand[ node ] );
-  }
+  return v_active_demand.empty() ? 0 : v_active_demand[ node ];
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the vector of active demands
+ /// Returns the vector of active demands
  /** Method for returning the active demand for the given node. There are
   *  two possible cases:
   *
@@ -537,18 +538,20 @@ typedef std::size_t Index;                 ///< index of parameters
   *    active demand of corresponding node in the existing network.
   *
   * */
- const std::vector< double > & get_active_demand( void ) const {
-  return( v_active_demand );
+ const std::vector< double > & get_active_demand() const {
+  return v_active_demand;
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the NetworkData object
- /** Returns the NetworkData object. The method of the base class always
-  * returns nullptr, because the base class does not handle the NetworkData
-  * object. This is OK for derived classes that only handle the "bus" case.
+ /// Returns the NetworkData object
+ /** The method of the base class always returns nullptr, because the base
+  * class does not handle the NetworkData object.
+  * This is OK for derived classes that only handle the "bus" case.
   */
 
- virtual NetworkData * get_NetworkData() const { return( nullptr ); }
+ virtual NetworkData * get_NetworkData() const {
+  return nullptr;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -560,18 +563,16 @@ typedef std::size_t Index;                 ///< index of parameters
  *
  * @{ */
 
-/// returns the vector of node injection variables
-
- const std::vector<ColVariable> & get_node_injection( void ) const {
-  return( v_node_injection );
-  }
+/// Returns the vector of node injection variables
+ const std::vector< ColVariable > & get_node_injection() const {
+  return v_node_injection;
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// returns the node injection variable of node n
-
- ColVariable & get_node_injection( Index node )  {
-  return( v_node_injection[ node ] );
-  }
+/// Returns the node injection variable of node n
+ ColVariable & get_node_injection( Index node ) {
+  return v_node_injection[ node ];
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
@@ -579,12 +580,12 @@ typedef std::size_t Index;                 ///< index of parameters
 /** @name Methods for loading, printing & saving the NetworkBlock
  *  @{ */
 
-/// extends Block::serialize( netCDF::NcGroup )
+/// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -596,10 +597,10 @@ typedef std::size_t Index;                 ///< index of parameters
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// vector to store the demand of each node of the network
+ /// Vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
 
- /// power injection at each node
+ /// Power injection at each node
  std::vector< ColVariable > v_node_injection;
 
 /*--------------------------------------------------------------------------*/
