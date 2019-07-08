@@ -47,7 +47,7 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "UCBlock.h"
-#include "UnitBlock.h"
+#include "MultiUnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -76,8 +76,8 @@ UCBlock::UCBlock( Block * father ) : Block( father ) {
  f_number_pollutants = 0;
 }
 
-UnitBlock * UCBlock::get_unit_block( Index i ) const {
- return dynamic_cast<UnitBlock *>( v_Block[ i ] );
+MultiUnitBlock * UCBlock::get_unit_block( Index i ) const {
+ return dynamic_cast<MultiUnitBlock *>( v_Block[ i ] );
 }
 
 NetworkBlock * UCBlock::get_network_block( Index t ) const {
@@ -93,7 +93,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
  v_Block.clear();
 
- deserialize_sub_blocks( group, "UnitBlock_", f_number_units );
+ deserialize_sub_blocks( group, "MultiUnitBlock", f_number_units );
  deserialize_sub_blocks( group, "NetworkBlock_", f_time_horizon );
  deserialize_sub_blocks( group, "HeatBlock_", f_number_heat_blocks );
 
@@ -289,7 +289,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
     Index node_id = get_unit_node()[ unit_id ];
-
+/* //TODO Fixe me
     auto fixed_consumption =
      get_unit_block( unit_id )->get_fixed_consumption()[ t ];
 
@@ -300,11 +300,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_node_injection_constraints[ t ][ node_id ].get_function());
 
-    auto power = &get_unit_block( unit_id )->get_active_power( t );
-    auto commitment = &( get_unit_block( unit_id )->get_commitment( t ) );
+    auto power = &get_unit_block( unit_id )->get_active_power() [ t ];
+    auto commitment = &( get_unit_block( unit_id )->get_commitment() [ t ] ;
 
     linear_function->add_variable( power, 1.0 );
-    linear_function->add_variable( commitment, -fixed_consumption );
+    linear_function->add_variable( commitment, -fixed_consumption );*/
    }
   }
 
@@ -347,12 +347,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      continue; // this unit does not belong to any zone
 
     auto primary_spinning_reserve = get_unit_block( unit_id )
-     ->get_primary_spinning_reserve( t );
+     ->get_primary_spinning_reserve() [ t ];
 
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function());
-    linear_function->
-     add_variable( &primary_spinning_reserve, 1.0 );
+  //  linear_function->
+  //   add_variable( &primary_spinning_reserve, 1.0 );
    }
   }
 
@@ -395,11 +395,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      continue; // this unit does not belong to any zone
 
     auto secondary_spinning_reserve = get_unit_block( unit_id )->
-     get_secondary_spinning_reserve( t );
+     get_secondary_spinning_reserve() [ t ];
 
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function());
-    linear_function->add_variable( &secondary_spinning_reserve, 1.0 );
+//    linear_function->add_variable( &secondary_spinning_reserve, 1.0 );
    }
   }
 
@@ -440,15 +440,15 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     auto zone_id = get_inertia_zone()[ node_id ];
     if( zone_id >= f_number_inertia_zones )
      continue; // this unit does not belong to any zone
-
+/* //TODO FIX ME
     auto commitment_variable =
-     &get_unit_block( unit_id )->get_commitment( t );
+     &get_unit_block( unit_id )->get_commitment() [ t ];
 
     auto inertia_commitment =
-     get_unit_block( unit_id )->get_inertia_commitment()[ t ];
+     get_unit_block( unit_id )->get_inertia_commitment()[][ t ];
 
     auto active_power_variable =
-     &get_unit_block( unit_id )->get_active_power( t );
+     &get_unit_block( unit_id )->get_active_power() [ t ];
 
     auto inertia_power =
      get_unit_block( unit_id )->get_inertia_power()[ t ];
@@ -458,7 +458,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     linear_function->
      add_variable( commitment_variable, inertia_commitment );
-    linear_function->add_variable( active_power_variable, inertia_power );
+    linear_function->add_variable( active_power_variable, inertia_power ); */
    }
   }
 
@@ -508,12 +508,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       continue; // this unit does not belong to any zone
 
      auto rho = get_pollutant_rho()[ t ][ pollutant ][ unit_id ];
-     auto active_power = get_unit_block( unit_id )->get_active_power( t );
+     auto active_power = get_unit_block( unit_id )->get_active_power() [ t ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-     linear_function->add_variable( &active_power, rho );
+     //linear_function->add_variable( &active_power, rho );
     }
 
     // Terms associated with heat-only generation units
@@ -612,14 +612,14 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        ( new LinearFunction() );
      }
 
-     auto active_power = get_unit_block( unit_id )->get_active_power( t );
+     auto active_power = get_unit_block( unit_id )->get_active_power() [ t ];
      auto heat = get_heat_block() [ heat_unit_id ]->get_heat( t );
      auto power_heat_rho = get_power_heat_rho()[ unit_id ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
      linear_function->add_variable( heat, 1, 0 );
-     linear_function->add_variable( &active_power, -power_heat_rho );
+//     linear_function->add_variable( &active_power, -power_heat_rho );
     }
    }
   }
@@ -729,7 +729,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  for( Index i = 0; i < f_number_units; ++i ) {
   auto sub_block = get_unit_block( i );
-  auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ) );
+  auto sub_group = group.addGroup( "MultiUnitBlock" + std::to_string( i ) );
   sub_block->serialize( sub_group );
  }
 

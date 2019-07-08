@@ -1,12 +1,12 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------ File UnitBlock.cpp ------------------------------*/
+/*--------------------- File MultiUnitBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the UnitBlock class.
+ * Implementation of the MultiUnitBlock class.
  *
  * \version 0.11
  *
- * \date 16 - 06 - 2019
+ * \date 08 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -41,7 +41,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "UCBlock.h"
-#include "UnitBlock.h"
+#include "MultiUnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -55,19 +55,19 @@ using namespace SMSpp_di_unipi_it;
 
 // register UnitBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_1( UnitBlock );
+SMSpp_insert_in_factory_cpp_1( MultiUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-UnitBlock::UnitBlock( Block * father_block, UnitBlock::Index t )
+MultiUnitBlock::MultiUnitBlock( Block * father_block, MultiUnitBlock::Index t )
  : Block( father_block ), f_time_horizon( t ) {
  f_number_intervals = 0;
 }
 
-void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
+void MultiUnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -80,7 +80,7 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
    else
     throw ( std::invalid_argument(
      "UnitBlock::deserialize: TimeHorizon is not present in the "
-     "netCDF input and UnitBlock does not have a father." ) );
+     "netCDF input and MultiUnitBlock does not have a father." ) );
   }
  } else {
   // dimension TimeHorizon is present in the netCDF input
@@ -91,14 +91,14 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
   else if( f_time_horizon != th )
    throw ( std::logic_error(
     "UnitBlock::deserialize: TimeHorizon is not present in the "
-    "netCDF. The (nonzero) time horizon of UnitBlock is different "
+    "netCDF. The (nonzero) time horizon of MultiUnitBlock is different "
     "from that of its father, but they should be equal." ) );
  }
 }
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
+void MultiUnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
@@ -142,21 +142,22 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( netCDF::NcGroup & group ) {
+void MultiUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  guts_of_destructor();
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
-
+/* //TODO
  ::deserialize( group, "FixedConsumption", v_fixed_consumption );
  ::deserialize( group, "InertiaCommitment", v_inertia_commitment );
  ::deserialize( group, "InertiaPower", v_inertia_power );
+ */
 }
 
 /*--------------------------------------------------------------------------*/
 
-unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
+unsigned int MultiUnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
  if( !stvv )
   return 0;
@@ -181,7 +182,7 @@ unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
+void MultiUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  if( f_time_horizon == 0 ) {
   // there are no variables to be generated
@@ -196,7 +197,8 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
   return;
  }
 
- typedef std::vector< std::pair< std::vector< ColVariable > *, int > > v_pairs;
+ typedef std::vector< std::pair< boost::multi_array< ColVariable , 2 > *,
+         int > > v_pairs;
 
  v_pairs variables_and_types = {
   std::make_pair( &v_commitment, ColVariable::kBinary ),
@@ -211,7 +213,7 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // The active power variables must be always present
  variables_to_be_generated |=
   ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
-
+/*
  unsigned int k = 1;
  for( auto[variables, variable_type] : variables_and_types ) {
   if( variables_to_be_generated & k ) {
@@ -221,26 +223,26 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
    add_static_variable( *variables );
   }
   k *= 2;
- }
+ }*/
 }
 
 /*--------------------------------------------------------------------------*/
-/*------------------- METHODS FOR MODIFYING THE UnitBlock ------------------*/
+/*---------------- METHODS FOR MODIFYING THE MultiUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- METHODS FOR SAVING THE UnitBlock ------------------*/
+/*------------------ METHODS FOR SAVING THE MultiUnitBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::serialize( netCDF::NcGroup & group ) const {
- group.putAtt( "type", "UnitBlock" );
+void MultiUnitBlock::serialize( netCDF::NcGroup & group ) const {
+ group.putAtt( "type", "MultiUnitBlock" );
  group.addDim( "TimeHorizon", f_time_horizon );
 
  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
               NumberIntervals, v_change_intervals );
-
+/* //TODO
  ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
               { NumberIntervals }, v_fixed_consumption );
 
@@ -249,20 +251,21 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group, "InertiaPower", netCDF::NcDouble(),
               { NumberIntervals }, v_inertia_power );
+              */
 }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::guts_of_destructor() {
-
+void MultiUnitBlock::guts_of_destructor() {
+/*
  // delete all Variables
  v_commitment.clear();
  v_active_power.clear();
  v_primary_spinning_reserve.clear();
  v_secondary_spinning_reserve.clear();
-
+*/
  // explicitly reset all Variables
 
  // this is done for the case where this method is called prior to
@@ -272,5 +275,5 @@ void UnitBlock::guts_of_destructor() {
 }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- End File UnitBlock.cpp ----------------------------*/
+/*------------------- End File MultiUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

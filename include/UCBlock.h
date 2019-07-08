@@ -59,7 +59,7 @@
 namespace SMSpp_di_unipi_it {
 
 class HeatBlock;     // forward declaration of HeatBlock
-class UnitBlock;     // forward declaration of UnitBlock
+class MultiUnitBlock;     // forward declaration of MultiUnitBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -77,7 +77,7 @@ class UnitBlock;     // forward declaration of UnitBlock
  *
  * The model is quite flexible due to the fact that different types of units
  * and network constraints can be used by means of the fact that the class
- * manages son Block of type UnitBlock and NetworkBlock. Also, UCBlock handles
+ * manages son Block of type MultiUnitBlock and NetworkBlock. Also, UCBlock handles
  * a reasonably large variety of constraints, regarding not only active power
  * but also primary and secondary reserve and inertia. Admittedly, some
  * choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
@@ -92,7 +92,7 @@ class UnitBlock;     // forward declaration of UnitBlock
  *   24 hours in a day).
  *
  * - A set of electricity generating units, represented by derived classes
- *   of the base class UnitBlock.
+ *   of the base class MultiUnitBlock. //todo
  *
  * - A set of NetworkBlock, one for each time instant in the time horizon,
  *   which represent the constraints on the electricity demand satisfaction
@@ -105,7 +105,7 @@ class UnitBlock;     // forward declaration of UnitBlock
  *   heat-generating units possibly coupled with a heat storage. The link
  *   with the rest of the UC model lies in the fact that some of the
  *   heat-generating units in a HeatBlock may also be electricity generating
- *   ones (i.e., a UnitBlock); actually, the same UnitBlock can generate
+ *   ones (i.e., a MultiUnitBlock); actually, the same MultiUnitBlock can generate
  *   heat of "different types", and therefore appear as a heat-generating
  *   units in more than one HeatBlock.
  *
@@ -127,7 +127,7 @@ class UnitBlock;     // forward declaration of UnitBlock
  *     of the transmission network) and for each time instant;
  *
  *   - possibly, constraints linking the electricity production of some
- *     UnitBlock with the heat production of some unit in a HeatBlock,
+ *     MultiUnitBlock with the heat production of some unit in a HeatBlock,
  *     for the appropriate units and for each time instant.
  */
 
@@ -175,14 +175,14 @@ class UCBlock : public Block {
  *   problem.
  *
  * - The dimension "NumberUnits" containing the number of electricity
- *   generating units (UnitBlock) in the problem;
+ *   generating units (MultiUnitBlock) in the problem;
  *
  * - The dimension "NumberHeatBlocks" containing the number of heat blocks in
  *   the problem. The dimension is optional: if it is not provided then it is
  *   taken to be 0, which means that there is no heat block in the problem.
  *
- * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
- *   n == NumberUnits - 1, containing each one UnitBlock corresponding
+ * - The groups "MultiUnitBlock_0", "MultiUnitBlock_1", ... , "MultiUnitBlock_n" with
+ *   n == NumberUnits - 1, containing each one MultiUnitBlock corresponding
  *   to one electricity generating unit.
  *
  * - The groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
@@ -393,12 +393,12 @@ class UCBlock : public Block {
  *  \in \mathcal{N} \f$.
  *
  *  In the UCBlock there is not defined any variable but the decision
- *  variables here are present by using method get_variable() from UnitBlock,
+ *  variables here are present by using method get_variable() from MultiUnitBlock,
  *  HeatBlock and NetworkBlock as follow:
  *
  * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
  *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$ is
- *   called from UnitBlock by get_active_power() method;
+ *   called from MultiUnitBlock by get_active_power() method;
  *
  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
@@ -406,15 +406,15 @@ class UCBlock : public Block {
  *
  * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
  *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$ is called from UnitBlock by get_primary_spinning_reserve() method;
+ *   \f$ is called from MultiUnitBlock by get_primary_spinning_reserve() method;
  *
  * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
  *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$ is called from UnitBlock by get_secondary_spinning_reserve() method;
+ *   \f$ is called from MultiUnitBlock by get_secondary_spinning_reserve() method;
  *
  * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
  *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$ is called from
- *   UnitBlock by get_commitment() method;
+ *   MultiUnitBlock by get_commitment() method;
  *
  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
  *   \f$ t \in \mathcal{T} \f$ and each heat unit
@@ -526,7 +526,7 @@ class UCBlock : public Block {
  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
  *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$. Therefore, if the
  *   f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2> with
- *   two dimensions which are f_time_horizon and the number of UnitBlock that
+ *   two dimensions which are f_time_horizon and the number of MultiUnitBlock that
  *   produce electricity and belong to some HeatBlock; the constraint at
  *   position ( t, i ) being the heat constraints at time t and unit M[ i ],
  *   where M maps the constraint into an electricity-producing unit that
@@ -809,8 +809,8 @@ class UCBlock : public Block {
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the i-th UnitBlock
- UnitBlock * get_unit_block( Index i ) const;
+ /// Returns the i-th MultiUnitBlock
+ MultiUnitBlock * get_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkBlock at time instant t
@@ -923,8 +923,8 @@ class UCBlock : public Block {
  /// The number of pollutants
  Index f_number_pollutants;
 
- /// The set of UnitBlock
- std::vector< UnitBlock * > v_unit_blocks;
+ /// The set of MultiUnitBlock
+ std::vector< MultiUnitBlock * > v_unit_blocks;
 
  /// The set of HeatBlock
  std::vector< HeatBlock * > v_heat_blocks;
