@@ -169,15 +169,6 @@ public:
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The scalar variable "InitialDeltaRampUp", of type double and not indexed
- *   over any dimension; it indicates the delta ramp up value at time instant
- *   zero(the initial condition);
- *
- *   //TODO: I don't agree with the name, and anyway the comment in unclear.
- *         What we need is InitialPower, i.e., the amount of power that the
- *         unit was producing at the time instant before 1. And you already
- *         have it below.
- *
  * - The variable "DeltaRampDown", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector DM[ t ] which,
  *   for each time instant t, contains the maximum possible decrease of power
@@ -190,13 +181,6 @@ public:
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
- *
- * //TODO: I don't agree with this, ActiveP0 should work both for the ramp-up
- *       and for the ramp-down constraints
- *
- * - the scalar variable "InitialDeltaRampDown", of type double and not
- *   indexed over any dimension; it indicates the delta ramp down value at
- *   time instant zero(the initial condition);
  *
  * - The variable "PrimaryRho", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector PR[ t ] which,
@@ -244,7 +228,7 @@ public:
  * - the variable "StartUpCost", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector SC[ t ] which,
  *   for each time instant t, contains the start up cost value of the
- *   unit for the corresponding time steps;
+ *   unit for the corresponding time steps; //todo look better
  *
  * - The variable "LinearTerm", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector B[ t ] which,
@@ -272,6 +256,14 @@ public:
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
+ * - The scalar variable "InitialPower", of type double and not indexed over
+ *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
+ *   time instant -1 (prior to the beginning of the horizon). It indicates the
+ *   amount of the power that the unit was producing at time instant -1; if
+ *   InitUpDownTime <= 0 then this variable need not be defined since it is
+ *   not loaded, if the variable is provided then it must be that MaxPower
+ *   >= its value >= MinPower;
+ *
  * - The scalar variable "InitUpDownTime", of type UInt64 and not indexed over
  *   any dimension and indicates the initial time to generating the unit.
  *   If InitUpDownTime > 0, this means that the unit has been on for
@@ -282,32 +274,16 @@ public:
  *   down at the end of time instant -1, i.e., the beginning of time
  *   instant 0;
  *
- * - The scalar variable "InitialPower", of type double and not indexed over
- *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
- *   time instant -1 (prior to the beginning of the horizon),
- *
- *   and then InitialPower indicates the amount of the power
- *   that the unit was producing at time instant -1; if InitUpDownTime
- *   <= 0 then this variable need not be defined since it is not
- *   loaded, if the variable is provided then it must be that MaxPower
- *   >= its value >= MinPower;
- *
- * //TODO: I don't understand, what't this for??
- *
- * - The scalar variable "InitialMinPower", of type double and not indexed
- *   over any dimension; it indicates the minimum power at time instant zero
- *   (the initial condition);
- *
- * - The scalar variable "MinUpTime", of type UInt64 and not indexed over
- *   any dimension, which indicates the minimum allowed down time in this
+ * - The positive scalar variable "MinUpTime", of type UInt64 and not indexed
+ *   over any dimension, which indicates the minimum allowed down time in this
  *   unit. This variable is optional, if it is not provided it is taken to be
  *   MinUpTime == 0, which mean that the unit can shut down in the very
  *   same time stamp in which it starts up.
  *
- * - The scalar variable "MinDownTime", of type UInt64 and not indexed over
- *   any dimension, which indicates the minimum allowed up time in this unit.
- *   This variable is optional, if it is not provided it is taken to be
- *   MinDownTime == 0, which mean that the unit can start up in the very
+ * - The positive scalar variable "MinDownTime", of type UInt64 and not
+ *   indexed over any dimension, which indicates the minimum allowed up time
+ *   in this unit.This variable is optional, if it is not provided it is taken
+ *   to be MinDownTime == 0, which mean that the unit can start up in the very
  *   same time stamp in which it starts up. */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -315,7 +291,7 @@ public:
 /*--------------------------------------------------------------------------*/
 /// Generate the abstract variables of the ThermalUnitBlock
 /** The ThermalUnitBlock class use get_variable() method to access to each
- *  "group" of variable that are created in UnitBlock class which are:
+ *  "group" of variable that may create in UnitBlock class which are:
  *
  *  - the binary commitment variables which takes the value of 1 if unit is ON
  *    at time instant t and 0 otherwise;
@@ -332,7 +308,7 @@ public:
  *  ThermalUnitBlock is defined more groups of variables as follow:
  *
  *  - the binary variable start_up status of the unit which takes the value of
- *    1 if the unit starts up in time instant t and 0 otherwise;
+ *    1 if the unit starts up at time instant t and 0 otherwise;
  *
  *  - the binary variable shut_down status of the unit which takes the value
  *    of 1 if the unit shuts down at time instant t and 0 otherwise;
@@ -716,30 +692,6 @@ public:
  protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Protected methods for inserting and extracting
-* @{ */
-
-/*@} -----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock ----------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the data of the ThermalUnitBlock
-    @{ */
-
- /** returns the start up variable associated with time t such that
-  * init_t <= t < time_horizon. */
- inline ColVariable & start_up( Index t ) {
-   return v_start_up[ t - init_t ];
- }
-
- /** returns the shut down variable associated with time t such that
-  * init_t <= t < time_horizon. */
- inline ColVariable & shut_down( Index t ) {
-   return v_shut_down[ t - init_t ];
- }
-
-/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -759,9 +711,6 @@ public:
 
  /// the vector of SecondaryRho
  std::vector< double >  v_SecondaryRho;
-
- /// the vector of InitPower
- std::vector< double >  v_StartUpLim;
 
  /// the vector of RampUp
  std::vector< double >  v_DeltaRampUp;
@@ -784,11 +733,11 @@ public:
  /// the InitialPower value
  double f_initial_power{};
 
- double f_initial_min_power{};
+ double f_initial_min_power{}; //TODO remove
 
- double f_initial_delta_ramp_up{};
+ double f_initial_delta_ramp_up{}; //TODO remove
 
- double f_initial_delta_ramp_down{};
+ double f_initial_delta_ramp_down{}; //TODO remove
 
  /// the MinUpTime value
  Index f_MinUpTime;
@@ -803,6 +752,10 @@ public:
  Index init_t;
 
 /*-----------------------------variables------------------------------------*/
+ /* Each of the following vectors of Variable may either have size
+  * f_time_horizon - init_t, meaning that there is not any Variable for each
+  * defining time step (init_t , ..., f_time_horizon-1), or be empty, in which
+  * case the variables simply do not exist. */
 
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
