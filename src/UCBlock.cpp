@@ -47,7 +47,7 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "UCBlock.h"
-#include "MultiUnitBlock.h"
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -76,8 +76,8 @@ UCBlock::UCBlock( Block * father ) : Block( father ) {
  f_number_pollutants = 0;
 }
 
-MultiUnitBlock * UCBlock::get_unit_block( Index i ) const {
- return dynamic_cast<MultiUnitBlock *>( v_Block[ i ] );
+UnitBlock * UCBlock::get_unit_block( Index i ) const {
+ return dynamic_cast<UnitBlock *>( v_Block[ i ] );
 }
 
 NetworkBlock * UCBlock::get_network_block( Index t ) const {
@@ -93,7 +93,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
  v_Block.clear();
 
- deserialize_sub_blocks( group, "MultiUnitBlock", f_number_units );
+ deserialize_sub_blocks( group, "UnitBlock", f_number_units );
  deserialize_sub_blocks( group, "NetworkBlock_", f_time_horizon );
  deserialize_sub_blocks( group, "HeatBlock_", f_number_heat_blocks );
 
@@ -729,7 +729,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  for( Index i = 0; i < f_number_units; ++i ) {
   auto sub_block = get_unit_block( i );
-  auto sub_group = group.addGroup( "MultiUnitBlock" + std::to_string( i ) );
+  auto sub_group = group.addGroup( "UnitBlock" + std::to_string( i ) );
   sub_block->serialize( sub_group );
  }
 

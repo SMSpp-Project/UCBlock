@@ -45,7 +45,7 @@
 #include "LinearFunction.h"
 #include "ThermalUnitBlock.h"
 #include "UCBlock.h"
-#include "MultiUnitBlock.h"
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -75,7 +75,7 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
 void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- MultiUnitBlock::deserialize( group );
+ UnitBlock::deserialize( group );
 
   ::deserialize( group, "MinPower",      f_number_intervals, v_MinPower );
   ::deserialize( group, "MaxPower",      f_number_intervals, v_MaxPower );
@@ -102,7 +102,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
- MultiUnitBlock::generate_abstract_variables( stvv );
+ UnitBlock::generate_abstract_variables( stvv );
 
  if( f_InitUpDownTime > 0 ) {
   init_t = ( f_InitUpDownTime >= f_MinUpTime ? 0 :
@@ -647,7 +647,7 @@ void ThermalUnitBlock::generate_objective( Configuration *objc ) {
 
 void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
- MultiUnitBlock::serialize( group );
+ UnitBlock::serialize( group );
 
  group.putAtt( "type" , "ThermalUnitBlock" );
  group.addDim( "TimeHorizon" , f_time_horizon );

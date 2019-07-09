@@ -44,7 +44,7 @@
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
-#include "MultiUnitBlock.h"
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -76,7 +76,7 @@ namespace SMSpp_di_unipi_it
  * - active power relation with primary and secondary spinning reserves.
  * */
 
-class ThermalUnitBlock : public MultiUnitBlock {
+class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -108,11 +108,11 @@ public:
 /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
  * father Block.
  *
- * //TODO: if the constructor of MultiUnitBlock takes the time horizon, why this
+ * //TODO: if the constructor of UnitBlock takes the time horizon, why this
  *       one does not?
  */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr ): MultiUnitBlock( f_block ) { }
+ explicit ThermalUnitBlock( Block * f_block = nullptr ): UnitBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -129,8 +129,8 @@ public:
 /// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
- * the group must contain all the data required by the base MultiUnitBlock, as
- * described in the comments to MultiUnitBlock::deserialize( netCDF::NcGroup ).
+ * the group must contain all the data required by the base UnitBlock, as
+ * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
  * In particular, we refer to that description for the crucial dimensions
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
@@ -291,7 +291,7 @@ public:
 /*--------------------------------------------------------------------------*/
 /// Generate the abstract variables of the ThermalUnitBlock
 /** The ThermalUnitBlock class use get_variable() method to access to each
- *  "group" of variable that may create in MultiUnitBlock class which are:
+ *  "group" of variable that may create in UnitBlock class which are:
  *
  *  - the binary commitment variables which takes the value of 1 if unit is ON
  *    at time instant t and 0 otherwise;
@@ -361,7 +361,7 @@ public:
 /** This method generates the abstract constraints of the ThermalUnitBlock.
  *
  * The operations of the thermal generating unit are described on a discrete
- * time horizon as dictated by the MultiUnitBlock interface. In this description
+ * time horizon as dictated by the UnitBlock interface. In this description
  * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
  * Considering three parameters: InitUpDownTime \f$ \tau_0 \f$ which can be a
  * positive or negative(or 0 )integer number and tells for how many time steps

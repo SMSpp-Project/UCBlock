@@ -1,9 +1,9 @@
 /*--------------------------------------------------------------------------*/
-/*----------------------- File MultiUnitBlock.h ----------------------------*/
+/*-------------------------- File UnitBlock.h ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for the class MultiUnitBlock, which derives from the Block, in
+ * Header file for the class UnitBlock, which derives from the Block, in
  * order to define a base class for any possible unit that can be attached to
  * a UCBlock where each unit contains one or more electrical generators tied
  * together by technical constraints. It has very basic information that can
@@ -47,9 +47,8 @@
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#ifndef __MultiUnitBlock
-#define __MultiUnitBlock
-                      /* self-identification: #endif at the end of the file */
+#ifndef __UnitBlock
+#define __UnitBlock   /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -65,13 +64,13 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ CLASS MultiUnitBlock ----------------------------*/
+/*-------------------------- CLASS UnitBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// Implementation of the Block concept for "a generic unit" in UC
-/** The class MultiUnitBlock, which derives from the Block, defines a base
+/** The class UnitBlock, which derives from the Block, defines a base
  * class for any possible unit that can be attached to a UCBlock. It has very
  * basic information that can characterize almost any different kind of unit,
  * which includes four sets of Variables: power variables, commitment
@@ -111,7 +110,7 @@ namespace SMSpp_di_unipi_it {
  * any) inside the unit when it is off.
  */
 
-class MultiUnitBlock : public Block {
+class UnitBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -124,7 +123,7 @@ class MultiUnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * MultiUnitBlock defines the following main public type:
+ * UnitBlock defines the following main public type:
  *
  * - Index, the type of parameters indices;
  *
@@ -141,17 +140,17 @@ class MultiUnitBlock : public Block {
  *  @{ */
 
  /// Constructor, takes the father and the time horizon
- /** Constructor of MultiUnitBlock, taking possibly a pointer of its father
+ /** Constructor of UnitBlock, taking possibly a pointer of its father
   *  Block and the time horizon. By default the time horizon is initialized
   *  to 0, which means "not set yet".
   */
 
- explicit MultiUnitBlock( Block * father_block = nullptr, Index t = 0 );
+ explicit UnitBlock( Block * father_block = nullptr, Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of MultiUnitBlock: it is virtual, and empty
+ /// Destructor of UnitBlock: it is virtual, and empty
 
- ~MultiUnitBlock() override = default;
+ ~UnitBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -161,7 +160,7 @@ class MultiUnitBlock : public Block {
 
 /// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- *  the MultiUnitBlock. Besides the mandatory "type" attribute of any :Block,
+ *  the UnitBlock. Besides the mandatory "type" attribute of any :Block,
  *  the group should contain the following:
  *
  * - The dimension "TimeHorizon" containing the time horizon. The dimension
@@ -170,7 +169,7 @@ class MultiUnitBlock : public Block {
  *   UCBlock; see the comments to set_time_horizon() for details.
  *
  * - The dimension "NumberIntervals", that is provided to allow that all
- *   time-dependent data in the MultiUnitBlock can only change at a subset of
+ *   time-dependent data in the UnitBlock can only change at a subset of
  *   the time instants of the time interval, being therefore
  *   piecewise-constant (possibly, constant). "NumberIntervals" should
  *   therefore be <= "TimeHorizon", with three distinct cases:
@@ -178,7 +177,7 @@ class MultiUnitBlock : public Block {
  *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
  *        == 1; this is what is assumed if the dimension, that is optional,
  *        is not there. This means that the value of each relevant data in
- *        the MultiUnitBlock (see e.g. "FixedConsumption", "InertiaCommitment"
+ *        the UnitBlock (see e.g. "FixedConsumption", "InertiaCommitment"
  *        and "InertiaPower" below) is the same for each time instant
  *        0, ..., "TimeHorizon" - 1 in the time horizon. In this case, the
  *        variable "ChangeIntervals" (see below) is ignored.
@@ -256,8 +255,8 @@ class MultiUnitBlock : public Block {
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generates the static variables of MultiUnitBlock
-/** The base MultiUnitBlock class has four different "groups" of variables:
+/// Generates the static variables of UnitBlock
+/** The base UnitBlock class has four different "groups" of variables:
  *
  * - the commitment variables;
  *
@@ -295,9 +294,9 @@ class MultiUnitBlock : public Block {
  void generate_abstract_variables( Configuration * stvv ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*--------- METHODS FOR READING THE DATA OF THE MultiUnitBlock -------------*/
+/*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the MultiUnitBlock
+/** @name Reading the data of the UnitBlock
  *
  * These methods allow to read data that must be common to (in principle) all
  * the kind of electrical generation units, i.e.:
@@ -394,13 +393,13 @@ class MultiUnitBlock : public Block {
  }
 
 /**@} ----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE Variable OF THE MultiUnitBlock --------*/
+/*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Reading the Variable of the MultiUnitBlock
+/** @name Reading the Variable of the UnitBlock
  *
  * These methods allow to read the four groups of Variable that any
- * MultiUnitBlock in principle has (although some may not):
+ * UnitBlock in principle has (although some may not):
  *
  * - commitment variables;
  *
@@ -483,32 +482,32 @@ class MultiUnitBlock : public Block {
 
 
 /**@} ----------------------------------------------------------------------*/
-/*------------------ METHODS FOR SAVING THE MultiUnitBlock -----------------*/
+/*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Methods for loading, printing & saving the MultiUnitBlock
+/** @name Methods for loading, printing & saving the UnitBlock
  *  @{ */
 
 /// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- *  MultiUnitBlock. See MultiUnitBlock::deserialize( netCDF::NcGroup ) for
+ *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
  *  details of the format of the created netCDF group.
  */
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*------------- METHODS FOR MODIFYING THE MultiUnitBlock -------------------*/
+/*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Methods for modifying the MultiUnitBlock
+/** @name Methods for modifying the UnitBlock
  *  @{ */
 
  /// Sets the time horizon method
  /**
   * This method can be called *before* that deserialize() is called to
-  * provide the MultiUnitBlock with the time horizon. This allows the
+  * provide the UnitBlock with the time horizon. This allows the
   * information not to be duplicated in the netCDF group that describes the
-  * unit, since usually (bit not necessarily) a MultiUnitBlock is deserialized
+  * unit, since usually (bit not necessarily) a UnitBlock is deserialized
   * inside a UCBlock, and all units have the same time horizon, that can
   * therefore be read once and for all by the father UCBlock.
   *
@@ -517,14 +516,14 @@ class MultiUnitBlock : public Block {
   * the information has to be available by other means, i.e.:
   *
   * (i)  If there is no dimension TimeHorizon in netCDF input, then the
-  *      MultiUnitBlock must have a father, which must be a UCBlock: the
+  *      UnitBlock must have a father, which must be a UCBlock: the
   *      time horizon is then taken to be that of the father. If the
-  *      MultiUnitBlock does not have a father (or it is not a UCBlock), then
+  *      UnitBlock does not have a father (or it is not a UCBlock), then
   *      exception is thrown.
   *
   * (ii) If the dimension TimeHorizon is present in the netCDF input of
-  *      MultiUnitBlock, the value provided there is used with no check that
-  *      the MultiUnitBlock has a father at all, that the father is a UCBlock,
+  *      UnitBlock, the value provided there is used with no check that
+  *      the UnitBlock has a father at all, that the father is a UCBlock,
   *      or that the two time horizon agree.
   *
   * If this method *is* called, which has to happen before that deserialize()
@@ -536,21 +535,21 @@ class MultiUnitBlock : public Block {
   * value set by this method.
   *
   * If this method is called *after* that deserialize() is called, this is
-  * taken to mean that the MultiUnitBlock is being "reset", and that
+  * taken to mean that the UnitBlock is being "reset", and that
   * immediately after deserialize() will be called again. The same rules as
   * above are to be followed for that subsequent call to deserialize().
   */
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /**@} ----------------------------------------------------------------------*/
-/*--------------- METHODS FOR INITIALIZING THE MultiUnitBlock --------------*/
+/*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Handling the data of the MultiUnitBlock
+/** @name Handling the data of the UnitBlock
     @{ */
 
  void load( std::istream & input ) override {
-  throw ( std::logic_error( "MultiUnitBlock::load() not implemented yet" ) );
+  throw ( std::logic_error( "UnitBlock::load() not implemented yet" ) );
  };
 
 /**@} ----------------------------------------------------------------------*/
@@ -623,7 +622,7 @@ class MultiUnitBlock : public Block {
 
  /// Returns which variables must be generated
  /** This method returns an int that indicates which variables of
-  *  MultiUnitBlock must be generated by the generate_abstract_variables()
+  *  UnitBlock must be generated by the generate_abstract_variables()
   *  method. This value may be given in stvv as explained in
   *  generate_abstract_variables(). If this value is not given in stvv, then
   *  this method returns the appropriate value according to what is specified
@@ -639,7 +638,7 @@ class MultiUnitBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( MultiUnitBlock ) )
+};  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -649,8 +648,8 @@ class MultiUnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* MultiUnitBlock.h included */
+#endif /* UnitBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- End File MultiUnitBlock.h --------------------------*/
+/*------------------------ End File UnitBlock.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
