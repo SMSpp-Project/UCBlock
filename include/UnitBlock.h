@@ -3,18 +3,19 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for the class UnitBlock, which derives from the Block, in
- * order to define a base class for any possible unit that can be attached to
- * a UCBlock where each unit contains one or more electrical generators tied
- * together by technical constraints. It has very basic information that can
- * characterize almost any different kind of unit, which includes the length
- * of the time horizon, number of electrical generators inside and four sets
- * of Variables: active power variables, commitment variables, primary and
- * secondary spinning reserve variables. It also outputs some
- * general information regarding how the active power and/or commitment
- * status of the unit at a given time instant impact the unit's capability
- * of satisfying inertia constraints, and the fixed consumption of the unit
- * (if any) when it is off.
+ * Header file for the class UnitBlock, which derives from the Block, in order
+ * to define a base class for any possible unit that can be attached to a
+ * UCBlock where each unit by default should have one electrical generator but
+ * there are some other units(i.e. HydroUnitBlock) which can tied more than
+ * one electrical generators together by technical constraints. It has very
+ * basic information that can characterize almost any different kind of unit,
+ * which includes the length of the time horizon, number of electrical
+ * generators inside and four sets of Variables: active power variables,
+ * commitment variables, primary and secondary spinning reserve variables. It
+ * also outputs some general information regarding how the active power and/or
+ * commitment status of the unit at a given time instant impact the unit's
+ * capability of satisfying inertia constraints, and the fixed consumption of
+ * the unit (if any) when it is off.
  *
  * \version 0.11
  *
@@ -71,13 +72,16 @@ namespace SMSpp_di_unipi_it {
 
 /// Implementation of the Block concept for "a generic unit" in UC
 /** The class UnitBlock, which derives from the Block, defines a base
- * class for any possible unit that can be attached to a UCBlock. It has very
- * basic information that can characterize almost any different kind of unit,
- * which includes four sets of Variables: power variables, commitment
- * variables, primary and secondary spinning reserve variables. This class has
- * thus been constructed having the following elements:
+ *  class for any possible unit that can be attached to a UCBlock. It has very
+ *  basic information that can characterize almost any different kind of unit,
+ *  which includes four sets of Variables: power variables, commitment
+ *  variables, primary and secondary spinning reserve variables. This class has
+ *  thus been constructed having the following elements:
  *
  * - The time horizon of the problem;
+ *
+ * - The number of generators which takes 1 by default(see method
+ *   get_number_generators());
  *
  * - Four matrix of boost::multi_array< ColVariable, 2 > objects, that are
  *   used to store the information regarding:
@@ -91,8 +95,8 @@ namespace SMSpp_di_unipi_it {
  *     (iv)  the active power produced by the unit;
  *
  *   Each of the boost::multi_array< ColVariable, 2 > indexed over dimensions
- *   time horizon and number of get_number_generators(), and there are two
- *   possible cases:
+ *   time horizon and get_number_generators(), and there are two possible
+ *   cases:
  *
  *   - if each boost::multi_array<ColVariable, 2> is empty(), then the
  *     corresponding variable does not exist (for instance, the unit may not
@@ -104,10 +108,9 @@ namespace SMSpp_di_unipi_it {
  *     of each generator g.
  *
  * The class also outputs some general information regarding how the active
- * power and/or commitment status of each electrical generators at a given
- * time instant impact the unit's capability of satisfying inertia
- * constraints, and the fixed consumption for each electrical generators (if
- * any) inside the unit when it is off.
+ * power and/or commitment status of each unit at a given time instant impact
+ * the unit's capability of satisfying inertia constraints, and the fixed
+ * consumption (if any) inside the unit when it is off.
  */
 
 class UnitBlock : public Block {
@@ -251,7 +254,6 @@ class UnitBlock : public Block {
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0.
  */
-
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -296,25 +298,34 @@ class UnitBlock : public Block {
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the UnitBlock
- *
- * These methods allow to read data that must be common to (in principle) all
- * the kind of electrical generation units, i.e.:
- *
- * - fixed consumption when the unit is off;
- *
- * - the contribution to the inertia depending on the commitment status;
- *
- * - the contribution to the inertia depending on the active power produced.
- *
- * @{ */
+ /** @name Reading the data of the UnitBlock
+  *
+  * These methods allow to read data that must be common to (in principle) all
+  * the kind of electrical generation units, i.e.:
+  *
+  * - fixed consumption when the unit is off;
+  *
+  * - the contribution to the inertia depending on the commitment status;
+  *
+  * - the contribution to the inertia depending on the active power produced.
+  *
+  * @{ */
 
  /// Returns the time horizon of the problem
  Index get_time_horizon() const { return f_time_horizon; }
 /*--------------------------------------------------------------------------*/
 
  /// Returns the number of electrical generators of each unit in the problem
- //TODO MORE COMMENTS
+ /** The returned number of electrical generators for each UnitBlock. Since in
+  *  most of the cases each unit has only one electrical generator or each
+  *  unit is considered to be an electrical generator (i.e. ThermalUnitBlock),
+  *  this method in the base UnitBlock class returns to one by default,
+  *  therefore for all the units who have only one generator this number
+  *  is fixed to one by this base UnitBlock class. Otherwise, in some other
+  *  units (i.e. HydroUnitBlock) it might be happen that more than one
+  *  electrical generators can tied together by technical constraints and this
+  *  number is not fixed to one and they should set this number by their-self.
+  * */
  virtual Index get_number_generators( void ) const { return( 1 ); }
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of fixed consumption
@@ -334,8 +345,8 @@ class UnitBlock : public Block {
   *   U[ t , 0 ]; which means that the first dimension has size = the time
   *   horizon;
   *
-  * - the matrix has size the time horizon x get_number_generators(), and
-  *   U[ t , i ] contains the contribution to fixed consumption of generator i
+  * - the matrix has size the time horizon per get_number_generators(), and
+  *   U[ t , g ] contains the contribution to fixed consumption of generator gt
   *   at time instant t. */
  const boost::multi_array< double , 2 > & get_fixed_consumption() const {
   return v_fixed_consumption;
@@ -359,9 +370,9 @@ class UnitBlock : public Block {
   *   U[ t , 0 ]; which means that the first dimension has size = the time
   *   horizon;
   *
-  * - the matrix has size the time horizon x get_number_generators(), and
-  *   U[ t , i ] contains the contribution to inertia commitment of generator
-  *   i at time instant t. */
+  * - the matrix has size the time horizon per get_number_generators(), and
+  *   U[ t , g ] contains the contribution to inertia commitment of generator
+  *   g at time instant t. */
  const boost::multi_array< double , 2 > & get_inertia_commitment( void )
  const {
   return v_inertia_commitment;
@@ -384,8 +395,8 @@ class UnitBlock : public Block {
   *   U[ t , 0 ]; which means that the first dimension has size = the time
   *   horizon;
   *
-  * - the matrix has size the time horizon x get_number_generators(), and
-  *   U[ t , i ] contains the contribution to inertia power of generator i at
+  * - the matrix has size the time horizon per get_number_generators(), and
+  *   U[ t , g ] contains the contribution to inertia power of generator g at
   *   time instant t. */
 
  const boost::multi_array< double , 2 > & get_inertia_power() const {
@@ -396,111 +407,108 @@ class UnitBlock : public Block {
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Reading the Variable of the UnitBlock
- *
- * These methods allow to read the four groups of Variable that any
- * UnitBlock in principle has (although some may not):
- *
- * - commitment variables;
- *
- * - primary spinning reserve variables;
- *
- * - secondary spinning reserve variables;
- *
- * - active power variables.
- *
- * @{ */
+ /** @name Reading the Variable of the UnitBlock
+  *
+  * These methods allow to read the four groups of Variable that any
+  * UnitBlock in principle has (although some may not):
+  *
+  * - commitment variables;
+  *
+  * - primary spinning reserve variables;
+  *
+  * - secondary spinning reserve variables;
+  *
+  * - active power variables.
+  *
+  * @{ */
 
-/// Returns the matrix of commitment variable
-/** The returned boost::multi_array< ColVariable , 2 > commitment variable
- *  indexed over dimensions time horizon and number of generators. There are
- *  two possible cases:
- *
- *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
- *    variable is not defined.
- *
- *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
- *    must have f_time_horizon rows and get_number_generators() columns, and
- *    each element of the M[ t , g] gives the commitment variable for time
- *    step t of each generator g. */
+ /// Returns the matrix of commitment variable
+ /** The returned boost::multi_array< ColVariable , 2 > commitment variable
+  *  indexed over dimensions time horizon and get_number_generators(). There
+  *  are two possible cases:
+  *
+  *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
+  *    variable is not defined.
+  *
+  *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
+  *    must have f_time_horizon rows and get_number_generators() columns, and
+  *    each element of the M[ t , g] gives the commitment variable for time
+  *    step t of each generator g. */
  const boost::multi_array< ColVariable , 2 > & get_commitment() const {
   return v_commitment;
  }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the matrix of primary spinning reserve variable
-/** The returned boost::multi_array< ColVariable , 2 > primary spinning
- *  reserve variable indexed over dimensions time horizon and number of
- *  generators. There are two possible cases:
- *
- *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
- *    variable is not defined.
- *
- *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
- *    must have f_time_horizon rows and get_number_generators() columns, and
- *    each element of the M[ t , g] gives the primary spinning reserve
- *    variable for time step t of each generator g. */
- const boost::multi_array< ColVariable , 2 > &
- get_primary_spinning_reserve() const {
+ /// Returns the matrix of primary spinning reserve variable
+ /** The returned boost::multi_array< ColVariable , 2 > primary spinning
+  *  reserve variable indexed over dimensions time horizon and
+  *  get_number_generators(). There are two possible cases:
+  *
+  *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
+  *    variable is not defined.
+  *
+  *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
+  *    must have f_time_horizon rows and get_number_generators() columns, and
+  *    each element of the M[ t , g] gives the primary spinning reserve
+  *    variable for time step t of each generator g. */
+ const boost::multi_array< ColVariable , 2 > & get_primary_spinning_reserve()
+  const {
   return v_primary_spinning_reserve;
  }
- 
 /*--------------------------------------------------------------------------*/
-/// Returns the matrix of secondary reserve variables
-/** The returned boost::multi_array< ColVariable , 2 > secondary spinning
- *  reserve variable indexed over dimensions time horizon and number of
- *  generators. There are two possible cases:
- *
- *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
- *    variable is not defined.
- *
- *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
- *    must have f_time_horizon rows and get_number_generators() columns, and
- *    each element of the M[ t , g] gives the secondary spinning reserve
- *    variable for time step t of each generator g. */
- const boost::multi_array< ColVariable , 2 > &
- get_secondary_spinning_reserve() const {
+ /// Returns the matrix of secondary reserve variables
+ /** The returned boost::multi_array< ColVariable , 2 > secondary spinning
+  *  reserve variable indexed over dimensions time horizon and
+  *  get_number_generators(). There are two possible cases:
+  *
+  *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
+  *    variable is not defined.
+  *
+  *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
+  *    must have f_time_horizon rows and get_number_generators() columns, and
+  *    each element of the M[ t , g] gives the secondary spinning reserve
+  *    variable for time step t of each generator g. */
+ const boost::multi_array< ColVariable , 2 > & get_secondary_spinning_reserve()
+ const {
   return v_secondary_spinning_reserve;
  }
-
 /*--------------------------------------------------------------------------*/
-/// Returns the matrix of active power variable
-/** The returned boost::multi_array< ColVariable , 2 > active power variable
- *  indexed over dimensions time horizon and number of generators. There are
- *  two possible cases:
- *
- *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
- *    variable is not defined.
- *
- *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
- *    must have f_time_horizon rows and get_number_generators() columns, and
- *    each element of the M[ t , g] gives the active power variable
- *    for time step t of each generator g. */
+ /// Returns the matrix of active power variable
+ /** The returned boost::multi_array< ColVariable , 2 > active power variable
+  *  indexed over dimensions time horizon and get_number_generators. There are
+  *  two possible cases:
+  *
+  *  - if boost::multi_array< ColVariable , 2 > M is empty (), then these
+  *    variable is not defined.
+  *
+  *  - otherwise, the two-dimensional boost::multi_array< ColVariable , 2  > M
+  *    must have f_time_horizon rows and get_number_generators() columns, and
+  *    each element of the M[ t , g] gives the active power variable
+  *    for time step t of each generator g. */
  const boost::multi_array< ColVariable , 2 > & get_active_power() const {
   return v_active_power;
  }
-
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Methods for loading, printing & saving the UnitBlock
- *  @{ */
+ /** @name Methods for loading, printing & saving the UnitBlock
+  *  @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
- *  details of the format of the created netCDF group.
- */
+ /// Extends Block::serialize( netCDF::NcGroup )
+ /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+  *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
+  *  details of the format of the created netCDF group.
+  */
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Methods for modifying the UnitBlock
- *  @{ */
+ /** @name Methods for modifying the UnitBlock
+  *  @{ */
 
  /// Sets the time horizon method
  /**
@@ -531,7 +539,7 @@ class UnitBlock : public Block {
   * dimension TimeHorizon is present in netCDF input, then the two values must
   * agree. If the dimension TimeHorizon is not present, then the value set by
   * this method is used. Note that, of course, the data in the netCDF file (if
-  * the unit has any data indiced over the time horizon) has to agree with the
+  * the unit has any data induced over the time horizon) has to agree with the
   * value set by this method.
   *
   * If this method is called *after* that deserialize() is called, this is
@@ -545,7 +553,7 @@ class UnitBlock : public Block {
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Handling the data of the UnitBlock
+ /** @name Handling the data of the UnitBlock
     @{ */
 
  void load( std::istream & input ) override {
@@ -589,19 +597,19 @@ class UnitBlock : public Block {
 
 
  /// The matrix of commitment variables indexed both over f_time_horizon and
- /// get_number_generators
+ /// get_number_generators()
  boost::multi_array< ColVariable , 2> v_commitment;
 
  /// The matrix of power variables indexed both over f_time_horizon and
- /// get_number_generators
+ /// get_number_generators()
  boost::multi_array< ColVariable , 2>v_active_power;
 
  /// The matrix of primary spinning reserve variables indexed both over
- /// f_time_horizon and get_number_generators
+ /// f_time_horizon and get_number_generators()
  boost::multi_array< ColVariable , 2>v_primary_spinning_reserve;
 
  /// The matrix of secondary spinning reserve variables indexed both over
- /// f_time_horizon and get_number_generators
+ /// f_time_horizon and get_number_generators()
  boost::multi_array< ColVariable , 2> v_secondary_spinning_reserve;
 
 /*--------------------------------------------------------------------------*/
