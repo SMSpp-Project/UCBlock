@@ -213,17 +213,23 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // The active power variables must be always present
  variables_to_be_generated |=
   ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
-/*
+
  unsigned int k = 1;
- for( auto[variables, variable_type] : variables_and_types ) {
+ for( auto pair : variables_and_types ) {
   if( variables_to_be_generated & k ) {
-   variables->resize( f_time_horizon );
-   for( auto & variable : *variables )
-    variable.set_type( variable_type );
-   add_static_variable( *variables );
+
+   auto variables = pair.first;
+   variables->resize(boost::extents[f_time_horizon][get_number_generators()]);
+   for (Index t = 0; t < f_time_horizon; ++t) {
+    for (Index g = 0; t < get_number_generators(); ++g) {
+     auto variable = (*variables)[ t ][ g ];
+     variable.set_type(pair.second);
+    }
+    add_static_variable(variables[t]);
+   }
   }
   k *= 2;
- }*/
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -259,13 +265,12 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::guts_of_destructor() {
-/*
- // delete all Variables
- v_commitment.clear();
- v_active_power.clear();
- v_primary_spinning_reserve.clear();
- v_secondary_spinning_reserve.clear();
-*/
+
+ v_commitment.resize(boost::extents[0][0]);
+ v_active_power.resize(boost::extents[0][0]);
+ v_primary_spinning_reserve.resize(boost::extents[0][0]);
+ v_secondary_spinning_reserve.resize(boost::extents[0][0]);
+
  // explicitly reset all Variables
 
  // this is done for the case where this method is called prior to
