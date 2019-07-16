@@ -212,47 +212,6 @@ class UnitBlock : public Block {
  *   ChangeIntervals[ NumberIntervals - 1 ] is ignored. Anyway, the whole
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
  *   is not defined), or "NumberIntervals" >= "TimeHorizon".
- *
- * // TODO: excise and move into the :UnitBlock that actually have them
- * - The variable "FixedConsumption", of type double and either indexed
- *   over the dimension "NumberIntervals", or having size 1. This is meant
- *   to represent the vector FC[ t ] which, for each time instant t,
- *   contains the fixed consumption of the power plant if it is OFF at time
- *   t. The variable is optional; if it is not defined, FC[ t ] == 0 for all
- *   time instants. If it is defined, it can either have size 1 or size
- *   "NumberIntervals". If it has size 1, then FC[ t ] ==
- *   FixedConsumption[ 0 ] for all t, regardless to what "NumberIntervals"
- *   says. Otherwise, FixedConsumption[ i ] is the fixed value of FC[ t ] for
- *   all t in the interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0.
- *
- * - The variable "InertiaCommitment", of type double and either indexed over
- *   the dimension "NumberIntervals" or has size 1. This is meant to
- *   represent the vector IC[ t ] which, for each time instant t, contains
- *   the contribution that the unit can give to the inertia constraint for
- *   the sole fact that is is on (basically, the constant to be multiplied to
- *   the commitment variable) at time t. The variable is optional; if it is
- *   not defined, IC[ t ] == 0 for all time instants. If it is defined, it
- *   can either have size 1 or size "NumberIntervals". If it has size 1, then
- *   IC[ t ] == InertiaCommitment[ 0 ] for all t, regardless to what
- *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
- *   fixed value of IC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
- *
- * - The variable "InertiaPower", of type double and either is indexed over
- *   the dimension "NumberIntervals" or has size 1. This is meant to
- *   represent the vector IP[ t ] which, for each time instant t, contains
- *   the contribution that the unit can give to the inertia constraint which
- *   depends on the active power that it is currently generating (basically,
- *   the constant to be multiplied to the active power variable) at time t.
- *   The variable is optional; if it is not defined, IP[ t ] == 0 for all
- *   time instants. If it is defined, it can either have size 1 or size
- *   "NumberIntervals". If it has size 1, then IP[ t ] == InertiaPower[ 0 ]
- *   for all t, regardless to what "NumberIntervals" says. Otherwise,
- *   InertiaPower[ i ] is the fixed value of IP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
  */
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -331,88 +290,48 @@ class UnitBlock : public Block {
  virtual Index get_number_generators( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the matrix of fixed consumption
+ /// Returns the empty matrix of fixed consumption
  /** The returned value U = get_fixed_consumption() contains the contribution
   *  to fixed consumption (basically, the constants to be multiplied by the
   *  commitment variables returned by get_commitment()) of all the generators
-  *  at all time instants. There are four possible cases:
+  *  at all time instants.
   *
-  * - if the matrix is empty, then the fixed consumption is always 0;
-  *
-  * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the fixed consumption for generator i is U[ 0 , i ] for all t
-  *   which means that the second dimension has size get_number_generators();
-  *
-  * - if the matrix only has one column (i.e., the second dimension has size
-  *   1), then the fixed consumption for all generators at time t is
-  *   U[ t , 0 ]; which means that the first dimension has size = the time
-  *   horizon;
-  *
-  * - the matrix has size the time horizon per get_number_generators(), and
-  *   U[ t , g ] contains the contribution to fixed consumption of generator
-  *   g at time instant t.
-  *
-  * The default implementation of the methos returns an empty vector; and
+  * The default implementation of the methods returns an empty matrix; and
   * derived classes will have to handle their own data (if any). */
 
- // TODO: update implementation
- const boost::multi_array< double , 2 > & get_fixed_consumption() const {
-  return v_fixed_consumption;
+ virtual const boost::multi_array< double , 2 > & get_fixed_consumption()
+ const { const static boost::multi_array< double , 2 > _fc ;
+  return ( _fc );
   }
 
 /*--------------------------------------------------------------------------*/
- /// It returns the matrix of inertia commitment
+ /// It returns the empty matrix of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution
   *  to inertia (basically, the constants to be multiplied by the commitment
   *  variables returned by get_commitment()) of all the generators at all time
-  *  instants. There are four possible cases:
+  *  instants.
   *
-  * - if the matrix is empty, then the inertia commitment is 0;
-  *
-  * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the inertia commitment for generator i is U[ 0 , i ] for all t
-  *   which means that the second dimension has size get_number_generators();
-  *
-  * - if the matrix only has one column (i.e., the second dimension has size
-  *   1), then the inertia commitment for all generators at time t is
-  *   U[ t , 0 ]; which means that the first dimension has size = the time
-  *   horizon;
-  *
-  * - the matrix has size the time horizon per get_number_generators(), and
-  *   U[ t , g ] contains the contribution to inertia commitment of generator
-  *   g at time instant t. */
- // TODO: update comment (empty vector by default)
+  * The default implementation of the methods returns an empty matrix; and
+  * derived classes will have to handle their own data (if any). */
 
- // TODO: update implementation
- const boost::multi_array< double , 2 > & get_inertia_commitment( void )
-  const { return v_inertia_commitment; }
+ virtual const boost::multi_array< double , 2 > & get_inertia_commitment()
+ const { const static boost::multi_array< double , 2 > _ic ;
+  return ( _ic );
+ }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the matrix of inertia power
+ /// Returns the empty matrix of inertia power
  /** The returned value U = get_inertia_power() contains the contribution to
   *  inertia (basically, the constants to be multiplied by the active power
   *  variables returned by get_active_power()) of all the generators at all
-  *  time instants. There are four possible cases
+  *  time instants.
   *
-  * - if the matrix is empty, then the inertia power is 0;
-  *
-  * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the inertia power for generator i is U[ 0 , i ] for all t
-  *   which means that the second dimension has size get_number_generators();
-  *
-  * - if the matrix only has one column (i.e., the second dimension has size
-  *   1), then the inertia power for all generators at time t is
-  *   U[ t , 0 ]; which means that the first dimension has size = the time
-  *   horizon;
-  *
-  * - the matrix has size the time horizon per get_number_generators(), and
-  *   U[ t , g ] contains the contribution to inertia power of generator g at
-  *   time instant t. */
- // TODO: update comment (empty vector by default)
+  * The default implementation of the methods returns an empty matrix; and
+  * derived classes will have to handle their own data (if any).  */
 
- // TODO: update implementation
- const boost::multi_array< double , 2 > & get_inertia_power() const {
-  return v_inertia_power;
+ virtual const boost::multi_array< double , 2 > & get_inertia_power() const {
+  const static boost::multi_array< double , 2 > _ip;
+  return ( _ip );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -594,29 +513,17 @@ class UnitBlock : public Block {
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
 
- // TODO: eliminate
- /// the matrix of fixed consumption of generators
- boost::multi_array< double , 2 > v_fixed_consumption;
-
- // TODO: eliminate
- /// the matrix of inertia commitment of generators
- boost::multi_array< double , 2 > v_inertia_commitment;
-
- // TODO: eliminate
- /// the matrix of inertia power of generators
- boost::multi_array< double , 2 >v_inertia_power;
-
  /// the matrix of commitment variables of generators
- boost::multi_array< ColVariable , 2> v_commitment;
+ boost::multi_array< ColVariable , 2 > v_commitment;
 
  /// the matrix of active power variables of generators
- boost::multi_array< ColVariable , 2>v_active_power;
+ boost::multi_array< ColVariable , 2 >v_active_power;
 
  /// the matrix of primary spinning reserve variables of generators
- boost::multi_array< ColVariable , 2>v_primary_spinning_reserve;
+ boost::multi_array< ColVariable , 2 >v_primary_spinning_reserve;
 
  /// the matrix of secondary spinning reserve variables of generators
- boost::multi_array< ColVariable , 2> v_secondary_spinning_reserve;
+ boost::multi_array< ColVariable , 2 > v_secondary_spinning_reserve;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

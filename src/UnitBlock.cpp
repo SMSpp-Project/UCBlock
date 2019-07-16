@@ -148,11 +148,7 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
-/* //TODO
- ::deserialize( group, "FixedConsumption", v_fixed_consumption );
- ::deserialize( group, "InertiaCommitment", v_inertia_commitment );
- ::deserialize( group, "InertiaPower", v_inertia_power );
- */
+
 }
 
 /*--------------------------------------------------------------------------*/
@@ -204,7 +200,7 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
   std::make_pair( &v_commitment, ColVariable::kBinary ),
   std::make_pair( &v_primary_spinning_reserve, ColVariable::kNonNegative ),
   std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
-  std::make_pair( &v_active_power, ColVariable::kNonNegative )
+  std::make_pair( &v_active_power, ColVariable::kContinuous )
   // v_active_power must be the last one in this list
  };
 
@@ -248,16 +244,6 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
               NumberIntervals, v_change_intervals );
-/* //TODO
- ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
-              { NumberIntervals }, v_fixed_consumption );
-
- ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
-              { NumberIntervals }, v_inertia_commitment );
-
- ::serialize( group, "InertiaPower", netCDF::NcDouble(),
-              { NumberIntervals }, v_inertia_power );
-              */
 }
 
 /*--------------------------------------------------------------------------*/
