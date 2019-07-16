@@ -82,7 +82,7 @@ class ThermalUnitBlock : public UnitBlock {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -90,13 +90,7 @@ public:
  *
  * ThermalUnitBlock defines the following main public types:
  *
- * - Index, the type of parameters indices;
- *
  * @{ */
-
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index;  ///< index of parameters
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -108,11 +102,10 @@ public:
 /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
  * father Block.
  *
- * //TODO: if the constructor of UnitBlock takes the time horizon, why this
- *       one does not?
  */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr ): UnitBlock( f_block ) { }
+ explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0):
+         UnitBlock( f_block ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -185,29 +178,24 @@ public:
  * - The variable "PrimaryRho", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector PR[ t ] which,
  *   for each time instant t, contains the maximum possible fraction of
- *   active power that can be used as primary reserve.
- *
- *   //TODO: is this variable optional? Is is possible that a unit may not be
- *         capable of producing any primary reserve, which correspond to
- *         PR[ t ] == 0 for all t?
- *
- *   PrimaryRho[ i ] is the fixed value of PR[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   active power that can be used as primary reserve. This variable is
+ *   optional; if it is not provided then it is assumed that this unit may not
+ *   be capable of producing any primary reserve, which correspond to
+ *   PR[ t ] == 0 for all t. PrimaryRho[ i ] is the fixed value of PR[ t ] for
+ *   all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ]
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
+ *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "SecondaryRho", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector SR[ t ] which,
  *   for each time instant t, contains the maximum possible fraction of
- *   active power that can be used as secondary reserve.
- *
- *   //TODO: is this variable optional? Is is possible that a unit may not be
- *         capable of producing any primary reserve, which correspond to
- *         SR[ t ] == 0 for all t? Is there a logic relationship with
- *         PrimaryRho, like PR[ i ] == 0 ==> SR[ i ] == 0??
- *
- *   SecondaryRho[ i ] is the fixed value of SR[ t ] for all t in the interval
+ *   active power that can be used as secondary reserve. This variable is
+ *   optional; if it is not provided then it is assumed that this unit may not
+ *   be capable of producing any secondary reserve, which correspond to
+ *   SR[ t ] == 0 for all t. SecondaryRho[ i ] is the fixed value of SR[ t ]
+ *   for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
@@ -228,7 +216,14 @@ public:
  * - the variable "StartUpCost", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector SC[ t ] which,
  *   for each time instant t, contains the start up cost value of the
- *   unit for the corresponding time steps; //todo look better
+ *   unit for the corresponding time steps; This variable is optional; if it
+ *   is not provided then it is assumed that this unit may not have any start
+ *   up cost  which correspond to SC[ t ] == 0 for all t. StartUpCost[ i ] is
+ *   the fixed value of SC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "LinearTerm", of type double and indexed over the dimension
  *   "NumberIntervals". This is meant to represent the vector B[ t ] which,
@@ -284,7 +279,34 @@ public:
  *   indexed over any dimension, which indicates the minimum allowed up time
  *   in this unit.This variable is optional, if it is not provided it is taken
  *   to be MinDownTime == 0, which mean that the unit can start up in the very
- *   same time stamp in which it starts up. */
+ *   same time stamp in which it starts up.
+ *
+ * - The variable "FixedConsumption", of type double and either indexed
+ *   over the dimension "NumberIntervals", or having size 1. This is meant
+ *   to represent the vector FC[ t ] which, for each time instant t,
+ *   contains the fixed consumption of the power plant if it is OFF at time
+ *   t. The variable is optional; if it is not defined, FC[ t ] == 0 for all
+ *   time instants. If it is defined, it can either have size 1 or size
+ *   "NumberIntervals". If it has size 1, then FC[ t ] ==
+ *   FixedConsumption[ 0 ] for all t, regardless to what "NumberIntervals"
+ *   says. Otherwise, FixedConsumption[ i ] is the fixed value of FC[ t ] for
+ *   all t in the interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+ *
+ * - The variable "InertiaCommitment", of type double and either indexed over
+ *   the dimension "NumberIntervals" or has size 1. This is meant to
+ *   represent the vector IC[ t ] which, for each time instant t, contains
+ *   the contribution that the unit can give to the inertia constraint for
+ *   the sole fact that is is on (basically, the constant to be multiplied to
+ *   the commitment variable) at time t. The variable is optional; if it is
+ *   not defined, IC[ t ] == 0 for all time instants. If it is defined, it
+ *   can either have size 1 or size "NumberIntervals". If it has size 1, then
+ *   IC[ t ] == InertiaCommitment[ 0 ] for all t, regardless to what
+ *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
+ *   fixed value of IC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
+ *   */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -330,32 +352,6 @@ public:
  * */
 
  void generate_abstract_variables( Configuration *stvv ) override;
-
-/**@} ----------------------------------------------------------------------*/
-/*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
-/*--------------------------------------------------------------------------*/
-
-/** @name Reading the Variable of the ThermalUnitBlock
- *
- * These methods allow to read the each group of Variable that any
- * ThermalUnitBlock in principle has (although some may not):
- *
- * - start_up variables;
- *
- * - shut_down variables;
- *
- * @{ */
-
- /// Returns the vector of start_up variables
- const std::vector< ColVariable > & get_start_up() const {
-  return v_start_up;
- }
-/*--------------------------------------------------------------------------*/
- /// Returns the vector of shut_down variables
- const std::vector< ColVariable > & get_shut_down() const {
-  return v_shut_down;
- }
-
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the ThermalUnitBlock
 /** This method generates the abstract constraints of the ThermalUnitBlock.
@@ -405,9 +401,8 @@ public:
  * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$are are presented as following:
  *
  * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
- *   time constraints and one possible representation of the constraint in
- *   terms of the
- *   defined above is:
+ *   time constraints and one possible representation of the constraints could
+ *   be as below:
  *
  *   \f[
  *     u_t - u_{t-1} = v_t - w_t
@@ -473,7 +468,7 @@ public:
  *   \f[
  *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
  *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
- *            \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (4)
+ *            \quad t \in \{ 0, ..., \mathcal{T} - 1 \} \quad (4)
  *   \f]
  *
  *   where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants
@@ -489,11 +484,20 @@ public:
  *   integral feasible solution we can see that
  *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
  *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ v_{t+1}\f$. Then for each
- *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>
- *   there are four possible cases:
+ *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>,
+ *   there are two possible cases for t from 0 until init_t - 1:
+ *
+ *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
+ *
+ *   and four possible cases for each t from init_t until
+ *   \f$ \mathcal{T} - 1\f$:
  *
  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
- *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+ *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq 0 \f$.
  *
  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
@@ -517,19 +521,28 @@ public:
  *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
  *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ w_{t+1}\f$. Then for each
  *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>
- *   there are four possible cases:
+ *   there are two possible cases for t from 0 until init_t - 1:
+ *
+ *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+ *     \f$ p_{t}^{ac} - p^{t+1}^{ac}  \leq 0 \f$.
+ *
+ *   - when \f$ u_{t} = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+ *     \f$ p_{t}^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
+ *
+ *   and four possible cases for each t from init_t until
+ *   \f$ \mathcal{T} - 1\f$:
  *
  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
- *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+ *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
  *
  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
- *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
+ *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \underline{p}_t \f$.
  *
  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
- *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
+ *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq - \underline{p}_t \f$.
  *
  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
- *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^-_t \f$.
+ *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \Delta^-_t \f$.
  *
  * - Power output Constraints:
  *   Since commitment variable \f$ u_{t} \f$ is fixed to one or zero
@@ -563,10 +576,10 @@ public:
  *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:
  *
  *   \f[
- *     p_t^{pr} \leq \rho{pr}_t p_t^{ac}                       \quad (8)
+ *     p_t^{pr} \leq \rho^{pr}_t p_t^{ac}                       \quad (8)
  *   \f]
  *   \f[
- *     p_t^{sc} \leq \rho{sc}_t p_t^{ac}                        \quad (9)
+ *     p_t^{sc} \leq \rho^{sc}_t p_t^{ac}                        \quad (9)
  *   \f]
  *   There are two more power out put tighter formulations which make the
  *   maximum power output being a function of three binary variables
@@ -593,9 +606,17 @@ public:
  *             \quad t \in \{2, ...,  \mathcal{T} - 1\} \quad  (12)
  *   \f]
  *
- *   for the \f$ t \in \{0, ...,  \mathcal{T} - 1 \}  \f$ following
- *   inequalities ensure the relation between active output and primary and
- *   //TODO: explain what these do.
+ *   These inequalities give the active power output generation limits when
+ *   unit is ON or OFF. More precisely, the unit generation limits taking into
+ *   account its maximum \f$ \bar{p}_t \f$ and minimum \f$ \underline{p}_t \f$
+ *   production, as well as its startup and shutdown capabilities(here both of
+ *   them are assumed be equal with minimum production \f$ \underline{p}_t\f$)
+ *   in each time step t. Be aware that (10) may be infeasible in the event
+ *   that the unit is online for just one period. That is,
+ *   \f$ v_t = w_{t+1} \f$ and the right side of the (10) can be negative.
+ *   Consequently, (10) is only valid when \f$ \tau_+ \geq 2 \f$. Therefore,
+ *   the correct formulation for units with \f$ \tau_+ = 1 \f$ is given by
+ *   (11) and (12).
  *
  * - Objective function: the objective function of the ThermalUnitBlock
  *   representing the total power production cost to be minimized has the
@@ -617,36 +638,9 @@ public:
  *   quadratic, linear, and constant terms of the power cost function of the
  *   unit at time period \f$ t \in \mathcal{T} \f$.
  *
- * //TODO: we could allow to only generate a subset of those via stcc.
- *       Maybe we don't want to.
- *
- * //TODO: one day we will do the DP formulation, and we will possibly have
- *       different groups of constraints.
- *
- * These are the:
- *
- *
- * - Power output Constraints, a std::vector<FRowConstraint> with
- *   exactly ((f_time_horizon) - (init_t)) entries, the entry a = init_t, ...,
- *   (f_time_horizon) - 1 being the power output constraints at time t;
- *
- * - Relation between Power output, Primary and Secondary Spinning reserves
- *   Constraints, a std::vector<FRowConstraint> with exactly f_time_horizon
- *   entries, the entry a = 0, ..., (f_time_horizon) - 1 being the relation
- *   between Power output Primary and Secondary Spinning reserves constraints
- *   at time t;
- *
- * - Relation between Power output and Primary Spinning reserves Constraints,
- *   a std::vector<FRowConstraint> with exactly f_time_horizon entries, the
- *   entry a = 0, ..., (f_time_horizon) - 1 being the relation between Power
- *   output and Primary Spinning reserves constraints at time t;
- *
- * - Relation between Power output and Secondary Spinning reserves Constraints
- *   a std::vector<FRowConstraint> with exactly f_time_horizon entries, the
- *   entry a = 0, ..., (f_time_horizon) - 1 being the relation between Power
- *   output and Secondary Spinning reserves constraints at time t;
+ * - Note: there will possibly exist different groups of constraints in future
+ *   since implementing the DP formulation, and will add here.
  */
-
  void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -655,19 +649,105 @@ public:
 
  void generate_objective( Configuration *objc ) override;
 
-/*@} -----------------------------------------------------------------------*/
-/*----------- Methods for reading the data of the ThermalUnitBlock ---------*/
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for reading the data of the ThermalUnitBlock
- *  @{  */
+/** @name Reading the data of the ThermalUnitBlock
+ *
+ * These methods allow to read data that must be common to (in principle) all
+ * the kind of electrical generation units, i.e.:
+ *
+ * - fixed consumption when the unit is off;
+ *
+ * - the contribution to the inertia depending on the commitment status;
+ *
+ * @{ */
 
-/*@} -----------------------------------------------------------------------*/
+/// Returns the matrix of fixed consumption
+/** The returned value U = get_fixed_consumption() contains the contribution
+ *  to fixed consumption (basically, the constants to be multiplied by the
+ *  commitment variables returned by get_commitment()) of all the generators
+ *  at all time instants. There are three possible cases:
+ *
+ * - if the matrix is empty, then the fixed consumption is always 0;
+ *
+ * - if the matrix only has one row (i.e., the first dimension has size 1),
+ *   then the fixed consumption for each generator g is U[ 0 , g ] for all t
+ *   which means that the second dimension has size get_number_generators();
+ *
+ * - if the matrix only has one column (i.e., the second dimension has size
+ *   1), then the fixed consumption for the generator at time t is
+ *   U[ t , 0 ]; which means that the first dimension has size the time
+ *   horizon(since in this unit there is only one electrical generator, this
+ *   case should happen by assumption);
+ *
+ * - otherwise, the matrix has size the time horizon per
+ *   get_number_generators(), and U[ t , g ] contains the contribution to the
+ *   fixed consumption of generator g at time instant t.
+ */
+
+const boost::multi_array< double , 2 > & get_fixed_consumption() const {
+  return ( v_fixed_consumption);
+ }
+/*--------------------------------------------------------------------------*/
+/// It returns the matrix of inertia commitment
+/** The returned value U = get_inertia_commitment() contains the contribution
+ *  to inertia (basically, the constants to be multiplied by the commitment
+ *  variables returned by get_commitment()) of all the generators at all time
+ *  instants. There are four possible cases:
+ *
+ * - if the matrix is empty, then the inertia commitment is always 0;
+ *
+ * - if the matrix only has one row (i.e., the first dimension has size 1),
+ *   then the inertia commitment for each generator g is U[ 0 , g ] for all t
+ *   which means that the second dimension has size get_number_generators();
+ *
+ * - if the matrix only has one column (i.e., the second dimension has size
+ *   1), then the inertia commitment for the generator at time t is
+ *   U[ t , 0 ]; which means that the first dimension has size the time
+ *   horizon(since in this unit there is only one electrical generator, this
+ *   case should happen by assumption);
+ *
+ * - otherwise, the matrix has size the time horizon per
+ *   get_number_generators(), and U[ t , g ] contains the contribution to the
+ *   inertia commitment of generator g at time instant t.
+ *   */
+const boost::multi_array< double , 2 > & get_inertia_commitment( ) const {
+  return v_inertia_commitment;
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
+/*--------------------------------------------------------------------------*/
+
+/** @name Reading the Variable of the ThermalUnitBlock
+ *
+ * These methods allow to read the each group of Variable that any
+ * ThermalUnitBlock in principle has (although some may not):
+ *
+ * - start_up variables;
+ *
+ * - shut_down variables;
+ *
+ * @{ */
+
+ /// Returns the vector of start_up variables
+ const std::vector< ColVariable > & get_start_up() const {
+  return v_start_up;
+ }
+/*--------------------------------------------------------------------------*/
+ /// Returns the vector of shut_down variables
+ const std::vector< ColVariable > & get_shut_down() const {
+  return v_shut_down;
+ }
+
+/**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the ThermalUnitBlock
  *  @{ */
 
-/// extends Block::serialize( netCDF::NcGroup )
+/// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * ThermalUnitBlock. See ThermalUnitBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
@@ -733,11 +813,11 @@ public:
  /// the InitialPower value
  double f_initial_power{};
 
- double f_initial_min_power{}; //TODO remove
+ /// the matrix of fixed consumption of generator
+ boost::multi_array< double , 2 >  v_fixed_consumption;
 
- double f_initial_delta_ramp_up{}; //TODO remove
-
- double f_initial_delta_ramp_down{}; //TODO remove
+ /// the matrix of inertia commitment of generator
+ boost::multi_array< double , 2 > v_inertia_commitment;
 
  /// the MinUpTime value
  Index f_MinUpTime;
@@ -807,13 +887,25 @@ public:
 /*--------------------------------------------------------------------------*/
 private:
 
-  SMSpp_insert_in_factory_h;
-
-}; // end( class( ThermalUnitBlock ) )
-
-/*@}  end( class( ThermalUnitBlock ) ) -------------------------------------*/
 /*--------------------------------------------------------------------------*/
-} // end( namespace SMSpp_di_unipi_it )
+/*--------------------------- PRIVATE FIELDS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( ThermalUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -821,5 +913,5 @@ private:
 #endif /* ThermalUnitBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- End File ThermalUnitBlock.h -----------------------*/
+/*------------------- End File ThermalUnitBlock.h --------------------------*/
 /*--------------------------------------------------------------------------*/

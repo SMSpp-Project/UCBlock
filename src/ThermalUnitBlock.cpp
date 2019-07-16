@@ -68,11 +68,6 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-//void ThermalUnitBlock::load( )
-//{ }
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
@@ -89,9 +84,6 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "StartUpCost",   f_number_intervals,  v_StartUpCost );
 
   ::deserialize( group, "InitialPower",         & f_initial_power );
-  ::deserialize( group, "InitialMinPower",      & f_initial_min_power );
-  ::deserialize( group, "InitialDeltaRampUp",   & f_initial_delta_ramp_up );
-  ::deserialize( group, "InitialDeltaRampDown", & f_initial_delta_ramp_down );
   ::deserialize( group, "MinUpTime",            & f_MinUpTime );
   ::deserialize( group, "MinDownTime",          & f_MinDownTime );
   ::deserialize( group, "InitUpDownTime",       & f_InitUpDownTime );
@@ -282,42 +274,39 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   RampUp_Constraints.resize( f_time_horizon );
 
   // Initial condition
+  for( Index t = 0;  t < init_t; ++t ) {
 
-  auto linear_function = new LinearFunction();
+   auto linear_function = new LinearFunction();
 
-  linear_function->add_variable( & v_active_power[ 0 ][ 0 ], -1.0 );
-  linear_function->add_variable( & v_start_up[ 0 ], - f_initial_delta_ramp_up );
-  linear_function->add_variable
-          ( &v_commitment[ 0 ][ 0 ], ( f_initial_min_power + f_initial_delta_ramp_up ) );
+   linear_function->add_variable( &v_active_power[ t + 1][0], 1.0 );
+   linear_function->add_variable( &v_active_power[ t ][0],   -1.0 );
 
-  auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
 
-  RampUp_Constraints[ 0 ].set_lhs
-          ( f_initial_min_power * initial_commitment - f_initial_power );
-  RampUp_Constraints[ 0 ].set_rhs( Inf<double>() );
-  RampUp_Constraints[ 0 ].set_function( linear_function );
-
+   RampUp_Constraints[ t ].set_lhs ( 0.0 );
+   RampUp_Constraints[ t ].set_rhs( v_DeltaRampUp[ t ]);
+   RampUp_Constraints[ t ].set_function( linear_function );
+  }
   // Remaining constraints
 
-  for( Index t = 0, constraint_index = 1; t < f_time_horizon - 1;
+  for( Index t = init_t, constraint_index = 0; t < f_time_horizon - 1;
        ++t, ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
-   RampUp_Constraints[ constraint_index ].set_function( linear_function );
+   RampUp_Constraints[ t ].set_function( linear_function );
 
    linear_function->add_variable( & v_active_power[ t + 1 ][ 0 ], -1.0 );
    linear_function->add_variable( & v_active_power[ t ][ 0],     +1.0 );
    linear_function->add_variable
-           ( & v_start_up[ t + 1], - v_DeltaRampUp[ t ] );
+           ( & v_start_up[ constraint_index + 1], - v_DeltaRampUp[ t ] );
 
    linear_function->add_variable
            ( & v_commitment[ t + 1 ][ 0 ], ( v_MinPower[ t ] + v_DeltaRampUp[ t ] ) );
 
    linear_function->add_variable( & v_commitment[ t ][ 0], - v_MinPower[ t ] );
 
-   RampUp_Constraints[ constraint_index ].set_lhs( 0.0 );
-   RampUp_Constraints[ constraint_index ].set_rhs( Inf<double>() );
-   RampUp_Constraints[ constraint_index ].set_function( linear_function );
+   RampUp_Constraints[ t ].set_lhs( 0.0 );
+   RampUp_Constraints[ t ].set_rhs( Inf<double>() );
+   RampUp_Constraints[ t ].set_function( linear_function );
   }
 
   add_static_constraint( RampUp_Constraints );
@@ -329,25 +318,19 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   RampDown_Constraints.resize( f_time_horizon );
 
   // Initial condition
+  for( Index t = 0;  t < init_t; ++t ) {
+   auto linear_function = new LinearFunction();
 
-  auto linear_function = new LinearFunction();
+   linear_function->add_variable( &v_active_power[ t ][0], 1.0 );
+   linear_function->add_variable( &v_active_power[ t + 1][0], -1.0 );
 
-  linear_function->add_variable( & v_active_power[ 0 ][ 0 ], 1.0 );
-  linear_function->add_variable
-          ( & v_shut_down[ 0 ], - f_initial_delta_ramp_down );
-  linear_function->add_variable( & v_commitment[ 0 ][ 0 ], - f_initial_min_power );
-
-  auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
-
-  RampDown_Constraints[ 0 ].set_lhs
-          ( f_initial_power - initial_commitment *
-                              ( f_initial_min_power + f_initial_delta_ramp_down ) );
-  RampDown_Constraints[ 0 ].set_rhs( Inf<double>() );
-  RampDown_Constraints[ 0 ].set_function( linear_function );
-
+   RampDown_Constraints[ t ].set_lhs( 0.0);
+   RampDown_Constraints[ t ].set_rhs( v_DeltaRampDown[ t ]);
+   RampDown_Constraints[ t ].set_function( linear_function );
+  }
   // Remaining constraints
 
-  for( Index t = 0, constraint_index = 1; t < f_time_horizon - 1;
+  for( Index t = init_t, constraint_index = 0; t < f_time_horizon - 1;
        ++t, ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
@@ -356,14 +339,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_function->add_variable( & v_active_power[ t + 1][ 0 ], 1.0 );
    linear_function->add_variable( & v_active_power[ t ][ 0 ],   -1.0 );
    linear_function->add_variable
-           ( & v_shut_down[ t + 1 ], - v_DeltaRampDown[ t ] );
+           ( & v_shut_down[ constraint_index + 1 ], - v_DeltaRampDown[ t ] );
    linear_function->add_variable
            ( & v_commitment[ t ][ 0 ], ( v_MinPower[ t ] + v_DeltaRampDown[ t ] ) );
    linear_function->add_variable( &v_commitment[ t + 1 ][ 0 ], - v_MinPower[ t ]);
 
-   RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
-   RampDown_Constraints[ constraint_index ].set_rhs( Inf<double>() );
-   RampDown_Constraints[ constraint_index ].set_function( linear_function );
+   RampDown_Constraints[ t ].set_lhs( 0.0 );
+   RampDown_Constraints[ t ].set_rhs( Inf<double>() );
+   RampDown_Constraints[ t ].set_function( linear_function );
   }
 
   add_static_constraint( RampDown_Constraints );
@@ -656,13 +639,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
  ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
  ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
-
- ::serialize( group, "InitialMinPower",
-              netCDF::NcDouble(), f_initial_min_power );
- ::serialize( group, "InitialDeltaRampUp",
-              netCDF::NcDouble(), f_initial_delta_ramp_up );
- ::serialize( group, "InitialDeltaRampDown",
-              netCDF::NcDouble(), f_initial_delta_ramp_down );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
