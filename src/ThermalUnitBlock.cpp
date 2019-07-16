@@ -181,7 +181,6 @@ auto startup_shutdown_size = f_time_horizon - init_t;
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
- // FIXME: multiple linear_function declarations shadow the local variable
 
  // MINIMUM UP AND DOWN TIME CONSTRAINTS
 
@@ -191,7 +190,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   StartUp_ShutDown_Variables_Constraints.resize( f_time_horizon - init_t );
 
-  for( Index t = init_t, constraint_index = 0; t < f_time_horizon;
+  for( Index t = init_t , constraint_index = 0; t < f_time_horizon;
        ++t, ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
@@ -200,7 +199,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_function->add_variable( & v_start_up[ t ],     -1.0 );
    linear_function->add_variable( & v_shut_down[ t ],     1.0 );
 
-   if( t > 0 ) [[likely]] {
+   if( t > 0 ) {
     linear_function->add_variable( & v_commitment[ t - 1 ][ 0 ], -1.0 );
     StartUp_ShutDown_Variables_Constraints[ constraint_index ].
             set_both( 0.0 );
@@ -363,29 +362,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   if( f_time_horizon - init_t > 0 ) {
 
    Power_StartUp_ShutDown_Variables_Constraints.resize
-           ( f_time_horizon - init_t );
-
-   auto linear_function = new LinearFunction();
-
-   // Constraints at last time step
-
-   linear_function->add_variable( & v_active_power[ f_time_horizon ][ 0 ], - 1.0);
-   linear_function->add_variable( & v_commitment[ f_time_horizon ][ 0 ],
-                                  v_MaxPower[ f_time_horizon ] );
-   linear_function->add_variable( & v_start_up[ f_time_horizon ],
-                                  -( v_MaxPower[ f_time_horizon ]
-                                     - v_MinPower[ f_time_horizon ] ) );
-
-   Power_StartUp_ShutDown_Variables_Constraints[ f_time_horizon ].
-           set_lhs( 0.0 );
-   Power_StartUp_ShutDown_Variables_Constraints[ f_time_horizon ].
-           set_rhs( Inf<double>());
-   Power_StartUp_ShutDown_Variables_Constraints[ f_time_horizon ].
-           set_function( linear_function );
+           ( f_time_horizon - init_t - 2);
 
    // Initializing power output startup and shutdown constraints
 
-   for( Index t = init_t , constraint_index = 0; t < f_time_horizon - 1;
+   for( Index t = init_t + 2, constraint_index = 0; t < f_time_horizon ;
         ++t, ++constraint_index ) {
 
     auto linear_function = new LinearFunction();
@@ -418,9 +399,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   if( f_time_horizon - init_t > 0 ) {
 
    Power_StartUp_Variable_Constraints.resize
-           ( f_time_horizon - init_t );
+           ( f_time_horizon - init_t - 2 );
 
-   for( Index t = init_t , constraint_index = 0; t < f_time_horizon ;
+   for( Index t = init_t + 2, constraint_index = 0; t < f_time_horizon ;
         ++t, ++constraint_index ) {
 
     auto linear_function = new LinearFunction();
@@ -451,33 +432,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   if( f_time_horizon - init_t > 0 ) {
 
    Power_ShutDown_Variable_Constraints.resize
-           ( f_time_horizon - init_t );
+           ( f_time_horizon - init_t - 2 );
 
-   // Initial condition
-
-   auto linear_function = new LinearFunction();
-
-   // Constraints at last time step
-
-   linear_function->add_variable( & v_active_power[ f_time_horizon ][ 0 ],
-                                  - 1.0);
-   linear_function->add_variable( & v_commitment[ f_time_horizon ][ 0 ],
-                                  v_MaxPower[ f_time_horizon ] );
-   linear_function->add_variable( & v_start_up[ f_time_horizon ],
-                                  -( v_MaxPower[ f_time_horizon ]
-                                     - v_MinPower[ f_time_horizon ] ) );
-
-   Power_ShutDown_Variable_Constraints[ f_time_horizon ].
-           set_lhs( 0.0 );
-   Power_ShutDown_Variable_Constraints[ f_time_horizon ].
-           set_rhs( Inf<double>());
-   Power_ShutDown_Variable_Constraints[ f_time_horizon ].
-
-           set_function( linear_function );
 
    // Initializing power output shutdown constraints
 
-   for( Index t = init_t, constraint_index = 0; t < f_time_horizon - 1;
+   for( Index t = init_t + 2, constraint_index = 0; t < f_time_horizon ;
         ++t, ++constraint_index ) {
 
     auto linear_function = new LinearFunction();

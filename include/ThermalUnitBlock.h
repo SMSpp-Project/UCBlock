@@ -395,7 +395,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   fix to 1 the bound constraints, a std::vector<LB0Constraint> with exactly
  *   init_t entries, the entry a = 0, ..., init_t - 1 being the bound
  *   constraints of the ColVariable corresponding to the active power
- *   production of the unit.
+ *   production of the unit(put init_t := \f$ t_0 \f$).
  *
  * Then the main thermal unit constraints with three 3 binary variables
  * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$are are presented as following:
@@ -406,16 +406,16 @@ class ThermalUnitBlock : public UnitBlock {
  *
  *   \f[
  *     u_t - u_{t-1} = v_t - w_t
- *          \quad t \in \{ 1, ...,\mathcal{T} \}                     \quad (1)
+ *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}             \quad (1)
  *   \f]
  *   \f[
- *    \sum_{ s \in ( t - \tau_+ + 1 , t ) } v_s \leq
- *           u_t \quad t \in \{ \tau_+ + 1, ..., \mathcal{T}\}
+ *    \sum_{ s \in [ t - \tau_+  , t ] } v_s \leq
+ *           u_t \quad t \in \{ \tau_+ + t_0, ..., \mathcal{T} - 1\}
  *                                                                   \quad (2)
  *   \f]
  *   \f[
- *    \sum_{ s \in ( t - \tau_- + 1 , t ) } w_s \leq
- *         1 - u_t \quad t \in \{ \tau_- + 1, ...,\mathcal{T} \}
+ *    \sum_{ s \in [ t - \tau_- , t ] } w_s \leq
+ *         1 - u_t \quad t \in \{ \tau_- + t_0, ...,\mathcal{T} - 1\}
  *                                                                   \quad (3)
  *   \f]
  *
@@ -431,8 +431,8 @@ class ThermalUnitBlock : public UnitBlock {
  *   \f$ \tau_0 < \tau_+ \f$ the commitment variables \f$ u_t \f$  are fixed
  *   to one for init_t time steps(starting from zero till init_t - 1). Since
  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
- *   can ensure (for all periods \f$ t \in \{ 1, ..., \mathcal{T} \} \f$) that
- *   \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and \f$ u_{t-1} = 0 \f$.
+ *   can ensure (for all periods \f$ t \in \{ t_0, ..., \mathcal{T} -1 \} \f$)
+ *   that \f$ v_t = 1\f$ if and only if \f$ u_t = 1\f$ and \f$ u_{t-1} = 0\f$.
  *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
  *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
  *
@@ -468,7 +468,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   \f[
  *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
  *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
- *            \quad t \in \{ 0, ..., \mathcal{T} - 1 \} \quad (4)
+ *            \quad t \in \{ t_0, ..., \mathcal{T} - 1 \} \quad (4)
  *   \f]
  *
  *   where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants
@@ -513,7 +513,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   \f[
  *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
  *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
- *            \quad t \in \{1, ..., \mathcal{T} - 1 \}             \quad (5)
+ *            \quad t \in \{t_0, ..., \mathcal{T} - 1 \}             \quad (5)
  *   \f]
  *
  *   The sam analyzing the left hand side of the ramp-down constraint(5), in
@@ -524,7 +524,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   there are two possible cases for t from 0 until init_t - 1:
  *
  *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
- *     \f$ p_{t}^{ac} - p^{t+1}^{ac}  \leq 0 \f$.
+ *     \f$ p_{t}^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
  *
  *   - when \f$ u_{t} = 1\f$, and \f$ u_{t+1} = 1 \f$ then
  *     \f$ p_{t}^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
@@ -586,24 +586,24 @@ class ThermalUnitBlock : public UnitBlock {
  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ as below. More specifically in
  *   the case  \f$ \tau_+ \geq 2 \f$, the
  *   following constraint is introduced, which is valid for
- *   \f$ t \in \{2, ..., \mathcal{T} - 1\}  \f$:
+ *   \f$ t \in \{t_0 + 2, ..., \mathcal{T} - 1\}  \f$:
  *
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
  *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (10)
+ *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\} \quad  (10)
  *   \f]
  *
  *   and in the case  \f$ \tau_+ = 1 \f$:
  *
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
- *            \quad t \in \{2, ..., \mathcal{T} - 1\} \quad  (11)
+ *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\} \quad  (11)
  *   \f]
  *
  *   \f[
  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
- *             \quad t \in \{2, ...,  \mathcal{T} - 1\} \quad  (12)
+ *             \quad t \in \{t_0 + 2, ...,  \mathcal{T} - 1\} \quad  (12)
  *   \f]
  *
  *   These inequalities give the active power output generation limits when
@@ -613,7 +613,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   them are assumed be equal with minimum production \f$ \underline{p}_t\f$)
  *   in each time step t. Be aware that (10) may be infeasible in the event
  *   that the unit is online for just one period. That is,
- *   \f$ v_t = w_{t+1} \f$ and the right side of the (10) can be negative.
+ *   \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can be negative.
  *   Consequently, (10) is only valid when \f$ \tau_+ \geq 2 \f$. Therefore,
  *   the correct formulation for units with \f$ \tau_+ = 1 \f$ is given by
  *   (11) and (12).
@@ -623,8 +623,8 @@ class ThermalUnitBlock : public UnitBlock {
  *   form:
  *
  *   \f[
- *     \min ( \sum_{ t \in  \mathcal{T}  } s_t v_t +
- *            \sum_{ t \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } s_t v_t +
+ *            \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
  *   \f]
  *
  *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
