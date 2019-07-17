@@ -69,30 +69,30 @@ class UnitBlock;     // forward declaration of UnitBlock
 
 /// Implementation of the Block concept for the Unit Commitment problem
 /** The class UCBlock, implements the Block concept [see Block.h] for the
- * Unit Commitment (UC) problem in electrical power production. This is
- * typically a short-term (across for instance one week or one day time
- * horizon) *deterministic* problem regarding finding an optimal schedule
- * of the production of electrical generators satisfying a (large) set of
- * technical constraints.
+ *  Unit Commitment (UC) problem in electrical power production. This is
+ *  typically a short-term (across for instance one week or one day time
+ *  horizon) *deterministic* problem regarding finding an optimal schedule
+ *  of the production of electrical generators satisfying a (large) set of
+ *  technical constraints.
  *
- * The model is quite flexible due to the fact that different types of units
- * and network constraints can be used by means of the fact that the class
- * manages son Block of type UnitBlock and NetworkBlock. Also, UCBlock handles
- * a reasonably large variety of constraints, regarding not only active power
- * but also primary and secondary reserve and inertia. Admittedly, some
- * choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
- * specific of the UC of the plan4res project; however, all the "nonstandard"
- * aspects of UC can be switched away from the model (by simply not providing
- * the data describing them).
+ *  The model is quite flexible due to the fact that different types of units
+ *  and network constraints can be used by means of the fact that the class
+ *  manages son Block of type UnitBlock and NetworkBlock. Also UCBlock handles
+ *  a reasonably large variety of constraints, regarding not only active power
+ *  but also primary and secondary reserve and inertia. Admittedly, some
+ *  choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
+ *  specific of the UC of the plan4res project; however, all the "nonstandard"
+ *  aspects of UC can be switched away from the model (by simply not providing
+ *  the data describing them).
  *
- * The main elements that UCBlock handles are:
+ *  The main elements that UCBlock handles are:
  *
  * - The time horizon of the problem, i.e., a discrete set of (typically,
  *   equally-spaced) time instants at which decisions are made (like, the
  *   24 hours in a day).
  *
  * - A set of electricity generating units, represented by derived classes
- *   of the base class UnitBlock. //todo
+ *   of the base class UnitBlock.
  *
  * - A set of NetworkBlock, one for each time instant in the time horizon,
  *   which represent the constraints on the electricity demand satisfaction
@@ -174,12 +174,68 @@ class UCBlock : public Block {
  * - The dimension "TimeHorizon" containing the number of time steps in the
  *   problem.
  *
- * - The dimension "NumberUnits" containing the number of electricity
- *   generating units (UnitBlock) in the problem;
+ * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
+ *   the problem;
+ *
+ * - The dimension "NumberElectricalGenerators" containing the total number of
+ *   electrical generators in all units of the problem; this dimension is
+ *   optional and if it is defined should always be such that
+ *   "NumberElectricalGenerators" > "NumberUnits". Most of the units have just
+ *   one electrical generator such as ThermalUnitBlock then in this case each
+ *   unit is considered as one electrical generator, however there are some
+ *   other units (i.e. HydroUnitBlock) which by some technical constraint can
+ *   tied more than one electrical generators together. The index
+ *   g = 0, 1, ..., NumberElectricalGenerators - 1 and
+ *   i = 0, 1, ..., NumberUnits - 1 are considered as an specific electrical
+ *   generator g and unit i respectively. When
+ *   "NumberElectricalGenerators" == "NumberUnits" it is meant that all the
+ *   units have exactly one generator and each index g maps to corresponding
+ *   index i (bijection or one-to-one correspondence). When
+ *   "NumberElectricalGenerators" > "NumberUnits", then there exist at least
+ *   one unit which contains more than one electrical generator. Since some
+ *   electrical generators such as generator_0, generator_1 and generator_2
+ *   may belong to one unit as unit_0 then generator_3 may belong to unit_1,
+ *   and generator_4 may belong to unit_2 and so on, in this case mapping is
+ *   not one-to-one correspondence.
+ *
+ * - The variable "GeneratorNode", of type int and indexed over the dimension
+ *   "NumberElectricalGenerators"; the entry GeneratorNode[ g ] tells to which
+ *   node of the transmission network, the specified electrical generator g
+ *   belongs. If "NumberElectricalGenerators" is not defined, then it is taken
+ *   to be equal to "NumberUnits", which means that all units have exactly one
+ *   electrical generator and this variable indexed over "NumberUnits". If the
+ *   dimension "NumberElectricalGenerators" is defined it is meant that there
+ *   exist at least one unit with more than one electrical generator inside
+ *   (see comments for dimension "NumberElectricalGenerators"). It is possible
+ *   for different electrical generators within a unit to belong to different
+ *   nodes of the network (i.e. the case of hydro units, where generators are
+ *   separated by a long distance where nodes of the network may be at a close
+ *   distance). If NumberNodes == 1 (say, it is not provided at all), then
+ *   this variable need not be defined, since it is not loaded.
  *
  * - The dimension "NumberHeatBlocks" containing the number of heat blocks in
  *   the problem. The dimension is optional: if it is not provided then it is
  *   taken to be 0, which means that there is no heat block in the problem.
+ *
+ * - The dimension "NumberHeatGenerators" containing the total number of heat
+ *   generators in all available heat blocks in the problem. This dimension is
+ *   optional and if it is defined should always be strictly greater than the
+ *   dimension "NumberHeatUnits" (see deserialize HeatBlock). If
+ *   "NumberHeatBlock" == 0 there is not any HeatBlock and this dimension need
+ *   not to be defined. It is assumed that a HeatBlock can have several heat
+ *   units inside and each of that heat units may have at least one(or more)
+ *   heat generators inside, where that heat generator (or some of those heat
+ *   generators or even all of them) can also be electrical generators. Each
+ *   heat generator must have a unique name where the index
+ *   hg = 0, 1, ..., NumberHeatGenerators - 1 and
+ *   hi = 0, 1, ..., NumberHeatUnits - 1 are considered as an specific heat
+ *   generator hg and heat unit hi respectively. When
+ *   "NumberHeatGenerators" == "NumberHeatUnits" it is meant that all the
+ *   units have exactly one generator (that could also be an electrical
+ *   generator or just heat only generator) and each index hg maps to
+ *   corresponding index hi (bijection or one-to-one correspondence).
+ *   Otherwise, there exist at least one heat unit which contains more than
+ *   one heat generator and in this case the mapping is not a bijection.
  *
  * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
  *   n == NumberUnits - 1, containing each one UnitBlock corresponding
@@ -187,8 +243,8 @@ class UCBlock : public Block {
  *
  * - The groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
  *   n == NumberHeatBlocks - 1, containing each one a HeatBlock. When
- *   NumberHeatBlocks == 0, these groups need not be there since they are
- *   not read.
+ *   NumberHeatBlocks == 0, these groups need not be there since they are not
+ *   read.
  *
  * - Possibly, the dimensions and variables necessary to a NetworkData object,
  *   that describe the transmission network; see
@@ -200,12 +256,6 @@ class UCBlock : public Block {
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the constraints on the
  *   transmission network at time t.
- *
- * - The variable "UnitNode", of type int and indexed over the dimension
- *   "NumberUnits"; the entry UnitNode[ i ] tells to which node of the
- *   transmission network unit i belongs. If NumberNodes == 1 (say, it is
- *   not provided at all), then this variable need not be defined, since it
- *   is not loaded.
  *
  * - The variable "HeatNode", of type int and indexed over the dimension
  *   "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node of the
@@ -224,14 +274,16 @@ class UCBlock : public Block {
  *   two information must agree*, otherwise the input file is ill-defined and
  *   exception is thrown.
  *
- * - The variable "HeatSet", of type int and indexed both over the dimensions
- *   "NumberUnits" and "NumberHeatBlocks". If HeatSet[ i , h ] = k, with
- *   k < number of heat units in HeatBlock h, then electrical unit i is
- *   represented into HeatBlock h as the heat unit k. If, instead,
- *   HeatSet[ i , h ] = k, with k >= number of heat units in HeatBlock h, then
- *   none of the heat units in HeatBlock h represents the electrical unit i.
- *   If NumberHeatBlocks == 0 (there is no HeatBlock) then this variable
- *   need not be defined, since it is not loaded.
+ * - The variable "HeatSet", of type int and indexed over the dimension
+ *   "NumberHeatGenerators". The entry HeatSet[ hg ] = k would be the unique
+ *   name of the electrical generator corresponding to the heat generator hg
+ *   (if exist any), otherwise k >= number of heat units in HeatBlock, and it
+ *   is meant that the corresponding heat generator is not also an electrical
+ *   generator. If NumberHeatBlocks == 0 (there is no HeatBlock) en this
+ *   variable need not be defined, since it is not loaded. It is possible that
+ *   different heat generators correspond to one electrical generator but not
+ *   vice-versa (a heat generator is either a specific electrical generator,
+ *   or no electrical generator (heat-only generator)).
  *
  * - The variable "PowerHeatRho", of type double and indexed over the
  *   dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to contain
@@ -336,14 +388,14 @@ class UCBlock : public Block {
  * - The variable "PollutantRho", of type double and indexed over three
  *   dimensions. The first dimension can have either size 1 or TimeHorizon.
  *   The second and third dimensions have sizes "NumberPollutants" and
- *   "NumberUnits", respectively. Then, the entry PollutantRho[ 0 , p , i ]
- *   is assumed to contain the conversion factor of pollutant p due to the
- *   generation of unit i which is equal for "all" time instant t (the first
- *   dimension has size one). Whereas, the entry PollutantRho[ t , p , i ]
- *   gives the conversion factor of pollutant p due to the generation of unit
- *   i for "each" time t (the first dimension has full size TimeHorizon). If
- *   NumberPollutants == 0 (it is not provided) then this variable need not be
- *   defined, since it's not loaded.
+ *   "NumberElectricalGenerators", respectively. Then, the entry
+ *   PollutantRho[ 0 , p , g ] is assumed to contain the conversion factor of
+ *   pollutant p due to the electrical generator g which is equal for "all"
+ *   time instant t (the first dimension has size one). Whereas, the entry
+ *   PollutantRho[ t , p , g ] gives the conversion factor of pollutant p due
+ *   to the electrical generator g for "each" time t (the first dimension has
+ *   full size TimeHorizon). If NumberPollutants == 0 (it is not provided)
+ *   then this variable need not be defined, since it's not loaded.
  *
  * - The variable "PollutantHeatRho", of type double and indexed over three
  *   dimensions. The first dimension can have size 1 or TimeHorizon. The
@@ -390,31 +442,38 @@ class UCBlock : public Block {
  *  The electrical system contains a set of “units” (e.g., power plants, load
  *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
  *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
- *  \in \mathcal{N} \f$.
+ *  \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
+ *  where the set of all electrical generators is defined by
+ *  \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
+ *  electrical generators connected to node \f$ n \in \mathcal{N} \f$.
  *
  *  In the UCBlock there is not defined any variable but the decision
  *  variables here are present by using method get_variable() from UnitBlock,
  *  HeatBlock and NetworkBlock as follow:
  *
- * - \f$ p^{ac}_{t,i} \f$ : the active power variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I} \f$ is
- *   called from UnitBlock by get_active_power() method;
+ * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
+ *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+ *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_active_power()
+ *   method;
  *
  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
  *   called from NetworkBlock by get_node_injection() method;
  *
- * - \f$ p^{pr}_{t,i} \f$ : the primary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$ is called from UnitBlock by get_primary_spinning_reserve() method;
+ * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
+ *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
+ *   get_primary_spinning_reserve() method;
  *
- * - \f$ p^{sc}_{t,i} \f$ : the secondary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each unit \f$ i \in \mathcal{I}
- *   \f$ is called from UnitBlock by get_secondary_spinning_reserve() method;
+ * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
+ *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
+ *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
+ *   get_secondary_spinning_reserve() method;
  *
- * - \f$ u_{t,i}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
- *   \f$ t \in \mathcal{T} \f$ for each unit \f$ i \f$ is called from
- *   UnitBlock by get_commitment() method;
+ * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
+ *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+ *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
+ *   method;
  *
  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
  *   \f$ t \in \mathcal{T} \f$ and each heat unit
@@ -427,7 +486,7 @@ class UCBlock : public Block {
  *  \f$ \mathcal{T} \f$ write as follow:
  *
  * - Node injection Constraints:
- *   In the unit commitment problem, \f$ P^{au}_{t , i} \f$ denotes the fixed
+ *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
  *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
  *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
@@ -438,7 +497,7 @@ class UCBlock : public Block {
  *   t and node n as follow:
  *
  * \f[
- *  \sum_{ i \in \mathcal{I}_n } (p^{ac}_{t,i} + P^{au}_{t , i}(1 - u_{t,i}))
+ *  \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
  *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
  * \f]
  *
@@ -454,7 +513,7 @@ class UCBlock : public Block {
  *   at time t and primary zone z as below;
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in I_n } p^{pr}_{t,i} \geq
+ *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
  *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
  *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
  * \f]
@@ -471,7 +530,7 @@ class UCBlock : public Block {
  *   constraints at time t and secondary zone z as follow;
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } p^{sc}_{t,i} \geq
+ *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,i} \geq
  *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
  * \f]
@@ -480,7 +539,7 @@ class UCBlock : public Block {
  *   In the unit commitment problem, the inertia demand
  *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
  *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
- *   parameters \f$ \alpha_{t , i} \f$ and \f$ \beta_{t , i} \f$ will be
+ *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
  *   satisfied. Therefore, if the f_number_inertia_zones > 0,
  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_inertia_zones entries, where the entry
@@ -489,8 +548,8 @@ class UCBlock : public Block {
  *   at time t and inertia zone z as below;
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ i \in \mathcal{I}_n } (\alpha_{t , i}
- *  u_{t,i} + \beta_{t , i} p^{ac}_{t,i}) \geq D^{in}_{\mathcal{B} , t}
+ *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
+ *  u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
  *        \quad t \in \mathcal{T}
  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
  * \f]
@@ -500,8 +559,8 @@ class UCBlock : public Block {
  *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
  *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
  *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
- *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , i} \f$ and \f$
- *   \rho'_{t , p , i} \f$ where considered as pollutant ratio and
+ *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , g} \f$ and \f$
+ *   \rho'_{t , p , h} \f$ where considered as pollutant ratio and
  *   pollutant heat ratio respectively. So, if the f_number_pollutants > 0,
  *   a std::vector<std::vector<FRowConstraint>>; with two dimensions which are
  *   f_number_pollutants, and v_number_pollutant_zones entries, that the entry
@@ -511,11 +570,11 @@ class UCBlock : public Block {
  *
  * \f[
  *
- *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ i \in
- *  \mathcal{I}_n } \rho_{t , p , i} p^{ac}_{t,i} + \sum_{h \in \mathcal{H}_n}
+ *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
+ *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
  *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
  *  \leq \mathcal{O}_p  \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
- *  \quad p \in \mathcal{P} \quad                                          (5)
+ *  \quad p \in \mathcal{P} \quad                                    (5)
  * \f]
  *
  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
@@ -524,26 +583,27 @@ class UCBlock : public Block {
  *   In the unit commitment problem, the Heat Constraints link the UCBlock
  *   variables with the HeatBlock, where for each heat block
  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
- *   \varrho_{i} \f$ of each heat producing unit \f$ i \f$. Therefore, if the
- *   f_number_heat_blocks > 0, a boost::multi_array<FRowConstraint, 2> with
- *   two dimensions which are f_time_horizon and the number of UnitBlock that
- *   produce electricity and belong to some HeatBlock; the constraint at
- *   position ( t, i ) being the heat constraints at time t and unit M[ i ],
- *   where M maps the constraint into an electricity-producing unit that
- *   belongs to some HeatBlock. The Heat Constraints are defined as below:
+ *   \varrho_{g} \f$ of each electrical generator \f$ g \in \mathcal{G} \f$.
+ *   Therefore, if the f_number_heat_blocks > 0, a
+ *   boost::multi_array<FRowConstraint, 2> with two dimensions which are
+ *   f_time_horizon and the number of electrical generators that belong to
+ *   some HeatBlock; the constraint at position ( t, g ) being the heat
+ *   constraints at time t and heat generator M[ g ], where M maps the
+ *   constraint into an electricity generator that belongs to some HeatBlock.
+ *   The Heat Constraints are defined as below:
  *
  * \f[
- *  \sum_{h \in \mathcal{H} , j \in \mathcal{I}^{ec}(h): e^h(j)=i}
- *   p^{h , he}_{t , j}  \leq \varrho_i p^{ac}_{t,i} \quad i \in \mathcal{I}
+ *  \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
+ *   p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
  *                                 \quad t \in \mathcal{T} \quad           (6)
  * \f]
- *   where \f$ j \in \mathcal{I}^{ec}(h) \f$ is an electricity producing unit
- *   in heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
- *   \mathcal{I}^{ec}(h) \f$, there is the need to know which electrical unit
- *   \f$ j \f$ is representing. Thus, we need a mapping
- *   \f$ e^h : \mathcal{I}^{ec}(h) \to \mathcal{I} \f$, where \f$ \mathcal{I}
- *   \f$ is the set of electricity producing units (standard units in UC
- *   parlance).
+ *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
+ *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
+ *   \mathcal{G}^{ec}(h) \f$, there is the need to know which electrical
+ *   generator \f$ j \f$ is representing. Thus, we need a mapping
+ *   \f$ e^h : \mathcal{G}^{ec}(h) \to \mathcal{G} \f$, where \f$ \mathcal{G}
+ *   \f$ is the set of electricity generators (standard electrical generators
+ *   in UC parlance).
  */
 
  void generate_abstract_constraints( Configuration * stcc ) override;
@@ -731,44 +791,46 @@ class UCBlock : public Block {
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the matrix of heat set
- /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ i , h ] tells either the unit i in the given heat block h is an
-  *  electrical unit or not. There are two possible cases:
+ /// Returns the vector of HeatSet
+ /** The returned vector implies which heat generator is also an electrical
+  * generator. There are three possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no heat blocks are
-  *    defined, and there are no heat constraints;
+  * - if the vector is empty, then no HeatSet is defined, and there
+  *   no heat linking constraints;
   *
-  *  - otherwise, the two-dimensional boost::multi_array<> M may have
-  *    f_number_units rows and f_number_heat_blocks columns, and each element
-  *    of matrix M[ i , h ] tells either the unit i in the given heat block h
-  *    is an electrical unit or not.
+  * - if the vector has only one element, then there is just one heat
+  *   generator in heat blocks which could also be an electrical generator or
+  *   not;
+  *
+  * - otherwise, the vector must have size of number of heat generators and
+  *   each element of vector HeatSet[ hg ] tells which heat generator is also
+  *   an electrical generator;
   */
- const boost::multi_array< Index, 2 > & get_heat_set() const {
+ const std::vector< Index > & get_heat_set() const {
   return v_heat_set;
  }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant rho
  /** The method returns a three-dimensional boost::multi_array<> M such that
-  *  M[ t , p , i ] gives the production of pollutant p from unit i at time t.
-  *  This three-dimensional boost::multi_array<> M considers two possible
-  *  cases:
+  *  M[ t , p , g ] gives the production of pollutant p from electrical
+  *  generator g at time t. This three-dimensional boost::multi_array<> M
+  *  considers two possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no pollutant zones are
   *   defined, and there are no pollutant budget constraints;
   *
   * - otherwise, two possible cases may happen to the first dimension of the
-  *    M [ t , p , i ];
+  *    M [ t , p , g ];
   *
   *   - if the first dimension of the boost::multi_array<> M has size one,
-  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
-  *     factor of pollutant p due to the generation of unit i;
+  *     then each element of the matrix M [ 0 , p , g ] gives the conversion
+  *     factor of pollutant p due to the electrical generator g;
   *
   *   - if the first dimension of the boost::multi_array<> M has full size
-  *     then, each element of the matrix M[ t , p , i ] gives the conversion
-  *     factor of pollutant p due to the generation of unit i for "each" time
-  *     instant t.
+  *     then, each element of the matrix M[ t , p , g ] gives the conversion
+  *     factor of pollutant p due to the electrical generator g for "each"
+  *     time instant t.
   */
  const boost::multi_array< double, 3 > & get_pollutant_rho() const {
   return v_pollutant_rho;
@@ -842,8 +904,8 @@ class UCBlock : public Block {
   *  - otherwise, the vector must have size of number of units and the i_th
   *    element of the vector tells to which node n unit i belongs.
   */
- const std::vector< Index > & get_unit_node() const {
-  return v_unit_node;
+ const std::vector< Index > & get_generator_node() const {
+  return v_generator_node;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -870,11 +932,11 @@ class UCBlock : public Block {
 /** @name Methods for loading, printing and saving the UCBlock
  *  @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- *  UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
- *  format of the created netCDF group.
- */
+ /// Extends Block::serialize( netCDF::NcGroup )
+ /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+  *  UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
+  *  format of the created netCDF group.
+  */
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -904,6 +966,12 @@ class UCBlock : public Block {
 
  /// The number of units of the problem
  Index f_number_units;
+
+ /// The number of electrical generators of the problem
+ Index f_number_elc_generators;
+
+ /// The number of heat generators of the problem
+ Index f_number_heat_generators;
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
@@ -968,7 +1036,7 @@ class UCBlock : public Block {
 
  /// The PollutantRho matrix
  /** Indexed over the dimensions
-  *  TimeHorizon, NumberPollutants, and NumberUnits.
+  *  TimeHorizon, NumberPollutants, and NumberElcGenerators.
   */
  boost::multi_array< double, 3 > v_pollutant_rho;
 
@@ -978,15 +1046,15 @@ class UCBlock : public Block {
   */
  boost::multi_array< double, 3 > v_pollutant_heat_rho;
 
- /// v_unit_node[ i ] tells to which node unit i belongs
- std::vector< Index > v_unit_node;
+ /// v_generator_node[ g ] tells to which node generator g belongs
+ std::vector< Index > v_generator_node;
 
  /// v_heat_node[ h ] tells to which node the heat block h belongs
  std::vector< Index > v_heat_node;
 
- /// The HeatSet matrix
- /** Indexed over the dimensions NumberUnits, and NumberHeatBlocks */
- boost::multi_array< Index, 2 > v_heat_set;
+ /// The HeatSet vector
+ /** Indexed over the dimensions NumberHeatGenerators */
+ std::vector< Index > v_heat_set;
 
  /// Vector of heat rho
  std::vector< double > v_power_heat_rho;

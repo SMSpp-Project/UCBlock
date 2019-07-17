@@ -153,6 +153,11 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
+ ::deserialize_dim( group, "NumberElectricalGenerators",
+                                 f_number_elc_generators, false );
+ ::deserialize_dim( group, "NumberHeatGenerators",
+                                f_number_heat_generators, false );
+
  unsigned int number_nodes = f_NetworkData ? f_NetworkData->
   get_number_nodes() : 1;
 
@@ -229,7 +234,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  }
 
  if( number_nodes > 1 ) {
-  ::deserialize( group, "UnitNode", f_number_units, v_unit_node );
+  ::deserialize( group, "GeneratorNode", f_number_elc_generators,
+                 v_generator_node );
  }
 
  ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho );
@@ -288,7 +294,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-    Index node_id = get_unit_node()[ unit_id ];
+    Index generator_id = get_generator_node()[ generator_id ];
 /* //TODO Fixe me
     auto fixed_consumption =
      get_unit_block( unit_id )->get_fixed_consumption()[ t ];
@@ -338,7 +344,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-    auto node_id = get_unit_node()[ unit_id ];
+    auto node_id = get_generator_node()[ unit_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
@@ -386,7 +392,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-    auto node_id = get_unit_node()[ unit_id ];
+    auto node_id = get_generator_node()[ unit_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
@@ -433,7 +439,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-    auto node_id = get_unit_node()[ unit_id ];
+    auto node_id = get_generator_node()[ unit_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
@@ -501,7 +507,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     // Terms associated with active power
     for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-     auto node_id = get_unit_node()[ unit_id ];
+     auto node_id = get_generator_node()[ unit_id ];
      auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
 
      if( zone_id >= v_number_pollutant_zones[ pollutant ] )
@@ -569,7 +575,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     [ this ]( Index unit ) {
      for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
           ++heat_block_id ) {
-      if( get_heat_set()[ unit ][ heat_block_id ] <
+      if( get_heat_set()[ unit ] <
           v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
        return true;
      }
@@ -598,7 +604,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
          ++heat_block_id ) {
 
-     auto heat_unit_id = get_heat_set()[ unit_id ][ heat_block_id ];
+     auto heat_unit_id = get_heat_set()[ unit_id ];
 
      if( heat_unit_id >=
          v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
@@ -642,8 +648,12 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
  auto dim_number_units = group.addDim( "NumberUnits", f_number_units );
+ auto dim_number_elc_generators = group.addDim( "NumberElectricalGenerators",
+         f_number_elc_generators);
+ auto dim_number_heat_generators = group.addDim( "NumberHeatGenerators",
+                                       f_number_heat_generators );
  auto dim_number_nodes = group.addDim( "NumberNodes",
-                                       f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
+         f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
 
 
  auto dim_number_heat_blocks =
@@ -716,8 +726,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
               { dim_number_units }, v_power_heat_rho );
 
  if( f_NetworkData->get_number_nodes() > 1 ) {
-  ::serialize( group, "UnitNode", netCDF::NcUint64(),
-               { dim_number_units }, v_unit_node );
+  ::serialize( group, "GeneratorNode", netCDF::NcUint64(),
+               { dim_number_elc_generators }, v_generator_node );
  }
 
  if( f_number_heat_blocks > 0 && f_number_pollutants > 0 ) {

@@ -238,7 +238,7 @@ class NetworkBlock : public Block {
  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
  *    element of the vectors gives starting point of each line in the network.
  * */
-  const std::vector< int > & get_start_line() const {
+  const std::vector< Index > & get_start_line() const {
    return v_start_line;
   }
 
@@ -262,7 +262,7 @@ class NetworkBlock : public Block {
  *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
  *    element of the vectors gives ending point of each line in the network.
  * */
-  const std::vector< int > & get_end_line() const {
+  const std::vector< Index > & get_end_line() const {
    return v_end_line;
   }
 
@@ -365,9 +365,9 @@ class NetworkBlock : public Block {
 
   Index f_number_lines;    ///< Number of lines of the network
 
-  std::vector< int > v_start_line;  ///< Vector of starting nodes
+  std::vector< Index > v_start_line;  ///< Vector of starting nodes
 
-  std::vector< int > v_end_line;    ///< Vector of ending nodes
+  std::vector< Index > v_end_line;    ///< Vector of ending nodes
 
   /// Vector to store the susceptance of each line of the network
   std::vector< double > v_susceptance;
