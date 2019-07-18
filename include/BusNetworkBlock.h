@@ -58,7 +58,6 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// A NetworkBlock with only one node, i.e., a "bus" transmission network
 /** The BusNetworkBlock class, which derives from NetworkBlock [see
  *  NetworkBlock.h] implements the Block concept [see Block.h] in order to

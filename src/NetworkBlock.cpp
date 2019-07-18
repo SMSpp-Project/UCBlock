@@ -60,6 +60,15 @@ NetworkBlock::NetworkData::NetworkData() {
 
 void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
+ /*
+ *  * //TODO: In NetworkBlock::NetworkData::deserialize(), NumberLines need not be
+ *       read if NumberNodes == 1 (or not present). Also, we have to make
+ *       the basic checks on data:
+ *       - self loops are not allowed
+ *       - min capacity <= 0 <= max capacity
+ *       - susceptance > 0 (if it is)
+ */
+
  ::deserialize_dim( group, "NumberNodes", f_number_nodes );
 
  if( f_number_nodes > 1 ) {

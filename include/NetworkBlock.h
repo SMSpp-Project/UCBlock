@@ -135,7 +135,7 @@ class NetworkBlock : public Block {
   NetworkData();
 
   /// Destructor of NetworkData: it is virtual, and empty
-  virtual ~NetworkData() = default;
+  ~NetworkData() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -186,13 +186,6 @@ class NetworkBlock : public Block {
  * - The variable "Susceptance", of type double and indexed over the dimension
  *   "NumberLines"; the i-th entry of this variable is assumed to contain the
  *   susceptance of line i. Note that this is strictly a positive value.
- *
- * //TODO: In NetworkBlock::NetworkData::deserialize(), NumberLines need not be
- *       read if NumberNodes == 1 (or not present). Also, we have to make
- *       the basic checks on data:
- *       - self loops are not allowed
- *       - min capacity <= 0 <= max capacity
- *       - susceptance > 0 (if it is)
  */
   virtual void deserialize( netCDF::NcGroup & group );
 
@@ -205,8 +198,9 @@ class NetworkBlock : public Block {
  *  means the transmission network is bus, otherwise this gives the number of
  *  nodes in the available transmission network in the UC problem.
  * */
-  Index get_number_nodes() const { return f_number_nodes; }
-
+  Index get_number_nodes() const {
+   return f_number_nodes;
+  }
 /*--------------------------------------------------------------------------*/
 /// Returns the number of lines of the network
 /** Method for returning the number of lines of the network. This number
@@ -215,17 +209,10 @@ class NetworkBlock : public Block {
  *  needed to be defined), otherwise this gives the number of lines in the
  *  available transmission network in the UC problem.
  * */
-  Index get_number_lines() const { return f_number_lines; }
-
-/*--------------------------------------------------------------------------*/
-/// Returns the start node of the given line
-/** Method for returning the vector of starting point of each line.
- * */
-  Index get_start_line( Index node ) const {
-   return v_start_line.empty() ? 0 : v_start_line[ node ];
+  Index get_number_lines() const {
+   return f_number_lines;
   }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 /// Returns the vector of start nodes
 /** Method for returning the vector of starting point of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -243,13 +230,6 @@ class NetworkBlock : public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the end node of the given line
-/** Method for returning the vector of ending point of each line. */
-  Index get_end_line( Index node ) const {
-   return v_end_line.empty() ? 0 : v_end_line[ node ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Returns vector of end nodes
 /** Method for returning the vector of ending point of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -267,13 +247,6 @@ class NetworkBlock : public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the minimum power flow for the given line l
-/** Method for returning the vector of minimum power flow of each line. */
-  double get_min_power_flow( Index line ) const {
-   return v_min_power_flow.empty() ? 0 : v_min_power_flow[ line ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Returns vector of the minimum power flow
 /** Method for returning the vector of minimum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -290,13 +263,6 @@ class NetworkBlock : public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the maximum power flow for the given line l
-/** Method for returning the vector of maximum power flow of each line.*/
-  double get_max_power_flow( Index line ) const {
-   return v_max_power_flow.empty() ? 0 : v_max_power_flow[ line ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Returns vector of the maximum power flow
 /** Method for returning the vector of maximum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -313,13 +279,6 @@ class NetworkBlock : public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the Susceptance for the given line l
-/** Method for returning the vector of Susceptance of each line. */
-  double get_susceptance( Index line ) const {
-   return v_susceptance.empty() ? 0 : v_susceptance[ line ];
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Returns vector of the Susceptances
 /** Method for returning the vector of Susceptances for each line.  This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -519,13 +478,6 @@ class NetworkBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
     @{ */
-
- /// Returns the the active demand for the given node
- double get_active_demand( Index node ) const {
-  return v_active_demand.empty() ? 0 : v_active_demand[ node ];
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Returns the vector of active demands
  /** Method for returning the active demand for the given node. There are
   *  two possible cases:
@@ -566,12 +518,6 @@ class NetworkBlock : public Block {
 /// Returns the vector of node injection variables
  const std::vector< ColVariable > & get_node_injection() const {
   return v_node_injection;
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Returns the node injection variable of node n
- ColVariable & get_node_injection( Index node ) {
-  return v_node_injection[ node ];
  }
 
 /**@} ----------------------------------------------------------------------*/

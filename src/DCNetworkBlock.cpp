@@ -56,7 +56,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-
+/*
 void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
 {
 //TODO Implementation is not ready
@@ -86,7 +86,7 @@ void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
    }
 
  }  // end( DCNetworkBlock::deserialize )
-
+*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -117,8 +117,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines() ;
        ++line_id ) {
 
-    auto min_power_flow = f_NetworkData-> get_min_power_flow(line_id);
-    auto max_power_flow = f_NetworkData-> get_max_power_flow(line_id);
+    auto min_power_flow = f_NetworkData-> get_min_power_flow()[line_id];
+    auto max_power_flow = f_NetworkData-> get_max_power_flow()[line_id];
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
@@ -160,7 +160,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock -----*/
 /*--------------------------------------------------------------------------*/
-
+/*
 void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   group.putAtt( "type" , "DCNetworkBlock" ); //TODO
@@ -171,7 +171,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
                { dim_number_nodes}, v_active_demand);
 }    // end( DCNetworkBlock::serialize )
-
+*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/
