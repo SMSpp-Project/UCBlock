@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 06 - 2019
+ * \date 18 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -59,7 +59,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// implementation of the Block concept for a set of "heat units"
+/// Implementation of the Block concept for a set of "heat units"
 /** The HeatBlock class implements the Block concept [see Block.h] for a
  * set of "heat units" as required in the plan4res project.
  * The constraints regarding heat management in the plan4res project can be
@@ -92,7 +92,7 @@ class HeatBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * HeatBlock defines the following main public types:
+ * HeatBlock defines the following main public type:
  *
  * - Index, the type of parameters indices;
  *
@@ -108,32 +108,21 @@ class HeatBlock : public Block {
 /** @name Constructor and Destructor
  *  @{ */
 
-/// constructor, takes the father and the time horizon
+/// Constructor, takes the father and the time horizon
 /** Constructor of HeatBlock, taking possibly a pointer of its father
  * Block and the time horizon. */
 
- HeatBlock( Block * father_block = nullptr , Index t = 0 )
-  : Block( father_block ), f_time_horizon( t ) { }
+ explicit HeatBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
-/// destructor of HeatBlock: it is virtual, and empty
+/// Destructor of HeatBlock: it is virtual, and empty
 
- virtual ~HeatBlock() { }
+ ~HeatBlock() override = default;
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/// loads the HeatBlock instance from a stream
-
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
-  };
-
-/*--------------------------------------------------------------------------*/
-/// extends Block::deserialize( netCDF::NcGroup )
+/// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the HeatBlock. Besides the mandatory "type" attribute of any :Block,
  * the group should contain the following:
@@ -287,11 +276,9 @@ class HeatBlock : public Block {
  *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
  *   KeepingHeatRho == 1. If there is no heat storage (say, MaxHeatStorage is
  *   not defined) then this variable is not read, because it is not used. */
-
- virtual void deserialize( netCDF::NcGroup & group ) override;
-
+  void deserialize( netCDF::NcGroup & group ) override;
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the HeatUnit
+/// Generate the static variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.
  * HeatBlock class has four different "groups" of variables:
  *
@@ -326,57 +313,39 @@ class HeatBlock : public Block {
  * Whenever a group of variables is created, its size will be the time
  * horizon.
  *
- * - if f_time_horizon > 0, a std::vector< ColVariable > with
- *   exactly t entries, the entry t = 0, ..., f_time_horizon - 1 corresponding
- *   to the heat added variables;
- *
- * - if f_time_horizon > 0, a std::vector< ColVariable > with
- *   exactly t entries, the entry t = 0, ..., f_time_horizon - 1 corresponding
- *   to the heat removed variables;
- *
- * - if f_time_horizon > 0, a std::vector< ColVariable > with
- *   exactly t entries, the entry t = 0, ..., f_time_horizon - 1 corresponding
- *   to the heat available variables;
- *
- * - if f_time_horizon > 0, a std::vector< ColVariable > with
- *   exactly t entries, the entry t = 0, ..., f_time_horizon - 1 corresponding
- *   to the heat variables;
- *
  * Note that derived classes are free to use the other bits of the int to
  * similarly encode for creation of their own specific groups of variables.*/
 
- virtual void generate_abstract_variables( Configuration *stvv = nullptr )
-    override;
+void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the static constraint of the HeatBlock
+/// Generate the static constraint of the HeatBlock
 /** Method that generates the static constraint of the HeatBlock.
- *
  *
  *  The constraints in the HB write as follow:
  *
  * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
- *   at time period \f$ t \in T \f$:
+ *   at time period \f$ t \in \mathcal{T} \f$:
  *   \f[
- *     \sum_{ i \in I } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
- *      \geq D_t                     \quad t \in T     \quad     (1)
+ *     \sum_{ i \in \mathcal{I} } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
+ *      \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
  *   \f]
  *
  * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
  *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
- *   production of unit \f$ i \in I \f$ at time \f$ t \in T \f$, the
- *   heat production bounds are
+ *   production of unit \f$ i \in \mathcal{I} \f$ at time
+ *   \f$ t \in \mathcal{T} \f$, the heat production bounds are
  *   \f[
  *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
- *         \quad i \in I    \quad t \in T   \quad     (2)
+ *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
  *   \f]
  *
  * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
  *   \f$ V^{mx}_t \f$ denoting respectively the minimum and maximum heat
- *   storage . For each heat block at time \f$ t \in T \f$, the heat
+ *   storage . For each heat block at time \f$ t \in \mathcal{T} \f$, the heat
  *   storage bounds are
  *   \f[
- *     v^{mn}_{t} v_t \leq V^{mx}_t    \quad t \in T    \quad   (3)
+ *     v^{mn}_{t} \leq v_t \leq V^{mx}_t  \quad t \in \mathcal{T}   \quad  (3)
  *   \f]
  *
  * - Evolution in the stored heat Constraints. Let three constants
@@ -386,96 +355,197 @@ class HeatBlock : public Block {
  *   storage; then the evolution in the stored heat can be written as
  *   \f[
  *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
- *                                   \quad t \in T      \quad  (4)
+ *                                   \quad t \in \mathcal{T}      \quad  (4)
  *   \f]
  */
 
- virtual void generate_abstract_constraints( Configuration *stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration *stcc )  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective of the HeatBlock
+/// Generate the objective of the HeatBlock
 /** Method that generates the objective of the HeatBlock.
  *
  * - Objective Function: the objective function of HB simply reads
  *   \f[
- *     \min \sum_{ i \in I} \sum_{ t \in T}
+ *     \min \sum_{ i \in \mathcal{I}} \sum_{ t \in \mathcal{T}}
  *          C_{t,i} p^{he}_{t,i}
  *   \f]
  *   where \f$  C_{t,i} \f$ is the cost of producing one heat unit by unit
- *   \f$ i \in I \f$ at time \f$ t \in T \f$. Note that
+ *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
  *   storing heat has no cost. */
 
- virtual void generate_objective( Configuration *objc = nullptr )  override;
+ void generate_objective( Configuration *objc )  override;
 
-/*@} -----------------------------------------------------------------------*/
-/*-------------- Methods for reading the data of the HeatBlock -------------*/
+/**@} ----------------------------------------------------------------------*/
+/*-------------- METHODS FOR READING THE DATA OF THE HeatBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the HeatBlock
+ *
+ * These methods allow to read data that must be common to (in principle) all
+ * the HeatBlocks, i.e.:
  *  @{  */
 
-/// returns the time horizon of the problem
- Index get_time_horizon( void ) const { return( f_time_horizon ); }
-
-/// returns the number of units in this HeatBlock
- Index get_number_heat_units( void ) const { return( f_number_heat_units ); }
-
- // TODO: I do not think these implementations are correct, because the
- //       vectors may have 1st dimension == 1. In this case you should
- //       not duplicate the vectors for all time instants
- //
- //       Anyway, you should not have "interval" as first argument, but
- //       rather "time". This is different.
- //
- //       Finally, you are using std::vector<> to represent matrices, but
- //       we have boost::multi_array<> to do the same thing in a more
- //       natural way, you should consider using these (although the final
- //       choice is yours)
-
- /** returns the minimum heat production of the given block for interval t of
- * unit i */
- inline double get_min_heat_production( Index interval , Index unit ) const {
-  return v_min_heat_production[ interval * f_number_heat_units + unit ];
+/// Returns the time horizon of the problem
+ Index get_time_horizon( void ) const {
+  return( f_time_horizon );
+ }
+/*--------------------------------------------------------------------------*/
+/// Returns the number of heat units in this HeatBlock
+ Index get_number_heat_units( void ) const {
+  return( f_number_heat_units );
+ }
+/*--------------------------------------------------------------------------*/
+/// Returns the vector of heat demand
+/** The returned vector implies the heat demand of each HeatBlock at time t.
+ *  There are two possible cases:
+ *
+ * - if the vector is empty, then no heat block, and no heat demand
+ *   constraints;
+ *
+ * - otherwise, the vector must have size of time horizon and the t_th
+ *   element of the vector gives the total heat demand at time t.
+ */
+ const std::vector< double > & get_heat_demand() const {
+  return v_heat_demand;
+ }
+/*--------------------------------------------------------------------------*/
+/// Returns the vector of minimum heat storage
+/** The returned vector implies the minimum heat storage of each HeatBlock
+ * at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then there are no minimum heat storage
+ *   constraints;
+ *
+ * - if the vector has only one element, then the minimum heat storage is
+ *   always equal to the value of that element;
+ *
+ * - otherwise, the vector must have size of time horizon and the t_th
+ *   element of the vector gives the minimum heat storage at time t.
+ */
+ const std::vector< double > & get_min_heat_storage() const {
+  return v_min_heat_storage;
+ }
+/*--------------------------------------------------------------------------*/
+/// Returns the vector of maximum heat storage
+/** The returned vector implies the maximum heat storage of each HeatBlock
+ * at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then there are no maximum heat storage
+ *   constraints;
+ *
+ * - if the vector has only one element, then the maximum heat storage is
+ *   always equal to the value of that element;
+ *
+ * - otherwise, the vector must have size of time horizon and the t_th
+ *   element of the vector gives the maximum heat storage at time t.
+ */
+ const std::vector< double > & get_max_heat_storage() const {
+  return v_max_heat_storage;
+ }
+/*--------------------------------------------------------------------------*/
+///Returns the matrix of minimum heat production
+/** The method returns a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the minimum heat production of unit i in time t. There
+ * are four possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then, any minimum heat
+ *    production is defined;
+ *
+ *  - if the boost::multi_array<> M has only one row, it is a vector
+ *    with size of f_number_heat_units. In this case M[ 0 , i ] gives the
+ *    minimum heat production for each i and all t;
+ *
+ *  - if the boost::multi_array<> M has only one column, it is a vector
+ *    with size of f_time_horizon. In this case M[ t , 0 ] gives the
+ *    minimum heat production for all units in each time t;
+ *
+ *  - otherwise, the two-dimensional boost::multi_array<> M must have
+ *    f_time_horizon rows and f_number_heat_units, and each element of
+ *    matrix M[ t , i ] gives the minimum heat production of each unit i at
+ *    time t;
+ */
+ const boost::multi_array< double , 2 > &get_min_heat_production() const {
+  return v_min_heat_production;
   }
+/*--------------------------------------------------------------------------*/
+///Returns the matrix of maximum heat production
+/** The method returns a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the maximum heat production of unit i in time t. There
+ * are four possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then, any maximum heat
+ *    production is defined;
+ *
+ *  - if the boost::multi_array<> M has only one row, it is a vector
+ *    with size of f_number_heat_units. In this case M[ 0 , i ] gives the
+ *    maximum heat production for each i and all t;
+ *
+ *  - if the boost::multi_array<> M has only one column, it is a vector
+ *    with size of f_time_horizon. In this case M[ t , 0 ] gives the
+ *    maximum heat production for all units in each time t;
+ *
+ *  - otherwise, the two-dimensional boost::multi_array<> M must have
+ *    f_time_horizon rows and f_number_heat_units, and each element of
+ *    matrix M[ t , i ] gives the maximum heat production of each unit i at
+ *    time t;
+ */
+ const boost::multi_array< double , 2 > &get_max_heat_production( ) const {
+  return v_max_heat_production;
+ }
 
-/** returns the cost of heat unit of the given block for interval t of
- * unit i */
-    inline double get_cost_heat_unit(  Index interval , Index unit) const {
-        return v_cost_heat_unit[ interval * f_number_heat_units + unit ];
-    }
-
-/** returns the maximum heat production of the given block for interval t of
- * unit i */
-    inline double get_max_heat_production(  Index interval , Index unit) const {
-        return v_max_heat_production[ interval * f_number_heat_units + unit ];
-    }
-
+/*--------------------------------------------------------------------------*/
+///Returns the matrix of production heat cost
+/** The method returns a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the production heat cost of unit i in time t. There
+ * are four possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then, any production heat cost
+ *    is defined;
+ *
+ *  - if the boost::multi_array<> M has only one row, it is a vector
+ *    with size of f_number_heat_units. In this case M[ 0 , i ] gives the
+ *    production heat cost for each i and all t;
+ *
+ *  - if the boost::multi_array<> M has only one column, it is a vector
+ *    with size of f_time_horizon. In this case M[ t , 0 ] gives the
+ *    production heat cost for all units in each time t;
+ *
+ *  - otherwise, the two-dimensional boost::multi_array<> M must have
+ *    f_time_horizon rows and f_number_heat_units, and each element of
+ *    matrix M[ t , i ] gives production heat cost of each unit i at
+ *    time t;
+ */
+ const boost::multi_array< double , 2 > &get_cost_heat_unit() const {
+  return v_cost_heat_unit;
+ }
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE HeatBlock ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the HeatBlock
  *
- * These methods allow to read the only Variable of the HeatBlock that must
- * be "known" outside of it, i.e., the heat variables.
+ * These methods allow to read the heat variable that any HeatBlock
+ * in principle has (although some may not):
  *
- * TODO: the second method is surely wrong, for each t there is a separate
- *       heat variable for each unit i
+ * - heat variables;
  *
- * TODO: you should use boost::multi_array< ColVariable > for
- *       multi-dimensional groups of Variable like the heat ones, which
- *       would change the signature of the first method
+ * This group of variable is (if not empty)
+ * boost::multi_array< ColVariable , 2 > with first dimension time horizon
+ * and second dimension number of units.
  *
  * @{ */
 
- /// Method for returning the vector of heat variables
-
- const std::vector<ColVariable> & get_heat(  ) const {
-  return( v_heat );
-  }
-
- /// Method for returning the pointer to the heat variable at time t
-
- ColVariable * get_heat( int t ) { return & ( v_heat[ t ] ); }
+/// Returns the matrix of heat variables
+/** The returned boost::multi_array< ColVariable , 2 >, say U, contains the
+ * heat variables and is indexed over the dimensions time horizon and
+ * number of unit. There are two possible cases:
+ *
+ *  - if U is empty(), then these variables are not defined;
+ *
+ *  - otherwise, U must have f_time_horizon rows and f_number_units columns
+ *    and M[ t , i ] is the heat variable for time step t of unit i */
+ const boost::multi_array< ColVariable , 2 > & get_heat() const {
+  return v_heat;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE HeatBlock -------------------*/
@@ -483,60 +553,67 @@ class HeatBlock : public Block {
 /** @name Methods for loading, printing & saving the HeatBlock
  *  @{ */
 
-/// extends Block::serialize( netCDF::NcGroup )
+/// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * HeatBlock. See HeatBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MODIFYING THE HeatBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the HeatBlock
  *  @{ */
 
- /// set the time horizon method
- /** Set the time horizon method.
-  *
-  * This method can be called *before* that deserialize() is called to
-  * provide the HeatBlock with the time horizon. This allows the information
-  * not to be duplicated in the netCDF group that describes the HB, since
-  * usually (bit not necessarily) a HeatBlock is deserialized inside a
-  * UCBlock, and all HB have the same time horizon, that can therefore be
-  * read once and for all by the father UCBlock.
-  *
-  * If this method is *not* called, which means that f_time_horizon is at its
-  * initial value of 0 (not initialized), then when deserialize() is called
-  * the information has to be available by other means, i.e.:
-  *
-  * (i)  If there is no dimension TimeHorizon in netCDF input, then the
-  *      HeatBlock must have a father, which must be a UCBlock: the
-  *      time horizon is then taken to be that of the father. If the
-  *      HeatBlock does not have a father (or it is not a UCBlock), then
-  *      exception is thrown.
-  *
-  * (ii) If the dimension TimeHorizon is present in the netCDF input of
-  *      HeatBlock, the value provided there is used with no check that
-  *      the UCBlock has a father at all, that the father is a UCBlock,
-  *      or that the two time horizon agree.
-  *
-  * If this method *is* called, which has to happen before that deserialize()
-  * is called, and f_time_horizon is set at a value != 0, then if the 
-  * dimension TimeHorizon is present in netCDF input, then the two values must
-  * agree. If the dimension TimeHorizon is not present, then the value set by
-  * this method is used. Note that, of course, the data in the netCDF file (if
-  * the unit has any data indiced over the time horizon) has to agree with the
-  * value set by this method.
-  *
-  * If this method is called *after* that deserialize() is called, this is
-  * taken to mean that the UnitBlock is being "reset", and that immediatley
-  * after deserialize() will be called again. The same rules as above are to
-  * be followed for that subsequent call to deserialize(). */
-
+/// Set the time horizon method
+/** This method can be called *before* that deserialize() is called to
+ * provide the HeatBlock with the time horizon. This allows the information
+ * not to be duplicated in the netCDF group that describes the HB, since
+ * usually (bit not necessarily) a HeatBlock is deserialized inside a
+ * UCBlock, and all HB have the same time horizon, that can therefore be
+ * read once and for all by the father UCBlock.
+ *
+ * If this method is *not* called, which means that f_time_horizon is at its
+ * initial value of 0 (not initialized), then when deserialize() is called
+ * the information has to be available by other means, i.e.:
+ *
+ * (i)  If there is no dimension TimeHorizon in netCDF input, then the
+ *      HeatBlock must have a father, which must be a UCBlock: the
+ *      time horizon is then taken to be that of the father. If the
+ *      HeatBlock does not have a father (or it is not a UCBlock), then
+ *      exception is thrown.
+ *
+ * (ii) If the dimension TimeHorizon is present in the netCDF input of
+ *      HeatBlock, the value provided there is used with no check that
+ *      the UCBlock has a father at all, that the father is a UCBlock,
+ *      or that the two time horizon agree.
+ *
+ * If this method *is* called, which has to happen before that deserialize()
+ * is called, and f_time_horizon is set at a value != 0, then if the
+ * dimension TimeHorizon is present in netCDF input, then the two values must
+ * agree. If the dimension TimeHorizon is not present, then the value set by
+ * this method is used. Note that, of course, the data in the netCDF file (if
+ * the unit has any data indexed over the time horizon) has to agree with the
+ * value set by this method.
+ *
+ * If this method is called *after* that deserialize() is called, this is
+ * taken to mean that the HeatBlock is being "reset", and that immediately
+ * after deserialize() will be called again. The same rules as above are to
+ * be followed for that subsequent call to deserialize(). */
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*------------------ METHODS FOR INITIALIZING THE HeatBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the data of the HeatBlock
+    @{ */
+
+ void load( std::istream &input ) override {
+  throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
+ };
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -550,20 +627,18 @@ class HeatBlock : public Block {
 
  Index f_number_intervals;   ///< the number of intervals
 
- std::vector< int >  v_change_intervals;  ///< the vector of change interval
+ std::vector< Index >  v_change_intervals;  ///< the vector of change interval
 
  /// the vector of HeatDemand indexed over the dimensions TimeHorizon
  std::vector< double > v_heat_demand;
 
- // TODO: if it's a matrix, why not using a boost::multi_array<>?
-
  /** the matrix of MinHeatProduction indexed over the dimensions
   * NumberIntervals and NumberHeatUnits */
- std::vector< double > v_min_heat_production;
+ boost::multi_array< double , 2 > v_min_heat_production;
 
  /** the matrix of MaxHeatProduction indexed over the dimensions
   * NumberIntervals and NumberHeatUnits */
- std::vector< double > v_max_heat_production;
+ boost::multi_array< double , 2 > v_max_heat_production;
 
  /// the vector of MinHeatStorage indexed over the dimensions NumberIntervals
  std::vector< double > v_min_heat_storage;
@@ -573,7 +648,7 @@ class HeatBlock : public Block {
 
  /** the matrix of CostHeatUnit indexed over the dimensions
   * NumberIntervals and NumberHeatUnits */
- std::vector< double > v_cost_heat_unit;
+ boost::multi_array< double , 2 > v_cost_heat_unit;
 
  /// Value of storing heat rho
  double f_storing_heat_rho;
@@ -589,9 +664,8 @@ class HeatBlock : public Block {
 
 /*-----------------------------variables------------------------------------*/
 
- // TODO: that's a matrix, you should be using a boost::multi_array<>
- /// Vector of Heat variables
- std::vector< ColVariable > v_heat;
+ /// Matrix of Heat variables
+ boost::multi_array< ColVariable , 2 > v_heat;
 
  /// Vector of HeatAdded variables
  std::vector< ColVariable > v_heat_added;
@@ -633,15 +707,15 @@ class HeatBlock : public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// returns which variables must be generated
-/* This method returns an int that indicates which variables of HeatBlock
+/// Returns which variables must be generated
+/** This method returns an int that indicates which variables of HeatBlock
  * must be generated by the generate_abstract_variables() method. This value
  * may be given in stvv as explained in generate_abstract_variables(). If this
  * value is not given in stvv, then this method returns the appropriate value
  * according to what is specified in the generate_abstract_variables() method.
  */
 
- int get_variables_to_be_generated( Configuration *stvv );
+ unsigned int get_variables_to_be_generated( Configuration *stvv );
 
  void deserialize_time_horizon( netCDF::NcGroup & group );
 

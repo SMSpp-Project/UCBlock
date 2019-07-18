@@ -151,7 +151,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
     ::deserialize( group, "TotalHeatDemand", f_time_horizon,
                    v_heat_demand );
-
+/*
     ::deserialize( group, "CostHeatUnit",
                    { f_number_intervals , f_number_heat_units },
                    v_cost_heat_unit );
@@ -162,7 +162,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
     ::deserialize( group, "MaxHeatProduction",
                    { f_number_intervals , f_number_heat_units },
-                   v_max_heat_production );
+                   v_max_heat_production );*/
 
     ::deserialize( group, "MinHeatStorage", f_number_intervals,
                    v_min_heat_storage );
@@ -179,7 +179,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-int HeatBlock::get_variables_to_be_generated( Configuration *stvv ) {
+unsigned int HeatBlock::get_variables_to_be_generated( Configuration *stvv ) {
 
     if( ! stvv )
         return 0;
@@ -206,10 +206,7 @@ int HeatBlock::get_variables_to_be_generated( Configuration *stvv ) {
 
 void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
 
-    if( v_heat.size() != 0 ||
-        v_heat_added.size() != 0 ||
-        v_heat_removed.size() != 0 ||
-        v_heat_available.size() != 0 ) {
+    if( v_heat.size() != 0 ) {
         // the abstract variables should be generated only once
         return;
     }
@@ -218,12 +215,9 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
         // there are no variables to be generated
         return;
     }
-    typedef std::vector< std::pair< std::vector<ColVariable> * , int > > v_pairs;
+    typedef std::vector< std::pair< boost::multi_array<ColVariable , 2> * , int > > v_pairs;
 
     v_pairs variables_and_types = {
-        std::make_pair( &v_heat_added,               ColVariable::kNonNegative ),
-        std::make_pair( &v_heat_removed,             ColVariable::kNonNegative ),
-        std::make_pair( &v_heat_available,           ColVariable::kNonNegative ),
         std::make_pair( &v_heat,                     ColVariable::kNonNegative )
         // v_heat must be the last one in this list
     };
@@ -231,20 +225,51 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
     auto variables_to_be_generated = get_variables_to_be_generated( stvv );
 
     // The heat variables must be always present
-    variables_to_be_generated |=
-        (int) std::pow( 2, variables_and_types.size() - 1 );
+ variables_to_be_generated |=
+         ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
 
-    int k = 1;
-    for( auto [ variables, variable_type ] : variables_and_types ) {
-        if( variables_to_be_generated & k ) {
-            variables->resize( f_time_horizon );
-            for( auto & variable : * variables )
-                variable.set_type( variable_type );
-            add_static_variable( * variables );
-        }
-        k *= 2;
+ unsigned int k = 1;
+ for( auto pair : variables_and_types ) {
+  if( variables_to_be_generated & k ) {
+
+   auto variables = pair.first;
+   variables->resize(boost::extents[f_time_horizon][f_number_heat_units]);
+   for (Index t = 0; t < f_time_horizon; ++t) {
+    for (Index g = 0; t < f_number_heat_units; ++g) {
+     auto variable = (*variables)[ t ][ g ];
+     variable.set_type(pair.second);
     }
+    add_static_variable(variables[t]);
+   }
+  }
+  k *= 2;
+ }
+ if( f_time_horizon > 0 ) {
+  if( v_heat_added.size() != f_time_horizon &&
+      v_heat_removed.size() != f_time_horizon &&
+      v_heat_available.size() != f_time_horizon) {
 
+   assert( v_heat_added.empty() ); // this should only happen once
+   v_heat_added.resize( f_time_horizon );
+
+   assert( v_heat_removed.empty() ); // this should only happen once
+   v_heat_removed.resize( f_time_horizon );
+
+   assert( v_heat_available.empty() ); // this should only happen once
+   v_heat_available.resize( f_time_horizon );
+
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    v_heat_added[ t ].set_type( ColVariable::kNonNegative );
+    v_heat_removed[ t ].set_type( ColVariable::kNonNegative );
+    v_heat_available[ t ].set_type( ColVariable::kNonNegative );
+
+   }
+   add_static_variable ( v_heat_added );
+   add_static_variable ( v_heat_removed );
+   add_static_variable ( v_heat_available );
+  }
+
+ }
 } // end( HeatBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -270,15 +295,16 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
             auto linear_function = new LinearFunction();
 
-            linear_function->add_variable( & v_heat_added[ t ],               -1.0 );
+            linear_function->add_variable( & v_heat_added[ t ],             -1.0 );
             linear_function->add_variable( & v_heat_removed[ t ],              1.0 );
 
-            auto heat_variable = get_heat( t );
+
 
             for( Index unit_id = 0; unit_id < f_number_heat_units; ++unit_id ) {
                 auto linear_function = static_cast<LinearFunction *>
                 ( v_HeatDemand_Constraints[ t ].get_function() );
-                linear_function->add_variable( & heat_variable[ unit_id ],       1.0 );
+                auto heat = get_heat()[ t ][unit_id];
+                linear_function->add_variable( &heat ,     1.0 );
             }
         }
 
@@ -302,16 +328,16 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
             for( Index unit_id = 0; unit_id < f_number_heat_units; ++unit_id ) {
 
                 v_HeatBounds_Constraints[ t ][ unit_id ].set_rhs
-                    ( v_max_heat_production[ unit_id ]);
+                    ( v_max_heat_production[ t ][ unit_id ]);
                 v_HeatBounds_Constraints[ t ][ unit_id ].set_lhs
-                    ( v_min_heat_production[ unit_id ]);
+                    ( v_min_heat_production[ t ][ unit_id ]);
                 v_HeatBounds_Constraints[ t ][ unit_id ].set_function
                     ( new LinearFunction() );
 
-                auto heat_variable = get_heat( unit_id );
+                auto heat = get_heat() [ t ] [unit_id ];
                 auto linear_function = new LinearFunction();
 
-                linear_function->add_variable( & heat_variable[ t ],           1.0 );
+                linear_function->add_variable( &heat,           1.0 );
             }
         }
         add_static_constraint( v_HeatBounds_Constraints );
@@ -403,11 +429,11 @@ void HeatBlock::generate_objective( Configuration *objc ) {
     for( Index unit_id = 0; unit_id < f_number_heat_units; ++unit_id ) {
         for ( Index t = 0; t < f_time_horizon; ++t ) {
 
-            auto heat = get_heat( t );
+            auto heat = get_heat() [ t ][ unit_id ];
 
-            auto cost = get_cost_heat_unit( t , unit_id);
+            auto cost = get_cost_heat_unit() [ t ] [ unit_id ];
 
-            linear_function->add_variable( & heat[ t ], cost );
+            linear_function->add_variable( & heat, cost );
 
         }
     }
@@ -458,14 +484,14 @@ void HeatBlock::serialize( netCDF::NcGroup & group ) const {
 
     ::serialize( group, "MaxHeatStorage", netCDF::NcDouble(),
                  {NumberIntervals}, v_max_heat_storage);
-
+/*
     ::serialize( group, "MinHeatProduction", netCDF::NcDouble(),
                  {NumberIntervals , dim_number_units},
                  v_min_heat_production);
 
     ::serialize( group, "MaxHeatProduction",netCDF::NcDouble(),
                  {NumberIntervals , dim_number_units},
-                 v_max_heat_production);
+                 v_max_heat_production);*/
 
 }  // end( HeatBlock::serialize )
 
