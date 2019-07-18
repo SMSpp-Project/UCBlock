@@ -538,7 +538,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        if( zone_id >= v_number_pollutant_zones[ pollutant ] )
         continue; // this unit does not belong to any zone
 
-       auto heat = get_heat_block() [ h ]->get_heat()[ t ];
+       auto heat = get_heat_block() [ h ]->get_heat()[ t ][ i ];
        auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
        auto linear_function = dynamic_cast<LinearFunction *>
@@ -619,12 +619,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      auto active_power = get_unit_block( unit_id )->get_active_power() [ t ];
-     auto heat = get_heat_block() [ heat_unit_id ]->get_heat( t );
+     auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][unit_id];
      auto power_heat_rho = get_power_heat_rho()[ unit_id ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
-     linear_function->add_variable( heat, 1, 0 );
+     linear_function->add_variable( &heat, 1, 0 );
 //     linear_function->add_variable( &active_power, -power_heat_rho );
     }
    }

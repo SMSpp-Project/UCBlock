@@ -598,7 +598,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "InitialPower",   netCDF::NcDouble(), f_initial_power );
  ::serialize( group, "MinUpTime",      netCDF::NcUint64(), f_MinUpTime );
  ::serialize( group, "MinDownTime",    netCDF::NcUint64(), f_MinDownTime );
- ::serialize( group, "InitUpDownTime", netCDF::NcUint64(), f_InitUpDownTime );
+ ::serialize( group, "InitUpDownTime", netCDF::NcInt64(), f_InitUpDownTime );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 

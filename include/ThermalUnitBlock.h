@@ -103,10 +103,8 @@ class ThermalUnitBlock : public UnitBlock {
  * father Block.
  *
  */
-
  explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0):
          UnitBlock( f_block ) { }
-
 /*--------------------------------------------------------------------------*/
 
  /// Destructor of ThermalUnitBlock
@@ -259,7 +257,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   not loaded, if the variable is provided then it must be that MaxPower
  *   >= its value >= MinPower;
  *
- * - The scalar variable "InitUpDownTime", of type UInt64 and not indexed over
+ * - The scalar variable "InitUpDownTime", of type Int64 and not indexed over
  *   any dimension and indicates the initial time to generating the unit.
  *   If InitUpDownTime > 0, this means that the unit has been on for
  *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
