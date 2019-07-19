@@ -119,59 +119,63 @@ class ThermalUnitBlock : public UnitBlock {
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
  *
- * - The variable "MinPower", of type double and to be either has size 1 or
- *   indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the minimum output value of the unit for all the time horizon is equal to
- *   this value, otherwise the vector MnP[ t ] for each time instant t,
- *   contains the minimum power output value of the unit for the corresponding
- *   time steps; it must be that MnP[ t ] >= 0 for all t. MinPower[ i ] is the
- *   fixed value of MnP[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ * - The variable "MinPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MnP[ t ] that, for each time instant t, contains the minimum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MinPower" has length 1 then MnP[ t ] contains the same value for all
+ *   t. Otherwise, MinPower[ i ] is the fixed value of MnP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *    MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
+ *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
+ *    which in fact is not loaded.
+ *
+ * - The variable "MaxPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MxP[ t ] that, for each time instant t, contains the maximum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MaxPower" has length 1 then MxP[ t ] contains the same value for all
+ *   t. Otherwise, MaxPower[ i ] is the fixed value of MxP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *    MxP[ t ] >= MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "MaxPower", of type double and to be either has size 1 or
- *   indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the maximum output value of the unit for all the time horizon is equal to
- *   this value, otherwise the vector MxP[ t ] for each time instant t,
- *   contains the maximum power output value of the unit for the corresponding
- *   time steps; it must be that MxP[ t ] >= MnP[ t ] >= 0 for all t.
- *   MaxPower[ i ] is the fixed value of MxP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ * - The variable "DeltaRampUp", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector DP[ t ] that, for each time instant t, contains the ramp-up value
+ *   of the unit for the corresponding time step, i.e., the maximum possible
+ *   increase of active power production w.r.t. the power that had been
+ *   produced in time instant t - 1, if any. This variable is optional; if it
+ *   is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e., the
+ *   unit can ramp up by an arbitrary amount, i.e., there are no ramp-up
+ *   constraints. If "DeltaRampUp" has length 1 then DP[ t ] contains the same
+ *   value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ]
+ *   for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
+ *
+ * - The variable "DeltaRampDown", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector DM[ t ] that, for each time instant t, contains the ramp-down
+ *   value of the unit for the corresponding time step, i.e., the maximum
+ *   possible decrease of active power production w.r.t. the power that had
+ *   been produced in time instant t - 1, if any. This variable is optional;
+ *   if it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
+ *   the unit can ramp up down an arbitrary amount, i.e., there are no
+ *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
+ *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
+ *   fixed value of DM[ t ] for all t in the interva
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "DeltaRampUp", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the delta ramp-up value of the unit for all the time horizon is equal to
- *   this value, otherwise the vector DP[ t ] for each time instant t,
- *   contains the maximum possible increase of power production w.r.t. the
- *   power that had been produced in time instant t - 1, if any. This variable
- *   is optional; if it is not provided then it is assumed that
- *   DRU[ t ] == MxP[ t ], i.e., the unit can ramp up by an arbitrary amount,
- *   i.e., there are no ramp-up constraints. DeltaRampUp[ i ] is the fixed
- *   value of DRU[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "DeltaRampDown", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the delta ramp-down value of the unit for all the time horizon is equal
- *   to this value, otherwise the vector DM[ t ] for each time instant t,
- *   contains the maximum possible decrease of power production w.r.t. the
- *   power that had been produced in time instant t - 1, if any. This variable
- *   is optional; if it is not provided then it is assumed that
- *   DRD[ t ] == MxP[ t ], i.e., the unit can ramp down by an arbitrary amount,
- *   i.e., there are no ramp-down constraints. DeltaRampDown[ i ] is the fixed
- *   value of DRD[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ * TODO: please uniform the comments with those below or above
  *
  * - The variable "PrimaryRho", of type double and to be either has size 1 or
  *   indexed over the dimension "NumberIntervals". The length of 1 is meant
@@ -260,6 +264,8 @@ class ThermalUnitBlock : public UnitBlock {
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
+ * END TODO
+ *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
  *   time instant -1 (prior to the beginning of the horizon). It indicates the
@@ -314,13 +320,12 @@ class ThermalUnitBlock : public UnitBlock {
  *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
  *   fixed value of IC[ t ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
- *   */
+ *   assumption that ChangeIntervals[ - 1 ] = 0. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the abstract variables of the ThermalUnitBlock
+/// generate the abstract variables of the ThermalUnitBlock
 /** The ThermalUnitBlock class use get_variable() method to access to each
  *  "group" of variable that may create in UnitBlock class which are:
  *
@@ -331,7 +336,7 @@ class ThermalUnitBlock : public UnitBlock {
  *
  *  - the secondary spinning reserve variables;
  *
- *  - the active power variables;
+ *  - the active power variables.
  *
  *  All of those variables are optional except the active power variables in
  *  the sense that the model may just not have them and whenever a group of
@@ -351,16 +356,19 @@ class ThermalUnitBlock : public UnitBlock {
  *  steps 0, ..., init_t - 1 (see initial time step concept in the
  *  generate_abstract_constraints()).
  *
- *  All of these variables are optional,and it is also possible to restrict
+ *  All of these variables are optional, and it is also possible to restrict
  *  which of the subsets are generated with the parameter stvv. If stvv is not
  *  nullptr and it is a SimpleConfiguration<int>, or if
  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
- * */
+ *
+ * Note that there may be other formulations (like the DP one), which will
+ * possibly be implemented in the future. */
 
  void generate_abstract_variables( Configuration *stvv ) override;
+
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the ThermalUnitBlock
 /** This method generates the abstract constraints of the ThermalUnitBlock.
@@ -627,10 +635,9 @@ class ThermalUnitBlock : public UnitBlock {
  *   the correct formulation for units with \f$ \tau_+ = 1 \f$ is given by
  *   (11) and (12).
  *
- *
- * - Note: there will possibly exist different groups of constraints in future
- *   since implementing the DP formulation, and will add here.
- */
+ * Note that there may be other formulations (like the DP one), which will
+ * possibly be implemented in the future. */
+
  void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -669,13 +676,13 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - fixed consumption when the unit is off;
  *
- * - the contribution to the inertia depending on the commitment status;
+ * - the contribution to the inertia depending on the commitment status.
  *
  * @{ */
 
-/// Returns the vector of minimum power
-/** The returned vector implies to minimum power at time t.
- *  There are three possible cases:
+/// returns the vector of minimum power
+/** The returned vector contains to minimum power at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the minimum power of the unit is 0;
  *
@@ -688,12 +695,13 @@ class ThermalUnitBlock : public UnitBlock {
  *   comment);  */
 
  const std::vector< double > & get_min_power() const {
-  return ( v_MinPower);
- }
+  return( v_MinPower );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of maximum power
-/** The returned vector implies to maximum power at time t.
- *  There are three possible cases:
+/// returns the vector of maximum power
+/** The returned vector contains to maximum power at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the maximum power of the unit is 0;
  *
@@ -702,16 +710,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector MaxPower[ i ] is the fixed value of MaxP[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment).  */
 
  const std::vector< double > & get_max_power() const {
-  return ( v_MaxPower);
- }
+  return( v_MaxPower );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of primary rho
-/** The returned vector implies to primary rho at time t.
- *  There are three possible cases:
+/// returns the vector of primary rho
+/** The returned vector contains to primary rho at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the primary rho of the unit is 0;
  *
@@ -720,15 +729,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector PrimaryRho[ i ] is the fixed value of PR[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment).  */
+
  const std::vector< double > & get_praimary_rho() const {
-  return ( v_PrimaryRho);
- }
+  return( v_PrimaryRho );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of secondary rho
-/** The returned vector implies to secondary rho at time t.
- *  There are three possible cases:
+/// returns the vector of secondary rho
+/** The returned vector contains to secondary rho at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the secondary rho of the unit is 0;
  *
@@ -737,15 +748,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector SecondaryRho[ i ] is the fixed value of SR[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment). */
+ 
  const std::vector< double > & get_secondary_rho() const {
-  return ( v_SecondaryRho);
- }
+  return( v_SecondaryRho );
+  }
+
 /*--------------------------------------------------------------------------*/
 /// Returns the vector of delta ramp-up
-/** The returned vector implies to delta ramp-up at time t.
- *  There are three possible cases:
+/** The returned vector contains to delta ramp-up at time t.  There are three
+ * possible cases:
  *
  * - if the vector is empty, then the delta ramp-up of the unit is 0;
  *
@@ -754,15 +767,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector DeltaRampUp[ i ] is the fixed value of DRU[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment). */
+
  const std::vector< double > & get_delta_ramp_up() const {
-  return ( v_DeltaRampUp);
- }
+  return( v_DeltaRampUp );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of delta ramp-down
-/** The returned vector implies to delta ramp-down at time t.
- *  There are three possible cases:
+/// returns the vector of delta ramp-down
+/** The returned vector contains to delta ramp-down at time t. There are
+ * three possible cases:
  *
  * - if the vector is empty, then the delta ramp-down of the unit is 0;
  *
@@ -772,14 +787,16 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector DeltaRampDown[ i ] is the fixed value of DRD[ t ] in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see
- *   deserialize comment);  */
+ *   deserialize() comment).  */
+
  const std::vector< double > & get_delta_ramp_down() const {
-  return ( v_DeltaRampDown);
- }
+  return( v_DeltaRampDown );
+  }
+
 /*--------------------------------------------------------------------------*/
 /// Returns the vector of quadratic term
-/** The returned vector implies to quadratic term at time t.
- *  There are three possible cases:
+/** The returned vector contains to quadratic term at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the quadratic term of the unit is 0;
  *
@@ -788,15 +805,15 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector QuadTerm[ i ] is the fixed value of A[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
- const std::vector< double > & get_quad_term() const {
-  return ( v_QuadTerm);
- }
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment).  */
+
+ const std::vector< double > & get_quad_term() const { return( v_QuadTerm ); }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of linear term
-/** The returned vector implies to linear term at time t.
- *  There are three possible cases:
+/// returns the vector of linear term
+/** The returned vector contains to linear term at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the linear term of the unit is 0;
  *
@@ -805,15 +822,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector LinearTerm[ i ] is the fixed value of B[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment). */
+
  const std::vector< double > & get_linear_term() const {
-  return ( v_LinearTerm);
- }
+  return( v_LinearTerm );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of constant term
-/** The returned vector implies to constant term at time t.
- *  There are three possible cases:
+/// returns the vector of constant term
+/** The returned vector contains to constant term at time t. There are three
+ * possible cases:
  *
  * - if the vector is empty, then the constant term of the unit is 0;
  *
@@ -822,15 +841,17 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector ConstTerm[ i ] is the fixed value of C[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment). */
+
  const std::vector< double > & get_const_term() const {
-  return ( v_ConstTerm);
- }
+  return( v_ConstTerm );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of startup cost
-/** The returned vector implies to startup cost at time t.
- *  There are three possible cases:
+/// returns the vector of startup cost
+/** The returned vector contains to startup cost at time t.  There are three
+ * possible cases:
  *
  * - if the vector is empty, then the startup cost of the unit is 0;
  *
@@ -839,13 +860,15 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size of number intervals and each element
  *   of vector StartUpCost[ i ] is the fixed value of SC[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
+ *   comment). */
+
  const std::vector< double > & get_start_up_cost() const {
-  return ( v_StartUpCost);
- }
+  return( v_StartUpCost );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// Returns the matrix of fixed consumption
+/// returns the matrix of fixed consumption
 /** The returned value U = get_fixed_consumption() contains the contribution
  *  to fixed consumption (basically, the constants to be multiplied by the
  *  commitment variables returned by get_commitment()) of all the generators
@@ -868,14 +891,14 @@ class ThermalUnitBlock : public UnitBlock {
  *   get_number_generators(), then the FixedConsumption[ i , g ] is the fixed
  *   value of U[ t , g] in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
- *   generator g (see  deserialize comment).
- */
+ *   generator g (see deserialize() comment). */
 
-const boost::multi_array< double , 2 > & get_fixed_consumption() const {
-  return ( v_fixed_consumption);
- }
+ const boost::multi_array< double , 2 > & get_fixed_consumption() const {
+  return( v_fixed_consumption );
+  }
+
 /*--------------------------------------------------------------------------*/
-/// It returns the matrix of inertia commitment
+/// returns the matrix of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
  *  variables returned by get_commitment()) of all the generators at all time
@@ -898,16 +921,15 @@ const boost::multi_array< double , 2 > & get_fixed_consumption() const {
  *   get_number_generators(), then the InertiaCommitment[ i , g ] is the fixed
  *   value of U[ t , g] in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
- *   generator g (see  deserialize comment).
- *   */
-const boost::multi_array< double , 2 > & get_inertia_commitment( ) const {
-  return v_inertia_commitment;
- }
+ *   generator g (see deserialize() comment). */
+
+ const boost::multi_array< double , 2 > & get_inertia_commitment) const {
+  return( v_inertia_commitment );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Reading the Variable of the ThermalUnitBlock
  *
  * These methods allow to read the each group of Variable that any
@@ -919,15 +941,16 @@ const boost::multi_array< double , 2 > & get_inertia_commitment( ) const {
  *
  * @{ */
 
- /// Returns the vector of start_up variables
+ /// returns the vector of start_up variables
  const std::vector< ColVariable > & get_start_up() const {
   return v_start_up;
- }
+  }
+
 /*--------------------------------------------------------------------------*/
- /// Returns the vector of shut_down variables
+ /// returns the vector of shut_down variables
  const std::vector< ColVariable > & get_shut_down() const {
   return v_shut_down;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -951,7 +974,7 @@ const boost::multi_array< double , 2 > & get_inertia_commitment( ) const {
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet") );
- };
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
