@@ -70,7 +70,6 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// Implementation of the Block concept for "a generic unit" in UC
 /** The class UnitBlock, which derives from the Block, defines a base class
  * for any possible "unit" that can be attached to a UCBlock. A unit is in
@@ -257,29 +256,31 @@ class UnitBlock : public Block {
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Reading the data of the UnitBlock
-  *
-  * These methods allow to read data that must be common to (in principle) all
-  * the kind of electrical generation units, i.e.:
-  *
-  * - fixed consumption when the unit is off;
-  *
-  * - the contribution to the inertia depending on the commitment status;
-  *
-  * - the contribution to the inertia depending on the active power produced.
-  *
-  * Note that this data is optional, and only "few" of the UnitBlock actually
-  * have it. Hence, no data structures are defined by the base UnitBlock
-  * class: the methods have a default implementation returning an empty
-  * vector, and derived classes will have to handle their own data (if any).
-  * @{ */
+/** @name Reading the data of the UnitBlock
+ *
+ * These methods allow to read data that must be common to (in principle) all
+ * the kind of electrical generation units, i.e.:
+ *
+ * - the time horizon
+ *
+ * - fixed consumption when the unit is off;
+ *
+ * - the contribution to the inertia depending on the commitment status;
+ *
+ * - the contribution to the inertia depending on the active power produced.
+ *
+ * Note that most of this data is optional, and only "few" of the UnitBlock
+ * actually have it. Hence, no data structures are defined by the base
+ * UnitBlock class: the methods have a default implementation returning an
+ * empty vector, and derived classes will have to handle their own data (if
+ * any).
+ * @{ */
 
- /// Returns the time horizon of the problem
- Index get_time_horizon() const {
-  return f_time_horizon;
- }
+ /// returns the time horizon of the problem
+ Index get_time_horizon() const { return f_time_horizon; }
+
 /*--------------------------------------------------------------------------*/
- /// Returns the number of electrical generators of each unit in the problem
+ /// returns the number of electrical generators of each unit in the problem
  /** Returns the number of electrical generators for this UnitBlock. Since in
   *  most of the cases each unit has only one electrical generator, this
   *  method in the base UnitBlock class returns to one by default. Therefore,
@@ -288,11 +289,10 @@ class UnitBlock : public Block {
   *  that have more than one electrical generator (tied together by technical
   *  constraints) will have to handle this number by their-self. */
 
- virtual Index get_number_generators( void ) const {
-  return( 1 );
- }
+ virtual Index get_number_generators( void ) const { return( 1 ); }
+ 
 /*--------------------------------------------------------------------------*/
- /// Returns the empty matrix of fixed consumption
+ /// returns the matrix of fixed consumption
  /** The returned value U = get_fixed_consumption() contains the contribution
   *  to fixed consumption (basically, the constants to be multiplied by the
   *  commitment variables returned by get_commitment()) of all the generators
@@ -302,12 +302,12 @@ class UnitBlock : public Block {
   * derived classes will have to handle their own data (if any). */
 
  virtual const boost::multi_array< double , 2 > & get_fixed_consumption()
- const { const static boost::multi_array< double , 2 > _fc {};
-  return ( _fc );
+  const {
+  const static boost::multi_array< double , 2 > _fc {}; return( _fc );
   }
 
 /*--------------------------------------------------------------------------*/
- /// It returns the empty matrix of inertia commitment
+ /// returns the matrix of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution
   *  to inertia (basically, the constants to be multiplied by the commitment
   *  variables returned by get_commitment()) of all the generators at all time
@@ -317,12 +317,12 @@ class UnitBlock : public Block {
   * derived classes will have to handle their own data (if any). */
 
  virtual const boost::multi_array< double , 2 > & get_inertia_commitment()
- const { const static boost::multi_array< double , 2 > _ic {};
-  return ( _ic );
- }
+  const {
+  const static boost::multi_array< double , 2 > _ic {}; return( _ic );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the empty matrix of inertia power
+ /// returns the matrix of inertia power
  /** The returned value U = get_inertia_power() contains the contribution to
   *  inertia (basically, the constants to be multiplied by the active power
   *  variables returned by get_active_power()) of all the generators at all
@@ -331,9 +331,9 @@ class UnitBlock : public Block {
   * The default implementation of the methods returns an empty matrix; and
   * derived classes will have to handle their own data (if any).  */
 
- virtual const boost::multi_array< double , 2 > & get_inertia_power() const {
-  const static boost::multi_array< double , 2 > _ip {};
-  return ( _ip );
+ virtual const boost::multi_array< double , 2 > & get_inertia_power()
+  const {
+  const static boost::multi_array< double , 2 > _ip {}; return( _ip );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -357,7 +357,7 @@ class UnitBlock : public Block {
  * and second dimension number of generators.
  * @{ */
 
- /// Returns the matrix of commitment variables
+ /// returns the matrix of commitment variables
  /** The returned boost::multi_array< ColVariable , 2 >, say U, contains the
   * commitment variables and is indexed over the dimensions time horizon and
   * get_number_generators(). There are two possible cases:
@@ -370,7 +370,7 @@ class UnitBlock : public Block {
 
  const boost::multi_array< ColVariable , 2 > & get_commitment() const {
   return v_commitment;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of primary spinning reserve variables
@@ -423,25 +423,23 @@ class UnitBlock : public Block {
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the UnitBlock
+ *  @{ */
 
- /** @name Methods for loading, printing & saving the UnitBlock
-  *  @{ */
-
- /// Extends Block::serialize( netCDF::NcGroup )
+ /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
-  *  details of the format of the created netCDF group.
-  */
+  *  details of the format of the created netCDF group. */
+
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
-
  /** @name Methods for modifying the UnitBlock
   *  @{ */
 
- /// Sets the time horizon method
+ /// sets the time horizon method
  /** This method can be called *before* that deserialize() is called to
   * provide the UnitBlock with the time horizon. This allows the information
   * not to be duplicated in the netCDF group that describes the unit, since
@@ -487,7 +485,7 @@ class UnitBlock : public Block {
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "UnitBlock::load() not implemented yet" ) );
- };
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -499,7 +497,7 @@ class UnitBlock : public Block {
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Utility method for resetting all the Variables
+ /// utility method for resetting all the Variables
  void guts_of_destructor();
 
 /*--------------------------------------------------------------------------*/
@@ -542,26 +540,25 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
- /// Returns which variables must be generated
+ /// returns which variables must be generated
  /** This method returns an int that indicates which variables of
   * UnitBlock must be generated by the generate_abstract_variables()
   * method. This value may be given in stvv as explained in
   * generate_abstract_variables(). If this value is not given in stvv, then
   * this method returns the appropriate value according to what is specified
-  * in the generate_abstract_variables() method.
-  */
+  * in the generate_abstract_variables() method. */
+
  unsigned int get_variables_to_be_generated( Configuration * stvv );
 
- /// Deserializes the time horizon from a netCDF group
+ /// deserializes the time horizon from a netCDF group
  void deserialize_time_horizon( netCDF::NcGroup & group );
 
- /// Deserializes the change intervals vector from a netCDF group
+ /// deserializes the change intervals vector from a netCDF group
  void deserialize_change_intervals( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( UnitBlock ) )
+ };  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
