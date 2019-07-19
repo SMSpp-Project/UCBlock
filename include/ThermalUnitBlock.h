@@ -4,7 +4,8 @@
 /** @file
  * Header file for the class ThermalUnitBlock, which derives from UnitBlock
  * [see UnitBlock.h], in order to define a "reasonably standard" thermal unit
- * of a Unit Commitment Problem.
+ * of a Unit Commitment Problem. A ThermalUnitBlock corresponds to a single
+ * electrical generator.
  *
  * \version 0.11
  *
@@ -60,21 +61,22 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-/// Implementation of the Block concept for the thermal unit problem
-/** The ThermalUnitBlock class implements the Block concept [see Block.h]
- * for a "reasonably standard" thermal unit of a Unit Commitment Problem.
- * That is, the class is designed in order to give mathematical formulation to
- * describe the operation of large set of conventional power plants (such as
- * nuclear, hard coal, gas turbine, gas, combined cycle, oil, ...)  which
- * are directly connected to the transmission grid. The technical and physical
- * constraints are mainly divided in four different categories:
+/// implementation of the Block concept for a thermal unit
+/** The ThermalUnitBlock class derives from UnitBlock and implements a
+ * "reasonably standard" thermal unit of a Unit Commitment Problem. That is,
+ * the class is designed in order to give mathematical formulation to describe
+ * the operation of large set of conventional power plants (such as nuclear,
+ * hard coal, gas turbine, gas, combined cycle, oil, ...) which are directly
+ * connected to the transmission grid. The technical and physical constraints
+ * are mainly divided in four different categories:
  *
  * - minimum up and down time constraints;
+ *
  * - ramp-up/down rate constraints;
+ *
  * - maximum and minimum power output constraints;
- * - active power relation with primary and secondary spinning reserves.
- * */
+ *
+ * - active power relation with primary and secondary spinning reserves. */
 
 class ThermalUnitBlock : public UnitBlock {
 
@@ -83,14 +85,6 @@ class ThermalUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
  public:
-/*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * ThermalUnitBlock defines the following main public types:
- *
- * @{ */
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -98,16 +92,15 @@ class ThermalUnitBlock : public UnitBlock {
 /** @name Constructor and Destructor
  *  @{ */
 
-/// Constructor, takes the father and the time horizon
-/** Constructor of ThermalUnitBlock, taking possibly a pointer of its
- * father Block.
- *
- */
- explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block ) { }
-/*--------------------------------------------------------------------------*/
+ /// constructor, takes the father and the time horizon
+ /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
+  * father Block and the time horizon. */
 
- /// Destructor of ThermalUnitBlock
+ explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
+  UnitBlock( f_block ) { }
+
+/*--------------------------------------------------------------------------*/
+ /// destructor of ThermalUnitBlock, it is empty
 
  ~ThermalUnitBlock() override = default;
 
