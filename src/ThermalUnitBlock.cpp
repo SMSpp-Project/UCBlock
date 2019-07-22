@@ -555,7 +555,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
 void ThermalUnitBlock::generate_objective( Configuration *objc ) {
 
- if( ! get_objective().empty() )  // an objective is there already
+ if( get_objective() == nullptr )  // an objective is there already
   return;                        // cowardly (and silently) return
 
  // Initialize objective function
