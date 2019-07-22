@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 07 - 2019
+ * \date 22 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -127,7 +127,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   t. Otherwise, MinPower[ i ] is the fixed value of MnP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
  *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *    MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
+ *   MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
  *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
  *    which in fact is not loaded.
  *
@@ -139,7 +139,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   t. Otherwise, MaxPower[ i ] is the fixed value of MxP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
  *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *    MxP[ t ] >= MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
+ *   MxP[ t ] >= MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
