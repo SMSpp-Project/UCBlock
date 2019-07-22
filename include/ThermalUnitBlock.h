@@ -893,7 +893,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
  *   generator g (see deserialize() comment). */
 
- const boost::multi_array< double , 2 > & get_fixed_consumption() const {
+ const boost::multi_array< double , 2 > & get_fixed_consumption() const override {
   return( v_fixed_consumption );
   }
 
@@ -923,7 +923,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
  *   generator g (see deserialize() comment). */
 
- const boost::multi_array< double , 2 > & get_inertia_commitment() const {
+ const boost::multi_array< double , 2 > & get_inertia_commitment() const override {
   return( v_inertia_commitment );
   }
 
