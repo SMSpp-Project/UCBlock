@@ -86,7 +86,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  public:
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -169,102 +169,95 @@ class ThermalUnitBlock : public UnitBlock {
  *   the unit can ramp up down an arbitrary amount, i.e., there are no
  *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
  *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
- *   fixed value of DM[ t ] for all t in the interva
+ *   fixed value of DM[ t ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: please uniform the comments with those below or above
- *
- * - The variable "PrimaryRho", of type double and to be either has size 1 or
- *   indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the maximum possible fraction of active power that can be used as primary
- *   reserve of the unit for all the time horizon is equal to this value,
- *   otherwise the vector PR[ t ] for each time instant t, contains the
- *   maximum possible fraction of active power that can be used as primary
- *   reserve. This variable is optional; if it is not provided then it is
- *   assumed that this unit may not be capable of producing any primary
- *   reserve, which correspond to PR[ t ] == 0 for all t. PrimaryRho[ i ] is
- *   the fixed value of PR[ t ] for all t in the interval
+ * - The variable "PrimaryRho", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector PR[ t ] that, for each time instant t, contains the maximum
+ *   possible fraction of active power that can be used as primary reserve
+ *   value of the unit for the corresponding time step. This variable is
+ *   optional; if it is not provided then it is assumed that this unit may not
+ *   be capable of producing any primary reserve, which correspond to
+ *   PR[ t ] == 0 for all t. If "PrimaryRho" has length 1 then PR[ t ]
+ *   contains the same value for all t. Otherwise, PrimaryRho[ i ] is the
+ *   fixed value of PR[ t ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If  "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "SecondaryRho", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the maximum possible fraction of active power that can be used as
- *   secondary reserve of the unit for all the time horizon is equal to this
- *   value, otherwise the vector SR[ t ] for each time instant t, contains the
- *   maximum possible fraction of active power that can be used as secondary
- *   reserve. This variable is optional; if it is not provided then it is
- *   assumed that this unit may not be capable of producing any secondary
- *   reserve, which correspond to SR[ t ] == 0 for all t. SecondaryRho[ i ] is
- *   the fixed value of SR[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "QuadTerm", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the quadratic term of power cost function of the unit for all the time
- *   horizon is equal to this value, otherwise the vector A[ t ] for each time
- *   instant t, contains the quadratic term of power cost function of the unit
- *   for the corresponding time steps. This variable is optional; if it is not
- *   provided then it is assumed that A[ t ] == 0, i.e., the cost of the unit
- *   is linear in the produced power. QuadTerm[ i ] is the fixed value of
- *   A[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ * - The variable "SecondaryRho", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector SR[ t ] that, for each time instant t, contains the maximum
+ *   possible fraction of active power that can be used as secondary reserve
+ *   value of the unit for the corresponding time step. This variable is
+ *   optional; if it is not provided then it is assumed that this unit may not
+ *   be capable of producing any secondary reserve, which correspond to
+ *   SR[ t ] == 0 for all t. If "SecondaryRho" has length 1 then SR[ t ]
+ *   contains the same value for all t. Otherwise, SecondaryRho[ i ] is the
+ *   fixed value of SR[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - the variable "StartUpCost", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the start up cost amount of the unit for all the time horizon is equal to
- *   this value, otherwise the vector SC[ t ] for each time instant t,
- *   contains the start up cost value of the unit for the corresponding time
- *   steps; This variable is optional; if it is not provided then it is
- *   assumed that this unit may not have any start up cost  which correspond
- *   to SC[ t ] == 0 for all t. StartUpCost[ i ] is the fixed value of SC[ t ]
- *   for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "LinearTerm", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the linear term of power cost function of the unit for all the time
- *   horizon is equal to this value, otherwise the vector B[ t ] for each time
- *   instant t, contains the linear term of power cost function of the unit
- *   for the corresponding time steps. This variable is optional; if it is not
- *   provided then it is assumed that B[ t ] == 0, i.e., the cost of the unit
- *   has no linear dependence on the produced power (say, only the quadratic
- *   one). LinearTerm[ i ] is the fixed value of B[ t ] for all t in the
+ * - The variable "QuadTerm", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector A[ t ] that, for each time instant t, contains the quadratic
+ *   term of power cost function of the unit for the corresponding time step.
+ *   This variable is optional; if it is not provided then it is assumed that
+ *   A[ t ] == 0, i.e., the cost of the unit is linear in the produced power.
+ *   If "QuadTerm" has length 1 then A[ t ] contains the same value for all t.
+ *   Otherwise, QuadTerm[ i ] is the fixed value of A[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "ConstTerm", of type double and to be either has size 1
- *   or indexed over the dimension "NumberIntervals". The length of 1 is meant
- *   the constant term of power cost function of the unit for all the time
- *   horizon is equal to this value, otherwise the vector C[ t ] for each time
- *   instant t, contains the constant term of power cost function of the unit
- *   for the corresponding time steps. This variable is  optional; if it is
- *   not provided then it is assumed that C[ t ] == 0, i.e., the cost of the
- *   unit has no fixed term, only those depending (linearly or quadratically)
- *   on the produced power. ConstTerm[ i ] is the fixed value of C[ t ] for
- *   all t in the interval[ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ * - The variable "StartUpCost", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector SC[ t ] that, for each time instant t, contains the start up
+ *   cost value of the unit for the corresponding time step. This variable is
+ *   optional; if it is not provided then it is assumed that SC[ t ] == 0,
+ *   i.e., this unit may not have any start up cost. If "StartUpCost" has
+ *   length 1 then SC[ t ] contains the same value for all t. Otherwise,
+ *   StartUpCost[ i ] is the fixed value of SC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * END TODO
+ * - The variable "LinearTerm", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector B[ t ] that, for each time instant t, contains the linear term
+ *   of power cost function of the unit for the corresponding time step.
+ *   This variable is optional; if it is not provided then it is assumed that
+ *   B[ t ] == 0, i.e., the cost of the unit has no linear dependence on the
+ *   produced power (say, only the quadratic one). If "LinearTerm" has length
+ *   1 then A[ t ] contains the same value for all t. Otherwise,
+ *   LinearTerm[ i ] is the fixed value of B[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *   
+ * - The variable "ConstTerm", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector C[ t ] that, for each time instant t, contains the constant
+ *   term of power cost function of the unit for the corresponding time step.
+ *   This variable is optional; if it is not provided then it is assumed that
+ *   C[ t ] == 0, i.e., the cost of the unit has no fixed term, only those
+ *   depending (linearly or quadratically) on the produced power. If
+ *   "ConstTerm" has length 1 then C[ t ] contains the same value for all t.
+ *   Otherwise, ConstTerm[ i ] is the fixed value of C[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
