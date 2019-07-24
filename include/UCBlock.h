@@ -843,9 +843,12 @@ class UCBlock : public Block {
   *  - otherwise, since there might be exist a different number of pollutant
   *    zones b according to each pollutant p, then the
   *    two-dimensional boost::multi_array<> M might be an irregular matrix
-  *    (where the number of rows for each column is different). Therefore,
-  *    each element of matrix M[ b , p ] gives the pollutant budget of
-  *    corresponding pollutant zone b which pollutant p belongs. */
+  *    (where the number of rows for each column is different). Therefore, to
+  *    avoid having an irregular matrix, matrix M defines as a spars matrix
+  *    and each element of matrix M[ b , p ] gives the pollutant budget of
+  *    corresponding pollutant zone b which pollutant p belongs. Note that
+  *    M[ b , p ] == 0 implies that pollutant zone b associated with pollutant
+  *    p is not defined*/
 
  const boost::multi_array< double , 2 > & get_pollutant_budget() const {
   return v_pollutant_budget;
