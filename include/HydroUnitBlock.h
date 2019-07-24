@@ -69,7 +69,8 @@ namespace SMSpp_di_unipi_it {
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves;
  *
- * - active power relation with primary and secondary spinning reserves;
+ * - primary and secondary spinning reserves relation with active power for
+ *   turbines;
  *
  * - primary and secondary spinning reserves value for pumps( == 0 );
  *
@@ -134,9 +135,6 @@ class HydroUnitBlock : public UnitBlock {
  *   provided then it is taken to be == 1 and in this case the cascading
  *   system becomes to a single hydro unit.
  *
- * Note: The concept of "fake" reservoir, with no volumetric variable and no
- * volumetric constraint /todo
- *
  * - The dimension "NumberArcs" containing the set of arcs connecting the
  *   reservoirs in cascading system.
  *
@@ -150,19 +148,17 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "EndArc", of type int and indexed over the dimension
  *   "NumberReservoirs"; the r-th entry of the variable is the ending point
- *   of the arc; this is a number in 0, ..., NumberReservoirs.
- *   Note: this is NumberReservoirs and *not* NumberReservoirs - 1, because
- *   arcs can end in the "fake" reservoir NumberReservoirs. This indicates
- *   that water that flows along that arc "goes away from the system" and
- *   it is no longer counted, because it can no longer be used to produce
- *   electricity. Indeed, there will be something like "the most downstream
- *   turbine": after water has been used there, it just goes away down some
- *   river and does not go to any other reservoir ...
-
- Note that arcs are
- *   oriented (see above); StartArc[ r ] == EndArc[ r ] (a self-loop) is not
- *   allowed, but multiple arcs between the same pair of reservoirs are. Note
- *   that reservoir names here go from 0 to NumberReservoirs.getSize() - 1;
+ *   of the arc; this is a number in 0, ..., NumberReservoirs. Note: this is
+ *   NumberReservoirs and *not* NumberReservoirs - 1, because arcs can end in
+ *   the "fake" reservoir NumberReservoirs. This indicates that water that
+ *   flows along that arc "goes away from the system" and it is no longer
+ *   counted, because it can no longer be used to produce electricity. Indeed,
+ *   there will be something like "the most downstream turbine": after water
+ *   has been used there, it just goes away down some river and does not go
+ *   to any other reservoir. Arcs are oriented (see above);
+ *   StartArc[ r ] == EndArc[ r ] (a self-loop) is not allowed, but multiple
+ *   arcs between the same pair of reservoirs are. Note that reservoir names
+ *   here go from 0 to NumberReservoirs.getSize();
  *
  * - The variable "MinFlow", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
@@ -452,6 +448,14 @@ class HydroUnitBlock : public UnitBlock {
  *   optional; if it is not defined, IP[ t , a ] == 0 for each time instants t
  *   and arc a.
  *
+ * - The variable "InitialFlowRate", of type double and indexed over the
+ *   dimension "NumberArcs". Each entry InFR[ a ] indicates the amount
+ *   of the flow rate that each arc a was producing at time instant -1;
+ *
+ * - The variable "InitialVolumetric", of type double and indexed over the
+ *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the amount
+ *   of volumes that each reservoir r was producing at time instant -1;
+ *
  * - The positive scalar variable "UphillFlow", of type UInt64 and not indexed
  *   over any dimension, which indicates the uphill flow delay in this unit.
  *   This variable is optional, if it is not provided it is taken to be
@@ -498,11 +502,198 @@ class HydroUnitBlock : public UnitBlock {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the static constraint of the HydroUnit
-/** Method that generates the static constraint of the HydroUnitBlock.
- * These are the:
- * //TODO I should put all the mathematical constraints here
+/** This method generates the static constraint of the HydroUnitBlock.
+ * In order to describe a hydro generating unit system, it will be convenient
+ * to see a cascading system as a graph. Let \f$ \mathcal{N}^{hy}\f$ be the
+ * set of reservoirs (nodes) and \f$ \mathcal{L}^{hy}\f$ be the set of arcs
+ * connecting these reservoirs respectively. Attached to each
+ * \f$ l \in \mathcal{L}^{hy}\f$ are one or several plants(turbines or pumps).
+ * This system is described on a discrete time horizon as dictated by the
+ * UnitBlock interface. In this description we indicate it with
+ * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. Each reservoir
+ * \f$ n \in \mathcal{N}^{hy}\f$ has a continuous volumetric variables
+ * \f$ v^{hy}_{n,t}\f$ in \f$ m^3 \f$ for \f$ t \in \mathcal{T}\f$ with
+ * associated lower and upper bounds \f$ V^{hy,mn}_{n,t}\f$,
+ * \f$ V^{hy,mx}_{n,t}\f$ and inflows \f$ A_{n,t}\f$ in \f$ m^3 /s \f$. The
+ * uphill and downhill flow rate are defined as \f$ \tau^{up} \f$ and
+ * \f$ \tau^{dn}\f$ respectively. For each arc \f$ l \in \mathcal{L}^{hy}\f$
+ * in each time \f$ t \in \mathcal{T}\f$ the continuous flow rate variable
+ * \f$ f_{l,t} \f$ in \f$ m^3 /s \f$ and ramping conditions
+ * \f$ \Delta^{up}_{l,t} \f$ and \f$ \Delta^{dn}_{l,t} \f$ in
+ * \f$ (m^3 /s)/h \f$ are disposed. The flow rate variable will be subject to
+ * bounds \f$ F^{mn}_{l,t} \f$ and \f$ F^{mx}_{l,t} \f$.
+ * //todo explain cutting plan model here
  *
-*/
+ * Power generated by the hydro unit in each time and for each arc
+ * \f$ p^{ac}_{t,l}, p^{pr}_{t,l}, p^{sc}_{t,l} \f$ in MW will be subject to
+ * bounds \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ respectively. Besides,
+ * we emphasize that reserve requirements are specified in order to be
+ * symmetrically available to increase or decrease power injected into the
+ * grid. For some of the constraints we will need to distinguish between pumps
+ * and turbines. The distinction is made by considering the set of feasible
+ * flow rates. Whenever \f$ [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_- \f$
+ * for each arc and each time, the unit is considered a pump, and whenever
+ * \f$ [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+ \f$ the unit is considered
+ * a turbine. Any possible mixed situation can be accounted for by
+ * artificially splitting the unit into “two units”, which should be done at
+ * the data processing stage (see deserialize() comments). With above
+ * description the mathematical constraint of hydro unit may present as below:
+ *
+ * - maximum and minimum power output constraints according to primary and
+ *   secondary spinning reserves are are presented in (1)-(2). Each of them
+ *   is a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_arcs entries, where the entry
+ *   t = 0, ...,f_time_horizon - 1 and the entry z = 0, ...,f_number_arcs - 1
+ *   being the maximum and minimum power output value according to the primary
+ *   and the secondary spinning reserves at time t and arc l. these ensure the
+ *   maximum(or minimum) amount of energy that unit can produce(or use) when
+ *   it is on(or off).
+ *
+ *   \f[
+ *
+ *      p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l}
+ *          \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy}          \quad (1)
+ *
+ *   \f]
+ *
+ *   \f[
+ *
+ *     P^{mn}_{t,l} \leq p^{ac}_{t,l} - p^{pr}_{t,l} - p^{sc}_{t,l}
+ *         \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy}           \quad (2)
+ *
+ *   \f]
+ *
+ * - primary and secondary spinning reserves relation with active power at
+ *   each time and for each turbine: the same as inequalities(1)-(2), the
+ *   inequalities(3)-(4) ensure that maximum amount of primary and secondary
+ *   spinning reserve in the problem. Each of them is a
+ *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_arcs entries, where
+ *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *
+ *   \f[
+ *
+ *      p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (3)
+ *
+ *   \f]
+ *
+ *   \f[
+ *
+ *      p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (4)
+ *
+ *   \f]
+ *  where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
+ *  possible fraction of active power at each time and each arc that can be
+ *  used as primary and secondary reserve respectively.
+ *
+ * - primary and secondary spinning reserves at each time and for each pump:
+ *   these equalities(5)-(6) ensure that the primary and secondary spinning
+ *   reserve value for each pump is equal to zero. Each of them is a
+ *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_arcs entries, where
+ *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *
+ *   \f[
+ *
+ *      p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-      \quad (5)
+ *
+ *   \f]
+ *
+ *   \f[
+ *
+ *      p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-     \quad (6)
+ *
+ *   \f]
+ *
+ * - flow to active power function at each time and for each pump: this
+ *   equality(7) gives the active power relation with flow rate for each
+ *   pump at time t. This is a boost::multi_array<FRowConstraint, 2>; with two
+ *   dimensions which are f_time_horizon, and f_number_arcs entries, where
+ *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *
+ *   \f[
+ *
+ *      p^{ac}_{t,l} = \rho^{hy}_{t,l}f_{t,l} \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-       \quad (7)
+ *
+ *   \f]
+ *
+ * - flow to active power function at each time and for each turbine ; //todo
+ *
+ *   \f[
+ *
+ *      //todo       \quad (8)
+ *
+ *   \f]
+ *
+ * - flow rate variable bounds: This inequality(9) indicates upper and lower
+ *   bound of flow rate at time t and for ach arc l, thus that is a
+ *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_time_horizon, and f_number_arcs entries, where
+ *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *
+ *   \f[
+ *
+ *      f_{t,l} \in [ F^{mn}_{t,l} , F^{mx}_{t,l}]  \quad t \in \mathcal{T},
+ *           l \in \mathcal{L}^{hy}                             \quad (9)
+ *
+ *   \f]
+ *
+ * - ramp-up and ramp-down constraints: These inequality(10)-(11) indicate
+ *   ramp-up and ramp-down constraints at time t and for ach arc l, so each of
+ *   them is a boost::multi_array<FRowConstraint, 2>; with two dimensions
+ *   which are f_time_horizon, and f_number_arcs entries, where
+ *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *
+ *   \f[
+ *
+ *      f_{t,l} - f_{t-1,l} \leq \Delta^{up}_{t,l} \quad t \in \mathcal{T},
+ *           l \in \mathcal{L}^{hy}                             \quad (10)
+ *
+ *   \f]
+ *   \f[
+ *
+ *      f_{t-1,l} - f_{t,l} \leq \Delta^{dn}_{t,l} \quad t \in \mathcal{T},
+ *           l \in \mathcal{L}^{hy}                             \quad (11)
+ *
+ *   \f]
+ *
+ * - final volumes of each reservoir constraints: this equality(12) gives the
+ *   final volumes of each reservoir r at time t. This is a
+ *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+ *   f_number_reservoirs, and f_time_horizon entries, where
+ *   r = 0, ...,f_number_reservoirs - 1 and z = 0, ...,f_time_horizon - 1
+ *   \f[
+ *
+ *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + 3600 A_{n,t-1} +
+ *      3600 (\sum_{n' \in \mathcal{A}(n)}\sum_{ l \in \mathcal{L}^{hy} }
+ *      f_{t - \tau^{dn},l} - \sum_{n' \in \mathcal{F}(n)}
+ *      \sum_{ l \in \mathcal{L}^{hy} } f_{t - \tau^{up},l})
+ *      \quad t \in \mathcal{T}, \quad n \in \mathcal{N}^{hy}    \quad (12)
+ *
+ *   \f]
+ *
+ * - final volumes variable bounds: This inequality(13) indicates upper and
+ *   lower bound of volumetric variables of each reservoir for each time t,
+ *   thus that is a boost::multi_array<FRowConstraint, 2>; with two dimensions
+ *   which are f_number_reservoirs, and f_time_horizon entries, where
+ *   r = 0, ...,f_number_reservoirs - 1 and z = 0, ...,f_time_horizon - 1
+ *   \f[
+ *
+ *      v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
+ *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}            \quad (13)
+ *
+ *   \f]
+ */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the objective of the HydroUnitBlock
@@ -732,6 +923,12 @@ class HydroUnitBlock : public UnitBlock {
  /// The vector of ending arcs
  std::vector< Index > v_end_arc;
 
+ /// The vector of initial volumetric
+ std::vector< Index > v_initial_volumetric;
+
+ /// The vector of initial flow rate
+ std::vector< Index > v_initial_flow_rate;
+
  /// the vector of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
 
@@ -792,8 +989,44 @@ class HydroUnitBlock : public UnitBlock {
  boost::multi_array< ColVariable , 2> v_flow_rate;
 
 /*----------------------------constraints-----------------------------------*/
-//TODO
+ /// maximum power output according to primary-secondary reserves constraints
+ boost::multi_array< FRowConstraint, 2 >  v_MaxPowerPrimarySecondary_Const;
 
+ /// minimum power output according to primary-secondary reserves constraints
+ boost::multi_array< FRowConstraint, 2 >  v_MinPowerPrimarySecondary_Const;
+
+ /// power output relation with to primary reserves constraints
+ boost::multi_array< FRowConstraint, 2 >  v_ActivePowerPrimary_Const;
+
+ /// power output relation with to secondary reserves constraints
+ boost::multi_array< FRowConstraint, 2 >  v_ActivePowerSecondary_Const;
+
+ /// primary reserves constraints for pumps
+ boost::multi_array< FRowConstraint, 2 >  v_PrimaryPumps_Const;
+
+ /// secondary reserves constraints for pumps
+ boost::multi_array< FRowConstraint, 2 >  v_SecondaryPumps_Const;
+
+ /// flow to active power function constraints for pumps
+ boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerPumps_Const;
+
+ /// flow to active power function constraints for turbine//todo
+ boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerTurbines_Const;
+
+ /// ramp-up constraints
+ boost::multi_array< FRowConstraint, 2 >  v_RampUp_Const;
+
+ /// ramp-down constraints
+ boost::multi_array< FRowConstraint, 2 >  v_RampDown_Const;
+
+ /// flow rate bounds constraints
+ boost::multi_array< FRowConstraint, 2 >  v_FlowRateBounds_Const;
+
+ /// final volumes fo each reservoir constraints
+ boost::multi_array< FRowConstraint, 2 >  v_FinalVolumeReservoir_Const;
+
+ /// volumetric bounds constraints
+ boost::multi_array< FRowConstraint, 2 >  v_Volumetric_Const;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
