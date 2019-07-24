@@ -203,7 +203,7 @@ class UCBlock : public Block {
  *   "UnitBlock_1", ... above), and the electrical generators into each
  *   UnitBlock also have some natural ordering (corresponding to the columns
  *   of the matrices of variables, cf. e.g. UnitBlock::get_commitment()).
- *   Thus, in generwl the mapping is:
+ *   Thus, in general the mapping is:
  *     electrical generator 0 = first generator of UnitBlock_0
  *     electrical generator 1 = second generator of UnitBlock_0
  *     ...
@@ -273,7 +273,7 @@ class UCBlock : public Block {
  *   same UnitBlock can belong to different nodes of the transmission network.
  *   This is justified e.g. by hydro cascade units where different turbines
  *   can be rather far apart geographically, but still linked by (long)
- *   stratches of rivers. If NumberElectricalGenerators is not defined, then
+ *   stretches of rivers. If NumberElectricalGenerators is not defined, then
  *   it is taken to be equal to NumberUnits (which means that all UnitBlock
  *   have exactly one electrical generator) and this variable indexed over
  *   NumberUnits. If NumberNodes == 1 (say, it is not provided at all), then
@@ -300,7 +300,6 @@ class UCBlock : public Block {
  *   (cf. "GeneratorNode" above). Of course *the two information must agree*,
  *   otherwise the input file is ill-defined and exception is thrown.
  *
- *  TODO: I changed this, please check
  * - The variable "HeatSet", of type int and indexed over the dimension
  *   "NumberHeatGenerators". If HeatSet[ h ] = k < NumberElectricalGenerators,
  *   then k is the unique name of the electrical generator corresponding to
@@ -404,19 +403,17 @@ class UCBlock : public Block {
  *   with pollutant p the node n belongs. If PollutantZones[ p , n ] >=
  *   NumberPollutantZones[ p ], this means that node n does not belong to
  *   any pollutant zone, and hence the corresponding units are not involved
- *   into the pollutant demand constraints associated with pollutant p. If
+ *   into the pollutant budget constraints associated with pollutant p. If
  *   NumberPollutants == 0 (say, it is not provided) then this variable
  *   need not be defined, since it is not loaded.
  *
- * TODO: I suspect this is actually two-dimensional, because you have a
- *       different budget for each zone. this is nontrivial because the
- *       number of zones is different for each budget. let's hope I'm
- *       wrong, let's see what Wim says    
- * - The variable "PollutantBudget", of type double and indexed over the
- *   dimension "NumberPollutants": the entry PollutantBudget[ i ] is assumed
- *   to contain the total limit (across all the time horizon) of pollutant i.
- *   If NumberPollutants == 0 (say, it is not provided) then this variable
- *   need not be defined, since it is not loaded.
+ * - The variable "PollutantBudget", of type double and indexed both over the
+ *   dimensions "PollutantZones" and "NumberPollutants": the entry
+ *   PollutantBudget[ b , p ] is assumed to contain the pollutant budget
+ *   (across all the time horizon) which are specified on the pollutant zone b
+ *   corresponding to the pollutant p. If NumberPollutants == 0 (say, it is
+ *   not provided) then this variable need not be defined, since it is not
+ *   loaded.
  *
  * - The variable "PollutantRho", of type double and indexed over three
  *   dimensions. The first dimension can have either size 1 or TimeHorizon.
@@ -588,26 +585,27 @@ class UCBlock : public Block {
  * \f]
  *
  * - Pollutant Budget Constraints:
- *   In the unit commitment problem, the pollutant budget \f$ \mathcal{O}_p
- *   \f$ which is specified on each pollutant \f$ p \in \mathcal{P} \f$ in
- *   each pollutant zone \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$
- *   and each pollutant heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p}
- *   (\mathcal{H}) \f$ with two parameters \f$ \rho_{t , p , g} \f$ and \f$
- *   \rho'_{t , p , h} \f$ where considered as pollutant ratio and
- *   pollutant heat ratio respectively. So, if the f_number_pollutants > 0,
- *   a std::vector<std::vector<FRowConstraint>>; with two dimensions which are
+ *   In the unit commitment problem, the pollutant budget
+ *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
+ *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
+ *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$ and each pollutant
+ *   heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p} (\mathcal{H}) \f$ with two
+ *   parameters \f$ \rho_{t , p , g} \f$ and \f$ \rho'_{t , p , h} \f$ where
+ *   considered as pollutant ratio and pollutant heat ratio respectively. So,
+ *   if the f_number_pollutants > 0, a
+ *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_number_pollutants, and v_number_pollutant_zones entries, that the entry
  *   p = 1, ..., f_number_pollutants and the entry
  *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
- *   constraints at pollutant p and pollutant zones z as below;
+ *   constraints at pollutant p and pollutant zones b as below;
  *
  * \f[
  *
  *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
  *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
  *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
- *  \leq \mathcal{O}_p  \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
- *  \quad p \in \mathcal{P} \quad                                    (5)
+ *  \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
+ *  \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
  * \f]
  *
  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
@@ -656,16 +654,16 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkData object
  /** Note that no NetworkData may be defined (see comments to deserialize()),
-  *  which means that the transmission network is a "bus"; in this case,
-  *  this method will return nullptr. */
+  * which means that the transmission network is a "bus"; in this case, this
+  * method will return nullptr. */
 
  NetworkBlock::NetworkData * get_NetworkData() const { return f_NetworkData; }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of (pointers to) NetworkBlock elements.
  /** Since there always is a NetworkBlock for each time instant t, this vector
-  *  should have size of f_time_horizon where each element of the vector gives
-  *  the network block at time instant t. */
+  * should have size of f_time_horizon where each element of the vector gives
+  * the network block at time instant t. */
 
  const std::vector< NetworkBlock * > & get_network_blocks() const {
   return v_network_blocks;
@@ -729,9 +727,9 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of primary demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the primary demand of the primary zone n at
-  *  the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers three possible cases:
+  * M[ n , t ] gives the primary demand of the primary zone n at the time
+  * instant t. This two-dimensional boost::multi_array<> M considers three
+  * possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no primary zones are
   *    defined, and there are no primary reserve constraints;
@@ -754,9 +752,9 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of secondary demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the secondary demand of the secondary zone n at
-  *  the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers three possible cases:
+  * M[ n , t ] gives the secondary demand of the secondary zone n at the time
+  * instant t. This two-dimensional boost::multi_array<> M considers three
+  * possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no secondary zones are
   *    defined, and there are no secondary reserve constraints;
@@ -780,9 +778,9 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of inertia demand
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ n , t ] gives the inertia demand of the inertia zone n at
-  *  the time instant t. This two-dimensional boost::multi_array<> M
-  *  considers three possible cases:
+  * M[ n , t ] gives the inertia demand of the inertia zone n at the time
+  * instant t. This two-dimensional boost::multi_array<> M considers three
+  * possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no inertia zones are
   *    defined, and there are no inertia reserve constraints;
@@ -805,8 +803,8 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant zones
  /** The method returns a two-dimensional boost::multi_array<> M such that
-  *  M[ p , n ] tells to which pollutant zone associated with pollutant p
-  *  the node n belongs. There are four possible cases:
+  * M[ p , n ] tells to which pollutant zone associated with pollutant p the
+  * node n belongs. There are four possible cases:
   *
   *  - if the boost::multi_array<> M is empty() then no pollutant zones are
   *    defined, and there are no pollutant budget constraints;
@@ -817,32 +815,51 @@ class UCBlock : public Block {
   *    pollutant zone. Therefore, each n_th element of the vector tells if
   *    the node n belongs to the unique pollutant zone or not;
   *
-  *  - if the boost::multi_array<> M has only one element,
-  *    the transmission network is a bus with one pollutant zone;
+  *  - if the boost::multi_array<> M has only one element, the transmission
+  *    network is a bus with one pollutant zone;
   *
   *  - otherwise, the two-dimensional boost::multi_array<> M must have
-  *    f_number_pollutants rows and f_number_nodes columns, and each element of
-  *    matrix M[ p , n ] tells to which pollutant zone associated with
+  *    f_number_pollutants rows and f_number_nodes columns, and each element
+  *    of matrix M[ p , n ] tells to which pollutant zone associated with
   *    pollutant p the node n belongs. */
 
  const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
   return v_pollutant_zones;
   }
+/*--------------------------------------------------------------------------*/
+ /// Returns the matrix of pollutant budget //todo not complete
+ /** The method returns a two-dimensional boost::multi_array<> M such that
+  * M[ b , p ] gives the pollutant budget of each pollutant zone b associated
+  * with pollutant p. There are three possible cases:
+  *
+  *  - if the boost::multi_array<> M is empty() then no pollutant zones are
+  *    defined, and there are no pollutant budget constraints;
+  *
+  *  - if the boost::multi_array<> M has only one row, it is a vector
+  *    with size of f_number_pollutant. In this case only one pollutant zone
+  *    exists in the problem, and each p_th element of the vector gives the
+  *    pollutant budget of existing pollutant zone;
+  *
+  *  - otherwise, since there might be exist a different number of pollutant
+  *    zones b according to each pollutant p, then the
+  *    two-dimensional boost::multi_array<> M might be an irregular matrix
+  *    (where the number of rows for each column is different). Therefore,
+  *    each element of matrix M[ b , p ] gives the pollutant budget of
+  *    corresponding pollutant zone b which pollutant p belongs. */
 
+ const boost::multi_array< double , 2 > & get_pollutant_budget() const {
+  return v_pollutant_budget;
+ }
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of HeatSet
  /** The returned vector implies which heat generator is also an electrical
   * generator. There are three possible cases:
   *
-  * - if the vector is empty, then no HeatSet is defined, and there
+  * - if the vector is empty, then no HeatSet is defined, and there is
   *   no heat linking constraints;
   *
-  * TODO: I do not understand this. I need to know if it is or not. I think
-  *       this is wrong
-  *
   * - if the vector has only one element, then there is just one heat
-  *   generator in heat blocks which could also be an electrical generator or
-  *   not;
+  *   generator in heat blocks which is also an electrical generator;
   *
   * - otherwise, the vector must have size of number of heat generators and
   *   each element of vector HeatSet[ h ] tells which heat generator is also
@@ -855,9 +872,9 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant rho
  /** The method returns a three-dimensional boost::multi_array<> M such that
-  *  M[ t , p , g ] gives the production of pollutant p from electrical
-  *  generator g at time t. This three-dimensional boost::multi_array<> M
-  *  considers two possible cases:
+  * M[ t , p , g ] gives the production of pollutant p from electrical
+  * generator g at time t. This three-dimensional boost::multi_array<> M
+  * considers two possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no pollutant zones are
   *   defined, and there are no pollutant budget constraints;
@@ -881,17 +898,17 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant heat rho
  /** The method returns a three-dimensional boost::multi_array<> M such that
-  *  M[ t , p , i ] gives the conversion factor of the given pollutant p due
-  *  to the generation of every heat-only unit i in the given heat block h at
-  *  the given time t. This three-dimensional boost::multi_array<> M considers
-  *  two possible cases:
+  * M[ t , p , i ] gives the conversion factor of the given pollutant p due to
+  * the generation of every heat-only unit i in the given heat block h at the
+  * given time t. This three-dimensional boost::multi_array<> M considers two
+  * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then two possible cases are:
   *
   *   - there is no pollutant zone, hence there are not defined any pollutant
   *     budget constraints;
   *
-  *   - ther is no HeatBlock, hence in pollutant budget constraints there
+  *   - there is no HeatBlock, hence in pollutant budget constraints there
   *     is not heat-rho-linking part;
   *
   * - otherwise, two possible cases may happen to the first dimension of the
@@ -913,14 +930,10 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the i-th UnitBlock
- // TODO: why do not put the implementation here in the .h?
-
  UnitBlock * get_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkBlock at time instant t
- // TODO: why do not put the implementation here in the .h?
-
  NetworkBlock * get_network_block( Index t ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -957,7 +970,7 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of electrical-power-to-heat ratio
  /** The vector contains the electrical-power-to-heat ratio for each
-  *  unit i of heat block h. There are three possible cases:
+  * unit i of heat block h. There are three possible cases:
   *
   * - if the vector is empty, then the there is no heat block;
   *
@@ -979,8 +992,8 @@ class UCBlock : public Block {
 
  /// Extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
-  *  UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
-  *  format of the created netCDF group. */
+  * UCBlock. See UCBlock::deserialize( netCDF::NcGroup ) for details of the
+  * format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1076,8 +1089,11 @@ class UCBlock : public Block {
  /** Indexed over the dimensions InertiaZones and TimeHorizon. */
  boost::multi_array< double, 2 > v_inertia_demand;
 
- /// the vector of PollutantDemand
- std::vector< double > v_pollutant_budget;
+ /// The matrix of PollutantDemand
+ /** Indexed over the dimensions
+  * PollutantZone and NumberPollutant.
+  * */
+ boost::multi_array< double , 2 > v_pollutant_budget;
 
  /// The PollutantRho matrix
  /** Indexed over the dimensions
@@ -1119,7 +1135,7 @@ class UCBlock : public Block {
  boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector< std::vector< FRowConstraint>> v_PollutantBudget_Const;
+ boost::multi_array< FRowConstraint, 2 >  v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

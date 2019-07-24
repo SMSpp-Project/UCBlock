@@ -88,11 +88,11 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   return;
  }
 
-  v_volumetric.resize(boost::extents[f_time_horizon][f_number_generators]);
-  v_flow_rate.resize(boost::extents[f_time_horizon][f_number_generators]);
+  v_volumetric.resize(boost::extents[f_time_horizon][f_number_arcs]);
+  v_flow_rate.resize(boost::extents[f_time_horizon][f_number_arcs]);
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  for( Index g = 0; g < f_number_generators; ++g ) {
+  for( Index g = 0; g < f_number_arcs; ++g ) {
    v_volumetric[ t ][ g ].set_type( ColVariable::kNonNegative );
    v_flow_rate[ t ][ g ].set_type( ColVariable::kContinuous );
 
@@ -116,7 +116,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
 
 void HydroUnitBlock::generate_objective( Configuration *objc )
 {
-    if( ! get_objective().empty() )  // an objective is there already
+    if( get_objective() == nullptr )  // an objective is there already
         return;                         // cowardly (and silently) return
 
 // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
@@ -124,7 +124,7 @@ void HydroUnitBlock::generate_objective( Configuration *objc )
 }  // end( HydroUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*------------ METHODS FOR LOADING, PRINTING & SAVING THE MCFBlock ---------*/
+/*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {

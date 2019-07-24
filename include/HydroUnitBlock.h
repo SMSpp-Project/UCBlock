@@ -129,10 +129,13 @@ class HydroUnitBlock : public UnitBlock {
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
  *
- * - The dimension "NumberReservoirs" containing the number of reservoirs(or
- *   nodes) in a hydro unit block. The dimension is optional, if it is not
- *   provided then it is taken to be == 2 and in this case the cascading
+ * - The dimension "NumberReservoirs" containing the number of all reservoirs
+ *   (or nodes) in a hydro unit block. The dimension is optional, if it is not
+ *   provided then it is taken to be == 1 and in this case the cascading
  *   system becomes to a single hydro unit.
+ *
+ * Note: The concept of "fake" reservoir, with no volumetric variable and no
+ * volumetric constraint /todo
  *
  * - The dimension "NumberArcs" containing the set of arcs connecting the
  *   reservoirs in cascading system.
@@ -564,7 +567,7 @@ class HydroUnitBlock : public UnitBlock {
  * - otherwise, the matrix has size the time horizon per
  *   get_number_arcs(), and U[ t , a ] contains the contribution to
  *   inertia power of arc(generator) a at time instant t. */
- const boost::multi_array< double , 2 > & get_inertia_power() const {
+ const boost::multi_array< double , 2 > & get_inertia_power() const override {
   return ( v_inertia_power );
  }
 /*--------------------------------------------------------------------------*/
