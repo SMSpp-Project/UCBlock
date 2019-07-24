@@ -847,8 +847,9 @@ class UCBlock : public Block {
   *    avoid having an irregular matrix, matrix M defines as a spars matrix
   *    and each element of matrix M[ b , p ] gives the pollutant budget of
   *    corresponding pollutant zone b which pollutant p belongs. Note that
-  *    M[ b , p ] == 0 implies that pollutant zone b associated with pollutant
-  *    p is not defined*/
+  *    M[ b , p ] == +INF implies that pollutant zone b associated with
+  *    pollutant p is not defined then there is not any pollutant budget
+  *    constraint for corresponding b and p*/
 
  const boost::multi_array< double , 2 > & get_pollutant_budget() const {
   return v_pollutant_budget;
