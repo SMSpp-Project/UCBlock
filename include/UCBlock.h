@@ -336,11 +336,11 @@ class UCBlock : public Block {
  *   only one primary zone and all the nodes belong to it.
  *
  * - The variable "PrimaryDemand", of type double and indexed both over the
- *   dimensions "PrimaryZones" and "TimeHorizon": entry PrimaryDemand[ i , t ]
- *   is assumed to contain the primary reserves requirement which are
- *   specified on the primary reserve zone i in the time t. If
- *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded.
+ *   dimensions "NumberPrimaryZones" and "TimeHorizon": entry
+ *   PrimaryDemand[ i , t ] is assumed to contain the primary reserves
+ *   requirement which are specified on the primary reserve zone i in the
+ *   time t. If NumberPrimaryZones == 0 (say, it is not provided at all),
+ *   then this variable need not be defined, since it is not loaded.
  *
  * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
  *   reserve zones" are there in the problem. The dimension is optional, if it
