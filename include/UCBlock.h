@@ -331,9 +331,9 @@ class UCBlock : public Block {
  *   means that node i does not belong to any primary zone, and hence the
  *   corresponding electrical generators are not involved into the primary
  *   reserve constraints. If NumberPrimaryZones == 0  (say, it is not provided
- *   at all) then this variable need not be defined, since it is not loaded. If
- *   NumberPrimaryZones == 1 and this variable is not defined, then there is
- *   only one primary zone and all the nodes belong to it.
+ *   at all) then this variable need not be defined, since it is not loaded.
+ *   If NumberPrimaryZones == 1 and this variable is not defined, then there
+ *   is only one primary zone and all the nodes belong to it.
  *
  * - The variable "PrimaryDemand", of type double and indexed both over the
  *   dimensions "NumberPrimaryZones" and "TimeHorizon": entry
@@ -358,7 +358,7 @@ class UCBlock : public Block {
  *   only one secondary zone and all the nodes belong to it.
  *
  * - The variable "SecondaryDemand", of type double and indexed both over the
- *   dimensions "SecondaryZones" and "TimeHorizon": entry
+ *   dimensions "NumberSecondaryZones" and "TimeHorizon": entry
  *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
  *   requirement which are specified on the secondary reserve zone i in the
  *   time t. If NumberSecondaryZones == 0 (say, it is not provided at all),
@@ -380,11 +380,11 @@ class UCBlock : public Block {
  *   only one inertia zone and all the nodes belong to it.
  *
  * - The variable "InertiaDemand", of type double and indexed both over the
- *   dimensions "InertiaZones" and "TimeHorizon": entry InertiaDemand[ i , t ]
- *   is assumed to contain the inertia reserves requirement which are
- *   specified on the inertia constraints zone i in the time t. If
- *   NumberInertiaZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded.
+ *   dimensions "NumberInertiaZones" and "TimeHorizon": entry
+ *   InertiaDemand[ i , t ] is assumed to contain the inertia reserves
+ *   requirement which are specified on the inertia constraints zone i in the
+ *   time t. If NumberInertiaZones == 0 (say, it is not provided at all), then
+ *   this variable need not be defined, since it is not loaded.
  *
  * - The dimension "NumberPollutants" containing the number of pollutants in
  *   the problem. The dimension is optional, if it is not provided then it is
@@ -408,7 +408,7 @@ class UCBlock : public Block {
  *   need not be defined, since it is not loaded.
  *
  * - The variable "PollutantBudget", of type double and indexed both over the
- *   dimensions "PollutantZones" and "NumberPollutants": the entry
+ *   dimensions "NumberPollutantZones" and "NumberPollutants": the entry
  *   PollutantBudget[ b , p ] is assumed to contain the pollutant budget
  *   (across all the time horizon) which are specified on the pollutant zone b
  *   corresponding to the pollutant p. If NumberPollutants == 0 (say, it is
@@ -1052,6 +1052,9 @@ class UCBlock : public Block {
 
  /// The number of pollutants
  Index f_number_pollutants;
+
+ /// The number of pollutant zones
+ Index f_number_pollutants_zones;
 
  /// The set of UnitBlock
  std::vector< UnitBlock * > v_unit_blocks;
