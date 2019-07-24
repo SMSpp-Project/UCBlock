@@ -150,7 +150,16 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "EndArc", of type int and indexed over the dimension
  *   "NumberReservoirs"; the r-th entry of the variable is the ending point
- *   of the arc (a number in 0, ..., NumberReservoirs - 1). Note that arcs are
+ *   of the arc; this is a number in 0, ..., NumberReservoirs.
+ *   Note: this is NumberReservoirs and *not* NumberReservoirs - 1, because
+ *   arcs can end in the "fake" reservoir NumberReservoirs. This indicates
+ *   that water that flows along that arc "goes away from the system" and
+ *   it is no longer counted, because it can no longer be used to produce
+ *   electricity. Indeed, there will be something like "the most downstream
+ *   turbine": after water has been used there, it just goes away down some
+ *   river and does not go to any other reservoir ...
+
+ Note that arcs are
  *   oriented (see above); StartArc[ r ] == EndArc[ r ] (a self-loop) is not
  *   allowed, but multiple arcs between the same pair of reservoirs are. Note
  *   that reservoir names here go from 0 to NumberReservoirs.getSize() - 1;
