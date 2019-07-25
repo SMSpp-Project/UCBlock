@@ -201,14 +201,25 @@ class HydroUnitBlock : public UnitBlock {
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * Note: MinFlow and MaxFlow values can be either positive or negative (or
- * zero); whenever MinF[ t , a ] < 0 and MaxF[ t , a ] < 0 for each t and a,
- * the unit is considered a pump and whenever MinF[ t , a ] > 0 and
- * MaxF[ t , a ] > 0 the unit is considered a turbine. Any possible mixed
- * situation can be accounted for by artificially splitting the unit into “two
- * units”, which should be done at the data processing stage. When
- * MaxF[ t , a ] == 0 it means maximum flow rate of the unit (which is
- * considered as a pump) is zero, and when MinF[ t , a ] == 0 it means minimum
- * flow rate of the unit(which is considered as turbine) is zero.
+ * zero); whenever MinF[ t , a ] < MaxF[ t , a ] <= 0 for each t and a,
+ * the unit is considered a pump and whenever 0 <= MinF[ t , a ] < 
+ * MaxF[ t , a ], the unit is considered a turbine. Note that an arc must
+ * *always* be the same kind for *all* instants, i.e., it is not allwed
+ * that a unit suddenly changes between a turbine and a pump, or vice-versa.
+ * This is because the flow-to-active-power function of turbines is a convex
+ * piecewise function with possibly many pieces, whereas the
+ * flow-to-active-power function of a pump is a simple lineaer function. In
+ * other words, the "number of pieces" (see WHATEVER DIMENSION WE NEED) of
+ * a turbine is >= 1, whereas the "number of pieces" of a pump is necessarily
+ * equal to 1. In reality, the same equipment can sometimes be used both as
+ * a pump and as a turbine. In our model this is be accounted for by
+ * artificially splitting the unit into “two units”, a pump one and a turbine
+ * one, which must be done at the data processing stage. This causes the
+ * possible problem that at some time instant both the pump and the turbine
+ * be active, which is not possible in practice. This is unlikely to happen
+ * (because pumps consume more than turbines produce for the same amount of
+ * water, so this would be uneconomical), but shuld it ever happen, this
+ * occurence is not handled in our model (which lets it happen).
  *
  * - The variable "MinVolumetric", of type double and indexed over both
  *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
@@ -255,7 +266,12 @@ class HydroUnitBlock : public UnitBlock {
  *   loaded.
  *
  * - The variable "Inflows", of type double and indexed over both dimensions
- *   "NumberReservoirs" and "NumberIntervals". Both dimensions may have either
+ *   "NumberReservoirs" and "NumberIntervals".
+ *
+ *   This could be "TimeHorizon", and be always dense, because we expect that
+ *   for each time instant we have a different inflow.
+ *
+ *   Both dimensions may have either
  *   size 1 or full size("NumberReservoirs" and "NumberIntervals",
  *   respectively). This is meant to represent the matrix InF[ r , t ] which,
  *   for each reservoir r at each time instant t contains the amount of water
@@ -402,6 +418,30 @@ class HydroUnitBlock : public UnitBlock {
  *   optional, when it's not present it will not capable of producing any
  *   secondary reserve, which correspond to SR[ t , a ] == 0 for all t and a.
  *
+ * - The variable "NumberPieces", indexed over the dimension "NumberArcs".
+ *   NumberPieces[ i ] tells how many pieces the concave flow-to-active-power
+ *   funcion has for unit i. Note that pumps must necessarily have exactly
+ *   one piece. The sum over all i of NumberPieces[ i ] is the total number
+ *   of pieces.
+ *
+ * - The variable LinearTerm, indexed over "the total number of pieces" (see
+ *   "NumberPieces"). LinearTerm[ h ] gives the linear term a_h of the linear
+ *   function a_h * f + h_h that defines the concave flow-to-active-power
+ *   funcion for some unit. EXPLAIN HOW TO MAP UNITS TO PIECES:
+ *   first all the pieces of the first unit (arc)
+ *   then all the pieces of the second unit (arc)
+ *   ....
+ *
+ * - The variable ConstantTerm, indexed over "the total number of pieces" (see
+ *   "NumberPieces"). ConstantTerm[ h ] gives the constant term b_h of the
+ *   linean function a_h * f + h_h that defines the concave flow-to-active-power
+ *   funcion for some unit. EXPLAIN HOW TO MAP UNITS TO PIECES:
+ *   first all the pieces of the first unit (arc)
+ *   then all the pieces of the second unit (arc)
+ *   ....
+ *
+ * NO, THIS IS THE SINGLE PIECE OF THE flow-to-active-power FUNCTION FOR
+ * PUMPS, WE DO IT TOGETHER WITH THE TURBINES
  * - The variable "PowerFlowRho", of type double and indexed both over the
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -451,12 +491,14 @@ class HydroUnitBlock : public UnitBlock {
  * - The variable "InitialFlowRate", of type double and indexed over the
  *   dimension "NumberArcs". Each entry InFR[ a ] indicates the amount
  *   of the flow rate that each arc a was producing at time instant -1;
+ *   THIS CAN BE OPTIONAL IF THERE ARE NO RAMP CONSTRAINTS
  *
  * - The variable "InitialVolumetric", of type double and indexed over the
  *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the amount
  *   of volumes that each reservoir r was producing at time instant -1;
  *
- * - The positive scalar variable "UphillFlow", of type UInt64 and not indexed
+ * - The positive scalar variable "UphillFlow", of type UInt64 indexed over
+ *   the dimension "NumberArcs". 
  *   over any dimension, which indicates the uphill flow delay in this unit.
  *   This variable is optional, if it is not provided it is taken to be
  *   UphillFlow == 0, which means that ?? //todo.
@@ -627,7 +669,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *   \f]
  *
- * - flow to active power function at each time and for each turbine ; //todo
+ * - flow-to-active-power function at each time and for each turbine ; //todo
  *
  *   \f[
  *
