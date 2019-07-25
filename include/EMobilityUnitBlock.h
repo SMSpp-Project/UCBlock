@@ -28,7 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __EMobilityUnitBlock
-#define __EmobilityUnitBlock
+#define __EMobilityUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
