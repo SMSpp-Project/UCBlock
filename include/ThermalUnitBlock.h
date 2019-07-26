@@ -166,7 +166,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   possible decrease of active power production w.r.t. the power that had
  *   been produced in time instant t - 1, if any. This variable is optional;
  *   if it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
- *   the unit can ramp up down an arbitrary amount, i.e., there are no
+ *   the unit can ramp down an arbitrary amount, i.e., there are no
  *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
  *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
  *   fixed value of DM[ t ] for all t in the interval
@@ -278,13 +278,13 @@ class ThermalUnitBlock : public UnitBlock {
  *   instant 0;
  *
  * - The positive scalar variable "MinUpTime", of type UInt64 and not indexed
- *   over any dimension, which indicates the minimum allowed down time in this
+ *   over any dimension, which indicates the minimum allowed up time in this
  *   unit. This variable is optional, if it is not provided it is taken to be
  *   MinUpTime == 0, which mean that the unit can shut down in the very
  *   same time stamp in which it starts up.
  *
  * - The positive scalar variable "MinDownTime", of type UInt64 and not
- *   indexed over any dimension, which indicates the minimum allowed up time
+ *   indexed over any dimension, which indicates the minimum allowed down time
  *   in this unit.This variable is optional, if it is not provided it is taken
  *   to be MinDownTime == 0, which mean that the unit can start up in the very
  *   same time stamp in which it starts up.
@@ -294,12 +294,11 @@ class ThermalUnitBlock : public UnitBlock {
  *   to represent the vector FC[ t ] which, for each time instant t,
  *   contains the fixed consumption of the power plant if it is OFF at time
  *   t. The variable is optional; if it is not defined, FC[ t ] == 0 for all
- *   time instants. If it is defined, it can either have size 1 or size
- *   "NumberIntervals". If it has size 1, then FC[ t ] ==
- *   FixedConsumption[ 0 ] for all t, regardless to what "NumberIntervals"
- *   says. Otherwise, FixedConsumption[ i ] is the fixed value of FC[ t ] for
- *   all t in the interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+ *   time instants. If it has size 1, then FC[ t ] == FixedConsumption[ 0 ]
+ *   for all t, regardless to what "NumberIntervals" says. Otherwise,
+ *   FixedConsumption[ i ] is the fixed value of FC[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
  * - The variable "InertiaCommitment", of type double and either indexed over
  *   the dimension "NumberIntervals" or has size 1. This is meant to
@@ -307,8 +306,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   the contribution that the unit can give to the inertia constraint for
  *   the sole fact that is is on (basically, the constant to be multiplied to
  *   the commitment variable) at time t. The variable is optional; if it is
- *   not defined, IC[ t ] == 0 for all time instants. If it is defined, it
- *   can either have size 1 or size "NumberIntervals". If it has size 1, then
+ *   not defined, IC[ t ] == 0 for all time instants. If it has size 1, then
  *   IC[ t ] == InertiaCommitment[ 0 ] for all t, regardless to what
  *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
  *   fixed value of IC[ t ] for all t in the interval
