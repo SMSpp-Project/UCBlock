@@ -178,8 +178,7 @@ class UnitBlock : public Block {
  *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
  *        == 1; this is what is assumed if the dimension, that is optional,
  *        is not there. This means that the value of each relevant data in
- *        the UnitBlock (see e.g. "FixedConsumption", "InertiaCommitment"
- *        and "InertiaPower" below) is the same for each time instant
+ *        the UnitBlock is the same for each time instant
  *        0, ..., "TimeHorizon" - 1 in the time horizon. In this case, the
  *        variable "ChangeIntervals" (see below) is ignored.
  *
@@ -199,7 +198,7 @@ class UnitBlock : public Block {
  *   changes less frequently (say, it is constant), then the same value
  *   will have to be repeated. Individual data can also have specific
  *   provisions for the case where the data is all equal despite
- *   "NumberIntervals" saying differently, see e.g. "FixedConsumption".
+ *   "NumberIntervals" saying differently.
  *
  * - The variable "ChangeIntervals", of type integer and indexed over the
  *   dimension "NumberIntervals". The time horizon is subdivided into
