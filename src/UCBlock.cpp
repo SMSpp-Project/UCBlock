@@ -482,8 +482,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    // this should only happen once
    assert( v_PollutantBudget_Const.empty() );
 
-   v_PollutantBudget_Const.resize( boost::multi_array< FRowConstraint *, 2 >::
-     extent_gen()[ v_number_pollutant_zones[f_number_pollutants] ][ f_number_pollutants ] );
+   v_PollutantBudget_Const.resize( f_number_pollutants );
   }
 
   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
@@ -548,7 +547,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
 
-   add_static_constraint( v_PollutantBudget_Const );
+   add_static_constraint( v_PollutantBudget_Const[ f_number_pollutants ] );
   }
  }
 /*--------------------------------------------------------------------------*/

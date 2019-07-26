@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 07 - 2019
+ * \date 26 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -618,9 +618,9 @@ class UCBlock : public Block {
  *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
  *   \f$ \rho_{t , p , g} \f$ and \f$ \rho'_{t , p , h} \f$ where considered
  *   as pollutant ratio and pollutant heat ratio respectively. So, if the
- *   f_number_pollutants > 0, a boost::multi_array<FRowConstraint, 2>; with
- *   two dimensions which are f_number_pollutants, and
- *   v_number_pollutant_zones entries, that the entry
+ *   f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>; with
+ *   two dimensions which are f_number_pollutants and v_number_pollutant_zones
+ *   entries, that the entry
  *   p = 0, ..., f_number_pollutants - 1 and the entry
  *   z = 0, ..., v_number_pollutant_zones - 1 being the pollutant budget
  *   constraints at pollutant p and pollutant zones b as below;
@@ -1071,9 +1071,6 @@ class UCBlock : public Block {
  /// The number of pollutants
  Index f_number_pollutants;
 
- /// The set of UnitBlock
- std::vector< UnitBlock * > v_unit_blocks;
-
  /// The set of HeatBlock
  std::vector< HeatBlock * > v_heat_blocks;
 
@@ -1155,7 +1152,7 @@ class UCBlock : public Block {
  boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- boost::multi_array< FRowConstraint, 2 >  v_PollutantBudget_Const;
+ std::vector<std::vector< FRowConstraint> >  v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
