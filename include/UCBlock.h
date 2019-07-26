@@ -391,11 +391,14 @@ class UCBlock : public Block {
  *   taken to be 0, which means that no pollutants constraints are present in
  *   the problem.
  *
- * - The variable "NumberPollutantZones" of type int indexed over the
+ * - The variable "NumberPollutantZones" of type int and indexed over the
  *   dimension "NumberPollutants": the entry NumberPollutantZones[ p ] is
  *   assumed to contain the number of pollutant zones associated with
- *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then
- *   this variable need not be defined, since it is not loaded.
+ *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then this
+ *   variable need not be defined, since it is not loaded. Then, all number of
+ *   pollutant zones associated with each pollutant p is computed as:
+ *   TotalNumberPollutantZones == NumberPollutantZone[ 0 ] + ... +
+ *   NumberPollutantZone[ NumberPollutants - 1 ].
  *
  * - The variable "PollutantZones", of type int and indexed over the
  *   dimensions "NumberPollutants" and "NumberNodes": the entry
@@ -407,13 +410,37 @@ class UCBlock : public Block {
  *   NumberPollutants == 0 (say, it is not provided) then this variable
  *   need not be defined, since it is not loaded.
  *
- * - The variable "PollutantBudget", of type double and indexed both over the
- *   dimensions "NumberPollutantZones" and "NumberPollutants": the entry
- *   PollutantBudget[ b , p ] is assumed to contain the pollutant budget
- *   (across all the time horizon) which are specified on the pollutant zone b
- *   corresponding to the pollutant p. If NumberPollutants == 0 (say, it is
- *   not provided) then this variable need not be defined, since it is not
- *   loaded.
+ * - The variable "PollutantBudget", of type double and indexed over the
+ *   set { 0 , ..., TotalNumberPollutantZones - 1 }: the entry
+ *   PollutantBudget[ n ] for n == 0 , ..., TotalNumberPollutantZones - 1 is
+ *   assumed to contain the pollutant budget (across all the time horizon) for
+ *   the pair ( zone of the pollutant , pollutant ) corresponding to n. The
+ *   mapping between the number n and the pair is the following:
+ *
+ *   n = 0 corresponds to the zone 0 of pollutant 0
+ *   n = 1 corresponds to the zone 1 of pollutant 0
+ *   ...
+ *   n = NumberPollutantZone[ 0 ] - 1 corresponds to the zone
+ *   NumberPollutantZone[ 0 ] - 1 of pollutant 0
+ *   n = NumberPollutantZone[ 0 ] corresponds to the zone 0 of pollutant 1
+ *   n = NumberPollutantZone[ 0 ] + 1 corresponds to the zone 1 of pollutant 1
+ *   ...
+ *   n = NumberPollutantZone[ 1 ] - 1 corresponds to the zone
+ *   NumberPollutantZone[ 1 ] - 1 of pollutant 1
+ *   n = NumberPollutantZone[ 1 ] corresponds to the zone 0 of pollutant 2
+ *   ...
+ *   ...
+ *   ...
+ *   n = NumberPollutantZone[ NumberPollutant - 1] corresponds to the zone 0
+ *   of pollutant NumberPollutant - 1
+ *   n = NumberPollutantZone[ NumberPollutant - 1] + 1 corresponds to the zone
+ *   1 of pollutant NumberPollutant - 1
+ *   ...
+ *   n = TotalNumberPollutantZones - 1 corresponds to the zone
+ *   NumberPollutantZones [ NumberPollutant - 1 ] - 1 of pollutant
+ *   NumberPollutant - 1.
+ *   If NumberPollutants == 0 (say, it is not provided) then this variable
+ *   need not be defined, since it is not loaded.
  *
  * - The variable "PollutantRho", of type double and indexed over three
  *   dimensions. The first dimension can have either size 1 or TimeHorizon.
@@ -539,8 +566,8 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_primary_zones entries, where the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 1, ..., f_number_primary_zones being the primary demand constraints
- *   at time t and primary zone z as below;
+ *   z = 0, ..., f_number_primary_zones - 1 being the primary demand
+ *   constraints at time t and primary zone z as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
@@ -556,7 +583,7 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint,2>; with two dimensions which are
  *   f_time_horizon, and f_number_secondary_zones entries, which the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 1, ..., f_number_secondary_zones being the secondary demand
+ *   z = 0, ..., f_number_secondary_zones - 1 being the secondary demand
  *   constraints at time t and secondary zone z as follow;
  *
  * \f[
@@ -574,8 +601,8 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_inertia_zones entries, where the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 1, ..., f_number_inertia_zones being the inertia demand constraints
- *   at time t and inertia zone z as below;
+ *   z = 0, ..., f_number_inertia_zones - 1 being the inertia demand
+ *   constraints at time t and inertia zone z as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
@@ -588,15 +615,14 @@ class UCBlock : public Block {
  *   In the unit commitment problem, the pollutant budget
  *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
  *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
- *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$ and each pollutant
- *   heat zone \f$ \mathcal{B'} \in \mathcal{B}^{p} (\mathcal{H}) \f$ with two
- *   parameters \f$ \rho_{t , p , g} \f$ and \f$ \rho'_{t , p , h} \f$ where
- *   considered as pollutant ratio and pollutant heat ratio respectively. So,
- *   if the f_number_pollutants > 0, a
- *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
- *   f_number_pollutants, and v_number_pollutant_zones entries, that the entry
- *   p = 1, ..., f_number_pollutants and the entry
- *   z = 1, ..., v_number_pollutant_zones being the pollutant budget
+ *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
+ *   \f$ \rho_{t , p , g} \f$ and \f$ \rho'_{t , p , h} \f$ where considered
+ *   as pollutant ratio and pollutant heat ratio respectively. So, if the
+ *   f_number_pollutants > 0, a boost::multi_array<FRowConstraint, 2>; with
+ *   two dimensions which are f_number_pollutants, and
+ *   v_number_pollutant_zones entries, that the entry
+ *   p = 0, ..., f_number_pollutants - 1 and the entry
+ *   z = 0, ..., v_number_pollutant_zones - 1 being the pollutant budget
  *   constraints at pollutant p and pollutant zones b as below;
  *
  * \f[
@@ -827,31 +853,23 @@ class UCBlock : public Block {
   return v_pollutant_zones;
   }
 /*--------------------------------------------------------------------------*/
- /// Returns the matrix of pollutant budget //todo not complete
- /** The method returns a two-dimensional boost::multi_array<> M such that
-  * M[ b , p ] gives the pollutant budget of each pollutant zone b associated
-  * with pollutant p. There are three possible cases:
+ /// Returns the two-dimensional vector of pollutant budget
+ /** The method returns a two-dimensional std::vector< std::vector<> > V such
+  * that V[ n ] contains the pollutant budget (across all the time horizon) for
+  * the pair ( pollutant , zone of the pollutant ) corresponding to n. The
+  * mapping between the number n and the pair is described in deserialize()
+  * comments. There are two possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no pollutant zones are
-  *    defined, and there are no pollutant budget constraints;
+  *  - if the two-dimensional std::vector< std::vector< >> V is empty() then
+  *    no pollutant zones are defined, and there are no pollutant budget
+  *    constraints;
   *
-  *  - if the boost::multi_array<> M has only one row, it is a vector
-  *    with size of f_number_pollutant. In this case only one pollutant zone
-  *    exists in the problem, and each p_th element of the vector gives the
-  *    pollutant budget of existing pollutant zone;
-  *
-  *  - otherwise, since there might be exist a different number of pollutant
-  *    zones b according to each pollutant p, then the
-  *    two-dimensional boost::multi_array<> M might be an irregular matrix
-  *    (where the number of rows for each column is different). Therefore, to
-  *    avoid having an irregular matrix, matrix M defines as a spars matrix
-  *    and each element of matrix M[ b , p ] gives the pollutant budget of
-  *    corresponding pollutant zone b which pollutant p belongs. Note that
-  *    M[ b , p ] == +INF implies that pollutant zone b associated with
-  *    pollutant p is not defined then there is not any pollutant budget
-  *    constraint for corresponding b and p*/
+  *  - otherwise, the two-dimensional std::vector< std::vector<> > V must have
+  *    size of TotalNumberPollutantZones and each element of V[ n ] contains
+  *    the pollutant budget for the pair ( zone of the pollutant , pollutant )
+  *    corresponding to n (see deserialize() comments.*/
 
- const boost::multi_array< double , 2 > & get_pollutant_budget() const {
+ const  std::vector< std::vector< double >> & get_pollutant_budget() const {
   return v_pollutant_budget;
  }
 /*--------------------------------------------------------------------------*/
@@ -1053,9 +1071,6 @@ class UCBlock : public Block {
  /// The number of pollutants
  Index f_number_pollutants;
 
- /// The number of pollutant zones
- Index f_number_pollutants_zones;
-
  /// The set of UnitBlock
  std::vector< UnitBlock * > v_unit_blocks;
 
@@ -1096,11 +1111,9 @@ class UCBlock : public Block {
  /** Indexed over the dimensions InertiaZones and TimeHorizon. */
  boost::multi_array< double, 2 > v_inertia_demand;
 
- /// The matrix of PollutantDemand
- /** Indexed over the dimensions
-  * PollutantZone and NumberPollutant.
-  * */
- boost::multi_array< double , 2 > v_pollutant_budget;
+ /// The vector of PollutantBudget
+ /** Indexed over the pair of each NumberPollutantZone and NumberPollutant*/
+ std::vector< std::vector< double >> v_pollutant_budget;
 
  /// The PollutantRho matrix
  /** Indexed over the dimensions
