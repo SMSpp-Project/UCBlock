@@ -201,7 +201,7 @@ class HeatBlock : public Block {
  *   The second dimension has size "NumberHeatUnits". This is meant to
  *   represent the matrix MinHP[ t , i ] which is assumed to contain the
  *   minimum heat production of heat-producing unit i for time instant t. The
- *   variable is optional: if it is not provided at all, it is intended
+ *   variable is optional; if it is not provided at all, it is intended
  *   MnHP[ t , i ] == 0 for all i and t. If the first dimension has size 1,
  *   then the minimum heat production is the same for all time instants (for
  *   the same unit). Otherwise, MinHeatProduction[ h , i ] is the fixed value
@@ -212,20 +212,22 @@ class HeatBlock : public Block {
  * - The variable "MaxHeatProduction", of type double and indexed over two
  *   dimensions. The first dimension can have size 1 or "NumberIntervals". The
  *   second dimension has size "NumberHeatUnits". This is meant to represent
- *   the matrix MxHP[ t , i ] which is assumed to contain the maximum heat
+ *   the matrix MaxHP[ t , i ] which is assumed to contain the maximum heat
  *   production of heat-producing unit i for time instant t. It is assumed
- *   MxHP[ t , i ] >= MaxHP[ t , i ] >= 0 for all i and t, with strict
+ *   MaxHP[ t , i ] >= MinHP[ t , i ] >= 0 for all i and t, with strict
  *   inequality holding for at least some t for each unit i (otherwise the
- *   production of unit i is fixed and there is nothing to decide). If the
- *   first dimension has size 1, then the maximum heat production is the same
- *   for all time instants (for the same unit). Otherwise,
- *   MaxHeatProduction[ h , i ] is  the fixed value of MaxHP[ t , i ] for all t
- *   in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0.
+ *   production of unit i is fixed and there is nothing to decide). The
+ *   variable is optional; if it is not provided at all, it is intended
+ *   MaxHP[ t , i ] == 0 for all i and t. If the first dimension has size 1,
+ *   then the maximum heat production is the same for all time instants (for
+ *   the same unit). Otherwise, MaxHeatProduction[ h , i ] is  the fixed value
+ *   of MaxHP[ t , i ] for all t in the interval [ ChangeIntervals[ h - 1 ],
+ *   ChangeIntervals[ h ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0.
  *
  * - The variable "MinHeatStorage", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector MnHS[ t ] which, for each time instant t, contains the minimum
+ *   vector MinHS[ t ] which, for each time instant t, contains the minimum
  *   heat storage of this HB. The variable is optional, if it is not provided
  *   at all it is intended that MinHS[ t ] == 0 for all t. If the variable has
  *   size 1, then the minimum heat storage is the same for all time instants.
@@ -237,20 +239,20 @@ class HeatBlock : public Block {
  *   the dimension "NumberIntervals" or has size 1. This is meant to represent
  *   the vector MxHS[ t ] which, for each time instant t, contains the
  *   maximum heat storage of this HB. The variable is optional, if it is not
- *   provided at all it is intended that MxHS[ t ] == 0 for all t. Since it
- *   is assumed that MxHS[ t ] >= MaxHS[ t ] >= 0 for all t, this means that
- *   there is no heat storage in this HB. If the variable has size 1, then
- *   the maximum heat storage is the same for all time instants. Otherwise,
- *   MaxHeatStorage[ h ] is the fixed value of MaxHS[ t ] for all t in the
- *   interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
+ *   provided at all it is intended that MaxHS[ t ] == 0 for all t, and since
+ *   it's assumed that MaxHS[ t ] >= MinHS[ t ] >= 0 for all t, this means
+ *   that there is no heat storage in this HB. If the variable has size 1,
+ *   then the maximum heat storage is the same for all time instants.
+ *   Otherwise, MaxHeatStorage[ h ] is the fixed value of MaxHS[ t ] for all
+ *   t in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0.
  *
  * - The scalar variable "InitialHeatAvailable", of type double and not
  *   indexed over any dimension, which indicates the the amount of heat in
  *   the storage at the beginning of the first time instant in this HB. It
- *   is assumed that MxHS[ 0 ] >= InitialHeatAvailable >= MnHS[ 0 ]. This
+ *   is assumed that MaxHS[ 0 ] >= InitialHeatAvailable >= MinHS[ 0 ]. This
  *   variable is optional, if it is not provided it is taken to be
- *   InitialHeatAvailable == MnHS[ 0 ]. If there is no heat storage (say,
+ *   InitialHeatAvailable == MinHS[ 0 ]. If there is no heat storage (say,
  *   MaxHeatStorage is not defined) then this variable is not read, because
  *   it is not used.
  *
@@ -391,7 +393,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
  }
 /*--------------------------------------------------------------------------*/
 /// Returns the number of heat units in this HeatBlock
- Index get_number_heat_units( void ) const {
+ Index get_number_heat_generators( void ) const {
   return( f_number_heat_units );
  }
 /*--------------------------------------------------------------------------*/
@@ -419,10 +421,8 @@ void generate_abstract_variables( Configuration *stvv ) override;
  * - if the vector has only one element, then the minimum heat storage is
  *   always equal to the value of that element;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector MinHeatStorage[ i ] is the fixed value of MinHS[ t ] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see
- *   deserialize comment);
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the minimum heat storage at time t.
  */
  const std::vector< double > & get_min_heat_storage() const {
   return v_min_heat_storage;
@@ -438,10 +438,8 @@ void generate_abstract_variables( Configuration *stvv ) override;
  * - if the vector has only one element, then the maximum heat storage is
  *   always equal to the value of that element;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector MaxHeatStorage[ i ] is the fixed value of MaxHS[ t ] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see
- *   deserialize comment);
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the maximum heat storage at time t.
  */
  const std::vector< double > & get_max_heat_storage() const {
   return v_max_heat_storage;
@@ -456,19 +454,16 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   production is defined;
  *
  * - if the boost::multi_array<> M has only one row, it is a vector with size
- *   of f_number_heat_units. In this case M[ 0 , i ] gives the minimum heat
- *   production for each i and all t;
+ *   of get_number_heat_units(). In this case M[ 0 , i ] gives the minimum
+ *   heat production for each i and all t;
  *
- * - if the matrix only has one column with size number intervals (i.e., the
- *   second dimension has size 1), then the each element of M[ f , 0 ] is the
- *   fixed minimum heat production of MinHP[ t , 0] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see  deserialize
- *   comment);
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the each element of M[ t , 0 ]
+ *   represents the minimum heat production value at time t and for all units;
  *
- * - otherwise, the matrix has size the number intervals per number of heat
- *   units, then the M[ f , i ] is the fixed value of MinHP[ t , g] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for heat
- *   unit i (see deserialize comment).
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_heat_units(), then the M[ t , i ] gives the minimum heat
+ *   production of each unit i at time instant t.
  */
  const boost::multi_array< double , 2 > &get_min_heat_production() const {
   return v_min_heat_production;
@@ -483,19 +478,16 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *    production is defined;
  *
  * - if the boost::multi_array<> M has only one row, it is a vector
- *    with size of f_number_heat_units. In this case M[ 0 , i ] gives the
+ *    with size of get_number_heat_units(). In this case M[ 0 , i ] gives the
  *    maximum heat production for each i and all t;
  *
- * - if the matrix only has one column with size number intervals (i.e., the
- *   second dimension has size 1), then the each element of M[ f , 0 ] is the
- *   fixed maximum heat production of MaxHP[ t , 0] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see  deserialize
- *   comment);
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the each element of M[ t , 0 ]
+ *   represents the maximum heat production value at time t and for all units;
  *
- * - otherwise, the matrix has size the number intervals per number of heat
- *   units, then the M[ f , i ] is the fixed value of MaxHP[ t , g] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for heat
- *   unit i (see deserialize comment).
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_heat_units(), then the M[ t , i ] gives the maximum heat
+ *   production of each unit i at time instant t.
  */
  const boost::multi_array< double , 2 > &get_max_heat_production( ) const {
   return v_max_heat_production;
@@ -511,19 +503,16 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   is defined;
  *
  * - if the boost::multi_array<> M has only one row, it is a vector with size
- *   of f_number_heat_units. In this case M[ 0 , i ] gives the production heat
- *   cost for each i and all t;
+ *   of get_number_heat_units(). In this case M[ 0 , i ] gives the production
+ *   heat cost for each i and all t;
  *
- * - if the matrix only has one column with size number intervals (i.e., the
- *   second dimension has size 1), then the each element of M[ f , 0 ] is the
- *   fixed production heat cost of CHU[ t , 0] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see  deserialize
- *   comment);
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the each element of M[ t , 0 ]
+ *   represents the production heat cost at time t and for all units;
  *
- * - otherwise, the matrix has size the number intervals per number of heat
- *   units, then the M[ f , i ] is the fixed value of CHU[ t , g] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for heat
- *   unit i (see deserialize comment).
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_heat_units(), then the M[ t , i ] gives the production heat
+ *   cost of each unit i at time instant t.
  */
  const boost::multi_array< double , 2 > &get_cost_heat_unit() const {
   return v_cost_heat_unit;
@@ -551,8 +540,9 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *
  *  - if U is empty(), then these variables are not defined;
  *
- *  - otherwise, U must have f_time_horizon rows and f_number_units columns
- *    and M[ t , i ] is the heat variable for time step t of unit i */
+ *  - otherwise, U must have get_time_horizon() rows and
+ *    get_number_heat_units() columns and M[ t , i ] is the heat variable for
+ *    time step t of unit i */
  const boost::multi_array< ColVariable , 2 > & get_heat() const {
   return v_heat;
  }
@@ -633,7 +623,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
 
  Index f_time_horizon;  ///< the time horizon of the HB
 
- Index f_number_heat_units;  ///< The number of units of the HB
+ Index f_number_heat_units;  ///< The number of units(generators) of the HB
 
  Index f_number_intervals;   ///< the number of intervals
 
