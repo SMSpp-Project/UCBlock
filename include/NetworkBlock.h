@@ -111,7 +111,7 @@ class NetworkBlock : public Block {
 /// auxiliary class holding basic data about the transmission network
 /** The NetworkData class is a nested sub-class which only serves to have a
  * quick way to load all the basic data (topology and electrical
- * caracteristics) that describe the transmission network. The rationale is
+ * characteristics) that describe the transmission network. The rationale is
  * that while often the network does not change during the (short) time
  * horizon of UC, it makes sense to allow for this to happen. This means that
  * individual NetworkBlock objects may in principle have different
