@@ -572,7 +572,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
           ++heat_block_id ) {
       if( get_heat_set()[ unit ] <
-          v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
+          v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
        return true;
      }
      return false;
@@ -603,7 +603,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      auto heat_unit_id = get_heat_set()[ unit_id ];
 
      if( heat_unit_id >=
-         v_heat_blocks[ heat_block_id ]->get_number_heat_units() )
+         v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
       continue; // unit_id does not belong to heat_block_id
 
      if( !v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() ) {
