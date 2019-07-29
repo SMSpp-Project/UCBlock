@@ -260,12 +260,18 @@ class ThermalUnitBlock : public UnitBlock {
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
- *   any dimension. If InitUpDownTime > 0, it means that the unit was on at
- *   time instant -1 (prior to the beginning of the horizon). It indicates the
- *   amount of the power that the unit was producing at time instant -1; if
- *   InitUpDownTime <= 0 then this variable need not be defined since it is
- *   not loaded, if the variable is provided then it must be that MaxPower
- *   >= its value >= MinPower;
+ *   any dimension. This variable indicates the amount of the power that the
+ *   unit was producing at time instant -1, i.e., before the start of the
+ *   time horizon; this is necessary to compute the ramp-up and ramp-down
+ *   constraints. Clearly, it must be that MaxPower >= InitialPower >=
+ *   MinPower if the unit was "on" at time instant -1, and it must be that
+ *   InitialPower == 0 if the unit was "off" at time instant -1. The on/off
+ *   status of the unit is also encoded by the scalar variable InitUpDownTime:
+ *   in particular, InitUpDownTime > 0 then the unit was on at time instant -1,
+ *   and therefore InitialPower >= MinPower must hold, while if InitUpDownTime
+ *   <= 0 then the unit was off at time instant -1, and therefore InitialPower
+ *   == 0 by definition. In fact, if InitUpDownTime <= 0 then this variable need
+ *   not be defined since it is not loaded.
  *
  * - The scalar variable "InitUpDownTime", of type Int64 and not indexed over
  *   any dimension and indicates the initial time to generating the unit.
@@ -671,6 +677,18 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * @{ */
 
+ /// Returns the initial power value
+ Index get_initial_power() const { return f_initial_power; }
+
+ /// Returns the init up and down time value
+ Index get_init_un_down_time() const { return f_InitUpDownTime; }
+
+ /// Returns the minimum allowed up time value
+ Index get_min_up_time() const { return f_MinUpTime; }
+
+ /// Returns the minimum allowed down time value
+ Index get_min_down_time() const { return f_MinDownTime; }
+ /*--------------------------------------------------------------------------*/
 /// returns the vector of minimum power
 /** The returned vector contains to minimum power at time t. There are three
  * possible cases:
@@ -680,10 +698,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the minimum power of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector MinPower[ i ] is the fixed value of MinP[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize
- *   comment);  */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the minimum power value at time t. */
 
  const std::vector< double > & get_min_power() const {
   return( v_MinPower );
@@ -699,10 +715,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the maximum power of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector MaxPower[ i ] is the fixed value of MaxP[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment).  */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the maximum power value at time t.   */
 
  const std::vector< double > & get_max_power() const {
   return( v_MaxPower );
@@ -718,10 +732,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the primary rho of the unit for
  *   all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector PrimaryRho[ i ] is the fixed value of PR[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment).  */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the primary rho value at time t. */
 
  const std::vector< double > & get_praimary_rho() const {
   return( v_PrimaryRho );
@@ -737,10 +749,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the secondary rho of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector SecondaryRho[ i ] is the fixed value of SR[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment). */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the secondary rho value at time t. */
  
  const std::vector< double > & get_secondary_rho() const {
   return( v_SecondaryRho );
@@ -756,10 +766,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the delta ramp-up of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector DeltaRampUp[ i ] is the fixed value of DRU[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment). */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the delta ramp-up value at time t. */
 
  const std::vector< double > & get_delta_ramp_up() const {
   return( v_DeltaRampUp );
@@ -775,10 +783,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the delta ramp-down of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector DeltaRampDown[ i ] is the fixed value of DRD[ t ] in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see
- *   deserialize() comment).  */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the delta ramp-down value at time t.  */
 
  const std::vector< double > & get_delta_ramp_down() const {
   return( v_DeltaRampDown );
@@ -794,10 +800,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the quadratic term of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector QuadTerm[ i ] is the fixed value of A[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment).  */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the amount of quadratic term at time t.  */
 
  const std::vector< double > & get_quad_term() const { return( v_QuadTerm ); }
 
@@ -811,10 +815,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the linear term of the unit for
  *   all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector LinearTerm[ i ] is the fixed value of B[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment). */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the amount of linear term at time t.  */
 
  const std::vector< double > & get_linear_term() const {
   return( v_LinearTerm );
@@ -830,10 +832,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the constant term of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector ConstTerm[ i ] is the fixed value of C[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment). */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the amount of constant term at time t.  */
 
  const std::vector< double > & get_const_term() const {
   return( v_ConstTerm );
@@ -849,10 +849,8 @@ class ThermalUnitBlock : public UnitBlock {
  * - if the vector has only one element, then the startup cost of the unit
  *   for all time horizon;
  *
- * - otherwise, the vector must have size of number intervals and each element
- *   of vector StartUpCost[ i ] is the fixed value of SC[ t ] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see deserialize()
- *   comment). */
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the start up cost value at time t.  */
 
  const std::vector< double > & get_start_up_cost() const {
   return( v_StartUpCost );
@@ -871,18 +869,14 @@ class ThermalUnitBlock : public UnitBlock {
  *   then the fixed consumption for each generator g is U[ 0 , g ] for all t
  *   which means that the second dimension has size get_number_generators();
  *
- * - if the matrix only has one column with size number intervals (i.e., the
- *   second dimension has size 1), then the FixedConsumption[ i , 0 ] is the
- *   fixed value of U[ t , 0] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see  deserialize
- *   comment). Since in this unit there is only one electrical generator, this
- *   case should happen by assumption;
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the FixedConsumption[ t , 0 ] gives
+ *   the fixed consumption of the problem at time t. Since in this unit there
+ *   is only one electrical generator, this case should happen by assumption;
  *
- * - otherwise, the matrix has size the number intervals per
- *   get_number_generators(), then the FixedConsumption[ i , g ] is the fixed
- *   value of U[ t , g] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
- *   generator g (see deserialize() comment). */
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_generators(), then the FixedConsumption[ t , g ] represents
+ *   fixed consumption at time t for each electrical generator g. */
 
  const boost::multi_array< double , 2 > & get_fixed_consumption()
  const override {
@@ -902,18 +896,16 @@ class ThermalUnitBlock : public UnitBlock {
  *   then the inertia commitment for each generator g is U[ 0 , g ] for all t
  *   which means that the second dimension has size get_number_generators();
  *
- * - if the matrix only has one column with size number intervals (i.e., the
- *   second dimension has size 1), then the InertiaCommitment[ i , 0 ] is the
- *   fixed value of U[ t , 0] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] (see  deserialize
- *   comment). Since in this unit there is only one electrical generator, this
- *   case should happen by assumption;
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the InertiaCommitment[ t , 0 ] gives
+ *   the inertia commitment for the problem at time t. Since in this unit
+ *   there is only one electrical generator, this case should happen by
+ *   assumption;
  *
- * - otherwise, the matrix has size the number intervals per
- *   get_number_generators(), then the InertiaCommitment[ i , g ] is the fixed
- *   value of U[ t , g] in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] for each electrical
- *   generator g (see deserialize() comment). */
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_generators(), then the InertiaCommitment[ t , g ] represents
+ *   the inertia commitment for the problem at time t for each electrical
+ *   generator g. */
 
  const boost::multi_array< double , 2 > & get_inertia_commitment()
  const override {
