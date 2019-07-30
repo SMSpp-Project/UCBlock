@@ -208,7 +208,7 @@ class HydroUnitBlock : public UnitBlock {
  * that a unit suddenly changes between a turbine and a pump, or vice-versa.
  * This is because the flow-to-active-power function of turbines is a convex
  * piecewise function with possibly many pieces, whereas the
- * flow-to-active-power function of a pump is a simple lineaer function. In
+ * flow-to-active-power function of a pump is a simple linear function. In
  * other words, the "number of pieces" (see WHATEVER DIMENSION WE NEED) of
  * a turbine is >= 1, whereas the "number of pieces" of a pump is necessarily
  * equal to 1. In reality, the same equipment can sometimes be used both as
@@ -218,8 +218,8 @@ class HydroUnitBlock : public UnitBlock {
  * possible problem that at some time instant both the pump and the turbine
  * be active, which is not possible in practice. This is unlikely to happen
  * (because pumps consume more than turbines produce for the same amount of
- * water, so this would be uneconomical), but shuld it ever happen, this
- * occurence is not handled in our model (which lets it happen).
+ * water, so this would be uneconomical), but should it ever happen, this
+ * occurrence is not handled in our model (which lets it happen).
  *
  * - The variable "MinVolumetric", of type double and indexed over both
  *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
@@ -266,29 +266,21 @@ class HydroUnitBlock : public UnitBlock {
  *   loaded.
  *
  * - The variable "Inflows", of type double and indexed over both dimensions
- *   "NumberReservoirs" and "NumberIntervals".
- *
- *   This could be "TimeHorizon", and be always dense, because we expect that
- *   for each time instant we have a different inflow.
- *
- *   Both dimensions may have either
- *   size 1 or full size("NumberReservoirs" and "NumberIntervals",
- *   respectively). This is meant to represent the matrix InF[ r , t ] which,
- *   for each reservoir r at each time instant t contains the amount of water
- *   that goes to each reservoir r at time t;; it must be that the entry
- *   InF[ r , t ] >= 0 for all r and t. If both dimensions have size 1 then the
- *   entry InF[ 0 , 0 ] gives the amount of water that goes to one existing
- *   reservoir for all the time steps. If second dimension has size 1 then the
- *   entry InF[ r , 0 ] is assumed to contain the amount of water that goes to
- *   each reservoir r for all the time instants. Otherwise, two cases may
- *   happen in which both dimensions may have full size or first
- *   dimension has size of 1 then Inflows[ r , i ] (or Inflows[ 0 , i ] ) is
- *   the fixed value of InF[ r , t ] (or InF[ 0 , t ]) for all reservoir n
- *   (the one available reservoir) and all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   "NumberReservoirs" and "TimeHorizon". Both dimensions may have either
+ *   size 1 or full size of "NumberReservoirs" and "TimeHorizon" respectively.
+ *   This is meant to represent the matrix InF[ r , t ] which, for each
+ *   reservoir r at each time instant t contains the amount of water that goes
+ *   to each reservoir r at time t; it must be that the entry
+ *   InF[ r , t ] >= 0 for all r and t. If both dimensions have size 1 then
+ *   the entry InF[ 0 , 0 ] gives the amount of water that goes to one
+ *   existing reservoir for all the time steps. If second dimension has size 1
+ *   then the entry InF[ r , 0 ] is assumed to contain the amount of water
+ *   that goes to each reservoir r for all the time instants. Otherwise, two
+ *   cases may happen in which both dimensions may have full size or first
+ *   dimension has size of 1 and the second dimension has full size of
+ *   "TimeHorizon", then each entry of InF[ r , t ] (or InF[ 0 , t ] )
+ *   contains the amount of water that goes to each reservoir r (or the
+ *   available reservoir) at each time stamp t.
  *
  * - The variable "MinPower", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
@@ -420,49 +412,62 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "NumberPieces", indexed over the dimension "NumberArcs".
  *   NumberPieces[ i ] tells how many pieces the concave flow-to-active-power
- *   funcion has for unit i. Note that pumps must necessarily have exactly
- *   one piece. The sum over all i of NumberPieces[ i ] is the total number
- *   of pieces.
+ *   function has for unit(arc) i. Note that pumps must necessarily have
+ *   exactly one piece. The sum over all i of NumberPieces[ i ] is the total
+ *   number of pieces(say "TotalNumberPieces"). Clearly,
+ *   TotalNumberPieces >= NumberArcs and indeed, each pumps can be expected to
+ *   have just one piece; if there exist just pumps(no turbines) in the system
+ *   (which is not expected) then the TotalNumberPieces ==  NumberArcs and
+ *   there is no need to define this number. If, instead, if it is defined,
+ *   then should always be such that TotalNumberPieces > NumberArcs. This is
+ *   because some arcs are considered as turbines which in this case the
+ *   concave flow-to-active-power function may have more than one piece.
  *
- * - The variable LinearTerm, indexed over "the total number of pieces" (see
- *   "NumberPieces"). LinearTerm[ h ] gives the linear term a_h of the linear
- *   function a_h * f + h_h that defines the concave flow-to-active-power
- *   funcion for some unit. EXPLAIN HOW TO MAP UNITS TO PIECES:
- *   first all the pieces of the first unit (arc)
- *   then all the pieces of the second unit (arc)
- *   ....
+ * - The variable LinearTerm, indexed over the set
+ *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). LinearTerm[ h ]
+ *   gives the linear term a_h of the linear function a_h * f + b_h that
+ *   defines the concave flow-to-active-power function for some unit. It is
+ *   then useful to be able to assign a unique index
+ *   h = 0, 1, ..., TotalNumberPieces - 1 to each of the pieces in the linear
+ *   function a_h * f + b_h. When TotalNumberPieces == NumberArcs, the index
+ *   is the same as i = 0, 1, ..., NumberArcs - 1 (there is a one-to-one
+ *   correspondence between each (unit)arc and each piece). When, instead,
+ *   TotalNumberPieces > NumberArcs, a mapping must be defined. The mapping is
+ *   the obvious one: each index of i = 0, 1, ..., NumberArcs - 1, corresponds
+ *   with a unit(arc) and the the number of pieces for each unit(arc) also
+ *   have some natural ordering. Thus, in general the mapping is:
+ *     piece 0 = first piece of unit(arc) 0
+ *     piece 1 = second piece of unit(arc) 0
+ *     ...
+ *     piece k = k-th piece of unit(arc) 0
+ *     piece k + 1 = first piece of unit(arc) 1
+ *     piece k + 2 = second piece of unit(arc) 1
+ *     ...
+ *   which of course boils down to "h = i" when each arc has exactly one
+ *   piece(there is no turbine).
  *
- * - The variable ConstantTerm, indexed over "the total number of pieces" (see
- *   "NumberPieces"). ConstantTerm[ h ] gives the constant term b_h of the
- *   linean function a_h * f + h_h that defines the concave flow-to-active-power
- *   funcion for some unit. EXPLAIN HOW TO MAP UNITS TO PIECES:
- *   first all the pieces of the first unit (arc)
- *   then all the pieces of the second unit (arc)
- *   ....
- *
- * NO, THIS IS THE SINGLE PIECE OF THE flow-to-active-power FUNCTION FOR
- * PUMPS, WE DO IT TOGETHER WITH THE TURBINES
- * - The variable "PowerFlowRho", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix PFR[ t , a ] which,
- *   for each time instant t and arc a, contains the exact fraction of active
- *   power that can be used as flow rate. If both dimensions have size 1 then
- *   the entry PFR[ 0 , 0 ] gives the exact fraction of active power that can
- *   be used as flow rate for the only existing arc of all the time steps. If
- *   firs dimension has size 1 then the entry PFR[ 0 , a ] is assumed to
- *   contain the the exact fraction of active power that can be used as flow
- *   rate of each arc a for all time instant. Otherwise, two cases may happen
- *   such that both dimensions may have full size or second dimension could
- *   have size of 1 then PowerFlowRho[ i , a ] (or PowerFlowRho[ i , 0 ]) is
- *   the fixed value of PFR[ t , a ] (or PFR[ t , 0 ]) for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0 and all a. If
- *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded. This variable is optional, when it's not present it will not
- *   capable of producing any flow rate, which correspond to PFR[ t , a ] == 0
- *   for all t and a.
+ * - The variable ConstantTerm, indexed over the set
+ *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). ConstantTerm[ h ]
+ *   gives the constant term b_h of the linear function a_h * f + b_h that
+ *   defines the concave flow-to-active-power function for some unit. It is
+ *   then useful to be able to assign a unique index
+ *   h = 0, 1, ..., TotalNumberPieces - 1 to each of the pieces in the linear
+ *   function a_h * f + b_h. When TotalNumberPieces == NumberArcs, the index
+ *   is the same as i = 0, 1, ..., NumberArcs - 1 (there is a one-to-one
+ *   correspondence between each (unit)arc and each piece). When, instead,
+ *   TotalNumberPieces > NumberArcs, a mapping must be defined. The mapping is
+ *   the obvious one: each index of i = 0, 1, ..., NumberArcs - 1, corresponds
+ *   with a unit(arc) and the the number of pieces for each unit(arc) also
+ *   have some natural ordering. Thus, in general the mapping is:
+ *     piece 0 = first piece of unit(arc) 0
+ *     piece 1 = second piece of unit(arc) 0
+ *     ...
+ *     piece k = k-th piece of unit(arc) 0
+ *     piece k + 1 = first piece of unit(arc) 1
+ *     piece k + 2 = second piece of unit(arc) 1
+ *     ...
+ *   which of course boils down to "h = i" when each arc has exactly one
+ *   piece(there is no turbine).
  *
  * - The variable "InertiaPower", of type double and indexed both over the
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
@@ -489,24 +494,24 @@ class HydroUnitBlock : public UnitBlock {
  *   and arc a.
  *
  * - The variable "InitialFlowRate", of type double and indexed over the
- *   dimension "NumberArcs". Each entry InFR[ a ] indicates the amount
- *   of the flow rate that each arc a was producing at time instant -1;
- *   THIS CAN BE OPTIONAL IF THERE ARE NO RAMP CONSTRAINTS
+ *   dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of the
+ *   flow rate that each arc i was producing at time instant -1. This variable
+ *   is optional, if it is not provided it is taken to be InFR[ i ] == 0 and
+ *   it is meant there are no ramp constraint for corresponding unit(arc) i.
  *
  * - The variable "InitialVolumetric", of type double and indexed over the
  *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the amount
  *   of volumes that each reservoir r was producing at time instant -1;
  *
- * - The positive scalar variable "UphillFlow", of type UInt64 indexed over
- *   the dimension "NumberArcs". 
- *   over any dimension, which indicates the uphill flow delay in this unit.
- *   This variable is optional, if it is not provided it is taken to be
- *   UphillFlow == 0, which means that ?? //todo.
+ * - The negative or positive scalar variable "UphillFlow", of type Int64 and
+ *   indexed over the dimension "NumberArcs". Each entry UpF[ i ] indicates
+ *   the uphill flow delay for each unit(arc) i. This variable is optional, if
+ *   it is not provided it is taken to be UpF[ i ] == 0.
  *
- * - The positive scalar variable "DownhillFlow", of type UInt64 and not
- *   indexed over any dimension, which indicates the downhill flow delay in
- *   this unit. This variable is optional, if it is not provided it is taken
- *   to be DownhillFlow == 0, which means that ?? //todo.
+ * - The positive scalar variable "DownhillFlow", of type UInt64 and indexed
+ *   over the dimension "NumberArcs". Each entry DnF[ i ] indicates the
+ *   downhill flow delay for each unit(arc) i. This variable is optional, if
+ *   it is not provided it is taken to be DnF[ i ] == 0.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -563,14 +568,19 @@ class HydroUnitBlock : public UnitBlock {
  * \f$ f_{l,t} \f$ in \f$ m^3 /s \f$ and ramping conditions
  * \f$ \Delta^{up}_{l,t} \f$ and \f$ \Delta^{dn}_{l,t} \f$ in
  * \f$ (m^3 /s)/h \f$ are disposed. The flow rate variable will be subject to
- * bounds \f$ F^{mn}_{l,t} \f$ and \f$ F^{mx}_{l,t} \f$.
- * //todo explain cutting plan model here
- *
- * Power generated by the hydro unit in each time and for each arc
- * \f$ p^{ac}_{t,l}, p^{pr}_{t,l}, p^{sc}_{t,l} \f$ in MW will be subject to
- * bounds \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ respectively. Besides,
- * we emphasize that reserve requirements are specified in order to be
- * symmetrically available to increase or decrease power injected into the
+ * bounds \f$ F^{mn}_{l,t} \f$ and \f$ F^{mx}_{l,t} \f$ and it's assumed
+ * moreover given a cutting plane model describing power as a function of flow
+ * rate as below:
+ *   \f[
+ *      p^{ac}_{t,l}(f) := min \{ P_l + \rho^{hy}_{l}f_{t,l}\}
+ *   \f]
+ * where \f$ P_l\f$ and \f$ \rho^{hy}_{l} \f$ are considered as the constant
+ * and linear multipliers of the linear function(flow-to-active-power)
+ * respectively. Power generated by the hydro unit in each time and for each
+ * arc \f$ p^{ac}_{t,l}, p^{pr}_{t,l}, p^{sc}_{t,l} \f$ in MW will be subject
+ * to bounds \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ respectively.
+ * Besides, we emphasize that reserve requirements are specified in order to
+ * be symmetrically available to increase or decrease power injected into the
  * grid. For some of the constraints we will need to distinguish between pumps
  * and turbines. The distinction is made by considering the set of feasible
  * flow rates. Whenever \f$ [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_- \f$
@@ -663,17 +673,19 @@ class HydroUnitBlock : public UnitBlock {
  *
  *   \f[
  *
- *      p^{ac}_{t,l} = \rho^{hy}_{t,l}f_{t,l} \quad t \in \mathcal{T},
+ *      p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
  *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-       \quad (7)
  *
  *   \f]
  *
- * - flow-to-active-power function at each time and for each turbine ; //todo
+ * - flow-to-active-power function at each time and for each turbine ;
  *
  *   \f[
  *
- *      //todo       \quad (8)
+ *      p^{ac}_{t,l} \leq P_l + \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
+ *        l \in \mathcal{L}^{hy} \quad with
+ *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (8)
  *
  *   \f]
  *
@@ -718,8 +730,8 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + 3600 A_{n,t-1} +
  *      3600 (\sum_{n' \in \mathcal{A}(n)}\sum_{ l \in \mathcal{L}^{hy} }
- *      f_{t - \tau^{dn},l} - \sum_{n' \in \mathcal{F}(n)}
- *      \sum_{ l \in \mathcal{L}^{hy} } f_{t - \tau^{up},l})
+ *      f_{t - \tau^{dn}_l} - \sum_{n' \in \mathcal{F}(n)}
+ *      \sum_{ l \in \mathcal{L}^{hy} } f_{t - \tau^{up}_l})
  *      \quad t \in \mathcal{T}, \quad n \in \mathcal{N}^{hy}    \quad (12)
  *
  *   \f]
@@ -754,14 +766,19 @@ class HydroUnitBlock : public UnitBlock {
  * the kind of hydro units
  * @{ */
 
-/// returns the number of arcs
+/// returns the number of reservoirs
+ Index get_number_reservoirs() const { return f_number_reservoirs; }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of arcs
  Index get_number_arcs() const { return f_number_arcs; }
+
 /*--------------------------------------------------------------------------*/
 /// returns the vector of start arcs
-/** Method for returning the vector of starting point of each arc. This
- *  vector may have size of 1 (single hydro unit with just one arc between two
- *  reservoirs) or the size of number of reservoirs, then there are two
- *  possible cases:
+/** Method for returning the vector of starting point of each arc. This vector
+ * may have size of 1 (single hydro unit with just one arc between two
+ * reservoirs) or the size of number of reservoirs, then there are two
+ * possible cases:
  *
  *  - if f_number_reservoirs == 2, this vector has size of 1 which means there
  *    is one arc at the system (single hydro case).
@@ -813,57 +830,324 @@ class HydroUnitBlock : public UnitBlock {
   return ( v_inertia_power );
  }
 /*--------------------------------------------------------------------------*/
-
+/// returns the matrix of minimum volumetric
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ n , t ] gives the minimum volumetric of the reservoir n at the time
+ * instant t. This two-dimensional boost::multi_array<> M considers four
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no minimum volumetric are
+ *    defined, and there are no minimum volumetric constraints;
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_time_horizon() and it
+ *    means there exist just one reservoir in the problem. Each element of
+ *    M[ 0 , t ] gives the minimum volumetric of the unique reservoir at time
+ *    instant t;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_number_reservoirs(). Each element of M[ n , 0 ] gives the minimum
+ *    volumetric of the each reservoir n for all time instant t;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_number_reservoirs() row where each row must have size of
+ *    get_time_horizon() and each element of M[ n , t ] gives the minimum
+ *    volumetric of reservoir n at time instant t. */
  const boost::multi_array< double , 2 > & get_minimum_volumetric() const {
   return ( v_minimum_volumetric );
  }
 /*--------------------------------------------------------------------------*/
-
+/// returns the matrix of maximum volumetric
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ n , t ] gives the maximum volumetric of the reservoir n at the time
+ * instant t. This two-dimensional boost::multi_array<> M considers four
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no maximum volumetric are
+ *    defined, and there are no minimum volumetric constraints;
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_time_horizon() and it
+ *    means there exist just one reservoir in the problem. Each element of
+ *    M[ 0 , t ] gives the maximum volumetric of the unique reservoir at time
+ *    instant t;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_number_reservoirs(). Each element of M[ n , 0 ] gives the maximum
+ *    volumetric of the each reservoir n for all time instant t;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_number_reservoirs() row where each row must have size of
+ *    get_time_horizon() and each element of M[ n , t ] gives the maximum
+ *    volumetric of reservoir n at time instant t. */
  const boost::multi_array< double , 2 > & get_maximum_volumetric() const {
   return ( v_maximum_volumetric );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of inflows
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ n , t ] gives the inflows of the reservoir n at the time
+ * instant t. This two-dimensional boost::multi_array<> M considers three
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no inflows are defined;
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_time_horizon() and it
+ *    means there exist just one reservoir in the problem. Each element of
+ *    M[ 0 , t ] gives the inflows of the unique reservoir at time instant t;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_number_reservoirs() row where each row must have size of
+ *    get_time_horizon() and each element of M[ n , t ] represents the inflows
+ *    of reservoir n at time instant t. */
  const boost::multi_array< double , 2 > & get_inflows() const {
   return ( v_inflows );
  }
 /*--------------------------------------------------------------------------*/
-
+/// returns the matrix of minimum power
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the minimum power at each time t associated with unit(arc)
+ * i. This two-dimensional boost::multi_array<> M considers four possible
+ * cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no minimum power are
+ *    defined, and there are no minimum power constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the minimum power of the
+ *    problem at time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the minimum power for all time instant t of
+ *    each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the minimum power at time t and unit i. */
  const boost::multi_array< double , 2 > & get_minimum_power() const {
   return ( v_minimum_power );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of maximum power
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the maximum power at each time t associated with unit(arc)
+ * i. This two-dimensional boost::multi_array<> M considers four possible
+ * cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no maximum power are
+ *    defined, and there are no maximum power constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the maximum power of the
+ *    problem at time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the maximum power for all time instant t of
+ *    each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the maximum power at time t and unit i. */
  const boost::multi_array< double , 2 > & get_maximum_power() const {
   return ( v_maximum_power );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of minimum flow
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the minimum flow at each time t associated with unit(arc)
+ * i. This two-dimensional boost::multi_array<> M considers four possible
+ * cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no minimum flow are
+ *    defined, and there are no minimum flow constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the minimum flow of the
+ *    problem at time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the minimum flow for all time instant t of
+ *    each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the minimum flow at time t and unit i. */
  const boost::multi_array< double , 2 > & get_minimum_flow() const {
   return ( v_minimum_flow );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of maximum flow
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the maximum flow at each time t associated with unit(arc)
+ * i. This two-dimensional boost::multi_array<> M considers four possible
+ * cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no maximum flow are
+ *    defined, and there are no maximum flow constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the maximum flow of the
+ *    problem at time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the maximum flow for all time instant t of
+ *    each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the maximum flow at time t and unit i. */
  const boost::multi_array< double , 2 > & get_maximum_flow() const {
   return ( v_maximum_flow );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of delta ramp up
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the delta ramp up at each time t associated with unit(arc)
+ * i. This two-dimensional boost::multi_array<> M considers four possible
+ * cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no ramping constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the delta ramp up value at
+ *    time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the delta ramp up value for all time instant
+ *    t of each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the delta ramp up value at time t and unit i. */
  const boost::multi_array< double , 2 > & get_delta_ramp_up() const {
   return ( v_delta_ramp_up);
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of delta ramp down
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the delta ramp down at each time t associated with unit
+ * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no ramping constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the delta ramp down value at
+ *    time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the delta ramp down value for all time
+ *    instant t of each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the delta ramp down value at time t and unit i. */
  const boost::multi_array< double , 2 > & get_delta_ramp_down() const {
   return ( v_delta_ramp_down);
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of primary rho
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the primary rho at each time t associated with unit
+ * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no primary reserve
+ *    constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the primary rho value at
+ *    time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the primary rho value for all time instant t
+ *    of each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the primary rho value at time t and unit i. */
  const boost::multi_array< double , 2 > & get_primary_rho() const {
   return ( v_primary_rho);
  }
 /*--------------------------------------------------------------------------*/
+/// returns the matrix of secondary rho
+/** The method returned a two-dimensional boost::multi_array<> M such that
+ * M[ t , i ] gives the secondary rho at each time t associated with unit
+ * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * possible cases:
+ *
+ *  - if the boost::multi_array<> M is empty() then no secondary reserve
+ *    constraints;
+ *
+ *  - if the boost::multi_array<> M has only one column which in this case the
+ *    boost::multi_array<> M is a (transpose of) vector with size
+ *    get_time_horizon() and it means that just one unit in the problem is
+ *    present. Each element of M[ t , 0 ] gives the secondary rho value at
+ *    time t and existing unit.
+ *
+ *  - if the boost::multi_array<> M has only one row which in this case the
+ *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
+ *    element of M[ 0 , i ] gives the secondary rho value for all time instant
+ *    t of each unit i;
+ *
+ *  - otherwise the two-dimensional boost::multi_array<> M must have
+ *    get_time_horizon() rows and get_number_arcs() columns and each element
+ *    of M[ t , i ] gives the secondary rho value at time t and unit i. */
  const boost::multi_array< double , 2 > & get_secondary_rho() const {
   return ( v_secondary_rho);
  }
-/*--------------------------------------------------------------------------*/
- const boost::multi_array< double , 2 > & get_power_flow_rho() const {
-  return ( v_power_flow_rho);
+ /*--------------------------------------------------------------------------*/
+ const std::vector< Index > & get_number_pieces() const {
+  return ( v_number_pieces);
  }
-
+ /*--------------------------------------------------------------------------*/
+ const std::vector< Index > & get_const_term() const {
+  return ( v_const_term);
+ }
+/*--------------------------------------------------------------------------*/
+ const std::vector< Index > & get_linear_term() const {
+  return ( v_linear_term);
+ }
+/*--------------------------------------------------------------------------*/
+ const std::vector< Index > & get_uphill_delay() const {
+  return ( v_uphill_delay);
+ }
+/*--------------------------------------------------------------------------*/
+ const std::vector< Index > & get_downhill_delay() const {
+  return ( v_downhill_delay);
+ }
+/*--------------------------------------------------------------------------*/
+ const std::vector< double > & get_initial_volumetric() const {
+  return ( v_initial_volumetric);
+ }
+/*--------------------------------------------------------------------------*/
+ const std::vector< double > & get_initial_flow_rate() const {
+  return ( v_initial_flow_rate);
+ }
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE HydroUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -953,11 +1237,11 @@ class HydroUnitBlock : public UnitBlock {
  /// cascading system
  Index f_number_arcs;
 
- /// the UphillDelay value
- Index f_uphill_delay;
+ /// The vector of UphillDelay
+ std::vector< Index > v_uphill_delay;
 
- /// the DownhillDelay value
- Index f_downhill_delay;
+ /// The vector of DownhillDelay
+ std::vector< Index > v_downhill_delay;
 
  /// The vector of starting arc
  std::vector< Index > v_start_arc;
@@ -966,10 +1250,19 @@ class HydroUnitBlock : public UnitBlock {
  std::vector< Index > v_end_arc;
 
  /// The vector of initial volumetric
- std::vector< Index > v_initial_volumetric;
+ std::vector< double > v_initial_volumetric;
 
  /// The vector of initial flow rate
- std::vector< Index > v_initial_flow_rate;
+ std::vector< double > v_initial_flow_rate;
+
+ /// The vector of NumberPieces
+ std::vector< Index > v_number_pieces;
+
+ /// The vector of LinearTerm
+ std::vector< Index > v_linear_term;
+
+ /// The vector of ConstTerm
+ std::vector< Index > v_const_term;
 
  /// the vector of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
@@ -1017,10 +1310,6 @@ class HydroUnitBlock : public UnitBlock {
  /// The matrix of SecondaryRho
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double, 2 > v_secondary_rho;
-
- /// The matrix of PowerFlowRho
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
- boost::multi_array< double, 2 > v_power_flow_rho;
 
 /*-----------------------------variables------------------------------------*/
 
