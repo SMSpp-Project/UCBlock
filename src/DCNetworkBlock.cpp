@@ -163,7 +163,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*
 void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-  group.putAtt( "type" , "DCNetworkBlock" ); //TODO
+  NetworkBlock::serialize( group );
+
+  //TODO
 
   auto dim_number_nodes = group.addDim( "NumberNodes",
                                         f_NetworkData->get_number_nodes() );

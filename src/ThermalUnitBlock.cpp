@@ -592,7 +592,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- group.putAtt( "type" , "ThermalUnitBlock" );
  group.addDim( "TimeHorizon" , f_time_horizon );
 
  ::serialize( group, "InitialPower",   netCDF::NcDouble(), f_initial_power );

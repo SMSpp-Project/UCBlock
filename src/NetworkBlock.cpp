@@ -140,7 +140,7 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
- group.putAtt( "type", "NetworkBlock" );
+ group.putAtt( "type", name() );
  auto dim_number_nodes = group.getDim( "NumberNodes" );
 
  if( !dim_number_nodes.isNull() )

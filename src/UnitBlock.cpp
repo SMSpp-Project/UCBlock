@@ -237,7 +237,7 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::serialize( netCDF::NcGroup & group ) const {
- group.putAtt( "type", "UnitBlock" );
+ group.putAtt( "type", name() );
  group.addDim( "TimeHorizon", f_time_horizon );
 
  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
