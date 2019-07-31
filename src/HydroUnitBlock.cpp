@@ -67,7 +67,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
- //TODO
+ //TODO I should complete this part after completing the interface
 
 }// end( HydroUnitBlock::deserialize )
 
@@ -120,7 +120,7 @@ void HydroUnitBlock::generate_objective( Configuration *objc )
         return;                         // cowardly (and silently) return
 
 // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
-    //TODO
+ //TODO I should complete this part after completing the interface
 }  // end( HydroUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
@@ -128,6 +128,8 @@ void HydroUnitBlock::generate_objective( Configuration *objc )
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
+
+ //TODO I should complete this part after completing the interface
 
 }  // end( HydroUnitBlock::serialize )
 

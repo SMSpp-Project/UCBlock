@@ -135,8 +135,8 @@ class HydroUnitBlock : public UnitBlock {
  *   provided then it is taken to be == 1 and in this case the cascading
  *   system becomes to a single hydro unit.
  *
- * - The dimension "NumberArcs" containing the set of arcs connecting the
- *   reservoirs in cascading system.
+ * - The dimension "NumberArcs" containing the set of arcs (or units)
+ *   connecting the reservoirs in cascading system.
  *
  * - The variable "StartArc", of type int and indexed over the dimension
  *   "NumberReservoirs"; the r-th entry of the variable is the starting point
@@ -417,13 +417,15 @@ class HydroUnitBlock : public UnitBlock {
  *   number of pieces(say "TotalNumberPieces"). Clearly,
  *   TotalNumberPieces >= NumberArcs and indeed, each pumps can be expected to
  *   have just one piece; if there exist just pumps(no turbines) in the system
- *   (which is not expected) then the TotalNumberPieces ==  NumberArcs and
- *   there is no need to define this number. If, instead, if it is defined,
- *   then should always be such that TotalNumberPieces > NumberArcs. This is
- *   because some arcs are considered as turbines which in this case the
- *   concave flow-to-active-power function may have more than one piece.
+ *   (which is not expected in our problem) then the
+ *   TotalNumberPieces ==  NumberArcs and there is no need to define this
+ *   number. If, instead, if it is defined, then should always be such that
+ *   TotalNumberPieces > NumberArcs. This is because some arcs are considered
+ *   as turbines which in this case the concave flow-to-active-power function
+ *   may have more than one piece.
  *
- * - The variable LinearTerm, indexed over the set
+ *   //TODO NOT SURE THESE TWO SHOULD INDEXED ALSO OVER NumberIntervals??
+ * - The variable LinearTerm, of type double and indexed over the set
  *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). LinearTerm[ h ]
  *   gives the linear term a_h of the linear function a_h * f + b_h that
  *   defines the concave flow-to-active-power function for some unit. It is
@@ -446,7 +448,7 @@ class HydroUnitBlock : public UnitBlock {
  *   which of course boils down to "h = i" when each arc has exactly one
  *   piece(there is no turbine).
  *
- * - The variable ConstantTerm, indexed over the set
+ * - The variable ConstantTerm, of type double and indexed over the set
  *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). ConstantTerm[ h ]
  *   gives the constant term b_h of the linear function a_h * f + b_h that
  *   defines the concave flow-to-active-power function for some unit. It is
@@ -590,7 +592,7 @@ class HydroUnitBlock : public UnitBlock {
  * artificially splitting the unit into “two units”, which should be done at
  * the data processing stage (see deserialize() comments). With above
  * description the mathematical constraint of hydro unit may present as below:
- *
+ *  //TODO AT THE END, I SHOULD EXPLAIN WElL EACH CONSTRAINT
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves are are presented in (1)-(2). Each of them
  *   is a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
@@ -683,8 +685,8 @@ class HydroUnitBlock : public UnitBlock {
  *
  *   \f[
  *
- *      p^{ac}_{t,l} \leq P_l + \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
- *        l \in \mathcal{L}^{hy} \quad with
+ *      p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
+ *        \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
  *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (8)
  *
  *   \f]
@@ -747,14 +749,26 @@ class HydroUnitBlock : public UnitBlock {
  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}            \quad (13)
  *
  *   \f]
+ *
  */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the objective of the HydroUnitBlock
-/** Method that generates the objective of the HydroUnitBlock.
- * //TODO I should put the objective function here
+/// generate the objective function of the HydroUnitBlock
+/** Method that generates the objective function of the HydroUnitBlock.
+ *  //TODO I SHOULD CHECK IF IT IS OK
+ * - Objective function: the objective function of the HydroUnitBlock
+ *   is given by a cutting plane model as a function of flow rate which has
+ *   the form:
  *
-*/
+ *   \f[
+ *     \min ( \sum_{ j \in  [0 , \mathcal{J}]  } \sum_{ t \in \mathcal{T}  }
+ *     ( P_j + \rho_j f_{t,j}) )
+ *   \f]
+ *
+ *   where \f$ P_j \f$, and \f$ \rho_j \f$ are the constant and linear terms
+ *   of the cutting plane model that describes the power as a concave function
+ *   to flow rate and \f$ \mathcal{J}\f$ is the set of total number of pieces
+ *   in the concave function. */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -1121,30 +1135,113 @@ class HydroUnitBlock : public UnitBlock {
   return ( v_secondary_rho);
  }
  /*--------------------------------------------------------------------------*/
+ /// returns the vector of number pieces
+/** The returned vector contains the number of pieces for each unit (arc) i.
+ * There are three possible cases:
+ *
+ * - if the vector is empty, then the number of pieces of each unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the number
+ *   of pieces for all units;
+ *
+ * - otherwise, the vector must have size get_number_arcs() and each element
+ *   of V[ i ] represents the number of pieces of each unit i. */
  const std::vector< Index > & get_number_pieces() const {
   return ( v_number_pieces);
  }
  /*--------------------------------------------------------------------------*/
- const std::vector< Index > & get_const_term() const {
+ /// returns the vector of constant term
+/** The returned vector contains the constant term value of each available
+ * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
+ * deserialize() comments). There are three possible cases:
+ *
+ * - if the vector is empty, then the constant term value is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the const term
+ *   value for all the pieces;
+ *
+ * - otherwise, the returned V is a std::vector < double > and
+ *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
+ *   const term value of each piece h. */
+ const std::vector< double > & get_const_term() const {
   return ( v_const_term);
  }
 /*--------------------------------------------------------------------------*/
- const std::vector< Index > & get_linear_term() const {
+ /// returns the vector of linear term
+/** The returned vector contains the linear term value of each available
+ * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
+ * deserialize() comments). There are three possible cases:
+ *
+ * - if the vector is empty, then the linear term value is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the linear term
+ *   value for all the pieces;
+ *
+ * - otherwise, the returned V is a std::vector < double > and
+ *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
+ *   linear term value of each piece h. */
+ const std::vector< double > & get_linear_term() const {
   return ( v_linear_term);
  }
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of uphill delay
+/** The returned vector contains the uphill delay for each unit (arc) i.
+ * There are three possible cases:
+ *
+ * - if the vector is empty, then the uphill delay for each unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the uphill delay
+ *   for all units;
+ *
+ * - otherwise, the vector must have size get_number_arcs() and each element
+ *   of V[ i ] represents the uphill delay for each unit i. */
  const std::vector< Index > & get_uphill_delay() const {
   return ( v_uphill_delay);
  }
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of downhill delay
+/** The returned vector contains the downhill delay for each unit (arc) i.
+ * There are three possible cases:
+ *
+ * - if the vector is empty, then the downhill delay for each unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the downhill
+ *   delay for all units;
+ *
+ * - otherwise, the vector must have size get_number_arcs() and each element
+ *   of V[ i ] represents the downhill delay for each unit i. */
  const std::vector< Index > & get_downhill_delay() const {
   return ( v_downhill_delay);
  }
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of initial volumetric
+/** The returned vector contains the initial volumetric for each reservoir n.
+ * There are three possible cases:
+ *
+ * - if the vector is empty, then the initial volumetric for each reservoir is
+ *   0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the initial
+ *   volumetric for all reservoirs;
+ *
+ * - otherwise, the vector must have size get_number_reservoirs() and each
+ *   element of V[ i ] represents the initial volumetric for each reservoir n.
+ *   */
  const std::vector< double > & get_initial_volumetric() const {
   return ( v_initial_volumetric);
  }
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of initial flow rate
+/** The returned vector contains the initial flow rate for each unit (arc) i.
+ * There are three possible cases:
+ *
+ * - if the vector is empty, then the initial flow rate for each unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] presents the initial flow
+ *   rate for all units;
+ *
+ * - otherwise, the vector must have size get_number_arcs() and each element
+ *   of V[ i ] represents the initial flow rate for each unit i. */
  const std::vector< double > & get_initial_flow_rate() const {
   return ( v_initial_flow_rate);
  }
@@ -1259,10 +1356,10 @@ class HydroUnitBlock : public UnitBlock {
  std::vector< Index > v_number_pieces;
 
  /// The vector of LinearTerm
- std::vector< Index > v_linear_term;
+ std::vector< double > v_linear_term;
 
  /// The vector of ConstTerm
- std::vector< Index > v_const_term;
+ std::vector< double > v_const_term;
 
  /// the vector of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
@@ -1341,7 +1438,7 @@ class HydroUnitBlock : public UnitBlock {
  /// flow to active power function constraints for pumps
  boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerPumps_Const;
 
- /// flow to active power function constraints for turbine//todo
+ /// flow to active power function constraints for turbine
  boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerTurbines_Const;
 
  /// ramp-up constraints
