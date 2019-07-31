@@ -681,7 +681,7 @@ class ThermalUnitBlock : public UnitBlock {
  Index get_initial_power() const { return f_initial_power; }
 
  /// Returns the init up and down time value
- Index get_init_un_down_time() const { return f_InitUpDownTime; }
+ Index get_init_up_down_time() const { return f_InitUpDownTime; }
 
  /// Returns the minimum allowed up time value
  Index get_min_up_time() const { return f_MinUpTime; }
@@ -735,7 +735,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the primary rho value at time t. */
 
- const std::vector< double > & get_praimary_rho() const {
+ const std::vector< double > & get_primary_rho() const {
   return( v_PrimaryRho );
   }
 
