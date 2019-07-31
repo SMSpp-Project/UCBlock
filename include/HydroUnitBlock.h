@@ -209,7 +209,7 @@ class HydroUnitBlock : public UnitBlock {
  * This is because the flow-to-active-power function of turbines is a convex
  * piecewise function with possibly many pieces, whereas the
  * flow-to-active-power function of a pump is a simple linear function. In
- * other words, the "number of pieces" (see WHATEVER DIMENSION WE NEED) of
+ * other words, the "number of pieces" (see "NumberPieces" comments below) of
  * a turbine is >= 1, whereas the "number of pieces" of a pump is necessarily
  * equal to 1. In reality, the same equipment can sometimes be used both as
  * a pump and as a turbine. In our model this is be accounted for by
