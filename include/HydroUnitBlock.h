@@ -287,16 +287,15 @@ class HydroUnitBlock : public UnitBlock {
  *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
  *   meant to represent the matrix MinP[ t , a ] which, for each time instant
  *   t at each arc a contains the minimum power value of the unit; it must be
- *   that MinP[ t , a ] >= 0 and MinP[ t , a ] <= MaxP[ t , a ] for each time
- *   instant t and each arc a. If both dimensions have size 1 then the entry
- *   MinP[ 0 , 0 ] gives the minimum power value of the unit with only one
- *   existing arc for all the time steps. If firs dimension has size 1 then
- *   the entry MinP[ 0 , a ] is assumed to contain the minimum power of each
- *   arc a for all time instant. Otherwise, two cases may happen such that
- *   both dimensions may have full size or second dimension could have size of
- *   1 then MinPower[ i , a ] (or MinPower[ i , 0 ]) is the fixed value of
- *   MinP[ t , a ] (or MinP[ t , 0 ]) for all time t and arc a (or the one
- *   available arc) in the interval
+ *   that MinP[ t , a ] <= MaxP[ t , a ] for each time instant t and each arc
+ *   a. If both dimensions have size 1 then the entry MinP[ 0 , 0 ] gives the
+ *   minimum power value of the unit with only one existing arc for all the
+ *   time steps. If firs dimension has size 1 then the entry MinP[ 0 , a ] is
+ *   assumed to contain the minimum power of each arc a for all time instant.
+ *   Otherwise, two cases may happen such that both dimensions may have full
+ *   size or second dimension could have size of 1 then MinPower[ i , a ] (or
+ *   MinPower[ i , 0 ]) is the fixed value of MinP[ t , a ] (or MinP[ t , 0 ])
+ *   for all time t and arc a (or the one available arc) in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
@@ -307,16 +306,15 @@ class HydroUnitBlock : public UnitBlock {
  *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
  *   meant to represent the matrix MaxP[ t , a ] which, for each time instant
  *   t at each arc a contains the maximum power value of the unit; it must be
- *   that MaxP[ t , a ] >= 0 and MinP[ t , a ] <= MaxP[ t , a ] for each time
- *   instant t and each arc a. If both dimensions have size 1 then the entry
- *   MaxP[ 0 , 0 ] gives the maximum power value of the unit with only one
- *   existing arc for all the time steps. If firs dimension has size 1 then
- *   the entry MaxP[ 0 , a ] is assumed to contain the maximum power of each
- *   arc a for all time instant. Otherwise, two cases may happen such that
- *   both dimensions may have full size or second dimension could have size of
- *   1 then MaxPower[ i , a ] (or MaxPower[ i , 0 ]) is the fixed value of
- *   MaxP[ t , a ] (or MaxP[ t , 0 ]) for all time t and arc a (or the one
- *   available arc) in the interval
+ *   that MinP[ t , a ] <= MaxP[ t , a ] for each time instant t and each arc
+ *   a. If both dimensions have size 1 then the entry MaxP[ 0 , 0 ] gives the
+ *   maximum power value of the unit with only one existing arc for all the
+ *   time steps. If firs dimension has size 1 then the entry MaxP[ 0 , a ] is
+ *   assumed to contain the maximum power of each arc a for all time instant.
+ *   Otherwise, two cases may happen such that both dimensions may have full
+ *   size or second dimension could have size of 1 then MaxPower[ i , a ] (or
+ *   MaxPower[ i , 0 ]) is the fixed value of MaxP[ t , a ] (or MaxP[ t , 0 ])
+ *   for all time t and arc a (or the one available arc) in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
@@ -1455,6 +1453,9 @@ class HydroUnitBlock : public UnitBlock {
 
  /// volumetric bounds constraints
  boost::multi_array< FRowConstraint, 2 >  v_Volumetric_Const;
+
+ /// the objective function
+ FRealObjective objective;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
