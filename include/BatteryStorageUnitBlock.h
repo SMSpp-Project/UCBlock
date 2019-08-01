@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 07 - 2019
+ * \date 01 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -35,8 +35,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "ColVariable.h"
+#include "FRowConstraint.h"
+#include "OneVarConstraint.h"
+#include "FRealObjective.h"
 #include "UnitBlock.h"
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -55,18 +58,29 @@ namespace SMSpp_di_unipi_it {
  * [see Block.h] for a "reasonably standard" battery storage unit of a Unit
  * Commitment Problem. That is, the class is designed in order to give
  * mathematical formulation to describe the operation of large set of battery
- * storage. //todo To model complex reservoir systems
- * several technical parameters have to be considered. These are divided into
- * reservoir-specific parameters, the hydro links connecting the reservoirs
- * and finally the turbine/pump parameters. The values are collected within a
- * reservoir database, a hydro-link database and a turbine/pump-database. The
- * technical and physical constraints are mainly divided in ?? different
- * categories:
- * - ??
- * -??
- * -??
- * -??
- */
+ * storage. Battery storages provide an additional flexibility to the system
+ * by shifting a surplus of electric energy (e.g. due to high renewable
+ * feedin) to times with high demand or lower renewable generation. The
+ * distributed battery storages can be aggregated in the energy cells or
+ * directly placed in a single node of the network. We will therefore not
+ * stress this dependency in the subsequent equations. We emphasize that
+ * potential contribution of batteries to inertia is still a subject of active
+ * research and should be considered as optional. To model complex battery
+ * storage systems several technical parameters have to be considered. These
+ * are divided into the battery storage level parameters, the ramping
+ * parameters, and the active power bound parameters. The technical and
+ * physical constraints are mainly divided in several different categories as:
+ *
+ * - maximum and minimum power output constraints according to primary and
+ *   secondary spinning reserves;
+ *
+ * - ramp-up and ramp-down constraints;
+ *
+ * - active power relation with intake and outtake levels constraints;
+ *
+ * - battery storage level constraints;
+ *
+ * - commitment variables relation with intake and outtake level constraints */
 class BatteryStorageUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
@@ -104,7 +118,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/// Extends Block::deserialize( netCDF::NcGroup )
+/// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the BatteryStorageUnitBlock. Besides the mandatory "type" attribute of any
  * :Block, the group must contain all the data required by the base UnitBlock,
@@ -112,14 +126,168 @@ class BatteryStorageUnitBlock : public UnitBlock {
  * In particular, we refer to that description for the crucial dimensions
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
- * //TODO Does
  *
+ * - The variable "MinStorage", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MinS[ t ] that, for each time instant t, contains the minimum
+ *   storage level of the unit for the corresponding time step. If
+ *   "MinStorage" has length 1 then MinS[ t ] contains the same value for all
+ *   t. Otherwise, MinStorage[ i ] is the fixed value of MinS[ t ] for all t
+ *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *   always that MinS[ t ] >= 0, and MinS[ t ] <= MaxS[ t ] for all t. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "MaxStorage", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MaxS[ t ] that, for each time instant t, contains the maximum
+ *   storage level of the unit for the corresponding time step. If
+ *   "MaxStorage" has length 1 then MaxS[ t ] contains the same value for all
+ *   t. Otherwise, MaxStorage[ i ] is the fixed value of MaxS[ t ] for all t
+ *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *   always that MaxS[ t ] >= 0, and MinS[ t ] <= MaxS[ t ] for all t. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "MinPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MinP[ t ] that, for each time instant t, contains the minimum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
+ *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *   MinP[ t ] <= MaxP[ t ] for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "MaxPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MaxP[ t ] that, for each time instant t, contains the maximum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
+ *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
+ *   MaxP[ t ] >= MinP[ t ] for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "DeltaRampUp", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector DP[ t ] that, for each time instant t, contains the ramp-up value
+ *   of the unit for the corresponding time step, i.e., the maximum possible
+ *   increase of active power production w.r.t. the power that had been
+ *   produced in time instant t - 1, if any. This variable is optional; if it
+ *   is not provided then it is assumed that DP[ t ] == MaxP[ t ], i.e., the
+ *   unit can ramp up by an arbitrary amount, i.e., there are no ramp-up
+ *   constraints. If "DeltaRampUp" has length 1 then DP[ t ] contains the same
+ *   value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ]
+ *   for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
+ *
+ * - The variable "DeltaRampDown", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector DM[ t ] that, for each time instant t, contains the ramp-down
+ *   value of the unit for the corresponding time step, i.e., the maximum
+ *   possible decrease of active power production w.r.t. the power that had
+ *   been produced in time instant t - 1, if any. This variable is optional;
+ *   if it is not provided then it is assumed that DP[ t ] == MaxP[ t ], i.e.,
+ *   the unit can ramp down an arbitrary amount, i.e., there are no
+ *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
+ *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
+ *   fixed value of DM[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "IntakeRho", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector IR[ t ] that, for each time instant t, contains the possible
+ *   fraction of storage level that can be used as intake level of the unit
+ *   for the corresponding time step. This variable is optional; if it is not
+ *   provided then it is assumed that this unit may not be capable of having
+ *   any intake levels, which correspond to IR[ t ] == 0 for all t. If
+ *   "IntakeRho" has length 1 then IR[ t ] contains the same value for all t.
+ *   Otherwise, IntakeRho[ i ] is the fixed value of IR[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
+ *   such that OR[ t ] <= 1 <= IR[ t ], for all t. If OR[ t ] == IR[ t ] == 1,
+ *   the intake/outtake level relation with the binary variable u constraints
+ *   (equation (9-10))  are not needed to be define.If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "OuttakeRho", of type double and to be either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector OR[ t ] that, for each time instant t, contains the possible
+ *   fraction of storage level that can be used as outtake level of the unit
+ *   for the corresponding time step. This variable is optional; if it is not
+ *   provided then it is assumed that this unit may not be capable of having
+ *   any outtake levels, which correspond to OR[ t ] == 0 for all t. If
+ *   "OuttakeRho" has length 1 then OR[ t ] contains the same value for all t.
+ *   Otherwise, OuttakeRho[ i ] is the fixed value of OR[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
+ *   such that OR[ t ] <= 1 <= IR[ t ], for all t. If OR[ t ] == IR[ t ] == 1,
+ *   the intake/outtake level relation with the binary variable u constraints
+ *   (equation (9-10))  are not needed to be define.If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The scalar variable "InitialIntakeRho", of type double and not indexed
+ *   over any dimension. This variable indicates the amount of the intake rho
+ *   that at time instant -1, i.e., before the start of the time horizon; this
+ *   is necessary to compute the storage level connection with intake and
+ *   outtake constraints.
+ *
+ * - The scalar variable "InitialOuttakeRho", of type double and not indexed
+ *   over any dimension. This variable indicates the amount of the outtake rho
+ *   that at time instant -1, i.e., before the start of the time horizon; this
+ *   is necessary to compute the storage level connection with intake and
+ *   outtake constraints.
+ *
+ * - The scalar variable "InitialIntake", of type double and not indexed over
+ *   any dimension. This variable indicates the amount of the intake level that
+ *   the unit was producing at time instant -1, i.e., before the start of the
+ *   time horizon; this is necessary to compute the storage level connection
+ *   with intake and outtake constraints.
+ *
+ * - The scalar variable "InitialOuttake", of type double and not indexed over
+ *   any dimension. This variable indicates the amount of the outtake level
+ *   that the unit was producing at time instant -1, i.e., before the start of
+ *   the time horizon; this is necessary to compute the storage level
+ *   connection with intake and outtake constraints.
+ *
+ * - The scalar variable "InitialStorage", of type double and not indexed over
+ *   any dimension. This variable indicates the amount of the storage level
+ *   that the unit was producing at time instant -1, i.e., before the start of
+ *   the time horizon; this is necessary to compute the storage level
+ *   connection with intake and outtake constraints.
+ *
+ * - The variable "Cost", of type double and either of size 1 or indexed over
+ *   the dimension "NumberIntervals". This is meant to represent the vector
+ *   C[ t ] that, for each time instant t, contains the certain proportion
+ *   cost of the unit for the corresponding time step. If "Cost" has length 1
+ *   then C[ t ] contains the same value for all t. Otherwise, Cost[ i ] is
+ *   the fixed value of C[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. Note that it must be C[ t ] >= 0 for all
+ *   t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the abstract variables of the BatteryStorageUnitBlock
+/// generate the abstract variables of the BatteryStorageUnitBlock
 /** The BatteryStorageUnitBlock class use get_variable() method to access to
  *  each "group" of variable that may create in UnitBlock class which are:
  *
@@ -129,16 +297,17 @@ class BatteryStorageUnitBlock : public UnitBlock {
  *
  *  - the active power variables;
  *
+ *  - //TODO ALSO COMMITMENT VARIABLES??? What is binary variable \f$ u^+ \f$
+ *
  *  All of those variables are optional except the active power variables in
  *  the sense that the model may just not have them and whenever a group of
  *  above variables is created, its size will be the time horizon. Moreover,
  *  BatteryStorageUnitBlock is defined more groups of variables as follow:
  *
- *  -
+ *  - the storage level variables;
  *
- *  -
+ *  - the intake and outtake levels variable;
  *
- *  //todo
  *  These two groups of variables may have size f_time_horizon or empty size.
  *  All of these variables are optional,and it is also possible to restrict
  *  which of the subsets are generated with the parameter stvv. If stvv is not
@@ -151,19 +320,115 @@ class BatteryStorageUnitBlock : public UnitBlock {
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the static constraint of the BatteryStorageUnitBlock
-/** Method that generates the static constraint of the BatteryStorageUnitBlock.
- * These are the:
- * //TODO I should put all the mathematical constraints here
+/// generate the static constraint of the BatteryStorageUnitBlock
+/** Method that generates the static constraint of the
+ * BatteryStorageUnitBlock. The operations of the battery storage unit are
+ * described on a discrete time horizon as dictated by the UnitBlock
+ * interface. In this description we indicate it with
+ * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. The main battery
+ * storage unit constraints are define as:
+ *
+ * - maximum and minimum power output constraints according to primary and
+ *   secondary spinning reserves are presented in (1)-(2). Each of them is a
+ *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
+ *   the entry t = 0, ...,f_time_horizon - 1 being the maximum and minimum
+ *   power output value according to the primary and the secondary spinning
+ *   reserves at time t. these ensure the maximum(or minimum) amount of energy
+ *   that unit can produce(or use) when it is on(or off).
+ *   \f[
+ *      p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} \leq P^{mx}_{t}
+ *          \quad t \in \mathcal{T}                              \quad (1)
+ *   \f]
+ *
+ *   \f[
+ *     P^{mn}_{t} \leq p^{ac}_{t} - p^{pr}_{t} - p^{sc}_{t}
+ *         \quad t \in \mathcal{T}                               \quad (2)
+ *   \f]
+ *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
+ *   minimum power output parameters for each time t of the time horizon
+ *   \f$ \mathcal{T} \f$ respectively.
+ *
+ * - ramp-up and ramp-down constraints are presented in (3)-(4). Each of them
+ *   is a std::vector<FRowConstraint>; with the dimension of f_time_horizon,
+ *   where the entry t = 0, ...,f_time_horizon - 1 being the ramp up and ramp
+ *   down constraints which are presented as:
+ *   \f[
+ *    p^{ac}_{t} - p^{ac}_{t-1} \leq \Delta^{up}_{t}
+ *         \quad t \in \mathcal{T}                               \quad (3)
+ *   \f]
+ *
+ *   \f[
+ *    p^{ac}_{t} - p^{ac}_{t-1} \geq - \Delta^{dn}_{t}
+ *         \quad t \in \mathcal{T}                               \quad (4)
+ *   \f]
+ *   where \f$ \Delta^{up}_{t} \f$ and \f$ \Delta^{dn}_{t} \f$ are the delta
+ *   ramp-up and delta ramp down threshold for each time t of the time horizon
+ *   \f$ \mathcal{T} \f$ respectively.
+ *
+ * - active power relation with intake and outtake levels constraints are
+ *   presented in (5). Each of them is a std::vector<FRowConstraint>; with the
+ *   dimension of f_time_horizon, where the entry t = 0,...,f_time_horizon - 1
+ *   being the active power relation with intake and outtake levels at time t.
+ *   These ensure the active power at each time should be equal to the intake
+ *   and outtake difference. The equation (6) also indicates the upper bound
+ *   of intake level at each time instant t.
+ *   \f[
+ *    p^{ac}_{t} = p^+_t - p^-_{t}
+ *         \quad t \in \mathcal{T}                               \quad (5)
+ *   \f]
+ *   \f[
+ *     p^+_t \leq  P^{mx}_{t}
+ *         \quad t \in \mathcal{T}                               \quad (6)
+ *   \f]
+ * - storage level relation with intake and outtake levels constraints are
+ *   presented in (7). That is a std::vector<FRowConstraint>; with the
+ *   dimension of f_time_horizon, where the entry t = 0,...,f_time_horizon - 1
+ *   being the storage level relation with intake and outtake levels at time
+ *   t. Whereas the equation (8) gives the storage levels upper bound and
+ *   lower bound at each time instant t.
+ *   \f[
+ *    v^{ba}_{t} = v^{ba}_{t-1} - \rho^+_{t-1}p^+_{t-1} +
+ *    \rho^-_{t-1}p^-_{t-1}     \quad t \in \mathcal{T}          \quad (7)
+ *   \f]
+ *   \f[
+ *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
+ *                              \quad t \in \mathcal{T}          \quad (8)
+ *   \f]
+ *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the intake and
+ *   outtake rho and \f$ V^{mn}_t\f$ and \f$ V^{mx}_t\f$ are the minimum and
+ *   maximum storage level for each time t of the time horizon
+ *   \f$ \mathcal{T} \f$ respectively.
+ *
+ * - commitment variables relation with intake and outtake level constraints
+ *   are presented in (9-10). Each of them is a std::vector<FRowConstraint>;
+ *   with the dimension of f_time_horizon, where the entry
+ *   t = 0,...,f_time_horizon - 1 being the commitment variables relation with
+ *   intake and outtake levels at time t.
+ *   \f[
+ *    P^+_{t} \leq u^+_t P^{mx}_{t}
+ *                              \quad t \in \mathcal{T}          \quad (9)
+ *   \f]
+ *
+ *   \f[
+ *    P^-_{t} \leq -(1 - u^+_t) P^{mn}_{t}
+ *                              \quad t \in \mathcal{T}         \quad (10)
+ *   \f]
  *
 */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the objective of the BatteryStorageUnitBlock
+/// generate the objective of the BatteryStorageUnitBlock
 /** Method that generates the objective of the BatteryStorageUnitBlock.
- * //TODO I should put the objective function here
+ *  //TODO I SHOULD CHECK IF IT IS OK
+ * - Objective function: the objective function of the BatteryStorageUnitBlock
+ *   is given as follow:
  *
-*/
+ *   \f[
+ *     \min ( \sum_{ t \in  [0 , \mathcal{T}]  }
+ *     ( C_t p^+_t + C_t p^-_t) )
+ *   \f]
+ *
+ *   where \f$ C_t \f$, is a certain proportion cost function. */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -174,9 +439,165 @@ class BatteryStorageUnitBlock : public UnitBlock {
  * These methods allow to read data that must be common to (in principle) all
  * the kind of battery storage units
  * @{ */
-//todo
 
+ /// Returns the initial intake value
+ double get_initial_intake() const { return f_initial_intake; }
 
+ /// Returns the initial outtake value
+ double get_initial_outtake() const { return f_initial_outtake; }
+
+ /// Returns the initial intake rho value
+ double get_initial_intake_rho() const { return f_initial_intake_rho; }
+
+ /// Returns the initial outtake rho value
+ double get_initial_outtake_rho() const { return f_initial_outtake_rho; }
+
+ /// Returns the initial storage value
+ double get_initial_storage() const { return f_initial_storage; }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of minimum storage
+/** The method returned a std::vector< double > V and each element of V
+ * contains to minimum storage at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the minimum storage of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the minimum storage of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the minimum storage value at time t. */
+
+ const std::vector< double > & get_minimum_storage() const {
+  return( v_minimum_storage );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum storage
+/** The method returned a std::vector< double > V and each element of V
+ * contains to maximum storage at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the maximum storage of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the maximum storage of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the maximum storage value at time t. */
+
+ const std::vector< double > & get_maximum_storage() const {
+  return( v_maximum_storage );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of minimum power
+/** The method returned a std::vector< double > V and each element of V
+ * contains to minimum power at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the minimum power of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the minimum power of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the minimum power value at time t. */
+
+ const std::vector< double > & get_minimum_power() const {
+  return( v_minimum_power );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum power
+/** The method returned a std::vector< double > V and each element of V
+ * contains to maximum power at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the maximum power of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the maximum power of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the maximum power value at time t. */
+
+ const std::vector< double > & get_maximum_power() const {
+  return( v_maximum_power );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of delta ramp up
+/** The method returned a std::vector< double > V and each element of V
+ * contains to delta ramp up at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the delta ramp up of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the delta ramp up of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the delta ramp up value at time t. */
+
+ const std::vector< double > & get_delta_ramp_up() const {
+  return( v_delta_ramp_up );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of delta ramp down
+/** The method returned a std::vector< double > V and each element of V
+ * contains to delta ramp down at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the delta ramp down of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the delta ramp down of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the delta ramp down value at time t. */
+
+ const std::vector< double > & get_delta_ramp_down() const {
+  return( v_delta_ramp_down );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of intake rho
+/** The method returned a std::vector< double > V and each element of V
+ * contains to intake rho at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the intake rho of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the intake rho of the
+ *   unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the intake rho value at time t. */
+
+ const std::vector< double > & get_intake_rho() const {
+  return( v_intake_rho );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of outtake rho
+/** The method returned a std::vector< double > V and each element of V
+ * contains to outtake rho at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the outtake rho of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the outtake rho of the
+ *   unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the outtake rho value at time t. */
+
+ const std::vector< double > & get_outtake_rho() const {
+  return( v_outtake_rho );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of cost
+/** The method returned a std::vector< double > V and each element of V
+ * contains the cost of the unit at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the cost of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the cost of the unit
+ *   for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the cost value of the unit at time t. */
+
+ const std::vector< double > & get_cost() const {
+  return( v_cost );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR READING THE Variable OF THE BatteryStorageUnitBlock ----*/
 /*--------------------------------------------------------------------------*/
@@ -186,22 +607,62 @@ class BatteryStorageUnitBlock : public UnitBlock {
  * These methods allow to read the two groups of Variable that any
  * BatteryStorageUnitBlock in principle has (although some may not):
  *
- * - ??
+ * - the storage level variables
  *
- * - ??
+ * - the intake and outtake variables
  *
- * All these two groups of variables are (if not empty) ???
- * boost::multi_array< ColVariable , 2 > with first dimension time horizon
- * and second dimension number of generators.
+ * All these two groups of variables are (if not empty)
+ * std::vector< ColVariable > with the dimension time horizon.
  * @{ */
 
+/// returns the vector of storage level variables
+/** The returned std::vector< ColVariable >, say V, contains the
+ * storage level variables and is indexed over the dimension time horizon.
+ * There are two possible cases:
+ *
+ * - if V is empty(), then these variables are not defined;
+ *
+ * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+ *   storage level variable for time step t.*/
+
+ const std::vector< ColVariable > & get_storage_level() const {
+  return v_storage_level;
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of intake level variables
+/** The returned std::vector< ColVariable >, say V, contains the
+ * intake level variables and is indexed over the dimension time horizon.
+ * There are two possible cases:
+ *
+ * - if V is empty(), then these variables are not defined;
+ *
+ * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+ *   intake level variable for time step t.*/
+
+ const std::vector< ColVariable > & get_intake_level() const {
+  return v_intake_level;
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of outtake level variables
+/** The returned std::vector< ColVariable >, say V, contains the
+ * outtake level variables and is indexed over the dimension time horizon.
+ * There are two possible cases:
+ *
+ * - if V is empty(), then these variables are not defined;
+ *
+ * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+ *   outtake level variable for time step t.*/
+
+ const std::vector< ColVariable > & get_outtake_level() const {
+  return v_outtake_level;
+ }
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE BatteryStorageUnitBlock-------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the BatteryStorageUnitBlock
  *  @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
+/// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * BatteryStorageUnitBlock. See
  * BatteryStorageUnitBlock::deserialize( netCDF::NcGroup ) for details of the
@@ -232,13 +693,86 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
+ /// The vector of minimum storage
+ std::vector< double > v_minimum_storage;
 
+ /// The vector of maximum storage
+ std::vector< double > v_maximum_storage;
 
+ /// the vector of MinPower
+ std::vector< double >  v_minimum_power;
+
+ /// the vector of MaxPower
+ std::vector< double >  v_maximum_power;
+
+ /// the vector of RampUp
+ std::vector< double >  v_delta_ramp_up;
+
+ /// the vector of RampDown
+ std::vector< double >  v_delta_ramp_down;
+
+ /// the vector of intake rho
+ std::vector< double >  v_intake_rho;
+
+ /// the vector of outtake rho
+ std::vector< double >  v_outtake_rho;
+
+ /// the vector of Cost
+ std::vector< double >  v_cost;
+
+ /// the InitialIntakeRho value
+ double f_initial_intake_rho;
+
+ /// the InitialOuttakeRho value
+ double f_initial_outtake_rho;
+
+ /// the InitialIntakeR value
+ double f_initial_intake;
+
+ /// the InitialOuttakeRho value
+ double f_initial_outtake;
+
+ /// the InitialStorage value
+ double f_initial_storage;
 /*-----------------------------variables------------------------------------*/
+ /// the vector of storage level variables
+ std::vector< ColVariable > v_storage_level;
 
+ /// the vector of intake level variables
+ std::vector< ColVariable > v_intake_level;
 
+ /// the vector of outtake level variables
+ std::vector< ColVariable > v_outtake_level;
 /*----------------------------constraints-----------------------------------*/
-//TODO
+/// the active power upper bound constraints
+ std::vector< FRowConstraint > active_power_upper_bound_Constraints;
+
+/// the active power lower bound constraints
+ std::vector< FRowConstraint > active_power_lower_bound_Constraints;
+
+/// the ramp up constraints
+ std::vector< FRowConstraint > ramp_up_Constraints;
+
+/// the ramp down constraints
+ std::vector< FRowConstraint > ramp_down_Constraints;
+
+/// the active power, intake and outtake relation constraints
+ std::vector< FRowConstraint > power_intake_outtake_Constraints;
+
+/// the intake upper bound constraints
+ std::vector< FRowConstraint > intake_upper_bound_Constraints;
+
+/// the storage , intake and outtake level relation constraints
+ std::vector< FRowConstraint > storage_intake_outtake_Constraints;
+
+/// the storage level bounds constraints
+ std::vector< FRowConstraint > storage_level_bounds_Constraints;
+
+/// the intake and binary variable u relation constraints
+ std::vector< FRowConstraint > intake_binary_u_Constraints;
+
+/// the outtake and binary variable u relation constraints
+ std::vector< FRowConstraint > outtake_binary_u_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
