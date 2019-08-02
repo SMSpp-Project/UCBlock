@@ -80,7 +80,7 @@ namespace SMSpp_di_unipi_it {
  *
  * - battery storage level constraints;
  *
- * - commitment variables relation with intake and outtake level constraints */
+ * - analogous variables relation with intake and outtake level constraints */
 class BatteryStorageUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
@@ -297,16 +297,17 @@ class BatteryStorageUnitBlock : public UnitBlock {
  *
  *  - the active power variables;
  *
- *  - //TODO ALSO COMMITMENT VARIABLES??? What is binary variable \f$ u^+ \f$
- *
  *  All of those variables are optional except the active power variables in
  *  the sense that the model may just not have them and whenever a group of
  *  above variables is created, its size will be the time horizon. Moreover,
- *  BatteryStorageUnitBlock is defined more groups of variables as follow:
+ *  BatteryStorageUnitBlock is defined four more groups of variables as
+ *  follow:
  *
  *  - the storage level variables;
  *
  *  - the intake and outtake levels variable;
+ *
+ *  - the analogous variables;
  *
  *  These two groups of variables may have size f_time_horizon or empty size.
  *  All of these variables are optional,and it is also possible to restrict
@@ -399,10 +400,10 @@ class BatteryStorageUnitBlock : public UnitBlock {
  *   maximum storage level for each time t of the time horizon
  *   \f$ \mathcal{T} \f$ respectively.
  *
- * - commitment variables relation with intake and outtake level constraints
+ * - analogous variables relation with intake and outtake level constraints
  *   are presented in (9-10). Each of them is a std::vector<FRowConstraint>;
  *   with the dimension of f_time_horizon, where the entry
- *   t = 0,...,f_time_horizon - 1 being the commitment variables relation with
+ *   t = 0,...,f_time_horizon - 1 being the analogous variables relation with
  *   intake and outtake levels at time t.
  *   \f[
  *    P^+_{t} \leq u^+_t P^{mx}_{t}
@@ -419,7 +420,6 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BatteryStorageUnitBlock
 /** Method that generates the objective of the BatteryStorageUnitBlock.
- *  //TODO I SHOULD CHECK IF IT IS OK
  * - Objective function: the objective function of the BatteryStorageUnitBlock
  *   is given as follow:
  *
@@ -457,7 +457,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of minimum storage
 /** The method returned a std::vector< double > V and each element of V
- * contains to minimum storage at time t. There are three possible cases:
+ * contains the minimum storage at time t. There are three possible cases:
  *
  * - if the vector is empty, then the minimum storage of the unit is 0;
  *
@@ -473,7 +473,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of maximum storage
 /** The method returned a std::vector< double > V and each element of V
- * contains to maximum storage at time t. There are three possible cases:
+ * contains the maximum storage at time t. There are three possible cases:
  *
  * - if the vector is empty, then the maximum storage of the unit is 0;
  *
@@ -489,7 +489,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of minimum power
 /** The method returned a std::vector< double > V and each element of V
- * contains to minimum power at time t. There are three possible cases:
+ * contains the minimum power at time t. There are three possible cases:
  *
  * - if the vector is empty, then the minimum power of the unit is 0;
  *
@@ -505,7 +505,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of maximum power
 /** The method returned a std::vector< double > V and each element of V
- * contains to maximum power at time t. There are three possible cases:
+ * contains the maximum power at time t. There are three possible cases:
  *
  * - if the vector is empty, then the maximum power of the unit is 0;
  *
@@ -521,7 +521,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of delta ramp up
 /** The method returned a std::vector< double > V and each element of V
- * contains to delta ramp up at time t. There are three possible cases:
+ * contains the delta ramp up at time t. There are three possible cases:
  *
  * - if the vector is empty, then the delta ramp up of the unit is 0;
  *
@@ -537,7 +537,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of delta ramp down
 /** The method returned a std::vector< double > V and each element of V
- * contains to delta ramp down at time t. There are three possible cases:
+ * contains the delta ramp down at time t. There are three possible cases:
  *
  * - if the vector is empty, then the delta ramp down of the unit is 0;
  *
@@ -553,7 +553,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of intake rho
 /** The method returned a std::vector< double > V and each element of V
- * contains to intake rho at time t. There are three possible cases:
+ * contains the intake rho at time t. There are three possible cases:
  *
  * - if the vector is empty, then the intake rho of the unit is 0;
  *
@@ -569,7 +569,7 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// returns the vector of outtake rho
 /** The method returned a std::vector< double > V and each element of V
- * contains to outtake rho at time t. There are three possible cases:
+ * contains the outtake rho at time t. There are three possible cases:
  *
  * - if the vector is empty, then the outtake rho of the unit is 0;
  *
@@ -743,6 +743,9 @@ class BatteryStorageUnitBlock : public UnitBlock {
 
  /// the vector of outtake level variables
  std::vector< ColVariable > v_outtake_level;
+
+ /// the vector of analogous variables
+ std::vector< ColVariable > v_analogous;
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;
@@ -768,11 +771,11 @@ class BatteryStorageUnitBlock : public UnitBlock {
 /// the storage level bounds constraints
  std::vector< FRowConstraint > storage_level_bounds_Constraints;
 
-/// the intake and binary variable u relation constraints
- std::vector< FRowConstraint > intake_binary_u_Constraints;
+/// the intake and analogous variable relation constraints
+ std::vector< FRowConstraint > intake_analogous_Constraints;
 
-/// the outtake and binary variable u relation constraints
- std::vector< FRowConstraint > outtake_binary_u_Constraints;
+/// the outtake and analogous variable relation constraints
+ std::vector< FRowConstraint > outtake_analogous_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
