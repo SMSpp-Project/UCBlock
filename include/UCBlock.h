@@ -177,33 +177,30 @@ class UCBlock : public Block {
  * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
  *   the problem;
  *
- * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with
- *   n == NumberUnits - 1, containing each one UnitBlock corresponding to one
- *   or more electricity generating unit (electrical generator). It is an
- *   error if the corresponding groups are not there. Since each UnitBlock can
- *   have more than one electrical generator
- *   (cf. UnitBlock::get_number_generators()), a value that is useful in the
- *   following (cf. "GeneratorNode") is the total number of those. We will
- *   refer to such number as "NumberElectricalGenerators", which is computed
- *   by just calling get_number_generators() on each of the UnitBlock and
- *   summing all the results. Clearly,
- *   NumberElectricalGenerators >= NumberUnits and indeed, most of the
- *   UnitBlock can be expected to have just one electrical generator; if this
- *   happens for all the units then the
- *   NumberElectricalGenerators ==  NumberUnits and there is no need to define
- *   this number. If, instead, if it is defined, then should always be such
- *   that NumberElectricalGenerators > NumberUnits. This is because some
- *   UnitBlock (like cascades of hydro generators or combined cycle plants)
- *   can actually have more than one electrical generator in it (but each
- *   UnitBlock must have at least one). It is then useful
- *   (cf. "GeneratorNode") to be able to assign a unique index
- *   g = 0, 1, ..., NumberElectricalGenerators - 1 to each of the
- *   electrical generators in the UCBlock. When NumberElectricalGenerators
- *   == NumberUnits, the index is the same as i = 0, 1, ..., NumberUnits - 1
- *   (there is a one-to-one correspondence between UnitBlock and electrical
- *   generators). When, instead, NumberElectricalGenerators > NumberUnits,
- *   a mapping must be defined. The mapping is the obvious one: UnitBlock have
- *   an ordering i = 0, 1, ..., NumberUnits - 1 (cf. the groups "UnitBlock_0",
+ * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with n ==
+ *   NumberUnits - 1, containing each one UnitBlock corresponding to one or
+ *   more electricity generating unit (electrical generator). It is an error
+ *   if the corresponding groups are not there. Each UnitBlock can have more
+ *   than one electrical generator (cf. UnitBlock::get_number_generators());
+ *   a value that is useful in the following (cf. "GeneratorNode") is the
+ *   total number of those, which we will refer to as
+ *   "NumberElectricalGenerators". This is computed by just calling
+ *   get_number_generators() on each of the UnitBlock and summing all the
+ *   results. Clearly, NumberElectricalGenerators >= NumberUnits; indeed,
+ *   most of the UnitBlock can be expected to have just one electrical
+ *   generator. If this happens for all the units then 
+ *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
+ *   (like cascades of hydro generators or combined cycle plants) actually
+ *   has more than one electrical generator, then NumberElectricalGenerators
+ *   > NumberUnits (each UnitBlock must have at least one). It is then useful
+ *   (cf. "GeneratorNode") to be able to assign a unique index g = 0, 1, ...,
+ *   NumberElectricalGenerators - 1 to each of the electrical generators in
+ *   the UCBlock. When NumberElectricalGenerators == NumberUnits, the index
+ *   is the same as i = 0, 1, ..., NumberUnits - 1 (there is a one-to-one
+ *   correspondence between UnitBlock and electrical generators). When,
+ *   instead, NumberElectricalGenerators > NumberUnits, a mapping must be
+ *   defined. The mapping is the obvious one: UnitBlock have an ordering
+ *   i = 0, 1, ..., NumberUnits - 1 (cf. the groups "UnitBlock_0",
  *   "UnitBlock_1", ... above), and the electrical generators into each
  *   UnitBlock also have some natural ordering (corresponding to the columns
  *   of the matrices of variables, cf. e.g. UnitBlock::get_commitment()).
@@ -226,32 +223,28 @@ class UCBlock : public Block {
  * - The groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
  *   n == NumberHeatBlocks - 1, containing each one a HeatBlock. When
  *   NumberHeatBlocks == 0, these groups need not be there since they are not
- *   read. It is an error if the corresponding groups are not there. Since
- *   each HeatBlock can have more than one heat generator(or heat units)
- *   (cf. HeatBlock::get_number_heat_generators()), a value that is useful in
- *   the following (cf. "HeatSet") is the total number of those. We will
- *   refer to such number as "NumberHeatGenerators", which is computed
- *   by just calling get_number_heat_generators() on each of the HeatBlock and
- *   summing all the results. Clearly, NumberHeatGenerators >= NumberHeatBlock
- *   and indeed if NumberHeatBlock == 0 then there is not any HeatBlock and
- *   therefore no heat generator. Since some of the HeatBlock can be expected
- *   to have just one heat generator; if this happens for all the heat blocks
- *   then the NumberHeatGenerators ==  NumberHeatBlocks and there is no need to
- *   define this number  i.e., each HeatBlock has exactly one heat generator,
- *   which is not however assumed to be common. It is then useful (cf.
- *   "HeatNode") to be able to assign a unique index
+ *   read. If, instead, NumberHeatBlocks > 0, it is an error if the
+ *   corresponding groups are not there. Since each HeatBlock can have more
+ *   than one heat generator (cf. HeatBlock::get_number_heat_generators()),
+ *   a value that is useful in the following (cf. "HeatSet") is the total
+ *   number of those. We will refer to such number as "NumberHeatGenerators",
+ *   which is computed by just calling get_number_heat_generators() on each
+ *   of the HeatBlock and summing all the results. Clearly,
+ *   NumberHeatGenerators >= NumberHeatBlock. Some of the HeatBlock may have
+ *   just one heat generator; if this happens for all the heat blocks (but
+ *   this is not likely), then NumberHeatGenerators ==  NumberHeatBlocks. It
+ *   is then useful (cf. "HeatNode") to be able to assign a unique index
  *   h = 0, 1, ..., NumberHeatGenerators - 1 to each of the heat generators in
- *   the UCBlock. When NumberHeatGenerators == NumberHeatBlocks (say, the
- *   former is not defined but the latter is), the index is the same as
- *   b = 0, 1, ..., NumberHeatBlock - 1 (there is a one-to-one correspondence
- *   between HeatBlock and heat generators, but this is not assumed to
- *   happen). When, instead, NumberHeatGenerators > HeatBlock, a mapping must
- *   be defined. The mapping is the obvious one: HeatBlock have an ordering
- *   b = 0, 1, ..., NumberHeatBlocks - 1 (cf. the groups "HeatBlock_0",
- *   "HeatBlock_1", ... above), and the electrical generators into each
- *   HeatBlock also have some natural ordering (corresponding to the columns
- *   of the matrices of variables, cf. e.g. HeatBlock::get_heat()). Thus, in
- *   general the mapping is:
+ *   the UCBlock. When NumberHeatGenerators == NumberHeatBlocks the index is
+ *   the same as b = 0, 1, ..., NumberHeatBlock - 1 (there is a one-to-one
+ *   correspondence between HeatBlock and heat generators, but this is not
+ *   likely to happen). When, instead, NumberHeatGenerators > HeatBlock, a
+ *   mapping must be defined. The mapping is the obvious one: HeatBlock have
+ *   an ordering b = 0, 1, ..., NumberHeatBlocks - 1 (cf. the groups
+ *   "HeatBlock_0", "HeatBlock_1", ... above), and the heat generators into
+ *   each HeatBlock also have some natural ordering (corresponding to the
+ *   columns of the matrices of variables, cf. e.g. HeatBlock::get_heat()).
+ *   Thus, in general the mapping is:
  *     heat generator 0 = first generator of HeatBlock_0
  *     heat generator 1 = second generator of HeatBlock_0
  *     ...
@@ -273,43 +266,43 @@ class UCBlock : public Block {
  *   with t = TimeHorizon - 1, containing each the constraints on the
  *   transmission network at time t.
  *
- * - The variable "GeneratorNode", of type int and indexed over the set of
- *   {0, ... , "NumberElectricalGenerators" - 1}; the entry GeneratorNode[ g ]
- *   tells to which node of the transmission network, the specified electrical
+ * - The variable "GeneratorNode", of type int and indexed over the set
+ *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
+ *   to which node of the transmission network, the specified electrical
  *   generator g belongs. Note that this means that different electrical
  *   generators in the same UnitBlock can belong to different nodes of the
  *   transmission network. This is justified e.g. by hydro cascade units where
  *   different turbines can be rather far apart geographically, but still
- *   linked by (long) stretches of rivers. If the value of
- *   NumberElectricalGenerators is not defined, then it is taken to be equal
- *   to NumberUnits (which means that all UnitBlock have exactly one
- *   electrical generator) and this variable indexed over NumberUnits. If
- *   NumberNodes == 1 (say, it is not provided at all), then this variable
- *   need not be defined, since it is not loaded.
+ *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
+ *   NumberUnits (all UnitBlock have exactly one electrical generator), then
+ *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
+ *   is not provided at all), then this variable need not be defined, since
+ *   it is not loaded.
  *
  * - The variable "HeatNode", of type int and indexed over the dimension
  *   "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node of the
- *   transmission network *all* the heat-generating units that are also
- *   electricity-generating ones in HeatBlock h belong. Note that this implies
- *   that, unlike electrical generators in a UnitBlock, heat generators in a
+ *   transmission network *all* the heat generators that are also electrical
+ *   generators in the HeatBlock h belong. Note that this implies that,
+ *   unlike electrical generators in a UnitBlock, heat generators in a
  *   HeatBlock are always "geographically near to each other" so that they are
  *   necessarily attached to the same node of the transmission network (which
  *   is a reasonable assumption since heat, unlike say water, usually cannot
  *   travel much far). If NumberHeatBlocks == 0 (say, it is not provided at
- *   all), then this variable need not be defined, since it is not loaded. This
- *   information is actually only used to determine in which Pollutant Zone a
- *   HeatBlock is located, in order to add the corresponding heat generators
- *   (that are not also electricity generators) to the pollution constraints.
- *   This means that also if NumberPollutants == 0 (say, it is not provided at
- *   all) this variable is useless and therefore need not be defined, since it
- *   is not loaded. Finally, notice that for heat generators into a HeatBlock
- *   that also are electrical generators, this variable provides another time
- *   an information that is already known, i.e., to which node they belong to
- *   (cf. "GeneratorNode" above). Of course *the two information must agree*,
- *   otherwise the input file is ill-defined and exception is thrown.
+ *   all), then this variable need not be defined, since it is not loaded.
+ *   This information is actually only used to determine in which Pollutant
+ *   Zone a HeatBlock is located, in order to add the corresponding heat
+ *   generators (that are not also electricity generators) to the pollution
+ *   constraints. This means that also if NumberPollutants == 0 (say, it is
+ *   not provided at all) this variable is useless and therefore need not be
+ *   defined, since it is not loaded. Finally, notice that for heat
+ *   generators into a HeatBlock that also are electrical generators, this
+ *   variable provides again an information that is already known, i.e., to
+ *   which node they belong to (cf. "GeneratorNode" above). Of course *the
+ *   two information must agree*, otherwise the input file is ill-defined and
+ *   exception is thrown.
  *
- * - The variable "HeatSet", of type int and indexed over the set
- *   {0, ..., "NumberHeatGenerators" - 1}. If HeatSet[ h ] = k <
+ * - The variable "HeatSet", of type int and indexed over the set { 0 , ... ,
+ *   NumberHeatGenerators - 1 }. If HeatSet[ h ] = k <
  *   NumberElectricalGenerators, then k is the unique name of the electrical
  *   generator corresponding to the heat generator h; otherwise the heat
  *   generator h is not also an electrical generator. If NumberHeatBlocks == 0
@@ -338,7 +331,7 @@ class UCBlock : public Block {
  *   the node i belongs: if PrimaryZones[ i ] >= NumberPrimaryZones, this
  *   means that node i does not belong to any primary zone, and hence the
  *   corresponding electrical generators are not involved into the primary
- *   reserve constraints. If NumberPrimaryZones == 0  (say, it is not provided
+ *   reserve constraints. If NumberPrimaryZones == 0 (say, it is not provided
  *   at all) then this variable need not be defined, since it is not loaded.
  *   If NumberPrimaryZones == 1 and this variable is not defined, then there
  *   is only one primary zone and all the nodes belong to it.
@@ -403,9 +396,10 @@ class UCBlock : public Block {
  *   dimension "NumberPollutants": the entry NumberPollutantZones[ p ] is
  *   assumed to contain the number of pollutant zones associated with
  *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then this
- *   variable need not be defined, since it is not loaded. Then, all number of
- *   pollutant zones associated with each pollutant p is computed as:
- *   TotalNumberPollutantZones == NumberPollutantZone[ 0 ] + ... +
+ *   variable need not be defined, since it is not loaded. The total number of
+ *   pollutant zones is useful (cf. PollutantBudget); it will be referred to
+ *   as TotalNumberPollutantZones, and it is computed simply as
+ *   TotalNumberPollutantZones = NumberPollutantZone[ 0 ] + ... +
  *   NumberPollutantZone[ NumberPollutants - 1 ].
  *
  * - The variable "PollutantZones", of type int and indexed over the
@@ -419,20 +413,20 @@ class UCBlock : public Block {
  *   need not be defined, since it is not loaded.
  *
  * - The variable "PollutantBudget", of type double and indexed over the
- *   set { 0 , ..., TotalNumberPollutantZones - 1 }: the entry
+ *   set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
  *   PollutantBudget[ n ] for n == 0 , ..., TotalNumberPollutantZones - 1 is
  *   assumed to contain the pollutant budget (across all the time horizon) for
  *   the pair (zone of the pollutant , pollutant) corresponding to n. In
  *   another word, since the number of pollutant zones of each pollutant may
- *   not be equal with each other(to avoid to present the PollutantBudget as
- *   an irregular matrix), it is useful to be able to assign a unique index
- *   n = 0, 1, ..., TotalNumberPollutantZones - 1 to each pollutant budget of
- *   each pollutant zone. A mapping must be defined between each entry n and
- *   the pair (zone of the pollutant , pollutant). The mapping is the obvious
- *   one: UCBlock may have a set of pollutants as
- *   p = 0, 1, ..., NumberPollutants - 1, and corresponding to each pollutant
- *   p may exist several pollutant zones (see comments of variable
- *   "NumberPollutantZones" above). Thus, in general the mapping is:
+ *   not be equal with each other it is useful  (to avoid having to store
+ *   PollutantBudget as an irregular matrix) to be able to assign a unique
+ *   index n = 0, 1, ..., TotalNumberPollutantZones - 1 to each pollutant
+ *   budget of each pollutant zone. A mapping must be defined between each
+ *   entry n and the pair (zone of the pollutant , pollutant). The mapping is
+ *   the obvious one: UCBlock has a set of pollutants p = 0, 1, ...,
+ *   NumberPollutants - 1, and each pollutant p may have several pollutant
+ *   zones (see comments of variable "NumberPollutantZones" above). Thus, in
+ *   general the mapping is:
  *     n = 0 corresponds to the zone 0 of pollutant 0
  *     n = 1 corresponds to the zone 1 of pollutant 0
  *     ...
@@ -443,18 +437,16 @@ class UCBlock : public Block {
  *     pollutant 1
  *     ...
  *   If NumberPollutants == 0 (say, it is not provided) then this variable
- *     need not be defined, since it is not loaded.
+ *   need not be defined, since it is not loaded.
  *
  * - The variable "PollutantRho", of type double and indexed over two
  *   dimensions which are TimeHorizon and NumberPollutants and the set
- *   {0,..., NumberElectricalGenerators - 1}(see above comments). The first
- *   dimension can have either size 1 or TimeHorizon. The second dimension has
- *   size "NumberPollutants" and the set {0 ,..., NumberElectricalGenerators -
- *   1} has size "NumberElectricalGenerators". If the first dimension has
- *   size 1, then the entry PollutantRho[ 0 , p , g ] is assumed to contain
- *   the conversion factor of pollutant p due to the electrical generator g
+ *   { 0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
+ *   first dimension can have size either 1 or TimeHorizon. In the former
+ *   case the entry PollutantRho[ 0 , p , g ] is assumed to contain the
+ *   conversion factor of pollutant p due to the electrical generator g
  *   which is equal for all time instants t. Otherwise, the first dimension
- *   has full size TimeHorizon and the entry PollutantRho[ t , p , g ] give
+ *   has full size TimeHorizon and the entry PollutantRho[ t , p , g ] gives
  *   the conversion factor of pollutant p due to the electrical generator g
  *   for time t. If NumberPollutants == 0 (it is not provided) then this
  *   variable need not be defined, since it's not loaded. */
@@ -681,6 +673,7 @@ class UCBlock : public Block {
 
  /// Returns the number of pollutants of the problem
  Index get_number_pollutants() const { return f_number_pollutants; }
+
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkData object
  /** Note that no NetworkData may be defined (see comments to deserialize()),
@@ -701,20 +694,20 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of primary zones
- /** The method returned a std::vector< Index > V and each element of the V
-  * implies to which primary zone node n belongs. There are three possible
-  * cases:
+ /** The method returned a std::vector< Index > V and each element of V tells
+  * to which primary zone node n belongs. There are three possible cases:
   *
-  * - if the vector is empty, then no primary zones are defined, and there are
-  *   no primary reserve constraints;
+  * - if V is empty, then no primary zones are defined, and there are no
+  *   primary reserve constraints;
   *
-  * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the primary zone;
+  * - if V has only one element, then the transmission network is a bus and
+  *   that unique node belongs to the primary zone;
   *
-  * - otherwise, the vector must have size NetworkBlock:: get_number_nodes()
-  *   and the n_th element of the vector tells to which primary zone the node
-  *   n may belong.
-  *   */
+  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
+  *   tells to which primary zone the node n belongs; if
+  *   V[ n ] >= get_number_primary_zones(), then node n does not belong to
+  *   any primary zone, and hence the corresponding electrical generators are
+  *   not involved into the primary reserve constraints. */
 
  const std::vector< Index > & get_primary_zone() const {
   return v_primary_zones;
@@ -722,19 +715,20 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of secondary zones
- /** The method returned a std::vector< Index > V and each element of the V
-  * implies to which secondary zone node n belongs. There are three possible
-  * cases:
+ /** The method returned a std::vector< Index > V and each element of V tells
+  * to which secondary zone node n belongs. There are three possible cases:
   *
-  * - if the vector is empty, then no secondary zones are defined, and there
-  *   no secondary reserve constraints;
+  * - if V is empty, then no secondary zones are defined, and there are no
+  *   primary reserve constraints;
   *
-  * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the secondary zone;
+  * - if V has only one element, then the transmission network is a bus and
+  *   that unique node belongs to the secondary zone;
   *
-  * - otherwise, the vector must have size NetworkBlock:: get_number_nodes()
-  *   and the n_th element of the vector tells to which secondary zone the
-  *   node n may belong. */
+  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
+  *   tells to which secondary zone the node n belongs; if
+  *   V[ n ] >= get_number_secondary_zones(), then node n does not belong to
+  *   any secondary zone, and hence the corresponding electrical generators
+  *   are not involved into the secondary reserve constraints. */
 
  const std::vector< Index > & get_secondary_zone() const {
   return v_secondary_zones;
@@ -742,20 +736,20 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of inertia zones
- /** The method returned a std::vector< Index > V and each element of the V
-  * implies to which inertia zone node n belongs. There are three possible
-  * cases:
+ /** The method returned a std::vector< Index > V and each element of V tells
+  * to which inertia zone node n belongs. There are three possible cases:
   *
-  * - if the vector is empty, then no inertia zones are defined, and there
-  *   no inertia reserve constraints;
+  * - if V is empty, then no inertia zones are defined, and there are no
+  *   inertia reserve constraints;
   *
-  * - if the vector has only one element, then the transmission network is a
-  *   bus and that unique node belongs to the inertia zone;
+  * - if V has only one element, then the transmission network is a bus and
+  *   that unique node belongs to the inertia zone;
   *
-  * - otherwise, the vector must have size NetworkBlock:: get_number_nodes()
-  *   and the n_th element of the vector tells to which inertia zone the node
-  *   n may belong.
-  */
+  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
+  *   tells to which inertia zone the node n belongs; if
+  *   V[ n ] >= get_number_inertia_zones(), then node n does not belong to
+  *   any inertia zone, and hence the corresponding electrical generators
+  *   are not involved into the inertia reserve constraints. */
 
  const std::vector< Index > & get_inertia_zone() const {
   return v_inertia_zones;
@@ -860,49 +854,50 @@ class UCBlock : public Block {
   *    columns, and each element of matrix M[ p , n ] tells to which pollutant
   *    zone associated with pollutant p the node n belongs. */
 
- const boost::multi_array< Index, 2 > & get_pollutant_zone() const {
+ const boost::multi_array< Index , 2 > & get_pollutant_zone() const {
   return v_pollutant_zones;
   }
 /*--------------------------------------------------------------------------*/
  /// Returns the two-dimensional vector of pollutant budget
- /** The method returned a two-dimensional std::vector< std::vector<> > V such
-  * that V[ n ] contains the pollutant budget (across all the time horizon) for
-  * the pair ( pollutant , zone of the pollutant ) corresponding to n. The
-  * mapping between the number n and the pair is described in deserialize()
-  * comments. There are two possible cases:
+ /** The method returned a std::vector< std::vector< double > > V such that
+  * V[ p ] contains the pollutant budget (across all the time horizon) for
+  * all the pollutant zone of the pollutant p. There are two possible cases:
   *
-  *  - if the two-dimensional std::vector< std::vector< >> V is empty() then
-  *    no pollutant zones are defined, and there are no pollutant budget
-  *    constraints;
+  *  - If V is empty() then no pollutant zones are defined, and there are no
+  *    pollutant budget constraints (in this case, get_number_pollutants()
+  *    must return zero).
   *
-  *  - otherwise, the returned V is a std::vector< std::vector<double> >.
-  *    V.size() == get_number_pollutants(). For each pollutant p = 0, ...
-  *    ..., get_number_pollutants() - 1, V[ p ].size() is the number of
-  *    different pollutant areas for p; in other words,
-  *    get_pollutant_zone()[ p ][ i ] is either a number < V[ p ].size(),
-  *    which means that node i belongs to one particular pollutant zone,
-  *    or get_pollutant_zone()[ p ][ i ] >= V[ p ].size(), which means that
-  *    node i does not belong to any pollutant zone for pollutant p.
-  *    */
+  *  - Otherwise, V.size() == get_number_pollutants(). For each pollutant
+  *    p = 0, ..., get_number_pollutants() - 1, V[ p ].size() is the number
+  *    of different pollutant areas for p, and V[ p ][ z ] is the pollutant
+  *    budget (across all the time horizon) for zone z of pollutant p. Note
+  *    that, therefore, get_pollutant_zone()[ p ][ i ] is either a number <
+  *    V[ p ].size(), which means that node i belongs to one particular
+  *    pollutant zone, or get_pollutant_zone()[ p ][ i ] >= V[ p ].size(),
+  *    which means that node i does not belong to any pollutant zone for
+  *    pollutant p. */
 
  const  std::vector< std::vector< double >> & get_pollutant_budget() const {
   return v_pollutant_budget;
  }
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of HeatSet
- /** The method returned a vector V such that each element implies which heat
-  * generator is also an electrical generator. There are three possible cases:
+ /** The method returns a std::vector< Index > V such that each element
+  * implies which heat generator is also an electrical generator. There are
+  * three possible cases:
   *
-  * - if the vector V is empty, then no HeatSet is defined, and there is
-  *   no heat linking constraints;
+  * - if V is empty, then no HeatSet is defined, and there is no heat linking
+  *   constraints;
   *
-  * - if the vector has only one element, then there is just one heat
-  *   generator in heat blocks which is also an electrical generator;
+  * TODO: I don't think this case makes sense
+  * - if V has only one element, then there is just one heat generator in 
+  *   heat blocks which is also an electrical generator;
   *
-  * - otherwise, the returned V is a std::vector < Index > and
-  *   V.sized == NumberHeatGenerators (see deserialize() comments) and each
-  *   element of V[ h ] tells which heat generator is also an electrical
-  *   generator.
+  * TODO: clarify how V[ h ] tells what, in particular how you distinguish
+  *       the heat-only generators
+  * - otherwise, V.size() == NumberHeatGenerators (see the comments to
+  *   deserialize()), and each element of V[ h ] tells which heat generator
+  *   is also an electrical generator.
   *   */
 
  const std::vector< Index > & get_heat_set() const {
@@ -928,8 +923,8 @@ class UCBlock : public Block {
   *
   *   - if the first dimension of the boost::multi_array<> M has full size
   *     then, each element of the matrix M[ t , p , g ] gives the conversion
-  *     factor of pollutant p due to the electrical generator g for "each"
-  *     time instant t. */
+  *     factor of pollutant p due to the electrical generator g for time
+  *     instant t. */
 
  const boost::multi_array< double, 3 > & get_pollutant_rho() const {
   return v_pollutant_rho;
@@ -962,7 +957,7 @@ class UCBlock : public Block {
   *   - if the first dimension of the boost::multi_array<> M has full size
   *     then, each element of the matrix M[ t , p , i ] gives the conversion
   *     factor of pollutant p due to the generation of every heat-only unit i
-  *     in the given heat block h for "each" time instant t. */
+  *     in the given heat block h for time instant t. */
 
  const boost::multi_array< double, 3 > & get_pollutant_heat_rho() const {
   return v_pollutant_heat_rho;
@@ -970,10 +965,12 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the i-th UnitBlock
+
  UnitBlock * get_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkBlock at time instant t
+
  NetworkBlock * get_network_block( Index t ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -994,14 +991,15 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of unit node
- /** The method returned a std::vector< Index > V and each element of the V
-  * implies to which node n unit i belongs. There are two possible cases:
+ /** The method returned a std::vector< Index > V and each element of V
+  * tells to which node n unit i belongs. There are two possible cases:
   *
-  *  - if the vector has only one element, then the transmission network is a
-  *    bus and all the units belong to that unique node;
+  * TODO: V could also be empty in the bus case
+  *  - if V has only one element, then the transmission network is a bus and
+  *    all the units belong to that unique node;
   *
-  *  - otherwise, the vector must have size of number of units and the i-th
-  *    element of the vector tells to which node n unit i belongs. */
+  *  - otherwise, the vector must have size of number of units and V[ i ]
+  *    tells to which node n unit i belongs. */
 
  const std::vector< Index > & get_generator_node() const {
   return v_generator_node;
@@ -1009,17 +1007,18 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of electrical-power-to-heat ratio
- /** The method returned a std::vector< double > V and each element of the V
+ /** The method returned a std::vector< double > V and each element of V
   * contains the electrical-power-to-heat ratio for each unit i of heat block
   * h. There are three possible cases:
   *
-  * - if the vector is empty, then the there is no heat block;
+  * - if V is empty, then the there is no heat block;
   *
-  * - if the vector only has one element, then the power heat rho is
-  *   always equal to the value of that element;
+  * TODO: I don't think this case makes sense
+  * - if V only has one element, then the power heat rho is always equal to
+  *   the value of that element;
   *
   * - otherwise the vector must have the size of the number of units, and the
-  *   i-th entry gives the power heat rho for each heat block h. */
+  *   V[ i ] gives the power heat rho for each heat block h. */
 
  const std::vector< double > & get_power_heat_rho() const {
   return v_power_heat_rho;
