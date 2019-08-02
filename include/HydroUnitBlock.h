@@ -66,15 +66,16 @@ namespace SMSpp_di_unipi_it {
  * reservoir database, a hydro-link database and a turbine/pump-database. The
  * technical and physical constraints are mainly divided in several different
  * categories as:
+ *
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves;
  *
  * - primary and secondary spinning reserves relation with active power for
  *   turbines;
  *
- * - primary and secondary spinning reserves value for pumps( == 0 );
+ * - primary and secondary spinning reserves value for pumps ( == 0 );
  *
- * - flow to active power function;
+ * - flow-to-active-power function;
  *
  * - ramp-up and ramp-down constraints;
  *
@@ -121,6 +122,7 @@ class HydroUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
+
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the HydroUnitBlock. Besides the mandatory "type" attribute of any :Block,
@@ -136,39 +138,50 @@ class HydroUnitBlock : public UnitBlock {
  *   system becomes to a single hydro unit.
  *
  * - The dimension "NumberArcs" containing the set of arcs (or units)
- *   connecting the reservoirs in cascading system.
+ *   connecting the reservoirs in cascading system. Each arc represents either
+ *   a turbine generating electricity by converting potential energy of water
+ *   going downhill, or a pump consuming electricity for moving water uphill.
  *
+ * TODO: changed indexed on NumberReservoirs ==> indexed on NumberArcs, check
  * - The variable "StartArc", of type int and indexed over the dimension
- *   "NumberReservoirs"; the r-th entry of the variable is the starting point
- *   of the arc (a number in 0, ..., NumberReservoirs - 1). Note that arcs are
+ *   "NumberArcs"; the r-th entry of the variable is the starting point of
+ *   the arc (a number in 0, ..., NumberReservoirs - 1). Note that arcs are
  *   oriented; that is, a positive flow along arc r (turbine) means that water
  *   is being taken away from StartArc[ r ] and delivered to EndArc[ r ]
  *   (see next), a negative flow (pump) means vice-versa. Note that reservoir
- *   names here go from 0 to NumberReservoirs.getSize() - 1;
+ *   names here go from 0 to NumberReservoirs- 1;
  *
+ * TODO: changed indexed on NumberReservoirs ==> indexed on NumberArcs, check
  * - The variable "EndArc", of type int and indexed over the dimension
- *   "NumberReservoirs"; the r-th entry of the variable is the ending point
- *   of the arc; this is a number in 0, ..., NumberReservoirs. Note: this is
+ *   "NumberArcs"; the r-th entry of the variable is the ending point of the
+ *   arc; this is a number in 0, ..., NumberReservoirs. Note: this is
  *   NumberReservoirs and *not* NumberReservoirs - 1, because arcs can end in
  *   the "fake" reservoir NumberReservoirs. This indicates that water that
  *   flows along that arc "goes away from the system" and it is no longer
  *   counted, because it can no longer be used to produce electricity. Indeed,
  *   there will be something like "the most downstream turbine": after water
  *   has been used there, it just goes away down some river and does not go
- *   to any other reservoir. Arcs are oriented (see above);
- *   StartArc[ r ] == EndArc[ r ] (a self-loop) is not allowed, but multiple
- *   arcs between the same pair of reservoirs are. Note that reservoir names
- *   here go from 0 to NumberReservoirs.getSize();
+ *   to any other reservoir. Arcs are oriented (see above); StartArc[ r ] ==
+ *   EndArc[ r ] (a self-loop) is not allowed, but multiple arcs between the
+ *   same pair of reservoirs are. Indeed, often the same physical equipment
+ *   can be used both as a turbine and as a pump; in our model these are
+ *   represented as two parallel arcs (but with different upper and lower
+ *   flow capacity, see "MinFlow" and "MaxFlow" below).
+ *
+ * TODO: this comment is confusing. I think that we should only support:
+ *   = the variable is not there, the minimum is always 0
+ *   = the variable is 1 x NumberArcs, the minimum is fixed
+ *   = the variable is NumberInterval x NumberArcs, with the special case
+ *     that NumberInterval == TimeHorizon
  *
  * - The variable "MinFlow", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
- *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
- *   meant to represent the matrix MinF[ t , a ] which, for each time instant
- *   t at each arc a contains the minimum flow value of the unit; it must be
- *   that the entry MinF[ t , a ] <= MaxF[ t , a ] for each time instant t and
- *   each arc a. If both dimensions have size 1 then the entry MinF[ 0 , 0 ]
- *   gives the minimum flow value of the unit with only one existing arc for
- *   all the time steps. If firs dimension has size 1 then the entry
+ *   1 or full size( "NumberIntervals" and "NumberArcs", respectively). This
+ *   is meant to represent the matrix MinF[ t , a ] which, for each time
+ *   instantt at each arc a contains the minimum flow value of the unit. If
+ *   both dimensions have size 1 then the entry MinF[ 0 , 0 ] gives the
+ *   minimum flow value of the unit with only one existing arc for all the
+ *   time steps. If the first dimension has size 1 then the entry
  *   MinF[ 0 , a ] is assumed to contain the minimum flow of each arc a for
  *   all time instant. Otherwise, two cases may happen such that both
  *   dimensions may have full size or second dimension could have size of 1
@@ -180,6 +193,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
+ * TODO: see above
  * - The variable "MaxFlow", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
  *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
@@ -209,8 +223,8 @@ class HydroUnitBlock : public UnitBlock {
  * This is because the flow-to-active-power function of turbines is a convex
  * piecewise function with possibly many pieces, whereas the
  * flow-to-active-power function of a pump is a simple linear function. In
- * other words, the "number of pieces" (see "NumberPieces" comments below) of
- * a turbine is >= 1, whereas the "number of pieces" of a pump is necessarily
+ * other words, the "number of pieces" (see "NumberPieces" below) of a
+ * turbine is >= 1, whereas the "number of pieces" of a pump is necessarily
  * equal to 1. In reality, the same equipment can sometimes be used both as
  * a pump and as a turbine. In our model this is be accounted for by
  * artificially splitting the unit into “two units”, a pump one and a turbine
@@ -221,6 +235,7 @@ class HydroUnitBlock : public UnitBlock {
  * water, so this would be uneconomical), but should it ever happen, this
  * occurrence is not handled in our model (which lets it happen).
  *
+ * TODO: as above, check
  * - The variable "MinVolumetric", of type double and indexed over both
  *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
  *   have either size 1 or full size("NumberReservoirs" and "NumberIntervals",
@@ -243,6 +258,7 @@ class HydroUnitBlock : public UnitBlock {
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
+ * TODO: as above, check
  * - The variable "MaxVolumetric", of type double and indexed over both
  *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
  *   have either size 1 or full size("NumberReservoirs" and "NumberIntervals",
@@ -265,23 +281,17 @@ class HydroUnitBlock : public UnitBlock {
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
+ * TODO: no, this variable is always full NumberReservoirs x TimeHorizon,
+ *       check
  * - The variable "Inflows", of type double and indexed over both dimensions
- *   "NumberReservoirs" and "TimeHorizon". Both dimensions may have either
- *   size 1 or full size of "NumberReservoirs" and "TimeHorizon" respectively.
- *   This is meant to represent the matrix InF[ r , t ] which, for each
- *   reservoir r at each time instant t contains the amount of water that goes
- *   to each reservoir r at time t; it must be that the entry
- *   InF[ r , t ] >= 0 for all r and t. If both dimensions have size 1 then
- *   the entry InF[ 0 , 0 ] gives the amount of water that goes to one
- *   existing reservoir for all the time steps. If second dimension has size 1
- *   then the entry InF[ r , 0 ] is assumed to contain the amount of water
- *   that goes to each reservoir r for all the time instants. Otherwise, two
- *   cases may happen in which both dimensions may have full size or first
- *   dimension has size of 1 and the second dimension has full size of
- *   "TimeHorizon", then each entry of InF[ r , t ] (or InF[ 0 , t ] )
- *   contains the amount of water that goes to each reservoir r (or the
- *   available reservoir) at each time stamp t.
+ *   "NumberReservoirs" and "TimeHorizon". This is meant to represent the
+ *   matrix InF[ r , t ] which, for each reservoir r at each time instant t
+ *   contains the amount of water that "naturally" goes to reservoir r
+ *   (because of rain, ice melting, non-controlled rivers flowing, and of
+ *   course net of water leaving by evaporation, human consumption etc.) at
+ *   time t; it must be that InF[ r , t ] >= 0 for all r and t.
  *
+ * TODO: as above, check
  * - The variable "MinPower", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
  *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
@@ -301,6 +311,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
+ * TODO: as above, check
  * - The variable "MaxPower", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
  *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
@@ -320,6 +331,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
+ * TODO: as above, check
  * - The variable "DeltaRampUp", of type double and indexed over both
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -342,6 +354,7 @@ class HydroUnitBlock : public UnitBlock {
  *   DP[ t , a ] == MaxF[ t , a ], i.e., the unit can ramp up by an arbitrary
  *   amount, i.e., there are no ramp-up constraints.
  *
+ * TODO: as above, check
  * - The variable "DeltaRampDown", of type double and indexed over both
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -364,6 +377,7 @@ class HydroUnitBlock : public UnitBlock {
  *   DM[ t , a ] == MaxF[ t , a ], i.e., the unit can ramp up by an arbitrary
  *   amount, i.e., there are no ramp-up constraints.
  *
+ * TODO: as above, check
  * - The variable "PrimaryRho", of type double and indexed both over the
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -386,6 +400,7 @@ class HydroUnitBlock : public UnitBlock {
  *   optional, when it's not present it will not capable of producing any
  *   primary reserve, which correspond to PR[ t , a ] == 0 for all t and a.
  *
+ * TODO: as above, check
  * - The variable "SecondaryRho", of type double and indexed both over the
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -412,63 +427,48 @@ class HydroUnitBlock : public UnitBlock {
  *   NumberPieces[ i ] tells how many pieces the concave flow-to-active-power
  *   function has for unit(arc) i. Note that pumps must necessarily have
  *   exactly one piece. The sum over all i of NumberPieces[ i ] is the total
- *   number of pieces(say "TotalNumberPieces"). Clearly,
- *   TotalNumberPieces >= NumberArcs and indeed, each pumps can be expected to
- *   have just one piece; if there exist just pumps(no turbines) in the system
- *   (which is not expected in our problem) then the
- *   TotalNumberPieces ==  NumberArcs and there is no need to define this
- *   number. If, instead, if it is defined, then should always be such that
- *   TotalNumberPieces > NumberArcs. This is because some arcs are considered
- *   as turbines which in this case the concave flow-to-active-power function
- *   may have more than one piece.
+ *   number of pieces (say "TotalNumberPieces"). Clearly, TotalNumberPieces
+ *   >= NumberArcs; if the flow-to-active-power function for all turbines only
+ *   have one piece (those of pumps necessarily are so), then 
+ *   TotalNumberPieces == NumberArcs and there is no need to define this
+ *   variable. If, instead, if it is defined, then should always be such that
+ *   TotalNumberPieces > NumberArcs.
  *
  *   //TODO NOT SURE THESE TWO SHOULD INDEXED ALSO OVER NumberIntervals??
- * - The variable LinearTerm, of type double and indexed over the set
- *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). LinearTerm[ h ]
+ *   TODO: no. If you see (99i), P_{j,i} and F_{j,i} do not depend on
+ *         t, so the shape of the function do not depend on time
+ * - The variable "LinearTerm", of type double and indexed over the set
+ *   { 0 , ..., TotalNumberPieces - 1 } (see "NumberPieces"). LinearTerm[ h ]
  *   gives the linear term a_h of the linear function a_h * f + b_h that
- *   defines the concave flow-to-active-power function for some unit. It is
- *   then useful to be able to assign a unique index
- *   h = 0, 1, ..., TotalNumberPieces - 1 to each of the pieces in the linear
- *   function a_h * f + b_h. When TotalNumberPieces == NumberArcs, the index
- *   is the same as i = 0, 1, ..., NumberArcs - 1 (there is a one-to-one
- *   correspondence between each (unit)arc and each piece). When, instead,
- *   TotalNumberPieces > NumberArcs, a mapping must be defined. The mapping is
- *   the obvious one: each index of i = 0, 1, ..., NumberArcs - 1, corresponds
- *   with a unit(arc) and the the number of pieces for each unit(arc) also
- *   have some natural ordering. Thus, in general the mapping is:
- *     piece 0 = first piece of unit(arc) 0
- *     piece 1 = second piece of unit(arc) 0
+ *   defines the concave flow-to-active-power function for some unit; the
+ *   total function if F2AP( t ) = min { a_h * f + b_h , h \in H } for some
+ *   finite set H that depends on the individual unit. It is then necessary
+ *   to be able to assign a unique index h = 0, 1, ..., TotalNumberPieces - 1
+ *   to each pair ( unit , linear function a_h * f + b_h). When
+ *   TotalNumberPieces == NumberArcs, the index is the same as i = 0, 1, ...,
+ *   NumberArcs - 1 (there is a one-to-one correspondence between each (unit)
+ *   arc and each piece). When, instead, TotalNumberPieces > NumberArcs, a
+ *   mapping must be defined. The mapping is the obvious one: each index of
+ *   i = 0, 1, ..., NumberArcs - 1, corresponds with a unit (arc), and the
+ *   linear functions for each unit (arc) also have some natural ordering.
+ *   Thus, in general the mapping is:
+ *     piece 0 = first piece of unit (arc) 0
+ *     piece 1 = second piece of unit (arc) 0
  *     ...
- *     piece k = k-th piece of unit(arc) 0
- *     piece k + 1 = first piece of unit(arc) 1
- *     piece k + 2 = second piece of unit(arc) 1
- *     ...
- *   which of course boils down to "h = i" when each arc has exactly one
- *   piece(there is no turbine).
- *
- * - The variable ConstantTerm, of type double and indexed over the set
- *   {0, ..., "TotalNumberPieces" - 1} (see "NumberPieces"). ConstantTerm[ h ]
- *   gives the constant term b_h of the linear function a_h * f + b_h that
- *   defines the concave flow-to-active-power function for some unit. It is
- *   then useful to be able to assign a unique index
- *   h = 0, 1, ..., TotalNumberPieces - 1 to each of the pieces in the linear
- *   function a_h * f + b_h. When TotalNumberPieces == NumberArcs, the index
- *   is the same as i = 0, 1, ..., NumberArcs - 1 (there is a one-to-one
- *   correspondence between each (unit)arc and each piece). When, instead,
- *   TotalNumberPieces > NumberArcs, a mapping must be defined. The mapping is
- *   the obvious one: each index of i = 0, 1, ..., NumberArcs - 1, corresponds
- *   with a unit(arc) and the the number of pieces for each unit(arc) also
- *   have some natural ordering. Thus, in general the mapping is:
- *     piece 0 = first piece of unit(arc) 0
- *     piece 1 = second piece of unit(arc) 0
- *     ...
- *     piece k = k-th piece of unit(arc) 0
- *     piece k + 1 = first piece of unit(arc) 1
- *     piece k + 2 = second piece of unit(arc) 1
+ *     piece NumberPieces[ 0 ] - 1 = last piece of unit (arc) 0
+ *     piece NumberPieces[ 0 ] = first piece of unit (arc) 1
+ *     piece NumberPieces[ 0 ] + 1 = second piece of unit (arc) 1
  *     ...
  *   which of course boils down to "h = i" when each arc has exactly one
- *   piece(there is no turbine).
+ *   piece.
  *
+ * - The variable "ConstantTerm", of type double and indexed over the set
+ *   { 0 , ..., TotalNumberPieces" - 1}. ConstantTerm[ h ] gives the
+ *   constant term b_h of the linear function a_h * f + b_h that defines the
+ *   concave flow-to-active-power function for some unit; see the comments to
+ *   "LinearTerm" for details.
+ *
+ * TODO: as above, check
  * - The variable "InertiaPower", of type double and indexed both over the
  *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
  *   either size 1 or full size("NumberIntervals" and "NumberArcs",
@@ -495,13 +495,18 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "InitialFlowRate", of type double and indexed over the
  *   dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of the
- *   flow rate that each arc i was producing at time instant -1. This variable
- *   is optional, if it is not provided it is taken to be InFR[ i ] == 0 and
- *   it is meant there are no ramp constraint for corresponding unit(arc) i.
+ *   flow that was going along arc i at time instant -1. This is necessary to
+ *   compute ramp-up and ramp-down limits (cf. "DeltaRampUp" and
+ *   "DeltaRampDown"), and therefore it is useless if there are no ramp
+ *   constraints on *any* unit (arc).
  *
  * - The variable "InitialVolumetric", of type double and indexed over the
- *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the amount
- *   of volumes that each reservoir r was producing at time instant -1;
+ *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the volumes
+ *   of water in reservoir r  at time instant -1;
+ *
+ * TODO: no, this is not even remotely detailed enough. Remember the pictures
+ *       in Wim's e-mails, we have to explain very clearly what these are
+ *        and what they mean
  *
  * - The negative or positive scalar variable "UphillFlow", of type Int64 and
  *   indexed over the dimension "NumberArcs". Each entry UpF[ i ] indicates
