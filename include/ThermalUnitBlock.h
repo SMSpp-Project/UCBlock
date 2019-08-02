@@ -143,17 +143,17 @@ class ThermalUnitBlock : public UnitBlock {
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "DeltaRampUp", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector DP[ t ] that, for each time instant t, contains the ramp-up value
- *   of the unit for the corresponding time step, i.e., the maximum possible
- *   increase of active power production w.r.t. the power that had been
- *   produced in time instant t - 1, if any. This variable is optional; if it
- *   is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e., the
- *   unit can ramp up by an arbitrary amount, i.e., there are no ramp-up
+ * - The variable "DeltaRampUp", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals". This is meant to represent
+ *   the vector DP[ t ] that, for each time instant t, contains the ramp-up
+ *   value of the unit for the corresponding time step, i.e., the maximum
+ *   possible increase of active power production w.r.t. the power that had
+ *   been produced in time instant t - 1, if any. This variable is optional;
+ *   if it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
+ *   the unit can ramp up by an arbitrary amount, i.e., there are no ramp-up
  *   constraints. If "DeltaRampUp" has length 1 then DP[ t ] contains the same
- *   value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ]
- *   for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of
+ *   DP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
  *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
@@ -175,7 +175,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "PrimaryRho", of type double and to be either of size 1 or
+ * - The variable "PrimaryRho", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector PR[ t ] that, for each time instant t, contains the maximum
  *   possible fraction of active power that can be used as primary reserve
@@ -190,7 +190,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "SecondaryRho", of type double and to be either of size 1 or
+ * - The variable "SecondaryRho", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector SR[ t ] that, for each time instant t, contains the maximum
  *   possible fraction of active power that can be used as secondary reserve
@@ -205,7 +205,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "QuadTerm", of type double and to be either of size 1 or
+ * - The variable "QuadTerm", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector A[ t ] that, for each time instant t, contains the quadratic
  *   term of power cost function of the unit for the corresponding time step.
@@ -218,7 +218,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "StartUpCost", of type double and to be either of size 1 or
+ * - The variable "StartUpCost", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector SC[ t ] that, for each time instant t, contains the start up
  *   cost value of the unit for the corresponding time step. This variable is
@@ -231,7 +231,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "LinearTerm", of type double and to be either of size 1 or
+ * - The variable "LinearTerm", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector B[ t ] that, for each time instant t, contains the linear term
  *   of power cost function of the unit for the corresponding time step.
@@ -267,11 +267,11 @@ class ThermalUnitBlock : public UnitBlock {
  *   MinPower if the unit was "on" at time instant -1, and it must be that
  *   InitialPower == 0 if the unit was "off" at time instant -1. The on/off
  *   status of the unit is also encoded by the scalar variable InitUpDownTime:
- *   in particular, InitUpDownTime > 0 then the unit was on at time instant -1,
- *   and therefore InitialPower >= MinPower must hold, while if InitUpDownTime
- *   <= 0 then the unit was off at time instant -1, and therefore InitialPower
- *   == 0 by definition. In fact, if InitUpDownTime <= 0 then this variable need
- *   not be defined since it is not loaded.
+ *   in particular, InitUpDownTime > 0 then the unit was on at time instant
+ *   -1, and therefore InitialPower >= MinPower must hold, while if
+ *   InitUpDownTime <= 0 then the unit was off at time instant -1, and
+ *   therefore InitialPower == 0 by definition. In fact, if InitUpDownTime
+ *   <= 0 then this variable need not be defined since it is not loaded.
  *
  * - The scalar variable "InitUpDownTime", of type Int64 and not indexed over
  *   any dimension and indicates the initial time to generating the unit.
@@ -281,7 +281,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
  *   note that InitUpDownTime == 0 means that the unit has been just shut
  *   down at the end of time instant -1, i.e., the beginning of time
- *   instant 0;
+ *   instant 0.
  *
  * - The positive scalar variable "MinUpTime", of type UInt64 and not indexed
  *   over any dimension, which indicates the minimum allowed up time in this
@@ -293,7 +293,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   indexed over any dimension, which indicates the minimum allowed down time
  *   in this unit.This variable is optional, if it is not provided it is taken
  *   to be MinDownTime == 0, which mean that the unit can start up in the very
- *   same time stamp in which it starts up.
+ *   same time stamp in which it shuts down.
  *
  * - The variable "FixedConsumption", of type double and either indexed
  *   over the dimension "NumberIntervals", or having size 1. This is meant
@@ -688,7 +688,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// Returns the minimum allowed down time value
  Index get_min_down_time() const { return f_MinDownTime; }
- /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /// returns the vector of minimum power
 /** The returned vector contains to minimum power at time t. There are three
  * possible cases:
