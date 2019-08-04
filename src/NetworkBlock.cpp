@@ -74,8 +74,8 @@ void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
  if( f_number_nodes > 1 ) {
   ::deserialize_dim( group, "NumberLines", f_number_nodes );
 
-  ::deserialize( group, "StartLine", f_number_nodes, v_start_line );
-  ::deserialize( group, "EndLine", f_number_nodes, v_end_line );
+  ::deserialize( group, "StartLine", f_number_lines, v_start_line );
+  ::deserialize( group, "EndLine", f_number_lines, v_end_line );
 
   for( Index line = 0; line < f_number_lines; ++line ) {
    if( v_min_power_flow[ line ] <= 0 && 0 <= v_max_power_flow[ line ] ) {
@@ -120,10 +120,10 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
   auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
 
   ::serialize( group, "StartLine", netCDF::NcUint64(),
-               { dim_number_nodes }, v_start_line );
+               { dim_number_lines }, v_start_line );
 
   ::serialize( group, "EndLine", netCDF::NcUint64(),
-               { dim_number_nodes }, v_end_line );
+               { dim_number_lines }, v_end_line );
 
   ::serialize( group, "MinPowerFlow", netCDF::NcDouble(),
                { dim_number_lines }, v_min_power_flow );

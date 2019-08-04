@@ -161,16 +161,16 @@ class NetworkBlock : public Block {
    *   transmission network.
    *
    * - The variable "StartLine", of type int and indexed over the dimension
-   *   "NumberNodes"; the i-th entry of the variable is the starting point of
-   *   the line (a number in 0, ..., NumberNodes - 1). Note that lines are not
+   *   "NumberLines"; the i-th entry of the variable is the starting point of
+   *   the line (a number in 0, ..., NumberLines - 1). Note that lines are not
    *   oriented, but the flow of energy is; that is, a positive flow along
    *   line i means that energy is being taken away from StartLine[ i ] and
    *   delivered to EndLine[ i ] (see next), a negative flow means vice-versa.
    *   Note that node names here go from 0 to NNodes.getSize() - 1;
    *
    * - The variable "EndLine", of type int and indexed over the dimension
-   *   "NumberNodes"; the i-th entry of the variable is the ending point of the
-   *   line (a number in 0, ..., NumberNodes - 1; lines are not oriented, but
+   *   "NumberLines"; the i-th entry of the variable is the ending point of the
+   *   line (a number in 0, ..., NumberLines - 1; lines are not oriented, but
    *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
    *   but multiple lines between the same pair of nodes are. Note that node
    *   names here go from 0 to NNodes.getSize() - 1;
@@ -210,32 +210,32 @@ class NetworkBlock : public Block {
   Index get_number_lines() const { return( f_number_lines ); }
  
 /*--------------------------------------------------------------------------*/
-  /// returns the vector of start nodes
+  /// returns the vector of start lines
   /** Method for returning the vector of starting point of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
+   *  vector may have empty size (bus network) or the size of number of lines,
    *  then there are two possible cases:
    *
    *  - if f_number_nodes == 1, this vector has empty size which means there
    *    is no line at network (bus network), and this vector is not needed to
    *    be defined.
    *
-   *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
    *    element of the vectors gives starting point of each line in the network.
    */
 
   const std::vector< Index > & get_start_line() const { return v_start_line; }
 
 /*--------------------------------------------------------------------------*/
-  /// returns vector of end nodes
+  /// returns vector of end lines
   /** Method for returning the vector of ending point of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
+   *  vector may have empty size (bus network) or the size of number of lines,
    *  then there are two possible cases:
    *
    *  - if f_number_nodes == 1, this vector has empty size which means there
    *    is no line at network (bus network), and this vector is not needed to
    *    be defined.
    *
-   *  - if f_number_nodes > 1, this vector have size of f_number_nodes and each
+   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
    *    element of the vectors gives ending point of each line in the network.
    */
 
@@ -319,9 +319,9 @@ class NetworkBlock : public Block {
 
   Index f_number_lines;    ///< Number of lines of the network
 
-  std::vector< Index > v_start_line;  ///< Vector of starting nodes
+  std::vector< Index > v_start_line;  ///< Vector of starting lines
 
-  std::vector< Index > v_end_line;    ///< Vector of ending nodes
+  std::vector< Index > v_end_line;    ///< Vector of ending lines
 
   /// Vector to store the susceptance of each line of the network
   std::vector< double > v_susceptance;
