@@ -22,9 +22,7 @@
  */
 
 #include <iostream>
-#include <fstream>
 #include <UCBlock.h>
-#include <ThermalUnitBlock.h>
 #include <netcdf>
 #include <ncByte.h>
 
@@ -40,27 +38,49 @@ std::vector< double > b;
 std::vector< double > c;
 
 void serialize_unit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
- serialize( g, "InitialPower", netCDF::NcDouble(), unit.InitialPower );
- serialize( g, "MinUpTime", netCDF::NcUint64(), unit.MinUpTime );
- serialize( g, "MinDownTime", netCDF::NcUint64(), unit.MinDownTime );
- serialize( g, "InitUpDownTime", netCDF::NcInt64(), unit.InitUpDownTime );
-
  serialize( g, "MinPower", netCDF::NcDouble(), unit.MinPower );
  serialize( g, "MaxPower", netCDF::NcDouble(), unit.MaxPower );
  serialize( g, "DeltaRampUp", netCDF::NcDouble(), unit.DeltaRampUp );
  serialize( g, "DeltaRampDown", netCDF::NcDouble(), unit.DeltaRampDown );
  serialize( g, "QuadTerm", netCDF::NcDouble(), unit.QuadTerm );
+ serialize( g, "StartUpCost", netCDF::NcDouble(), unit.StartUpCost );
 
  if (type == ftDat) {
-  auto NumberIntervals = g.getParentGroup().getDim( "NumberIntervals" );
-  serialize( g, "LinearTerm", netCDF::NcDouble(), NumberIntervals, b );
-  serialize( g, "ConstTerm", netCDF::NcDouble(), NumberIntervals, c );
- } else {
+  auto NumberIntervals = g.getDim( "NumberIntervals" );
+
+  std::cout << "b" << "\n";
+  for( unsigned int t = 0; t < b.size(); ++t ) {
+   std::cout << b[ t ] << " ";
+  }
+  std::cout << "\n";
+
+  std::cout << "c" << "\n";
+  for( unsigned int t = 0; t < c.size(); ++t ) {
+   std::cout << c[ t ] << " ";
+  }
+  std::cout << "\n";
+
+  if (b.size() == 1) {
+   serialize( g, "LinearTerm", netCDF::NcDouble(), b[0] );
+  } else {
+   serialize( g, "LinearTerm", netCDF::NcDouble(), NumberIntervals, b );
+  }
+
+  if (c.size() == 1) {
+   serialize( g, "ConstTerm", netCDF::NcDouble(), c[0] );
+  } else {
+   serialize( g, "ConstTerm", netCDF::NcDouble(), NumberIntervals, c );
+  }
+
+ } else { // type == ftMod
   serialize( g, "LinearTerm", netCDF::NcDouble(), unit.LinearTerm );
   serialize( g, "ConstTerm", netCDF::NcDouble(), unit.ConstTerm );
  }
 
- serialize( g, "StartUpCost", netCDF::NcDouble(), unit.StartUpCost );
+ serialize( g, "InitialPower", netCDF::NcDouble(), unit.InitialPower );
+ serialize( g, "InitUpDownTime", netCDF::NcInt64(), unit.InitUpDownTime );
+ serialize( g, "MinUpTime", netCDF::NcUint64(), unit.MinUpTime );
+ serialize( g, "MinDownTime", netCDF::NcUint64(), unit.MinDownTime );
 }
 
 int main( int argc, char ** argv ) {
@@ -105,7 +125,7 @@ int main( int argc, char ** argv ) {
   inputFile >> dat_file;
   dat_file.generate_bc( b, c );
   std::cout << dat_file;
- } else {
+ } else { // type == ftMod
   inputFile >> mod_file;
   std::cout << mod_file;
  }
@@ -114,26 +134,34 @@ int main( int argc, char ** argv ) {
  netCDF::NcFile f( filename, netCDF::NcFile::replace );
  f.putAtt( "SMS++_file_type", netCDF::NcInt(), eBlockFile );
 
-
  if( type == ftDat ) {
-  f.putAtt( "type", "UnitBlock" );
-  f.addDim( "TimeHorizon", dat_file.TimeHorizon );
-  f.addDim( "NumberIntervals", dat_file.TimeHorizon );
 
   auto bg = f.addGroup( "Block_0" );
   bg.putAtt( "type", "ThermalUnitBlock" );
+  bg.addDim( "TimeHorizon", dat_file.TimeHorizon );
+  bg.addDim( "NumberIntervals", dat_file.TimeHorizon );
   serialize_unit( bg, dat_file.thermal_unit );
 
- } else {
-  f.putAtt( "type", "UnitBlock" );
-  f.addDim( "TimeHorizon", mod_file.TimeHorizon );
-  f.addDim( "NumberIntervals", 1 );
+ } else { // type == ftMod
 
-  for( int i = 0; i < mod_file.NumThermal; ++i ) {
-   auto bg = f.addGroup( "Block_" + std::to_string( f.getGroupCount() ) );
-   bg.putAtt( "type", "ThermalUnitBlock" );
+  auto bg = f.addGroup( "Block_0" );
+  bg.putAtt( "type", "UCBlock" );
+  bg.addDim( "TimeHorizon", mod_file.TimeHorizon );
+  bg.addDim( "NumberUnits", mod_file.NumThermal );
+  // ubg.addDim( "NumberIntervals", 1 );
+
+  for( unsigned int i = 0; i < mod_file.NumThermal; ++i ) {
+   auto ug = bg.addGroup( "UnitBlock_" + std::to_string( i ) );
+   // auto ug = bg.addGroup( "Unit_" + std::to_string( bg.getGroupCount() ) );
+   ug.putAtt( "type", "ThermalUnitBlock" );
    mod_file.thermal_units[ i ].generate_startupcost();
-   serialize_unit( bg, mod_file.thermal_units[ i ] );
+   serialize_unit( ug, mod_file.thermal_units[ i ] );
+  }
+
+  for( unsigned int i = 0; i < mod_file.TimeHorizon; ++i ) {
+   auto ng = bg.addGroup( "Network_" + std::to_string( i ) );
+   ng.putAtt( "type", "NetworkBlock" );
+   ng.addDim( "NumberNodes", 1 );
   }
  }
  return 0;
