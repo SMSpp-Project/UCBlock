@@ -48,18 +48,6 @@ void serialize_unit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
  if (type == ftDat) {
   auto NumberIntervals = g.getDim( "NumberIntervals" );
 
-  std::cout << "b" << "\n";
-  for( unsigned int t = 0; t < b.size(); ++t ) {
-   std::cout << b[ t ] << " ";
-  }
-  std::cout << "\n";
-
-  std::cout << "c" << "\n";
-  for( unsigned int t = 0; t < c.size(); ++t ) {
-   std::cout << c[ t ] << " ";
-  }
-  std::cout << "\n";
-
   if (b.size() == 1) {
    serialize( g, "LinearTerm", netCDF::NcDouble(), b[0] );
   } else {
@@ -162,6 +150,11 @@ int main( int argc, char ** argv ) {
    auto ng = bg.addGroup( "Network_" + std::to_string( i ) );
    ng.putAtt( "type", "NetworkBlock" );
    ng.addDim( "NumberNodes", 1 );
+   // FIXME: Check Loads[][] bounds
+   serialize( ng,
+              "ActiveDemand",
+              netCDF::NcDouble(),
+              mod_file.load_curve.Loads[0][ i ] );
   }
  }
  return 0;
