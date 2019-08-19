@@ -142,7 +142,6 @@ class HydroUnitBlock : public UnitBlock {
  *   a turbine generating electricity by converting potential energy of water
  *   going downhill, or a pump consuming electricity for moving water uphill.
  *
- * TODO: changed indexed on NumberReservoirs ==> indexed on NumberArcs, check
  * - The variable "StartArc", of type int and indexed over the dimension
  *   "NumberArcs"; the r-th entry of the variable is the starting point of
  *   the arc (a number in 0, ..., NumberReservoirs - 1). Note that arcs are
@@ -151,7 +150,6 @@ class HydroUnitBlock : public UnitBlock {
  *   (see next), a negative flow (pump) means vice-versa. Note that reservoir
  *   names here go from 0 to NumberReservoirs- 1;
  *
- * TODO: changed indexed on NumberReservoirs ==> indexed on NumberArcs, check
  * - The variable "EndArc", of type int and indexed over the dimension
  *   "NumberArcs"; the r-th entry of the variable is the ending point of the
  *   arc; this is a number in 0, ..., NumberReservoirs. Note: this is
@@ -168,57 +166,43 @@ class HydroUnitBlock : public UnitBlock {
  *   represented as two parallel arcs (but with different upper and lower
  *   flow capacity, see "MinFlow" and "MaxFlow" below).
  *
- * TODO: this comment is confusing. I think that we should only support:
- *   = the variable is not there, the minimum is always 0
- *   = the variable is 1 x NumberArcs, the minimum is fixed
- *   = the variable is NumberInterval x NumberArcs, with the special case
- *     that NumberInterval == TimeHorizon
- *
  * - The variable "MinFlow", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
- *   1 or full size( "NumberIntervals" and "NumberArcs", respectively). This
- *   is meant to represent the matrix MinF[ t , a ] which, for each time
- *   instantt at each arc a contains the minimum flow value of the unit. If
- *   both dimensions have size 1 then the entry MinF[ 0 , 0 ] gives the
- *   minimum flow value of the unit with only one existing arc for all the
- *   time steps. If the first dimension has size 1 then the entry
- *   MinF[ 0 , a ] is assumed to contain the minimum flow of each arc a for
- *   all time instant. Otherwise, two cases may happen such that both
- *   dimensions may have full size or second dimension could have size of 1
- *   then MinFlow[ i , a ] (or MinFlow[ i , 0 ]) is the fixed value of
- *   MinF[ t , a ] (or MinF[ t , 0 ]) for all time t and arc a (or the one
- *   available arc) in the interval
+ *   "NumberIntervals" and "NumberArcs". The first dimension may have either
+ *   size 1 or size "NumberIntervals" whereas the second one always has size
+ *   "NumberArcs". This is meant to represent the matrix MinF[ t , l ] which,
+ *   for each time instant t at each arc l contains the minimum flow value of
+ *   the unit. This variable is optional; if it is not provided then it is
+ *   assumed that MinF[ t , l ] == 0, i.e., the minimum flow of the unit is
+ *   zero. If the first dimension has size 1 then the entry MinF[ 0 , l ]
+ *   gives the fixed minimum flow value of the unit for all time steps and
+ *   each arc l. Otherwise, the MinFlow[ i , l ] is the fixed value of
+ *   MinF[ t , l ] for all time t and arc l in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: see above
  * - The variable "MaxFlow", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
- *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
- *   meant to represent the matrix MaxF[ t , a ] which, for each time instant
- *   t at each arc a contains the maximum flow value of the unit; it must be
- *   that the entry MinF[ t , a ] <= MaxF[ t , a ] for each time instant t and
- *   each arc a. If both dimensions have size 1 then the entry MaxF[ 0 , 0 ]
- *   gives the maximum flow value of the unit with only one existing arc for
- *   all the time steps. If firs dimension has size 1 then the entry
- *   MaxF[ 0 , a ] is assumed to contain the maximum flow of each arc a for
- *   all time instant. Otherwise, two cases may happen such that both
- *   dimensions may have full size or second dimension could have size of 1
- *   then MaxFlow[ i , a ] (or MaxFlow[ i , 0 ]) is the fixed value of
- *   MaxF[ t , a ] (or MaxF[ t , 0 ]) for all time t and arc a (or the one
- *   available arc) in the interval
+ *   "NumberIntervals" and "NumberArcs". The first dimension may have either
+ *   size 1 or size "NumberIntervals" whereas the second one always has size
+ *   "NumberArcs". This is meant to represent the matrix MaxF[ t , l ] which,
+ *   for each time instant t at each arc l contains the maximum flow value of
+ *   the unit. This variable is optional; if it is not provided then it is
+ *   assumed that MaxF[ t , l ] == 0, i.e., the maximum flow of the unit is
+ *   zero. If the first dimension has size 1 then the entry MaxF[ 0 , l ]
+ *   gives the fixed maximum flow value of the unit for all time steps and
+ *   each arc l. Otherwise, the MaxFlow[ i , l ] is the fixed value of
+ *   MaxF[ t , l ] for all time t and arc l in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * Note: MinFlow and MaxFlow values can be either positive or negative (or
- * zero); whenever MinF[ t , a ] < MaxF[ t , a ] <= 0 for each t and a,
- * the unit is considered a pump and whenever 0 <= MinF[ t , a ] < 
- * MaxF[ t , a ], the unit is considered a turbine. Note that an arc must
- * *always* be the same kind for *all* instants, i.e., it is not allwed
+ * zero); whenever MinF[ t , l ] < MaxF[ t , l ] <= 0 for each t and l,
+ * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <
+ * MaxF[ t , l ], the unit is considered a turbine. Note that an arc must
+ * *always* be the same kind for *all* instants, i.e., it is not allowed
  * that a unit suddenly changes between a turbine and a pump, or vice-versa.
  * This is because the flow-to-active-power function of turbines is a convex
  * piecewise function with possibly many pieces, whereas the
@@ -235,54 +219,46 @@ class HydroUnitBlock : public UnitBlock {
  * water, so this would be uneconomical), but should it ever happen, this
  * occurrence is not handled in our model (which lets it happen).
  *
- * TODO: as above, check
  * - The variable "MinVolumetric", of type double and indexed over both
- *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
- *   have either size 1 or full size("NumberReservoirs" and "NumberIntervals",
- *   respectively). This is meant to represent the matrix MinV[ r , t ] which,
- *   for each reservoir r at each time instant t contains the minimum
- *   volumetric value of the unit for each reservoir and corresponding time
- *   step; it must be that the entry MinV[ r , t ] >= 0 for all r and t and
- *   MinV[ r , t ] <= MaxV[ r , t ]. If both dimensions have size 1 then the
- *   entry MinV[ 0 , 0 ] gives the minimum volumetric value of the unit with
- *   only one existing reservoir for all the time steps. If second dimension
- *   has size 1 then the entry MinV[ r , 0 ] is assumed to contain the minimum
- *   volumetric for each reservoir r for all the time instants. Otherwise, two
- *   cases may happen in which both dimensions may have full size or first
- *   dimension has size of 1 then MinVolumetric[ r , i ] (or
- *   MinVolumetric[ 0 , i ] ) is the fixed value of MinV[ r , t ] (or
- *   MinV[ 0 , t ]) for all reservoir r (the one available reservoir)and all
- *   t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   dimensions "NumberReservoirs" and "NumberIntervals". The first dimension
+ *   is always has size "NumberReservoirs" whereas the second one may have
+ *   size one or size "NumberIntervals". This is meant to represent the matrix
+ *   MinV[ r , t ] which, for each reservoir r at each time instant t contains
+ *   the minimum volumetric value of the unit for each reservoir and
+ *   corresponding time step; it must be that the entry MinV[ r , t ] >= 0 for
+ *   all r and t and MinV[ r , t ] <= MaxV[ r , t ]. This variable is
+ *   optional; if it's not provided then it is assumed that MinV[ r , t ] == 0
+ *   i.e., the minimum volumetric of the unit is zero. If second dimension has
+ *   size 1 then the entry MinV[ r , 0 ] gives the fixed minimum volumetric
+ *   value of the unit for each reservoir r during the all time horizon.
+ *   Otherwise, the MinVolumetric[ r , i ] is the fixed value of MinV[ r , t ]
+ *   for each reservoir r and all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not
  *   loaded.
  *
- * TODO: as above, check
  * - The variable "MaxVolumetric", of type double and indexed over both
- *   dimensions "NumberReservoirs" and "NumberIntervals". Both dimensions may
- *   have either size 1 or full size("NumberReservoirs" and "NumberIntervals",
- *   respectively). This is meant to represent the matrix MaxV[ r , t ] which,
- *   for each reservoir r at each time instant t contains the maximum
- *   volumetric value of the unit for each reservoir and corresponding time
- *   step; it must be that the entry MaxV[ r , t ] >= 0 for all r and t and
- *   MinV[ r , t ] <= MaxV[ r , t ]. If both dimensions have size 1 then the
- *   entry MaxV[ 0 , 0 ] gives the maximum volumetric value of the unit with
- *   only one existing reservoir for all the time steps. If second dimension
- *   has size 1 then the entry MaxV[ r , 0 ] is assumed to contain the maximum
- *   volumetric for each reservoir r for all the time instants. Otherwise, two
- *   cases may happen in which both dimensions may have full size or first
- *   dimension has size of 1 then MaxVolumetric[ r , i] (or
- *   MaxVolumetric[ 0 , i ] ) is the fixed value of MaxV[ r , t ] (or
- *   MaxV[ 0 , t ]) for all reservoir r (the one available reservoir)and all
- *   t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   dimensions "NumberReservoirs" and "NumberIntervals". The first dimension
+ *   is always has size "NumberReservoirs" whereas the second one may have
+ *   size one or size "NumberIntervals". This is meant to represent the matrix
+ *   MaxV[ r , t ] which, for each reservoir r at each time instant t contains
+ *   the maximum volumetric value of the unit for each reservoir and
+ *   corresponding time step; it must be that the entry MaxV[ r , t ] >= 0 for
+ *   all r and t and MinV[ r , t ] <= MaxV[ r , t ]. This variable is
+ *   optional; if it's not provided then it is assumed that MaxV[ r , t ] ==
+ *   MinV[ r , t ] == 0 i.e., the maximum volumetric of the unit is zero. If
+ *   second dimension has size 1 then the entry MaxV[ r , 0 ] gives the fixed
+ *   maximum volumetric value of the unit for each reservoir r during the all
+ *   time horizon. Otherwise, the MaxVolumetric[ r , i ] is the fixed value of
+ *   MaxV[ r , t ] for each reservoir r and all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not
  *   loaded.
  *
- * TODO: no, this variable is always full NumberReservoirs x TimeHorizon,
- *       check
  * - The variable "Inflows", of type double and indexed over both dimensions
  *   "NumberReservoirs" and "TimeHorizon". This is meant to represent the
  *   matrix InF[ r , t ] which, for each reservoir r at each time instant t
@@ -291,137 +267,110 @@ class HydroUnitBlock : public UnitBlock {
  *   course net of water leaving by evaporation, human consumption etc.) at
  *   time t; it must be that InF[ r , t ] >= 0 for all r and t.
  *
- * TODO: as above, check
  * - The variable "MinPower", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
- *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
- *   meant to represent the matrix MinP[ t , a ] which, for each time instant
- *   t at each arc a contains the minimum power value of the unit; it must be
- *   that MinP[ t , a ] <= MaxP[ t , a ] for each time instant t and each arc
- *   a. If both dimensions have size 1 then the entry MinP[ 0 , 0 ] gives the
- *   minimum power value of the unit with only one existing arc for all the
- *   time steps. If firs dimension has size 1 then the entry MinP[ 0 , a ] is
- *   assumed to contain the minimum power of each arc a for all time instant.
- *   Otherwise, two cases may happen such that both dimensions may have full
- *   size or second dimension could have size of 1 then MinPower[ i , a ] (or
- *   MinPower[ i , 0 ]) is the fixed value of MinP[ t , a ] (or MinP[ t , 0 ])
- *   for all time t and arc a (or the one available arc) in the interval
+ *   "NumberIntervals" and "NumberArcs". The first dimension may have either
+ *   size 1 or size "NumberIntervals" whereas the second one always has size
+ *   "NumberArcs". This is meant to represent the matrix MinP[ t , l ] which,
+ *   for each time instant t at each arc l contains the minimum power value of
+ *   the unit; it must be that MinP[ t , l ] <= MaxP[ t , l ] for each time
+ *   instant t and each arc l. This variable is optional; if it is not
+ *   provided then it is assumed that MinP[ t , l ] == 0, i.e., the minimum
+ *   power of the unit is zero. If first dimension has size 1 then the entry
+ *   MinP[ 0 , l ] is assumed to contain the minimum power of each arc l for
+ *   all time instant. Otherwise, the MinPower[ i , l ] is the fixed value of
+ *   MinP[ t , l ] for all time t and each arc l in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: as above, check
  * - The variable "MaxPower", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". Both dimensions may have either size
- *   1 or full size("NumberIntervals" and "NumberArcs", respectively). This is
- *   meant to represent the matrix MaxP[ t , a ] which, for each time instant
- *   t at each arc a contains the maximum power value of the unit; it must be
- *   that MinP[ t , a ] <= MaxP[ t , a ] for each time instant t and each arc
- *   a. If both dimensions have size 1 then the entry MaxP[ 0 , 0 ] gives the
- *   maximum power value of the unit with only one existing arc for all the
- *   time steps. If firs dimension has size 1 then the entry MaxP[ 0 , a ] is
- *   assumed to contain the maximum power of each arc a for all time instant.
- *   Otherwise, two cases may happen such that both dimensions may have full
- *   size or second dimension could have size of 1 then MaxPower[ i , a ] (or
- *   MaxPower[ i , 0 ]) is the fixed value of MaxP[ t , a ] (or MaxP[ t , 0 ])
- *   for all time t and arc a (or the one available arc) in the interval
+ *   "NumberIntervals" and "NumberArcs". The first dimension may have either
+ *   size 1 or size "NumberIntervals" whereas the second one always has size
+ *   "NumberArcs". This is meant to represent the matrix MaxP[ t , l ] which,
+ *   for each time instant t at each arc l contains the maximum power value of
+ *   the unit; it must be that MinP[ t , l ] <= MaxP[ t , l ] for each time
+ *   instant t and each arc l. This variable is optional; if it is not
+ *   provided then it is assumed that MaxP[ t , l ] == MinP[ t , l ] == 0,
+ *   i.e., the maximum power of the unit is zero. If first dimension has size
+ *   1 then the entry MaxP[ 0 , l ] is assumed to contain the maximum power of
+ *   each arc l for all time instant. Otherwise, the MaxPower[ i , l ] is the
+ *   fixed value of MaxP[ t , l ] for all time t and each arc l in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: as above, check
  * - The variable "DeltaRampUp", of type double and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix DP[ t , a ] which,
- *   contains the maximum possible increase of the flow rate at each time
- *   instant t of each arc a. If both dimensions have size 1 then the entry
- *   DP[ 0 , 0 ] gives the maximum possible increase of the flow rate value of
- *   the only one existing arc for all the time steps. If firs dimension has
- *   size 1 then the entry DP[ 0 , a ] is assumed to contain the maximum
- *   possible increase of the flow rate of each arc a for all time instant.
- *   Otherwise, two cases may happen such that both dimensions may have full
- *   size or second dimension could have size of 1 then DeltaRampUp[ i , a ]
- *   (or DeltaRampUp[ i , 0 ]) is the fixed value of DP[ t , a ] (or
- *   DP[ t , 0 ]) for all time t and arc a (or the one available arc) in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. This variable is
- *   optional; if it is not provided then it is assumed that
- *   DP[ t , a ] == MaxF[ t , a ], i.e., the unit can ramp up by an arbitrary
- *   amount, i.e., there are no ramp-up constraints.
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" whereas the second one
+ *   always has size "NumberArcs". This is meant to represent the matrix
+ *   DP[ t , l ] which, contains the maximum possible increase of the flow
+ *   rate at each time instant t of each arc l. This variable is optional;
+ *   if it is not provided then it is assumed that DP[ t , l ] == MxP[ t , l ]
+ *   i.e., the unit can ramp up by an arbitrary amount, i.e., there are no
+ *   ramp-up constraints.  If first dimension has size 1 then the entry
+ *   DP[ 0 , l ] is assumed to contain the maximum possible increase of the
+ *   flow rate of each arc l for all time instant. Otherwise, the
+ *   DeltaRampUp[ i , l ] is the fixed value of DP[ t , l ] for all time t and
+ *   arc l in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ]
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals"
+ *   <= 1 or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does
+ *   not require "ChangeIntervals", which in fact is not loaded.
  *
- * TODO: as above, check
  * - The variable "DeltaRampDown", of type double and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix DM[ t , a ] which,
- *   contains the maximum possible decrease of the flow rate at each time
- *   instant t of each arc a. If both dimensions have size 1 then the entry
- *   DM[ 0 , 0 ] gives the maximum possible decrease of the flow rate value of
- *   the only one existing arc for all the time steps. If firs dimension has
- *   size 1 then the entry DM[ 0 , a ] is assumed to contain the maximum
- *   possible decrease of the flow rate of each arc a for all time instant.
- *   Otherwise, two cases may happen such that both dimensions may have full
- *   size or second dimension could have size of 1 then DeltaRampDown[ i , a ]
- *   (or DeltaRampDown[ i , 0 ]) is the fixed value of DM[ t , a ] (or
- *   DM[ t , 0 ]) for all time t and arc a (or the one available arc) in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. This variable is
- *   optional; if it is not provided then it is assumed that
- *   DM[ t , a ] == MaxF[ t , a ], i.e., the unit can ramp up by an arbitrary
- *   amount, i.e., there are no ramp-up constraints.
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" whereas the second one
+ *   always has size "NumberArcs". This is meant to represent the matrix
+ *   DM[ t , l ] which, contains the maximum possible decrease of the flow
+ *   rate at each time instant t of each arc l. This variable is optional; if
+ *   it is not provided then it is assumed that DM[ t , l ] == MaxF[ t , l ],
+ *   i.e., the unit can ramp up by an arbitrary amount, i.e., there are no
+ *   ramp-up constraints.  If first dimension has size 1 then the entry
+ *   DM[ 0 , l ] is assumed to contain the maximum possible decrease of the
+ *   flow rate of each arc l for all time instant. Otherwise, the
+ *   DeltaRampDown[ i , l ] is the fixed value of DM[ t , l ] for all time t
+ *   and arc l in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *
- * TODO: as above, check
  * - The variable "PrimaryRho", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix PR[ t , a ] which,
- *   for each time instant t and arc a, contains the maximum possible fraction
- *   of active power that can be used as primary reserve. If both dimensions
- *   have size 1 then the entry PR[ 0 , 0 ] gives the maximum possible
- *   fraction of active power that can use as primary reserve for the only one
- *   existing arc for all the time steps. If firs dimension has size 1 then
- *   the entry PR[ 0 , a ] is assumed to contain the maximum
- *   possible fraction of active power that can use as primary reserve of each
- *   arc a for all time instant. Otherwise, two cases may happen such that
- *   both dimensions may have full size or second dimension could have size of
- *   1 then PrimaryRho[ i , a ] (or PrimaryRho[ i , 0 ]) is the fixed value of
- *   PR[ t , a ] (or PR[ t , 0 ]) for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0 and all a. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. This variable is
- *   optional, when it's not present it will not capable of producing any
- *   primary reserve, which correspond to PR[ t , a ] == 0 for all t and a.
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" whereas the second one
+ *   always has size "NumberArcs". This is meant to represent the matrix
+ *   PR[ t , l ] which, for each time instant t and arc l contains the maximum
+ *   possible fraction of active power that can be used as primary reserve.
+ *   This variable is optional, when it's not present it will not capable of
+ *   producing any primary reserve, which correspond to PR[ t , l ] == 0 for
+ *   all t and l. If the first dimension has size 1 then the entry PR[ 0 , l ]
+ *   is assumed to contain the maximum possible fraction of active power that
+ *   can use as primary reserve of each arc l for all time instant. Otherwise,
+ *   the PrimaryRho[ i , l ] is the fixed value of PR[ t , l ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0 and all l. If
+ *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
- * TODO: as above, check
  * - The variable "SecondaryRho", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix SR[ t , a ] which,
- *   for each time instant t and arc a, contains the maximum possible fraction
- *   of active power that can be used as secondary reserve. If both dimensions
- *   have size 1 then the entry SR[ 0 , 0 ] gives the maximum possible
- *   fraction of active power that can use as secondary reserve for the only
- *   one existing arc for all the time steps. If firs dimension has size 1
- *   then the entry SR[ 0 , a ] is assumed to contain the maximum possible
- *   fraction of active power that can use as secondary reserve of each arc a
- *   for all time instant. Otherwise, two cases may happen such that both
- *   dimensions may have full size or second dimension could have size of
- *   1 then SecondaryRho[ i , a ] (or SecondaryRho[ i , 0 ]) is the fixed
- *   value of SR[ t , a ] (or SR[ t , 0 ]) for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0 and all a. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. This variable is
- *   optional, when it's not present it will not capable of producing any
- *   secondary reserve, which correspond to SR[ t , a ] == 0 for all t and a.
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" whereas the second one
+ *   always has size "NumberArcs". This is meant to represent the matrix
+ *   SR[ t , l ] which, for each time instant t and arc l contains the maximum
+ *   possible fraction of active power that can be used as secondary reserve.
+ *   This variable is optional, when it's not present it will not capable of
+ *   producing any primary reserve, which correspond to SR[ t , l ] == 0 for
+ *   all t and l. If the first dimension has size 1 then the entry SR[ 0 , l ]
+ *   is assumed to contain the maximum possible fraction of active power that
+ *   can use as secondary reserve of each arc l for all time instant.
+ *   Otherwise, the SecondaryRho[ i , l ] is the fixed value of SR[ t , l ]
+ *   for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0 and all l. If "NumberIntervals" <= 1 or "NumberIntervals" >=
+ *   "TimeHorizon" then the mapping clearly does not require "ChangeIntervals"
+ *   which in fact is not loaded.
  *
  * - The variable "NumberPieces", indexed over the dimension "NumberArcs".
  *   NumberPieces[ i ] tells how many pieces the concave flow-to-active-power
@@ -434,9 +383,6 @@ class HydroUnitBlock : public UnitBlock {
  *   variable. If, instead, if it is defined, then should always be such that
  *   TotalNumberPieces > NumberArcs.
  *
- *   //TODO NOT SURE THESE TWO SHOULD INDEXED ALSO OVER NumberIntervals??
- *   TODO: no. If you see (99i), P_{j,i} and F_{j,i} do not depend on
- *         t, so the shape of the function do not depend on time
  * - The variable "LinearTerm", of type double and indexed over the set
  *   { 0 , ..., TotalNumberPieces - 1 } (see "NumberPieces"). LinearTerm[ h ]
  *   gives the linear term a_h of the linear function a_h * f + b_h that
@@ -468,30 +414,23 @@ class HydroUnitBlock : public UnitBlock {
  *   concave flow-to-active-power function for some unit; see the comments to
  *   "LinearTerm" for details.
  *
- * TODO: as above, check
  * - The variable "InertiaPower", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". Both dimensions may have
- *   either size 1 or full size("NumberIntervals" and "NumberArcs",
- *   respectively). This is meant to represent the matrix IP[ t , a ] which,
- *   for each time instant t and arc a, contains the contribution that the
- *   unit can give to the inertia constraint which depends on the active power
- *   that it is currently generating (basically, the constant to be multiplied
- *   to the active power variable) at time t for arc a. If both dimensions
- *   have size 1 then the entry IP[ 0 , 0 ] gives the contribution that the
- *   unit can give to the inertia constraint which depends on the active power
- *   that it is currently generating for the only existing arc of all the time
- *   steps. If firs dimension has size 1 then the entry IP[ 0 , a ] is assumed
- *   to contain the the inertia power value for each arc a and all time t.
- *   Otherwise, two cases may happen such that both dimensions may have full
- *   size or second dimension could have size of 1 then InertiaPower[ i , a ]
- *   (or InertiaPower[ i , 0 ]) is the fixed value of IP[ t , a ] (or
- *   IP[ t , 0 ]) for all t in the interval
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" whereas the second one
+ *   always has size "NumberArcs". This is meant to represent the matrix
+ *   IP[ t , l ] which, for each time instant t and arc l, contains the
+ *   contribution that the unit can give to the inertia constraint which
+ *   depends on the active power that it is currently generating (basically,
+ *   the constant to be multiplied to the active power variable) at time t for
+ *   arc l. The variable is optional; if it is not defined, IP[ t , l ] == 0
+ *   for each time instants t and arc l. If first dimension has size 1 then
+ *   the entry IP[ 0 , l ] is assumed to contain the the inertia power value
+ *   for each arc l and all time t. Otherwise, the InertiaPower[ i , l ] is
+ *   the fixed value of IP[ t , l ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0 and all a. If  "NumberIntervals" <= 1 or
+ *   that ChangeIntervals[ - 1 ] = 0 and all l. If  "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. The variable is
- *   optional; if it is not defined, IP[ t , a ] == 0 for each time instants t
- *   and arc a.
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "InitialFlowRate", of type double and indexed over the
  *   dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of the
@@ -502,21 +441,32 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "InitialVolumetric", of type double and indexed over the
  *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the volumes
- *   of water in reservoir r  at time instant -1;
- *
- * TODO: no, this is not even remotely detailed enough. Remember the pictures
- *       in Wim's e-mails, we have to explain very clearly what these are
- *        and what they mean
+ *   of water in reservoir r at time instant -1;
  *
  * - The negative or positive scalar variable "UphillFlow", of type Int64 and
- *   indexed over the dimension "NumberArcs". Each entry UpF[ i ] indicates
- *   the uphill flow delay for each unit(arc) i. This variable is optional, if
- *   it is not provided it is taken to be UpF[ i ] == 0.
+ *   indexed over the dimension "NumberArcs". Each entry UpF[ l ] indicates
+ *   the uphill flow delay for each unit(arc) l. This variable is optional, if
+ *   it is not provided it is taken to be UpF[ l ] == 0.
  *
  * - The positive scalar variable "DownhillFlow", of type UInt64 and indexed
- *   over the dimension "NumberArcs". Each entry DnF[ i ] indicates the
- *   downhill flow delay for each unit(arc) i. This variable is optional, if
- *   it is not provided it is taken to be DnF[ i ] == 0.
+ *   over the dimension "NumberArcs". Each entry DnF[ l ] indicates the
+ *   downhill flow delay for each arc(unit) l. This variable is optional, if
+ *   it is not provided it is taken to be DnF[ l ] == 0.
+ *
+ * Note: by knowing that each hydro arc l is oriented, and could be shown as a
+ * pair of ( StartArc[ l ] , EndArc[ l ] ) in which a positive flow along arc
+ * l (turbine) means that water is being taken away from StartArc[ l ] and
+ * delivered to EndArc[ l ] and a negative flow (pump) means vice-versa.
+ * Consider the graph below:
+ *
+ *   \ n / ==============[TURBINE]================= \ n' /
+ *             UpF[ l ]                DnF[ l ]
+ *
+ * Then the uphill delay corresponds to the delay related to the first portion
+ * of the "=" signs and the downhill delay with the second portion, where for
+ * each arc l, the StartArc[ l ] is corresponded with n (reservoir n) and n'
+ * is considered as the EndArc[ l ] (reservoir n') of the same arc l.
+ *
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -827,22 +777,17 @@ class HydroUnitBlock : public UnitBlock {
 /** The returned value U = get_inertia_power() contains the contribution to
  *  inertia (basically, the constants to be multiplied by the active power
  *  variables returned by get_active_power()) of eac arcs (generators) at each
- *  time instants. There are four possible cases
+ *  time instants. There are three possible cases
  *
  * - if the matrix is empty, then the inertia power is 0;
  *
  * - if the matrix only has one row (i.e., the first dimension has size 1),
- *   then the inertia power for arc (generator) a is U[ 0 , a ] for all t
+ *   then the inertia power for arc (generator) l is U[ 0 , l ] for all t
  *   which means that the second dimension has size get_number_arcs();
  *
- * - if the matrix only has one column (i.e., the second dimension has size
- *   1), then the inertia power for all arcs (generators) at time t is
- *   U[ t , 0 ]; which means that the first dimension has size = the time
- *   horizon;
- *
  * - otherwise, the matrix has size the time horizon per
- *   get_number_arcs(), and U[ t , a ] contains the contribution to
- *   inertia power of arc(generator) a at time instant t. */
+ *   get_number_arcs(), and U[ t , l ] contains the contribution to
+ *   inertia power of arc(generator) l at time instant t. */
  const boost::multi_array< double , 2 > & get_inertia_power() const override {
   return ( v_inertia_power );
  }
@@ -850,17 +795,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of minimum volumetric
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ n , t ] gives the minimum volumetric of the reservoir n at the time
- * instant t. This two-dimensional boost::multi_array<> M considers four
+ * instant t. This two-dimensional boost::multi_array<> M considers three
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no minimum volumetric are
  *    defined, and there are no minimum volumetric constraints;
- *
- *  - if the boost::multi_array<> M has only one row which in this case the
- *    boost::multi_array<> M is a vector with size get_time_horizon() and it
- *    means there exist just one reservoir in the problem. Each element of
- *    M[ 0 , t ] gives the minimum volumetric of the unique reservoir at time
- *    instant t;
  *
  *  - if the boost::multi_array<> M has only one column which in this case the
  *    boost::multi_array<> M is a (transpose of) vector with size
@@ -878,17 +817,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of maximum volumetric
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ n , t ] gives the maximum volumetric of the reservoir n at the time
- * instant t. This two-dimensional boost::multi_array<> M considers four
+ * instant t. This two-dimensional boost::multi_array<> M considers three
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no maximum volumetric are
  *    defined, and there are no minimum volumetric constraints;
- *
- *  - if the boost::multi_array<> M has only one row which in this case the
- *    boost::multi_array<> M is a vector with size get_time_horizon() and it
- *    means there exist just one reservoir in the problem. Each element of
- *    M[ 0 , t ] gives the maximum volumetric of the unique reservoir at time
- *    instant t;
  *
  *  - if the boost::multi_array<> M has only one column which in this case the
  *    boost::multi_array<> M is a (transpose of) vector with size
@@ -906,15 +839,10 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of inflows
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ n , t ] gives the inflows of the reservoir n at the time
- * instant t. This two-dimensional boost::multi_array<> M considers three
+ * instant t. This two-dimensional boost::multi_array<> M considers two
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no inflows are defined;
- *
- *  - if the boost::multi_array<> M has only one row which in this case the
- *    boost::multi_array<> M is a vector with size get_time_horizon() and it
- *    means there exist just one reservoir in the problem. Each element of
- *    M[ 0 , t ] gives the inflows of the unique reservoir at time instant t;
  *
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_number_reservoirs() row where each row must have size of
@@ -927,17 +855,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of minimum power
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the minimum power at each time t associated with unit(arc)
- * i. This two-dimensional boost::multi_array<> M considers four possible
+ * i. This two-dimensional boost::multi_array<> M considers three possible
  * cases:
  *
  *  - if the boost::multi_array<> M is empty() then no minimum power are
  *    defined, and there are no minimum power constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the minimum power of the
- *    problem at time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -954,17 +876,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of maximum power
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the maximum power at each time t associated with unit(arc)
- * i. This two-dimensional boost::multi_array<> M considers four possible
+ * i. This two-dimensional boost::multi_array<> M considers three possible
  * cases:
  *
  *  - if the boost::multi_array<> M is empty() then no maximum power are
  *    defined, and there are no maximum power constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the maximum power of the
- *    problem at time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -981,17 +897,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of minimum flow
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the minimum flow at each time t associated with unit(arc)
- * i. This two-dimensional boost::multi_array<> M considers four possible
+ * i. This two-dimensional boost::multi_array<> M considers three possible
  * cases:
  *
  *  - if the boost::multi_array<> M is empty() then no minimum flow are
  *    defined, and there are no minimum flow constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the minimum flow of the
- *    problem at time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -1008,17 +918,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of maximum flow
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the maximum flow at each time t associated with unit(arc)
- * i. This two-dimensional boost::multi_array<> M considers four possible
+ * i. This two-dimensional boost::multi_array<> M considers three possible
  * cases:
  *
  *  - if the boost::multi_array<> M is empty() then no maximum flow are
  *    defined, and there are no maximum flow constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the maximum flow of the
- *    problem at time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -1035,16 +939,10 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of delta ramp up
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the delta ramp up at each time t associated with unit(arc)
- * i. This two-dimensional boost::multi_array<> M considers four possible
+ * i. This two-dimensional boost::multi_array<> M considers three possible
  * cases:
  *
  *  - if the boost::multi_array<> M is empty() then no ramping constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the delta ramp up value at
- *    time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -1061,16 +959,10 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of delta ramp down
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the delta ramp down at each time t associated with unit
- * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * (arc) i. This two-dimensional boost::multi_array<> M considers three
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no ramping constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the delta ramp down value at
- *    time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -1087,17 +979,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of primary rho
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the primary rho at each time t associated with unit
- * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * (arc) i. This two-dimensional boost::multi_array<> M considers three
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no primary reserve
  *    constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the primary rho value at
- *    time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
@@ -1114,17 +1000,11 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of secondary rho
 /** The method returned a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the secondary rho at each time t associated with unit
- * (arc) i. This two-dimensional boost::multi_array<> M considers four
+ * (arc) i. This two-dimensional boost::multi_array<> M considers three
  * possible cases:
  *
  *  - if the boost::multi_array<> M is empty() then no secondary reserve
  *    constraints;
- *
- *  - if the boost::multi_array<> M has only one column which in this case the
- *    boost::multi_array<> M is a (transpose of) vector with size
- *    get_time_horizon() and it means that just one unit in the problem is
- *    present. Each element of M[ t , 0 ] gives the secondary rho value at
- *    time t and existing unit.
  *
  *  - if the boost::multi_array<> M has only one row which in this case the
  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
