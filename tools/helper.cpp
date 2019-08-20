@@ -10,9 +10,22 @@ void DatFile::generate_bc( std::vector< double > & b, std::vector< double > & c 
  b.resize( TimeHorizon );
  c.resize( TimeHorizon );
 
- for( int t = 0; t < TimeHorizon; ++t ) {
+ for( unsigned int t = 0; t < TimeHorizon; ++t ) {
   b[ t ] = thermal_unit.LinearTerm - Lambda[ t ];
   c[ t ] = thermal_unit.ConstTerm - Mu[ t ];
+ }
+
+ // If all elements are identical, we use only one value
+ if( std::adjacent_find( b.begin(),
+                         b.end(),
+                         std::not_equal_to<>() ) == b.end() ) {
+  b.resize(1);
+ }
+
+ if( std::adjacent_find( c.begin(),
+                         c.end(),
+                         std::not_equal_to<>() ) == c.end() ) {
+  c.resize(1);
  }
 }
 
@@ -37,11 +50,11 @@ void DatFile::load( std::istream & in ) {
  Lambda.resize( TimeHorizon );
  Mu.resize( TimeHorizon );
  in >> skip;
- for( int t = 0; t < TimeHorizon; ++t ) {
+ for( unsigned int t = 0; t < TimeHorizon; ++t ) {
   in >> Lambda[ t ];
  }
  in >> skip;
- for( int t = 0; t < TimeHorizon; ++t ) {
+ for( unsigned int t = 0; t < TimeHorizon; ++t ) {
   in >> Mu[ t ];
  }
 }
@@ -69,12 +82,12 @@ void DatFile::print( std::ostream & out ) const {
      << "BoundDown\t" << thermal_unit.BoundDown << "\n";
 
  out << "Lambda" << "\n";
- for( int t = 0; t < TimeHorizon; ++t ) {
+ for( unsigned int t = 0; t < TimeHorizon; ++t ) {
   out << Lambda[ t ] << " ";
  }
  out << "\n";
  out << "Mu" << "\n";
- for( int t = 0; t < TimeHorizon; ++t ) {
+ for( unsigned int t = 0; t < TimeHorizon; ++t ) {
   out << Mu[ t ] << " ";
  }
  out << "\n";
@@ -134,8 +147,8 @@ void ThermalUnit::print( std::ostream & out ) const {
 }
 
 void ThermalUnit::generate_startupcost() {
- if (coolAndFuelCost != 0 || hotAndFuelCost != 0 ) {
-  throw(std::invalid_argument("Time-dependent start up costs are not allowed"));
+ if( coolAndFuelCost != 0 || hotAndFuelCost != 0 ) {
+  throw ( std::invalid_argument( "Time-dependent start up costs are not allowed" ) );
  }
 
  StartUpCost = fixedCost;
@@ -190,19 +203,19 @@ void ModFile::load( std::istream & in ) {
  // "ThermalSection"
  in >> skip;
  thermal_units.resize( NumThermal );
- for( int i = 0; i < NumThermal; ++i ) {
+ for( unsigned int i = 0; i < NumThermal; ++i ) {
   thermal_units[ i ].load( in );
  }
 
  // "HydroSection"
  in >> skip;
  hydro_units.resize( NumHydro );
- for( int i = 0; i < NumHydro; ++i ) {}
+ for( unsigned int i = 0; i < NumHydro; ++i ) {}
 
  // "HydroCascadeSection"
  in >> skip;
  hydro_cascade_units.resize( NumCascade );
- for( int i = 0; i < NumCascade; ++i ) {}
+ for( unsigned int i = 0; i < NumCascade; ++i ) {}
 }
 
 void ModFile::print( std::ostream & out ) const {
