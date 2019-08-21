@@ -1,10 +1,10 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------- File BEmDUnitBlock.h ---------------------------*/
+/*------------------------- File BatteryUnitBlock.h ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the class BEmDUnitBlock, which derives from UnitBlock [see
- * UnitBlock.h], in order to define a "reasonably standard" battery storage,
- * E-mobility and Distributed storage units in a single class at Unit
+ * Header file for the class BatteryUnitBlock, which derives from UnitBlock
+ * [see UnitBlock.h], in order to define a "reasonably standard" battery
+ * storage, E-mobility and Distributed storage units in a single class at Unit
  * Commitment Problem.
  *
  * \version 0.11
@@ -28,8 +28,8 @@
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#ifndef __BEmDUnitBlock
-#define __BEmDUnitBlock
+#ifndef __BatteryUnitBlock
+#define __BatteryUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -50,33 +50,37 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS BEmDUnitBlock ---------------------------*/
+/*------------------------- CLASS BatteryUnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for the BEnD units problem
-/** The BEmDUnitBlock class implements the Block concept [see Block.h] for a
- * "reasonably standard" battery storage, E-mobility and Distributed storage
- * units in a single class at unit commitment Problem. That is, the class is
- * designed in order to give mathematical formulation to describe the
- * operation of large set of battery storage, E-mobility and Distributed
- * storage units. Battery storages provide an additional flexibility to the
- * system by shifting a surplus of electric energy (e.g. due to high renewable
- * feedin) to times with high demand or lower renewable generation. The
- * distributed battery storages can be aggregated in the energy cells or
- * directly placed in a single node of the network. We will therefore not
- * stress this dependency in the subsequent equations. We emphasize that
- * potential contribution of batteries to inertia is still a subject of active
- * research and should be considered as optional. Besides, since the transport
- * sector is moving towards electrification, electric mobility will have a
- * rising impact on the electricity system. First, electricity demand is
- * growing due to a higher amount of electric vehicles that need to be
- * charged. On the other hand, vehicles are used only a small amount of time
- * while being charged over a much longer timespan (e.g. at night). This
- * allows to shift the charging process in time and provide this flexibility
- * to the overall energy system by means of an additional generator
- * (vehicle-to-grid) or an additional load (power-to-vehicle). Two main
- * differences between battery storages unit and E-mobility units are:
+/// implementation of the Block concept for the BatteryUnits problem
+/** The BatteryUnitBlock class implements the Block concept [see Block.h] for
+ * a "reasonably standard" battery storage, E-mobility and Distributed storage
+ * units in a single class at unit commitment Problem. BatteryUnit provides a
+ * quite general concept of battery that covers different use cases, comprised
+ * e-mobility. For instance, it may or may not have a fixed demand (e-mobility
+ * has, storage hasn't) and it may or may not provide reserve (storage does,
+ * e-mobility don't). Then that is, the class is designed in order to give
+ * mathematical formulation to describe the operation of large set of battery
+ * storage, E-mobility and Distributed storage units. Battery storages provide
+ * an additional flexibility to the system by shifting a surplus of electric
+ * energy (e.g. due to high renewable feedin) to times with high demand or
+ * lower renewable generation. The distributed battery storages can be
+ * aggregated in the energy cells or directly placed in a single node of the
+ * network. We will therefore not stress this dependency in the subsequent
+ * equations. We emphasize that potential contribution of batteries to inertia
+ * is still a subject of active research and should be considered as optional.
+ * Besides, since the transport sector is moving towards electrification,
+ * electric mobility will have a rising impact on the electricity system.
+ * First, electricity demand is growing due to a higher amount of electric
+ * vehicles that need to be charged. On the other hand, vehicles are used only
+ * a small amount of time while being charged over a much longer timespan
+ * (e.g. at night). This allows to shift the charging process in time and
+ * provide this flexibility to the overall energy system by means of an
+ * additional generator (vehicle-to-grid) or an additional load
+ * (power-to-vehicle). Two main differences between battery storages unit and
+ * E-mobility units are:
  * - Battery storages unit can do primary and secondary reserve, while
  *   E-mobility unit cannot.
  *
@@ -88,8 +92,8 @@ namespace SMSpp_di_unipi_it {
  * one provided for battery storages unit. The specificity of distributed
  * storage only relies on the fact that it is connected to a distribution grid
  * node.
- * To model the BEmDUnitBlock systems several technical parameters have to be
- * considered. These are divided into the battery storage level parameters,
+ * To model the BatteryUnitBlock systems several technical parameters have to
+ * be considered. These are divided into the battery storage level parameters,
  * the ramping parameters, the active power bound parameters, and a flexible
  * electric demand that provides flexibility to the overall system while
  * accounting for storage level constraints. The technical and physical
@@ -108,7 +112,7 @@ namespace SMSpp_di_unipi_it {
  * - analogous variables relation with intake and outtake level constraints;
  *
  * - the demand constraints(for E-mobility).*/
-class BEmDUnitBlock : public UnitBlock {
+class BatteryUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -127,18 +131,18 @@ class BEmDUnitBlock : public UnitBlock {
  *  @{ */
 
 /// constructor, takes the father and the time horizon
-/** Constructor of BEmDUnitBlock, taking possibly a pointer of its father
+/** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
  * Block.
  */
 
- explicit BEmDUnitBlock( Block * f_block = nullptr , Index t = 0):
+ explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0):
          UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
 
-/// destructor of BEmDUnitBlock
+/// destructor of BatteryUnitBlock
 
- ~BEmDUnitBlock() override = default;
+ ~BatteryUnitBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -147,7 +151,7 @@ class BEmDUnitBlock : public UnitBlock {
  *  @{ */
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the BEmDUnitBlock. Besides the mandatory "type" attribute of any
+ * the BatteryUnitBlock. Besides the mandatory "type" attribute of any
  * :Block, the group must contain all the data required by the base UnitBlock,
  * as described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
  * In particular, we refer to that description for the crucial dimensions
@@ -201,6 +205,13 @@ class BEmDUnitBlock : public UnitBlock {
  *   MaxP[ t ] >= MinP[ t ] for all t. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The scalar variable "InitialPower", of type double and not indexed over
+ *   any dimension. This variable indicates the amount of the power that the
+ *   unit was producing at time instant -1, i.e., before the start of the
+ *   time horizon; this is necessary to compute the ramp-up and ramp-down
+ *   constraints. This variable is optional; if it is not provided then it's
+ *   taken to be zero and it means there is no ramping constraints.
  *
  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
@@ -258,7 +269,7 @@ class BEmDUnitBlock : public UnitBlock {
  *   inefficiency of storing energy in the battery storage (if any) of the unit
  *   for the corresponding time step. This variable is optional; if it is not
  *   provided then it is assumed that this unit may not be capable of having
- *   any storing energy levels, which correspond to SBR[ t ] == 0 for all t.
+ *   any storing energy levels, which correspond to SBR[ t ] == 1 for all t.
  *   If "StoringBatteryRho" has length 1 then SBR[ t ] contains the same value
  *   for all t. Otherwise, StoringBatteryRho[ i ] is the fixed value of
  *   SBR[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
@@ -276,7 +287,7 @@ class BEmDUnitBlock : public UnitBlock {
  *   inefficiency of extracting energy in the battery storage (if any) of the
  *   unit for the corresponding time step. This variable is optional; if it is
  *   not provided then it is assumed that this unit may not be capable of
- *   having any extracting energy levels, which correspond to EBR[ t ] == 0
+ *   having any extracting energy levels, which correspond to EBR[ t ] == 1
  *   for all t. If "ExtractingBatterRho" has length 1 then EBR[ t ] contains
  *   the same value for all t. Otherwise, ExtractingBatterRho[ i ] is the
  *   fixed value of EBR[ t ] for all t in the interval
@@ -321,19 +332,20 @@ class BEmDUnitBlock : public UnitBlock {
  *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "EMobilityDemand", of type double and indexed over the
- *   dimension "TimeHorizon": entry EMobilityDemand[ t ] is assumed to contain
- *   the energy needed to discharge of a battery in the time t for the
- *   E-mobilityUnitBlock. To recover the BatteryStorageUnitBlock, and
- *   DistributedStorageUnitBlock it's enough to put EMobilityDemand[ t ] == 0
- *   for each time instant t.
+ * - The variable "Demand", of type double and indexed over the dimension
+ *   "TimeHorizon": entry Demand[ t ] is assumed to contain the energy needed
+ *   to discharge of a battery in the time t for the E-mobilityUnitBlock. This
+ *   variable is optional; if it is not provided then it's taken to be zero
+ *   for all t. To recover the BatteryStorageUnitBlock, and
+ *   DistributedStorageUnitBlock it's enough to put Demand[ t ] == 0 for each
+ *   time instant t.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the BEmDUnitBlock
-/** The BEmDUnitBlock class use get_variable() method to access to
+/// generate the abstract variables of the BatteryUnitBlock
+/** The BatteryUnitBlock class use get_variable() method to access to
  *  each "group" of variable that may create in UnitBlock class which are:
  *
  *  - the primary spinning reserve variables;
@@ -345,7 +357,7 @@ class BEmDUnitBlock : public UnitBlock {
  *  All of those variables are optional except the active power variables in
  *  the sense that the model may just not have them and whenever a group of
  *  above variables is created, its size will be the time horizon. Moreover,
- *  BEmDUnitBlock is defined four more groups of variables as
+ *  BatteryUnitBlock is defined four more groups of variables as
  *  follow:
  *
  *  - the storage level variables;
@@ -366,9 +378,9 @@ class BEmDUnitBlock : public UnitBlock {
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the static constraint of the BEmDUnitBlock
+/// generate the static constraint of the BatteryUnitBlock
 /** Method that generates the static constraint of the
- * BEmDUnitBlock. The operations of the battery storage unit are
+ * BatteryUnitBlock. The operations of the battery storage unit are
  * described on a discrete time horizon as dictated by the UnitBlock
  * interface. In this description we indicate it with
  * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. The main battery
@@ -475,9 +487,9 @@ class BEmDUnitBlock : public UnitBlock {
 */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective of the BEmDUnitBlock
-/** Method that generates the objective of the BEmDUnitBlock.
- * - Objective function: the objective function of the BEmDUnitBlock
+/// generate the objective of the BatteryUnitBlock
+/** Method that generates the objective of the BatteryUnitBlock.
+ * - Objective function: the objective function of the BatteryUnitBlock
  *   is given as follow:
  *
  *   \f[
@@ -489,9 +501,9 @@ class BEmDUnitBlock : public UnitBlock {
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE BEmDUnitBlock -------------*/
+/*--------- METHODS FOR READING THE DATA OF THE BatteryUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the BEmDUnitBlock
+/** @name Reading the data of the BatteryUnitBlock
  *
  * These methods allow to read data that must be common to (in principle) all
  * the kind of battery storage units
@@ -499,6 +511,9 @@ class BEmDUnitBlock : public UnitBlock {
 
  /// Returns the initial storage value
  double get_initial_storage() const { return f_initial_storage; }
+
+ /// Returns the initial power value
+ double get_initial_power() const { return f_initial_power; }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of minimum storage
 /** The method returned a std::vector< double > V and each element of V
@@ -675,13 +690,13 @@ class BEmDUnitBlock : public UnitBlock {
   return( v_demand);
  }
 /**@} ----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE Variable OF THE BEmDUnitBlock ---------*/
+/*-------- METHODS FOR READING THE Variable OF THE BatteryUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Reading the Variable of the BEmDUnitBlock
+/** @name Reading the Variable of the BatteryUnitBlock
  *
  * These methods allow to read the two groups of Variable that any
- * BEmDUnitBlock in principle has (although some may not):
+ * BatteryUnitBlock in principle has (although some may not):
  *
  * - the storage level variables
  *
@@ -733,28 +748,27 @@ class BEmDUnitBlock : public UnitBlock {
   return v_outtake_level;
  }
 /**@} ----------------------------------------------------------------------*/
-/*------------------ METHODS FOR SAVING THE BEmDUnitBlock-------------------*/
+/*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the BEmDUnitBlock
+/** @name Methods for loading, printing & saving the BatteryUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * BEmDUnitBlock. See
- * BEmDUnitBlock::deserialize( netCDF::NcGroup ) for details of the
- * format of the created netCDF group. */
+ * BatteryUnitBlock. See BatteryUnitBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*----------------- METHODS FOR INITIALIZING THE BEmDUnitBlock -------------*/
+/*--------------- METHODS FOR INITIALIZING THE BatteryUnitBlock ------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Handling the data of the BEmDUnitBlock
+/** @name Handling the data of the BatteryUnitBlock
     @{ */
 
  void load( std::istream & input ) override {
-  throw ( std::logic_error( "BEmDUnitBlock::load() not "
+  throw ( std::logic_error( "BatteryUnitBlock::load() not "
                             "implemented yet") );
  };
 
@@ -798,6 +812,9 @@ class BEmDUnitBlock : public UnitBlock {
 
  /// the InitialStorage value
  double f_initial_storage;
+
+ /// the InitialPower value
+ double f_initial_power;
 
  /// the vector of e-mobility rho
  std::vector< double >  v_emobility_rho;
@@ -865,7 +882,7 @@ class BEmDUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BEmDUnitBlock ) )
+};  // end( class( BatteryUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -875,8 +892,8 @@ class BEmDUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* BEmDUnitBlock.h included */
+#endif /* BatteryUnitBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ End File BEmDUnitBlock.h ------------------------*/
+/*---------------------- End File BatteryUnitBlock.h -----------------------*/
 /*--------------------------------------------------------------------------*/
