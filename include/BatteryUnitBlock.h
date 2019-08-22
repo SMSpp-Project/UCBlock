@@ -151,10 +151,10 @@ class BatteryUnitBlock : public UnitBlock {
  *  @{ */
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the BatteryUnitBlock. Besides the mandatory "type" attribute of any
- * :Block, the group must contain all the data required by the base UnitBlock,
- * as described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
- * In particular, we refer to that description for the crucial dimensions
+ * the BatteryUnitBlock. Besides the mandatory "type" attribute of any :Block,
+ * the group must contain all the data required by the base UnitBlock, as
+ * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ). In
+ * particular, we refer to that description for the crucial dimensions
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
  *
@@ -208,10 +208,13 @@ class BatteryUnitBlock : public UnitBlock {
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
- *   unit was producing at time instant -1, i.e., before the start of the
- *   time horizon; this is necessary to compute the ramp-up and ramp-down
- *   constraints. This variable is optional; if it is not provided then it's
- *   taken to be zero and it means there is no ramping constraints.
+ *   unit was producing at time instant -1, i.e., before the start of the time
+ *   horizon; this is necessary to compute the ramp-up and ramp-down
+ *   constraints. This variable is optional; if "DeltaRampUp" and
+ *   "DeltaRampDown" are not present, "InitialPower" should not be read and it
+ *   means there are no ramping constraints. If "DeltaRampUp" and
+ *   "DeltaRampDown" are present but "InitialPower" is not provided, its
+ *   initial value is taken to be 0.
  *
  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
@@ -334,11 +337,10 @@ class BatteryUnitBlock : public UnitBlock {
  *
  * - The variable "Demand", of type double and indexed over the dimension
  *   "TimeHorizon": entry Demand[ t ] is assumed to contain the energy needed
- *   to discharge of a battery in the time t for the E-mobilityUnitBlock. This
+ *   to discharge of a battery in the time t for the E-mobility units. This
  *   variable is optional; if it is not provided then it's taken to be zero
- *   for all t. To recover the BatteryStorageUnitBlock, and
- *   DistributedStorageUnitBlock it's enough to put Demand[ t ] == 0 for each
- *   time instant t.
+ *   for all t. To recover the Battery Storage Unit, and Distributed Storage
+ *   Unit it's enough to put Demand[ t ] == 0 for each time instant t.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
