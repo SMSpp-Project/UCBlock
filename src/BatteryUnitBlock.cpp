@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*----------------- File BatteryStorageUnitBlock.cpp -----------------------*/
+/*----------------- File BatteryUnitBlock.cpp -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the BatteryStorageUnitBlock class.
@@ -33,7 +33,7 @@
 
 #include <iostream>
 #include <random>
-#include "BatteryStorageUnitBlock.h"
+#include "BatteryUnitBlock.h"
 #include "LinearFunction.h"
 #include <map>
 #include "FRowConstraint.h"
@@ -53,63 +53,63 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register BatteryStorageUnitBlock to the Block factory
+// register BatteryUnitBlock to the Block factory
 
 
-SMSpp_insert_in_factory_cpp_1( BatteryStorageUnitBlock );
+SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*------------------- METHODS OF BatteryStorageUnitBlock -------------------*/
+/*------------------- METHODS OF BatteryUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void BatteryStorageUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
  //TODO
 
-}// end( BatteryStorageUnitBlock::deserialize )
+}// end( BatteryUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryStorageUnitBlock::generate_abstract_variables
+void BatteryUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
  UnitBlock::generate_abstract_variables( stvv );
 
 
 
-} // end( BatteryStorageUnitBlock::generate_abstract_variables )
+} // end( BatteryUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryStorageUnitBlock::generate_abstract_constraints
+void BatteryUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
 
 
-} // end( BatteryStorageUnitBlock::generate_abstract_constraints )
+} // end( BatteryUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryStorageUnitBlock::generate_objective( Configuration *objc )
+void BatteryUnitBlock::generate_objective( Configuration *objc )
 {
  if( get_objective() == nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
 // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
  //TODO
-}  // end( BatteryStorageUnitBlock::generate_objective )
+}  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE BatteryStorageUnitBlock ---*/
+/*--- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ---*/
 /*--------------------------------------------------------------------------*/
 
-void BatteryStorageUnitBlock::serialize( netCDF::NcGroup & group ) const {
+void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
-}  // end( BatteryStorageUnitBlock::serialize )
+}  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
-/*------------- End File BatteryStorageUnitBlock.cpp -----------------------*/
+/*------------- End File BatteryUnitBlock.cpp -----------------------*/
 /*--------------------------------------------------------------------------*/
