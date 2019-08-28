@@ -72,16 +72,75 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
+ if (group.getVar( "MinPower").getAttCount() == 0 ) {
+  v_MinPower.resize(1);
+  ::deserialize( group, "MinPower",         & v_MinPower[0] );
+ } else{
   ::deserialize( group, "MinPower",      f_number_intervals, v_MinPower );
+ }
+
+ if (group.getVar( "MaxPower").getAttCount() == 0 ) {
+  v_MaxPower.resize(1);
+  ::deserialize( group, "MaxPower",         & v_MaxPower[0] );
+ } else{
   ::deserialize( group, "MaxPower",      f_number_intervals, v_MaxPower );
+ }
+
+ if (group.getVar( "DeltaRampUp").getAttCount() == 0 ) {
+  v_DeltaRampUp.resize(1);
+  ::deserialize( group, "DeltaRampUp",         & v_DeltaRampUp[0] );
+ } else{
   ::deserialize( group, "DeltaRampUp",   f_number_intervals, v_DeltaRampUp );
-  ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown );
+ }
+
+ if (group.getVar( "DeltaRampDown").getAttCount() == 0 ) {
+  v_DeltaRampDown.resize(1);
+  ::deserialize( group, "DeltaRampDown",         & v_DeltaRampDown[0] );
+ } else{
+  ::deserialize( group, "DeltaRampDown",   f_number_intervals, v_DeltaRampDown );
+ }
+
+ if (group.getVar( "PrimaryRho").getAttCount() == 0 ) {
+  v_PrimaryRho.resize(1);
+  ::deserialize( group, "PrimaryRho",         & v_PrimaryRho[0] );
+ } else{
   ::deserialize( group, "PrimaryRho",    f_number_intervals, v_PrimaryRho );
+ }
+
+ if (group.getVar( "SecondaryRho").getAttCount() == 0 ) {
+  v_SecondaryRho.resize(1);
+  ::deserialize( group, "SecondaryRho",         & v_SecondaryRho[0] );
+ } else{
   ::deserialize( group, "SecondaryRho",  f_number_intervals, v_SecondaryRho );
+ }
+
+ if (group.getVar( "LinearTerm").getAttCount() == 0 ) {
+  v_LinearTerm.resize(1);
+  ::deserialize( group, "LinearTerm",         & v_LinearTerm[0] );
+ } else{
   ::deserialize( group, "LinearTerm",    f_number_intervals, v_LinearTerm );
+ }
+
+ if (group.getVar( "QuadTerm").getAttCount() == 0 ) {
+  v_QuadTerm.resize(1);
+  ::deserialize( group, "QuadTerm",         & v_QuadTerm[0] );
+ } else{
   ::deserialize( group, "QuadTerm",      f_number_intervals, v_QuadTerm );
+ }
+
+ if (group.getVar( "ConstTerm").getAttCount() == 0 ) {
+  v_ConstTerm.resize(1);
+  ::deserialize( group, "ConstTerm",         & v_ConstTerm[0] );
+ } else{
   ::deserialize( group, "ConstTerm",     f_number_intervals, v_ConstTerm );
+ }
+
+ if (group.getVar( "StartUpCost").getAttCount() == 0 ) {
+  v_StartUpCost.resize(1);
+  ::deserialize( group, "StartUpCost",         & v_StartUpCost[0] );
+ } else{
   ::deserialize( group, "StartUpCost",   f_number_intervals,  v_StartUpCost );
+ }
 
   ::deserialize( group, "InitialPower",         & f_initial_power );
   ::deserialize( group, "MinUpTime",            & f_MinUpTime );
