@@ -261,7 +261,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "Inflows", of type double and indexed over both dimensions
  *   "NumberReservoirs" and "TimeHorizon". This is meant to represent the
- *   matrix InF[ r , t ] which, for each reservoir r at each time instant t
+ *   matrix InF[ r , t ] which, for each reservoir r at the end of time step t
  *   contains the amount of water that "naturally" goes to reservoir r
  *   (because of rain, ice melting, non-controlled rivers flowing, and of
  *   course net of water leaving by evaporation, human consumption etc.) at
@@ -545,7 +545,7 @@ class HydroUnitBlock : public UnitBlock {
  * artificially splitting the unit into “two units”, which should be done at
  * the data processing stage (see deserialize() comments). With above
  * description the mathematical constraint of hydro unit may present as below:
- *  //TODO AT THE END, I SHOULD EXPLAIN WElL EACH CONSTRAINT
+ *
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves are are presented in (1)-(2). Each of them
  *   is a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
@@ -683,7 +683,7 @@ class HydroUnitBlock : public UnitBlock {
  *   r = 0, ...,f_number_reservoirs - 1 and z = 0, ...,f_time_horizon - 1
  *   \f[
  *
- *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + 3600 A_{n,t-1} +
+ *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + 3600 A_{n,t} +
  *      3600 (\sum_{n' \in \mathcal{A}(n)}\sum_{ l \in \mathcal{L}^{hy} }
  *      f_{t - \tau^{dn}_l} - \sum_{n' \in \mathcal{F}(n)}
  *      \sum_{ l \in \mathcal{L}^{hy} } f_{t - \tau^{up}_l})
@@ -709,19 +709,8 @@ class HydroUnitBlock : public UnitBlock {
 /// generate the objective function of the HydroUnitBlock
 /** Method that generates the objective function of the HydroUnitBlock.
  *  //TODO I SHOULD CHECK IF IT IS OK
- * - Objective function: the objective function of the HydroUnitBlock
- *   is given by a cutting plane model as a function of flow rate which has
- *   the form:
- *
- *   \f[
- *     \min ( \sum_{ j \in  [0 , \mathcal{J}]  } \sum_{ t \in \mathcal{T}  }
- *     ( P_j + \rho_j f_{t,j}) )
- *   \f]
- *
- *   where \f$ P_j \f$, and \f$ \rho_j \f$ are the constant and linear terms
- *   of the cutting plane model that describes the power as a concave function
- *   to flow rate and \f$ \mathcal{J}\f$ is the set of total number of pieces
- *   in the concave function. */
+ * - Objective function: there isn't defined any objective function for the
+ *   HydroUnitBlock. */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
