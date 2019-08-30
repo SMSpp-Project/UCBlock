@@ -3,13 +3,12 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class IntermittentGenerationUnitBlock, which derives
- * from
- * UnitBlock [see UnitBlock.h], in order to define a "reasonably standard"
- * Intermittent Generation unit at Unit Commitment Problem.
+ * from UnitBlock [see UnitBlock.h], in order to define a "reasonably
+ * standard" Intermittent Generation unit at Unit Commitment Problem.
  *
  * \version 0.11
  *
- * \date 25 - 07 - 2019
+ * \date 30 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -51,12 +50,12 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for the IntermittentGenerationUnitBlock unit problem
+/// implementation of the Block concept for the Intermittent Generation unit
 /** The IntermittentGenerationUnitBlock class implements the Block concept
- * [see Block.h] for a "reasonably standard" IntermittentGenerationUnitBlock unit of a Unit
- * Commitment Problem. That is, the class is designed in order to give
- * mathematical formulation to describe the operation of large set of
- * IntermittentGenerationUnitBlock  //todo
+ * [see Block.h] for a "reasonably standard" Intermittent Generation and
+ * Distributed generation units in a single unit of the unit commitment
+ * Problem. That is, the class is designed in order to give mathematical
+ * formulation to describe the operation of large set of Intermittent GenerationUnitBlock  //todo
  * The technical and physical constraints are mainly divided in ?? different
  * categories:
  * - ??
@@ -109,8 +108,37 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
  * In particular, we refer to that description for the crucial dimensions
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
- * //TODO Does
  *
+ * - The variable "MinPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MinP[ t ] that, for each time instant t, contains the minimum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
+ *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0.  If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. Note that it must
+ *   be MxP[ t ] >= MnP[ t ] >= 0 for all t, and when MxP[ t ] == MnP[ t ] the
+ *   unit cannot be curtailed and cannot provide any reserve.
+ *
+ * - The variable "MaxPower", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals". This is meant to represent the
+ *   vector MaxP[ t ] that, for each time instant t, contains the maximum
+ *   active power output value of the unit for the corresponding time step.
+ *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
+ *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. Note that it must
+ *   be MxP[ t ] >= MnP[ t ] >= 0 for all t, and when MxP[ t ] == MnP[ t ] the
+ *   unit cannot be curtailed and cannot provide any reserve.
+ *
+ * - The scalar variable "Gama", of type double and not indexed over
+ *   any dimension. This variable is used to take into account an uncertainty
+ *   on the maximal potential production. Note that it must be 0 >= Gama >= 1;
+ *   when Gama == 0, the unit does not provide any reserve.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;

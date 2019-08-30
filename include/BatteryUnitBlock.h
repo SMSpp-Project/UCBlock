@@ -3,13 +3,14 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class BatteryUnitBlock, which derives from UnitBlock
- * [see UnitBlock.h], in order to define a "reasonably standard" battery
- * storage, E-mobility and Distributed storage units in a single class at Unit
- * Commitment Problem.
+ * [see UnitBlock.h], in order to define a "reasonably standard" Battery
+ * storage, E-mobility, Centralized demand response, Distributed load
+ * management, Distributed storage, and Power to gas units in a single class
+ * at Unit commitment problem.
  *
  * \version 0.11
  *
- * \date 21 - 08 - 2019
+ * \date 29 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -54,27 +55,29 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for the BatteryUnits problem
+/// implementation of the Block concept for the BatteryUnit problem
 /** The BatteryUnitBlock class implements the Block concept [see Block.h] for
- * a "reasonably standard" battery storage, E-mobility and Distributed storage
- * units in a single class at unit commitment Problem. BatteryUnit provides a
- * quite general concept of battery that covers different use cases, comprised
- * e-mobility. For instance, it may or may not have a fixed demand (e-mobility
- * has, storage hasn't) and it may or may not provide reserve (storage does,
- * e-mobility don't). Then that is, the class is designed in order to give
- * mathematical formulation to describe the operation of large set of battery
- * storage, E-mobility and Distributed storage units. Battery storages provide
- * an additional flexibility to the system by shifting a surplus of electric
- * energy (e.g. due to high renewable feedin) to times with high demand or
- * lower renewable generation. The distributed battery storages can be
- * aggregated in the energy cells or directly placed in a single node of the
- * network. We will therefore not stress this dependency in the subsequent
- * equations. We emphasize that potential contribution of batteries to inertia
- * is still a subject of active research and should be considered as optional.
- * Besides, since the transport sector is moving towards electrification,
- * electric mobility will have a rising impact on the electricity system.
- * First, electricity demand is growing due to a higher amount of electric
- * vehicles that need to be charged. On the other hand, vehicles are used only
+ * a "reasonably standard" Battery storage, E-mobility, Centralized demand
+ * response, Distributed load management, Distributed storage, and Power to
+ * gas units in a single class at unit commitment Problem. In the other word,
+ * BatteryUnitBlock provides a quite general concept of battery that covers
+ * different use cases comprised of several units which are mostly fit the
+ * same mathematical equations pattern. For instance, it may or may not have a
+ * fixed demand (e-mobility has, other units have not) and it may or may not
+ * provide primary and secondary reserve (Battery storage does, but other
+ * units don't). Then that is, the class is designed in order to give
+ * mathematical formulation to describe the operation of large set of several
+ * units. Battery storage provide an additional flexibility to the system by
+ * shifting a surplus of electric energy (e.g. due to high renewable feeding)
+ * to times with high demand or lower renewable generation. The distributed
+ * battery storage can be aggregated in the energy cells or directly placed in
+ * a single node of the network. We will therefore not stress this dependency
+ * in the subsequent equations. We emphasize that potential contribution of
+ * batteries to inertia is still a subject of active research and should be
+ * considered as optional. Besides, since the transport sector is moving
+ * towards electrification, electric mobility will have a rising impact on the
+ * electricity system. First, electricity demand is growing due to a higher
+ * amount of electric vehicles that need to be charged. On the other hand, vehicles are used only
  * a small amount of time while being charged over a much longer timespan
  * (e.g. at night). This allows to shift the charging process in time and
  * provide this flexibility to the overall energy system by means of an
@@ -220,19 +223,18 @@ class BatteryUnitBlock : public UnitBlock {
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector MaxPP[ t ] that, for each time instant t, contains the maximum
  *   active power that can be used as primary reserve of the unit for the
- *   corresponding time step. To recover the BatteryStorageUnitBlock, and
- *   DistributedStorageUnitBlock it's enough to put it as
- *   MaxPP[ t ] == MaxSP[ t ] == MaxP[ t ] for each  time instant t, whereas to
- *   recover E-mobilityUnitBlocks  MaxPP[ t ] == MaxSP[ t ] == 0.
+ *   corresponding time step. This value is optional, if it defines it must be
+ *   equal to maximum power MaxPP[ t ] == MaxP[ t ] for each time instant t,
+ *   otherwise, it is taken to be zero for all t MaxPP[ t ] == 0.
  *
  * - The variable "MaxSecondaryPower", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector MaxSP[ t ] that, for each time instant t, contains the maximum
  *   active power that can be used as secondary reserve of the unit for the
- *   corresponding time step. To recover the BatteryStorageUnitBlock, and
- *   DistributedStorageUnitBlock it's enough to put it as
- *   MaxSP[ t ] == MaxPP[ t ] == MaxP[ t ] for each  time instant t, whereas to
- *   recover E-mobilityUnitBlocks  MaxSP[ t ] == MaxPP[ t ] == 0.
+ *   corresponding time step. This value is optional, if it defines it must be
+ *   equal to maximum power MaxSP[ t ] == MaxP[ t ] for each time instant t,
+ *   otherwise, it is taken to be zero for all t MaxSP[ t ] == 0. Note that
+ *   for each t it should be always MaxSP[ t ] == MaxPP[ t ].
  *
  * - The variable "DeltaRampUp", of type double and either of size 1 or indexed
  *   over the dimension "NumberIntervals". This is meant to represent the
@@ -269,39 +271,38 @@ class BatteryUnitBlock : public UnitBlock {
  * - The variable "StoringBatteryRho", of type double and to be either of size
  *   1 or indexed over the dimension "NumberIntervals". This is meant to
  *   represent the vector SBR[ t ] that, for each time instant t, contains the
- *   inefficiency of storing energy in the battery storage (if any) of the unit
- *   for the corresponding time step. This variable is optional; if it is not
- *   provided then it is assumed that this unit may not be capable of having
- *   any storing energy levels, which correspond to SBR[ t ] == 1 for all t.
- *   If "StoringBatteryRho" has length 1 then SBR[ t ] contains the same value
- *   for all t. Otherwise, StoringBatteryRho[ i ] is the fixed value of
- *   SBR[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ - 1 ] =
- *   0. Note that it must be always such that EBR[ t ] <= 1 <= SBR[ t ], for
- *   all t. If EBR[ t ] == SBR[ t ] == 1, the storing/extracting energy level
- *   relation with the binary analogous variable constraints (equation (9-10))
- *   are not needed to be define. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   inefficiency of storing energy of the unit for the corresponding time step.
+ *   This variable is optional; if it is not provided then it is assumed that
+ *   this unit may not be capable of having any storing energy levels, which
+ *   correspond to SBR[ t ] == 1 for all t. If "StoringBatteryRho" has length
+ *   1 then SBR[ t ] contains the same value for all t. Otherwise,
+ *   StoringBatteryRho[ i ] is the fixed value of SBR[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
+ *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If EBR[ t ] == SBR[ t ]
+ *   == 1, the storing/extracting energy level relation with the binary
+ *   analogous variable constraints (equation (9-10)) are not needed to be
+ *   define. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
  * - The variable "ExtractingBatterRho", of type double and to be either of
  *   size 1 or indexed over the dimension "NumberIntervals". This is meant to
  *   represent the vector EBR[ t ] that, for each time instant t, contains the
- *   inefficiency of extracting energy in the battery storage (if any) of the
- *   unit for the corresponding time step. This variable is optional; if it is
- *   not provided then it is assumed that this unit may not be capable of
- *   having any extracting energy levels, which correspond to EBR[ t ] == 1
- *   for all t. If "ExtractingBatterRho" has length 1 then EBR[ t ] contains
- *   the same value for all t. Otherwise, ExtractingBatterRho[ i ] is the
- *   fixed value of EBR[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. Note that it must be always such that
- *   EBR[ t ] <= 1 <= SBR[ t ], for all t. If EBR[ t ] == SBR[ t ] == 1, the
- *   storing/extracting energy level relation with the binary analogous
- *   variable constraints (equation (9-10)) are not needed to be define. If
- *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ *   inefficiency of extracting energy of the unit for the corresponding time
+ *   step. This variable is optional; if it is not provided then it is assumed
+ *   that this unit may not be capable of having any extracting energy levels,
+ *   which correspond to EBR[ t ] == 1 for all t. If "ExtractingBatterRho" has
+ *   length 1 then EBR[ t ] contains the same value for all t. Otherwise,
+ *   ExtractingBatterRho[ i ] is the fixed value of EBR[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
+ *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If EBR[ t ] == SBR[ t ]
+ *   == 1, the storing/extracting energy level relation with the binary
+ *   analogous variable constraints (equation (9-10)) are not needed to be
+ *   define. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
  * - The scalar variable "InitialStorage", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the storage level
@@ -312,35 +313,21 @@ class BatteryUnitBlock : public UnitBlock {
  * - The variable "Cost", of type double and either of size 1 or indexed over
  *   the dimension "NumberIntervals". This is meant to represent the vector
  *   C[ t ] that, for each time instant t, contains the certain proportion
- *   cost of the unit for the corresponding time step. If "Cost" has length 1
- *   then C[ t ] contains the same value for all t. Otherwise, Cost[ i ] is
- *   the fixed value of C[ t ] for all t in the interval
+ *   cost of the unit for the corresponding time step. This variable is
+ *   optional; if it is not provided then it's assume that this unit may not
+ *   be capable of minimize the cost and it's taken to be zero. If "Cost" has
+ *   length 1 then C[ t ] contains the same value for all t. Otherwise,
+ *   Cost[ i ] is the fixed value of C[ t ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be C[ t ] >= 0 for all
  *   t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
- * - The variable "EMobilityRho", of type double and to be either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector EMR[ t ] that, for each time instant t, contains the possible
- *   fraction of storage level that can be used as charging/discharging of
- *   the unit for the corresponding time step. This variable is optional; if
- *   it is not provided then it is assumed that this unit may not be capable
- *   of charging/discharging, which correspond to EMR[ t ] == 0 for all t. If
- *   "EMobilityRho" has length 1 then EMR[ t ] contains the same value for all
- *   t. Otherwise, EMobilityRho[ i ] is the fixed value of EMR[ t ] for all t
- *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
- *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
  * - The variable "Demand", of type double and indexed over the dimension
  *   "TimeHorizon": entry Demand[ t ] is assumed to contain the energy needed
- *   to discharge of a battery in the time t for the E-mobility units. This
- *   variable is optional; if it is not provided then it's taken to be zero
- *   for all t. To recover the Battery Storage Unit, and Distributed Storage
- *   Unit it's enough to put Demand[ t ] == 0 for each time instant t.
+ *   to discharge of a battery. This variable is optional; if it is not
+ *   presented then Demand[ t ] == 0 for each time instant t.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -662,22 +649,7 @@ class BatteryUnitBlock : public UnitBlock {
  const std::vector< double > & get_cost() const {
   return( v_cost );
  }
-/*--------------------------------------------------------------------------*/
-/// returns the vector of E-mobility rho
-/** The method returned a std::vector< double > V and each element of V
- * contains the e-mobility rho at time t. There are three possible cases:
- *
- * - if the vector is empty, then the E-mobility rho of the unit is 0;
- *
- * - if the vector has only one element, then V[ 0 ] is the E-mobility rho of
- *   the unit for all time horizon;
- *
- * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the E-mobility rho value at time t. */
 
- const std::vector< double > & get_emobility_rho() const {
-  return( v_emobility_rho);
- }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of E-mobility demand
 /** The method returned a std::vector< double > V and each element of V
@@ -818,9 +790,6 @@ class BatteryUnitBlock : public UnitBlock {
  /// the InitialPower value
  double f_initial_power;
 
- /// the vector of e-mobility rho
- std::vector< double >  v_emobility_rho;
-
  /// the vector of demand
  std::vector< double >  v_demand;
 /*-----------------------------variables------------------------------------*/
@@ -865,6 +834,9 @@ class BatteryUnitBlock : public UnitBlock {
 
 /// the outtake and analogous variable relation constraints
  std::vector< FRowConstraint > outtake_analogous_Constraints;
+
+ /// the demand constraints
+ std::vector< FRowConstraint > demand_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
