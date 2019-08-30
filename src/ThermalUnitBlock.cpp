@@ -72,21 +72,8 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
- // TODO: Do a proper check for values or vectors
- /* Since every variable can be either one value or one vector with size
-  * NumberIntervals we need to check it to use the proper deserialize().
-  * A cleaner solution could be to do this check inside the deserialize(), so
-  * we do not need to do this for every variable.
-  * Moreover, we need to check if the variable exists before calling
-  * getDimCount() and this is already done properly inside deserialize().
-  */
+  ::deserialize( group, "MinPower", f_number_intervals, v_MinPower, true, true );
 
- if( group.getVar( "MinPower" ).getDimCount() == 0 ) {
-  v_MinPower.resize( 1 );
-  ::deserialize( group, "MinPower", &v_MinPower[ 0 ] );
- } else {
-  ::deserialize( group, "MinPower", f_number_intervals, v_MinPower );
- }
 
  if( group.getVar( "MaxPower" ).getDimCount() == 0 ) {
   v_MaxPower.resize( 1 );
