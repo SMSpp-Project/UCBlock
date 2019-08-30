@@ -74,73 +74,24 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   ::deserialize( group, "MinPower", f_number_intervals, v_MinPower, true, true );
 
+  ::deserialize( group, "MaxPower", f_number_intervals, v_MaxPower, true, true );
 
- if( group.getVar( "MaxPower" ).getDimCount() == 0 ) {
-  v_MaxPower.resize( 1 );
-  ::deserialize( group, "MaxPower", &v_MaxPower[ 0 ] );
- } else {
-  ::deserialize( group, "MaxPower", f_number_intervals, v_MaxPower );
- }
+  ::deserialize( group, "DeltaRampUp", f_number_intervals, v_DeltaRampUp, true, true );
 
- if( group.getVar( "DeltaRampUp" ).getDimCount() == 0 ) {
-  v_DeltaRampUp.resize( 1 );
-  ::deserialize( group, "DeltaRampUp", &v_DeltaRampUp[ 0 ] );
- } else {
-  ::deserialize( group, "DeltaRampUp", f_number_intervals, v_DeltaRampUp );
- }
+  ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown, true, true );
 
- if( group.getVar( "DeltaRampDown" ).getDimCount() == 0 ) {
-  v_DeltaRampDown.resize( 1 );
-  ::deserialize( group, "DeltaRampDown", &v_DeltaRampDown[ 0 ] );
- } else {
-  ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown );
- }
+  ::deserialize( group, "PrimaryRho", f_number_intervals, v_PrimaryRho, true, true);
 
- if( !group.getVar( "PrimaryRho" ).isNull() ) {
-  if( group.getVar( "PrimaryRho" ).getDimCount() == 0 ) {
-   v_PrimaryRho.resize( 1 );
-   ::deserialize( group, "PrimaryRho", &v_PrimaryRho[ 0 ] );
-  } else {
-   ::deserialize( group, "PrimaryRho", f_number_intervals, v_PrimaryRho );
-  }
- }
+  ::deserialize( group, "SecondaryRho", f_number_intervals, v_SecondaryRho, true, true );
 
- if( !group.getVar( "SecondaryRho" ).isNull() ) {
-  if( group.getVar( "SecondaryRho" ).getDimCount() == 0 ) {
-   v_SecondaryRho.resize( 1 );
-   ::deserialize( group, "SecondaryRho", &v_SecondaryRho[ 0 ] );
-  } else {
-   ::deserialize( group, "SecondaryRho", f_number_intervals, v_SecondaryRho );
-  }
- }
+  ::deserialize( group, "LinearTerm", f_number_intervals, v_LinearTerm, true, true );
 
- if( group.getVar( "LinearTerm" ).getDimCount() == 0 ) {
-  v_LinearTerm.resize( 1 );
-  ::deserialize( group, "LinearTerm", &v_LinearTerm[ 0 ] );
- } else {
-  ::deserialize( group, "LinearTerm", f_number_intervals, v_LinearTerm );
- }
+  ::deserialize( group, "QuadTerm", f_number_intervals, v_QuadTerm, true, true );
 
- if( group.getVar( "QuadTerm" ).getDimCount() == 0 ) {
-  v_QuadTerm.resize( 1 );
-  ::deserialize( group, "QuadTerm", &v_QuadTerm[ 0 ] );
- } else {
-  ::deserialize( group, "QuadTerm", f_number_intervals, v_QuadTerm );
- }
+  ::deserialize( group, "ConstTerm", f_number_intervals, v_ConstTerm, true, true );
 
- if( group.getVar( "ConstTerm" ).getDimCount() == 0 ) {
-  v_ConstTerm.resize( 1 );
-  ::deserialize( group, "ConstTerm", &v_ConstTerm[ 0 ] );
- } else {
-  ::deserialize( group, "ConstTerm", f_number_intervals, v_ConstTerm );
- }
+  ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost, true, true );
 
- if( group.getVar( "StartUpCost" ).getDimCount() == 0 ) {
-  v_StartUpCost.resize( 1 );
-  ::deserialize( group, "StartUpCost", &v_StartUpCost[ 0 ] );
- } else {
-  ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost );
- }
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
@@ -661,33 +612,33 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
  ::serialize( group, "MinPower", netCDF::NcDouble(),
-              NumberIntervals, v_MinPower );
+              NumberIntervals, v_MinPower, true );
 
  ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              NumberIntervals, v_MaxPower );
+              NumberIntervals, v_MaxPower, true );
 
  ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-              NumberIntervals, v_DeltaRampUp );
+              NumberIntervals, v_DeltaRampUp, true );
 
  ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-              NumberIntervals, v_DeltaRampDown );
+              NumberIntervals, v_DeltaRampDown, true );
 
  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_PrimaryRho );
+              NumberIntervals, v_PrimaryRho, true );
 
  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_SecondaryRho );
+              NumberIntervals, v_SecondaryRho, true );
 
  ::serialize( group, "QuadTerm", netCDF::NcDouble(),
-              NumberIntervals, v_QuadTerm );
+              NumberIntervals, v_QuadTerm, true );
 
  ::serialize( group, "LinearTerm", netCDF::NcDouble(),
-              NumberIntervals, v_LinearTerm );
+              NumberIntervals, v_LinearTerm, true );
 
  ::serialize( group, "ConstTerm", netCDF::NcDouble(),
-              NumberIntervals, v_ConstTerm );
+              NumberIntervals, v_ConstTerm, true );
  ::serialize( group, "StartUpCost",    netCDF::NcDouble(),
-              NumberIntervals, v_StartUpCost );
+              NumberIntervals, v_StartUpCost, true );
 
 }  // end( ThermalUnitBlock::serialize )
 
