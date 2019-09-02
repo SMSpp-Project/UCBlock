@@ -1,14 +1,14 @@
 /*--------------------------------------------------------------------------*/
-/*----------------- File IntermittentGenerationUnitBlock.h -----------------*/
+/*----------------------- File IntermittentUnitBlock.h ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the class IntermittentGenerationUnitBlock, which derives
- * from UnitBlock [see UnitBlock.h], in order to define a "reasonably
- * standard" Intermittent Generation unit at Unit Commitment Problem.
+ * Header file for the class IntermittentUnitBlock, which derives from
+ * UnitBlock [see UnitBlock.h], in order to define a "reasonably standard"
+ * Intermittent Generation unit at Unit Commitment Problem.
  *
  * \version 0.11
  *
- * \date 30 - 07 - 2019
+ * \date 02 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -27,14 +27,18 @@
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#ifndef __IntermittentGenerationUnitBlock
-#define __IntermittentGenerationUnitBlock
+#ifndef __IntermittentUnitBlock
+#define __IntermittentUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "ColVariable.h"
+#include "FRowConstraint.h"
+#include "OneVarConstraint.h"
+#include "FRealObjective.h"
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -46,24 +50,39 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*---------------- CLASS IntermittentGenerationUnitBlock -------------------*/
+/*---------------------- CLASS IntermittentUnitBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for the Intermittent Generation unit
-/** The IntermittentGenerationUnitBlock class implements the Block concept
- * [see Block.h] for a "reasonably standard" Intermittent Generation and
- * Distributed generation units in a single unit of the unit commitment
- * Problem. That is, the class is designed in order to give mathematical
- * formulation to describe the operation of large set of Intermittent GenerationUnitBlock  //todo
- * The technical and physical constraints are mainly divided in ?? different
- * categories:
- * - ??
- * -??
- * -??
- * -??
+/** The IntermittentUnitBlock class implements the Block concept [see Block.h]
+ * for a "reasonably standard" Intermittent and Distributed generation units
+ * in a single unit of the unit commitment problem. That is, the class is
+ * designed in order to give mathematical formulation to describe the
+ * operation of large set of IntermittentUnitBlock. The IntermittentUnitBlock
+ * corresponds to wind farms, solar parks and run-of-the-river
+ * hydroelectricity. Each unit is supposed to be connected to a specific node
+ * of the clustered network. The model relies mainly on historical data of
+ * local generation of wind and solar at each node of the grid. These data are
+ * used to develop normalized generation profiles associated with wind and
+ * solar generators with 1 MW capacity. Intermittent generators are supposed
+ * to be able to contribute to primary and secondary reserves. Contribution to
+ * the system inertia concerns more specifically run of river genera- tors.
+ * The potential contribution of solar or wind generation to inertia is still
+ * the subject of active research. Reserve requirements are specified in order
+ * to be symmetrically available to increase or decrease power injected into
+ * the grid. Then the technical and physical constraints are mainly divided in
+ * three different categories:
+ *
+ * - the active power bounds;
+ *
+ * - the maximum power output constraints according to primary and secondary
+ *   spinning reserves;
+ *
+ * - the minimum power output constraints according to primary and secondary
+ *   spinning reserves.
  */
-class IntermittentGenerationUnitBlock : public UnitBlock {
+class IntermittentUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -78,31 +97,31 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constructor and Destructor
+/** @name constructor and destructor
  *  @{ */
 
-/// Constructor, takes the father and the time horizon
-/** Constructor of IntermittentGenerationUnitBlock, taking possibly a pointer of its
+/// constructor, takes the father and the time horizon
+/** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
  * father Block.
  */
 
- explicit IntermittentGenerationUnitBlock( Block * f_block = nullptr , Index t = 0):
+ explicit IntermittentUnitBlock( Block * f_block = nullptr , Index t = 0):
          UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
 
-/// Destructor of IntermittentGenerationUnitBlock
+/// destructor of IntermittentUnitBlock
 
- ~IntermittentGenerationUnitBlock() override = default;
+ ~IntermittentUnitBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/// Extends Block::deserialize( netCDF::NcGroup )
+/// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the IntermittentGenerationUnitBlock. Besides the mandatory "type" attribute of any
+ * the IntermittentUnitBlock. Besides the mandatory "type" attribute of any
  * :Block, the group must contain all the data required by the base UnitBlock,
  * as described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
  * In particular, we refer to that description for the crucial dimensions
@@ -112,7 +131,7 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
  * - The variable "MinPower", of type double and either of size 1 or indexed
  *   over the dimension "NumberIntervals". This is meant to represent the
  *   vector MinP[ t ] that, for each time instant t, contains the minimum
- *   active power output value of the unit for the corresponding time step.
+ *   potential production value of the unit for the corresponding time step.
  *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
  *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
@@ -125,7 +144,7 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
  * - The variable "MaxPower", of type double and either of size 1 or indexed
  *   over the dimension "NumberIntervals". This is meant to represent the
  *   vector MaxP[ t ] that, for each time instant t, contains the maximum
- *   active power output value of the unit for the corresponding time step.
+ *   potential production value of the unit for the corresponding time step.
  *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
  *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
@@ -135,76 +154,127 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
  *   be MxP[ t ] >= MnP[ t ] >= 0 for all t, and when MxP[ t ] == MnP[ t ] the
  *   unit cannot be curtailed and cannot provide any reserve.
  *
- * - The scalar variable "Gama", of type double and not indexed over
- *   any dimension. This variable is used to take into account an uncertainty
- *   on the maximal potential production. Note that it must be 0 >= Gama >= 1;
- *   when Gama == 0, the unit does not provide any reserve.
+ * - The scalar variable "Gamma", of type double and not indexed over any
+ *   dimension. This variable is used to take into account an uncertainty on
+ *   the maximal potential production. Note that it must be 0 >= Gamma >= 1;
+ *   when Gamma == 0, the unit does not provide any reserve.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the abstract variables of the IntermittentGenerationUnitBlock
-/** The IntermittentGenerationUnitBlockUnitBlock class use get_variable() method to access to
+/// generate the abstract variables of the IntermittentUnitBlock
+/** The IntermittentUnitBlock class use get_variable() method to access to
  *  each "group" of variable that may create in UnitBlock class which are:
  *
+ *  - the primary spinning reserve variables;
  *
- *  //todo
+ *  - the secondary spinning reserve variables;
+ *
+ *  - the active power variables.
+ *
+ *  All of those variables are optional except the active power variables in
+ *  the sense that the model may just not have them and whenever a group of
+ *  above variables is created, its size will be the time horizon. It is
+ *  possible to restrict which of the subsets are generated with the parameter
+ *  stvv. If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
+ *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
+ *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
+ *  of the optional variables should be created. If the Configuration is not
+ *  available, the default value is taken to be 0.
  * */
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the static constraint of the IntermittentGenerationUnitBlock
-/** Method that generates the static constraint of the IntermittentGenerationUnitBlock.
+/// generate the static constraint of the IntermittentUnitBlock
+/** Method that generates the static constraint of the IntermittentUnitBlock.
  * These are the:
- * //TODO I should put all the mathematical constraints here
+ * - maximum and minimum power output constraints according to primary and
+ *   secondary spinning reserves are presented in (1)-(2). Each of them is a
+ *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
+ *   the entry t = 0, ...,f_time_horizon - 1 being the maximum and minimum
+ *   power output value according to the primary and the secondary spinning
+ *   reserves at time t. these ensure the maximum(or minimum) amount of energy
+ *   that unit can produce(or use) when it is on(or off).
+ *   \f[
+ *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(P^{mx}_{t} - p^{ac}_{t} )
+ *          \quad t \in \mathcal{T}                              \quad (1)
+ *   \f]
  *
-*/
+ *   \f[
+ *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - P^{mn}_{t}
+ *          \quad t \in \mathcal{T}                              \quad (2)
+ *   \f]
+ *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
+ *   minimum power output parameters for each time t of the time horizon
+ *   \f$ \mathcal{T} \f$ respectively.
+ *
+ * - the active power bounds.
+ *
+ *   \f[
+ *    p^{ac}_{t} \in [ P^{mn}_{t} , P^{mx}_{t}]
+ *                              \quad t \in \mathcal{T}          \quad (3)
+ *   \f]
+ *   */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the objective of the IntermittentGenerationUnitBlock
-/** Method that generates the objective of the IntermittentGenerationUnitBlock.
- * //TODO I should put the objective function here
- *
-*/
+/// generate the objective of the IntermittentUnitBlock
+/** Method that generates the objective of the IntermittentUnitBlock.
+ *  //TODO I SHOULD CHECK IF IT IS OK
+ * - Objective function: there isn't defined any objective function for the
+ *   IntermittentUnitBlock. */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-- METHODS FOR READING THE DATA OF THE IntermittentGenerationUnitBlock ---*/
+/*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the IntermittentGenerationUnitBlock
+/** @name Reading the data of the IntermittentUnitBlock
  *
  * These methods allow to read data that must be common to (in principle) all
- * the kind of IntermittentGeneration units
- * @{ */
-//todo
-
-
-/**@} ----------------------------------------------------------------------*/
-/*- METHODS FOR READING THE Variable OF THE IntermittentGenerationUnitBlock-*/
-/*--------------------------------------------------------------------------*/
-
-/** @name Reading the Variable of the IntermittentGenerationUnitBlock
- *
- * These methods allow to read the two groups of Variable that any
- * IntermittentGenerationUnitBlock in principle has (although some may not):
- *
- * - ??
- *
- * - ??
- *
- * All these two groups of variables are (if not empty) ???
- * boost::multi_array< ColVariable , 2 > with first dimension time horizon
- * and second dimension number of generators.
+ * the kind of Intermittent Generation units
  * @{ */
 
-/**@} ----------------------------------------------------------------------*/
-/*-------- METHODS FOR SAVING THE IntermittentGenerationUnitBlock-----------*/
+ /// Returns the gamma value
+ double get_gamma() const { return f_gamma; }
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the IntermittentGenerationUnitBlock
+/// returns the vector of minimum power
+/** The method returned a std::vector< double > V and each element of V
+ * contains the minimum power at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the minimum power of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the minimum power of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the minimum power value at time t. */
+
+ const std::vector< double > & get_minimum_power() const {
+  return( v_minimum_power );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum power
+/** The method returned a std::vector< double > V and each element of V
+ * contains the maximum power at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the maximum power of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the maximum power of
+ *   the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the maximum power value at time t. */
+
+ const std::vector< double > & get_maximum_power() const {
+  return( v_maximum_power );
+ }
+/**@} ----------------------------------------------------------------------*/
+/*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the IntermittentUnitBlock
  *  @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
+/// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * IntermittentGenerationUnitBlock. See
  * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details of the
@@ -213,14 +283,14 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*------ METHODS FOR INITIALIZING THE IntermittentGenerationUnitBlock ------*/
+/*----------- METHODS FOR INITIALIZING THE IntermittentUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
 
-/** @name Handling the data of the IntermittentGenerationUnitBlock
+/** @name Handling the data of the IntermittentUnitBlock
     @{ */
 
  void load( std::istream & input ) override {
-  throw ( std::logic_error( "IntermittentGenerationUnitBlock::load() not "
+  throw ( std::logic_error( "IntermittentUnitBlock::load() not "
                             "implemented yet") );
  };
 
@@ -235,13 +305,25 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
+ /// the vector of MinPower
+ std::vector< double >  v_minimum_power;
 
+ /// the vector of MaxPower
+ std::vector< double >  v_maximum_power;
 
-/*-----------------------------variables------------------------------------*/
+ /// the gamma value
+ double f_gamma;
 
 
 /*----------------------------constraints-----------------------------------*/
-//TODO
+/// the active power upper bound constraints
+ std::vector< FRowConstraint > active_power_upper_bound_Constraints;
+
+/// the active power lower bound constraints
+ std::vector< FRowConstraint > active_power_lower_bound_Constraints;
+
+/// the active power bounds constraints
+ std::vector< FRowConstraint > active_power_bounds_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -261,7 +343,7 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( IntermittentGenerationUnitBlock ) )
+};  // end( class( IntermittentUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -271,8 +353,8 @@ class IntermittentGenerationUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* IntermittentGenerationUnitBlock.h included */
+#endif /* IntermittentUnitBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*--------- End File IntermittentGenerationUnitBlock.h ---------------------*/
+/*------------------ End File IntermittentUnitBlock.h ----------------------*/
 /*--------------------------------------------------------------------------*/

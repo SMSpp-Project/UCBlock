@@ -1,8 +1,8 @@
 /*--------------------------------------------------------------------------*/
-/*------------- File IntermittentGenerationUnitBlock.cpp -------------------*/
+/*------------- File IntermittentUnitBlock.cpp -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the IntermittentGenerationUnitBlock class.
+ * Implementation of the IntermittentUnitBlock class.
  *
  * \version 0.11
  *
@@ -33,7 +33,7 @@
 
 #include <iostream>
 #include <random>
-#include "IntermittentGenerationUnitBlock.h"
+#include "IntermittentUnitBlock.h"
 #include "LinearFunction.h"
 #include <map>
 #include "FRowConstraint.h"
@@ -53,63 +53,63 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register IntermittentGenerationUnitBlock to the Block factory
+// register IntermittentUnitBlock to the Block factory
 
 
-SMSpp_insert_in_factory_cpp_1( IntermittentGenerationUnitBlock );
+SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*--------------- METHODS OF IntermittentGenerationUnitBlock ---------------*/
+/*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
  //TODO
 
-}// end( IntermittentGenerationUnitBlock::deserialize )
+}// end( IntermittentUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentGenerationUnitBlock::generate_abstract_variables
+void IntermittentUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
  UnitBlock::generate_abstract_variables( stvv );
 
 
 
-} // end( IntermittentGenerationUnitBlock::generate_abstract_variables )
+} // end( IntermittentUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentGenerationUnitBlock::generate_abstract_constraints
+void IntermittentUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
 
 
-} // end( IntermittentGenerationUnitBlock::generate_abstract_constraints )
+} // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentGenerationUnitBlock::generate_objective( Configuration *objc )
+void IntermittentUnitBlock::generate_objective( Configuration *objc )
 {
  if( get_objective() == nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
 // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
  //TODO
-}  // end( IntermittentGenerationUnitBlock::generate_objective )
+}  // end( IntermittentUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentGeneration ----*/
+/*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 
-void IntermittentGenerationUnitBlock::serialize( netCDF::NcGroup & group ) const {
+void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
-}  // end( IntermittentGenerationUnitBlock::serialize )
+}  // end( IntermittentUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
-/*---------- End File IntermittentGenerationUnitBlock.cpp ------------------*/
+/*------------------- End File IntermittentUnitBlock.cpp -------------------*/
 /*--------------------------------------------------------------------------*/
