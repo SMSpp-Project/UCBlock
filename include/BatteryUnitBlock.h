@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 29 - 08 - 2019
+ * \date 02 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -59,7 +59,7 @@ namespace SMSpp_di_unipi_it {
 /** The BatteryUnitBlock class implements the Block concept [see Block.h] for
  * a "reasonably standard" Battery storage, E-mobility, Centralized demand
  * response, Distributed load management, Distributed storage, and Power to
- * gas units in a single class at unit commitment Problem. In the other word,
+ * gas units in a single class at unit commitment Problem. In another word,
  * BatteryUnitBlock provides a quite general concept of battery that covers
  * different use cases comprised of several units which are mostly fit the
  * same mathematical equations pattern. For instance, it may or may not have a
@@ -77,17 +77,18 @@ namespace SMSpp_di_unipi_it {
  * considered as optional. Besides, since the transport sector is moving
  * towards electrification, electric mobility will have a rising impact on the
  * electricity system. First, electricity demand is growing due to a higher
- * amount of electric vehicles that need to be charged. On the other hand, vehicles are used only
- * a small amount of time while being charged over a much longer timespan
- * (e.g. at night). This allows to shift the charging process in time and
- * provide this flexibility to the overall energy system by means of an
- * additional generator (vehicle-to-grid) or an additional load
+ * amount of electric vehicles that need to be charged. On the other hand,
+ * vehicles are used only a small amount of time while being charged over a
+ * much longer timespan (e.g. at night). This allows to shift the charging
+ * process in time and provide this flexibility to the overall energy system
+ * by means of an additional generator (vehicle-to-grid) or an additional load
  * (power-to-vehicle). Two main differences between battery storages unit and
- * E-mobility units are:
+ * other existing units in this class are:
  * - Battery storages unit can do primary and secondary reserve, while
- *   E-mobility unit cannot.
+ *   other units cannot.
  *
- * - E-mobility unit has a fixed demand that battery storages unit has not.
+ * - some of the units may have a fixed demand that battery storages unit has
+ *   not.
  *
  * Moreover, as the considered storage cycle is small w.r.t. the EUC time
  * horizon, distributed storage is not considered as seasonal storage. Hence,
@@ -95,6 +96,7 @@ namespace SMSpp_di_unipi_it {
  * one provided for battery storages unit. The specificity of distributed
  * storage only relies on the fact that it is connected to a distribution grid
  * node.
+ *
  * To model the BatteryUnitBlock systems several technical parameters have to
  * be considered. These are divided into the battery storage level parameters,
  * the ramping parameters, the active power bound parameters, and a flexible
@@ -103,18 +105,25 @@ namespace SMSpp_di_unipi_it {
  * constraints are mainly divided in several different categories as:
  *
  * - maximum and minimum power output constraints according to primary and
- *   secondary spinning reserves;
+ *   secondary spinning reserves(if any);
  *
  * - ramp-up and ramp-down constraints;
  *
  * - active power relation with storing and extracting energy levels
- *   constraints;
+ *   constraints(if any);
  *
- * - battery storage level constraints;
+ * - intake upper bound(if any);
  *
- * - analogous variables relation with intake and outtake level constraints;
+ * - storage level constraints;
  *
- * - the demand constraints(for E-mobility).*/
+ * - binary variable relation with intake and outtake level constraints(if
+ *   any);
+ *
+ * - primary reserve upper bound(if any);
+ *
+ * - secondary reserve upper bound(if any);
+ *
+ * - the demand constraints(if any).*/
 class BatteryUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
@@ -192,10 +201,10 @@ class BatteryUnitBlock : public UnitBlock {
  *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
  *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *   MinP[ t ] <= MaxP[ t ] for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. Note that it must
+ *   be MinP[ t ] <= 0 and MinP[ t ] <= MaxP[ t ] for all t.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
  *   over the dimension "NumberIntervals". This is meant to represent the
@@ -204,10 +213,10 @@ class BatteryUnitBlock : public UnitBlock {
  *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
  *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *   MaxP[ t ] >= MinP[ t ] for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. Note that it must
+ *   be MaxP[ t ] >= 0 and MinP[ t ] <= MaxP[ t ] for all t.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
@@ -279,12 +288,13 @@ class BatteryUnitBlock : public UnitBlock {
  *   StoringBatteryRho[ i ] is the fixed value of SBR[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
- *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If EBR[ t ] == SBR[ t ]
- *   == 1, the storing/extracting energy level relation with the binary
- *   analogous variable constraints (equation (9-10)) are not needed to be
- *   define. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. If EBR[ t ] ==
+ *   SBR[ t ] == 1, the storing/extracting energy level relation with the
+ *   binary variable constraints are not needed to be define(for details see
+ *   the generate_abstract_variable() and generate_abstract_constraints() of
+ *   this unit).
  *
  * - The variable "ExtractingBatterRho", of type double and to be either of
  *   size 1 or indexed over the dimension "NumberIntervals". This is meant to
@@ -297,12 +307,13 @@ class BatteryUnitBlock : public UnitBlock {
  *   ExtractingBatterRho[ i ] is the fixed value of EBR[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
- *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If EBR[ t ] == SBR[ t ]
- *   == 1, the storing/extracting energy level relation with the binary
- *   analogous variable constraints (equation (9-10)) are not needed to be
- *   define. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   such that EBR[ t ] <= 1 <= SBR[ t ], for all t. If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. If EBR[ t ] ==
+ *   SBR[ t ] == 1, the storing/extracting energy level relation with the
+ *   binary variable constraints are not needed to be define(for details see
+ *   the generate_abstract_variable() and generate_abstract_constraints() of
+ *   this unit).
  *
  * - The scalar variable "InitialStorage", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the storage level
@@ -314,15 +325,15 @@ class BatteryUnitBlock : public UnitBlock {
  *   the dimension "NumberIntervals". This is meant to represent the vector
  *   C[ t ] that, for each time instant t, contains the certain proportion
  *   cost of the unit for the corresponding time step. This variable is
- *   optional; if it is not provided then it's assume that this unit may not
- *   be capable of minimize the cost and it's taken to be zero. If "Cost" has
+ *   optional; if it is not provided then it's taken to be zero. If "Cost" has
  *   length 1 then C[ t ] contains the same value for all t. Otherwise,
  *   Cost[ i ] is the fixed value of C[ t ] for all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. Note that it must be C[ t ] >= 0 for all
- *   t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded. Note that when it
+ *   indicates as a cost it must be such that C[ t ] >= 0 whereas, it must be
+ *   such that C[ t ] <= 0 when it represents the profit at each time t.
  *
  * - The variable "Demand", of type double and indexed over the dimension
  *   "TimeHorizon": entry Demand[ t ] is assumed to contain the energy needed
@@ -341,7 +352,15 @@ class BatteryUnitBlock : public UnitBlock {
  *
  *  - the secondary spinning reserve variables;
  *
- *  - the active power variables;
+ *  - the active power variables; it can be positive or negative, if it is
+ *    positive the unit is giving energy to the system, if it is negative it
+ *    is taking energy away and adding to the storage. Since the storing and
+ *    extracting amount of active power are not always equal, to deal with this
+ *    issue, the usual trick of splitting the active power variable by two new
+ *    non-negative variables which are called intake and outtake levels for
+ *    each time t(see equation (5)) is used. if "StoringBatteryRho" ==
+ *    "ExtractingBatterRho" == 1, we don not need to split the active power and
+ *    the constraint (5-7 and 10-11) will be replaced by (8)).
  *
  *  All of those variables are optional except the active power variables in
  *  the sense that the model may just not have them and whenever a group of
@@ -351,12 +370,15 @@ class BatteryUnitBlock : public UnitBlock {
  *
  *  - the storage level variables;
  *
- *  - the intake and outtake levels variable;
+ *  - the intake and outtake levels variable; they are needed to split the
+ *    active power variable(if it's needed);
  *
- *  - the analogous variables;
+ *  - the binary variables; when "StoringBatteryRho" == "ExtractingBatterRho"
+ *    == 1, then this binary variable and all constraints which are depended
+ *    on this variable is not required to be define.
  *
- *  These two groups of variables may have size f_time_horizon or empty size.
- *  All of these variables are optional,and it is also possible to restrict
+ *  These three groups of variables may have size f_time_horizon or empty size.
+ *  All of these variables are optional, and it is also possible to restrict
  *  which of the subsets are generated with the parameter stvv. If stvv is not
  *  nullptr and it is a SimpleConfiguration<int>, or if
  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
@@ -368,12 +390,11 @@ class BatteryUnitBlock : public UnitBlock {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the BatteryUnitBlock
-/** Method that generates the static constraint of the
- * BatteryUnitBlock. The operations of the battery storage unit are
- * described on a discrete time horizon as dictated by the UnitBlock
- * interface. In this description we indicate it with
- * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. The main battery
- * storage unit constraints are define as:
+/** Method that generates the static constraint of the BatteryUnitBlock. The
+ * operations of the battery storage unit are described on a discrete time
+ * horizon as dictated by the UnitBlock interface. In this description we
+ * indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. The
+ * main constraints of this unit are define as:
  *
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves are presented in (1)-(2). Each of them is a
@@ -427,52 +448,70 @@ class BatteryUnitBlock : public UnitBlock {
  *     p^+_t \leq  P^{mx}_{t}
  *         \quad t \in \mathcal{T}                               \quad (6)
  *   \f]
- * - storage level relation with intake and outtake levels constraints in
- *   Battery storages unit are presented in (7). That is a
+ * - storage level relation with intake and outtake levels(if any) constraints
+ *   in Battery unit are presented in (7). That is a
  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon,
  *   where the entry t = 0,...,f_time_horizon - 1 being the storage level
  *   relation with intake and outtake levels at time t.
  *   \f[
  *    v^{ba}_{t} = v^{ba}_{t-1} - \rho^+_{t}p^+_{t} +
- *    \rho^-_{t}p^-_{t}     \quad t \in \mathcal{T}          \quad (7)
+ *    \rho^-_{t}p^-_{t}-d^{ba}_t      \quad t \in \mathcal{T}    \quad (7)
  *   \f]
  *
- *   Note that for the E-mobilityUnitBlock the equation (7) will change as
+ *   Note that if the equation (7) will change as
  *   below which is a std::vector<FRowConstraint>; with the dimension of
  *   f_time_horizon, where the entry t = 0,...,f_time_horizon - 1 being the
- *   storage level relation with E-mobility demand at time t.
+ *   storage level relation with battery demand(if any) at time t.
  *   \f[
- *    v^{emob}_{t} = v^{emob}_{t-1} - \rho^{emob}_{t}p^{ac}+_{t} -
- *    d^{emob,dch}_t            \quad t \in \mathcal{T}          \quad (7E)
+ *    v^{ba}_{t} = v^{ba}_{t-1} - p^{ac}_{t} - d^{ba}_t
+ *               \quad t \in \mathcal{T}          \quad (8)
  *   \f]
  *
- *   The equation (8) gives the storage levels upper bound and
+ *   The equation (9) gives the storage levels upper bound and
  *   lower bound at each time instant t.
  *
  *   \f[
  *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
- *                              \quad t \in \mathcal{T}          \quad (8)
+ *                              \quad t \in \mathcal{T}          \quad (9)
  *   \f]
  *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the intake and
  *   outtake rho and \f$ V^{mn}_t\f$ and \f$ V^{mx}_t\f$ are the minimum and
  *   maximum storage level for each time t of the time horizon
  *   \f$ \mathcal{T} \f$ respectively.
  *
- * - analogous variables relation with storing and extracting energy level
- *   constraints are presented in (9-10). Each of them is a
+ * - binary variable relation with storing and extracting energy level(if any)
+ *   constraints are presented in (10-11). Each of them is a
  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
- *   the entry t = 0,...,f_time_horizon - 1 being the analogous variables
- *   relation with storing and extracting energy levels at time t.
+ *   the entry t = 0,...,f_time_horizon - 1 being the binary variable relation
+ *   with storing and extracting energy levels at time t.
  *   \f[
- *    P^+_{t} \leq u^+_t P^{mx}_{t}
- *                              \quad t \in \mathcal{T}          \quad (9)
+ *    p^+_{t} \leq u^+_t P^{mx}_{t}
+ *                              \quad t \in \mathcal{T}          \quad (10)
  *   \f]
  *
  *   \f[
- *    P^-_{t} \leq -(1 - u^+_t) P^{mn}_{t}
- *                              \quad t \in \mathcal{T}         \quad (10)
+ *    p^-_{t} \leq -(1 - u^+_t) P^{mn}_{t}
+ *                              \quad t \in \mathcal{T}         \quad (11)
  *   \f]
  *
+ *   Note that when \f$ \rho^+_t = \rho^-_t = 1 \f$, the binary variable
+ *   \f$ u^+_t \f$ is not required and neither are the last two constraints
+ *   (10-11).
+ *
+ * - primary and secondary reserve upper bounds(if any) are presented by the
+ *   equations (12-13). Each of them is a std::vector<FRowConstraint>; with
+ *   the dimension of f_time_horizon, where the entry
+ *   t = 0,...,f_time_horizon - 1 being the primary and secondary reserve
+ *   upper bounds at time t.
+ *
+ *   \f[
+ *     p^{pr}_{t} \leq P^{mx, pr}_{t}
+ *                              \quad t \in \mathcal{T}          \quad (12)
+ *   \f]
+ *   \f[
+ *     p^{sc}_{t} \leq P^{mx, sc}_{t}
+ *                              \quad t \in \mathcal{T}          \quad (13)
+ *   \f]
 */
  void generate_abstract_constraints( Configuration *stcc ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -483,7 +522,7 @@ class BatteryUnitBlock : public UnitBlock {
  *
  *   \f[
  *     \min ( \sum_{ t \in  [0 , \mathcal{T}]  }
- *     ( C_t p^+_t + C_t p^-_t) )
+ *     ( C_t (p^+_t +  p^-_t) )
  *   \f]
  *
  *   where \f$ C_t \f$, is a certain proportion cost function. */
@@ -829,15 +868,20 @@ class BatteryUnitBlock : public UnitBlock {
 /// the storage level bounds constraints
  std::vector< FRowConstraint > storage_level_bounds_Constraints;
 
-/// the intake and analogous variable relation constraints
- std::vector< FRowConstraint > intake_analogous_Constraints;
+/// the intake and binary variable relation constraints
+ std::vector< FRowConstraint > intake_binary_Constraints;
 
-/// the outtake and analogous variable relation constraints
- std::vector< FRowConstraint > outtake_analogous_Constraints;
+/// the outtake and binary variable relation constraints
+ std::vector< FRowConstraint > outtake_binary_Constraints;
 
- /// the demand constraints
+/// the demand constraints
  std::vector< FRowConstraint > demand_Constraints;
 
+/// primary upper bound constraints
+ std::vector< FRowConstraint > primary_upperbound_Constraints;
+
+/// secondary upper bound constraints
+ std::vector< FRowConstraint > secondary_upperbound_Constraints;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
