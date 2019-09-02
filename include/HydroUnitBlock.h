@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 07 - 2019
+ * \date 02 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -28,7 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __HydroUnitBlock
- #define __HydroUnitBlock
+#define __HydroUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -265,7 +265,8 @@ class HydroUnitBlock : public UnitBlock {
  *   contains the amount of water that "naturally" goes to reservoir r
  *   (because of rain, ice melting, non-controlled rivers flowing, and of
  *   course net of water leaving by evaporation, human consumption etc.) at
- *   time t; it must be that InF[ r , t ] >= 0 for all r and t.
+ *   time t. This variable is optional; if it isn't defined, it is taken to be
+ *   zero, otherwise it must be that InF[ r , t ] >= 0 for all r and t.
  *
  * - The variable "MinPower", of type double and indexed over both dimensions
  *   "NumberIntervals" and "NumberArcs". The first dimension may have either
@@ -460,7 +461,8 @@ class HydroUnitBlock : public UnitBlock {
  * Consider the graph below:
  *
  *   \ n / ==============[TURBINE]================= \ n' /
- *             UpF[ l ]                DnF[ l ]
+ *
+ *             UpF[ l ]              DnF[ l ]
  *
  * Then the uphill delay corresponds to the delay related to the first portion
  * of the "=" signs and the downhill delay with the second portion, where for
@@ -472,7 +474,7 @@ class HydroUnitBlock : public UnitBlock {
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the abstract variables of the HydroUnitBlock
+/// generate the abstract variables of the HydroUnitBlock
 /** The HydroUnitBlock class use get_variable() method to access to each
  *  "group" of variable that may create in UnitBlock class which are:
  *
@@ -503,7 +505,7 @@ class HydroUnitBlock : public UnitBlock {
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// Generate the static constraint of the HydroUnit
+/// generate the static constraint of the HydroUnit
 /** This method generates the static constraint of the HydroUnitBlock.
  * In order to describe a hydro generating unit system, it will be convenient
  * to see a cascading system as a graph. Let \f$ \mathcal{N}^{hy}\f$ be the
@@ -708,9 +710,8 @@ class HydroUnitBlock : public UnitBlock {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective function of the HydroUnitBlock
 /** Method that generates the objective function of the HydroUnitBlock.
- *  //TODO I SHOULD CHECK IF IT IS OK
- * - Objective function: there isn't defined any objective function for the
- *   HydroUnitBlock. */
+
+ * - Objective function: the objective function of this unit is zero */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/

@@ -220,9 +220,8 @@ class IntermittentUnitBlock : public UnitBlock {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the IntermittentUnitBlock
 /** Method that generates the objective of the IntermittentUnitBlock.
- *  //TODO I SHOULD CHECK IF IT IS OK
- * - Objective function: there isn't defined any objective function for the
- *   IntermittentUnitBlock. */
+
+ * - Objective function: the objective function of this unit is zero */
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/

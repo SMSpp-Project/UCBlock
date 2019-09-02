@@ -84,6 +84,7 @@ namespace SMSpp_di_unipi_it {
  * by means of an additional generator (vehicle-to-grid) or an additional load
  * (power-to-vehicle). Two main differences between battery storages unit and
  * other existing units in this class are:
+ *
  * - Battery storages unit can do primary and secondary reserve, while
  *   other units cannot.
  *
@@ -104,24 +105,24 @@ namespace SMSpp_di_unipi_it {
  * accounting for storage level constraints. The technical and physical
  * constraints are mainly divided in several different categories as:
  *
- * - maximum and minimum power output constraints according to primary and
+ * - the maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves(if any);
  *
- * - ramp-up and ramp-down constraints;
+ * - the ramp-up and ramp-down constraints;
  *
- * - active power relation with storing and extracting energy levels
+ * - the active power relation with storing and extracting energy levels
  *   constraints(if any);
  *
- * - intake upper bound(if any);
+ * - the intake upper bound(if any);
  *
- * - storage level constraints;
+ * - the storage level constraints;
  *
- * - binary variable relation with intake and outtake level constraints(if
+ * - the binary variable relation with intake and outtake level constraints(if
  *   any);
  *
- * - primary reserve upper bound(if any);
+ * - the primary reserve upper bound(if any);
  *
- * - secondary reserve upper bound(if any);
+ * - the secondary reserve upper bound(if any);
  *
  * - the demand constraints(if any).*/
 class BatteryUnitBlock : public UnitBlock {
@@ -337,8 +338,9 @@ class BatteryUnitBlock : public UnitBlock {
  *
  * - The variable "Demand", of type double and indexed over the dimension
  *   "TimeHorizon": entry Demand[ t ] is assumed to contain the energy needed
- *   to discharge of a battery. This variable is optional; if it is not
- *   presented then Demand[ t ] == 0 for each time instant t.
+ *   to discharge of a battery. This variable is optional; if it isn't defined
+ *   then Demand[ t ] == 0 otherwise it must be that Demand[ t ] >= 0 for each
+ *   time instant t.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
