@@ -439,7 +439,7 @@ class UCBlock : public Block {
  *   If NumberPollutants == 0 (say, it is not provided) then this variable
  *   need not be defined, since it is not loaded.
  *
- * - The variable "PollutantRho", of type double and indexed over two
+ * - The variable "PollutantRho", of type double and indexed over three
  *   dimensions which are TimeHorizon and NumberPollutants and the set
  *   { 0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
  *   first dimension can have size either 1 or TimeHorizon. In the former
@@ -889,12 +889,9 @@ class UCBlock : public Block {
   * - if V is empty, then no HeatSet is defined, and there is no heat linking
   *   constraints;
   *
-  * TODO: I don't think this case makes sense
-  * - if V has only one element, then there is just one heat generator in 
+  * - if V has only one element, then there is just one heat generator in
   *   heat blocks which is also an electrical generator;
   *
-  * TODO: clarify how V[ h ] tells what, in particular how you distinguish
-  *       the heat-only generators
   * - otherwise, V.size() == NumberHeatGenerators (see the comments to
   *   deserialize()), and each element of V[ h ] tells which heat generator
   *   is also an electrical generator.
@@ -994,12 +991,11 @@ class UCBlock : public Block {
  /** The method returned a std::vector< Index > V and each element of V
   * tells to which node n unit i belongs. There are two possible cases:
   *
-  * TODO: V could also be empty in the bus case
-  *  - if V has only one element, then the transmission network is a bus and
-  *    all the units belong to that unique node;
+  * - if V has only one element, then the transmission network is a bus and
+  *   all the units belong to that unique node;
   *
-  *  - otherwise, the vector must have size of number of units and V[ i ]
-  *    tells to which node n unit i belongs. */
+  * - otherwise, the vector must have size of number of units and V[ i ]
+  *   tells to which node n unit i belongs. */
 
  const std::vector< Index > & get_generator_node() const {
   return v_generator_node;
@@ -1013,7 +1009,6 @@ class UCBlock : public Block {
   *
   * - if V is empty, then the there is no heat block;
   *
-  * TODO: I don't think this case makes sense
   * - if V only has one element, then the power heat rho is always equal to
   *   the value of that element;
   *
