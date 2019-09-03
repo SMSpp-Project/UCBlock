@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class IntermittentUnitBlock, which derives from
- * UnitBlock [see UnitBlock.h], in order to define a "reasonably standard"
- * Intermittent Generation unit at Unit Commitment Problem.
+ * UnitBlock [see UnitBlock.h], in order to define a Unit representing
+ * Intermittent Generation in the Unit Commitment Problem.
  *
  * \version 0.11
  *
@@ -39,6 +39,7 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -56,22 +57,22 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for the Intermittent Generation unit
 /** The IntermittentUnitBlock class implements the Block concept [see Block.h]
- * for a "reasonably standard" Intermittent and Distributed generation units
- * in a single unit of the unit commitment problem. That is, the class is
- * designed in order to give mathematical formulation to describe the
- * operation of large set of IntermittentUnitBlock. The IntermittentUnitBlock
- * corresponds to wind farms, solar parks and run-of-the-river
- * hydroelectricity. Each unit is supposed to be connected to a specific node
- * of the clustered network. The model relies mainly on historical data of
- * local generation of wind and solar at each node of the grid. These data are
+ * for a units representing generation (be ir centralized or distributed) by
+ * intermittent (= unreliable) sources in the unit commitment problem, such
+ * as wind farms, solar parks and run-of-the-river hydroelectricity. Each
+ * unit is supposed to be connected to a specific node of the clustered
+ * network (which means that the "distributed" case refers to "distributed in
+ * a small region", where of course "small" depends on the granularity of the
+ * network description. The model relies mainly on historical data of local
+ * generation of wind and solar at each node of the grid; these data are
  * used to develop normalized generation profiles associated with wind and
- * solar generators with 1 MW capacity. Intermittent generators are supposed
- * to be able to contribute to primary and secondary reserves. Contribution to
- * the system inertia concerns more specifically run of river genera- tors.
- * The potential contribution of solar or wind generation to inertia is still
- * the subject of active research. Reserve requirements are specified in order
- * to be symmetrically available to increase or decrease power injected into
- * the grid. Then the technical and physical constraints are mainly divided in
+ * solar generators. Intermittent generators are supposed to be able to
+ * contribute to primary and secondary reserves. Contribution to the system
+ * inertia concerns more specifically run of river generators. The potential
+ * contribution of solar or wind generation to inertia is still the subject
+ * of active research. Reserve requirements are specified in order to be
+ * symmetrically available to increase or decrease power injected into the
+ * grid. Then the technical and physical constraints are mainly divided in
  * three different categories:
  *
  * - the active power bounds;
@@ -80,8 +81,8 @@ namespace SMSpp_di_unipi_it {
  *   spinning reserves;
  *
  * - the minimum power output constraints according to primary and secondary
- *   spinning reserves.
- */
+ *   spinning reserves. */
+
 class IntermittentUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
@@ -102,14 +103,12 @@ class IntermittentUnitBlock : public UnitBlock {
 
 /// constructor, takes the father and the time horizon
 /** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
- * father Block.
- */
+ * father Block. */
 
- explicit IntermittentUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block ) {}
+ explicit IntermittentUnitBlock( Block * f_block = nullptr , Index t = 0 )
+  : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
-
 /// destructor of IntermittentUnitBlock
 
  ~IntermittentUnitBlock() override = default;
@@ -119,6 +118,7 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
+
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the IntermittentUnitBlock. Besides the mandatory "type" attribute of any
@@ -135,11 +135,10 @@ class IntermittentUnitBlock : public UnitBlock {
  *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
  *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0.  If NumberIntervals <= 1
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MxP[ t ] >= MnP[ t ] >= 0 for all t, and when MxP[ t ] == MnP[ t ] the
- *   unit cannot be curtailed and cannot provide any reserve.
+ *   be MnP[ t ] >= 0 for all t.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
  *   over the dimension "NumberIntervals". This is meant to represent the
@@ -151,14 +150,14 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MxP[ t ] >= MnP[ t ] >= 0 for all t, and when MxP[ t ] == MnP[ t ] the
- *   unit cannot be curtailed and cannot provide any reserve.
+ *   be MxP[ t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is
+ *   possible: it means that (at time instant t) the unit cannot be curtailed
+ *   and cannot provide any reserve.
  *
  * - The scalar variable "Gamma", of type double and not indexed over any
  *   dimension. This variable is used to take into account an uncertainty on
- *   the maximal potential production. Note that it must be 0 >= Gamma >= 1;
- *   when Gamma == 0, the unit does not provide any reserve.
- * */
+ *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
+ *   when Gamma == 0, the unit does not provide any reserve. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
