@@ -448,7 +448,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
 ///Returns the matrix of minimum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the minimum heat production of unit i in time t. There
- * are four possible cases:
+ * are three possible cases:
  *
  * - if the boost::multi_array<> M is empty() then, any minimum heat
  *   production is defined;
@@ -456,10 +456,6 @@ void generate_abstract_variables( Configuration *stvv ) override;
  * - if the boost::multi_array<> M has only one row, it is a vector with size
  *   of get_number_heat_units(). In this case M[ 0 , i ] gives the minimum
  *   heat production for each i and all t;
- *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the each element of M[ t , 0 ]
- *   represents the minimum heat production value at time t and for all units;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the minimum heat
@@ -472,7 +468,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
 ///Returns the matrix of maximum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the maximum heat production of unit i in time t. There
- * are four possible cases:
+ * are three possible cases:
  *
  * - if the boost::multi_array<> M is empty() then, any maximum heat
  *    production is defined;
@@ -480,10 +476,6 @@ void generate_abstract_variables( Configuration *stvv ) override;
  * - if the boost::multi_array<> M has only one row, it is a vector
  *    with size of get_number_heat_units(). In this case M[ 0 , i ] gives the
  *    maximum heat production for each i and all t;
- *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the each element of M[ t , 0 ]
- *   represents the maximum heat production value at time t and for all units;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the maximum heat
@@ -497,7 +489,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
 ///Returns the matrix of production heat cost
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the production heat cost of unit i in time t. There
- * are four possible cases:
+ * are three possible cases:
  *
  * - if the boost::multi_array<> M is empty() then, any production heat cost
  *   is defined;
@@ -505,10 +497,6 @@ void generate_abstract_variables( Configuration *stvv ) override;
  * - if the boost::multi_array<> M has only one row, it is a vector with size
  *   of get_number_heat_units(). In this case M[ 0 , i ] gives the production
  *   heat cost for each i and all t;
- *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the each element of M[ t , 0 ]
- *   represents the production heat cost at time t and for all units;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the production heat
