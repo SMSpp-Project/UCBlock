@@ -147,8 +147,8 @@ int main( int argc, char ** argv ) {
   }
 
   for( unsigned int i = 0; i < mod_file.TimeHorizon; ++i ) {
-   auto ng = bg.addGroup( "Network_" + std::to_string( i ) );
-   ng.putAtt( "type", "NetworkBlock" );
+   auto ng = bg.addGroup( "NetworkBlock_" + std::to_string( i ) );
+   ng.putAtt( "type", "BusNetworkBlock" );
    ng.addDim( "NumberNodes", 1 );
    // FIXME: Check Loads[][] bounds
    serialize( ng,
