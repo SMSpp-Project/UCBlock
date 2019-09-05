@@ -115,11 +115,11 @@ void UCBlock::deserialize_sub_blocks
                                   sub_group_name + " is not present" ) );
   }
 
-  auto class_name_attribute = sub_group.getAtt( "ClassName" );
+  auto class_name_attribute = sub_group.getAtt( "type" );
 
   if( class_name_attribute.isNull() ) {
    throw ( std::invalid_argument
-    ( "UCBlock::deserialize: ClassName attribute "
+    ( "UCBlock::deserialize: type attribute "
       "is not present in group " + sub_group_name ) );
   }
 
@@ -154,9 +154,9 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
  ::deserialize_dim( group, "NumberElectricalGenerators",
-                                 f_number_elc_generators, false );
+                                 f_number_elc_generators, true );
  ::deserialize_dim( group, "NumberHeatGenerators",
-                                f_number_heat_generators, false );
+                                f_number_heat_generators, true );
 
  unsigned int number_nodes = f_NetworkData ? f_NetworkData->
   get_number_nodes() : 1;
@@ -181,22 +181,19 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     ::deserialize( group, "HeatSet", { f_number_units, f_number_heat_blocks },
                    v_heat_set);
   }
-
  if( f_number_primary_zones >= 1 ) {
   ::deserialize( group, "PrimaryZones", number_nodes,
                  v_primary_zones );
 
-    ::deserialize<double  , 2>( group, "PrimaryDemand",
-                   { f_number_primary_zones, f_time_horizon },
-                   v_primary_demand );
+  ::deserialize( group, "PrimaryDemand", v_primary_demand );
  }
+
 
  if( f_number_secondary_zones >= 1 ) {
   ::deserialize( group, "SecondaryZones", number_nodes,
                  v_secondary_zones );
 
-    ::deserialize<double  , 2>( group, "SecondaryDemand",
-                   { f_number_secondary_zones, f_time_horizon },
+  ::deserialize<double  , 2>( group, "SecondaryDemand",
                    v_secondary_demand );
  }
 
@@ -204,8 +201,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "InertiaZones", number_nodes,
                  v_inertia_zones );
 
-    ::deserialize( group, "InertiaDemand",
-                   { f_number_inertia_zones, f_time_horizon },
+    ::deserialize<double  , 2>( group, "InertiaDemand",
                    v_inertia_demand );
  }
 
@@ -214,25 +210,22 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
                  v_number_pollutant_zones );
 
-    ::deserialize( group, "PollutantZones",
-                   { f_number_pollutants, number_nodes },
+    ::deserialize<Index  , 2>( group, "PollutantZones",
                    v_pollutant_zones );
 /*
   ::deserialize( group, "PollutantBudget", {f_number_pollutants_zones,f_number_pollutants},
-                 v_pollutant_budget );//todo*/
-
-    ::deserialize( group, "PollutantRho",
-                   { f_time_horizon, f_number_pollutants, f_number_units },
+                 v_pollutant_budget );
+*/
+    ::deserialize<double  , 3>( group, "PollutantRho",
                    v_pollutant_rho );
 
     if( f_number_heat_blocks >= 1 ) {
 
-      ::deserialize( group, "PollutantHeatRho",
-                     { f_time_horizon, f_number_pollutants,
-                         f_number_heat_blocks }, v_pollutant_heat_rho );
+      ::deserialize<double  , 3>( group, "PollutantHeatRho", v_pollutant_heat_rho );
     }
- }
 
+
+ }
  if( number_nodes > 1 ) {
   ::deserialize( group, "GeneratorNode", f_number_elc_generators,
                  v_generator_node );
@@ -674,7 +667,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  }
  if( f_number_primary_zones >= 1 ) {
 
-  ::serialize<double  , 2>( group, "PrimaryDemand", netCDF::NcDouble(),
+  ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
                  { dim_number_primary_zones, dim_time_horizon },
                  v_primary_demand );
  }
@@ -707,8 +700,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
                  v_pollutant_zones );
 /*
     ::serialize( group, "PollutantBudget", netCDF::NcDouble(),
-                 { dim_number_pollutant_zones, dim_number_pollutants }, v_pollutant_budget );*/
-
+                 { dim_number_pollutant_zones, dim_number_pollutants }, v_pollutant_budget );
+*/
     ::serialize<double  , 3>( group, "PollutantRho", netCDF::NcDouble(),
                  { dim_time_horizon, dim_number_pollutants, dim_number_units },
                  v_pollutant_rho );

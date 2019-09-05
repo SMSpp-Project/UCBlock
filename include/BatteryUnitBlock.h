@@ -58,26 +58,26 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for the BatteryUnit problem
 /** The BatteryUnitBlock class implements the Block concept [see Block.h] for
- * a large class of units that allow direct storage of electrical energy.
- * This can be the case of actual phisical batteries, either "large"
- * (battery storage) or "small" (e-mobility, distributed storage), of
- * methods that use some intermediate energy vector with limited local
- * storage/production (power-to-gas units), as well as of "logical" 
- * mechanisms that allow to temporally shift production/consumption in a
- * limited way, thereby acting like an energy storage (centralized demand
- * response, distributed load management). BatteryUnitBlock provides a quite
- * general concept of "battery" that covers different units which mostly fit
- * the same mathematical equations pattern. For instance, a BatteryUnitBlock
- * may or may not have a fixed demand (e-mobility has, other units have not)
- * and it may or may not provide primary and secondary reserve (battery
- * storage may do, but other units don't).
+ * a large class of units that allow direct storage of electrical energy. This
+ * can be the case of actual physical batteries, either "large" (battery
+ * storage) or "small" (e-mobility, distributed storage), of methods that use
+ * some intermediate energy vector with limited local storage/production
+ * (power-to-gas units), as well as of "logical" mechanisms that allow to
+ * temporally shift production/consumption in a limited way, thereby acting
+ * like an energy storage (centralized demand response, distributed load
+ * management). BatteryUnitBlock provides a quite general concept of "battery"
+ * that covers different units which mostly fit the same mathematical
+ * equations pattern. For instance, a BatteryUnitBlock may or may not have a
+ * fixed demand (e-mobility has, other units have not) and it may or may not
+ * provide primary and secondary reserve (battery storage may do, but other
+ * units don't).
  *
- * Battery storage provide an additional flexibility to the system by
- * shifting a surplus of electric energy (e.g. due to high renewable feeding)
- * to times with high demand or lower renewable generation. The distributed
- * battery storage can be aggregated in the energy cells or directly placed in
- * a single node of the network. We will therefore not stress this dependency
- * in the subsequent equations. We emphasize that potential contribution of
+ * Battery storage provide an additional flexibility to the system by shifting
+ * a surplus of electric energy (e.g. due to high renewable feeding) to times
+ * with high demand or lower renewable generation. The distributed battery
+ * storage can be aggregated in the energy cells or directly placed in a
+ * single node of the network. We will therefore not stress this dependency in
+ * the subsequent equations. We emphasize that potential contribution of
  * batteries to inertia is still a subject of active research and should be
  * considered as optional. Besides, since the transport sector is moving
  * towards electrification, electric mobility will have a rising impact on the

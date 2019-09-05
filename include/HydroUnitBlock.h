@@ -135,7 +135,7 @@ class HydroUnitBlock : public UnitBlock {
  * - The dimension "NumberReservoirs" containing the number of all reservoirs
  *   (or nodes) in the HydroUnitBlock. The dimension is optional, if it is not
  *   provided then it is taken to be == 1, which means that the (in principle)
- *   cascading hydro system is aftually single hydro reservoir. Note, however,
+ *   cascading hydro system is actually single hydro reservoir. Note, however,
  *   that a single reservoir can still have multiple hydro generating units
  *   (see NumberArcs below).
  *
@@ -150,7 +150,7 @@ class HydroUnitBlock : public UnitBlock {
  *   oriented; that is, a positive flow along arc r (turbine) means that water
  *   is being taken away from StartArc[ r ] and delivered to EndArc[ r ]
  *   (see next), a negative flow (pump) means vice-versa. Note that reservoir
- *   names here go from 0 to NumberReservoirs - 1;
+ *   names here go from 0 to NumberReservoirs - 1.
  *
  * - The variable "EndArc", of type int and indexed over the dimension
  *   "NumberArcs"; the r-th entry of the variable is the ending point of the
@@ -238,7 +238,7 @@ class HydroUnitBlock : public UnitBlock {
  *   the second dimension has size 1 then the entry MinV[ r , 0 ] gives the
  *   fixed minimum volumetric value of the unit for each reservoir r along
  *   all the time horizon. Otherwise, MinVolumetric[ r , i ] is the fixed
-|*   value of MinV[ r , t ] for reservoir r and all t in the interval
+ *   value of MinV[ r , t ] for reservoir r and all t in the interval
  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
