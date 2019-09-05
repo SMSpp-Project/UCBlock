@@ -17,7 +17,7 @@
 ##############################################################################
 
 # module name
-NAME = test
+NAME = ucblock_test
 
 # basic directory
 DIR = ./
@@ -62,8 +62,8 @@ MOBJ =  $(UCBckOBJ)
 # libreries
 MLIB =  $(UCBckLIB)
 
-$(NAME): $(MOBJ) $(DIR)main.o 
-	$(CC) -o $(NAME) $(DIR)main.o $(MOBJ) $(MLIB) $(SW)
+$(NAME): $(MOBJ) $(DIR)ucblock_test.o
+	$(CC) -o $(NAME) $(DIR)ucblock_test.o $(MOBJ) $(MLIB) $(SW)
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
@@ -75,7 +75,7 @@ MH =    $(UCBckH)
 
 # compile command
 
-$(DIR)main.o: $(DIR)main.cpp $(MH) 
+$(DIR)main.o: $(DIR)ucblock_test.cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
 ############################ End of makefile ################################

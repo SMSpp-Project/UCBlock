@@ -5,13 +5,11 @@ add_library(
         src/DCNetworkBlock.cpp
         src/BusNetworkBlock.cpp
         src/UnitBlock.cpp
-        src/HeatBlock.cpp
+        #src/HeatBlock.cpp
         src/ThermalUnitBlock.cpp
         src/HydroUnitBlock.cpp
         src/BatteryUnitBlock.cpp
-        src/CentralizedDemandResponseUnitBlock.cpp
-        src/EMobilityUnitBlock.cpp
-        src/IntermittentGenerationUnitBlock.cpp
-        src/PowerToGasUnitBlock.cpp)
+        src/IntermittentUnitBlock.cpp)
 
 add_subdirectory(tools)
+add_subdirectory(test)
