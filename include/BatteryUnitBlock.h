@@ -185,7 +185,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   t. Otherwise, MinStorage[ i ] is the fixed value of MinS[ t ] for all t
  *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
  *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   always be MinS[ t ] >= MaxS[ t ] for all t. If NumberIntervals <= 1
+ *   always be 0 <= MinS[ t ] < MaxS[ t ] for all t. If NumberIntervals <= 1
  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
@@ -209,7 +209,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
  *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   be MinP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
+ *   be MinP[ t ] <= 0 for all t. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
@@ -221,9 +221,9 @@ class BatteryUnitBlock : public UnitBlock {
  *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
  *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   be [0 <=] MinP[ t ] <= MaxP[ t ] for all t. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. 
+ *   be MinP[ t ] < MaxP[ t ] for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
@@ -363,9 +363,8 @@ class BatteryUnitBlock : public UnitBlock {
  *   "TimeHorizon": the entry Demand[ t ] is assumed to contain the amount of
  *   energy that must be discharged from the battery and "sent away for some
  *   other purpose" (say, driving your e-car) at time t. This variable is
- *   optional; if it isn't defined, then Demand[ t ] == 0.
- *   ??? ARE WE SURE ???
- *   otherwise it must be that Demand[ t ] >= 0 for each time instant t.
+ *   optional; if it isn't defined, then Demand[ t ] == 0. Otherwise the
+ *   Demand[ t ] contains the demand value for each time instant t.
  * */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -670,7 +669,7 @@ class BatteryUnitBlock : public UnitBlock {
 /** The method returned a std::vector< double > V and each element of V
  * contains the storing battery at time t. There are three possible cases:
  *
- * - if the vector is empty, then the storing battery of the unit is 0;
+ * - if the vector is empty, then the storing battery of the unit is 1;
  *
  * - if the vector has only one element, then V[ 0 ] is the storing battery of
  *   the unit for all time horizon;
@@ -687,7 +686,7 @@ class BatteryUnitBlock : public UnitBlock {
  * contains the extracting battery rho at time t. There are three possible
  * cases:
  *
- * - if the vector is empty, then the extracting battery rho of the unit is 0;
+ * - if the vector is empty, then the extracting battery rho of the unit is 1;
  *
  * - if the vector has only one element, then V[ 0 ] is the extracting battery
  *   rho of the unit for all time horizon;

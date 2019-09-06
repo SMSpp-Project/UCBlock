@@ -262,6 +262,13 @@ class HydroUnitBlock : public UnitBlock {
  *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
+ * Note: it may happen that MinV[ r , t ] == MaxV[ r , t ], but only *in a
+ * subset of the time instants*. For instance, the user may want to fix the
+ * final value of the reservoir, for whatever reason. So, if MinV and MaxV are
+ * independent of t, then MinV[ r ] < MaxV[ r ] must surely happen. If,
+ * instead, they depend on t, then equality can be accepted at some instants
+ * (but not all of them).
+ *
  * - The variable "Inflows", of type double and indexed over both dimensions
  *   "NumberReservoirs" and "TimeHorizon". This is meant to represent the
  *   matrix InF[ r , t ] which, for each reservoir r, contains the amount of
