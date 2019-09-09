@@ -46,7 +46,7 @@
  *   the different values needed to descibe the above mentioned constraints
  *   and costs.
  * - A small private class with sole purpose of defining a static member, which 
- *   has to be initialized when main() is executed. Τhe class constructos is 
+ *   has to be initialized when main() is executed. The class constructor is 
  *   set to register AcadThermalUnitBlock in the Factory of UnitBlock.
 
  * \version 0.10
