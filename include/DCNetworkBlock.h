@@ -78,7 +78,7 @@ class DCNetworkBlock : public NetworkBlock {
 /** @name Constructor and Destructor
  *  @{ */
 
- /// Constructor of DCNetworkBlock
+ /// constructor of DCNetworkBlock
  /** Constructor of DCNetworkBlock, taking possibly a pointer of its
   * father Block. */
 
@@ -86,7 +86,7 @@ class DCNetworkBlock : public NetworkBlock {
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
 
 /*--------------------------------------------------------------------------*/
-/// Destructor of DCNetworkBlock
+/// destructor of DCNetworkBlock
  ~DCNetworkBlock() override {
   delete f_NetworkData;
  }
@@ -96,7 +96,7 @@ class DCNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/// Loads the DCNetworkBlock instance from memory
+/// loads the DCNetworkBlock instance from memory
 /** Like load( std::istream & ), if there is any Solver attached to this
  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
  */
@@ -104,7 +104,7 @@ class DCNetworkBlock : public NetworkBlock {
   throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
  }
 /*--------------------------------------------------------------------------*/
-///Generate abstract constraints of DCNetworkBlock
+///generate abstract constraints of DCNetworkBlock
 /** The topology of the transmission network is defined by a set of nodes
  *
  *   \f$ N \f$ and a set of lines connecting the nodes \f$ L \f$.
@@ -114,8 +114,6 @@ class DCNetworkBlock : public NetworkBlock {
  *   Factor matrix which represents the linear relationship between power
  *   injections at each node of the grid and active power flows through the
  *   transmission lines.
- *
- * //TODO: I will add here how matrix B is defined
  *
  * The flow limit equations can be written as follow:
  *

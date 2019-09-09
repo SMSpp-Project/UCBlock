@@ -862,7 +862,7 @@ class ThermalUnitBlock : public UnitBlock {
 /** The returned value U = get_fixed_consumption() contains the contribution
  *  to fixed consumption (basically, the constants to be multiplied by the
  *  commitment variables returned by get_commitment()) of all the generators
- *  at all time instants. There are three possible cases:
+ *  at all time instants. There are four possible cases:
  *
  * - if the matrix is empty, then the fixed consumption is always 0;
  *
