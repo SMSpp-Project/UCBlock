@@ -37,8 +37,6 @@
 #include "LinearFunction.h"
 #include <map>
 #include "FRowConstraint.h"
-#include "DQuadFunction.h"
-#include "FRealObjective.h"
 #include "UnitBlock.h"
 #include "UCBlock.h"
 
@@ -90,17 +88,6 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
 
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void IntermittentUnitBlock::generate_objective( Configuration *objc )
-{
- if( get_objective() == nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
-
-// initialize objective function - - - - - - - - - - - - - - - - - - - - - -
- //TODO
-}  // end( IntermittentUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentUnitBlock -----*/

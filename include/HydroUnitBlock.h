@@ -37,8 +37,6 @@
 
 #include "ColVariable.h"
 #include "FRowConstraint.h"
-#include "OneVarConstraint.h"
-#include "FRealObjective.h"
 #include "DQuadFunction.h"
 #include "UnitBlock.h"
 
@@ -587,7 +585,7 @@ class HydroUnitBlock : public UnitBlock {
  *   secondary spinning reserves are are presented in (1)-(2). Each of them
  *   is a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_arcs entries, where the entry
- *   t = 0, ...,f_time_horizon - 1 and the entry z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and the entry l = 0, ...,f_number_arcs - 1
  *   being the maximum and minimum power output value according to the primary
  *   and the secondary spinning reserves at time t and arc l. these ensure the
  *   maximum(or minimum) amount of energy that unit can produce(or use) when
@@ -613,7 +611,7 @@ class HydroUnitBlock : public UnitBlock {
  *   spinning reserve in the problem. Each of them is a
  *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_arcs entries, where
- *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
  *
  *   \f[
  *
@@ -639,7 +637,7 @@ class HydroUnitBlock : public UnitBlock {
  *   reserve value for each pump is equal to zero. Each of them is a
  *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_arcs entries, where
- *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
  *
  *   \f[
  *
@@ -661,7 +659,7 @@ class HydroUnitBlock : public UnitBlock {
  *   equality(7) gives the active power relation with flow rate for each
  *   pump at time t. This is a boost::multi_array<FRowConstraint, 2>; with two
  *   dimensions which are f_time_horizon, and f_number_arcs entries, where
- *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
  *
  *   \f[
  *
@@ -685,7 +683,7 @@ class HydroUnitBlock : public UnitBlock {
  *   bound of flow rate at time t and for ach arc l, thus that is a
  *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_arcs entries, where
- *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
  *
  *   \f[
  *
@@ -698,7 +696,7 @@ class HydroUnitBlock : public UnitBlock {
  *   ramp-up and ramp-down constraints at time t and for ach arc l, so each of
  *   them is a boost::multi_array<FRowConstraint, 2>; with two dimensions
  *   which are f_time_horizon, and f_number_arcs entries, where
- *   t = 0, ...,f_time_horizon - 1 and z = 0, ...,f_number_arcs - 1
+ *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
  *
  *   \f[
  *
@@ -717,22 +715,24 @@ class HydroUnitBlock : public UnitBlock {
  *   final volumes of each reservoir r at time t. This is a
  *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_number_reservoirs, and f_time_horizon entries, where
- *   r = 0, ...,f_number_reservoirs - 1 and z = 0, ...,f_time_horizon - 1
+ *   n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
  *   \f[
  *
- *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + 3600 A_{n,t} +
- *      3600 (\sum_{n' \in \mathcal{A}(n)}\sum_{ l \in \mathcal{L}^{hy} }
- *      f_{t - \tau^{dn}_l} - \sum_{n' \in \mathcal{F}(n)}
- *      \sum_{ l \in \mathcal{L}^{hy} } f_{t - \tau^{up}_l})
- *      \quad t \in \mathcal{T}, \quad n \in \mathcal{N}^{hy}    \quad (12)
+ *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(d,s) \in
+ *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l} - \sum_{l=(s,d) \in
+ *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l}) \quad t \in \mathcal{T},
+ *      \quad n \in \mathcal{N}^{hy}    \quad (12)
  *
  *   \f]
+ *   where in each arc \f$ l=(s,d) \in \mathcal{L}^{hy} \f$, \f$ s \f$ and
+ *   \f$ d \f$ are supposed to be the start and the end point of that
+ *   respectively.
  *
  * - final volumes variable bounds: This inequality(13) indicates upper and
  *   lower bound of volumetric variables of each reservoir for each time t,
  *   thus that is a boost::multi_array<FRowConstraint, 2>; with two dimensions
  *   which are f_number_reservoirs, and f_time_horizon entries, where
- *   r = 0, ...,f_number_reservoirs - 1 and z = 0, ...,f_time_horizon - 1
+ *   n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
  *   \f[
  *
  *      v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
@@ -742,13 +742,6 @@ class HydroUnitBlock : public UnitBlock {
  *
  */
  void generate_abstract_constraints( Configuration *stcc ) override;
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective function of the HydroUnitBlock
-/** Method that generates the objective function of the HydroUnitBlock.
-
- * - Objective function: the objective function of this unit is zero */
- void generate_objective( Configuration *objc ) override;
-
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -1364,8 +1357,6 @@ class HydroUnitBlock : public UnitBlock {
  /// volumetric bounds constraints
  boost::multi_array< FRowConstraint, 2 >  v_Volumetric_Const;
 
- /// the objective function
- FRealObjective objective;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/

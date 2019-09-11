@@ -106,8 +106,7 @@ class DCNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
 /** The topology of the transmission network is defined by a set of nodes
- *
- *   \f$ N \f$ and a set of lines connecting the nodes \f$ L \f$.
+ *\f$ N \f$ and a set of lines \f$ L \f$.
  *
  *   By considering a \f$ |L| \times |N| \f$ matrix
  *   \f$ B_t \f$, which constitutes the so-called Power Transfer Distribution
@@ -118,13 +117,13 @@ class DCNetworkBlock : public NetworkBlock {
  * The flow limit equations can be written as follow:
  *
  * \f[
- *  P^{mn}_{\ell } \leq \sum_{ n' \in N} (B)_({\ell, n'})
- *  (S_{ n'} - D^{ac}_{n'}) \leq
+ *  P^{mn}_{\ell } \leq \sum_{ n \in N} (B)_({\ell, n})
+ *  (S_{ n} - D^{ac}_{n}) \leq
  *  P^{mx}_{\ell}  \quad \ell \in \mathcal{L} \quad
  * \f]
  *   Where \f$ P^{mn}_{\ell }\f$ and \f$ P^{mx}_{\ell }\f$ are minimum and
- *   maximum power flow at each line \f$ \ell \in L \f$ and \f$ S_{n'} \f$ and
- *   \f$ D^{ac}_{n' } \f$ is the node injection variable and active power
+ *   maximum power flow at each line \f$ \ell \in L \f$ and \f$ S_{n} \f$ and
+ *   \f$ D^{ac}_{n} \f$ is the node injection variable and active power
  *   demand at node \f$ n \in N \f$ in the network respectively.
  */
  void generate_abstract_constraints( Configuration *stcc = nullptr )

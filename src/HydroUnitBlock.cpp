@@ -37,8 +37,6 @@
 #include "LinearFunction.h"
 #include <map>
 #include "FRowConstraint.h"
-#include "DQuadFunction.h"
-#include "FRealObjective.h"
 #include "UnitBlock.h"
 #include "UCBlock.h"
 
@@ -112,16 +110,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
 
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
-/*--------------------------------------------------------------------------*/
-
-void HydroUnitBlock::generate_objective( Configuration *objc )
-{
-    if( get_objective() == nullptr )  // an objective is there already
-        return;                         // cowardly (and silently) return
-
-// initialize objective function - - - - - - - - - - - - - - - - - - - - - -
- //TODO I should complete this part after completing the interface
-}  // end( HydroUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/

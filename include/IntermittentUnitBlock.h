@@ -38,8 +38,6 @@
 #include "ColVariable.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
-#include "FRealObjective.h"
-
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -216,12 +214,6 @@ class IntermittentUnitBlock : public UnitBlock {
  *   \f]
  *   */
  void generate_abstract_constraints( Configuration *stcc ) override;
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective of the IntermittentUnitBlock
-/** Method that generates the objective of the IntermittentUnitBlock.
-
- * - Objective function: the objective function of this unit is zero */
- void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/

@@ -549,8 +549,8 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_primary_zones entries, where the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 0, ..., f_number_primary_zones - 1 being the primary demand
- *   constraints at time t and primary zone z as below;
+ *   \f$ \mathcal{B}\f$ = 0, ..., f_number_primary_zones - 1 being the primary
+ *   demand constraints at time t and primary zone \f$ \mathcal{B}\f$ as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
@@ -566,8 +566,9 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint,2>; with two dimensions which are
  *   f_time_horizon, and f_number_secondary_zones entries, which the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 0, ..., f_number_secondary_zones - 1 being the secondary demand
- *   constraints at time t and secondary zone z as follow;
+ *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
+ *   secondary demand constraints at time t and secondary zone
+ *   \f$ \mathcal{B}\f$ as follow;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,i} \geq
@@ -584,8 +585,8 @@ class UCBlock : public Block {
  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_inertia_zones entries, where the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
- *   z = 0, ..., f_number_inertia_zones - 1 being the inertia demand
- *   constraints at time t and inertia zone z as below;
+ *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
+ *   demand constraints at time t and inertia zone \f$ \mathcal{B}\f$ as below;
  *
  * \f[
  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
@@ -599,20 +600,21 @@ class UCBlock : public Block {
  *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
  *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
  *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
- *   \f$ \rho_{t , p , g} \f$ and \f$ \rho'_{t , p , h} \f$ where considered
+ *   \f$ \rho_{t , p , g} \f$ and \f$ \gamma_{t , p , h} \f$ where considered
  *   as pollutant ratio and pollutant heat ratio respectively. So, if the
  *   f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>; with
  *   two dimensions which are f_number_pollutants and v_number_pollutant_zones
  *   entries, that the entry
  *   p = 0, ..., f_number_pollutants - 1 and the entry
- *   z = 0, ..., v_number_pollutant_zones - 1 being the pollutant budget
- *   constraints at pollutant p and pollutant zones b as below;
+ *   \f$ \mathcal{B}\f$ = 0, ..., v_number_pollutant_zones - 1 being the
+ *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
+ *   zones b as below;
  *
  * \f[
  *
  *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
  *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
- *  \sum_{ j \in \mathcal{I}^{ho}(h)} \rho'_{t , p , h} p^{h,he}_{t,j} )
+ *  \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
  *  \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
  *  \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
  * \f]
