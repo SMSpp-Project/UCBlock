@@ -209,7 +209,7 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // The active power variables must be always present
  variables_to_be_generated |=
   ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
-
+ variables_to_be_generated += 1;
  unsigned int k = 1;
  for( auto pair : variables_and_types ) {
   if( variables_to_be_generated & k ) {
@@ -217,7 +217,7 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
    auto variables = pair.first;
    variables->resize(boost::extents[f_time_horizon][get_number_generators()]);
    for (Index t = 0; t < f_time_horizon; ++t) {
-    for (Index g = 0; t < get_number_generators(); ++g) {
+    for (Index g = 0; g < get_number_generators(); ++g) {
      auto variable = (*variables)[ t ][ g ];
      variable.set_type(pair.second);
     }
@@ -242,8 +242,10 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
- ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-              NumberIntervals, v_change_intervals );
+ if (!v_change_intervals.empty()) {
+  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+               NumberIntervals, v_change_intervals );
+ }
 }
 
 /*--------------------------------------------------------------------------*/

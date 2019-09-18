@@ -222,7 +222,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    StartUp_ShutDown_Variables_Constraints[ constraint_index ].
            set_function( linear_function );
   }
-
   add_static_constraint( StartUp_ShutDown_Variables_Constraints );
  }
 
@@ -621,11 +620,15 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
               NumberIntervals, v_DeltaRampDown, true );
 
- ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_PrimaryRho, true );
+ if(!v_PrimaryRho.empty() ) {
+  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
+               NumberIntervals, v_PrimaryRho, true );
+ }
 
- ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_SecondaryRho, true );
+ if(!v_SecondaryRho.empty() ) {
+  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
+               NumberIntervals, v_SecondaryRho, true );
+ }
 
  ::serialize( group, "QuadTerm", netCDF::NcDouble(),
               NumberIntervals, v_QuadTerm, true );
