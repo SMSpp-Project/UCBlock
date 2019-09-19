@@ -17,13 +17,7 @@ target_link_libraries(ThermalUnitBlock_test
                       SMS++
                       UCBlock
                       MILPSolver
+                      cplex-library
                       netcdf
                       netcdf-cxx4
                       )
-
-# FIXME: Workaround for CPLEX
-if (OVERRIDE_CPLEX_LIB)
-    target_link_libraries(ThermalUnitBlock_test ${OVERRIDE_CPLEX_LIB})
-else ()
-    target_link_libraries(ThermalUnitBlock_test cplex-library)
-endif ()
