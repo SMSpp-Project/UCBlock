@@ -1,0 +1,14 @@
+# This file contains instructions on how to generate the UCBlockConfig.cmake file
+
+get_filename_component(UCBlock_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+find_package(Boost REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(SMSpp REQUIRED)
+
+if(NOT TARGET SMS++::UCBlock)
+    include("${UCBlock_CMAKE_DIR}/UCBlockTargets.cmake")
+endif()
+
+set(UCBlock_LIBRARIES SMS++::UCBlock)

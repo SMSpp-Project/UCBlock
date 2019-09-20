@@ -1,42 +1,103 @@
-cmake_minimum_required(VERSION 3.1)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-set(CMAKE_VERBOSE_MAKEFILE OFF)
-
 # ----- Project description and directories ------------------------------------
-project(UCBlock DESCRIPTION "UC Blocks for SMS++")
+cmake_minimum_required(VERSION 3.8)
+project(UCBlock 
+        VERSION 1.0.0
+        DESCRIPTION "UC Blocks for SMS++")
 
 set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(PROJECT_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # ----- Requirements -----------------------------------------------------------
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
-
-# ----- Custom includes --------------------------------------------------------
-# TODO: When libraries will be installable, fix this
-set(SMS++_INCLUDE_DIR ../SMS++/include)
+find_package(SMSpp REQUIRED)
 
 # ----- Library ----------------------------------------------------------------
-set(${PROJECT_NAME}_SOURCES
+set(UCBlock_SOURCES
     ${PROJECT_SOURCE_DIR}/UCBlock.cpp
     ${PROJECT_SOURCE_DIR}/NetworkBlock.cpp
     ${PROJECT_SOURCE_DIR}/DCNetworkBlock.cpp
     ${PROJECT_SOURCE_DIR}/BusNetworkBlock.cpp
     ${PROJECT_SOURCE_DIR}/UnitBlock.cpp
-    #${PROJECT_SOURCE_DIR}/HeatBlock.cpp
+    ${PROJECT_SOURCE_DIR}/HeatBlock.cpp
     ${PROJECT_SOURCE_DIR}/ThermalUnitBlock.cpp
     ${PROJECT_SOURCE_DIR}/HydroUnitBlock.cpp
     ${PROJECT_SOURCE_DIR}/BatteryUnitBlock.cpp
     ${PROJECT_SOURCE_DIR}/IntermittentUnitBlock.cpp
     )
 
-add_library(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_SOURCES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIRS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${SMS++_INCLUDE_DIR})
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR})
+# Add target
+add_library(UCBlock STATIC ${UCBlock_SOURCES})
+
+# Alias for testing
+add_library(SMS++::UCBlock ALIAS UCBlock)
+
+# Target properties
+target_compile_features(UCBlock PUBLIC cxx_std_17)
+target_include_directories(UCBlock
+                           PUBLIC
+                           $<INSTALL_INTERFACE:include/SMS++>
+                           $<BUILD_INTERFACE:${PROJECT_INCLUDE_DIR}>
+                           )
+
+target_link_libraries(UCBlock PUBLIC
+                      SMS++::SMSpp
+                      Boost::boost
+                      Eigen3::Eigen
+                      )
 
 # ----- Subdirectories ---------------------------------------------------------
-add_subdirectory(tools)
-add_subdirectory(test)
+#add_subdirectory(tools)
+#add_subdirectory(test)
+
+# ----- Install instructions ---------------------------------------------------
+include(GNUInstallDirs)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+
+# Install library
+install(TARGETS UCBlock
+        EXPORT UCBlock-targets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        )
+
+# Install headers
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
+
+# Export target in *Targets.cmake
+install(EXPORT UCBlock-targets
+        FILE UCBlockTargets.cmake
+        NAMESPACE SMS++::
+        DESTINATION ${INSTALL_CONFIGDIR}
+        )
+
+# Create *ConfigVersion.cmake
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY AnyNewerVersion
+)
+
+# Create *Config.cmake
+configure_package_config_file(
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/UCBlockConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
+        INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+)
+
+# Install the Config and ConfigVersion
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfigVersion.cmake
+        DESTINATION ${INSTALL_CONFIGDIR}
+        )
+
+# ----- Export from the build tree ---------------------------------------------
+export(EXPORT UCBlock-targets
+       FILE ${CMAKE_CURRENT_BINARY_DIR}/UCBlockTargets.cmake
+       NAMESPACE SMS++::)
+
+# Register package in user's package registry (~/.cmake/registry)
+export(PACKAGE UCBlock)
+
