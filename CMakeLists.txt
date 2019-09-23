@@ -42,10 +42,6 @@ target_link_libraries(UCBlock PUBLIC
 # Alias for testing
 add_library(SMS++::UCBlock ALIAS UCBlock)
 
-# ----- Subdirectories ---------------------------------------------------------
-#add_subdirectory(tools)
-#add_subdirectory(test)
-
 # ----- Install instructions ---------------------------------------------------
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
@@ -94,3 +90,6 @@ export(EXPORT UCBlock-targets
 # Register package in user's package registry (~/.cmake/registry)
 export(PACKAGE UCBlock)
 
+# ----- Subdirectories ---------------------------------------------------------
+add_subdirectory(tools)
+add_subdirectory(test)
