@@ -1068,6 +1068,9 @@ class UCBlock : public Block {
  /// The number of heat generators of the problem
  Index f_number_heat_generators;
 
+ /// The total number of pollutant zones of the problem
+ Index f_total_number_pollutant_zones;
+
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
