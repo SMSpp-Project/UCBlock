@@ -285,27 +285,26 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
     v_node_injection_constraints[ t ][ node_id ].
      set_function( linear_function );
-   }
 
-   for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
 
-    Index generator_id = get_generator_node()[ generator_id ];
-/* //TODO Fixe me
+   for( Index generator_id = 0; generator_id < f_number_elc_generators; ++generator_id ) {
+
     auto fixed_consumption =
-     get_unit_block( unit_id )->get_fixed_consumption()[ t ];
+            get_unit_block( generator_id )->get_fixed_consumption()[t];
 
-    v_node_injection_constraints[ t ][ node_id ].set_both
-     ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
-       - fixed_consumption );
+    v_node_injection_constraints[t][node_id].set_both
+            ( v_node_injection_constraints[t][node_id].get_rhs()
+              - fixed_consumption[generator_id] );
 
     auto linear_function = dynamic_cast<LinearFunction *>
-    ( v_node_injection_constraints[ t ][ node_id ].get_function());
+    ( v_node_injection_constraints[t][node_id].get_function());
 
-    auto power = &get_unit_block( unit_id )->get_active_power() [ t ];
-    auto commitment = &( get_unit_block( unit_id )->get_commitment() [ t ] ;
+    auto power = get_unit_block( generator_id )->get_active_power();
+    auto commitment = get_unit_block( generator_id )->get_commitment();
 
-    linear_function->add_variable( power, 1.0 );
-    linear_function->add_variable( commitment, -fixed_consumption );*/
+    linear_function->add_variable( &power[t][generator_id], 1.0 );
+    linear_function->add_variable( &commitment[t][generator_id], -fixed_consumption[generator_id] );
+   }
    }
   }
 
