@@ -336,9 +336,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      ( new LinearFunction() );
    }
 
-   for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+   for( Index generator_id = 0; generator_id < f_number_elc_generators; ++generator_id ) {
 
-    auto node_id = get_generator_node()[ unit_id ];
+    auto node_id = get_generator_node()[ generator_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
@@ -346,13 +346,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     if( zone_id >= f_number_primary_zones )
      continue; // this unit does not belong to any zone
 
-    auto primary_spinning_reserve = get_unit_block( unit_id )
-     ->get_primary_spinning_reserve() [ t ];
+    auto primary_spinning_reserve = get_unit_block( generator_id )
+     ->get_primary_spinning_reserve();
 
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function());
-  //  linear_function->
-  //   add_variable( &primary_spinning_reserve, 1.0 );
+    linear_function->
+    add_variable( &primary_spinning_reserve[ t ][ generator_id ], 1.0 );
    }
   }
 
@@ -384,9 +384,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      set_function( new LinearFunction() );
    }
 
-   for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+   for( Index generator_id = 0; generator_id < f_number_elc_generators; ++generator_id ) {
 
-    auto node_id = get_generator_node()[ unit_id ];
+    auto node_id = get_generator_node()[ generator_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
@@ -394,12 +394,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     if( zone_id >= f_number_secondary_zones )
      continue; // this unit does not belong to any zone
 
-    auto secondary_spinning_reserve = get_unit_block( unit_id )->
-     get_secondary_spinning_reserve() [ t ];
+    auto secondary_spinning_reserve = get_unit_block( generator_id )->
+     get_secondary_spinning_reserve();
 
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function());
-//    linear_function->add_variable( &secondary_spinning_reserve, 1.0 );
+   linear_function->add_variable( &secondary_spinning_reserve[ t ][ generator_id ], 1.0 );
    }
   }
 
@@ -431,34 +431,30 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      ( new LinearFunction() );
    }
 
-   for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+   for( Index generator_id = 0; generator_id < f_number_elc_generators; ++generator_id ) {
 
-    auto node_id = get_generator_node()[ unit_id ];
+    auto node_id = get_generator_node()[ generator_id ];
 
     assert( node_id >= 0 && node_id < number_nodes );
 
     auto zone_id = get_inertia_zone()[ node_id ];
     if( zone_id >= f_number_inertia_zones )
      continue; // this unit does not belong to any zone
-/* //TODO FIX ME
-    auto commitment_variable =
-     &get_unit_block( unit_id )->get_commitment() [ t ];
 
-    auto inertia_commitment =
-     get_unit_block( unit_id )->get_inertia_commitment()[][ t ];
+    auto commitment_variable = get_unit_block( generator_id )->get_commitment();
 
-    auto active_power_variable =
-     &get_unit_block( unit_id )->get_active_power() [ t ];
+    auto inertia_commitment = get_unit_block( generator_id )->get_inertia_commitment();
 
-    auto inertia_power =
-     get_unit_block( unit_id )->get_inertia_power()[ t ];
+    auto active_power_variable = get_unit_block( generator_id )->get_active_power();
+
+    auto inertia_power = get_unit_block( generator_id )->get_inertia_power();
 
     auto linear_function = dynamic_cast<LinearFunction *>
     ( v_InertiaDemand_Const[ t ][ zone_id ].get_function());
 
     linear_function->
-     add_variable( commitment_variable, inertia_commitment );
-    linear_function->add_variable( active_power_variable, inertia_power ); */
+     add_variable( &commitment_variable[ t ][ generator_id], inertia_commitment[ t ][ generator_id] );
+    linear_function->add_variable( &active_power_variable[ t ][ generator_id], inertia_power[ t ][ generator_id] );
    }
   }
 
@@ -470,13 +466,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // TODO This constraint should check again
 
- if( f_number_pollutants > 0 ) {
+ if( f_total_number_pollutant_zones > 0 ) {
 
-  if( v_PollutantBudget_Const.size() != f_number_pollutants ) {
+  if( v_PollutantBudget_Const.size() != f_total_number_pollutant_zones ) {
    // this should only happen once
    assert( v_PollutantBudget_Const.empty() );
 
-   v_PollutantBudget_Const.resize( f_number_pollutants );
+   v_PollutantBudget_Const.resize( f_total_number_pollutant_zones );
   }
 
   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
@@ -554,7 +550,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // List of units that produce electricity and belong to some
   // HeatBlock.
-  std::vector< Index > electricity_units_inside_a_heat_block;
+  std::vector< Index > electricity_generators_inside_a_heat_block;
 
   if( v_power_Heat_Rho_Const.size() != f_time_horizon ) {
 
@@ -574,7 +570,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
     if( is_electricity_producing_inside_a_heat_block( unit_id ) ) {
-     electricity_units_inside_a_heat_block
+     electricity_generators_inside_a_heat_block
      [ num_constraints_per_time++ ] = unit_id;
     }
    }
@@ -589,12 +585,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    for( std::vector< Index >::size_type constraint_id = 0;
         constraint_id < num_constraints_per_time; ++constraint_id ) {
 
-    auto unit_id = electricity_units_inside_a_heat_block[ constraint_id ];
+    auto generator_id = electricity_generators_inside_a_heat_block[ constraint_id ];
 
     for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
          ++heat_block_id ) {
 
-     auto heat_unit_id = get_heat_set()[ unit_id ];
+     auto heat_unit_id = get_heat_set()[ generator_id ];
 
      if( heat_unit_id >=
          v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
@@ -608,14 +604,14 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        ( new LinearFunction() );
      }
 
-     auto active_power = get_unit_block( unit_id )->get_active_power() [ t ];
-     auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][unit_id];
-     auto power_heat_rho = get_power_heat_rho()[ unit_id ];
+     auto active_power = get_unit_block( generator_id )->get_active_power();
+     auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][generator_id];
+     auto power_heat_rho = get_power_heat_rho()[ generator_id ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
      linear_function->add_variable( &heat, 1, 0 );
-//     linear_function->add_variable( &active_power, -power_heat_rho );
+     linear_function->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
     }
    }
   }
