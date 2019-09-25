@@ -1,14 +1,38 @@
-# This file contains instructions on how to generate the UCBlockConfig.cmake file
-
+# --------------------------------------------------------------------------- #
+#    Package configuration file                                               #
+#                                                                             #
+#    This file contains instructions on how to generate ***Config.cmake,      #
+#    that is, the file that tells CMake how the package should be             #
+#    configured when found by other projects using find_package().            #
+#                                                                             #
+#    ***Targets.cmake (to be found alongside this file) is the target import  #
+#    file that tells where the headers and library are. It will be different  #
+#    depending on a local build or an installed package.                      #
+#                                                                             #
+#                              Niccolo' Iardella                              #
+#                          Operations Research Group                          #
+#                         Dipartimento di Informatica                         #
+#                             Universita' di Pisa                             #
+# --------------------------------------------------------------------------- #
 get_filename_component(UCBlock_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
-find_package(Boost REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(SMSpp REQUIRED)
+# ----- Requirements -------------------------------------------------------- #
+# This is needed to find the custom modules we provide
+list(APPEND CMAKE_MODULE_PATH ${MILPSolver_CMAKE_DIR})
 
-if(NOT TARGET SMS++::UCBlock)
+# FIXME: Not a good idea because CMakeCustom.txt is not to be installed
+#include(${SMSpp_CMAKE_DIR}/CMakeCustom.txt OPTIONAL)
+
+find_dependency(SMSpp REQUIRED)
+find_dependency(Boost REQUIRED)
+find_dependency(netCDF REQUIRED)
+
+list(REMOVE_AT CMAKE_MODULE_PATH -1)
+
+# ----- Import target ------------------------------------------------------- #
+if (NOT TARGET SMS++::UCBlock)
     include("${UCBlock_CMAKE_DIR}/UCBlockTargets.cmake")
-endif()
+endif ()
 
 set(UCBlock_LIBRARIES SMS++::UCBlock)

@@ -1,35 +1,61 @@
-# ----- Project description and directories ------------------------------------
+# --------------------------------------------------------------------------- #
+#    Main CMake file for SMS++ UCBlock                                        #
+#                                                                             #
+#                              Niccolo' Iardella                              #
+#                          Operations Research Group                          #
+#                         Dipartimento di Informatica                         #
+#                             Universita' di Pisa                             #
+# --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8)
-project(UCBlock
-        VERSION 1.0.0 # TODO: set proper version
-        HOMEPAGE_URL "https://gitlab.com/AliGhezel/ucblock"
-        DESCRIPTION "UC Blocks for SMS++")
+# ----- Project definition and directories ---------------------------------- #
+# TODO: set proper version
+project(UCBlock VERSION 1.0.0)
 
 set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# ----- Requirements -----------------------------------------------------------
-find_package(Boost REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(SMSpp REQUIRED)
+# ----- Requirements -------------------------------------------------------- #
+# find_package() is used to find libraries and automatically configure them.
+# It requires either a package configuration module (***Config.cmake) or a
+# find module (Find***.cmake), usually provided by libraries.
 
-# ----- Library ----------------------------------------------------------------
+# If we are configuring from the umbrella project, we assume that the valid
+# settings are there.
+# If we are building this project alone we use its settings but we check
+# also for settings in its parent directory.
+# TODO: Check if this behaviour is correct
+if (NOT SMS++_CONFIG_ALL)
+    include(CMakeCustom.txt OPTIONAL)
+    include(../CMakeCustom.txt OPTIONAL)
+endif ()
+
+# This is to use the find modules we provide
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+find_package(SMSpp REQUIRED)
+find_package(Boost REQUIRED)
+find_package(netCDF REQUIRED)
+
+# ----- Library ------------------------------------------------------------- #
 add_library(UCBlock STATIC)
 target_compile_features(UCBlock PUBLIC cxx_std_17)
 
 target_sources(UCBlock PRIVATE
-    ${PROJECT_SOURCE_DIR}/UCBlock.cpp
-    ${PROJECT_SOURCE_DIR}/NetworkBlock.cpp
-    ${PROJECT_SOURCE_DIR}/DCNetworkBlock.cpp
-    ${PROJECT_SOURCE_DIR}/BusNetworkBlock.cpp
-    ${PROJECT_SOURCE_DIR}/UnitBlock.cpp
-    ${PROJECT_SOURCE_DIR}/HeatBlock.cpp
-    ${PROJECT_SOURCE_DIR}/ThermalUnitBlock.cpp
-    ${PROJECT_SOURCE_DIR}/HydroUnitBlock.cpp
-    ${PROJECT_SOURCE_DIR}/BatteryUnitBlock.cpp
-    ${PROJECT_SOURCE_DIR}/IntermittentUnitBlock.cpp
-    )
+               ${PROJECT_SOURCE_DIR}/UCBlock.cpp
+               ${PROJECT_SOURCE_DIR}/NetworkBlock.cpp
+               ${PROJECT_SOURCE_DIR}/DCNetworkBlock.cpp
+               ${PROJECT_SOURCE_DIR}/BusNetworkBlock.cpp
+               ${PROJECT_SOURCE_DIR}/UnitBlock.cpp
+               ${PROJECT_SOURCE_DIR}/HeatBlock.cpp
+               ${PROJECT_SOURCE_DIR}/ThermalUnitBlock.cpp
+               ${PROJECT_SOURCE_DIR}/HydroUnitBlock.cpp
+               ${PROJECT_SOURCE_DIR}/BatteryUnitBlock.cpp
+               ${PROJECT_SOURCE_DIR}/IntermittentUnitBlock.cpp
+               )
 
+# Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when
+# generating the target import file (***Targets.cmake), that must be different
+# for local build and installation.
 target_include_directories(UCBlock PUBLIC
                            $<INSTALL_INTERFACE:include/SMS++>
                            $<BUILD_INTERFACE:${PROJECT_INCLUDE_DIR}>)
@@ -37,18 +63,21 @@ target_include_directories(UCBlock PUBLIC
 target_link_libraries(UCBlock PUBLIC
                       SMS++::SMSpp
                       Boost::boost
-                      Eigen3::Eigen)
+                      NetCDF::NetCDFCxx)
 
 # Alias for testing
 add_library(SMS++::UCBlock ALIAS UCBlock)
 
-# ----- Install instructions ---------------------------------------------------
+# ----- Install instructions ------------------------------------------------ #
+# For installing the library and all its CMake modules on the system.
+# Not required for local builds (see below).
+
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
 
 # Install library
 install(TARGETS UCBlock
-        EXPORT  UCBlock-targets
+        EXPORT UCBlock-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
@@ -57,39 +86,59 @@ install(TARGETS UCBlock
 install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
 
-# Install export file *Targets.cmake
+# Install target import file
 install(EXPORT UCBlock-targets
-        FILE   UCBlockTargets.cmake
+        FILE UCBlockTargets.cmake
         NAMESPACE SMS++::
         DESTINATION ${INSTALL_CONFIGDIR})
 
-# Create *ConfigVersion.cmake
+# Generate package version file
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY AnyNewerVersion)
 
-# Create *Config.cmake
+# Generate package configuration file
 configure_package_config_file(
         ${CMAKE_CURRENT_LIST_DIR}/cmake/UCBlockConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
         INSTALL_DESTINATION ${INSTALL_CONFIGDIR})
 
-# Install the Config and ConfigVersion
+# Install package version and configuration files
+# TODO: Check if we should install also find modules
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfigVersion.cmake
+        # ${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
+        # ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
         DESTINATION ${INSTALL_CONFIGDIR})
 
-# ----- Export from the build tree ---------------------------------------------
+# ----- Export from the build tree ------------------------------------------ #
+# This is needed so other projects can find the library in a local build.
+# It does not affect installation.
+
 export(EXPORT UCBlock-targets
        FILE ${CMAKE_CURRENT_BINARY_DIR}/UCBlockTargets.cmake
        NAMESPACE SMS++::)
 
+# Export also the find modules for the local config file to use it
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
+               COPYONLY)
+
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/FindCPLEX.cmake
+               COPYONLY)
+
+# FIXME: I think that exporting this is a bad idea
+#configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeCustom.txt
+#               ${CMAKE_CURRENT_BINARY_DIR}/CMakeCustom.txt
+#               COPYONLY)
+
 # Register package in user's package registry (~/.cmake/registry)
 export(PACKAGE UCBlock)
 
-# ----- Subdirectories ---------------------------------------------------------
-add_subdirectory(tools)
+# ----- Subdirectories ------------------------------------------------------ #
 add_subdirectory(test)
+add_subdirectory(tools)
