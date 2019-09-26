@@ -1319,43 +1319,43 @@ class HydroUnitBlock : public UnitBlock {
 
 /*----------------------------constraints-----------------------------------*/
  /// maximum power output according to primary-secondary reserves constraints
- boost::multi_array< FRowConstraint, 2 >  v_MaxPowerPrimarySecondary_Const;
+ boost::multi_array< FRowConstraint, 2 >  MaxPowerPrimarySecondary_Const;
 
  /// minimum power output according to primary-secondary reserves constraints
- boost::multi_array< FRowConstraint, 2 >  v_MinPowerPrimarySecondary_Const;
+ boost::multi_array< FRowConstraint, 2 >  MinPowerPrimarySecondary_Const;
 
  /// power output relation with to primary reserves constraints
- boost::multi_array< FRowConstraint, 2 >  v_ActivePowerPrimary_Const;
+ boost::multi_array< FRowConstraint, 2 >  ActivePowerPrimary_Const;
 
  /// power output relation with to secondary reserves constraints
- boost::multi_array< FRowConstraint, 2 >  v_ActivePowerSecondary_Const;
+ boost::multi_array< FRowConstraint, 2 >  ActivePowerSecondary_Const;
 
  /// primary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  v_PrimaryPumps_Const;
+ boost::multi_array< FRowConstraint, 2 >  PrimaryPumps_Const;
 
  /// secondary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  v_SecondaryPumps_Const;
+ boost::multi_array< FRowConstraint, 2 >  SecondaryPumps_Const;
 
  /// flow to active power function constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerPumps_Const;
+ boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
 
  /// flow to active power function constraints for turbine
- boost::multi_array< FRowConstraint, 2 >  v_FlowActivePowerTurbines_Const;
+ boost::multi_array< FRowConstraint, 2 >  FlowActivePowerTurbines_Const;
 
  /// ramp-up constraints
- boost::multi_array< FRowConstraint, 2 >  v_RampUp_Const;
+ boost::multi_array< FRowConstraint, 2 >  RampUp_Const;
 
  /// ramp-down constraints
- boost::multi_array< FRowConstraint, 2 >  v_RampDown_Const;
+ boost::multi_array< FRowConstraint, 2 >  RampDown_Const;
 
  /// flow rate bounds constraints
- boost::multi_array< FRowConstraint, 2 >  v_FlowRateBounds_Const;
+ boost::multi_array< FRowConstraint, 2 >  FlowRateBounds_Const;
 
  /// final volumes fo each reservoir constraints
- boost::multi_array< FRowConstraint, 2 >  v_FinalVolumeReservoir_Const;
+ boost::multi_array< FRowConstraint, 2 >  FinalVolumeReservoir_Const;
 
  /// volumetric bounds constraints
- boost::multi_array< FRowConstraint, 2 >  v_Volumetric_Const;
+ boost::multi_array< FRowConstraint, 2 >  VolumetricBounds_Const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
