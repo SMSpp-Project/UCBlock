@@ -208,8 +208,8 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // The active power variables must be always present
  variables_to_be_generated |=
-  ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 );
- variables_to_be_generated += 1;
+  ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 ); // v_active_power
+ // variables_to_be_generated |= 1u; // v_commitment
  unsigned int k = 1;
  for( auto pair : variables_and_types ) {
   if( variables_to_be_generated & k ) {

@@ -47,8 +47,12 @@ int main( int argc, char ** argv ) {
  // tub->serialize( bg1 );
 
  // Generate abstract representation
- tub->generate_abstract_variables( nullptr );
+ int tmp = 15;
+ SimpleConfiguration<int> myconfig(tmp);
+
+ tub->generate_abstract_variables( &myconfig );
  tub->generate_abstract_constraints( nullptr );
+ tub->generate_objective( nullptr);
 
  // Register solver
  Solver * solver = Solver::new_Solver( "CPXMILPSolver" );
