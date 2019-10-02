@@ -21,9 +21,6 @@ include(CMakeFindDependencyMacro)
 # This is needed to find the custom modules we provide
 list(APPEND CMAKE_MODULE_PATH ${MILPSolver_CMAKE_DIR})
 
-# FIXME: Not a good idea because CMakeCustom.txt is not to be installed
-#include(${SMSpp_CMAKE_DIR}/CMakeCustom.txt OPTIONAL)
-
 find_dependency(SMSpp REQUIRED)
 find_dependency(Boost REQUIRED)
 find_dependency(netCDF REQUIRED)
