@@ -106,6 +106,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
+ // auto var = get_static_variable<boost::multi_array<ColVariable, 2>*>(0);
+
+
  if( f_InitUpDownTime > 0 ) {
   init_t = ( f_InitUpDownTime >= f_MinUpTime ? 0 :
              f_MinUpTime - f_InitUpDownTime );
@@ -120,22 +123,26 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  if( startup_shutdown_size > 0 ) {
 
-  if( v_start_up.size() != startup_shutdown_size &&
-      v_shut_down.size() != startup_shutdown_size ) {
-
+  if( v_start_up.size() != startup_shutdown_size ) {
    assert( v_start_up.empty() ); // this should only happen once
    v_start_up.resize( startup_shutdown_size );
 
+   for( auto & i : v_start_up ) {
+    i.set_type( ColVariable::kBinary );
+    i.set_Block( this );
+    add_static_variable( i );
+   }
+  }
+
+  if( v_shut_down.size() != startup_shutdown_size ) {
    assert( v_shut_down.empty() ); // this should only happen once
    v_shut_down.resize( startup_shutdown_size );
 
-   for( Index i = 0; i < startup_shutdown_size; ++i ) {
-    v_start_up[ i ].set_type( ColVariable::kBinary );
-    v_shut_down[ i ].set_type( ColVariable::kBinary );
+   for( auto & i : v_shut_down ) {
+    i.set_type( ColVariable::kBinary );
+    i.set_Block( this );
+    add_static_variable( i );
    }
-
-   add_static_variable ( v_start_up );
-   add_static_variable ( v_shut_down );
   }
  }
 
@@ -590,18 +597,26 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  auto dquad_function = new DQuadFunction();
 
  for( Index t = init_t; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_start_up[ t - init_t ], v_StartUpCost[ t ], 0.0 );
+  dquad_function->add_variable( &v_start_up[ t - init_t ],
+                                v_StartUpCost[ t ],
+                                0.0 );
  }
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable
-   ( &v_active_power[ t ][ 0 ], v_LinearTerm[ t ], v_QuadTerm[ t ] );
-  dquad_function->add_variable( &v_commitment[ t ][ 0 ], v_ConstTerm[ t ], 0.0 );
+  dquad_function->add_variable( &v_active_power[ t ][ 0 ],
+                                v_LinearTerm[ t ],
+                                v_QuadTerm[ t ] );
+  dquad_function->add_variable( &v_commitment[ t ][ 0 ],
+                                v_ConstTerm[ t ],
+                                0.0 );
  }
 
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
  objective.set_Block( this );
+
+ // Set Block objective
+ this->set_objective( &objective );
 
 }  // end( ThermalUnitBlock::generate_objective )
 

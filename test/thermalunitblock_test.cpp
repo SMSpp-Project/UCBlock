@@ -4,6 +4,7 @@
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
+#include <CPXMILPSolver.h>
 
 using namespace SMSpp_di_unipi_it;
 
@@ -55,9 +56,12 @@ int main( int argc, char ** argv ) {
  tub->generate_objective( nullptr);
 
  // Register solver
- Solver * solver = Solver::new_Solver( "CPXMILPSolver" );
+ // Solver * solver = Solver::new_Solver( "CPXMILPSolver" );
+ Solver* solver = new CPXMILPSolver();
  tub->register_Solver( solver );
 
+ // Write problem
+ dynamic_cast<CPXMILPSolver*>(solver)->write_lp("output.lp");
  // Solve
  int status = solver->compute();
  auto ub = solver->get_ub();

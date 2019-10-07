@@ -220,8 +220,10 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
     for (Index g = 0; g < get_number_generators(); ++g) {
      auto variable = (*variables)[ t ][ g ];
      variable.set_type(pair.second);
+     variable.set_Block(this);
+     add_static_variable(variable);
     }
-    add_static_variable(variables[t]);
+    // add_static_variable(variables[t]);
    }
   }
   k *= 2;
