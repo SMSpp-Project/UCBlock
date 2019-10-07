@@ -140,5 +140,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # ----- Subdirectories ------------------------------------------------------ #
-add_subdirectory(test)
 add_subdirectory(tools)
+
+if (CMAKE_TESTING_ENABLED)
+    add_subdirectory(test)
+endif()
