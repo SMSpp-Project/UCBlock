@@ -43,17 +43,74 @@ class ThermalUnitBlockTest :
 
   block = dynamic_cast<ThermalUnitBlock *>(Block::new_Block( "ThermalUnitBlock" ));
   block->deserialize( bg );
-
-  auto milpsolver = new CPXMILPSolver();
-  block->register_Solver( milpsolver );
  }
+
+ void TearDown() override {
+  remove( "output.nc4" );
+ }
+
+ static std::string exec( const char * cmd ) {
+  std::array< char, 128 > buffer{};
+  std::string result;
+  std::unique_ptr< FILE, decltype( &pclose ) > pipe( popen( cmd, "r" ), pclose );
+  while( fgets( buffer.data(), buffer.size(), pipe.get() ) != nullptr ) {
+   result += buffer.data();
+  }
+  return result;
+ }
+
+ public:
+ // Prints the test name
+ struct PrintToStringParamName {
+  template< class ParamType >
+  std::string operator()( const testing::TestParamInfo< ParamType > & info ) const {
+   auto s = static_cast<TestParameters>(info.param).test_file;
+   // Test names must be non-empty, unique, and may only contain ASCII
+   // alphanumeric characters or underscore.
+   std::replace( s.begin(), s.end(), '/', '_' );
+   std::replace( s.begin(), s.end(), '.', '_' );
+   std::replace( s.begin(), s.end(), '-', '_' );
+   return s;
+  }
+ };
 };
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ PARAMETRIZED TEST CASES -------------------------*/
 /*--------------------------------------------------------------------------*/
+TEST_P( ThermalUnitBlockTest, Serialize ) {
+ netCDF::NcFile f1( "output.nc4", netCDF::NcFile::replace );
+ f1.putAtt( "SMS++_file_type", netCDF::NcInt(), eBlockFile );
+ auto bg1 = f1.addGroup( "Block_0" );
+ block->serialize( bg1 );
+ f1.close();
+
+ std::string cmd1 = "ncdump -n test " + GetParam().test_file + " | sort";
+ std::string cmd2 = "ncdump -n test output.nc4 | sort";
+
+ auto res1 = exec( cmd1.c_str() );
+ auto res2 = exec( cmd2.c_str() );
+ ASSERT_EQ( res1.compare( res2 ), 0 );
+}
+
+TEST_P( ThermalUnitBlockTest, GenerateAbsRepresentation ) {
+ int tmp = 15;
+ SimpleConfiguration< int > myconfig( tmp );
+
+ ASSERT_NO_THROW( {
+                   block->generate_abstract_variables( &myconfig );
+                   block->generate_abstract_constraints( nullptr );
+                   block->generate_objective( nullptr );
+                  } );
+}
+
+
+/*--------------------------------------------------------------------------*/
 
 TEST_P( ThermalUnitBlockTest, SimpleSolve ) {
+ auto milpsolver = new CPXMILPSolver();
+ block->register_Solver( milpsolver );
+
  int tmp = 15;
  SimpleConfiguration< int > myconfig( tmp );
 
@@ -76,9 +133,17 @@ TEST_P( ThermalUnitBlockTest, SimpleSolve ) {
 INSTANTIATE_TEST_CASE_P( ThermalUnitBlockTests,
                          ThermalUnitBlockTest,
                          ::testing::Values(
-                          TestParameters{ "/Users/niccolo/Progetti/sms_plus_plus_project/UCBlock/netCDF_files/1UC_Data/24/S1ramp1_24.nc4" },
-                          TestParameters{ "/Users/niccolo/Progetti/sms_plus_plus_project/UCBlock/netCDF_files/1UC_Data/24/S1ramp2_24.nc4" }
-                          ));
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp1_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp2_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp3_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp4_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp5_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp6_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp7_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp8_24.nc4" },
+                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp9_24.nc4" }
+                         ),
+                         ThermalUnitBlockTest::PrintToStringParamName() );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------------- MAIN ----------------------------------*/
