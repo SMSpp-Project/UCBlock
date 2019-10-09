@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 
+#include <AbstractBlock.h>
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
@@ -51,9 +52,11 @@ int main( int argc, char ** argv ) {
  int tmp = 15;
  SimpleConfiguration<int> myconfig(tmp);
 
+ tub->set_verbosity(Block::high);
  tub->generate_abstract_variables( &myconfig );
  tub->generate_abstract_constraints( nullptr );
  tub->generate_objective( nullptr);
+ std::cout << *tub;
 
  // Register solver
  // Solver * solver = Solver::new_Solver( "CPXMILPSolver" );

@@ -193,8 +193,8 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
   return;
  }
 
- typedef std::vector< std::pair< boost::multi_array< ColVariable , 2 > *,
-         int > > v_pairs;
+ typedef std::vector< std::pair< boost::multi_array< ColVariable, 2 > *,
+  int > > v_pairs;
 
  v_pairs variables_and_types = {
   std::make_pair( &v_commitment, ColVariable::kBinary ),
@@ -212,16 +212,33 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // variables_to_be_generated |= 1u; // v_commitment
  unsigned int k = 1;
  for( auto pair : variables_and_types ) {
+  std::string varname;
+  switch( k ) {
+   case 1:
+    varname = "Commitment ";
+    break;
+   case 2:
+    varname = "Primary spinning reserve ";
+    break;
+   case 4:
+    varname = "Secondary spinning reserve ";
+    break;
+   case 8:
+    varname = "Active power ";
+    break;
+   default:
+    break;
+  }
   if( variables_to_be_generated & k ) {
 
    auto variables = pair.first;
-   variables->resize(boost::extents[f_time_horizon][get_number_generators()]);
-   for (Index t = 0; t < f_time_horizon; ++t) {
-    for (Index g = 0; g < get_number_generators(); ++g) {
-     auto variable = (*variables)[ t ][ g ];
-     variable.set_type(pair.second);
-     variable.set_Block(this);
-     add_static_variable(variable);
+   variables->resize( boost::extents[ f_time_horizon ][ get_number_generators() ] );
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    for( Index g = 0; g < get_number_generators(); ++g ) {
+     auto & variable = ( *variables )[ t ][ g ];
+     variable.set_type( pair.second );
+     add_static_variable( variable,
+                          varname + std::to_string( t ) + "-" + std::to_string( g ) );
     }
     // add_static_variable(variables[t]);
    }
@@ -244,7 +261,7 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
- if (!v_change_intervals.empty()) {
+ if( !v_change_intervals.empty() ) {
   ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
                NumberIntervals, v_change_intervals );
  }
@@ -256,10 +273,10 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 
 void UnitBlock::guts_of_destructor() {
 
- v_commitment.resize(boost::extents[0][0]);
- v_active_power.resize(boost::extents[0][0]);
- v_primary_spinning_reserve.resize(boost::extents[0][0]);
- v_secondary_spinning_reserve.resize(boost::extents[0][0]);
+ v_commitment.resize( boost::extents[ 0 ][ 0 ] );
+ v_active_power.resize( boost::extents[ 0 ][ 0 ] );
+ v_primary_spinning_reserve.resize( boost::extents[ 0 ][ 0 ] );
+ v_secondary_spinning_reserve.resize( boost::extents[ 0 ][ 0 ] );
 
  // explicitly reset all Variables
 
