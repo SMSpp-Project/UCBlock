@@ -26,6 +26,7 @@
 #include <netcdf>
 #include <ncByte.h>
 #include <vector>
+#include <getopt.h>
 
 /// A thermal unit as represented in a DAT or in a MOD file
 struct ThermalUnit {
@@ -414,15 +415,69 @@ void serialize_unit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
  serialize( g, "MinDownTime", netCDF::NcUint64(), unit.MinDownTime );
 }
 
+/// Prints usage information
+void print_help() {
+ // http://docopt.org
+ std::cout << "Usage: nc4generator <file>" << std::endl;
+}
+
+/// Input file name
+std::string filename{};
+
+
+/// Processes command line arguments
+void process_args( int argc, char ** argv ) {
+ // It doesn't do much, but it's extendable
+
+ if( argc < 2 ) {
+  print_help();
+  exit( 1 );
+ }
+
+ const char * const short_opts = "h";
+ const option long_opts[] = {
+  { "help",    no_argument,       nullptr, 'h' },
+  { nullptr,   no_argument,       nullptr, 0 }
+ };
+
+ // Options
+ while( true ) {
+  const auto opt = getopt_long( argc, argv, short_opts, long_opts, nullptr );
+
+  if( -1 == opt ) {
+   break;
+  }
+
+  switch( opt ) {
+   case 'h': // -h or --help
+    print_help();
+    exit( 0 );
+   case '?': // Unrecognized option
+   default:
+    print_help();
+    exit( 1 );
+  }
+ }
+
+ // Last argument
+ if (optind < argc) {
+  filename = std::string( argv[ optind ] );
+ } else {
+  print_help();
+  exit( 1 );
+ }
+}
+
 int main( int argc, char ** argv ) {
 
- std::ifstream inputFile( argv[ 1 ] );
+ process_args( argc, argv );
+
+ std::ifstream inputFile( filename );
  if( !inputFile.is_open() ) {
-  std::cerr << "Error: cannot open file " << argv[ 1 ] << std::endl;
+  std::cerr << "Error: cannot open file " << filename << std::endl;
   return 1;
  }
 
- std::string filename( argv[ 1 ] );
  if( filename.size() < 5 ) {
   std::cerr << "Error: File name is too short" << std::endl;
   inputFile.close();
@@ -444,7 +499,7 @@ int main( int argc, char ** argv ) {
                         } ) ) {
   type = ftMod;
  } else {
-  std::cerr << "Error: Unsupported file type" << std::endl;
+  std::cerr << "Error: Supported file formats are: dat, mod." << std::endl;
   inputFile.close();
   return 1;
  }
