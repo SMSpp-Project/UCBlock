@@ -9,11 +9,11 @@ using namespace SMSpp_di_unipi_it;
 
 std::string filename{};
 std::string lp_file{};
-std::string solver_name( "cplex" );
+std::string solver_name{};
 
 void print_help() {
  // http://docopt.org
- std::cout << "Usage: 1uc_solver [options] <file>" << std::endl
+ std::cout << "Usage: thermalunit_solver [options] <file>" << std::endl
            << std::endl
            << "-s <solver>, --solver <solver>  Choose solver." << std::endl
            << "                                Available solvers are: cplex, dp." << std::endl
@@ -61,11 +61,17 @@ void process_args( int argc, char ** argv ) {
  }
 
  // Last argument
- filename = std::string( argv[ optind ] );
+ if (optind < argc) {
+  filename = std::string( argv[ optind ] );
+ } else {
+  print_help();
+  exit( 1 );
+ }
 }
 
 int main( int argc, char ** argv ) {
 
+ solver_name = "cplex";
  process_args( argc, argv );
 
  Solver * solver;
