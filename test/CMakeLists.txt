@@ -39,11 +39,3 @@ endif ()
 # ----- OLD TESTS ----------------------------------------------------------- #
 add_executable(UCBlock_test_old ucblock_test.cpp)
 target_link_libraries(UCBlock_test_old PRIVATE SMS++::UCBlock)
-
-if (CPLEX_FOUND)
-    add_executable(ThermalUnitBlock_test_old thermalunitblock_test.cpp)
-    target_link_libraries(ThermalUnitBlock_test_old PRIVATE
-                          SMS++::UCBlock
-                          SMS++::MILPSolver
-                          CPLEX::Cplex)
-endif ()
