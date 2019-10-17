@@ -1,3 +1,4 @@
+find_package(MILPSolver REQUIRED)
 find_package(netCDF REQUIRED)
 find_package(CPLEX)
 

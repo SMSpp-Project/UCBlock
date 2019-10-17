@@ -13,10 +13,8 @@ if (NOT googletest_POPULATED)
 endif ()
 
 # ----- Requirements -------------------------------------------------------- #
-if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    find_package(MILPSolver REQUIRED)
-    find_package(MCFBlock REQUIRED)
-endif ()
+find_package(MILPSolver REQUIRED)
+find_package(MCFBlock REQUIRED)
 find_package(CPLEX)
 
 # ----- ThermalUnitBlock_test ----------------------------------------------- #
