@@ -156,7 +156,7 @@ struct DatFile {
 
   for( unsigned int t = 0; t < TimeHorizon; ++t ) {
    b[ t ] = thermal_unit.LinearTerm - Lambda[ t ];
-   c[ t ] = thermal_unit.ConstTerm - Mu[ t ];
+   c[ t ] = thermal_unit.ConstTerm - Mu[ t ]*thermal_unit.MaxPower;
   }
 
   // If all elements are identical, we use only one value
