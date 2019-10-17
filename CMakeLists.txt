@@ -29,7 +29,7 @@ endif ()
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 find_package(SMSpp REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost 1.71.0 REQUIRED)
 find_package(netCDF REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
