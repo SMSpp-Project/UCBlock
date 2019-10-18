@@ -931,12 +931,22 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< ColVariable > & get_start_up() const {
   return v_start_up;
   }
+ /** returns the start up variable associated with time t such that
+  * init_t <= t < time_horizon. */
+ inline ColVariable & start_up( Index t ) {
+  return v_start_up[ t - init_t ];
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of shut_down variables
  const std::vector< ColVariable > & get_shut_down() const {
   return v_shut_down;
   }
+ /** returns the shut down variable associated with time t such that
+  * init_t <= t < time_horizon. */
+ inline ColVariable & shut_down( Index t ) {
+  return v_shut_down[ t - init_t ];
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -1020,7 +1030,7 @@ class ThermalUnitBlock : public UnitBlock {
  Index f_MinDownTime;
 
  /// the InitUpDownTime value
- Index f_InitUpDownTime;
+ int f_InitUpDownTime;
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t;
