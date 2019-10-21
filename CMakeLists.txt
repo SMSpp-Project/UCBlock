@@ -26,7 +26,7 @@ endif ()
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 find_package(SMSpp REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost 1.71.0 REQUIRED)
 find_package(netCDF REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
@@ -137,5 +137,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # ----- Subdirectories ------------------------------------------------------ #
-add_subdirectory(test)
 add_subdirectory(tools)
+
+if (CMAKE_TESTING_ENABLED)
+    add_subdirectory(test)
+endif()
