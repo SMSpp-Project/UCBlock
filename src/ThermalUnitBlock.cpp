@@ -279,9 +279,10 @@ if (init_t > 0 ) {
 
  // Initializing turn on constraints (start up constraints)
 
- if( f_time_horizon - init_t - f_MinUpTime > 0 ) {
+ auto startup_const_size = static_cast<int>(f_time_horizon - init_t - f_MinUpTime);
+ if( startup_const_size > 0 ) {
 
-  StartUp_Constraints.resize( f_time_horizon - init_t - f_MinUpTime );
+  StartUp_Constraints.resize( startup_const_size );
 
   for( Index t = init_t + f_MinUpTime, constraint_index = 0;
        t < f_time_horizon; ++t, ++constraint_index ) {
@@ -302,9 +303,11 @@ if (init_t > 0 ) {
  }
 
  // Initializing turn off constraints (shut down constraints)
- if( f_time_horizon - init_t - f_MinDownTime > 0 ) {
 
-  ShutDown_Constraints.resize( f_time_horizon - init_t - f_MinDownTime );
+ auto shutdown_const_size = static_cast<int>(f_time_horizon - init_t - f_MinDownTime);
+ if( shutdown_const_size > 0 ) {
+
+  ShutDown_Constraints.resize( shutdown_const_size );
 
   for( Index t = init_t + f_MinDownTime, constraint_index = 0;
        t < f_time_horizon; ++t, ++constraint_index ) {
