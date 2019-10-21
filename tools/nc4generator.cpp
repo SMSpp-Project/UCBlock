@@ -22,11 +22,14 @@
  */
 
 #include <iostream>
-#include <UCBlock.h>
-#include <netcdf>
-#include <ncByte.h>
+#include <iomanip>
 #include <vector>
 #include <getopt.h>
+
+#include <netcdf>
+#include <ncByte.h>
+
+#include <UCBlock.h>
 
 /// A thermal unit as represented in a DAT or in a MOD file
 struct ThermalUnit {
