@@ -30,7 +30,7 @@ find_package(Boost 1.71.0 REQUIRED)
 find_package(netCDF REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
-add_library(UCBlock STATIC)
+add_library(UCBlock)
 target_compile_features(UCBlock PUBLIC cxx_std_17)
 
 target_sources(UCBlock PRIVATE
@@ -39,7 +39,7 @@ target_sources(UCBlock PRIVATE
                src/DCNetworkBlock.cpp
                src/BusNetworkBlock.cpp
                src/UnitBlock.cpp
-               src/HeatBlock.cpp
+               #src/HeatBlock.cpp
                src/ThermalUnitBlock.cpp
                src/HydroUnitBlock.cpp
                src/BatteryUnitBlock.cpp
