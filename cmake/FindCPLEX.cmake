@@ -181,6 +181,8 @@ if (CPLEX_FOUND AND NOT TARGET CPLEX::Cplex)
         set(CPLEX_LINK_LIBRARIES ${CPLEX_LINK_LIBRARIES} m)
     endif ()
 
+    set(CPLEX_LINK_LIBRARIES ${CPLEX_LINK_LIBRARIES} dl)
+
     add_library(CPLEX::Cplex STATIC IMPORTED GLOBAL)
     set_target_properties(CPLEX::Cplex PROPERTIES
                           IMPORTED_LOCATION "${CPLEX_LIBRARY}"
