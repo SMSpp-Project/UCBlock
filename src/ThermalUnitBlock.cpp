@@ -92,6 +92,9 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost, true, true );
 
+ ::deserialize( group, "FixedConsumption", v_fixed_consumption, true, true );
+
+ ::deserialize( group, "InertiaCommitment", v_inertia_commitment, true, true );
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
@@ -253,9 +256,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
 if (init_t > 0 ) {
- if( f_time_horizon - init_t - 1 > 0 ) {
+ auto startup_shutdown_const_size = static_cast<int>(f_time_horizon - init_t - 1);
 
-  StartUp_ShutDown_Variables_Constraints.resize( f_time_horizon - init_t - 1 );
+ if( startup_shutdown_const_size > 0 ) {
+
+  StartUp_ShutDown_Variables_Constraints.resize( startup_shutdown_const_size );
 
   for( Index t = init_t + 1, constraint_index = 0; t < f_time_horizon;
        ++t, ++constraint_index ) {
@@ -577,122 +582,6 @@ if (init_t > 0 ) {
 
 /*--------------------------------------------------------------------------*/
 
- // POWER OUTPUT CONSTRAINTS
-
- // Initial condition for power output startup and shutdown constraints
-/*
- if( f_MinUpTime >= 2 ) {
-
-  if( f_time_horizon - init_t > 0 ) {
-
-   Power_StartUp_ShutDown_Variables_Constraints.resize
-           ( f_time_horizon - init_t - 2 );
-
-   // Initializing power output startup and shutdown constraints
-
-   for( Index t = init_t + 1, constraint_index = 0; t < f_time_horizon - 1;
-        ++t, ++constraint_index ) {
-
-    auto linear_function = new LinearFunction();
-
-    linear_function->add_variable( &v_active_power[ t - 1 ][ 0 ], -1.0 );
-    linear_function->add_variable( &v_commitment[ t - 1 ][ 0 ], v_MaxPower[ t - 1 ] );
-    linear_function->add_variable( &v_start_up[ t - init_t - 1 ],
-                                   -( v_MaxPower[ t - 1 ] - v_MinPower[ t - 1 ] ) );
-    linear_function->add_variable( &v_shut_down[ t - init_t ],
-                                   ( v_MaxPower[ t - 1 ] - v_MinPower[ t - 1 ] ) );
-
-    Power_StartUp_ShutDown_Variables_Constraints[ constraint_index ].
-            set_lhs( 0.0 );
-    Power_StartUp_ShutDown_Variables_Constraints[ constraint_index ].
-            set_rhs( Inf< double >() );
-
-    Power_StartUp_ShutDown_Variables_Constraints[ constraint_index ].
-            set_function( linear_function );
-   }
-
-   add_static_constraint( Power_StartUp_ShutDown_Variables_Constraints,
-                          "Power Output Startup and Shutdown Constraints" );
-  }
- } // end power output startup and shutdown constraints
-
-
- if( f_MinUpTime == 1 ) {
-
-  // Initializing power output startup constraints
-
-  if( f_time_horizon - init_t > 0 ) {
-
-   Power_StartUp_Variable_Constraints.resize
-           ( f_time_horizon - init_t - 2 );
-
-   for( Index t = init_t + 2, constraint_index = 0; t < f_time_horizon;
-        ++t, ++constraint_index ) {
-
-    auto linear_function = new LinearFunction();
-
-    linear_function->add_variable( &v_active_power[ t ][ 0 ], -1.0 );
-    linear_function->add_variable( &v_commitment[ t ][ 0 ],
-                                   v_MaxPower[ t ] );
-    linear_function->add_variable( &v_start_up[ t ],
-                                   -( v_MaxPower[ t ]
-                                      - v_MinPower[ t ] ) );
-
-    Power_StartUp_Variable_Constraints[ constraint_index ].
-            set_lhs( 0.0 );
-    Power_StartUp_Variable_Constraints[ constraint_index ].
-            set_rhs( Inf< double >() );
-
-    Power_StartUp_Variable_Constraints[ constraint_index ].
-            set_function( linear_function );
-   }
-
-   add_static_constraint( Power_StartUp_Variable_Constraints,
-                          "Power Output Startup Constraints" );
-
-  } // end power output startup  constraints
-
-
-  // power output shut down constraints
-
-  if( f_time_horizon - init_t > 0 ) {
-
-   Power_ShutDown_Variable_Constraints.resize
-           ( f_time_horizon - init_t - 2 );
-
-
-   // Initializing power output shutdown constraints
-
-   for( Index t = init_t + 2, constraint_index = 0; t < f_time_horizon;
-        ++t, ++constraint_index ) {
-
-    auto linear_function = new LinearFunction();
-
-    linear_function->add_variable( &v_active_power[ t ][ 0 ], -1.0 );
-    linear_function->add_variable( &v_commitment[ t ][ 0 ],
-                                   v_MaxPower[ t ] );
-    linear_function->add_variable( &v_shut_down[ t + 1 ],
-                                   -( v_MaxPower[ t + 1 ]
-                                      - v_MinPower[ t + 1 ] ) );
-
-    Power_ShutDown_Variable_Constraints[ constraint_index ].
-            set_lhs( 0.0 );
-    Power_ShutDown_Variable_Constraints[ constraint_index ].
-            set_rhs( Inf< double >() );
-
-    Power_ShutDown_Variable_Constraints[ constraint_index ].
-            set_function( linear_function );
-   }
-
-   add_static_constraint( Power_ShutDown_Variable_Constraints,
-                          "Power Output Shutdown Constraints" );
-
-  } // end power output shut down constraints
-
- }
-*/
-/*--------------------------------------------------------------------------*/
-
  // Initializing minimum power constraints
 
  MinPower_Constraints.resize( f_time_horizon );
@@ -733,7 +622,7 @@ if (init_t > 0 ) {
 
  add_static_constraint( MaxPower_Constraints, "Max Power Constraints" );
 
-/*
+
  // Initializing primary rho fraction constraints
 
  if( !v_PrimaryRho.empty() ) {
@@ -773,7 +662,6 @@ if (init_t > 0 ) {
 
   add_static_constraint( SecondaryRho_Constraints, "Secondary Rho Constraints" );
  }
-*/
 /*--------------------------------------------------------------------------*/
  // TIME DEPENDENT START UP COSTS CONSTRAINTS
 
@@ -886,6 +774,11 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "StartUpCost", netCDF::NcDouble(),
               NumberIntervals, v_StartUpCost, true );
 
+ ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
+              {NumberIntervals}, v_fixed_consumption, true );
+
+ ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
+              {NumberIntervals}, v_inertia_commitment, true );
 }  // end( ThermalUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
