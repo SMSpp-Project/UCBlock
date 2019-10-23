@@ -10,6 +10,7 @@ using namespace SMSpp_di_unipi_it;
 std::string filename{};
 std::string lp_file{};
 std::string solver_name{};
+std::string nc4_problem{};
 
 void print_help() {
  // http://docopt.org
@@ -18,6 +19,7 @@ void print_help() {
            << "-s <solver>, --solver <solver>  Choose solver." << std::endl
            << "                                Available solvers are: cplex, dp." << std::endl
            << "-w <file>, --writelp <file>     Write LP problem on file." << std::endl
+           << "-n <file>, --nc4problem <file>  Write nc4 problem on file." << std::endl
            << "-h, --help                      Print this help." << std::endl;
 }
 
@@ -28,12 +30,13 @@ void process_args( int argc, char ** argv ) {
   exit( 1 );
  }
 
- const char * const short_opts = "s:w:h";
+ const char * const short_opts = "s:w:n:h";
  const option long_opts[] = {
-  { "solver",  required_argument, nullptr, 's' },
-  { "writelp", required_argument, nullptr, 'w' },
-  { "help",    no_argument,       nullptr, 'h' },
-  { nullptr,   no_argument,       nullptr, 0 }
+  { "solver",     required_argument, nullptr, 's' },
+  { "writelp",    required_argument, nullptr, 'w' },
+  { "nc4problem", required_argument, nullptr, 'n' },
+  { "help",       no_argument,       nullptr, 'h' },
+  { nullptr,      no_argument,       nullptr, 0 }
  };
 
  // Options
@@ -50,6 +53,9 @@ void process_args( int argc, char ** argv ) {
    case 'w':
     lp_file = std::string( optarg );
     break;
+   case 'n':
+    nc4_problem = std::string( optarg );
+    break;
    case 'h': // -h or --help
     print_help();
     exit( 0 );
@@ -61,7 +67,7 @@ void process_args( int argc, char ** argv ) {
  }
 
  // Last argument
- if (optind < argc) {
+ if( optind < argc ) {
   filename = std::string( argv[ optind ] );
  } else {
   print_help();
@@ -73,18 +79,6 @@ int main( int argc, char ** argv ) {
 
  solver_name = "cplex";
  process_args( argc, argv );
-
- Solver * solver;
- if( solver_name == "cplex" ) {
-  // Solver * solver = Solver::new_Solver( "CPXMILPSolver" );
-  solver = new CPXMILPSolver();
- } else if( solver_name == "dp" ) {
-  std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
-  exit( 0 );
- } else {
-  std::cerr << "Available solvers are: cplex, dp" << std::endl;
-  exit( 1 );
- }
 
  netCDF::NcFile f;
  try {
@@ -114,9 +108,14 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // Deserialize
+ // Deserialize block
  auto tub = dynamic_cast<ThermalUnitBlock *>(Block::new_Block( "ThermalUnitBlock" ));
  tub->deserialize( bg );
+
+ // Configure block
+ auto conf = new BlockConfig();
+ conf->f_name = "ThermalUnitBlock";
+ tub->set_BlockConfig( conf );
 
  // Generate abstract representation
  int tmp = 15;
@@ -126,10 +125,29 @@ int main( int argc, char ** argv ) {
  tub->generate_abstract_constraints( nullptr );
  tub->generate_objective( nullptr );
 
- // Register solver
- tub->register_Solver( solver );
+ // Configure solver
+ // Solver * solver;
+ auto slv_conf = new BlockSolverConfig();
 
- // Write problem
+ if( solver_name == "cplex" ) {
+  // solver = new CPXMILPSolver();
+  // solver = Solver::new_Solver( "CPXMILPSolver" );
+  slv_conf->v_SolverNames.emplace_back( "CPXMILPSolver" );
+  slv_conf->v_SolverConfigs.emplace_back( new ComputeConfig() );
+
+ } else if( solver_name == "dp" ) {
+  std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
+  exit( 0 );
+ } else {
+  std::cerr << "Available solvers are: cplex, dp" << std::endl;
+  exit( 1 );
+ }
+
+ // tub->register_Solver( solver );
+ tub->set_SolverConfig( slv_conf );
+ auto solver = tub->get_registered_solvers().front();
+
+ // Write LP problem
  if( !lp_file.empty() ) {
   dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file );
  }
@@ -140,6 +158,24 @@ int main( int argc, char ** argv ) {
  // Retrieve objective function
  auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
  auto obj_f = obj->get_function();
+
+ // Write nc4 problem file
+ if( !nc4_problem.empty() ) {
+  netCDF::NcFile outfile;
+  outfile.open( "test.nc4", netCDF::NcFile::replace );
+  outfile.putAtt( "SMS++_file_type", netCDF::NcInt(), eProbFile );
+
+  tub->Block::serialize( outfile, eProbFile );
+  netCDF::NcGroup g = outfile.getGroup( "Prob_0" );
+
+  auto new_bc = g.addGroup( "BlockConfig" );
+  conf->serialize( new_bc );
+
+  auto new_bsc = g.addGroup( "BlockSolver" );
+  slv_conf->serialize( new_bsc );
+
+  outfile.close();
+ }
 
  std::cout << "Status = " << status << std::endl;
  std::cout << "Upper bound = " << ub << std::endl;
