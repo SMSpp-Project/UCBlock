@@ -10,6 +10,8 @@ cmake_minimum_required(VERSION 3.8...3.15)
 # TODO: set proper version
 project(UCBlock VERSION 1.0.0 LANGUAGES CXX)
 
+# TODO: Everything related to deeper deps was disabled to check if it works
+
 # ----- Requirements -------------------------------------------------------- #
 # find_package() is used to find libraries and automatically configure them.
 # It requires either a package configuration module (***Config.cmake) or a
@@ -22,11 +24,13 @@ if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND SETTINGS)
 endif ()
 
 # This is to use the find modules we provide
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+# TODO Here
+#list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 find_package(SMSpp REQUIRED)
-find_package(Boost 1.71.0 REQUIRED)
-find_package(netCDF REQUIRED)
+# TODO Here
+#find_package(Boost 1.71.0 REQUIRED)
+#find_package(netCDF REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
 add_library(UCBlock)
@@ -55,8 +59,10 @@ target_include_directories(
 
 target_link_libraries(UCBlock PUBLIC
                       SMS++::SMSpp
-                      Boost::boost
-                      NetCDF::NetCDFCxx)
+                      # TODO Here
+#                      Boost::boost
+#                      NetCDF::NetCDFCxx
+                      )
 
 # Alias for testing
 add_library(SMS++::UCBlock ALIAS UCBlock)
@@ -106,10 +112,11 @@ install(FILES
 # party developers should provide them.
 # We ship FindnetCDF because the provided one has shortcomings.
 # We ship FindCPLEX because CPLEX does not on its own.
-install(FILES
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+# TODO Here
+#install(FILES
+#        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
+#        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+#        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
 
 # ----- Export from the build tree ------------------------------------------ #
 # This is needed so other projects can find the library in a local build.
@@ -123,21 +130,15 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
            NAMESPACE SMS++::)
 
     # Export also the find modules for the local config file to use it
-    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
-                   COPYONLY)
+    # TODO Here
+#    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+#                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
+#                   COPYONLY)
 
-    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
-                   ${CMAKE_CURRENT_BINARY_DIR}/FindCPLEX.cmake
-                   COPYONLY)
+#    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
+#                   ${CMAKE_CURRENT_BINARY_DIR}/FindCPLEX.cmake
+#                   COPYONLY)
 
     # Register package in user's package registry (~/.cmake/registry)
     export(PACKAGE UCBlock)
 endif ()
-
-# ----- Subdirectories ------------------------------------------------------ #
-add_subdirectory(tools)
-
-if (CMAKE_TESTING_ENABLED)
-    add_subdirectory(test)
-endif()

@@ -19,7 +19,7 @@ include(CMakeFindDependencyMacro)
 
 # ----- Requirements -------------------------------------------------------- #
 # This is needed to find the custom modules we provide
-list(APPEND CMAKE_MODULE_PATH ${MILPSolver_CMAKE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${UCBlock_CMAKE_DIR})
 
 find_dependency(SMSpp REQUIRED)
 find_dependency(Boost REQUIRED)
