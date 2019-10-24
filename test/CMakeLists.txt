@@ -32,8 +32,3 @@ if (CPLEX_FOUND)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 endif ()
-
-
-# ----- OLD TESTS ----------------------------------------------------------- #
-add_executable(UCBlock_test_old ucblock_test.cpp)
-target_link_libraries(UCBlock_test_old PRIVATE SMS++::UCBlock)

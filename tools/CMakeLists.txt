@@ -16,4 +16,11 @@ if (CPLEX_FOUND)
                           SMS++::UCBlock
                           SMS++::MILPSolver
                           CPLEX::Cplex)
+
+    # ----- ucblock_solver -------------------------------------------------- #
+    add_executable(ucblock_solver ucblock_solver.cpp)
+    target_link_libraries(ucblock_solver PRIVATE
+                          SMS++::UCBlock
+                          SMS++::MILPSolver
+                          CPLEX::Cplex)
 endif ()
