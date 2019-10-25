@@ -155,12 +155,6 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
- if( !stvv )
-  return 0;
-
- // informs which variables must be generated
- int variables_to_be_generated = 0;
-
  auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
 
  if( ( !tstvv ) && f_BlockConfig &&
@@ -171,9 +165,9 @@ unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
  }
 
  if( tstvv )
-  variables_to_be_generated = tstvv->f_value;
+  return tstvv->f_value;
 
- return variables_to_be_generated;
+ return 0;
 }
 
 /*--------------------------------------------------------------------------*/
