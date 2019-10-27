@@ -537,7 +537,7 @@ int main( int argc, char ** argv ) {
   bg.putAtt( "type", "UCBlock" );
   bg.addDim( "TimeHorizon", mod_file.TimeHorizon );
   bg.addDim( "NumberUnits", mod_file.NumThermal );
-  // ubg.addDim( "NumberIntervals", 1 );
+  bg.addDim( "NumberIntervals", 1 );
 
   for( unsigned int i = 0; i < mod_file.NumThermal; ++i ) {
    auto ug = bg.addGroup( "UnitBlock_" + std::to_string( i ) );
