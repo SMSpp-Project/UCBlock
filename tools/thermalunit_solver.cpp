@@ -14,13 +14,14 @@ std::string nc4_problem{};
 
 void print_help() {
  // http://docopt.org
- std::cout << "Usage: thermalunit_solver [options] <file>" << std::endl
+ std::cout << "Usage: thermalunit_solver [options] <nc4-file>" << std::endl
            << std::endl
-           << "-s <solver>, --solver <solver>  Choose solver." << std::endl
-           << "                                Available solvers are: cplex, dp." << std::endl
-           << "-w <file>, --writelp <file>     Write LP problem on file." << std::endl
-           << "-n <file>, --nc4problem <file>  Write nc4 problem on file." << std::endl
-           << "-h, --help                      Print this help." << std::endl;
+           << "Options:" << std::endl
+           << "  -s <solver>, --solver <solver>  Choose solver." << std::endl
+           << "                                  Available solvers are: cplex, dp." << std::endl
+           << "  -w <file>, --writelp <file>     Write LP problem on file." << std::endl
+           << "  -n <file>, --nc4problem <file>  Write nc4 problem on file." << std::endl
+           << "  -h, --help                      Print this help." << std::endl;
 }
 
 void process_args( int argc, char ** argv ) {
@@ -114,24 +115,14 @@ int main( int argc, char ** argv ) {
 
  // Configure block
  auto conf = new BlockConfig();
+ conf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
  conf->f_name = "ThermalUnitBlock";
  tub->set_BlockConfig( conf );
 
- // Generate abstract representation
- int tmp = 15;
- SimpleConfiguration< int > myconfig( tmp );
-
- tub->generate_abstract_variables( &myconfig );
- tub->generate_abstract_constraints( nullptr );
- tub->generate_objective( nullptr );
-
  // Configure solver
- // Solver * solver;
  auto slv_conf = new BlockSolverConfig();
 
  if( solver_name == "cplex" ) {
-  // solver = new CPXMILPSolver();
-  // solver = Solver::new_Solver( "CPXMILPSolver" );
   slv_conf->v_SolverNames.emplace_back( "CPXMILPSolver" );
   slv_conf->v_SolverConfigs.emplace_back( new ComputeConfig() );
 
@@ -143,21 +134,18 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // tub->register_Solver( solver );
  tub->set_SolverConfig( slv_conf );
  auto solver = tub->get_registered_solvers().front();
 
  // Write LP problem
+ // TODO: Use configuration instead, so no dependency from CPXMILPSolver
  if( !lp_file.empty() ) {
   dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file );
  }
  // Solve
  int status = solver->compute();
  auto ub = solver->get_ub();
-
- // Retrieve objective function
- auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
- auto obj_f = obj->get_function();
+ auto lb = solver->get_lb();
 
  // Write nc4 problem file
  if( !nc4_problem.empty() ) {
@@ -177,9 +165,18 @@ int main( int argc, char ** argv ) {
   outfile.close();
  }
 
+ // std::ofstream of1("blockconfig.txt");
+ // std::ofstream of2("solverconfig.txt");
+ //
+ // of1 << *tub->get_BlockConfig();
+ // of2 << *tub->get_SolverConfig();
+ //
+ // of1.close();
+ // of2.close();
+
  std::cout << "Status = " << status << std::endl;
  std::cout << "Upper bound = " << ub << std::endl;
- std::cout << "Function value =  " << obj_f->get_value() << std::endl;
+ std::cout << "Lower bound = " << lb << std::endl;
 
  return 0;
 }
