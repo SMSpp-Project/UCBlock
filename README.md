@@ -8,7 +8,7 @@ These instructions will let you build UCBlock on your system.
 
 ### Requirements
 
-- SMS++ core library
+- [SMS++ core library](https://gitlab.com/smspp/smspp)
 
 ### Build and install
 
@@ -27,7 +27,7 @@ sudo make install
 
 ## Usage
 
-- After the module is configured and built, you can use it in your CMake project with:
+After the module is configured and built, you can use it in your CMake project with:
 ```cmake
 find_package(UCBlock)
 target_link_libraries(<my_target> SMS++::UCBlock)
@@ -69,7 +69,6 @@ This section is not ready yet.
   *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
-
 
 ## License
 
