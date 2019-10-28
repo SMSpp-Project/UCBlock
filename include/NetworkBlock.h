@@ -466,6 +466,12 @@ class NetworkBlock : public Block {
 
  virtual void set_NetworkData( NetworkData * nd ) {}
 
+ /// method to set the ActiveDemand
+ // TODO
+ void set_ActiveDemand(const std::vector< double > & v) {
+  v_active_demand = v;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/

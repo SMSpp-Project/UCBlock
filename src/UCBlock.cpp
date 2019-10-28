@@ -49,6 +49,9 @@
 #include "UCBlock.h"
 #include "UnitBlock.h"
 
+#include "BusNetworkBlock.h"
+#include "DCNetworkBlock.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -94,7 +97,8 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
  v_Block.clear();
 
  deserialize_sub_blocks( group, "UnitBlock_", f_number_units );
- deserialize_sub_blocks( group, "NetworkBlock_", f_time_horizon );
+ v_network_blocks.resize(f_time_horizon);
+ deserialize_network_blocks( group, f_time_horizon );
  deserialize_sub_blocks( group, "HeatBlock_", f_number_heat_blocks );
 
 }
@@ -133,23 +137,48 @@ void UCBlock::deserialize_sub_blocks
 
 /*--------------------------------------------------------------------------*/
 
+void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
+                                int num_sub_blocks ) {
+ for( int i = 0; i < num_sub_blocks; ++i ) {
+
+  std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+  auto sub_group = group.getGroup( sub_group_name );
+
+  if( sub_group.isNull() ) {
+   return;
+  }
+
+  auto class_name_attribute = sub_group.getAtt( "type" );
+
+  if( class_name_attribute.isNull() ) {
+   throw ( std::invalid_argument
+    ( "UCBlock::deserialize: type attribute "
+      "is not present in group " + sub_group_name ) );
+  }
+
+  std::string class_name;
+  class_name_attribute.getValues( class_name );
+  auto sub_block = new_Block( class_name, this );
+  sub_block->deserialize( sub_group );
+  v_Block.push_back( sub_block );
+  v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
- auto network_data = new NetworkBlock::NetworkData(); //TODO not Implemented well
- network_data->deserialize( group );
+ unsigned int number_nodes = 1;
 
- // FIXME delete f_NetworkData; // This is equivalent to code block below
- // --------------------------------------------------------------------------
- if( network_data ) {  // there is a NetworkData object in the group
-  // use it, whatever has happened before
-  // if there was a previous NetworkData, delete it
-  if( f_NetworkData )
-   delete f_NetworkData;
- } else if( !network_data ) {
-  // if the NetworkData has not been passed from outside
-  throw ( std::logic_error( "UCBlock has no NetworkData access" ) );
+ auto network_data = new NetworkBlock::NetworkData();
+ auto network_data_g = group.getGroup( "NetworkData" );
+ if( !network_data_g.isNull() ) {
+  network_data->deserialize( network_data_g );
+  delete f_NetworkData;
+  f_NetworkData = network_data;
+  number_nodes = f_NetworkData->get_number_nodes();
  }
- // --------------------------------------------------------------------------
 
  ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
@@ -160,10 +189,10 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize_dim( group, "TotalNumberPollutantZones",
                     f_total_number_pollutant_zones,        true );
 
- unsigned int number_nodes = f_NetworkData ? f_NetworkData->
-  get_number_nodes() : 1;
-
- ::deserialize_dim( group, "NumberNodes", number_nodes );
+ boost::multi_array< double, 2 > v_active_power_demand;
+ v_active_power_demand.resize( boost::extents[ number_nodes ][ f_time_horizon ] );
+ bool ap_found = ::deserialize( group, "ActivePowerDemand",
+                                v_active_power_demand, true, false );
 
  // Default values for optional dimensions
  f_number_heat_blocks = 0;
@@ -250,6 +279,46 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  deserialize_sub_blocks( group );
 
+ if (!ap_found)
+  return;
+
+ // If ActivePowerDemand was found, use it to populate NetworkBlocks
+ if (f_NetworkData) {
+  for( Index i = 0; i < f_time_horizon; ++i ) {
+
+   if( number_nodes == 1 ) {
+    // BusNetworkBlock
+    NetworkBlock * sub_block;
+    if (v_network_blocks[ i ] ) {
+     sub_block = v_network_blocks[ i ];
+
+    } else {
+     sub_block = new BusNetworkBlock( this );
+     v_Block.push_back( sub_block );
+     v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    }
+    sub_block->set_ActiveDemand({v_active_power_demand[0][i]});
+
+   } else {
+    // DCNetworkBlock
+    NetworkBlock * sub_block;
+    typedef boost::multi_array_types::index_range range;
+    auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
+    std::vector<double> ap_v(number_nodes);
+    std::copy(ap_c.begin(), ap_c.end(), ap_v.begin());
+
+    if (v_network_blocks[ i ] ) {
+     sub_block = v_network_blocks[ i ];
+    } else {
+     sub_block = new DCNetworkBlock( this );
+     v_Block.push_back( sub_block );
+     v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    }
+    // Update ActiveDemand
+    sub_block->set_ActiveDemand(ap_v);
+   }
+  }
+ }
 }  // end( UCBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -296,14 +365,14 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
             ( v_node_injection_constraints[t][node_id].get_rhs()
               - fixed_consumption[generator_id] );
 
-    auto linear_function = dynamic_cast<LinearFunction *>
+    auto lf = dynamic_cast<LinearFunction *>
     ( v_node_injection_constraints[t][node_id].get_function());
 
     auto power = get_unit_block( generator_id )->get_active_power();
     auto commitment = get_unit_block( generator_id )->get_commitment();
 
-    linear_function->add_variable( &power[t][generator_id], 1.0 );
-    linear_function->add_variable( &commitment[t][generator_id], -fixed_consumption[generator_id] );
+    lf->add_variable( &power[t][generator_id], 1.0 );
+    lf->add_variable( &commitment[t][generator_id], -fixed_consumption[generator_id] );
    }
    }
   }
@@ -725,6 +794,11 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  }
 
  // Serialize sub-blocks
+
+ if (f_NetworkData) {
+  auto sub_group = group.addGroup( "NetworkData" );
+  f_NetworkData->serialize(sub_group);
+ }
 
  for( Index i = 0; i < f_number_units; ++i ) {
   auto sub_block = get_unit_block( i );
