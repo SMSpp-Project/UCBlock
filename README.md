@@ -1,55 +1,86 @@
 # UCBlock
-> TODO
 
-## Requirements
+A SMS++ module for modeling Unit Commitment problems in electrical power production.
 
-The project requires the [core SMS++ library](https://gitlab.com/frangio68/sms_plus_plus).
-It has the same requirements of the core SMS++ project (Boost, Eigen3 and netCDF).
+## Getting started
 
-## Build and install
+These instructions will let you build UCBlock on your system.
 
-- Clone the project from the repository and navigate inside its main directory.
+### Requirements
 
-- If you installed the requirements you should be fine. Configure the project with:
+- SMS++ core library
+
+### Build and install
+
+Configure and build the library with:
 ```sh
 mkdir build
 cd build
 cmake ..
-```
-
-- You can now build the library:
-```sh
 make
 ```
 
-- Optionally, you can install the library with:
+Optionally, install the library in the system with:
 ```sh
 sudo make install
 ```
 
-- After the library is configured and built, you can use it in your CMake project with:
+## Usage
+
+- After the module is configured and built, you can use it in your CMake project with:
 ```cmake
 find_package(UCBlock)
 target_link_libraries(<my_target> SMS++::UCBlock)
 ```
 
-### Run Google Tests
+### Tools and examples
 
-Some simple Google Tests will be built with the library.
-You can run them with the following command from the `build` directory:
-```sh
-ctest
-```
+We provide some tools and examples in the [`tools`](tools) directory.
+See [`tools/README.md`](tools/README.md) for details on how to build and use them.
 
-## Tools
+## Running the tests
 
-- `thermalunit_solver`: a tool for solving simple 1-UC problems passed as netCDF files.
-```
-Usage: thermalunit_solver [options] <file>
+By default, some simple unit tests are built with the library.
+To run them, launch `ctest` from the build directory.
 
--s <solver>, --solver <solver>  Choose solver.
-                                Available solvers are: cplex, dp.
--w <file>, --writelp <file>     Write LP problem on file.
--h, --help                      Print this help.
-```
-  
+## Contributing
+
+This section is not ready yet.
+
+## Authors
+
+### Current Lead Authors
+
+- **Antonio Frangioni**  
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+- **Rafael Durbano Lobato**  
+  Department of Applied Mathematics  
+  State University of Campinas, Brazil
+
+- **Alì Ghezelsoflu**  
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+- **Niccolò Iardella**  
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+
+## License
+
+This section is not ready yet. See SMS++ library for details.
+
+## Disclaimer
+
+The code is currently provided free of charge for academic purposes only.
+As such, it is provided "*as is*", without any explicit or implicit warranty
+that it will properly behave or it will suit your needs. The Authors of
+the code cannot be considered liable, either directly or indirectly, for
+any damage or loss that anybody could suffer for having used it. More
+details about the non-warranty attached to this code are available in the
+license description file.
