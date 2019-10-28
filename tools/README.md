@@ -1,19 +1,18 @@
-# SMS++ Tools
+# UCBlock Tools
 
-A set of tools and examples that use SMS++ library.
-At the moment we provide only a generic block solver with some example input files.
+A set of tools and examples that use UCBlock module.
+At the moment we provide only a single Thermal Unit solver.
 
 ## Getting started
 
-These instructions will let you build SMS++ Tools on your system.
+These instructions will let you build UCBlock Tools on your system.
 
 ### Requirements
 
-- SMS++
-
-At the moment, the block solver also requires:
-
 - UCBlock
+
+At the moment, the Thermal Unit solver also requires:
+
 - MILPSolver
 
 ### Build and install
@@ -28,23 +27,22 @@ make
 
 ## Usage
 
-### Block solver
+### Thermal Unit solver
 
 ```sh
-Usage: block_solver [options] <nc4-file>
+Usage: thermalunit_solver [options] <nc4-file>
 
 Options:
-  -b <file>, --blockcfg <file>   Block configuration.
-  -s <file>, --solvercfg <file>  Solver configuration.
-  -h, --help                     Print this help.
+  -s <solver>, --solver <solver>  Choose solver.
+                                  Available solvers are: cplex, dp.
+  -w <file>, --writelp <file>     Write LP problem on file.
+  -n <file>, --nc4problem <file>  Write nc4 problem on file.
+  -h, --help                      Print this help.
 ```
 
-The input netCDF file can be a problem file or a block file:
-- a problem file already contains a Block configuration and a Solver configuration,
-  so if you provide them by command line they will be ignored;
-- a block file needs a Block configuration and a Solver configuration to be solved.
+The input netCDF file must be a block file.
+At the moment, only `cplex` solver is available.
 
-See the [`examples`](examples) directory for sample input files.
 ## Authors
 
 - **Antonio Frangioni**  
@@ -59,7 +57,7 @@ See the [`examples`](examples) directory for sample input files.
 
 ## License
 
-See SMS++ library for details.
+See UCBlock for details.
 
 ## Disclaimer
 
