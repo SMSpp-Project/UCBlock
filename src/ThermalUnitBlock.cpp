@@ -41,10 +41,8 @@
 
 #include "DQuadFunction.h"
 #include "FRealObjective.h"
-#include "FRowConstraint.h"
 #include "LinearFunction.h"
 #include "ThermalUnitBlock.h"
-#include "UCBlock.h"
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -202,8 +200,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- // FIXME: This should be implemented better
-
+ // initial condition of each vector
  std::vector<double> min_power = v_MinPower;
  if (min_power.size() == 1) {
   min_power.resize(f_time_horizon, min_power[0]);
@@ -224,28 +221,102 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
 
- std::vector max_power = this->v_MaxPower;
+ std::vector<double> max_power = this->v_MaxPower;
  if( max_power.size() == 1 ) {
   max_power.resize( f_time_horizon, max_power[0] );
+ }else if (max_power.size() < f_time_horizon) {
+  max_power.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    max_power[j] = v_MaxPower[i];
+   }
+  }
  }
- std::vector delta_ramp_up = this->v_DeltaRampUp;
+
+
+ std::vector<double> delta_ramp_up = this->v_DeltaRampUp;
  if( delta_ramp_up.size() == 1 ) {
   delta_ramp_up.resize( f_time_horizon, delta_ramp_up[0] );
+ }else if (delta_ramp_up.size() < f_time_horizon) {
+  delta_ramp_up.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    delta_ramp_up[j] = v_DeltaRampUp[i];
+   }
+  }
  }
- std::vector delta_ramp_down = this->v_DeltaRampDown;
+
+ std::vector<double> delta_ramp_down = this->v_DeltaRampDown;
  if( delta_ramp_down.size() == 1 ) {
   delta_ramp_down.resize( f_time_horizon, delta_ramp_down[0] );
+ }else if (delta_ramp_down.size() < f_time_horizon) {
+  delta_ramp_down.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    delta_ramp_down[j] = v_DeltaRampDown[i];
+   }
+  }
  }
 
- std::vector primary_rho = this->v_PrimaryRho;
+ std::vector<double> primary_rho = this->v_PrimaryRho;
  if( primary_rho.size() == 1 ) {
   primary_rho.resize( f_time_horizon, primary_rho[0] );
+ }else if (primary_rho.size() < f_time_horizon) {
+  primary_rho.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    primary_rho[j] = v_PrimaryRho[i];
+   }
+  }
  }
 
- std::vector secondary_rho = this->v_SecondaryRho;
+ std::vector<double> secondary_rho = this->v_SecondaryRho;
  if( secondary_rho.size() == 1 ) {
   secondary_rho.resize( f_time_horizon, secondary_rho[0] );
+ }else if (secondary_rho.size() < f_time_horizon) {
+  secondary_rho.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    secondary_rho[j] = v_SecondaryRho[i];
+   }
+  }
  }
+/*--------------------------------------------------------------------------*/
 
  // Initializing start up and shut down variables connection constraints
  if( init_t == 0 ) {
@@ -624,10 +695,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( SecondaryRho_Constraints, "Secondary Rho Constraints" );
  }
-/*--------------------------------------------------------------------------*/
- // TIME DEPENDENT START UP COSTS CONSTRAINTS
-
- //TODO if any exist
 
 } // end( ThermalUnitBlock::generate_abstract_constraints )
 
@@ -635,24 +702,84 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
- //  FIXME: This should be implemented better   Initial check
- std::vector start_up_cost = this->v_StartUpCost;
+// Initial condition of each vector
+ std::vector<double> start_up_cost = this->v_StartUpCost;
  if( start_up_cost.size() == 1 ) {
   start_up_cost.resize( f_time_horizon - init_t, start_up_cost[ 0 ] );
- }
- std::vector linear_term = this->v_LinearTerm;
- if( linear_term.size() == 1 ) {
-  linear_term.resize( f_time_horizon, linear_term[ 0 ] );
- }
- std::vector quad_term = this->v_QuadTerm;
- if( quad_term.size() == 1 ) {
-  quad_term.resize( f_time_horizon, quad_term[ 0 ] );
- }
- std::vector const_term = this->v_ConstTerm;
- if( const_term.size() == 1 ) {
-  const_term.resize( f_time_horizon, const_term[ 0 ] );
+ }else if (start_up_cost.size() < f_time_horizon - init_t) {
+  start_up_cost.resize(f_time_horizon - init_t);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    start_up_cost[j] = v_StartUpCost[i];
+   }
+  }
  }
 
+
+ std::vector<double> linear_term = this->v_LinearTerm;
+ if( linear_term.size() == 1 ) {
+  linear_term.resize( f_time_horizon, linear_term[ 0 ] );
+ }else if (linear_term.size() < f_time_horizon) {
+  linear_term.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    linear_term[j] = v_LinearTerm[i];
+   }
+  }
+ }
+
+ std::vector<double> quad_term = this->v_QuadTerm;
+ if( quad_term.size() == 1 ) {
+  quad_term.resize( f_time_horizon, quad_term[ 0 ] );
+ }else if (quad_term.size() < f_time_horizon) {
+  quad_term.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    quad_term[j] = v_QuadTerm[i];
+   }
+  }
+ }
+
+ std::vector<double> const_term = this->v_ConstTerm;
+ if( const_term.size() == 1 ) {
+  const_term.resize( f_time_horizon, const_term[ 0 ] );
+ }else if (const_term.size() < f_time_horizon) {
+  const_term.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    const_term[j] = v_ConstTerm[i];
+   }
+  }
+ }
+/*--------------------------------------------------------------------------*/
  if( get_objective() != nullptr )  // an objective is there already
   return;                        // cowardly (and silently) return
 
