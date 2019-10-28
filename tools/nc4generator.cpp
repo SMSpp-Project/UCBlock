@@ -159,7 +159,7 @@ struct DatFile {
 
   for( unsigned int t = 0; t < TimeHorizon; ++t ) {
    b[ t ] = thermal_unit.LinearTerm - Lambda[ t ];
-   c[ t ] = thermal_unit.ConstTerm - Mu[ t ]*thermal_unit.MaxPower;
+   c[ t ] = thermal_unit.ConstTerm - Mu[ t ] * thermal_unit.MaxPower;
   }
 
   // If all elements are identical, we use only one value
@@ -439,8 +439,8 @@ void process_args( int argc, char ** argv ) {
 
  const char * const short_opts = "h";
  const option long_opts[] = {
-  { "help",    no_argument,       nullptr, 'h' },
-  { nullptr,   no_argument,       nullptr, 0 }
+  { "help",  no_argument, nullptr, 'h' },
+  { nullptr, no_argument, nullptr, 0 }
  };
 
  // Options
@@ -463,7 +463,7 @@ void process_args( int argc, char ** argv ) {
  }
 
  // Last argument
- if (optind < argc) {
+ if( optind < argc ) {
   filename = std::string( argv[ optind ] );
  } else {
   print_help();
@@ -536,8 +536,18 @@ int main( int argc, char ** argv ) {
   auto bg = f.addGroup( "Block_0" );
   bg.putAtt( "type", "UCBlock" );
   bg.addDim( "TimeHorizon", mod_file.TimeHorizon );
+  auto time_h = bg.getDim( "TimeHorizon" );
   bg.addDim( "NumberUnits", mod_file.NumThermal );
   bg.addDim( "NumberIntervals", 1 );
+
+  auto ng = bg.addGroup( "NetworkData" );
+  ng.addDim( "NumberNodes", 1 );
+
+  serialize( bg,
+             "ActivePowerDemand",
+             netCDF::NcDouble(),
+             time_h,
+             mod_file.load_curve.Loads[ 0 ] );
 
   for( unsigned int i = 0; i < mod_file.NumThermal; ++i ) {
    auto ug = bg.addGroup( "UnitBlock_" + std::to_string( i ) );
@@ -547,16 +557,16 @@ int main( int argc, char ** argv ) {
    serialize_unit( ug, mod_file.thermal_units[ i ] );
   }
 
-  for( unsigned int i = 0; i < mod_file.TimeHorizon; ++i ) {
-   auto ng = bg.addGroup( "NetworkBlock_" + std::to_string( i ) );
-   ng.putAtt( "type", "BusNetworkBlock" );
-   ng.addDim( "NumberNodes", 1 );
-   // FIXME: Check Loads[][] bounds
-   serialize( ng,
-              "ActiveDemand",
-              netCDF::NcDouble(),
-              mod_file.load_curve.Loads[ 0 ][ i ] );
-  }
+  // for( unsigned int i = 0; i < mod_file.TimeHorizon; ++i ) {
+  //  auto ng = bg.addGroup( "NetworkBlock_" + std::to_string( i ) );
+  //  ng.putAtt( "type", "BusNetworkBlock" );
+  //  ng.addDim( "NumberNodes", 1 );
+  //  // FIXME: Check Loads[][] bounds
+  //  serialize( ng,
+  //             "ActiveDemand",
+  //             netCDF::NcDouble(),
+  //             mod_file.load_curve.Loads[ 0 ][ i ] );
+  // }
  }
  return 0;
 }
