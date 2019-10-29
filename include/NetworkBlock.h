@@ -73,12 +73,24 @@ namespace SMSpp_di_unipi_it {
  * demand at the different nodes in the given time instant. This information
  * is actually bunched together in a small "passive" NetworkData object (no
  * methods, just a data repository) that can be either de-serialized or
- * passed ready-made (typically, by the UCBlock). Details of the kind of
- * network that is implemented ("bus", DC equations, AC equations, OPF, ...)
- * are entirely demanded to derived objects. The interface between a
- * NetworkBlock and the rest of the UC is just the vector of node injection
- * variables, which will have to satisfy the technical constraints of the
- * transmission network. */
+ * passed ready-made (typically, by the UCBlock). The NetworkBlock class is
+ * optional, it is not present, then the "ActivePowerDemand" *must* be present
+ * in UCBlock:
+ *
+ * - if NumberNodes == 1, then a BusNetworkBlock is automatically constructed,
+ *   and the demand for the existing node in the given time instant is taken
+ *   from ActivePowerDemand.
+ *
+ * - if NumberNodes > 1, then the NetworkData object *must* be present in
+ *   UCBlock, and a DCNetworkBlock is automatically constructed, its the
+ *   demand is taken from ActivePowerDemand and its NetworkData is set from
+ *   that of UCBlock.
+ *
+ * Details of the kind of network that is implemented ("bus", DC equations, AC
+ * equations, OPF, ...) are entirely demanded to derived objects. The
+ * interface between a NetworkBlock and the rest of the UC is just the vector
+ * of node injection variables, which will have to satisfy the technical
+ * constraints of the transmission network. */
 
 class NetworkBlock : public Block {
 
@@ -359,7 +371,7 @@ class NetworkBlock : public Block {
 /** @name Other initializations
  *  @{ */
 
-/// Extends Block::deserialize( netCDF::NcGroup )
+/// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
  * group should contain the following:
@@ -467,30 +479,18 @@ class NetworkBlock : public Block {
  virtual void set_NetworkData( NetworkData * nd ) {}
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
- /** This method can be called *before* that deserialize() is called to
-  * provide the active demand of the available transmission network. This
-  * allows the ActiveDemand of transmission network not to be duplicated in
-  * the netCDF group, since usually the ActiveDemand is deserialized inside a
-  * UCBlock, and all networks have the same ActiveDemand, that can therefore
-  * be read once and for all by the father UCBlock.
+ /** This method can be called *after* that deserialize() is called the
+  * "ActivePowerDemand" in the netCDF input of UCBlock:
   *
-  * If this method is *not* called, which means that no ActiveDemand has been
-  * provided, then when deserialize() is called the information has to be
-  * available by other means, i.e.:
+  * (i)  If the "ActivePowerDemand" is *not* present in the netCDF group that
+  *      describes the UCBlock, then a NetworkBlock must be present for each
+  *      given time, and "ActiveDemand" will be taken from it;
+  *      otherwise exception is thrown.
   *
-  * (i)  If there is no ActiveDemand in netCDF input, then the NetworkBlock
-  *      must have a father, which must be a UCBlock: the ActiveDemand is then
-  *      taken to be that of the father. If the NetworkBlock does not have a
-  *      father (or it is not a UCBlock), then exception is thrown.
-  *
-  * (ii) If all the ActiveDemand is present in the netCDF input of
-  *      NetworkBlock, the data provided there is used with no check that the
-  *      NetworkBlock has a father at all, or the father is a UCBlock.
-  *
-  * If this method *is* called, which has to happen before that deserialize()
-  * is called, then if the ActiveDemand is present in netCDF input, then it is
-  * used by the NetworkBlock. If the ActiveDemand is not present in netCDF
-  * input, it must have been passed from outside with this method.
+  * (ii) If the "ActivePowerDemand" is present in the netCDF group that
+  *      describes the UCBlock, it will be used as the "ActiveDemand" for
+  *      each NetworkBlock(overruling ActiveDemand values inside the
+  *      NetworkBlocks, if any).
  */
 
  void set_ActiveDemand(const std::vector< double > & v) {
