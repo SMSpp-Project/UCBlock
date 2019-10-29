@@ -279,8 +279,15 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  deserialize_sub_blocks( group );
 
- if (!ap_found)
+ if( !ap_found ) {
+  for( auto i : v_network_blocks ) {
+   if( i == nullptr )
+    throw ( std::invalid_argument
+     ( "UCBlock::deserialize: ActivePowerDemand is "
+       "mandatory if NetworkBlocks are not specified" ) );
+  }
   return;
+ }
 
  // If ActivePowerDemand was found, use it to populate NetworkBlocks
  if (f_NetworkData) {
