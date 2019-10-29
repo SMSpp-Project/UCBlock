@@ -269,14 +269,19 @@ class UCBlock : public Block {
  * - The "ActivePowerDemand", of type double, and indexed both over the
  *   dimensions "number of nodes" and "TimeHorizon". If the NetworkData object
  *   description is present in the NcGroup the first dimension is
- *   "NumberNodes", and it can be read via NetworkBlock::NetworkData::
- *   get_number_nodes(). The entry ActivePowerDemand[ n , t ] is assumed to
- *   contain the active power demand of each node at each time instant t of
- *   transmission network. If the NetworkData is not provided (basically,
- *   "NumberNodes" is not provided or it is == 1), then the transmission
- *   network is taken to have only one node (a bus), and the each entry of
- *   vector ActivePowerDemand[ 0 , t ] represents the active power demand of
- *   existing BusNetworkBlock for each time t.
+ *   "NumberNodes". Since the NetworkData object is optional and it may not be
+ *   present. Thus, if "NumberNodes" is not there and "ActivePowerDemand" is,
+ *   then the NetworkData object must have been passed by set_NetworkData(),
+ *   and the number of nodes can be read via NetworkBlock::NetworkData::
+ *   get_number_nodes(). However, "ActivePowerDemand" itself is optional. If
+ *   it is not found in the NcGroup, then for each time instant t, *must* be
+ *   existed a NetworkBlock with "ActiveDemand" inside (see
+ *   NetworkBlock::deserialize()). The entry ActivePowerDemand[ n , t ] is
+ *   assumed to contain the active power demand of each node for given time
+ *   instant t of transmission network. If "NumberNodes" is == 1, then the
+ *   transmission network a bus, and the each entry of vector
+ *   ActivePowerDemand[ 0 , t ] represents the active power demand of existing
+ *   BusNetworkBlock for each time t.
  *
  * - The variable "GeneratorNode", of type int and indexed over the set
  *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
