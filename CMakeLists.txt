@@ -87,7 +87,7 @@ install(DIRECTORY include/
 install(EXPORT UCBlock-targets
         FILE UCBlockTargets.cmake
         NAMESPACE SMS++::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/UCBlock)
 
 # Generate package version file
 include(CMakePackageConfigHelpers)
@@ -100,13 +100,13 @@ write_basic_package_version_file(
 configure_package_config_file(
         ${CMAKE_CURRENT_LIST_DIR}/cmake/UCBlockConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/UCBlock)
 
 # Install package version and configuration files
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/UCBlockConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/UCBlock)
 
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
@@ -116,7 +116,7 @@ install(FILES
 #install(FILES
 #        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindCPLEX.cmake
 #        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-#        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+#        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/UCBlock)
 
 # ----- Export from the build tree ------------------------------------------ #
 # This is needed so other projects can find the library in a local build.
