@@ -260,37 +260,56 @@ class UCBlock : public Block {
  *   NetworkData object that describes the transmission network; see
  *   NetworkBlock::NetworkData::deserialize() for details. If that is not
  *   provided (basically, "NumberNodes" is not provided or it is == 1), then
- *   the transmission network is taken to have only one node (a bus).
+ *   the transmission network is taken to have only one node (a bus). If the
+ *   data of a NetworkData is specified, the NetworkData is passed to each
+ *   of the NetworkBlock (see below) of the UCBlock, if any. However, if
+ *   a NetworkBlock also has a NetworkData specified in its own group, then
+ *   the NetworkData inside the NetworkBlock overrules that inside the
+ *   UCBlock, which is ignored by that NetworkBlock.
+ *
+ * - The variable "ActivePowerDemand", of type double, and indexed both over
+ *   the dimensions "NumberNodes" and "TimeHorizon". This variable is
+ *   optional if
+ *
+ *   = a NetworkBlock is defined for each time instant (see below), and
+ *
+ *   = each of the defined NetworkBlock has the "ActiveDemand" variable
+ *     specified in the corresponding group.
+ *
+ *   Otherwise it is mandatory. When it is defined, the entry
+ *   ActivePowerDemand[ n , t ] is  assumed to contain the active power
+ *   demand of node n of the transmission network at the given time
+ *   instant t, where the first dimension "NumberNodes" can be read via
+ *   NetworkBlock::NetworkData::get_number_nodes() from either the
+ *   NetworkData object in UCBlock, or these in the NetworkBlock. When
+ *   "ActivePowerDemand" is defined, and also the "ActiveDemand" variable
+ *   is defined in the group of some NetworkBlock, then "ActiveDemand"
+ *   overrules the value in the corresponding row of "ActivePowerDemand",
+ *   which is ignored.
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the constraints on the
  *   transmission network at time t. The NetworkBlocks are optional, but if
- *   some of them are missing, then "ActivePowerDemand" is mandatory in
- *   UCBlock (see below).
+ *   any of them are missing, then
  *
- * - The "ActivePowerDemand", of type double, and indexed both over the
- *   dimensions "NumberNodes" and "TimeHorizon". This variable is optional if
- *   a NetworkBlock is defined for each time instant, otherwise it is
- *   mandatory. When it is defined, the entry ActivePowerDemand[ n , t ] is
- *   assumed to contain the active power demand of each node of the
- *   transmission network at the given time instant t, where the first
- *   dimension "NumberNodes" can be read via NetworkBlock::NetworkData::
- *   get_number_nodes().
+ *   = "ActivePowerDemand" (see above) is mandatory in UCBlock
  *
- * - When both "ActivePowerDemand" and NetworkBlocks are present, a
- *   NetworkBlock's ActiveDemand overrules the value from "ActivePowerDemand".
+ *   = also the NetworkData (see above) is mandatory in UCBlock, unless
+ *     the transmission network is a bus (that is, "NumberNodes" is not
+ *     provided or it is == 1).
  *
- * - When a NetworkBlock is not defined for a given time instant t, one of
- *   these can happen:
+ *   In particular, when a NetworkBlock is not defined for a given time
+ *   instant t then one of these happen:
  *
- *   - If "NumberNodes" == 1, then a BusNetworkBlock is automatically
- *     constructed, and the entry ActivePowerDemand[ 0 , t ] contains the
- *     active demand for t.
+ *   = If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
+ *     is automatically constructed for that time instant, and the entry
+ *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
  *
- *   - If "NumberNodes" > 1, then the NetworkData object *must* be present in
- *     UCBlock, and a DCNetworkBlock is automatically constructed, the entry
- *     ActivePowerDemand[ n , t ] contains the active demand of each node for
- *     t.
+ *   = If "NumberNodes" > 1, then a DCNetworkBlock is automatically
+ *     constructed for that time instant, it is provided with the NetworkData
+ *     object (which must be present in UCBlock) and the row
+ *     ActivePowerDemand[ ... , t ] contains the active demand of each node
+ *     at time instant t.
  *
  * - The variable "GeneratorNode", of type int and indexed over the set
  *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
