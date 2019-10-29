@@ -264,24 +264,33 @@ class UCBlock : public Block {
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
  *   with t = TimeHorizon - 1, containing each the constraints on the
- *   transmission network at time t.
+ *   transmission network at time t. The NetworkBlocks are optional, but if
+ *   some of them are missing, then "ActivePowerDemand" is mandatory in
+ *   UCBlock (see below).
  *
  * - The "ActivePowerDemand", of type double, and indexed both over the
- *   dimensions "number of nodes" and "TimeHorizon". If the NetworkData object
- *   description is present in the NcGroup the first dimension is
- *   "NumberNodes". Since the NetworkData object is optional and it may not be
- *   present. Thus, if "NumberNodes" is not there and "ActivePowerDemand" is,
- *   then the NetworkData object must have been passed by set_NetworkData(),
- *   and the number of nodes can be read via NetworkBlock::NetworkData::
- *   get_number_nodes(). However, "ActivePowerDemand" itself is optional. If
- *   it is not found in the NcGroup, then for each time instant t, *must* be
- *   existed a NetworkBlock with "ActiveDemand" inside (see
- *   NetworkBlock::deserialize()). The entry ActivePowerDemand[ n , t ] is
- *   assumed to contain the active power demand of each node for given time
- *   instant t of transmission network. If "NumberNodes" is == 1, then the
- *   transmission network a bus, and the each entry of vector
- *   ActivePowerDemand[ 0 , t ] represents the active power demand of existing
- *   BusNetworkBlock for each time t.
+ *   dimensions "NumberNodes" and "TimeHorizon". This variable is optional if
+ *   a NetworkBlock is defined for each time instant, otherwise it is
+ *   mandatory. When it is defined, the entry ActivePowerDemand[ n , t ] is
+ *   assumed to contain the active power demand of each node of the
+ *   transmission network at the given time instant t, where the first
+ *   dimension "NumberNodes" can be read via NetworkBlock::NetworkData::
+ *   get_number_nodes().
+ *
+ * - When both "ActivePowerDemand" and NetworkBlocks are present, a
+ *   NetworkBlock's ActiveDemand overrules the value from "ActivePowerDemand".
+ *
+ * - When a NetworkBlock is not defined for a given time instant t, one of
+ *   these can happen:
+ *
+ *   - If "NumberNodes" == 1, then a BusNetworkBlock is automatically
+ *     constructed, and the entry ActivePowerDemand[ 0 , t ] contains the
+ *     active demand for t.
+ *
+ *   - If "NumberNodes" > 1, then the NetworkData object *must* be present in
+ *     UCBlock, and a DCNetworkBlock is automatically constructed, the entry
+ *     ActivePowerDemand[ n , t ] contains the active demand of each node for
+ *     t.
  *
  * - The variable "GeneratorNode", of type int and indexed over the set
  *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
