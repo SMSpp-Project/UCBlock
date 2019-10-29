@@ -387,10 +387,25 @@ class NetworkBlock : public Block {
  *
  * - The "ActiveDemand", of type double, and of size "number of nodes". If the
  *   NetworkData object description is present in the NcGroup this is the
- *   dimension "NumberNodes", but this may not happen: if "NumberNodes" is
- *   not there then the NetworkData object must have been passed by
+ *   dimension "NumberNodes", but the NetworkData object is optional and it
+ *   may not be there. !!! Thus, if "NumberNodes" is not there and
+ *   "ActiveDemand" is, then the NetworkData object must have been passed by
  *   set_NetworkData(), and the number of nodes can be read via
- *   NetworkData::get_number_nodes(). */
+ *   NetworkData::get_number_nodes(). However, "ActiveDemand" itself is
+ *   optional. If it is not found in the NcGroup, then it *must* be passed
+ *   (either before or after the call to deserialize()) by calling
+ *   set_ActiveDemand().
+ *
+ * !!!
+ * Since both groups of data are optional,
+ *
+ *    THE NcGroup CAN ACTUALLY BE EMPTY
+ *
+ * which implies that all the data will be (or have been) passed by the
+ * in-memory interface. In this case, it would clearly be preferable to
+ * *entirely avoid the NcGroup to be there*, and in fact UCBlock has
+ * provisions for the NcGroup describing the NetworkBlock to be optional [see
+ * the comments to UCBlock::deserialize()]. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -410,7 +425,9 @@ class NetworkBlock : public Block {
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- void generate_abstract_variables( Configuration * stvv ) override {}
+ void generate_abstract_variables( Configuration * stvv ) override {
+  //!!! why is this method empty?
+  }
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -477,25 +494,41 @@ class NetworkBlock : public Block {
   * NetworkBlock which only handles the "bus" case. */
 
  virtual void set_NetworkData( NetworkData * nd ) {}
+
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
- /** This method can be called *after* that deserialize() is called the
-  * "ActivePowerDemand" in the netCDF input of UCBlock:
+ /** !!!
+  * This method can be called either before or after that deserialize() is
+  * called to provide the NetworkBlock with the ActiveDemand data. This
+  * allows all Active Power Demand data corresponding to some UC problem to be
+  * "grouped" together (typically, in UCBlock) rather than "spread" among the
+  * different NetworkBlock, which may be convenient fro some user.
   *
-  * (i)  If the "ActivePowerDemand" is *not* present in the netCDF group that
-  *      describes the UCBlock, then a NetworkBlock must be present for each
-  *      given time, and "ActiveDemand" will be taken from it;
-  *      otherwise exception is thrown.
+  * If this method is called *before* deserialize(), the data is just copied.
+  * However, when deserialize() is called, if ActiveDemand data is present
+  * in the NcGroup then this data is used, replacing (and therefore ignoring)
+  * the data set by this method.
   *
-  * (ii) If the "ActivePowerDemand" is present in the netCDF group that
-  *      describes the UCBlock, it will be used as the "ActiveDemand" for
-  *      each NetworkBlock(overruling ActiveDemand values inside the
-  *      NetworkBlocks, if any).
- */
+  * Similarly, if this method is called *after* deserialize(), but some the
+  * ActiveDemand was already present in the NcGroup, then that data is kept,
+  * and the call to this method does nothing.
+  *
+  * !!! Comment about the implementation: just construct v_active_demand empty.
+  * When this method is called, if it is empty it is written into, otherwise
+  * nothing happens. In deserialize(), if the data is there in the NcGorup
+  * then it is written in v_active_demand (which therefore is no longer
+  * empty), otherwise it is left empty so that it can be set by this method.
+  *
+  * !!! You then have to be sure that v_active_demand is nonempty the first
+  * time you use it, so a check must be added; if it is empty then exception
+  * is thrown. */
 
- void set_ActiveDemand(const std::vector< double > & v) {
-  v_active_demand = v;
- }
+ void set_ActiveDemand( const std::vector< double > & v )
+ {
+  if( v_active_demand.empty() )
+   v_active_demand = v;
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
