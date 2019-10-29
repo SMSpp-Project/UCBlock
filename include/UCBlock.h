@@ -266,6 +266,18 @@ class UCBlock : public Block {
  *   with t = TimeHorizon - 1, containing each the constraints on the
  *   transmission network at time t.
  *
+ * - The "ActivePowerDemand", of type double, and indexed both over the
+ *   dimensions "number of nodes" and "TimeHorizon". If the NetworkData object
+ *   description is present in the NcGroup the first dimension is
+ *   "NumberNodes", and it can be read via NetworkBlock::NetworkData::
+ *   get_number_nodes(). The entry ActivePowerDemand[ n , t ] is assumed to
+ *   contain the active power demand of each node at each time instant t of
+ *   transmission network. If the NetworkData is not provided (basically,
+ *   "NumberNodes" is not provided or it is == 1), then the transmission
+ *   network is taken to have only one node (a bus), and the each entry of
+ *   vector ActivePowerDemand[ 0 , t ] represents the active power demand of
+ *   existing BusNetworkBlock for each time t.
+ *
  * - The variable "GeneratorNode", of type int and indexed over the set
  *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
  *   to which node of the transmission network, the specified electrical

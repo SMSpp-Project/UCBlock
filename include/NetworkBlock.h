@@ -418,10 +418,10 @@ class NetworkBlock : public Block {
  *  @{ */
 
  /// method to set the NetworkData object
- /** This method can be called *before* that deserialize() is called to provide
-  * the NetworkBlock with the data corresponding to the transmission network
-  * description. This allows the information not to be duplicated in the
-  * netCDF group that describes the NetworkBlock, since usually (but not
+ /** This method can be called *before* that deserialize() is called to
+  * provide the NetworkBlock with the data corresponding to the transmission
+  * network description. This allows the information not to be duplicated in
+  * the netCDF group that describes the NetworkBlock, since usually (but not
   * necessarily) a NetworkBlock is deserialized inside a UCBlock, and all
   * networks have the same data, that can therefore be read once and for all
   * by the father UCBlock.
@@ -465,13 +465,37 @@ class NetworkBlock : public Block {
   * NetworkBlock which only handles the "bus" case. */
 
  virtual void set_NetworkData( NetworkData * nd ) {}
-
+/*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
- // TODO
+ /** This method can be called *before* that deserialize() is called to
+  * provide the active demand of the available transmission network. This
+  * allows the ActiveDemand of transmission network not to be duplicated in
+  * the netCDF group, since usually the ActiveDemand is deserialized inside a
+  * UCBlock, and all networks have the same ActiveDemand, that can therefore
+  * be read once and for all by the father UCBlock.
+  *
+  * If this method is *not* called, which means that no ActiveDemand has been
+  * provided, then when deserialize() is called the information has to be
+  * available by other means, i.e.:
+  *
+  * (i)  If there is no ActiveDemand in netCDF input, then the NetworkBlock
+  *      must have a father, which must be a UCBlock: the ActiveDemand is then
+  *      taken to be that of the father. If the NetworkBlock does not have a
+  *      father (or it is not a UCBlock), then exception is thrown.
+  *
+  * (ii) If all the ActiveDemand is present in the netCDF input of
+  *      NetworkBlock, the data provided there is used with no check that the
+  *      NetworkBlock has a father at all, or the father is a UCBlock.
+  *
+  * If this method *is* called, which has to happen before that deserialize()
+  * is called, then if the ActiveDemand is present in netCDF input, then it is
+  * used by the NetworkBlock. If the ActiveDemand is not present in netCDF
+  * input, it must have been passed from outside with this method.
+ */
+
  void set_ActiveDemand(const std::vector< double > & v) {
   v_active_demand = v;
  }
-
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
