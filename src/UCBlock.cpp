@@ -289,40 +289,61 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   return;
  }
 
- // If ActivePowerDemand was found, use it to populate NetworkBlocks
- if (f_NetworkData) {
-  for( Index i = 0; i < f_time_horizon; ++i ) {
+ // ActivePowerDemand was found, use it to populate NetworkBlocks
+ for( Index i = 0; i < f_time_horizon; ++i ) {
+  NetworkBlock * sub_block;
 
-   if( number_nodes == 1 ) {
-    // BusNetworkBlock
-    NetworkBlock * sub_block;
-    if (v_network_blocks[ i ] ) {
-     sub_block = v_network_blocks[ i ];
+  if( number_nodes == 1 ) {
+   // BusNetworkBlock
 
-    } else {
-     sub_block = new BusNetworkBlock( this );
-     v_Block.push_back( sub_block );
-     v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+   if( v_network_blocks[ i ] ) {
+    // A NetworkBlock already exists
+    sub_block = v_network_blocks[ i ];
+    if( !sub_block->get_NetworkData() && f_NetworkData ) {
+     sub_block->set_NetworkData( f_NetworkData );
     }
-    sub_block->set_ActiveDemand({v_active_power_demand[0][i]});
+    if( sub_block->get_active_demand().empty() ) {
+     sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+    }
 
    } else {
-    // DCNetworkBlock
-    NetworkBlock * sub_block;
-    typedef boost::multi_array_types::index_range range;
-    auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
-    std::vector<double> ap_v(number_nodes);
-    std::copy(ap_c.begin(), ap_c.end(), ap_v.begin());
-
-    if (v_network_blocks[ i ] ) {
-     sub_block = v_network_blocks[ i ];
-    } else {
-     sub_block = new DCNetworkBlock( this );
-     v_Block.push_back( sub_block );
-     v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    // Create a new BusNetworkBlock
+    sub_block = new BusNetworkBlock( this );
+    v_Block.push_back( sub_block );
+    v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    if( f_NetworkData ) {
+     sub_block->set_NetworkData( f_NetworkData );
     }
-    // Update ActiveDemand
-    sub_block->set_ActiveDemand(ap_v);
+    sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+   }
+
+
+  } else { // number_nodes > 1
+   // DCNetworkBlock
+
+   typedef boost::multi_array_types::index_range range;
+   auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
+   std::vector< double > ap_v( number_nodes );
+   std::copy( ap_c.begin(), ap_c.end(), ap_v.begin() );
+
+   if( v_network_blocks[ i ] ) {
+    // A NetworkBlock already exists
+    sub_block = v_network_blocks[ i ];
+    if( !sub_block->get_NetworkData() ) {
+     // If we are here, we know that f_NetworkData is not null
+     sub_block->set_NetworkData( f_NetworkData );
+    }
+    if( sub_block->get_active_demand().empty() ) {
+     sub_block->set_ActiveDemand( ap_v );
+    }
+
+   } else {
+    // Create a new DCNetworkBlock
+    sub_block = new DCNetworkBlock( this );
+    v_Block.push_back( sub_block );
+    v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    sub_block->set_NetworkData( f_NetworkData );
+    sub_block->set_ActiveDemand( ap_v );
    }
   }
  }
