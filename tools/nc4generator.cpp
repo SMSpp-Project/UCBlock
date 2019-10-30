@@ -551,22 +551,10 @@ int main( int argc, char ** argv ) {
 
   for( unsigned int i = 0; i < mod_file.NumThermal; ++i ) {
    auto ug = bg.addGroup( "UnitBlock_" + std::to_string( i ) );
-   // auto ug = bg.addGroup( "Unit_" + std::to_string( bg.getGroupCount() ) );
    ug.putAtt( "type", "ThermalUnitBlock" );
    mod_file.thermal_units[ i ].generate_startupcost();
    serialize_unit( ug, mod_file.thermal_units[ i ] );
   }
-
-  // for( unsigned int i = 0; i < mod_file.TimeHorizon; ++i ) {
-  //  auto ng = bg.addGroup( "NetworkBlock_" + std::to_string( i ) );
-  //  ng.putAtt( "type", "BusNetworkBlock" );
-  //  ng.addDim( "NumberNodes", 1 );
-  //  // FIXME: Check Loads[][] bounds
-  //  serialize( ng,
-  //             "ActiveDemand",
-  //             netCDF::NcDouble(),
-  //             mod_file.load_curve.Loads[ 0 ][ i ] );
-  // }
  }
  return 0;
 }
