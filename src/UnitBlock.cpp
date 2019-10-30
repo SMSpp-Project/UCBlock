@@ -102,7 +102,7 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
-  f_number_intervals = 0;
+  f_number_intervals = 1;
  else {
   f_number_intervals = NumberIntervals.getSize();
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )

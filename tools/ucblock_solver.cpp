@@ -4,7 +4,7 @@
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
-#include <CPXMILPSolver.h>
+// #include <CPXMILPSolver.h>
 
 using namespace SMSpp_di_unipi_it;
 
@@ -14,12 +14,13 @@ std::string solver_name{};
 
 void print_help() {
  // http://docopt.org
- std::cout << "Usage: ucblock_solver [options] <file>" << std::endl
+ std::cout << "Usage: uc_solver [options] <nc4-file>" << std::endl
            << std::endl
-           << "-s <solver>, --solver <solver>  Choose solver." << std::endl
-           << "                                Available solvers are: cplex, dp." << std::endl
-           << "-w <file>, --writelp <file>     Write LP problem on file." << std::endl
-           << "-h, --help                      Print this help." << std::endl;
+           << "Options:" << std::endl
+           << "  -s <solver>, --solver <solver>  Choose solver." << std::endl
+           << "                                  Available solvers are: cplex, dp." << std::endl
+           << "  -w <file>, --writelp <file>     Write LP problem(s) on file(s)." << std::endl
+           << "  -h, --help                      Print this help." << std::endl;
 }
 
 void process_args( int argc, char ** argv ) {
@@ -62,7 +63,7 @@ void process_args( int argc, char ** argv ) {
  }
 
  // Last argument
- if (optind < argc) {
+ if( optind < argc ) {
   filename = std::string( argv[ optind ] );
  } else {
   print_help();
@@ -74,18 +75,6 @@ int main( int argc, char ** argv ) {
 
  solver_name = "cplex";
  process_args( argc, argv );
-
- Solver * solver;
- if( solver_name == "cplex" ) {
-  // Solver * solver = Solver::new_Solver( "CPXMILPSolver" );
-  solver = new CPXMILPSolver();
- } else if( solver_name == "dp" ) {
-  std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
-  exit( 0 );
- } else {
-  std::cerr << "Available solvers are: cplex, dp" << std::endl;
-  exit( 1 );
- }
 
  netCDF::NcFile f;
  try {
@@ -115,42 +104,89 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // UCBlock deserialize
+ // Deserialize block
  auto ucb = dynamic_cast<UCBlock *>(Block::new_Block( "UCBlock" ));
- auto tub = dynamic_cast<ThermalUnitBlock *>(Block::new_Block( "ThermalUnitBlock", ucb ));
- auto bnb = dynamic_cast<BusNetworkBlock *>(Block::new_Block( "BusNetworkBlock", ucb ));
-
  ucb->deserialize( bg );
 
- // Generate abstract representation
- int tmp = 15;
- SimpleConfiguration< int > myconfig( tmp );
-
- tub->generate_abstract_variables( &myconfig );
- tub->generate_abstract_constraints( nullptr );
- tub->generate_objective( nullptr );
-
- bnb->generate_abstract_variables( nullptr );
- // bnb->generate_abstract_constraints( nullptr );
-
- // Register solver
- ucb->register_Solver( solver );
-
- // Write problem
- if( !lp_file.empty() ) {
-  dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file );
+ // Configure blocks
+ auto conf = new BlockConfig();
+ for (int i = 0; i < 10; ++i) {
+  auto subconf = new BlockConfig();
+  subconf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
+  conf->v_sub_BlockConfig.emplace_back(subconf);
  }
- // Solve
+
+ // // Configure solver
+ auto slv_conf = new BlockSolverConfig();
+
+ if( solver_name == "cplex" ) {
+  slv_conf->v_SolverNames.emplace_back( "CPXMILPSolver" );
+  slv_conf->v_SolverConfigs.emplace_back( new ComputeConfig() );
+
+ } else if( solver_name == "dp" ) {
+  std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
+  exit( 0 );
+ } else {
+  std::cerr << "Available solvers are: cplex, dp" << std::endl;
+  exit( 1 );
+ }
+
+ // for (auto b : ucb->get_nested_Blocks()) {
+ //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
+ //  if (tub) {
+ //   tub->set_BlockConfig( conf );
+ //   tub->set_SolverConfig( slv_conf );
+ //  } else {
+ //   auto bnb = dynamic_cast<BusNetworkBlock *>(b);
+ //   if(bnb ) {
+ //    bnb->generate_abstract_variables( nullptr );
+ //   }
+ //  }
+ // }
+
+ ucb->set_BlockConfig( conf );
+ ucb->set_SolverConfig( slv_conf );
+
+ // int i = 0;
+ // double acc = 0;
+ // for (auto b : ucb->get_nested_Blocks()) {
+ //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
+ //  if (tub) {
+ //   auto solver = tub->get_registered_solvers().front();
+ //
+ //   // // Write LP problem
+ //   // // TODO: Use configuration instead, so no dependency from CPXMILPSolver
+ //   // if( !lp_file.empty() ) {
+ //   //  dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file + std::to_string(i) + ".lp" );
+ //   // }
+ //
+ //   // Solve
+ //   int status = solver->compute();
+ //   auto ub = solver->get_ub();
+ //   auto lb = solver->get_lb();
+ //
+ //   auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
+ //   auto obj_f = obj->get_function();
+ //   auto obj_value = obj_f->get_value();
+ //   acc += obj_value;
+ //
+ //   std::cout << "Block " << i << std::endl;
+ //   std::cout << "Status = " << status << std::endl;
+ //   std::cout << "Upper bound = " << ub << std::endl;
+ //   std::cout << "Lower bound = " << lb << std::endl;
+ //   std::cout << std::endl;
+ //  }
+ //  ++i;
+ // }
+ // std::cout << "Sum of objective values = " << acc << std::endl;
+
+ auto solver = ucb->get_registered_solvers().front();
  int status = solver->compute();
  auto ub = solver->get_ub();
-
- // Retrieve objective function
- auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
- auto obj_f = obj->get_function();
-
+ auto lb = solver->get_lb();
  std::cout << "Status = " << status << std::endl;
  std::cout << "Upper bound = " << ub << std::endl;
- std::cout << "Function value =  " << obj_f->get_value() << std::endl;
+ std::cout << "Lower bound = " << lb << std::endl;
 
  return 0;
 }

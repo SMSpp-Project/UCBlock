@@ -184,6 +184,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
  ::deserialize_dim( group, "NumberElectricalGenerators",
                                  f_number_elc_generators,  true );
+ f_number_elc_generators = f_number_units;
+
  ::deserialize_dim( group, "NumberHeatGenerators",
                                 f_number_heat_generators,  true );
  ::deserialize_dim( group, "TotalNumberPollutantZones",

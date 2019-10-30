@@ -84,7 +84,9 @@ class BusNetworkBlock : public NetworkBlock {
  /// constructor of BusNetworkBlock, taking possibly a pointer to its father
 
  explicit BusNetworkBlock( Block * f_block = nullptr ) :
-  NetworkBlock( f_block ) {}
+  NetworkBlock( f_block ) {
+  v_node_injection.resize(1);
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BusNetworkBlock, (understandably) does nothing
