@@ -65,6 +65,8 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
+ auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",f_total_number_pieces );
+
  ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
 
  if( f_number_reservoirs > 1 ) {
@@ -75,6 +77,47 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
   ::deserialize( group, "EndLine", f_number_reservoirs, v_end_arc );  //todo
  }
+
+ ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
+
+ ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
+
+ ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
+
+ ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
+
+ ::deserialize( group, "Inflows", v_inflows, true, true );
+
+ ::deserialize( group, "MinPower", v_minimum_power, true, true );
+
+ ::deserialize( group, "MaxPower", v_maximum_power, true, true );
+
+ ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
+
+ ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
+
+ ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
+
+ ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
+
+ ::deserialize( group, "NumberPieces", f_number_arcs, v_number_pieces, false, true );
+
+ ::deserialize( group, "LinearTerm", f_total_number_pieces, v_linear_term, false, true );
+
+ ::deserialize( group, "ConstantTerm", f_total_number_pieces, v_const_term, false, true );
+
+ ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
+
+ ::deserialize( group, "InitialFlowRate", f_number_arcs, v_initial_flow_rate, true, true );
+
+ ::deserialize( group, "InitialVolumetric", f_number_reservoirs, v_initial_volumetric, true, true );
+
+ ::deserialize( group, "UphillFlow", f_number_arcs, v_uphill_delay, true, true );
+
+ ::deserialize( group, "DownhillFlow", f_number_arcs, v_downhill_delay, true, true );
+
+
+
 }// end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -501,8 +544,117 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
 
 void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
- //TODO I should complete this part after completing the interface
+ UnitBlock::serialize( group );
 
+ auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
+ auto NumberIntervals = group.getDim( "NumberIntervals" );
+
+
+  auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",
+                                               f_total_number_pieces );
+
+ auto dim_number_reservoirs =
+         group.addDim( "NumberReservoirs", f_number_reservoirs );
+
+ auto dim_number_arcs =
+         group.addDim( "NumberArcs", f_number_arcs );
+
+ if( f_number_reservoirs > 1 ) {
+
+  ::serialize( group, "StartLine", netCDF::NcInt64(),
+               dim_number_reservoirs, v_start_arc, false );
+
+  ::serialize( group, "EndLine", netCDF::NcInt64(),
+               dim_number_reservoirs, v_end_arc, false );
+ }
+
+ if( !v_minimum_flow.empty() ) {
+
+  ::serialize( group, "MinFlow", netCDF::NcDouble(),
+               {NumberIntervals, dim_number_arcs},
+               v_minimum_flow, true );
+ }
+
+ if( !v_maximum_flow.empty() ) {
+
+  ::serialize( group, "MaxFlow", netCDF::NcDouble(),
+               {NumberIntervals, dim_number_arcs},
+               v_maximum_flow, true );
+ }
+
+ if( !v_minimum_volumetric.empty() ) {
+
+  ::serialize( group, "MinVolumetric", netCDF::NcDouble(),
+               {dim_number_reservoirs, NumberIntervals},
+               v_minimum_volumetric, true );
+ }
+
+ if( !v_maximum_volumetric.empty() ) {
+
+  ::serialize( group, "MaxVolumetric", netCDF::NcDouble(),
+               {dim_number_reservoirs, NumberIntervals},
+               v_maximum_volumetric, true );
+ }
+
+ ::serialize( group, "Inflows", netCDF::NcDouble(),
+              { dim_number_reservoirs, dim_time_horizon },
+              v_inflows, false );
+
+ ::serialize( group, "MinPower", netCDF::NcDouble(),
+              { NumberIntervals, dim_number_arcs },
+              v_minimum_power, true );
+
+ ::serialize( group, "MaxPower", netCDF::NcDouble(),
+              { NumberIntervals, dim_number_arcs },
+              v_maximum_power, true );
+
+ ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
+              { NumberIntervals, dim_number_arcs },
+              v_delta_ramp_up, true );
+
+ ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
+              { NumberIntervals, dim_number_arcs },
+              v_delta_ramp_down, true );
+
+ if( !v_primary_rho.empty() ) {
+  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
+               {NumberIntervals, dim_number_arcs},
+               v_primary_rho, true );
+ }
+
+ if( !v_secondary_rho.empty() ) {
+
+  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
+               {NumberIntervals, dim_number_arcs},
+               v_secondary_rho, true );
+ }
+
+
+ ::serialize( group, "NumberPieces", netCDF::NcUint64(),
+              dim_number_arcs, v_number_pieces, false );
+
+ ::serialize( group, "LinearTerm", netCDF::NcDouble(),
+              dim_total_number_pieces, v_linear_term, false );
+
+ ::serialize( group, "ConstantTerm", netCDF::NcDouble(),
+              dim_total_number_pieces, v_const_term, false );
+
+
+ ::serialize( group, "InertiaPower", netCDF::NcDouble(),
+              { NumberIntervals, dim_number_arcs },
+              v_inertia_power, true );
+
+ ::serialize( group, "InitialFlowRate", netCDF::NcDouble(),
+              dim_number_arcs, v_initial_flow_rate, false );
+
+ ::serialize( group, "InitialVolumetric", netCDF::NcDouble(),
+              dim_number_reservoirs, v_initial_volumetric, false );
+
+ ::serialize( group, "UphillFlow", netCDF::NcInt64(),
+              dim_number_arcs, v_uphill_delay, true );
+
+ ::serialize( group, "DownhillFlow", netCDF::NcUint64(),
+              dim_number_arcs, v_downhill_delay, true );
 }  // end( HydroUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

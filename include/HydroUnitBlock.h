@@ -1235,6 +1235,9 @@ class HydroUnitBlock : public UnitBlock {
  /// cascading system
  Index f_number_arcs;
 
+ /// The total number of pieces
+ Index f_total_number_pieces;
+
  /// The vector of UphillDelay
  std::vector< Index > v_uphill_delay;
 
