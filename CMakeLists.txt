@@ -10,11 +10,6 @@ cmake_minimum_required(VERSION 3.8...3.15)
 # TODO: set proper version
 project(UCBlock VERSION 1.0.0 LANGUAGES CXX)
 
-# ----- Settings ------------------------------------------------------------ #
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    enable_testing()
-endif ()
-
 # ----- Requirements -------------------------------------------------------- #
 find_package(SMSpp REQUIRED)
 
@@ -93,8 +88,7 @@ install(FILES
 # This is needed so other projects can find the library in a local build.
 # It does not affect installation.
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
+if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     export(EXPORT UCBlock-targets
            FILE ${CMAKE_CURRENT_BINARY_DIR}/UCBlockTargets.cmake
