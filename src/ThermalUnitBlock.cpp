@@ -91,8 +91,14 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost, true, true );
 
  ::deserialize( group, "FixedConsumption", v_fixed_consumption, true, true );
-
  ::deserialize( group, "InertiaCommitment", v_inertia_commitment, true, true );
+
+ if (v_fixed_consumption.empty()) {
+  v_fixed_consumption.resize( boost::extents[ f_time_horizon ][ 1 ] );
+ }
+ if (v_inertia_commitment.empty()) {
+  v_inertia_commitment.resize( boost::extents[ f_time_horizon ][ 1 ] );
+ }
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
@@ -127,6 +133,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    int n = 0;
    for( auto & i : v_start_up ) {
     i.set_type( ColVariable::kBinary );
+    i.name = "v_" + std::to_string(n++);
     add_static_variable( i, "Startup " + std::to_string( n++ ) );
    }
   }
@@ -137,6 +144,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    int n = 0;
    for( auto & i : v_shut_down ) {
     i.set_type( ColVariable::kBinary );
+    i.name = "w_" + std::to_string(n++);
     add_static_variable( i, "Shutdown " + std::to_string( n++ ) );
    }
   }

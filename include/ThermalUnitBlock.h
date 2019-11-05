@@ -96,8 +96,11 @@ class ThermalUnitBlock : public UnitBlock {
  /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
   * father Block and the time horizon. */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
-  UnitBlock( f_block ) { }
+ explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
+  UnitBlock( f_block ) {
+  v_fixed_consumption.resize( boost::extents[ 0 ][ 0 ] );
+  v_inertia_commitment.resize( boost::extents[ 0 ][ 0 ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock, it is empty
@@ -1015,25 +1018,25 @@ class ThermalUnitBlock : public UnitBlock {
  std::vector< double > v_StartUpCost;
 
  /// the InitialPower value
- double f_initial_power;
+ double f_initial_power{};
 
  /// the matrix of fixed consumption of generator
- boost::multi_array< double , 2 >  v_fixed_consumption;
+ boost::multi_array< double, 2 > v_fixed_consumption;
 
  /// the matrix of inertia commitment of generator
- boost::multi_array< double , 2 > v_inertia_commitment;
+ boost::multi_array< double, 2 > v_inertia_commitment;
 
  /// the MinUpTime value
- Index f_MinUpTime;
+ Index f_MinUpTime{};
 
  /// the MinDownTime value
- Index f_MinDownTime;
+ Index f_MinDownTime{};
 
  /// the InitUpDownTime value
- int f_InitUpDownTime;
+ int f_InitUpDownTime{};
 
  /// variable denoting the time-steps unit is subjected to initial conditions
- Index init_t;
+ Index init_t{};
 
 /*-----------------------------variables------------------------------------*/
  /* Each of the following vectors of Variable may either have size

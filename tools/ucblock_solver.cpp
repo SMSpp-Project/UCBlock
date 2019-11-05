@@ -4,7 +4,7 @@
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
-// #include <CPXMILPSolver.h>
+#include <CPXMILPSolver.h>
 
 using namespace SMSpp_di_unipi_it;
 
@@ -147,40 +147,14 @@ int main( int argc, char ** argv ) {
  ucb->set_BlockConfig( conf );
  ucb->set_SolverConfig( slv_conf );
 
- // int i = 0;
- // double acc = 0;
- // for (auto b : ucb->get_nested_Blocks()) {
- //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
- //  if (tub) {
- //   auto solver = tub->get_registered_solvers().front();
- //
- //   // // Write LP problem
- //   // // TODO: Use configuration instead, so no dependency from CPXMILPSolver
- //   // if( !lp_file.empty() ) {
- //   //  dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file + std::to_string(i) + ".lp" );
- //   // }
- //
- //   // Solve
- //   int status = solver->compute();
- //   auto ub = solver->get_ub();
- //   auto lb = solver->get_lb();
- //
- //   auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
- //   auto obj_f = obj->get_function();
- //   auto obj_value = obj_f->get_value();
- //   acc += obj_value;
- //
- //   std::cout << "Block " << i << std::endl;
- //   std::cout << "Status = " << status << std::endl;
- //   std::cout << "Upper bound = " << ub << std::endl;
- //   std::cout << "Lower bound = " << lb << std::endl;
- //   std::cout << std::endl;
- //  }
- //  ++i;
- // }
- // std::cout << "Sum of objective values = " << acc << std::endl;
-
  auto solver = ucb->get_registered_solvers().front();
+ // Write LP problem
+ // TODO: Use configuration instead, so no dependency from CPXMILPSolver
+ if( !lp_file.empty() ) {
+  dynamic_cast<CPXMILPSolver *>(solver)
+  ->write_lp( lp_file );
+ }
+
  int status = solver->compute();
  auto ub = solver->get_ub();
  auto lb = solver->get_lb();

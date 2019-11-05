@@ -551,7 +551,7 @@ class NetworkBlock : public Block {
  /** Method for returning vector of node injection variables, which is
   * assumed to have size get_number_nodes(). */
 
- const std::vector< ColVariable > & get_node_injection() const {
+  std::vector< ColVariable > & get_node_injection()  {
   return v_node_injection;
   }
 
