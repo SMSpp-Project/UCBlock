@@ -379,7 +379,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     auto linear_function = new LinearFunction();
 
-    node_injection[ node_id ].name = "S_" + std::to_string(t) + "_" + std::to_string(node_id);
     linear_function->add_variable( &node_injection[ node_id ], -1.0 );
 
     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
@@ -401,9 +400,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       auto active_power = &ap[ t ][ g ];
       auto& c = unit_block->get_commitment();
       auto commitment = &c[ t ][ g ];
-
-      active_power->name = "P_" + std::to_string(t) + "_" + std::to_string(generator_id);
-      commitment->name = "U_" + std::to_string(t) + "_" + std::to_string(generator_id);
 
       linear_function->add_variable( active_power, 1.0 );
       linear_function->add_variable( commitment, -fixed_consumption );

@@ -133,9 +133,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    int n = 0;
    for( auto & i : v_start_up ) {
     i.set_type( ColVariable::kBinary );
-    i.name = "v_" + std::to_string(n++);
-    add_static_variable( i, "Startup " + std::to_string( n++ ) );
+    add_static_variable( i, "v_" + std::to_string( n++ ) );
    }
+   // add_static_variable( v_start_up, "v" );
   }
 
   if( v_shut_down.size() != startup_shutdown_size ) {
@@ -144,9 +144,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    int n = 0;
    for( auto & i : v_shut_down ) {
     i.set_type( ColVariable::kBinary );
-    i.name = "w_" + std::to_string(n++);
-    add_static_variable( i, "Shutdown " + std::to_string( n++ ) );
+    add_static_variable( i, "w_" + std::to_string( n++ ) );
    }
+   // add_static_variable( v_shut_down, "w" );
   }
  }
 
