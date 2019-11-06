@@ -633,6 +633,39 @@ class BatteryUnitBlock : public UnitBlock {
   return( v_maximum_power );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the vector of maximum primary rho
+/** The method returned a std::vector< double > V and each element of V
+ * contains the maximum primary rho at time t. There are three possible cases:
+ *
+ * - if the vector is empty, then the maximum primary rho of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the maximum primary
+ *   rho the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the maximum primary rho value at time t. */
+
+ const std::vector< double > & get_maximum_primary_rho() const {
+  return( v_maximum_primary_rho );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum secondary rho
+/** The method returned a std::vector< double > V and each element of V
+ * contains the maximum secondary rho at time t. There are three possible
+ * cases:
+ *
+ * - if the vector is empty, then the maximum secondary rho of the unit is 0;
+ *
+ * - if the vector has only one element, then V[ 0 ] is the maximum secondary
+ *   rho the unit for all time horizon;
+ *
+ * - otherwise, the std::vector< double > V must have size get_time_horizon()
+ *   and each V[ t ] represents the maximum secondary rho value at time t. */
+
+ const std::vector< double > & get_maximum_secondary_rho() const {
+  return( v_maximum_secondary_rho );
+ }
+/*--------------------------------------------------------------------------*/
 /// returns the vector of delta ramp up
 /** The method returned a std::vector< double > V and each element of V
  * contains the delta ramp up at time t. There are three possible cases:
@@ -834,6 +867,12 @@ class BatteryUnitBlock : public UnitBlock {
  /// the vector of MaxPower
  std::vector< double >  v_maximum_power;
 
+ /// the vector of MaxPrimaryRho
+ std::vector< double >  v_maximum_primary_rho;
+
+ /// the vector of MaxSecondaryRho
+ std::vector< double >  v_maximum_secondary_rho;
+
  /// the vector of RampUp
  std::vector< double >  v_delta_ramp_up;
 
@@ -867,8 +906,8 @@ class BatteryUnitBlock : public UnitBlock {
  /// the vector of outtake level variables
  std::vector< ColVariable > v_outtake_level;
 
- /// the vector of analogous variables
- std::vector< ColVariable > v_analogous;
+ /// the vector of binary variables
+ std::vector< ColVariable > v_battery_binary;
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;
