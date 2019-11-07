@@ -943,10 +943,13 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > demand_Constraints;
 
 /// primary upper bound constraints
- std::vector< FRowConstraint > primary_upperbound_Constraints;
+ std::vector< FRowConstraint > primary_upper_bound_Constraints;
 
 /// secondary upper bound constraints
- std::vector< FRowConstraint > secondary_upperbound_Constraints;
+ std::vector< FRowConstraint > secondary_upper_bound_Constraints;
+
+ /// the objective function
+ FRealObjective objective;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
