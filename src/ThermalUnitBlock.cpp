@@ -441,11 +441,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    auto linear_function = new LinearFunction();
    linear_function->add_variable( &v_active_power[0][0], 1.0 );
+   linear_function->add_variable( &v_start_up[0], -min_power[0] );
    auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
 
    RampUp_Constraints[0].set_lhs
            ( 0.0 );
-   RampUp_Constraints[0].set_rhs( delta_ramp_up[0] * initial_commitment + f_initial_power );
+   RampUp_Constraints[0].set_rhs( (delta_ramp_up[0] * initial_commitment) + f_initial_power );
    RampUp_Constraints[0].set_function( linear_function );
 
    for( Index t = 1, constraint_index = 1; t < f_time_horizon; ++t, ++constraint_index ) {
@@ -474,7 +475,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    RampUp_Constraints[0].set_lhs
            ( 0.0 );
-   RampUp_Constraints[0].set_rhs( delta_ramp_up[0] * initial_commitment + f_initial_power );
+   RampUp_Constraints[0].set_rhs( (delta_ramp_up[0] * initial_commitment) + f_initial_power );
    RampUp_Constraints[0].set_function( linear_function );
 
    for( Index t = 1, constraint_index = 1; t < init_t;
@@ -524,6 +525,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( &v_active_power[0][0], 1.0 );
     linear_function->add_variable
             ( &v_commitment[0][0], delta_ramp_down[0] );
+    linear_function->add_variable
+            ( &v_shut_down[0], min_power[0] );
 
     RampDown_Constraints[0].set_lhs
             ( f_initial_power );
