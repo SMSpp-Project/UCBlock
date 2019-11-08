@@ -236,7 +236,8 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
                           std::to_string( t ) + "_" +
                           std::to_string( g ) );
     }
-    // add_static_variable(variables[t]);
+    // TODO: Add them grouped (this doesn't work)
+    // add_static_variable(variables[t], varname + "_" + std::to_string( t ));
    }
   }
   k *= 2;

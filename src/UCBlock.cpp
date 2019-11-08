@@ -415,7 +415,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   }
 
-  add_static_constraint( v_node_injection_constraints, "Node Injection Constraints" );
+  add_static_constraint( v_node_injection_constraints, "node_injection_c" );
   Block::generate_abstract_constraints(stcc);
  }
 

@@ -372,7 +372,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
  add_static_constraint( StartUp_ShutDown_Variables_Constraints,
-                        "Startup/Shutdown Variables Constraints" );
+                        "startup_shutdown_variables_c" );
 
 
  // Initializing turn on constraints (start up constraints)
@@ -397,7 +397,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    StartUp_Constraints[constraint_index].set_function( linear_function );
   }
 
-  add_static_constraint( StartUp_Constraints, "Startup Constraints" );
+  add_static_constraint( StartUp_Constraints, "startup_c" );
  }
 
  // Initializing turn off constraints (shut down constraints)
@@ -422,7 +422,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    ShutDown_Constraints[constraint_index].set_function( linear_function );
   }
 
-  add_static_constraint( ShutDown_Constraints, "Shutdown constraints" );
+  add_static_constraint( ShutDown_Constraints, "shutdown_c" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -509,7 +509,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
 
   }
-  add_static_constraint( RampUp_Constraints, "Ramp Up Constraints" );
+  add_static_constraint( RampUp_Constraints, "rampup_c" );
 
 
   // Initializing ramp down constraints
@@ -589,9 +589,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
 
-   add_static_constraint( RampDown_Constraints, "Ramp Down Constraints" );
+  add_static_constraint( RampDown_Constraints, "rampdown_c" );
 
  }
+
 /*--------------------------------------------------------------------------*/
 
  // Initializing minimum power constraints
@@ -627,7 +628,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    MinPower_Constraints[t].set_function( linear_function );
   }
  }
- add_static_constraint( MinPower_Constraints, "Min Power Constraints" );
+ add_static_constraint( MinPower_Constraints, "minpower_c" );
 
  // Initializing maximum power constraints
  if( !v_PrimaryRho.empty() & !v_SecondaryRho.empty()) {
@@ -662,7 +663,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    MaxPower_Constraints[t].set_function( linear_function );
   }
  }
- add_static_constraint( MaxPower_Constraints, "Max Power Constraints" );
+ add_static_constraint( MaxPower_Constraints, "maxpower_c" );
 
 
  // Initializing primary rho fraction constraints
@@ -682,7 +683,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    PrimaryRho_Constraints[ t ].set_function( linear_function );
   }
 
-  add_static_constraint( PrimaryRho_Constraints, "Primary Rho Constraints" );
+  add_static_constraint( PrimaryRho_Constraints, "primaryrho_c" );
  }
  // Initializing secondary rho fraction constraints
 
@@ -702,7 +703,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    SecondaryRho_Constraints[ t ].set_function( linear_function );
   }
 
-  add_static_constraint( SecondaryRho_Constraints, "Secondary Rho Constraints" );
+  add_static_constraint( SecondaryRho_Constraints, "secondaryrho_c" );
  }
 
 } // end( ThermalUnitBlock::generate_abstract_constraints )
