@@ -131,19 +131,6 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // for (auto b : ucb->get_nested_Blocks()) {
- //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
- //  if (tub) {
- //   tub->set_BlockConfig( conf );
- //   tub->set_SolverConfig( slv_conf );
- //  } else {
- //   auto bnb = dynamic_cast<BusNetworkBlock *>(b);
- //   if(bnb ) {
- //    bnb->generate_abstract_variables( nullptr );
- //   }
- //  }
- // }
-
  ucb->set_BlockConfig( conf );
  ucb->set_SolverConfig( slv_conf );
 

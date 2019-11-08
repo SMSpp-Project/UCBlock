@@ -387,7 +387,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
  add_static_constraint( StartUp_ShutDown_Variables_Constraints,
-                        "startup_shutdown_variables_c" );
+                        "startup_shutdown_vars_c" );
 
 
  // Initializing turn on constraints (start up constraints)
