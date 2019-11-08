@@ -328,23 +328,38 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing start up and shut down variables connection constraints
  if( init_t == 0 ) {
+
   if( f_time_horizon > 0 ) {
 
-   StartUp_ShutDown_Variables_Constraints.resize( f_time_horizon - 1 );
+   StartUp_ShutDown_Variables_Constraints.resize( f_time_horizon );
 
-   for( Index t = 1, constraint_index = 0; t < f_time_horizon;
+   // Initial condition
+
+   auto linear_function = new LinearFunction();
+
+   linear_function->add_variable( &v_commitment[0][0], 1.0 );
+   linear_function->add_variable( &v_start_up[0], -1.0 );
+   linear_function->add_variable( &v_shut_down[0], 1.0 );
+
+   auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
+
+   StartUp_ShutDown_Variables_Constraints[0].set_both( initial_commitment );
+   StartUp_ShutDown_Variables_Constraints[0].set_function( linear_function );
+
+
+   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
         ++t, ++constraint_index ) {
 
-    auto linear_function = new LinearFunction();
+    auto lf = new LinearFunction();
 
-    linear_function->add_variable( &v_commitment[t][0], 1.0 );
-    linear_function->add_variable( &v_start_up[t], -1.0 );
-    linear_function->add_variable( &v_shut_down[t], 1.0 );
-    linear_function->add_variable( &v_commitment[t - 1][0], -1.0 );
+    lf->add_variable( &v_commitment[t][0], 1.0 );
+    lf->add_variable( &v_start_up[t], -1.0 );
+    lf->add_variable( &v_shut_down[t], 1.0 );
+    lf->add_variable( &v_commitment[t - 1][0], -1.0 );
     StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
 
     StartUp_ShutDown_Variables_Constraints[constraint_index].
-            set_function( linear_function );
+            set_function( lf );
    }
   }
  }
