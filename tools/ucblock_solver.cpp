@@ -110,13 +110,16 @@ int main( int argc, char ** argv ) {
 
  // Configure blocks
  auto conf = new BlockConfig();
- for (int i = 0; i < 10; ++i) {
+ for (auto i: ucb->get_nested_Blocks() ){
   auto subconf = new BlockConfig();
-  subconf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
+  auto unit_block = dynamic_cast<UnitBlock *>(i);
+  if( unit_block != nullptr ) {
+   subconf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
+  }
   conf->v_sub_BlockConfig.emplace_back(subconf);
  }
 
- // // Configure solver
+ // Configure solver
  auto slv_conf = new BlockSolverConfig();
 
  if( solver_name == "cplex" ) {
