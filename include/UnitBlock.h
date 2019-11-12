@@ -367,7 +367,7 @@ class UnitBlock : public Block {
   *    columns, and M[ t , g ] is the commitment variable for time step t of
   *    generator g. */
 
- const boost::multi_array< ColVariable , 2 > & get_commitment() const {
+  boost::multi_array< ColVariable , 2 > & get_commitment()  {
   return v_commitment;
   }
 
@@ -415,7 +415,7 @@ class UnitBlock : public Block {
   *    columns, and P[ t , g ] is the secondary spinning reserve variable for
   *    time step t of generator g. */
 
- const boost::multi_array< ColVariable , 2 > & get_active_power() const {
+  boost::multi_array< ColVariable , 2 > & get_active_power()  {
   return v_active_power;
   }
 

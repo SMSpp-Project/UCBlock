@@ -373,7 +373,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-   auto node_injection = v_network_blocks[ t ]->get_node_injection();
+   auto & node_injection = v_network_blocks[ t ]->get_node_injection();
 
    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
@@ -382,32 +382,41 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( &node_injection[ node_id ], -1.0 );
 
     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+
+    Index generator_id = 0;
+    Index unit_id = 0;
+
+    for( auto block : get_nested_Blocks() ) {
+     auto unit_block = dynamic_cast<UnitBlock *>(block);
+     if( unit_block == nullptr )
+      continue;
+
+     //TODO FIX for GeneratorNode
+     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
+
+      auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
+
+      auto& ap = unit_block->get_active_power();
+      auto active_power = &ap[ t ][ g ];
+      auto& c = unit_block->get_commitment();
+      auto commitment = &c[ t ][ g ];
+
+      linear_function->add_variable( active_power, 1.0 );
+      linear_function->add_variable( commitment, -fixed_consumption );
+      v_node_injection_constraints[ t ][ node_id ].set_both
+       ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+         - fixed_consumption );
+
+      generator_id++;
+     }
+    }
     v_node_injection_constraints[ t ][ node_id ].
      set_function( linear_function );
-
-
-   for( Index generator_id = 0; generator_id < f_number_elc_generators; ++generator_id ) {
-
-    auto fixed_consumption =
-            get_unit_block( generator_id )->get_fixed_consumption()[t];
-
-    v_node_injection_constraints[t][node_id].set_both
-            ( v_node_injection_constraints[t][node_id].get_rhs()
-              - fixed_consumption[generator_id] );
-
-    auto lf = dynamic_cast<LinearFunction *>
-    ( v_node_injection_constraints[t][node_id].get_function());
-
-    auto power = get_unit_block( generator_id )->get_active_power();
-    auto commitment = get_unit_block( generator_id )->get_commitment();
-
-    lf->add_variable( &power[t][generator_id], 1.0 );
-    lf->add_variable( &commitment[t][generator_id], -fixed_consumption[generator_id] );
-   }
    }
   }
 
-  add_static_constraint( v_node_injection_constraints );
+  add_static_constraint( v_node_injection_constraints, "node_injection_c" );
+  Block::generate_abstract_constraints(stcc);
  }
 
 /*--------------------------------------------------------------------------*/

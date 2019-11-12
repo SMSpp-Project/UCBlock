@@ -4,7 +4,6 @@
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
-// #include <CPXMILPSolver.h>
 
 using namespace SMSpp_di_unipi_it;
 
@@ -110,18 +109,33 @@ int main( int argc, char ** argv ) {
 
  // Configure blocks
  auto conf = new BlockConfig();
- for (int i = 0; i < 10; ++i) {
+ for( auto i: ucb->get_nested_Blocks() ) {
   auto subconf = new BlockConfig();
-  subconf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
-  conf->v_sub_BlockConfig.emplace_back(subconf);
+  auto unit_block = dynamic_cast<UnitBlock *>(i);
+  if( unit_block != nullptr ) {
+   subconf->f_static_variables_Configuration = new SimpleConfiguration< int >( 15 );
+  }
+  conf->v_sub_BlockConfig.emplace_back( subconf );
  }
 
- // // Configure solver
+ // Configure solver
  auto slv_conf = new BlockSolverConfig();
+ ComputeConfig comp_conf;
 
  if( solver_name == "cplex" ) {
   slv_conf->v_SolverNames.emplace_back( "CPXMILPSolver" );
-  slv_conf->v_SolverConfigs.emplace_back( new ComputeConfig() );
+  std::pair< std::string, std::string > problem_name = { "strProblemName",
+                                                         "testCPX" };
+  std::pair< std::string, double > accuracy = { "dblAAccSol", 1e-04 };
+  comp_conf.str_pars.emplace_back( problem_name );
+  comp_conf.dbl_pars.emplace_back( accuracy );
+
+  if( !lp_file.empty() ) {
+   std::pair< std::string, std::string > output_file = { "strOutputFile",
+                                                         lp_file };
+   comp_conf.str_pars.emplace_back( output_file );
+  }
+  slv_conf->v_SolverConfigs.emplace_back( &comp_conf );
 
  } else if( solver_name == "dp" ) {
   std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
@@ -131,54 +145,8 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // for (auto b : ucb->get_nested_Blocks()) {
- //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
- //  if (tub) {
- //   tub->set_BlockConfig( conf );
- //   tub->set_SolverConfig( slv_conf );
- //  } else {
- //   auto bnb = dynamic_cast<BusNetworkBlock *>(b);
- //   if(bnb ) {
- //    bnb->generate_abstract_variables( nullptr );
- //   }
- //  }
- // }
-
  ucb->set_BlockConfig( conf );
  ucb->set_SolverConfig( slv_conf );
-
- // int i = 0;
- // double acc = 0;
- // for (auto b : ucb->get_nested_Blocks()) {
- //  auto tub = dynamic_cast<ThermalUnitBlock*>(b);
- //  if (tub) {
- //   auto solver = tub->get_registered_solvers().front();
- //
- //   // // Write LP problem
- //   // // TODO: Use configuration instead, so no dependency from CPXMILPSolver
- //   // if( !lp_file.empty() ) {
- //   //  dynamic_cast<CPXMILPSolver *>(solver)->write_lp( lp_file + std::to_string(i) + ".lp" );
- //   // }
- //
- //   // Solve
- //   int status = solver->compute();
- //   auto ub = solver->get_ub();
- //   auto lb = solver->get_lb();
- //
- //   auto obj = dynamic_cast<FRealObjective *>(tub->get_objective());
- //   auto obj_f = obj->get_function();
- //   auto obj_value = obj_f->get_value();
- //   acc += obj_value;
- //
- //   std::cout << "Block " << i << std::endl;
- //   std::cout << "Status = " << status << std::endl;
- //   std::cout << "Upper bound = " << ub << std::endl;
- //   std::cout << "Lower bound = " << lb << std::endl;
- //   std::cout << std::endl;
- //  }
- //  ++i;
- // }
- // std::cout << "Sum of objective values = " << acc << std::endl;
 
  auto solver = ucb->get_registered_solvers().front();
  int status = solver->compute();
@@ -187,6 +155,68 @@ int main( int argc, char ** argv ) {
  std::cout << "Status = " << status << std::endl;
  std::cout << "Upper bound = " << ub << std::endl;
  std::cout << "Lower bound = " << lb << std::endl;
+
+ int n_unit_blocks = 0;
+ int n_netw_blocks = 0;
+
+ std::cout << std::endl;
+
+ for( auto i: ucb->get_nested_Blocks() ) {
+  auto unit_block = dynamic_cast<UnitBlock *>(i);
+  if( unit_block != nullptr ) {
+   std::cout << "----- UnitBlock " << n_unit_blocks++ << std::endl;
+
+   auto commitment = unit_block->get_commitment();
+   for( UnitBlock::Index g = 0; g < unit_block->get_number_generators(); ++g ) {
+    if( g == 0 ) {
+     std::cout << "Commitment   = [";
+    } else {
+     std::cout << "               [";
+    }
+    for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
+     std::cout << std::setw( 2 ) << ( unsigned int ) round( commitment[ t ][ g ].get_value() );
+    }
+    std::cout << " ]" << std::endl;
+   }
+
+   auto active_power = unit_block->get_active_power();
+   for( UnitBlock::Index g = 0; g < unit_block->get_number_generators(); ++g ) {
+    if( g == 0 ) {
+     std::cout << "Active power = [";
+    } else {
+     std::cout << "               [";
+    }
+    for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
+     std::cout << " " << active_power[ t ][ g ].get_value();
+    }
+    std::cout << " ]" << std::endl;
+   }
+
+   auto startup = dynamic_cast<ThermalUnitBlock *>(unit_block)->get_start_up();
+   std::cout << "Start up     = [";
+   for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
+    std::cout << std::setw( 2 ) << ( unsigned int ) round( startup[ t ].get_value() );
+   }
+   std::cout << " ]" << std::endl;
+
+   auto shutdown = dynamic_cast<ThermalUnitBlock *>(unit_block)
+    ->get_shut_down();
+   std::cout << "Shut down    = [";
+   for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
+    std::cout << std::setw( 2 )
+              << ( unsigned int ) round( shutdown[ t ].get_value() );
+   }
+   std::cout << " ]" << std::endl;
+  }
+
+  auto network_block = dynamic_cast<BusNetworkBlock *>(i);
+  if( network_block != nullptr ) {
+   std::cout << "----- NetworkBlock " << n_netw_blocks++ << std::endl;
+   auto node_inj = network_block->get_node_injection();
+   std::cout << "Node injection = "<< node_inj[ 0 ].get_value() << std::endl;
+  }
+  std::cout << std::endl;
+ }
 
  return 0;
 }

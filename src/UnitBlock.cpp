@@ -209,16 +209,16 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
   std::string varname;
   switch( k ) {
    case 1:
-    varname = "Commitment ";
+    varname = "u";
     break;
    case 2:
-    varname = "Primary spinning reserve ";
+    varname = "pr";
     break;
    case 4:
-    varname = "Secondary spinning reserve ";
+    varname = "sr";
     break;
    case 8:
-    varname = "Active power ";
+    varname = "P";
     break;
    default:
     break;
@@ -232,9 +232,12 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
      auto & variable = ( *variables )[ t ][ g ];
      variable.set_type( pair.second );
      add_static_variable( variable,
-                          varname + std::to_string( t ) + "-" + std::to_string( g ) );
+                          varname + "_" +
+                          std::to_string( t ) + "_" +
+                          std::to_string( g ) );
     }
-    // add_static_variable(variables[t]);
+    // TODO: Add them grouped (this doesn't work)
+    // add_static_variable(variables[t], varname + "_" + std::to_string( t ));
    }
   }
   k *= 2;
