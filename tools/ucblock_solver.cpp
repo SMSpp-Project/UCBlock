@@ -121,10 +121,22 @@ int main( int argc, char ** argv ) {
 
  // Configure solver
  auto slv_conf = new BlockSolverConfig();
+ ComputeConfig comp_conf;
 
  if( solver_name == "cplex" ) {
   slv_conf->v_SolverNames.emplace_back( "CPXMILPSolver" );
-  slv_conf->v_SolverConfigs.emplace_back( new ComputeConfig() );
+  std::pair< std::string, std::string > problem_name = { "strProblemName",
+                                                         "testCPX" };
+  std::pair< std::string, double > accuracy = { "dblAAccSol", 1e-04 };
+  comp_conf.str_pars.emplace_back( problem_name );
+  comp_conf.dbl_pars.emplace_back( accuracy );
+
+  if( !lp_file.empty() ) {
+   std::pair< std::string, std::string > output_file = { "strOutputFile",
+                                                         lp_file };
+   comp_conf.str_pars.emplace_back( output_file );
+  }
+  slv_conf->v_SolverConfigs.emplace_back( &comp_conf );
 
  } else if( solver_name == "dp" ) {
   std::cerr << "Sorry, DP Solver is not available yet..." << std::endl;
@@ -138,13 +150,6 @@ int main( int argc, char ** argv ) {
  ucb->set_SolverConfig( slv_conf );
 
  auto solver = ucb->get_registered_solvers().front();
- // Write LP problem
- // TODO: Use configuration instead, so no dependency from CPXMILPSolver
- if( !lp_file.empty() ) {
-  dynamic_cast<CPXMILPSolver *>(solver)
-  ->write_lp( lp_file );
- }
-
  int status = solver->compute();
  auto ub = solver->get_ub();
  auto lb = solver->get_lb();
