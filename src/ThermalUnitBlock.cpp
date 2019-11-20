@@ -201,6 +201,40 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
     }
    }
   }
+
+  if (f_InitUpDownTime > 0){
+   v_start_up[0].set_value( 0.0 );
+   v_start_up[0].is_fixed( true );
+  } else if (f_InitUpDownTime <= 0){
+   v_shut_down[0].set_value( 0.0 );
+   v_shut_down[0].is_fixed( true );
+  }
+
+  if (f_InitUpDownTime > 0){
+   for ( Index t = 0; t < f_MinDownTime ; ++t) {
+    v_start_up[t].set_value( 0.0 );
+    v_start_up[t].is_fixed( true );
+   }
+  } else if (f_InitUpDownTime <= 0){
+   for ( Index t = 0; t < f_MinUpTime ; ++t) {
+    v_shut_down[t].set_value( 0.0 );
+    v_shut_down[t].is_fixed( true );
+   }
+  }
+ }
+
+ if (init_t == 0){
+  if (f_InitUpDownTime > 0){
+   for ( Index t = 0; t < f_MinDownTime ; ++t) {
+    v_start_up[t].set_value( 0.0 );
+    v_start_up[t].is_fixed( true );
+   }
+  } else if (f_InitUpDownTime <= 0){
+   for ( Index t = 0; t < f_MinUpTime ; ++t) {
+    v_shut_down[t].set_value( 0.0 );
+    v_shut_down[t].is_fixed( true );
+   }
+  }
  }
 } // end( ThermalUnitBlock::generate_abstract_variables )
 
@@ -655,6 +689,332 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  }
 
+
+ /*
+
+
+ // Initializing start up and shut down variables connection constraints
+ if( init_t == 0 ) {
+
+  if( f_time_horizon > 0 ) {
+
+   StartUp_ShutDown_Variables_Constraints.resize( f_time_horizon );
+
+   // Initial condition
+
+   auto linear_function = new LinearFunction();
+
+   if ( f_InitUpDownTime > 0 ) {
+
+    linear_function->add_variable( &v_commitment[0][0], 1.0 );
+    linear_function->add_variable( &v_shut_down[0], 1.0 );
+
+    StartUp_ShutDown_Variables_Constraints[0].set_both( 1.0 );
+    StartUp_ShutDown_Variables_Constraints[0].set_function( linear_function );
+
+   } else if( f_InitUpDownTime <= 0){
+
+    linear_function->add_variable( &v_commitment[0][0], 1.0 );
+    linear_function->add_variable( &v_start_up[0], -1.0 );
+
+    StartUp_ShutDown_Variables_Constraints[0].set_both( 0.0 );
+    StartUp_ShutDown_Variables_Constraints[0].set_function( linear_function );
+   }
+
+   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
+        ++t, ++constraint_index ) {
+
+    auto lf = new LinearFunction();
+
+    lf->add_variable( &v_commitment[t][0], 1.0 );
+    lf->add_variable( &v_start_up[t], -1.0 );
+    lf->add_variable( &v_shut_down[t], 1.0 );
+    lf->add_variable( &v_commitment[t - 1][0], -1.0 );
+    StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
+
+    StartUp_ShutDown_Variables_Constraints[constraint_index].
+            set_function( lf );
+   }
+  }
+ }
+
+ if( init_t > 0 ) {
+
+  auto startup_shutdown_const_size = static_cast<int>(f_time_horizon - init_t );
+
+  if( startup_shutdown_const_size > 0 ) {
+
+   StartUp_ShutDown_Variables_Constraints.resize( startup_shutdown_const_size );
+
+   // Initial condition
+
+   auto l_function = new LinearFunction();
+   if( f_InitUpDownTime <= 0 ) {
+
+   l_function->add_variable( &v_commitment[init_t][0], 1.0 );
+   l_function->add_variable( &v_start_up[0], -1.0 );
+
+    StartUp_ShutDown_Variables_Constraints[0].set_both( 0.0 );
+    StartUp_ShutDown_Variables_Constraints[0].set_function( l_function );
+
+   } else if( f_InitUpDownTime > 0 ) {
+
+    l_function->add_variable( &v_commitment[init_t][0], 1.0 );
+    l_function->add_variable( &v_shut_down[0], 1.0 );
+
+    StartUp_ShutDown_Variables_Constraints[0].set_both( 1.0 );
+    StartUp_ShutDown_Variables_Constraints[0].set_function( l_function );
+   }
+
+   for( Index t = init_t + 1 , constraint_index = 1; t < f_time_horizon;
+        ++t, ++constraint_index ) {
+
+    auto linear_function = new LinearFunction();
+
+    linear_function->add_variable( &v_commitment[t][0], 1.0 );
+    linear_function->add_variable( &v_start_up[t - init_t], -1.0 );
+    linear_function->add_variable( &v_shut_down[t - init_t], 1.0 );
+    linear_function->add_variable( &v_commitment[t - 1][0], -1.0 );
+    StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
+
+    StartUp_ShutDown_Variables_Constraints[constraint_index].
+            set_function( linear_function );
+   }
+  }
+ }
+ add_static_constraint( StartUp_ShutDown_Variables_Constraints,
+                        "startup_shutdown_vars_c" );
+*/
+/*--------------------------------------------------------------------------*/
+ // Initializing turn on constraints (start up constraints)
+
+/*
+ if( init_t == 0 ) {
+
+  auto startup_const_size = static_cast<int>(f_time_horizon - f_MinUpTime);
+  if( startup_const_size > 0 ) {
+
+   StartUp_Constraints.resize( startup_const_size );
+
+   if( f_InitUpDownTime <= 0 ) {
+
+    auto linear_f = new LinearFunction();
+
+    for( Index s = 0; s < f_MinUpTime ; ++s ) {
+     linear_f->add_variable( &v_start_up[s], -1.0 );
+    }
+
+    linear_f->add_variable( &v_commitment[f_MinUpTime][0], 1.0 );
+    linear_f->add_variable( &v_commitment[0][0], -1.0 );
+    StartUp_Constraints[0].set_lhs( -Inf< double >());
+    StartUp_Constraints[0].set_rhs( 0.0);
+    StartUp_Constraints[0].set_function( linear_f );
+
+    for( Index t = f_MinUpTime + 1, constraint_index = 1;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinUpTime + 1; s < t + 1; ++s ) {
+      linear_function->add_variable( &v_start_up[s], -1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     StartUp_Constraints[constraint_index].set_lhs( 0.0 );
+     StartUp_Constraints[constraint_index].set_rhs( Inf< double >());
+     StartUp_Constraints[constraint_index].set_function( linear_function );
+    }
+   }else if( f_InitUpDownTime > 0 ) {
+
+    for( Index t = f_MinUpTime , constraint_index = 0;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinUpTime + 1 ; s < t + 1; ++s ) {
+      linear_function->add_variable( &v_start_up[s] , -1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     StartUp_Constraints[constraint_index].set_lhs( 0.0 );
+     StartUp_Constraints[constraint_index].set_rhs( Inf< double >());
+     StartUp_Constraints[constraint_index].set_function( linear_function );
+    }
+   }
+  }
+  add_static_constraint( StartUp_Constraints, "startup_c" );
+ }
+ if( init_t > 0 ) {
+
+
+  auto startup_const_size = static_cast<int>(f_time_horizon - init_t - f_MinUpTime);
+  if( startup_const_size > 0 ) {
+
+   StartUp_Constraints.resize( startup_const_size );
+
+   if( f_InitUpDownTime <= 0 ) {
+
+    auto linear_f = new LinearFunction();
+
+    for( Index s = 1; s < f_MinUpTime + 1; ++s ) {
+     linear_f->add_variable( &v_start_up[s], -1.0 );
+    }
+
+    linear_f->add_variable( &v_commitment[init_t + f_MinUpTime][0], 1.0 );
+    linear_f->add_variable( &v_commitment[init_t][0], -1.0 );
+    StartUp_Constraints[0].set_lhs( -Inf< double >());
+    StartUp_Constraints[0].set_rhs( 0.0);
+    StartUp_Constraints[0].set_function( linear_f );
+
+    for( Index t = init_t + f_MinUpTime + 1, constraint_index = 1;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinUpTime ; s < t + 1; ++s ) {
+      linear_function->add_variable( &v_start_up[s - init_t], -1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     StartUp_Constraints[constraint_index].set_lhs( 0.0 );
+     StartUp_Constraints[constraint_index].set_rhs( Inf< double >());
+     StartUp_Constraints[constraint_index].set_function( linear_function );
+    }
+   } else if (f_InitUpDownTime > 0 ){
+
+    for( Index t = init_t + f_MinUpTime , constraint_index = 0;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinUpTime; s < t + 1; ++s ) {
+      linear_function->add_variable( &v_start_up[s - init_t], -1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     StartUp_Constraints[constraint_index].set_lhs( 0.0 );
+     StartUp_Constraints[constraint_index].set_rhs( Inf< double >());
+     StartUp_Constraints[constraint_index].set_function( linear_function );
+    }
+   }
+  }
+  add_static_constraint( StartUp_Constraints, "startup_c" );
+ }
+
+
+// Initializing turn off constraints (shut down constraints)
+
+ if( init_t == 0 ) {
+
+  auto shutdown_const_size = static_cast<int>(f_time_horizon  - f_MinDownTime);
+  if( shutdown_const_size > 0 ) {
+
+   ShutDown_Constraints.resize( shutdown_const_size );
+
+   if( f_InitUpDownTime > 0 ) {
+
+    auto linear_f = new LinearFunction();
+
+    for( Index s = 0; s < f_MinDownTime ; ++s ) {
+     linear_f->add_variable( &v_shut_down[s], 1.0 );
+    }
+
+    linear_f->add_variable( &v_commitment[f_MinDownTime][0], 1.0 );
+    linear_f->add_variable( &v_commitment[0][0], -1.0 );
+    ShutDown_Constraints[0].set_both( 0.0 );
+    ShutDown_Constraints[0].set_function( linear_f );
+
+    for( Index t = f_MinDownTime + 1, constraint_index = 1;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinDownTime + 1; s < t; ++s ) {
+      linear_function->add_variable( &v_shut_down[s], 1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     ShutDown_Constraints[constraint_index].set_lhs( 0.0 );
+     ShutDown_Constraints[constraint_index].set_rhs( 1.0 );
+     ShutDown_Constraints[constraint_index].set_function( linear_function );
+    }
+   } else if( f_InitUpDownTime <= 0 ) {
+
+    for( Index t = f_MinDownTime, constraint_index = 0;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinDownTime ; s < t; ++s ) {
+      linear_function->add_variable( &v_shut_down[s], 1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     ShutDown_Constraints[constraint_index].set_lhs( 0.0 );
+     ShutDown_Constraints[constraint_index].set_rhs( 1.0 );
+     ShutDown_Constraints[constraint_index].set_function( linear_function );
+    }
+   }
+  }
+ }
+
+ if ( init_t > 0 ) {
+
+  auto shutdown_const_size = static_cast<int>(f_time_horizon - init_t - f_MinDownTime);
+  if( shutdown_const_size > 0 ) {
+
+   ShutDown_Constraints.resize( shutdown_const_size );
+
+   if( f_InitUpDownTime > 0 ) {
+
+    auto linear_f = new LinearFunction();
+
+    for( Index s = 1; s < f_MinDownTime + 1; ++s ) {
+     linear_f->add_variable( &v_shut_down[s], 1.0 );
+    }
+
+    linear_f->add_variable( &v_commitment[init_t + f_MinDownTime][0], 1.0 );
+    linear_f->add_variable( &v_commitment[init_t][0], -1.0 );
+    ShutDown_Constraints[0].set_both( 0.0 );
+    ShutDown_Constraints[0].set_function( linear_f );
+
+    for( Index t = init_t + f_MinDownTime + 1, constraint_index = 1;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinDownTime + 1; s < t; ++s ) {
+      linear_function->add_variable( &v_shut_down[s - init_t], 1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     ShutDown_Constraints[constraint_index].set_lhs( 0.0 );
+     ShutDown_Constraints[constraint_index].set_rhs( 1.0 );
+     ShutDown_Constraints[constraint_index].set_function( linear_function );
+    }
+   } else if (f_InitUpDownTime <= 0 ){
+
+    for( Index t = init_t + f_MinDownTime, constraint_index = 0;
+         t < f_time_horizon; ++t, ++constraint_index ) {
+
+     auto linear_function = new LinearFunction();
+
+     for( Index s = t - f_MinDownTime + 1 ; s < t + 1; ++s ) {
+      linear_function->add_variable( &v_shut_down[s - init_t], 1.0 );
+     }
+
+     linear_function->add_variable( &v_commitment[t][0], 1.0 );
+     ShutDown_Constraints[constraint_index].set_lhs( 0.0 );
+     ShutDown_Constraints[constraint_index].set_rhs( 1.0 );
+     ShutDown_Constraints[constraint_index].set_function( linear_function );
+    }
+   }
+  }
+ }
+
+ add_static_constraint( ShutDown_Constraints, "shutdown_c" );
+
+ */
 /*--------------------------------------------------------------------------*/
 
  // Initializing minimum power constraints
