@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <getopt.h>
 
 #include <UCBlock.h>
@@ -194,17 +195,17 @@ int main( int argc, char ** argv ) {
 
    auto startup = dynamic_cast<ThermalUnitBlock *>(unit_block)->get_start_up();
    std::cout << "Start up     = [";
-   for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
-    std::cout << std::setw( 2 ) << ( unsigned int ) round( startup[ t ].get_value() );
+   for(auto & t : startup) {
+    std::cout << std::setw( 2 ) << ( unsigned int ) round( t.get_value() );
    }
    std::cout << " ]" << std::endl;
 
    auto shutdown = dynamic_cast<ThermalUnitBlock *>(unit_block)
     ->get_shut_down();
    std::cout << "Shut down    = [";
-   for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
+   for(auto & t : shutdown) {
     std::cout << std::setw( 2 )
-              << ( unsigned int ) round( shutdown[ t ].get_value() );
+              << ( unsigned int ) round( t.get_value() );
    }
    std::cout << " ]" << std::endl;
   }
