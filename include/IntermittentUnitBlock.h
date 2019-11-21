@@ -155,7 +155,24 @@ class IntermittentUnitBlock : public UnitBlock {
  * - The scalar variable "Gamma", of type double and not indexed over any
  *   dimension. This variable is used to take into account an uncertainty on
  *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
- *   when Gamma == 0, the unit does not provide any reserve. */
+ *   when Gamma == 0, the unit does not provide any reserve.
+ *
+ * - The variable "InertiaPower", of type double and either indexed over the
+ *   dimension "NumberIntervals" or has size 1. This is meant to represent the
+ *   vector IP[ t ] which, for each time instant t, contains the contribution
+ *   that the unit can give to the inertia constraint which depends on the
+ *   active power that it is currently generating (basically, the constant to
+ *   be multiplied to the active power variable) at time t for this unit. The
+ *   variable is optional; if it is not defined, IP[ t ] == 0 for each time
+ *   instants t. If it has size 1 then the entry IP[ 0 ] is assumed to contain
+ *   the the inertia power value for this unit and all time instants t.
+ *   Otherwise, InertiaPower[ i ] is the fixed value of IP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0 and all l. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ *
+ *   */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -258,6 +275,34 @@ class IntermittentUnitBlock : public UnitBlock {
  const std::vector< double > & get_maximum_power() const {
   return( v_maximum_power );
  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the matrix of inertia power
+/** The returned value U = get_inertia_power() contains the contribution
+ *  to inertia (basically, the constants to be multiplied by the active power
+ *  variables returned by get_active_power()) of all the generators at all
+ *  time instants. There are four possible cases:
+ *
+ * - if the matrix is empty, then the inertia power is always 0;
+ *
+ * - if the matrix only has one row (i.e., the first dimension has size 1),
+ *   then the inertia power for each generator g is U[ 0 , g ] for all t
+ *   which means that the second dimension has size get_number_generators();
+ *
+ * - if the matrix only has one column with size get_time_horizon() (i.e., the
+ *   second dimension has size 1), then the InertiaPower[ t , 0 ] gives the
+ *   inertia power for the problem at time t. Since in this unit there is only
+ *   one electrical generator, this case should happen by assumption;
+ *
+ * - otherwise, the matrix has size get_time_horizon() per
+ *   get_number_generators(), then the InertiaPower[ t , g ] represents
+ *   the inertia power for the problem at time t for each electrical generator
+ *   g. */
+
+ const boost::multi_array< double , 2 > & get_inertia_power()
+ const override {
+  return( v_inertia_power );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
@@ -304,6 +349,8 @@ class IntermittentUnitBlock : public UnitBlock {
  /// the gamma value
  double f_gamma;
 
+ /// the matrix of inertia power of generators
+ boost::multi_array< double , 2 > v_inertia_power;
 
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints

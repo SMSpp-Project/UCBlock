@@ -203,20 +203,12 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   }
 
   if (f_InitUpDownTime > 0){
-   v_start_up[0].set_value( 0.0 );
-   v_start_up[0].is_fixed( true );
-  } else if (f_InitUpDownTime <= 0){
-   v_shut_down[0].set_value( 0.0 );
-   v_shut_down[0].is_fixed( true );
-  }
-
-  if (f_InitUpDownTime > 0){
    for ( Index t = 0; t < f_MinDownTime ; ++t) {
     v_start_up[t].set_value( 0.0 );
     v_start_up[t].is_fixed( true );
    }
-  } else if (f_InitUpDownTime <= 0){
-   for ( Index t = 0; t < f_MinUpTime ; ++t) {
+  } else if (f_InitUpDownTime < 0){
+   for ( Index t = 0; t < f_MinUpTime  ; ++t) {
     v_shut_down[t].set_value( 0.0 );
     v_shut_down[t].is_fixed( true );
    }
@@ -224,13 +216,17 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  if (init_t == 0){
+
   if (f_InitUpDownTime > 0){
+
    for ( Index t = 0; t < f_MinDownTime ; ++t) {
     v_start_up[t].set_value( 0.0 );
     v_start_up[t].is_fixed( true );
+
    }
-  } else if (f_InitUpDownTime <= 0){
-   for ( Index t = 0; t < f_MinUpTime ; ++t) {
+  } else if (f_InitUpDownTime < 0){
+
+   for ( Index t = 0; t < f_MinUpTime; ++t) {
     v_shut_down[t].set_value( 0.0 );
     v_shut_down[t].is_fixed( true );
    }

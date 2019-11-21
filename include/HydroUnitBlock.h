@@ -1265,7 +1265,7 @@ class HydroUnitBlock : public UnitBlock {
  /// The vector of ConstTerm
  std::vector< double > v_const_term;
 
- /// the vector of inertia power of generators
+ /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
 
  /// The matrix of MinVolumetric
