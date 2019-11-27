@@ -65,7 +65,17 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
- //TODO
+ ::deserialize( group, "MinPower", f_number_intervals, v_minimum_power, true, true );
+
+ ::deserialize( group, "MaxPower", f_number_intervals, v_maximum_power, true, true );
+
+ ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
+
+ ::deserialize( group, "Gamma", &f_gamma );
+
+ if (v_inertia_power.empty()) {
+  v_inertia_power.resize( boost::extents[ f_time_horizon ][ 1 ] );
+ }
 
 }// end( IntermittentUnitBlock::deserialize )
 
@@ -76,8 +86,6 @@ void IntermittentUnitBlock::generate_abstract_variables
 {
  UnitBlock::generate_abstract_variables( stvv );
 
-
-
 } // end( IntermittentUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -87,6 +95,105 @@ void IntermittentUnitBlock::generate_abstract_constraints
 {
 
 
+ // initial condition of each vector
+ std::vector<double> min_power = v_minimum_power;
+ if (min_power.size() == 1) {
+  min_power.resize(f_time_horizon, min_power[0]);
+
+ } else if (min_power.size() < f_time_horizon) {
+  min_power.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    min_power[j] = v_minimum_power[i];
+   }
+  }
+ }
+
+ std::vector<double> max_power = v_maximum_power;
+ if( max_power.size() == 1 ) {
+  max_power.resize( f_time_horizon, max_power[0] );
+ }else if (max_power.size() < f_time_horizon) {
+  max_power.resize(f_time_horizon);
+  int j = 0;
+  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
+   Index sup;
+   if (i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[i];
+   }
+   for (; j < sup; ++j) {
+    max_power[j] = v_maximum_power[i];
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ // Initializing maximum power constraints
+ if( 0 <= f_gamma & f_gamma <= 1) {
+  MaxPower_Constraints.resize( f_time_horizon );
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+
+   auto linear_function = new LinearFunction();
+
+   linear_function->add_variable( &v_active_power[t][0], f_gamma );
+   linear_function->add_variable( &v_primary_spinning_reserve[t][0], 1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[t][0], 1.0 );
+
+   MaxPower_Constraints[t].set_lhs( -Inf< double >());
+   MaxPower_Constraints[t].set_rhs( ( f_gamma * min_power[ t ]) );
+   MaxPower_Constraints[t].set_function( linear_function );
+  }
+ }
+ add_static_constraint( MaxPower_Constraints, "MaxPower_c" );
+
+
+ // Initializing minimum power constraints
+
+ MinPower_Constraints.resize( f_time_horizon );
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+
+   auto linear_function = new LinearFunction();
+
+   linear_function->add_variable( &v_active_power[t][0], 1.0 );
+   linear_function->add_variable( &v_primary_spinning_reserve[t][0], -1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[t][0], -1.0 );
+
+   MinPower_Constraints[t].set_lhs( min_power[ t ]);
+   MinPower_Constraints[t].set_rhs( Inf< double >() );
+   MinPower_Constraints[t].set_function( linear_function );
+  }
+
+ add_static_constraint( MinPower_Constraints, "MinPower_c" );
+
+
+ // Initializing active power bounds constraints
+
+ active_power_bounds_Constraints.resize( f_time_horizon );
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_active_power[t][0], 1.0 );
+
+  active_power_bounds_Constraints[t].set_lhs( min_power[ t ]);
+  active_power_bounds_Constraints[t].set_rhs( max_power[ t ] );
+  active_power_bounds_Constraints[t].set_function( linear_function );
+ }
+
+ add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_c" );
+
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -95,6 +202,20 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
 void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
+ UnitBlock::serialize( group );
+
+ auto NumberIntervals = group.getDim( "NumberIntervals" );
+
+ ::serialize( group, "Gamma", netCDF::NcDouble(), f_gamma );
+
+ ::serialize( group, "MinPower", netCDF::NcDouble(),
+              NumberIntervals, v_minimum_power, true );
+
+ ::serialize( group, "MaxPower", netCDF::NcDouble(),
+              NumberIntervals, v_maximum_power, true );
+
+ ::serialize( group, "InertiaPower", netCDF::NcDouble(),
+              {NumberIntervals}, v_inertia_power, true );
 }  // end( IntermittentUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

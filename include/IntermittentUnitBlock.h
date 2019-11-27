@@ -354,10 +354,10 @@ class IntermittentUnitBlock : public UnitBlock {
 
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints
- std::vector< FRowConstraint > active_power_upper_bound_Constraints;
+ std::vector< FRowConstraint > MinPower_Constraints;
 
 /// the active power lower bound constraints
- std::vector< FRowConstraint > active_power_lower_bound_Constraints;
+ std::vector< FRowConstraint > MaxPower_Constraints;
 
 /// the active power bounds constraints
  std::vector< FRowConstraint > active_power_bounds_Constraints;

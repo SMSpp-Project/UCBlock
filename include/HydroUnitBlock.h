@@ -272,7 +272,7 @@ class HydroUnitBlock : public UnitBlock {
  *   matrix InF[ r , t ] which, for each reservoir r, contains the amount of
  *   water that "naturally" enters into reservoir r (because of rain, ice
  *   melting, non-controlled rivers flowing, and of course net of water
- *   leaving by evaporation, human consumption etc.) during time al the time
+ *   leaving by evaporation, human consumption etc.) during time all the time
  *   interval t, and therefore that is available in the reservoir at the end
  *   of time step t (hence, the beginning of time step t + 1, if any). This
  *   variable is optional; if it isn't defined, it is taken to be zero.
