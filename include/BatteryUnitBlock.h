@@ -500,9 +500,9 @@ class BatteryUnitBlock : public UnitBlock {
  *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
  *                              \quad t \in \mathcal{T}          \quad (9)
  *   \f]
- *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the intake and
- *   outtake rho and \f$ V^{mn}_t\f$ and \f$ V^{mx}_t\f$ are the minimum and
- *   maximum storage level for each time t of the time horizon
+ *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the StoringBatteryRho
+ *   and ExtractingBatteryRho and \f$ V^{mn}_t\f$ and \f$ V^{mx}_t\f$ are the
+ *   minimum and maximum storage level for each time t of the time horizon
  *   \f$ \mathcal{T} \f$ respectively.
  *
  * - binary variable relation with storing and extracting energy level(if any)
@@ -819,6 +819,20 @@ class BatteryUnitBlock : public UnitBlock {
  const std::vector< ColVariable > & get_outtake_level() const {
   return v_outtake_level;
  }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of battery binary variables
+/** The returned std::vector< ColVariable >, say V, contains the
+ * battery binary variables and is indexed over the dimension time horizon.
+ * There are two possible cases:
+ *
+ * - if V is empty(), then these variables are not defined;
+ *
+ * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+ *   battery binary variable for time step t.*/
+
+ const std::vector< ColVariable > & get_battery_binary() const {
+  return v_battery_binary;
+ }
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
@@ -879,10 +893,10 @@ class BatteryUnitBlock : public UnitBlock {
  /// the vector of RampDown
  std::vector< double >  v_delta_ramp_down;
 
- /// the vector of intake rho
+ /// the vector of storing battery rho
  std::vector< double >  v_storing_battery_rho;
 
- /// the vector of outtake rho
+ /// the vector of extracting battery rho
  std::vector< double >  v_extracting_battery_rho;
 
  /// the vector of Cost

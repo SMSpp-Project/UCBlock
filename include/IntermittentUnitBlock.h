@@ -168,7 +168,7 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the the inertia power value for this unit and all time instants t.
  *   Otherwise, InertiaPower[ i ] is the fixed value of IP[ t ] for all t in
  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0 and all l. If
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If
  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon then the mapping
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *

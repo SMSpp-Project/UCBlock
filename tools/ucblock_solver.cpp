@@ -5,6 +5,7 @@
 #include <UCBlock.h>
 #include <ThermalUnitBlock.h>
 #include <BusNetworkBlock.h>
+#include <BatteryUnitBlock.h>
 
 using namespace SMSpp_di_unipi_it;
 
@@ -128,8 +129,10 @@ int main( int argc, char ** argv ) {
   std::pair< std::string, std::string > problem_name = { "strProblemName",
                                                          "testCPX" };
   std::pair< std::string, double > accuracy = { "dblAAccSol", 1e-04 };
+  std::pair< std::string, double > timelimit = { "dblMaxTime", 2000 };
   comp_conf.str_pars.emplace_back( problem_name );
   comp_conf.dbl_pars.emplace_back( accuracy );
+  comp_conf.dbl_pars.emplace_back( timelimit );
 
   if( !lp_file.empty() ) {
    std::pair< std::string, std::string > output_file = { "strOutputFile",
@@ -151,6 +154,7 @@ int main( int argc, char ** argv ) {
 
  auto solver = ucb->get_registered_solvers().front();
  int status = solver->compute();
+ solver->get_var_solution();
  auto ub = solver->get_ub();
  auto lb = solver->get_lb();
  std::cout << "Status = " << status << std::endl;
@@ -175,7 +179,7 @@ int main( int argc, char ** argv ) {
      std::cout << "               [";
     }
     for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
-     std::cout << std::setw( 2 ) << ( unsigned int ) round( commitment[ t ][ g ].get_value() );
+     std::cout << std::setw( 2 ) << ( unsigned int ) round( commitment[t][g].get_value());
     }
     std::cout << " ]" << std::endl;
    }
@@ -188,26 +192,63 @@ int main( int argc, char ** argv ) {
      std::cout << "               [";
     }
     for( UnitBlock::Index t = 0; t < unit_block->get_time_horizon(); ++t ) {
-     std::cout << " " << active_power[ t ][ g ].get_value();
+     std::cout << " " << active_power[t][g].get_value();
     }
     std::cout << " ]" << std::endl;
    }
 
-   auto startup = dynamic_cast<ThermalUnitBlock *>(unit_block)->get_start_up();
-   std::cout << "Start up     = [";
-   for(auto & t : startup) {
-    std::cout << std::setw( 2 ) << ( unsigned int ) round( t.get_value() );
-   }
-   std::cout << " ]" << std::endl;
+   auto thermal_unit_block = dynamic_cast<ThermalUnitBlock *>(unit_block);
+   if( thermal_unit_block != nullptr ) {
+    auto startup = thermal_unit_block->get_start_up();
+    std::cout << "Start up     = [";
+    for( auto & t : startup ) {
+     std::cout << std::setw( 2 ) << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
 
-   auto shutdown = dynamic_cast<ThermalUnitBlock *>(unit_block)
-    ->get_shut_down();
-   std::cout << "Shut down    = [";
-   for(auto & t : shutdown) {
-    std::cout << std::setw( 2 )
-              << ( unsigned int ) round( t.get_value() );
+    auto shutdown = thermal_unit_block->get_shut_down();
+    std::cout << "Shut down    = [";
+    for( auto & t : shutdown ) {
+     std::cout << std::setw( 2 )
+               << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
    }
-   std::cout << " ]" << std::endl;
+
+   auto battery_unit_block = dynamic_cast<BatteryUnitBlock *>(unit_block);
+   if( battery_unit_block != nullptr ) {
+
+    auto storage_level = battery_unit_block->get_storage_level();
+    std::cout << "StorageLevel = [";
+    for( auto & t : storage_level ) {
+     std::cout << std::setw( 5 ) << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
+
+    auto Intake_level = battery_unit_block->get_intake_level();
+    std::cout << "IntakeLevel  = [";
+    for( auto & t : Intake_level ) {
+     std::cout << std::setw( 5 ) << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
+
+
+    auto Outtake_level = battery_unit_block->get_outtake_level();
+    std::cout << "OuttakeLevel = [";
+    for( auto & t : Outtake_level ) {
+     std::cout << std::setw( 5 ) << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
+
+
+    auto Bainary_var = battery_unit_block->get_battery_binary();
+    std::cout << "BinaryVar    = [";
+    for( auto & t : Bainary_var ) {
+     std::cout << std::setw( 2 ) << ( unsigned int ) round( t.get_value());
+    }
+    std::cout << " ]" << std::endl;
+   }
+
   }
 
   auto network_block = dynamic_cast<BusNetworkBlock *>(i);
