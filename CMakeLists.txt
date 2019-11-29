@@ -97,3 +97,6 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
     # Register package in user's package registry (~/.cmake/registry)
     export(PACKAGE UCBlock)
 endif ()
+
+# ----- Tools --------------------------------------------------------------- #
+add_subdirectory(tools)
