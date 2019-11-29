@@ -171,6 +171,12 @@ int main( int argc, char ** argv ) {
   if( unit_block != nullptr ) {
    std::cout << "----- UnitBlock " << n_unit_blocks++ << std::endl;
 
+   auto obj = dynamic_cast<FRealObjective*>(unit_block->get_objective());
+   auto fun = obj->get_function();
+   fun->compute();
+   std::cout << "Function value = " << fun->get_value() << std::endl;
+
+
    auto commitment = unit_block->get_commitment();
    for( UnitBlock::Index g = 0; g < unit_block->get_number_generators(); ++g ) {
     if( g == 0 ) {
