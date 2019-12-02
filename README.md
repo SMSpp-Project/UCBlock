@@ -33,16 +33,6 @@ find_package(UCBlock)
 target_link_libraries(<my_target> SMS++::UCBlock)
 ```
 
-### Tools and examples
-
-We provide some tools and examples in the [`tools`](tools) directory.
-See [`tools/README.md`](tools/README.md) for details on how to build and use them.
-
-## Running the tests
-
-By default, some simple unit tests are built with the library.
-To run them, launch `ctest` from the build directory.
-
 ## Contributing
 
 This section is not ready yet.
