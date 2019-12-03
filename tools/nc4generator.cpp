@@ -162,8 +162,7 @@ struct HydroUnit {
      >> initialFlood
      >> minFlood
      >> maxFlood;
-
-  for(double & inflow : inflows) {
+  for( double & inflow : inflows ) {
    in >> inflow;
   }
  }
@@ -178,7 +177,7 @@ struct HydroUnit {
       << initialFlood << "\t"
       << minFlood << "\t"
       << maxFlood << "\n";
-  for(double i : inflows) {
+  for( double i : inflows ) {
    out << "\t" << i << "\t";
   }
   out << "\n";
@@ -651,7 +650,9 @@ int main( int argc, char ** argv ) {
   bg.putAtt( "type", "UCBlock" );
   bg.addDim( "TimeHorizon", mod_file.TimeHorizon );
   auto time_h = bg.getDim( "TimeHorizon" );
-  bg.addDim( "NumberUnits", mod_file.NumThermal );
+  bg.addDim( "NumberUnits", mod_file.NumThermal +
+                            mod_file.NumHydro +
+                            mod_file.NumCascade );
   bg.addDim( "NumberIntervals", 1 );
 
   auto ng = bg.addGroup( "NetworkData" );
