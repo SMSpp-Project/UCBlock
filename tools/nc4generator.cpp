@@ -31,6 +31,10 @@
 
 #include <UCBlock.h>
 
+/*--------------------------------------------------------------------------*/
+/*------------------------------- ThermalUnit ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 /// A thermal unit as represented in a DAT or in a MOD file
 struct ThermalUnit {
  unsigned int index{};
@@ -117,7 +121,8 @@ struct ThermalUnit {
   // double cost = coolCost < hotCost ? coolCost : hotCost;
  }
 
- friend std::ostream & operator<<( std::ostream & out, const ThermalUnit & unit ) {
+ friend std::ostream &
+ operator<<( std::ostream & out, const ThermalUnit & unit ) {
   unit.print( out );
   return out;
  }
@@ -128,13 +133,80 @@ struct ThermalUnit {
  }
 };
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- HydroUnit -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 /// A hydro unit as represented in a MOD file
 struct HydroUnit {
+ unsigned int index{};
+
+ double volumeToPower{};
+ double b_h{};
+ double maxUsage{};
+ double maxSpillage{};
+ double initialFlood{};
+ double minFlood{};
+ double maxFlood{};
+
+ std::vector< double > inflows;
+
+ /// Loads the data from a line of a MOD file
+ void load( std::istream & in ) {
+  std::string skip;
+  in >> index
+     >> volumeToPower
+     >> b_h
+     >> maxUsage
+     >> maxSpillage
+     >> initialFlood
+     >> minFlood
+     >> maxFlood;
+
+  for(double & inflow : inflows) {
+   in >> inflow;
+  }
+ }
+
+ /// Prints the data
+ void print( std::ostream & out ) const {
+  out << index << "\t"
+      << volumeToPower << "\t"
+      << b_h << "\t"
+      << maxUsage << "\t"
+      << maxSpillage << "\t"
+      << initialFlood << "\t"
+      << minFlood << "\t"
+      << maxFlood << "\n";
+  for(double i : inflows) {
+   out << "\t" << i << "\t";
+  }
+  out << "\n";
+ }
+
+ friend std::ostream &
+ operator<<( std::ostream & out, const HydroUnit & unit ) {
+  unit.print( out );
+  return out;
+ }
+
+ friend std::istream & operator>>( std::istream & in, HydroUnit & unit ) {
+  unit.load( in );
+  return in;
+ }
 };
+
+/*--------------------------------------------------------------------------*/
+/*----------------------------- HydroCascadeUnit ---------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /// A hydro cascade unit as represented in a MOD file
 struct HydroCascadeUnit {
 };
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- LoadCurve -------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /// A load curve as represented in a MOD file
 struct LoadCurve {
@@ -144,6 +216,10 @@ struct LoadCurve {
  std::vector< std::vector< double>> Loads;
  std::vector< double > SpinningReserve;
 };
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- DAT file --------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /// A DAT file containing a single thermal unit
 struct DatFile {
@@ -253,6 +329,10 @@ struct DatFile {
  }
 };
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- MOD file --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 /// A MOD file containing a load curve and multiple units
 struct ModFile {
  unsigned int ProblemNum{};
@@ -310,7 +390,10 @@ struct ModFile {
   // "HydroSection"
   in >> skip;
   hydro_units.resize( NumHydro );
-  for( unsigned int i = 0; i < NumHydro; ++i ) {}
+  for( unsigned int i = 0; i < NumHydro; ++i ) {
+   hydro_units[ i ].inflows.resize( TimeHorizon );
+   hydro_units[ i ].load( in );
+  }
 
   // "HydroCascadeSection"
   in >> skip;
@@ -356,6 +439,9 @@ struct ModFile {
   }
 
   out << "HydroSection\n";
+  for( auto & unit : hydro_units ) {
+   unit.print( out );
+  }
   out << "HydroCascadeSection\n";
  }
 
@@ -375,6 +461,10 @@ enum filetype {
  ftMod = 1
 };
 
+/*--------------------------------------------------------------------------*/
+/*------------------------------ Other stuff -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 using namespace SMSpp_di_unipi_it;
 
 DatFile dat_file;
@@ -384,7 +474,9 @@ filetype type;
 std::vector< double > b;
 std::vector< double > c;
 
-void serialize_unit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
+/*--------------------------------------------------------------------------*/
+
+void serialize_thermalunit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
  serialize( g, "MinPower", netCDF::NcDouble(), unit.MinPower );
  serialize( g, "MaxPower", netCDF::NcDouble(), unit.MaxPower );
  serialize( g, "DeltaRampUp", netCDF::NcDouble(), unit.DeltaRampUp );
@@ -418,15 +510,33 @@ void serialize_unit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
  serialize( g, "MinDownTime", netCDF::NcUint64(), unit.MinDownTime );
 }
 
+/*--------------------------------------------------------------------------*/
+
+void serialize_hydrounit( netCDF::NcGroup & g, const HydroUnit & unit ) {
+ serialize( g, "LinearTerm", netCDF::NcDouble(), unit.volumeToPower );
+ serialize( g, "MaxFlow", netCDF::NcDouble(), unit.maxUsage );
+ serialize( g, "InitialVolumetric", netCDF::NcDouble(), unit.initialFlood );
+ serialize( g, "MinVolumetric", netCDF::NcDouble(), unit.minFlood );
+ serialize( g, "MaxVolumetric", netCDF::NcDouble(), unit.maxFlood );
+
+ auto TimeHorizon = g.getParentGroup().getDim( "TimeHorizon" );
+ serialize( g, "Inflows", netCDF::NcDouble(), TimeHorizon, unit.inflows );
+}
+
+/*--------------------------------------------------------------------------*/
+
 /// Prints usage information
 void print_help() {
  // http://docopt.org
  std::cout << "Usage: nc4generator <file>" << std::endl;
 }
 
+/*--------------------------------------------------------------------------*/
+
 /// Input file name
 std::string filename{};
 
+/*--------------------------------------------------------------------------*/
 
 /// Processes command line arguments
 void process_args( int argc, char ** argv ) {
@@ -470,6 +580,10 @@ void process_args( int argc, char ** argv ) {
   exit( 1 );
  }
 }
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------------- MAIN ----------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 int main( int argc, char ** argv ) {
 
@@ -529,7 +643,7 @@ int main( int argc, char ** argv ) {
   bg.putAtt( "type", "ThermalUnitBlock" );
   bg.addDim( "TimeHorizon", dat_file.TimeHorizon );
   bg.addDim( "NumberIntervals", dat_file.TimeHorizon );
-  serialize_unit( bg, dat_file.thermal_unit );
+  serialize_thermalunit( bg, dat_file.thermal_unit );
 
  } else { // type == ftMod
 
@@ -549,12 +663,20 @@ int main( int argc, char ** argv ) {
              time_h,
              mod_file.load_curve.Loads[ 0 ] );
 
-  for( unsigned int i = 0; i < mod_file.NumThermal; ++i ) {
-   auto ug = bg.addGroup( "UnitBlock_" + std::to_string( i ) );
+  unsigned int num_units = 0;
+  for( unsigned int i = 0; i < mod_file.NumThermal; ++i, ++num_units ) {
+   auto ug = bg.addGroup( "UnitBlock_" + std::to_string( num_units ) );
    ug.putAtt( "type", "ThermalUnitBlock" );
    mod_file.thermal_units[ i ].generate_startupcost();
-   serialize_unit( ug, mod_file.thermal_units[ i ] );
+   serialize_thermalunit( ug, mod_file.thermal_units[ i ] );
   }
+
+  for( unsigned int i = 0; i < mod_file.NumHydro; ++i, ++num_units ) {
+   auto ug = bg.addGroup( "UnitBlock_" + std::to_string( num_units ) );
+   ug.putAtt( "type", "HydroUnitBlock" );
+   serialize_hydrounit( ug, mod_file.hydro_units[ i ] );
+  }
+
  }
  return 0;
 }
