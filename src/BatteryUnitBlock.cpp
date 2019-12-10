@@ -517,18 +517,37 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
   auto linear_fun = new LinearFunction();
 
   linear_fun->add_variable( &v_storage_level[0], 1.0 );
-  linear_fun->add_variable( &v_outtake_level[0], -extracting_battery_rho[0] );
-  linear_fun->add_variable( &v_intake_level[0], storing_battery_rho[0] );
+  if (!v_extracting_battery_rho.empty()) {
+   linear_fun->add_variable( &v_outtake_level[0], -extracting_battery_rho[0] );
+  } else {
+   linear_fun->add_variable( &v_outtake_level[0], -1 );
 
+  }
+  if (!v_storing_battery_rho.empty()) {
+
+   linear_fun->add_variable( &v_intake_level[0], storing_battery_rho[0] );
+  } else{
+   linear_fun->add_variable( &v_intake_level[0], 1 );
+
+  }
   demand_Constraints[0].set_both( (f_initial_storage - demand[0]));
   demand_Constraints[0].set_function( linear_fun );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon; ++t, ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
+   if (!v_storing_battery_rho.empty()) {
+    linear_function->add_variable( &v_intake_level[t], storing_battery_rho[t] );
+   } else{
+    linear_function->add_variable( &v_intake_level[t], 1 );
 
-   linear_function->add_variable( &v_intake_level[t], storing_battery_rho[t] );
-   linear_function->add_variable( &v_outtake_level[t], -extracting_battery_rho[t] );
+   }
+   if (!v_extracting_battery_rho.empty()) {
+    linear_function->add_variable( &v_outtake_level[t], -extracting_battery_rho[t] );
+   } else{
+    linear_function->add_variable( &v_outtake_level[t], -1 );
+
+   }
    linear_function->add_variable( &v_storage_level[t], 1.0 );
    linear_function->add_variable( &v_storage_level[t-1], -1.0 );
 
@@ -598,7 +617,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
    linear_function->add_variable( &v_battery_binary[ t ],  - min_power[ t ] );
 
 
-   outtake_binary_Constraints[t].set_lhs( 0.0);
+   outtake_binary_Constraints[t].set_lhs( -Inf< double >());
    outtake_binary_Constraints[t].set_rhs( -min_power[ t ] );
    outtake_binary_Constraints[t].set_function( linear_function );
 
@@ -676,7 +695,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  }
  // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
 
- if( get_objective() == nullptr )  // an objective is there already
+ if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
 

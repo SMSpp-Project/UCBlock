@@ -36,9 +36,7 @@
 #include "IntermittentUnitBlock.h"
 #include "LinearFunction.h"
 #include <map>
-#include "FRowConstraint.h"
 #include "UnitBlock.h"
-#include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/

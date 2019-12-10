@@ -107,7 +107,37 @@ class HydroUnitBlock : public UnitBlock {
  */
 
  explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block ) {}
+         UnitBlock( f_block ) {
+
+  if (v_minimum_flow.empty()) {
+   v_minimum_flow.resize( boost::extents[ 0 ][ 0 ] );
+  }
+  if (v_maximum_flow.empty()) {
+   v_maximum_flow.resize( boost::extents[ 1 ][ 1 ] );
+  }
+  if (v_minimum_volumetric.empty()) {
+   v_minimum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
+  }
+  if (v_maximum_volumetric.empty()) {
+   v_maximum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
+  }
+  if (v_minimum_power.empty()) {
+   v_minimum_power.resize( boost::extents[ 0 ][ 0 ] );
+  }
+  if (v_maximum_power.empty()) {
+   v_maximum_power.resize( boost::extents[ 0 ][ 0 ] );
+  }
+  if (v_delta_ramp_up.empty()) {
+   v_delta_ramp_up.resize( boost::extents[ 0 ][ 0 ] );
+  }
+  if (v_delta_ramp_down.empty()) {
+   v_delta_ramp_down.resize( boost::extents[ 0 ][ 0 ] );
+  }
+
+  if (v_inertia_power.empty()) {
+   v_inertia_power.resize( boost::extents[ 0 ][ 0 ] );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -719,8 +749,8 @@ class HydroUnitBlock : public UnitBlock {
  *   \f[
  *
  *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(d,s) \in
- *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l} - \sum_{l=(s,d) \in
- *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l}) \quad t \in \mathcal{T},
+ *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(s,d) \in
+ *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l , l }) \quad t \in \mathcal{T},
  *      \quad n \in \mathcal{N}^{hy}    \quad (12)
  *
  *   \f]
