@@ -1,11 +1,19 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------- File SlackUnitBlock.h ------------------------*/
+/*-------------------------- File SlackUnitBlock.h -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class SlackUnitBlock, which derives from UnitBlock
- * [see UnitBlock.h].
+ * [see UnitBlock.h] and implements a "slack" unit; a (typically, fictitious)
+ * unit capable of producing (typically, a large amount of) active power
+ * and/or primary/secondary reserve and/or inertia at any time period
+ * completely indeopendently from each other and from all other time periods,
+ * albeit at a (typically, huge) cost. Such a unit is typically added to a
+ * Unit Commitment problem to ensure that it has a (fictitious) feasible
+ * solution, which may help solution methods. At the very least such a
+ * modified UC would produce a "least unfeasible" solution which can be used
+ * to identify the parts of the system that lack capacity/resources.
  *
- * \version 0.11
+ * \version 0.10
  *
  * \date 10 - 12 - 2019
  *
@@ -19,8 +27,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- *
- * Copyright &copy by Antonio Frangioni, and Ali Ghezelsoflu
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -28,16 +35,13 @@
 
 #ifndef __SlackUnitBlock
 #define __SlackUnitBlock
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "FRowConstraint.h"
 #include "OneVarConstraint.h"
-#include "FRealObjective.h"
-#include "DQuadFunction.h"
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -54,9 +58,17 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------------ GENERAL NOTES -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for a slack unit
-/** The SlackUnitBlock class derives from UnitBlock and implements a
- */
+/// implementation of the UnitBlock concept for a "slack" unit
+/** The SlackUnitBlock class derives from UnitBlock and implements the concept
+ * of "slack" unit; a (typically, fictitious) unit capable of producing
+ * (typically, a large amount of) active power and/or primary/secondary
+ * reserve and/or inertia at any time period completely indeopendently from
+ * each other and from all other time periods, albeit at a (typically, huge)
+ * cost. Such a unit is typically added to a Unit Commitment problem to ensure
+ * that it has a (fictitious) feasible solution, which may help solution
+ * methods. At the very least such a modified UC would produce a "least
+ * unfeasible" solution which can be used to identify the parts of the system
+ * that lack capacity/resources. */
 
 class SlackUnitBlock : public UnitBlock {
 
@@ -77,8 +89,11 @@ class SlackUnitBlock : public UnitBlock {
   * father Block and the time horizon. */
 
  explicit SlackUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
-         UnitBlock( f_block ) {
+ UnitBlock( f_block , t ) {
 
+  // ??? why is this here for MaxInertia and not for the rest? if it is
+  //     needed (which I don't think), it should be needed for all. if
+  //     not, delete it
   v_MaxInertia.resize( boost::extents[ 0 ][ 0 ]);
  }
 
@@ -118,64 +133,73 @@ class SlackUnitBlock : public UnitBlock {
  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector MaxPP[ t ] that, for each time instant t, contains the maximum
- *   active power that can be used as primary reserve of the unit for the
- *   corresponding time step. If "MaxPrimaryPower" has length 1 then
- *   MaxPP[ t ] contains the same value for all t. Otherwise,
- *   MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
- *   if is not provided then MaxPP[ t ] == 0 for all t. If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does
- *   not require "ChangeIntervals", which in fact is not loaded.
+ *   amount of primary reserve that the unit can produce in the corresponding
+ *   time step. If "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the
+ *   same value for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value
+ *   of MaxPP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not provided
+ *   then MaxPP[ t ] == 0 for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "MaxSecondaryPower", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals". This is meant to represent
  *   the vector MaxSP[ t ] that, for each time instant t, contains the maximum
- *   active power that can be used as secondary reserve of the unit for the
- *   corresponding time step. If "MaxSecondaryPower" has length 1 then
- *   MaxSP[ t ] contains the same value for all t. Otherwise,
- *   MaxSecondaryPower[ i ] is the fixed value of MaxSP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
- *   if is not provided then MaxSP[ t ] == 0 for all t. Note that
- *   MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if MaxPrimaryPower is
- *   not defined then neither should MaxSecondaryPower). If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does
- *   not require "ChangeIntervals", which in fact is not loaded.
+ *   amount of secondary reserve that the unit can produce in the corresponding
+ *   time step. If "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains
+ *   the same value for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed
+ *   value of MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not provided
+ *   then MaxSP[ t ] == 0 for all t. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ *   ??? no, this part is wrong. in a slack unit, everything is independent,
+ *       so you can in principle have secondary but not primary
+ *   Note that MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if
+ *   MaxPrimaryPower is
+ *   not defined then neither should MaxSecondaryPower).
  *
  * - The variable "MaxInertia", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector MaxI[ t ] which, for each time instant t, contains the
- *   contribution that the unit can give to the inertia constraint for the
- *   sole fact that is is on (basically, the constant to be multiplied to the
- *   commitment variable) at time t. The variable is optional; if it is not
+ *   vector MaxI[ t ] which, for each time instant t, contains the maximum
+ *   "amount of inertia" (contribution that the SlackUnit can give to the
+ *   inertia constraint) at time t. The variable is optional; if it is not
  *   defined, MaxI[ t ] == 0 for all time instants. If it has size 1, then
  *   MaxI[ t ] == MaxInertia[ 0 ] for all t, regardless to what
  *   "NumberIntervals" says. Otherwise, MaxInertia[ i ] is the fixed value of
  *   MaxI[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0.
+ *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "ActivePowerCost", of type double and either indexed over
  *   the dimension "NumberIntervals" or has size 1. This is meant to represent
  *   the vector APC[ t ] that, for each time instant t, contains the cost of
- *   producing active power of the unit at the corresponding time step. This
- *   variable is optional; if it is not provided then it's taken to be zero.
- *   If "ActivePowerCost" has length 1 then APC[ t ] contains the same value
- *   for t. Otherwise, ActivePowerCost[ i ] is the fixed value of APC[ t ] for
- *   all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ]
- *   with the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   producing one unit of active power at the corresponding time step. This
+ *   variable is optional, if it is not provided then it's taken to be zero
+ *   (although this is a very strange setting, as it would typically imply that
+ *   all the demand, or at least as much as possible of it, is satisfied by the
+ *   fictitious SlackUnit rather than from "real" ones). If "ActivePowerCost"
+ *   has length 1 then APC[ t ] contains the same value for t. Otherwise,
+ *   ActivePowerCost[ i ] is the fixed value of APC[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "PrimaryCost", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
  *   vector PC[ t ] that, for each time instant t, contains the cost of
- *   producing power that can be used as primary reserve of the unit at the
- *   corresponding time step. This variable is optional; if it is not provided
- *   then it's taken to be zero. If "PrimaryCost" has length 1 then PC[ t ]
- *   contains the same value for t. Otherwise, PrimaryCost[ i ] is the fixed
- *   value of PC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   producing one unit of primary reserve at the corresponding time step.
+ *   This variable is optional; if it is not provided then it's taken to be
+ *   zero (but this is a very strange setting, cf. the discussion in
+ *   ActivePowerCost). If "PrimaryCost" has length 1 then PC[ t ] contains the
+ *   same value for t. Otherwise, PrimaryCost[ i ] is the fixed value of
+ *   PC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
  *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
@@ -184,15 +208,24 @@ class SlackUnitBlock : public UnitBlock {
  * - The variable "SecondaryCost", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
  *   vector SC[ t ] that, for each time instant t, contains the cost of
- *   producing power that can be used as secondary reserve of the unit at the
- *   corresponding time step. This variable is optional; if it is not provided
- *   then it's taken to be zero. If "SecondaryCost" has length 1 then SC[ t ]
+ *   producing one unit of secondary reserve at the corresponding time step.
+ *   This variable is optional; if it is not provided then it's taken to be
+ *   zero (but this is a very strange setting, cf. the discussion in
+ *   ActivePowerCost).. If "SecondaryCost" has length 1 then SC[ t ]
  *   contains the same value for t. Otherwise, SecondaryCost[ i ] is the fixed
  *   value of SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
  *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
+ *
+ *  ??? InertiaCost is missing.
+ *
+ *  Also, note that InertiaCost should be "the cost of producing "one unit" of
+ *  inertia. Since the inertia-producing variable is u[ t ], which is in
+ *  [ 0 , 1 ], the cost of u[ t ] should be MaxInertia[ t ] * InertiaCost[ t ].
+ *  This should be properly commented both here and in 
+
  *   */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -210,6 +243,11 @@ class SlackUnitBlock : public UnitBlock {
  *  - the secondary spinning reserve variables;
  *
  *  - the active power variables.
+ *
+ * ??? You should explicitly say if stvv is used or not, and how. In our case
+ *     it is not, because the variables are there if and only if the 
+ *     corresponding Max* is defined. However, this also has to be clearly
+ *     written.
  */
 
  void generate_abstract_variables( Configuration *stvv ) override;
@@ -235,7 +273,17 @@ class SlackUnitBlock : public UnitBlock {
  *   \f[
  *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
  *   \f]
-*/
+ *
+ * ??? Comment that inertia is "produced" by u_t, which is a kPosUnitary
+ *     variable and therefore has "implicit" lower and upper bounds 0 and
+ *     1, and thus it does not need BoxConstraint. Besides, you should say
+ *     explicitly that you use BoxConstraint (if you do), and even how the
+ *     BoxConstraint are arranged (the first group is about ..., the second
+ *     ...). This you should do for all groups of constraints.
+ *
+ *  ??? You should explicitly say if stcc is used or not
+ */
+ 
  void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -253,6 +301,11 @@ class SlackUnitBlock : public UnitBlock {
  *   where \f$ P^{mx}_{t} \f$, \f$ P^{mxP}_{t} \f$ , \f$ P^{mxS}_{t} \f$, and
  *   P^{MaxI} is the MaxPower, MaxPrimaryPower, and MaxSecondaryPower
  *   respectively.
+ *
+ * ??? P^{MaxI} is not properly described. Also, check above because it should
+ *     be P^{MaxI} * MaxInertia
+ * ??? "v_t" is not clear (and should be u_t)
+ *  ??? You should explicitly say if objc is used or not
  */
 
  void generate_objective( Configuration *objc ) override;
@@ -386,14 +439,20 @@ class SlackUnitBlock : public UnitBlock {
  boost::multi_array< double, 2 > v_MaxInertia;
 /*----------------------------constraints-----------------------------------*/
  /// the active power bounds constraints
+ /// ??? NO!! These are bound constraints, you should use the appropriate
+ ///     class derived from OneVarConstraint
+ 
  std::vector< FRowConstraint > active_power_bounds_Constraints;
 
  /// the maximum primary bounds constraints
+ /// ??? same as before
  std::vector< FRowConstraint > max_primary_bounds_Constraints;
 
  /// the maximum secondary bounds constraints
+ /// ??? same as before
  std::vector< FRowConstraint > max_secondary_bounds_Constraints;
-/*--------------------------------------------------------------------------*/
+
+ /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
  private:

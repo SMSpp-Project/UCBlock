@@ -2,7 +2,12 @@
 /*------------------------ File SlackUnitBlock.cpp -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the SlackUnitBlock class.
+ * Implementation of the SlackUnitBlock class, which derives from UnitBlock
+ * [see UnitBlock.h] and implements a "slack" unit; a (typically, fictitious)
+ * unit capable of producing (typically, a large amount of) active power
+ * and/or primary/secondary reserve and/or inertia at any time period
+ * completely indeopendently from each other and from all other time periods,
+ * albeit at a (typically, huge) cost.
  *
  * \version 0.11
  *
@@ -13,16 +18,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- *
  * \author Ali Ghezelsoflu \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- *
  * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -31,19 +33,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <iostream>
-#include <random>
 #include "SlackUnitBlock.h"
-#include "LinearFunction.h"
-#include <map>
-#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
