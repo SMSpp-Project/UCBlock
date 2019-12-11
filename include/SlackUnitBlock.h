@@ -77,7 +77,10 @@ class SlackUnitBlock : public UnitBlock {
   * father Block and the time horizon. */
 
  explicit SlackUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
-         UnitBlock( f_block ) {}
+         UnitBlock( f_block ) {
+
+  v_MaxInertia.resize( boost::extents[ 0 ][ 0 ]);
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock, it is empty
@@ -149,9 +152,9 @@ class SlackUnitBlock : public UnitBlock {
  *   defined, MaxI[ t ] == 0 for all time instants. If it has size 1, then
  *   MaxI[ t ] == MaxInertia[ 0 ] for all t, regardless to what
  *   "NumberIntervals" says. Otherwise, MaxInertia[ i ] is the fixed value of
- *   MaxI[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
+ *   MaxI[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0.
  *
  * - The variable "ActivePowerCost", of type double and either indexed over
  *   the dimension "NumberIntervals" or has size 1. This is meant to represent
