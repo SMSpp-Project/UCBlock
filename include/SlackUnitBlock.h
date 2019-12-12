@@ -43,6 +43,7 @@
 
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
+#include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -516,6 +517,9 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
+
+ /// the objective function
+ FRealObjective objective;
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
