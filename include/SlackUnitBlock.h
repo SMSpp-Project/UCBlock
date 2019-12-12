@@ -6,7 +6,7 @@
  * [see UnitBlock.h] and implements a "slack" unit; a (typically, fictitious)
  * unit capable of producing (typically, a large amount of) active power
  * and/or primary/secondary reserve and/or inertia at any time period
- * completely indeopendently from each other and from all other time periods,
+ * completely independently from each other and from all other time periods,
  * albeit at a (typically, huge) cost. Such a unit is typically added to a
  * Unit Commitment problem to ensure that it has a (fictitious) feasible
  * solution, which may help solution methods. At the very least such a
@@ -62,7 +62,7 @@ namespace SMSpp_di_unipi_it
 /** The SlackUnitBlock class derives from UnitBlock and implements the concept
  * of "slack" unit; a (typically, fictitious) unit capable of producing
  * (typically, a large amount of) active power and/or primary/secondary
- * reserve and/or inertia at any time period completely indeopendently from
+ * reserve and/or inertia at any time period completely independently from
  * each other and from all other time periods, albeit at a (typically, huge)
  * cost. Such a unit is typically added to a Unit Commitment problem to ensure
  * that it has a (fictitious) feasible solution, which may help solution
@@ -89,13 +89,7 @@ class SlackUnitBlock : public UnitBlock {
   * father Block and the time horizon. */
 
  explicit SlackUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
- UnitBlock( f_block , t ) {
-
-  // ??? why is this here for MaxInertia and not for the rest? if it is
-  //     needed (which I don't think), it should be needed for all. if
-  //     not, delete it
-  v_MaxInertia.resize( boost::extents[ 0 ][ 0 ]);
- }
+ UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock, it is empty
@@ -156,12 +150,6 @@ class SlackUnitBlock : public UnitBlock {
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
- *   ??? no, this part is wrong. in a slack unit, everything is independent,
- *       so you can in principle have secondary but not primary
- *   Note that MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if
- *   MaxPrimaryPower is
- *   not defined then neither should MaxSecondaryPower).
- *
  * - The variable "MaxInertia", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
  *   vector MaxI[ t ] which, for each time instant t, contains the maximum
@@ -211,21 +199,29 @@ class SlackUnitBlock : public UnitBlock {
  *   producing one unit of secondary reserve at the corresponding time step.
  *   This variable is optional; if it is not provided then it's taken to be
  *   zero (but this is a very strange setting, cf. the discussion in
- *   ActivePowerCost).. If "SecondaryCost" has length 1 then SC[ t ]
- *   contains the same value for t. Otherwise, SecondaryCost[ i ] is the fixed
- *   value of SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ActivePowerCost). If "SecondaryCost" has length 1 then SC[ t ] contains
+ *   the same value for t. Otherwise, SecondaryCost[ i ] is the fixed value of
+ *   SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
  *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
  *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
- *  ??? InertiaCost is missing.
- *
- *  Also, note that InertiaCost should be "the cost of producing "one unit" of
- *  inertia. Since the inertia-producing variable is u[ t ], which is in
- *  [ 0 , 1 ], the cost of u[ t ] should be MaxInertia[ t ] * InertiaCost[ t ].
- *  This should be properly commented both here and in 
-
+ * - The variable "InertiaCost", of type double and either indexed over the
+ *   dimension "NumberIntervals" or has size 1. This is meant to represent the
+ *   vector IC[ t ] that, for each time instant t, contains the "the cost of
+ *   producing "one unit" of inertia. Since the inertia-producing variable is
+ *   u[ t ], which is in the interval [ 0 , 1 ], the cost of u[ t ] should be
+ *   MaxInertia[ t ] * InertiaCost[ t ] at the corresponding time step. This
+ *   variable is optional; if it is not provided then it's taken to be zero
+ *   (but this is a very strange setting, cf. the discussion in
+ *   ActivePowerCost). If "InertiaCost" has length 1 then IC[ t ] contains the
+ *   same value for t. Otherwise, InertiaCost[ i ] is the fixed value of
+ *   IC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *   */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -244,10 +240,14 @@ class SlackUnitBlock : public UnitBlock {
  *
  *  - the active power variables.
  *
- * ??? You should explicitly say if stvv is used or not, and how. In our case
- *     it is not, because the variables are there if and only if the 
- *     corresponding Max* is defined. However, this also has to be clearly
- *     written.
+ * Note that of these variables are optional, and it is also possible to
+ * restrict which of the subsets are generated without using the parameter
+ * stvv. In other word, each group of above variables as binary commitment, or
+ * primary or secondary spinning reserve, or active power variables must be
+ * defined if and only if the MaxInertia or MaxPrimaryPower or
+ * MaxSecondaryPower or MaxPower is defined in the deserialize(netCDF::NcGroup)
+ * respectively. Otherwise, the corresponding variable is not to be needed to
+ * generate.
  */
 
  void generate_abstract_variables( Configuration *stvv ) override;
@@ -274,38 +274,41 @@ class SlackUnitBlock : public UnitBlock {
  *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
  *   \f]
  *
- * ??? Comment that inertia is "produced" by u_t, which is a kPosUnitary
- *     variable and therefore has "implicit" lower and upper bounds 0 and
- *     1, and thus it does not need BoxConstraint. Besides, you should say
- *     explicitly that you use BoxConstraint (if you do), and even how the
- *     BoxConstraint are arranged (the first group is about ..., the second
- *     ...). This you should do for all groups of constraints.
- *
- *  ??? You should explicitly say if stcc is used or not
- */
+ * Note that the inertia is "produced" by the commitment variable u_t, which
+ * is consider as a kPosUnitary and therefore has "implicit" lower and upper
+ * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
+ * variables are restricted by a BoxConstraint as defined above. The first
+ * group is about active power bounds the second one is about the primary
+ * spinning reserve, and the last one for the secondary spinning reserve
+ * variables. */
  
  void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the SlackUnitBlock
 /** Method that generates the objective of the SlackUnitBlock.
+ *
  * - Objective function: the objective function of the SlackUnitBlock
  *   representing the total power production cost to be minimized has the
  *   form:
  *
  *   \f[
- *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } P^{mx}_{t} p^{ac}_{t} +
- *     P^{mxP}_{t} p^{pr}_{t} +P^{mxS}_{t} p^{sc}_{t} + P^{MaxI}_t v_t)
+ *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } C^{ac}_{t} p^{ac}_{t} +
+ *     C^{pr}_{t} p^{pr}_{t} +C^{sc}_{t} p^{sc}_{t} +
+ *     (P^{MaxI}_{t} * C^{i}_{t}) u_t )
  *   \f]
  *
- *   where \f$ P^{mx}_{t} \f$, \f$ P^{mxP}_{t} \f$ , \f$ P^{mxS}_{t} \f$, and
- *   P^{MaxI} is the MaxPower, MaxPrimaryPower, and MaxSecondaryPower
- *   respectively.
+ *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$ , \f$ C^{sc}_{t} \f$,
+ *   C^{i}_{t}, and P^{MaxI}_{t} for each time step t are defined as the
+ *   ActivePowerCost, PrimaryCost, and SecondaryCost, InertiaCost, and the
+ *   MaxInertia respectively.
  *
- * ??? P^{MaxI} is not properly described. Also, check above because it should
- *     be P^{MaxI} * MaxInertia
- * ??? "v_t" is not clear (and should be u_t)
- *  ??? You should explicitly say if objc is used or not
+ *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
+ *  object, there is still a nontrivial decision to be made about it, and it
+ *  is also possible to restrict. If objc is not nullptr and it is a
+ *  SimpleConfiguration<double> or if f_BlockConfig->f_objective_Configuration
+ *  is not nullptr and it is a SimpleConfiguration<double>, then the f_value
+ *  of the SimpleConfiguration<int> is taken the objective function.
  */
 
  void generate_objective( Configuration *objc ) override;
@@ -348,6 +351,22 @@ class SlackUnitBlock : public UnitBlock {
   return( v_MaxPrimaryPower );
  }
 /*--------------------------------------------------------------------------*/
+/// returns the vector of active power cost
+/** The returned vector contains to active power cost at time t. There are
+ * three possible cases:
+ *
+ * - if the vector is empty, then the active power cost of the unit is 0;
+ *
+ * - if the vector has only one element, then the active power cost of the
+ *   unit for all time horizon;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the active power cost value at time t.   */
+
+ const std::vector< double > & get_active_power_cost() const {
+  return( v_active_power_cost );
+ }
+/*--------------------------------------------------------------------------*/
 /// returns the vector of maximum secondary power
 /** The returned vector contains to maximum secondary power at time t. There
  * are three possible cases:
@@ -363,6 +382,38 @@ class SlackUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_max_secondary_power() const {
   return( v_MaxSecondaryPower );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of primary cost
+/** The returned vector contains to primary cost at time t. There are three
+ * possible cases:
+ *
+ * - if the vector is empty, then the primary cost of the unit is 0;
+ *
+ * - if the vector has only one element, then the primary cost of the unit for
+ *   all time horizon;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the primary cost value at time t.   */
+
+ const std::vector< double > & get_primary_cost() const {
+  return( v_primary_cost );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of secondary cost
+/** The returned vector contains to secondary cost at time t. There are three
+ * possible cases:
+ *
+ * - if the vector is empty, then the secondary cost of the unit is 0;
+ *
+ * - if the vector has only one element, then the secondary cost of the unit
+ *   for all time horizon;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the secondary cost value at time t.   */
+
+ const std::vector< double > & get_secondary_cost() const {
+  return( v_secondary_cost );
  }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of maximum inertia
@@ -390,6 +441,22 @@ class SlackUnitBlock : public UnitBlock {
  const boost::multi_array< double , 2 > & get_inertia_commitment()
  const override {
   return( v_MaxInertia );
+ }
+/*--------------------------------------------------------------------------*/
+/// returns the vector of inertia cost
+/** The returned vector contains to inertia cost at time t. There are three
+ * possible cases:
+ *
+ * - if the vector is empty, then the inertia cost of the unit is 0;
+ *
+ * - if the vector has only one element, then the inertia cost of the unit
+ *   for all time horizon;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and each element
+ *   of vector represents the inertia cost value at time t.   */
+
+ const std::vector< double > & get_inertia_cost() const {
+  return( v_inertia_cost );
  }
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE SlackUnitBlock ---------------*/
@@ -429,30 +496,27 @@ class SlackUnitBlock : public UnitBlock {
  /// the vector of MaxPower
  std::vector< double > v_MaxPower;
 
+ /// the vector of ActivePowerCost
+ std::vector< double > v_active_power_cost;
+
  /// the vector of MaxPrimaryPower
  std::vector< double > v_MaxPrimaryPower;
+
+ /// the vector of PrimaryCost
+ std::vector< double > v_primary_cost;
 
  /// the vector of MaxSecondaryPower
  std::vector< double > v_MaxSecondaryPower;
 
+ /// the vector of SecondaryCost
+ std::vector< double > v_secondary_cost;
+
  /// the matrix of MaxInertia
  boost::multi_array< double, 2 > v_MaxInertia;
-/*----------------------------constraints-----------------------------------*/
- /// the active power bounds constraints
- /// ??? NO!! These are bound constraints, you should use the appropriate
- ///     class derived from OneVarConstraint
- 
- std::vector< FRowConstraint > active_power_bounds_Constraints;
 
- /// the maximum primary bounds constraints
- /// ??? same as before
- std::vector< FRowConstraint > max_primary_bounds_Constraints;
-
- /// the maximum secondary bounds constraints
- /// ??? same as before
- std::vector< FRowConstraint > max_secondary_bounds_Constraints;
-
- /*--------------------------------------------------------------------------*/
+ /// the vector of InertiaCost
+ std::vector< double > v_inertia_cost;
+/*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
  private:
