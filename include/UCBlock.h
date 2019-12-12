@@ -287,10 +287,10 @@ class UCBlock : public Block {
  *   overrules the value in the corresponding row of "ActivePowerDemand",
  *   which is ignored.
  *
- * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_t"
- *   with t = TimeHorizon - 1, containing each the constraints on the
- *   transmission network at time t. The NetworkBlocks are optional, but if
- *   any of them are missing, then
+ * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_T"
+ *   with T = TimeHorizon - 1, with "NetworkBlock_t" containing the
+ *   constraints on the transmission network at time t. The NetworkBlocks are
+ *   optional, but if any of them are missing, then
  *
  *   = "ActivePowerDemand" (see above) is mandatory in UCBlock
  *
