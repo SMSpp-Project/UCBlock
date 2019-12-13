@@ -71,6 +71,9 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "Gamma", &f_gamma );
 
+ ::deserialize( group, "Kappa", &f_kappa );
+
+
  if (v_inertia_power.empty()) {
   v_inertia_power.resize( boost::extents[ f_time_horizon ][ 1 ] );
  }
@@ -92,6 +95,8 @@ void IntermittentUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
 
+double kappa = f_kappa ? : 1;
+double gamma = f_gamma ? : 0;
 
  // initial condition of each vector
  std::vector<double> min_power = v_minimum_power;
@@ -136,7 +141,6 @@ void IntermittentUnitBlock::generate_abstract_constraints
 /*--------------------------------------------------------------------------*/
 
  // Initializing maximum power constraints
- if( 0 <= f_gamma & f_gamma <= 1) {
   MaxPower_Constraints.resize( f_time_horizon );
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -148,10 +152,10 @@ void IntermittentUnitBlock::generate_abstract_constraints
    linear_function->add_variable( &v_secondary_spinning_reserve[t][0], 1.0 );
 
    MaxPower_Constraints[t].set_lhs( -Inf< double >());
-   MaxPower_Constraints[t].set_rhs( ( f_gamma * min_power[ t ]) );
+   MaxPower_Constraints[t].set_rhs( ( kappa * gamma * max_power[ t ]) );
    MaxPower_Constraints[t].set_function( linear_function );
   }
- }
+
  add_static_constraint( MaxPower_Constraints, "MaxPower_c" );
 
 
@@ -167,7 +171,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
    linear_function->add_variable( &v_primary_spinning_reserve[t][0], -1.0 );
    linear_function->add_variable( &v_secondary_spinning_reserve[t][0], -1.0 );
 
-   MinPower_Constraints[t].set_lhs( min_power[ t ]);
+   MinPower_Constraints[t].set_lhs( kappa * min_power[ t ]);
    MinPower_Constraints[t].set_rhs( Inf< double >() );
    MinPower_Constraints[t].set_function( linear_function );
   }
@@ -185,8 +189,8 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
   linear_function->add_variable( &v_active_power[t][0], 1.0 );
 
-  active_power_bounds_Constraints[t].set_lhs( min_power[ t ]);
-  active_power_bounds_Constraints[t].set_rhs( max_power[ t ] );
+  active_power_bounds_Constraints[t].set_lhs( kappa *min_power[ t ]);
+  active_power_bounds_Constraints[t].set_rhs( kappa *max_power[ t ] );
   active_power_bounds_Constraints[t].set_function( linear_function );
  }
 
@@ -205,6 +209,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
  ::serialize( group, "Gamma", netCDF::NcDouble(), f_gamma );
+
+ ::serialize( group, "Kappa", netCDF::NcDouble(), f_kappa );
+
 
  ::serialize( group, "MinPower", netCDF::NcDouble(),
               NumberIntervals, v_minimum_power, true );

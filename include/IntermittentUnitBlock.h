@@ -152,11 +152,6 @@ class IntermittentUnitBlock : public UnitBlock {
  *   possible: it means that (at time instant t) the unit cannot be curtailed
  *   and cannot provide any reserve.
  *
- * - The scalar variable "Gamma", of type double and not indexed over any
- *   dimension. This variable is used to take into account an uncertainty on
- *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
- *   when Gamma == 0, the unit does not provide any reserve.
- *
  * - The variable "InertiaPower", of type double and either indexed over the
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
  *   vector IP[ t ] which, for each time instant t, contains the contribution
@@ -171,6 +166,16 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the assumption that ChangeIntervals[ - 1 ] = 0. If
  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon then the mapping
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The scalar variable "Gamma", of type double and not indexed over any
+ *   dimension. This variable is used to take into account an uncertainty on
+ *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
+ *   when Gamma == 0, the unit does not provide any reserve.
+ *
+ * - The scalar variable "Kappa", of type double and not indexed over any
+ *   dimension. This variable is used to multiply to the minimum and maximum
+ *   power at each time instant t. This variable is optional, if it is not
+ *   provided it is taken to be Kappa == 1.
  *
  *   */
 
@@ -211,12 +216,12 @@ class IntermittentUnitBlock : public UnitBlock {
  *   reserves at time t. these ensure the maximum(or minimum) amount of energy
  *   that unit can produce(or use) when it is on(or off).
  *   \f[
- *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(P^{mx}_{t} - p^{ac}_{t} )
+ *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
  *          \quad t \in \mathcal{T}                              \quad (1)
  *   \f]
  *
  *   \f[
- *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - P^{mn}_{t}
+ *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
  *          \quad t \in \mathcal{T}                              \quad (2)
  *   \f]
  *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
@@ -226,7 +231,7 @@ class IntermittentUnitBlock : public UnitBlock {
  * - the active power bounds.
  *
  *   \f[
- *    p^{ac}_{t} \in [ P^{mn}_{t} , P^{mx}_{t}]
+ *    p^{ac}_{t} \in [ \kappa * P^{mn}_{t} , \kappa * P^{mx}_{t}]
  *                              \quad t \in \mathcal{T}          \quad (3)
  *   \f]
  *   */
@@ -243,6 +248,10 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// Returns the gamma value
  double get_gamma() const { return f_gamma; }
+
+ /// Returns the kappa value
+ double get_kappa() const { return f_kappa; }
+
 /*--------------------------------------------------------------------------*/
 /// returns the vector of minimum power
 /** The method returned a std::vector< double > V and each element of V
@@ -348,6 +357,9 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// the gamma value
  double f_gamma;
+
+ /// the kappa value
+ double f_kappa;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
