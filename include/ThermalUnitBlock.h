@@ -934,23 +934,32 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< ColVariable > & get_start_up() const {
   return v_start_up;
   }
- /** returns the start up variable associated with time t such that
-  * init_t <= t < time_horizon. */
- inline ColVariable & start_up( Index t ) {
-  return v_start_up[ t - init_t ];
- }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of shut_down variables
  const std::vector< ColVariable > & get_shut_down() const {
   return v_shut_down;
   }
- /** returns the shut down variable associated with time t such that
-  * init_t <= t < time_horizon. */
- inline ColVariable & shut_down( Index t ) {
-  return v_shut_down[ t - init_t ];
- }
+/*--------------------------------------------------------------------------*/
 
+ const std::vector< ColVariable > & get_commitment() const {
+  return v_commitment;
+ }
+/*--------------------------------------------------------------------------*/
+
+ const std::vector< ColVariable > & get_active_power() const {
+  return v_active_power;
+ }
+/*--------------------------------------------------------------------------*/
+
+ const std::vector< ColVariable > & get_primary_spinning_reserve() const {
+  return v_primary_spinning_reserve;
+ }
+/*--------------------------------------------------------------------------*/
+
+ const std::vector< ColVariable > & get_secondary_spinning_reserve() const {
+  return v_secondary_spinning_reserve;
+ }
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -1050,6 +1059,17 @@ class ThermalUnitBlock : public UnitBlock {
  /// the shut down binary variables
  std::vector< ColVariable > v_shut_down;
 
+ /// the commitment variables
+ std::vector< ColVariable > v_commitment;
+
+ /// the active power variables
+ std::vector< ColVariable > v_active_power;
+
+ /// the primary spinning reserve variables
+ std::vector< ColVariable > v_primary_spinning_reserve;
+
+ /// the secondary spinning reserve variables
+ std::vector< ColVariable > v_secondary_spinning_reserve;
 /*----------------------------constraints-----------------------------------*/
 
  /// the connection power out put constraints

@@ -394,15 +394,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      //TODO FIX for GeneratorNode
      for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-      auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
+      //auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
+      double fixed_consumption = 0.0;
 
-      auto& ap = unit_block->get_active_power();
-      auto active_power = &ap[ t ][ g ];
-      auto& c = unit_block->get_commitment();
-      auto commitment = &c[ t ][ g ];
+      auto active_power = unit_block->get_active_power(( g ) + t );
+     // auto active_power = &ap[g];
+      auto commitment = unit_block->get_commitment(( g ) + t );
+   //   auto commitment = &c[t];
 
-      linear_function->add_variable( active_power, 1.0 );
-      linear_function->add_variable( commitment, -fixed_consumption );
+      linear_function->add_variable( &active_power, 1.0 );
+      linear_function->add_variable( &commitment, -fixed_consumption );
       v_node_injection_constraints[ t ][ node_id ].set_both
        ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
          - fixed_consumption );
@@ -420,7 +421,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
 /*--------------------------------------------------------------------------*/
-
+/*
  // Primary demand constraints.
 
  if( f_number_primary_zones > 0 ) {
@@ -467,7 +468,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( v_PrimaryDemand_Const );
  }
 
-/*--------------------------------------------------------------------------*/
 
  // Secondary demand constraints.
 
@@ -514,7 +514,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( v_SecondaryDemand_Const );
  }
 
-/*--------------------------------------------------------------------------*/
 
  // Inertia demand constraints.
 
@@ -568,7 +567,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( v_InertiaDemand_Const );
  }
-/*--------------------------------------------------------------------------*/
 
  // Pollutant budget constraints.
 
@@ -648,7 +646,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    add_static_constraint( v_PollutantBudget_Const[ f_number_pollutants ] );
   }
  }
-/*--------------------------------------------------------------------------*/
 
  // Heat constraints.
 
@@ -726,7 +723,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( v_power_Heat_Rho_Const );
  }
-
+*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( UCBlock::global constraints )

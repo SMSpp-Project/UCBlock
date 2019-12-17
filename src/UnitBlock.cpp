@@ -144,104 +144,9 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- guts_of_destructor();
-
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
 
-}
-
-/*--------------------------------------------------------------------------*/
-
-unsigned int UnitBlock::get_variables_to_be_generated( Configuration * stvv ) {
-
- auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
-
- if( ( !tstvv ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration ) {
-
-  tstvv = dynamic_cast<SimpleConfiguration< int > *>
-  ( f_BlockConfig->f_static_variables_Configuration );
- }
-
- if( tstvv )
-  return tstvv->f_value;
-
- return 0;
-}
-
-/*--------------------------------------------------------------------------*/
-
-void UnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
- if( f_time_horizon == 0 ) {
-  // there are no variables to be generated
-  return;
- }
-
- if( !v_commitment.empty() ||
-     !v_primary_spinning_reserve.empty() ||
-     !v_secondary_spinning_reserve.empty() ||
-     !v_active_power.empty() ) {
-  // the abstract variables should be generated only once
-  return;
- }
-
- typedef std::vector< std::pair< boost::multi_array< ColVariable, 2 > *,
-  int > > v_pairs;
-
- v_pairs variables_and_types = {
-  std::make_pair( &v_commitment, ColVariable::kBinary ),
-  std::make_pair( &v_primary_spinning_reserve, ColVariable::kNonNegative ),
-  std::make_pair( &v_secondary_spinning_reserve, ColVariable::kNonNegative ),
-  std::make_pair( &v_active_power, ColVariable::kContinuous )
-  // v_active_power must be the last one in this list
- };
-
- auto variables_to_be_generated = get_variables_to_be_generated( stvv );
-
- // The active power variables must be always present
- variables_to_be_generated |=
-  ( unsigned int ) std::pow( 2, variables_and_types.size() - 1 ); // v_active_power
- // variables_to_be_generated |= 1u; // v_commitment
- unsigned int k = 1;
- for( auto pair : variables_and_types ) {
-  std::string varname;
-  switch( k ) {
-   case 1:
-    varname = "u";
-    break;
-   case 2:
-    varname = "pr";
-    break;
-   case 4:
-    varname = "sr";
-    break;
-   case 8:
-    varname = "P";
-    break;
-   default:
-    break;
-  }
-  if( variables_to_be_generated & k ) {
-
-   auto variables = pair.first;
-   variables->resize( boost::extents[ f_time_horizon ][ get_number_generators() ] );
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    for( Index g = 0; g < get_number_generators(); ++g ) {
-     auto & variable = ( *variables )[ t ][ g ];
-     variable.set_type( pair.second );
-     add_static_variable( variable,
-                          varname + "_" +
-                          std::to_string( t ) + "_" +
-                          std::to_string( g ) );
-    }
-    // TODO: Add them grouped (this doesn't work)
-    // add_static_variable(variables[t], varname + "_" + std::to_string( t ));
-   }
-  }
-  k *= 2;
- }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -262,25 +167,6 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
                NumberIntervals, v_change_intervals );
  }
-}
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void UnitBlock::guts_of_destructor() {
-
- v_commitment.resize( boost::extents[ 0 ][ 0 ] );
- v_active_power.resize( boost::extents[ 0 ][ 0 ] );
- v_primary_spinning_reserve.resize( boost::extents[ 0 ][ 0 ] );
- v_secondary_spinning_reserve.resize( boost::extents[ 0 ][ 0 ] );
-
- // explicitly reset all Variables
-
- // this is done for the case where this method is called prior to
- // re-loading a new instance: if not, the new representation would
- // be added to the previous one
- reset_static_variables();
 }
 
 /*--------------------------------------------------------------------------*/
