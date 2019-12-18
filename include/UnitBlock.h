@@ -10,13 +10,14 @@
  * The base UnitBlock class only has very basic information that can
  * characterize almost any different kind of unit, which includes the length
  * of the time horizon, the number of electrical generators in the unit (one
- * by default), four sets of Variables: active power variables, commitment
- * variables, primary and secondary spinning reserve variables, defined for
- * each time instant in the time horizon and each generator in the unit. It
- * also outputs some general information regarding how the active power and/or
- * commitment status of the generators in the unit at a given time instant
- * impact the unit's capability of satisfying inertia constraints, and the
- * fixed consumption (if any) of the generators in the unit when they are off.
+ * by default), the default implementation of four sets of Variables: active
+ * power variables, commitment variables, primary and secondary spinning
+ * reserve variables, defined for each time instant in the time horizon and
+ * each generator in the unit. It also outputs some general information
+ * regarding how the active power and/or commitment status of the generators
+ * in the unit at a given time instant impact the unit's capability of
+ * satisfying inertia constraints, and the fixed consumption (if any) of the
+ * generators in the unit when they are off.
  *
  * \version 0.11
  *
@@ -83,8 +84,7 @@ namespace SMSpp_di_unipi_it {
  * - The number of generators in the unit (1 by default, see
  *   get_number_generators());
  *
- * - Four boost::multi_array< ColVariable, 2 > objects, that are used to
- *   store the information regarding:
+ * - The default implementation of four variables which are:
  *
  *     (i)   the commitment of the generators in the unit;
  *
@@ -93,18 +93,6 @@ namespace SMSpp_di_unipi_it {
  *     (iii) the secondary spinning reserve of the generators in the unit;
  *
  *     (iv)  the active power produced by the generators in the unit.
- *
- *   Each of the boost::multi_array< ColVariable, 2 > has as first dimension
- *   the time horizon and as second dimension the number of generators (as
- *   returned get_number_generators()). There are two possible cases:
- *
- *   - if some boost::multi_array<ColVariable, 2> is empty(), then the
- *     corresponding variable does not exist (for instance, the generator
- *     in the unit may not have reserve);
- *
- *   - otherwise, the boost::multi_array< ColVariable, 2 >, say M, must have
- *     f_time_horizon rows and get_number_generators() columns: each element
- *     M[ t , g ] gives the variable for time step t of generator g.
  *
  * The class also outputs some general information regarding how the active
  * power and/or commitment status of each generator of the unit at a given
@@ -278,7 +266,9 @@ class UnitBlock : public Block {
 
  virtual const boost::multi_array< double , 2 > & get_inertia_commitment()
   const {
-  const static boost::multi_array< double , 2 > _ic {}; return( _ic );
+  const static boost::multi_array< double , 2 > _ic {};
+
+  return( _ic );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -311,34 +301,44 @@ class UnitBlock : public Block {
  * - secondary spinning reserve variables;
  *
  * - active power variables.
- *
- * All these groups of variables are (if not empty)
- * boost::multi_array< ColVariable , 2 > with first dimension time horizon
- * and second dimension number of generators.
  * @{ */
 
- /// returns the matrix of commitment variables
- /**  */
+ /// returns the vector of commitment variables
+ /** The default implementation of the methods returns an empty vector; and
+ * derived classes will have to handle the commitment variable (if any). */
 
- virtual ColVariable  get_commitment( Index generator ) { return( nullptr ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the matrix of primary spinning reserve variables
- /**  */
-
- virtual ColVariable  get_primary_spinning_reserve( Index generator ) { return( nullptr ); }
+ virtual ColVariable * get_commitment( Index generator  ) {
+  return ( nullptr);
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of secondary spinning reserve variables
- /**  */
+ /// returns the vector of primary spinning reserve variables
+ /** The default implementation of the methods returns an empty vector; and
+ * derived classes will have to handle the primary spinning reserve variable
+ * (if any). */
 
- virtual ColVariable  get_secondary_spinning_reserve( Index generator ) { return( nullptr ); }
+ virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
+  return( nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of active power variables
- /**  */
+ /// returns the vector of secondary spinning reserve variables
+ /** The default implementation of the methods returns an empty vector; and
+ * derived classes will have to handle the secondary spinning reserve variable
+ * (if any). */
 
- virtual ColVariable  get_active_power( Index generator ) { return( nullptr ); }
+ virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
+  return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of active power variables
+ /** The default implementation of the methods returns an empty vector; and
+ * derived classes will have to handle the active power variable (if any). */
+
+ virtual ColVariable * get_active_power( Index generator ) {
+  return( nullptr );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
@@ -417,7 +417,6 @@ class UnitBlock : public Block {
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// utility method for resetting all the Variables
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -446,14 +445,6 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// returns which variables must be generated
- /** This method returns an int that indicates which variables of
-  * UnitBlock must be generated by the generate_abstract_variables()
-  * method. This value may be given in stvv as explained in
-  * generate_abstract_variables(). If this value is not given in stvv, then
-  * this method returns the appropriate value according to what is specified
-  * in the generate_abstract_variables() method. */
-
 
  /// deserializes the time horizon from a netCDF group
  void deserialize_time_horizon( netCDF::NcGroup & group );

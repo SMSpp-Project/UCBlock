@@ -394,16 +394,15 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      //TODO FIX for GeneratorNode
      for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-      //auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
-      double fixed_consumption = 0.0;
+      auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
 
-      auto active_power = unit_block->get_active_power(( g ) + t );
-     // auto active_power = &ap[g];
-      auto commitment = unit_block->get_commitment(( g ) + t );
-   //   auto commitment = &c[t];
+      auto ap = unit_block->get_active_power(( g ) + t );
+      auto active_power = &ap[t];
+      auto c = unit_block->get_commitment(( g ) + t );
+      auto commitment = &c[t];
 
-      linear_function->add_variable( &active_power, 1.0 );
-      linear_function->add_variable( &commitment, -fixed_consumption );
+      linear_function->add_variable( active_power, 1.0 );
+      linear_function->add_variable( commitment, -fixed_consumption );
       v_node_injection_constraints[ t ][ node_id ].set_both
        ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
          - fixed_consumption );

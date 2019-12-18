@@ -326,8 +326,7 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the ThermalUnitBlock
-/** The ThermalUnitBlock class use get_variable() method to access to each
- *  "group" of variable that may create in UnitBlock class which are:
+/** The ThermalUnitBlock class has six different variables:
  *
  *  - the binary commitment variables which takes the value of 1 if unit is ON
  *    at time instant t and 0 otherwise;
@@ -924,12 +923,39 @@ class ThermalUnitBlock : public UnitBlock {
  * These methods allow to read the each group of Variable that any
  * ThermalUnitBlock in principle has (although some may not):
  *
+ * - commitment variables;
+ *
+ * - active_power variables;
+ *
+ * - primary_spinning_reserve variables;
+ *
+ * - secondary_spinning_reserve variables;
+ *
  * - start_up variables;
  *
  * - shut_down variables;
  *
  * @{ */
 
+ ColVariable * get_commitment( Index generator ) override {
+  return &( v_commitment.front() );
+ }
+/*--------------------------------------------------------------------------*/
+
+ ColVariable * get_active_power( Index generator ) override {
+  return &( v_active_power.front() );
+ }
+/*--------------------------------------------------------------------------*/
+
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  return &( v_primary_spinning_reserve.front() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  return &( v_secondary_spinning_reserve.front() );
+ }
+/*--------------------------------------------------------------------------*/
  /// returns the vector of start_up variables
  const std::vector< ColVariable > & get_start_up() const {
   return v_start_up;
@@ -940,26 +966,7 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< ColVariable > & get_shut_down() const {
   return v_shut_down;
   }
-/*--------------------------------------------------------------------------*/
 
- const std::vector< ColVariable > & get_commitment() const {
-  return v_commitment;
- }
-/*--------------------------------------------------------------------------*/
-
- const std::vector< ColVariable > & get_active_power() const {
-  return v_active_power;
- }
-/*--------------------------------------------------------------------------*/
-
- const std::vector< ColVariable > & get_primary_spinning_reserve() const {
-  return v_primary_spinning_reserve;
- }
-/*--------------------------------------------------------------------------*/
-
- const std::vector< ColVariable > & get_secondary_spinning_reserve() const {
-  return v_secondary_spinning_reserve;
- }
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
