@@ -833,6 +833,21 @@ class BatteryUnitBlock : public UnitBlock {
  const std::vector< ColVariable > & get_battery_binary() const {
   return v_battery_binary;
  }
+
+
+ ColVariable * get_active_power( Index generator ) override {
+  return &( v_active_power.front() );
+ }
+/*--------------------------------------------------------------------------*/
+
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  return &( v_primary_spinning_reserve.front() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  return &( v_secondary_spinning_reserve.front() );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
@@ -922,6 +937,15 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// the vector of binary variables
  std::vector< ColVariable > v_battery_binary;
+
+ /// the active power variables
+ std::vector< ColVariable > v_active_power;
+
+ /// the primary spinning reserve variables
+ std::vector< ColVariable > v_primary_spinning_reserve;
+
+ /// the secondary spinning reserve variables
+ std::vector< ColVariable > v_secondary_spinning_reserve;
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;

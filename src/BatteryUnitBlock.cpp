@@ -145,6 +145,43 @@ void BatteryUnitBlock::generate_abstract_variables  ( Configuration *stvv ) {
     add_static_variable( i, "BB_ " + std::to_string( n++ ));
    }
   }
+
+  // Active Power Variable
+
+  if( v_active_power.size() != f_time_horizon ) {
+   assert( v_active_power.empty() ); // this should only happen once
+   v_active_power.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_active_power ) {
+    i.set_type( ColVariable::kContinuous );
+    add_static_variable( i, "p_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Primary Spinning Reserve Variable
+
+  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_primary_spinning_reserve.empty() ); // this should only happen once
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_primary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "pr_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Secondary Spinning Reserve Variable
+
+  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_secondary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "sr_" + std::to_string( n++ ) );
+   }
+  }
+
  }
 } // end( BatteryUnitBlock::generate_abstract_variables )
 /*--------------------------------------------------------------------------*/
@@ -380,9 +417,9 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t][0], 1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[t][0], -1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t][0], -1.0 );
+   linear_function->add_variable( &v_active_power[t], 1.0 );
+   linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
 
    active_power_lower_bound_Constraints[t].set_lhs( min_power[ t ]);
    active_power_lower_bound_Constraints[t].set_rhs( Inf< double >() );
@@ -399,9 +436,9 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t][0], 1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[ t ][ 0 ], 1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ][ 0 ], 1.0 );
+   linear_function->add_variable( &v_active_power[t], 1.0 );
+   linear_function->add_variable( &v_primary_spinning_reserve[ t ], 1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[ t ], 1.0 );
 
    active_power_upper_bound_Constraints[t].set_lhs( -Inf< double >() );
    active_power_upper_bound_Constraints[t].set_rhs( max_power[ t ] );
@@ -418,7 +455,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[0][0], 1.0 );
+   linear_function->add_variable( &v_active_power[0], 1.0 );
 
    ramp_up_Constraints[0].set_lhs( -Inf< double >());
    ramp_up_Constraints[0].set_rhs( delta_ramp_up[0] + f_initial_power );
@@ -428,8 +465,8 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t][0], 1.0 );
-    lf->add_variable( &v_active_power[t - 1][0], -1.0 );
+    lf->add_variable( &v_active_power[t], 1.0 );
+    lf->add_variable( &v_active_power[t - 1], -1.0 );
 
     ramp_up_Constraints[constraint_index].set_lhs( -Inf< double >() );
     ramp_up_Constraints[constraint_index].set_rhs( delta_ramp_up[t] );
@@ -446,7 +483,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
   auto linear_function = new LinearFunction();
 
-  linear_function->add_variable( &v_active_power[ 0 ][ 0 ], 1.0 );
+  linear_function->add_variable( &v_active_power[ 0 ], 1.0 );
 
    ramp_down_Constraints[ 0 ].set_lhs ( -delta_ramp_down[ 0 ] + f_initial_power );
    ramp_down_Constraints[ 0 ].set_rhs( Inf< double >() );
@@ -456,8 +493,8 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto lf = new LinearFunction();
 
-   lf->add_variable( &v_active_power[t][0], 1.0 );
-   lf->add_variable( &v_active_power[t - 1][0], -1.0 );
+   lf->add_variable( &v_active_power[t], 1.0 );
+   lf->add_variable( &v_active_power[t - 1], -1.0 );
 
    ramp_down_Constraints[constraint_index].set_lhs( -delta_ramp_down[ 0 ] );
    ramp_down_Constraints[constraint_index].set_rhs( Inf< double >() );
@@ -476,7 +513,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t][0], 1.0 );
+   linear_function->add_variable( &v_active_power[t], 1.0 );
    linear_function->add_variable( &v_intake_level[t], -1.0 );
    linear_function->add_variable( &v_outtake_level[t], 1.0 );
 
@@ -636,7 +673,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_primary_spinning_reserve[t][0], 1.0 );
+   linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
 
 
    primary_upper_bound_Constraints[t].set_lhs( 0.0 );
@@ -655,7 +692,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ][ 0 ], 1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[ t ], 1.0 );
 
 
    secondary_upper_bound_Constraints[t].set_lhs( 0.0);

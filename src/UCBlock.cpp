@@ -379,7 +379,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &node_injection[ node_id ], -1.0 );
+    linear_function->add_variable( &node_injection[ node_id ], -1.0 , eNoMod);
 
     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
 
@@ -387,22 +387,25 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     Index unit_id = 0;
 
     for( auto block : get_nested_Blocks() ) {
-     auto unit_block = dynamic_cast<UnitBlock *>(block);
+     auto unit_block = static_cast<UnitBlock *>(block);
      if( unit_block == nullptr )
       continue;
 
      //TODO FIX for GeneratorNode
      for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-      auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
+    //  auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
+      auto fixed_consumption = 0;
 
-      auto ap = unit_block->get_active_power(( g ) + t );
+      auto ap = unit_block->get_active_power(g);
       auto active_power = &ap[t];
-      auto c = unit_block->get_commitment(( g ) + t );
+      auto c = unit_block->get_commitment(g);
       auto commitment = &c[t];
 
-      linear_function->add_variable( active_power, 1.0 );
-      linear_function->add_variable( commitment, -fixed_consumption );
+      linear_function->add_variable( active_power, 1.0 , eNoMod);
+      if (c != nullptr) {
+       linear_function->add_variable( commitment, -fixed_consumption, eNoMod );
+      }
       v_node_injection_constraints[ t ][ node_id ].set_both
        ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
          - fixed_consumption );
