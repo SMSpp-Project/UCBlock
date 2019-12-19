@@ -98,7 +98,6 @@ class ThermalUnitBlock : public UnitBlock {
 
  explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
   UnitBlock( f_block ) {
-  v_fixed_consumption.resize( boost::extents[ 0 ][ 0 ] );
   v_inertia_commitment.resize( boost::extents[ 0 ][ 0 ] );
  }
 
@@ -881,9 +880,9 @@ class ThermalUnitBlock : public UnitBlock {
  *   get_number_generators(), then the FixedConsumption[ t , g ] represents
  *   fixed consumption at time t for each electrical generator g. */
 
- const boost::multi_array< double , 2 > & get_fixed_consumption()
- const override {
-  return( v_fixed_consumption );
+ double * get_fixed_consumption( Index generator )
+  override {
+  return & ( v_fixed_consumption.front() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1037,8 +1036,8 @@ class ThermalUnitBlock : public UnitBlock {
  /// the InitialPower value
  double f_initial_power{};
 
- /// the matrix of fixed consumption of generator
- boost::multi_array< double, 2 > v_fixed_consumption;
+ /// the vector of fixed consumption of generator
+ std::vector< double > v_fixed_consumption;
 
  /// the matrix of inertia commitment of generator
  boost::multi_array< double, 2 > v_inertia_commitment;

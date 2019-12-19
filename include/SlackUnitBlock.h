@@ -212,12 +212,13 @@ class SlackUnitBlock : public UnitBlock {
  *   dimension "NumberIntervals" or has size 1. This is meant to represent the
  *   vector IC[ t ] that, for each time instant t, contains the "the cost of
  *   producing "one unit" of inertia. Since the inertia-producing variable is
- *   u[ t ], which is in the interval [ 0 , 1 ], the cost of u[ t ] should be
- *   MaxInertia[ t ] * InertiaCost[ t ] at the corresponding time step. This
- *   variable is optional; if it is not provided then it's taken to be zero
- *   (but this is a very strange setting, cf. the discussion in
- *   ActivePowerCost). If "InertiaCost" has length 1 then IC[ t ] contains the
- *   same value for t. Otherwise, InertiaCost[ i ] is the fixed value of
+ *   u[ t ] which is in the interval [ 0 , 1 ], the cost of u[ t ] is
+ *   MaxI[ t ] * IC[ t ]; in other words, u[ t ] represents the fraction the
+ *   maximum possible amount of inertia (MaxI[ t ]) that can be produced at
+ *   time step t This variable is optional; if it is not provided then it's
+ *   taken to be zero (but this is a very strange setting, cf. the discussion
+ *   in ActivePowerCost). If "InertiaCost" has length 1 then IC[ t ] contains
+ *   the same value for t. Otherwise, InertiaCost[ i ] is the fixed value of
  *   IC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
  *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the

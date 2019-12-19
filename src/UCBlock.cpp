@@ -394,22 +394,33 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      //TODO FIX for GeneratorNode
      for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-    //  auto fixed_consumption = unit_block->get_fixed_consumption()[ t ][ g ];
-      auto fixed_consumption = 0;
+      auto fixed_consumption = unit_block->get_fixed_consumption(g);
 
       auto ap = unit_block->get_active_power(g);
       auto active_power = &ap[t];
+
       auto c = unit_block->get_commitment(g);
       auto commitment = &c[t];
 
       linear_function->add_variable( active_power, 1.0 , eNoMod);
-      if (c != nullptr) {
-       linear_function->add_variable( commitment, -fixed_consumption, eNoMod );
-      }
-      v_node_injection_constraints[ t ][ node_id ].set_both
-       ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
-         - fixed_consumption );
+      if ( c != nullptr ) {
+       if (fixed_consumption != nullptr) {
+        linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+       } else {
+        linear_function->add_variable( commitment, 0.0, eNoMod );
 
+       }
+      }
+      if (fixed_consumption != nullptr) {
+
+       v_node_injection_constraints[t][node_id].set_both
+               ( v_node_injection_constraints[t][node_id].get_rhs()
+                 - fixed_consumption[t] );
+      } else{
+       v_node_injection_constraints[t][node_id].set_both
+               ( v_node_injection_constraints[t][node_id].get_rhs()
+                - 0.0 );
+      }
       generator_id++;
      }
     }

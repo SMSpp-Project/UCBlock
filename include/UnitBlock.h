@@ -249,11 +249,10 @@ class UnitBlock : public Block {
   * The default implementation of the methods returns an empty matrix; and
   * derived classes will have to handle their own data (if any). */
 
- virtual const boost::multi_array< double , 2 > & get_fixed_consumption()
-  const {
-  const static boost::multi_array< double , 2 > _fc {}; return( _fc );
-  }
-
+ virtual double * get_fixed_consumption( Index generator )
+ {
+  return( nullptr );
+ }
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution

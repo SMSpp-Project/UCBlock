@@ -90,12 +90,9 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost, true, true );
 
- ::deserialize( group, "FixedConsumption", v_fixed_consumption, true, true );
+ ::deserialize( group, "FixedConsumption", f_number_intervals,v_fixed_consumption, true, true );
  ::deserialize( group, "InertiaCommitment", v_inertia_commitment, true, true );
 
- if (v_fixed_consumption.empty()) {
-  v_fixed_consumption.resize( boost::extents[ f_time_horizon ][ 1 ] );
- }
  if (v_inertia_commitment.empty()) {
   v_inertia_commitment.resize( boost::extents[ f_time_horizon ][ 1 ] );
  }
