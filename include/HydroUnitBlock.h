@@ -1193,6 +1193,23 @@ class HydroUnitBlock : public UnitBlock {
  const boost::multi_array< ColVariable , 2 > & get_flow_rate() const {
   return v_flow_rate;
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of active_power variables
+ ColVariable * get_active_power( Index generator ) override {
+  return &( v_active_power[0][generator] );
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary_spinning_reserve variables
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  return &( v_primary_spinning_reserve[0][generator] );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary_spinning_reserve variables
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  return &( v_secondary_spinning_reserve[0][generator] );
+ }
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE HydroUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1320,6 +1337,14 @@ class HydroUnitBlock : public UnitBlock {
  /// the matrix of flow rate variables
  boost::multi_array< ColVariable , 2> v_flow_rate;
 
+ /// the active power variables
+ boost::multi_array< ColVariable , 2> v_active_power;
+
+ /// the primary spinning reserve variables
+ boost::multi_array< ColVariable , 2> v_primary_spinning_reserve;
+
+ /// the secondary spinning reserve variables
+ boost::multi_array< ColVariable , 2> v_secondary_spinning_reserve;
 /*----------------------------constraints-----------------------------------*/
  /// maximum power output according to primary-secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  MaxPowerPrimarySecondary_Const;

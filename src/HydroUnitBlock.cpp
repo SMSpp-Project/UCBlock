@@ -65,25 +65,56 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
- auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",f_total_number_pieces );
+
+ if (v_minimum_flow.empty()) {
+  v_minimum_flow.resize( boost::extents[ 0 ][ 0 ] );
+  ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
+
+ }
+
+ if (v_minimum_volumetric.empty()) {
+  v_minimum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
+ }
+ if (v_maximum_volumetric.empty()) {
+  v_maximum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
+ }
+
+ if (v_minimum_power.empty()) {
+  v_minimum_power.resize( boost::extents[ 0 ][ 0 ] );
+ }
+ if (v_maximum_power.empty()) {
+  v_maximum_power.resize( boost::extents[ 0 ][ 0 ] );
+ }
+ if (v_delta_ramp_up.empty()) {
+  v_delta_ramp_up.resize( boost::extents[ 0 ][ 0 ] );
+ }
+ if (v_delta_ramp_down.empty()) {
+  v_delta_ramp_down.resize( boost::extents[ 0 ][ 0 ] );
+
+  v_inertia_power.resize( boost::extents[ 0 ][ 0 ] );
+ }
 
  ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
 
- ::deserialize_dim( group, "NumberArcs", f_number_arcs, false );
+ ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
 
- ::deserialize( group, "StartLine", f_number_reservoirs, v_start_arc);
+ ::deserialize( group, "NumberPieces", f_number_arcs ? : 1, v_number_pieces, true, true );
 
- ::deserialize( group, "EndLine", f_number_reservoirs, v_end_arc );  //todo
+ ::deserialize( group, "StartLine", f_number_arcs ? : 1, v_start_arc);
 
- ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
+ ::deserialize( group, "EndLine", f_number_arcs ? : 1, v_end_arc );
 
- ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
+ if (v_inflows.empty()) {
+  v_inflows.resize( boost::extents[ f_number_reservoirs ? : 1 ][ f_time_horizon ] );
 
- ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
+ }
+ ::deserialize( group, "Inflows", v_inflows, true, false );
 
- ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
+ if (v_maximum_flow.empty()) {
+  v_maximum_flow.resize( boost::extents[ 1 ][ 1 ] );
+  ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
 
- ::deserialize( group, "Inflows", v_inflows, true, true );
+ }
 
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
 
@@ -93,27 +124,37 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
 
+
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
+
 
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
 
- ::deserialize( group, "NumberPieces", f_number_arcs, v_number_pieces, false, true );
 
- ::deserialize( group, "LinearTerm", f_total_number_pieces, v_linear_term, false, true );
+ ::deserialize( group, "LinearTerm", f_number_arcs ? : 1, v_linear_term, true, true );
+
 
  ::deserialize( group, "ConstantTerm", f_total_number_pieces, v_const_term, false, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
- ::deserialize( group, "InitialFlowRate", f_number_arcs, v_initial_flow_rate, true, true );
 
- ::deserialize( group, "InitialVolumetric", f_number_reservoirs, v_initial_volumetric, true, true );
-
- ::deserialize( group, "UphillFlow", f_number_arcs, v_uphill_delay, true, true );
-
- ::deserialize( group, "DownhillFlow", f_number_arcs, v_downhill_delay, true, true );
+ ::deserialize( group, "InitialFlowRate", f_number_arcs ? : 1, v_initial_flow_rate, true, true );
 
 
+ ::deserialize( group, "InitialVolumetric", f_number_reservoirs ? : 1, v_initial_volumetric, true, true );
+
+
+ ::deserialize( group, "UphillFlow", f_number_arcs ? : 1, v_uphill_delay, true, true );
+
+
+ ::deserialize( group, "DownhillFlow", f_number_arcs ? : 1, v_downhill_delay, true, true );
+
+
+
+ ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
+
+ ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
 
 }// end( HydroUnitBlock::deserialize )
 
@@ -147,7 +188,36 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  add_static_variable ( v_volumetric );
  add_static_variable ( v_flow_rate );
 
+ v_active_power.resize(boost::extents[f_time_horizon][f_number_arcs]);
 
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index g = 0; g < f_number_arcs; ++g ) {
+   v_active_power[ t ][ g ].set_type( ColVariable::kContinuous );
+
+  }
+ }
+ add_static_variable ( v_active_power );
+
+ v_primary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index g = 0; g < f_number_arcs; ++g ) {
+   v_primary_spinning_reserve[ t ][ g ].set_type( ColVariable::kNonNegative );
+
+  }
+ }
+ add_static_variable ( v_primary_spinning_reserve );
+
+
+ v_secondary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index g = 0; g < f_number_arcs; ++g ) {
+   v_secondary_spinning_reserve[ t ][ g ].set_type( ColVariable::kNonNegative );
+
+  }
+ }
+ add_static_variable ( v_secondary_spinning_reserve );
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
