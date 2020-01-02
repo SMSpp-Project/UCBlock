@@ -306,7 +306,7 @@ class UnitBlock : public Block {
  /** The default implementation of the methods returns an empty vector; and
  * derived classes will have to handle the commitment variable (if any). */
 
- virtual ColVariable * get_commitment( Index generator  ) {
+ virtual ColVariable * get_commitment( Index generator , Index time  ) {
   return ( nullptr);
  }
 
@@ -316,7 +316,7 @@ class UnitBlock : public Block {
  * derived classes will have to handle the primary spinning reserve variable
  * (if any). */
 
- virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
+ virtual ColVariable * get_primary_spinning_reserve( Index generator , Index time ) {
   return( nullptr );
  }
 
@@ -326,7 +326,7 @@ class UnitBlock : public Block {
  * derived classes will have to handle the secondary spinning reserve variable
  * (if any). */
 
- virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
+ virtual ColVariable * get_secondary_spinning_reserve( Index generator , Index time ) {
   return( nullptr );
  }
 
@@ -335,7 +335,7 @@ class UnitBlock : public Block {
  /** The default implementation of the methods returns an empty vector; and
  * derived classes will have to handle the active power variable (if any). */
 
- virtual ColVariable * get_active_power( Index generator ) {
+ virtual ColVariable * get_active_power( Index generator, Index time  ) {
   return( nullptr );
  }
 

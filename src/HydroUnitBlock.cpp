@@ -188,6 +188,10 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  add_static_variable ( v_volumetric );
  add_static_variable ( v_flow_rate );
 
+ if( !v_active_power.empty()  ) {
+  // the abstract variables should be generated only once
+  return;
+ }
  v_active_power.resize(boost::extents[f_time_horizon][f_number_arcs]);
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -198,6 +202,10 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  }
  add_static_variable ( v_active_power );
 
+ if( !v_primary_spinning_reserve.empty()  ) {
+  // the abstract variables should be generated only once
+  return;
+ }
  v_primary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -208,7 +216,10 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  }
  add_static_variable ( v_primary_spinning_reserve );
 
-
+ if( !v_secondary_spinning_reserve.empty()  ) {
+  // the abstract variables should be generated only once
+  return;
+ }
  v_secondary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
 
  for( Index t = 0; t < f_time_horizon; ++t ) {

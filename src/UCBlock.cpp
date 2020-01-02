@@ -396,13 +396,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       auto fixed_consumption = unit_block->get_fixed_consumption(g);
 
-      auto ap = unit_block->get_active_power(g);
-      auto active_power = &ap[t];
+      auto ap = unit_block->get_active_power( g , t );
+      auto &active_power = ap[t];
 
-      auto c = unit_block->get_commitment(g);
+      auto c = unit_block->get_commitment( g , t );
       auto commitment = &c[t];
 
-      linear_function->add_variable( active_power, 1.0 , eNoMod);
+      linear_function->add_variable( &active_power, 1.0 , eNoMod);
       if ( c != nullptr ) {
        if (fixed_consumption != nullptr) {
         linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
