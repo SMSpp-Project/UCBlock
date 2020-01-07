@@ -25,8 +25,8 @@ target_sources(UCBlock PRIVATE
                src/UnitBlock.cpp
                #src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
-               src/ThermalUnitBlock.cpp)
-              # src/HydroUnitBlock.cpp
+               src/ThermalUnitBlock.cpp
+              src/HydroUnitBlock.cpp)
               # src/IntermittentUnitBlock.cpp
               # src/SlackUnitBlock.cpp)
 
