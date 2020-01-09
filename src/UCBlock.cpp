@@ -387,7 +387,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     Index unit_id = 0;
 
     for( auto block : get_nested_Blocks() ) {
-     auto unit_block = static_cast<UnitBlock *>(block);
+     auto unit_block = dynamic_cast<UnitBlock *>(block);
      if( unit_block == nullptr )
       continue;
 
@@ -396,10 +396,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       auto fixed_consumption = unit_block->get_fixed_consumption(g);
 
-      auto ap = unit_block->get_active_power( g , t );
+      auto ap = unit_block->get_active_power( g );
       auto &active_power = ap[t];
 
-      auto c = unit_block->get_commitment( g , t );
+      auto c = unit_block->get_commitment( g );
       auto commitment = &c[t];
 
       linear_function->add_variable( &active_power, 1.0 , eNoMod);
@@ -424,8 +424,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       generator_id++;
      }
     }
-    v_node_injection_constraints[ t ][ node_id ].
-     set_function( linear_function );
+    v_node_injection_constraints[ t ][ node_id ].set_function( linear_function );
    }
   }
 
