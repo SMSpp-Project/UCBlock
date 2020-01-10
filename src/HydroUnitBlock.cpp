@@ -195,14 +195,14 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
  int n_gen = f_number_arcs == 0 ? 1 : f_number_arcs;
  v_active_power.resize(boost::extents[n_gen][f_time_horizon]);
-
+ int n = 0;
  for( Index t = 0; t < f_time_horizon; ++t ) {
   for( Index g = 0; g < n_gen; ++g ) {
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous );
 
   }
  }
- add_static_variable ( v_active_power );
+ add_static_variable ( v_active_power, "p_" + std::to_string( n++ ) );
 
  if( !v_primary_spinning_reserve.empty()  ) {
   // the abstract variables should be generated only once
