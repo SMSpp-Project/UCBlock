@@ -192,10 +192,12 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   // the abstract variables should be generated only once
   return;
  }
- v_active_power.resize(boost::extents[f_number_arcs][f_time_horizon]);
+
+ int n_gen = f_number_arcs == 0 ? 1 : f_number_arcs;
+ v_active_power.resize(boost::extents[n_gen][f_time_horizon]);
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  for( Index g = 0; g < f_number_arcs; ++g ) {
+  for( Index g = 0; g < n_gen; ++g ) {
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous );
 
   }

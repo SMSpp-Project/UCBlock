@@ -107,7 +107,12 @@ class HydroUnitBlock : public UnitBlock {
  */
 
  explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block , t ) { }
+         UnitBlock( f_block , t ) {
+  f_number_reservoirs = 0;
+  f_number_arcs = 0;
+  f_number_intervals = 0;
+  f_total_number_pieces = 0;
+ }
 
 /*--------------------------------------------------------------------------*/
 
