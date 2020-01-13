@@ -183,12 +183,10 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
    auto & volumetric = v_volumetric[ g ][ t ];
 
    volumetric.set_type( ColVariable::kNonNegative );
-
-   add_static_variable ( volumetric, "vol_" +
-                                     std::to_string( g ) + "_" +
-                                     std::to_string( t )  );
   }
  }
+ add_static_variable ( v_volumetric, "vol" );
+
  if( !v_flow_rate.empty() ) {
   // the abstract variables should be generated only once
   return;
@@ -200,12 +198,9 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
    auto & flow_rate = v_flow_rate[ t ][ g ];
 
    flow_rate.set_type( ColVariable::kContinuous );
-
-   add_static_variable ( flow_rate , "f_" +
-                                     std::to_string( t ) + "_" +
-                                     std::to_string( g ) );
   }
  }
+ add_static_variable ( v_flow_rate, "F" );
 
  if( !v_active_power.empty()  ) {
   // the abstract variables should be generated only once
@@ -214,14 +209,14 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
  int n_gen = f_number_arcs == 0 ? 1 : f_number_arcs;
  v_active_power.resize(boost::extents[n_gen][f_time_horizon]);
- int n = 0;
+ // int n = 0;
  for( Index t = 0; t < f_time_horizon; ++t ) {
   for( Index g = 0; g < n_gen; ++g ) {
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous );
 
   }
  }
- add_static_variable ( v_active_power, "p_" + std::to_string( n++ ) );
+ add_static_variable ( v_active_power, "p" );
 
  if( !v_primary_spinning_reserve.empty()  ) {
   // the abstract variables should be generated only once
@@ -235,7 +230,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
   }
  }
- add_static_variable ( v_primary_spinning_reserve );
+ add_static_variable ( v_primary_spinning_reserve, "pr" );
 
  if( !v_secondary_spinning_reserve.empty()  ) {
   // the abstract variables should be generated only once
@@ -249,7 +244,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
   }
  }
- add_static_variable ( v_secondary_spinning_reserve );
+ add_static_variable ( v_secondary_spinning_reserve, "sr" );
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
