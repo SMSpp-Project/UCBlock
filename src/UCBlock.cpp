@@ -355,6 +355,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
+ Block::generate_abstract_constraints(stcc);
+
  unsigned int number_nodes = f_NetworkData ? f_NetworkData->
   get_number_nodes() : 1;
 
@@ -429,7 +431,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( v_node_injection_constraints, "node_injection_c" );
-  Block::generate_abstract_constraints(stcc);
  }
 
 /*--------------------------------------------------------------------------*/
