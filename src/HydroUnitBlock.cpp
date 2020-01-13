@@ -694,7 +694,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
   }
  }
 
- add_static_constraint( MaxPowerPrimarySecondary_Const );
+ add_static_constraint( MaxPowerPrimarySecondary_Const, "MaxPowerPrimarySecondary_Const" );
 
 
  // minimum power output according to primary-secondary reserves constraints
@@ -723,7 +723,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
   }
  }
 
- add_static_constraint( MinPowerPrimarySecondary_Const );
+ add_static_constraint( MinPowerPrimarySecondary_Const ,"MinPowerPrimarySecondary_Const");
 
  // power output relation with to primary reserves constraints
  if( !v_primary_rho.empty() ) {
@@ -753,7 +753,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
    }
   }
 
-  add_static_constraint( ActivePowerPrimary_Const );
+  add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary_Const" );
  }
  // power output relation with to secondary reserves constraints
  if( !v_secondary_rho.empty() ) {
@@ -784,7 +784,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
    }
   }
 
-  add_static_constraint( ActivePowerSecondary_Const );
+  add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary_Const" );
  }
  // primary reserves constraints for pumps
 
@@ -812,7 +812,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
   }
  }
 
- add_static_constraint( PrimaryPumps_Const );
+ add_static_constraint( PrimaryPumps_Const, "PrimaryPumps_Const" );
 
  // secondary reserves constraints for pumps
 
@@ -840,7 +840,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
   }
  }
 
- add_static_constraint( SecondaryPumps_Const );
+ add_static_constraint( SecondaryPumps_Const,"SecondaryPumps_Const" );
 
 
  // flow to active power function constraints for pumps
@@ -868,7 +868,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
     FlowActivePowerPumps_Const[t][arc].set_function( linear_function );
 
    }
-   add_static_constraint( FlowActivePowerPumps_Const );
+   add_static_constraint( FlowActivePowerPumps_Const, "FlowActivePowerPumps_Const" );
 
 
    // flow to active power function constraints for turbines //todo
@@ -892,7 +892,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
     FlowActivePowerTurbines_Const[t][arc].set_function( linear_function );   }
   }
  }
- add_static_constraint( FlowActivePowerTurbines_Const );
+ add_static_constraint( FlowActivePowerTurbines_Const, "FlowActivePowerTurbines_Const");
 
 
  // flow rate bounds constraints
@@ -919,7 +919,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
    }
   }
 
-  add_static_constraint( FlowRateBounds_Const );
+  add_static_constraint( FlowRateBounds_Const, "FlowRateBounds_Const" );
 
 
 
@@ -962,7 +962,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
    }
   }
 
-  add_static_constraint( RampUp_Const );
+  add_static_constraint( RampUp_Const, "RampUp_Const" );
  }
 
 
@@ -1006,7 +1006,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
    }
   }
 
-  add_static_constraint( RampDown_Const );
+  add_static_constraint( RampDown_Const, "RampDown_Const" );
 
  }
 
@@ -1046,7 +1046,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc )
   }
  }
 
- add_static_constraint( VolumetricBounds_Const );
+ add_static_constraint( VolumetricBounds_Const, "VolumetricBounds_Const " );
 
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
