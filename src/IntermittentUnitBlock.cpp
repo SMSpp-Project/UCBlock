@@ -74,10 +74,6 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "Kappa", &f_kappa );
 
 
- if (v_inertia_power.empty()) {
-  v_inertia_power.resize( boost::extents[ f_time_horizon ][ 1 ] );
- }
-
 }// end( IntermittentUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -86,6 +82,46 @@ void IntermittentUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
  UnitBlock::generate_abstract_variables( stvv );
+
+ if ( f_time_horizon > 0 ){
+
+  // Active Power Variable
+
+  if( v_active_power.size() != f_time_horizon ) {
+   assert( v_active_power.empty() ); // this should only happen once
+   v_active_power.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_active_power ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "p_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Primary Spinning Reserve Variable
+
+  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_primary_spinning_reserve.empty() ); // this should only happen once
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_primary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "pr_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Secondary Spinning Reserve Variable
+
+  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_secondary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "sr_" + std::to_string( n++ ) );
+   }
+  }
+
+ }
 
 } // end( IntermittentUnitBlock::generate_abstract_variables )
 
@@ -147,9 +183,9 @@ double gamma = f_gamma ? : 0;
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t][0], f_gamma );
-   linear_function->add_variable( &v_primary_spinning_reserve[t][0], 1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t][0], 1.0 );
+   linear_function->add_variable( &v_active_power[t], f_gamma );
+   linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
 
    MaxPower_Constraints[t].set_lhs( -Inf< double >());
    MaxPower_Constraints[t].set_rhs( ( kappa * gamma * max_power[ t ]) );
@@ -167,9 +203,9 @@ double gamma = f_gamma ? : 0;
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t][0], 1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[t][0], -1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t][0], -1.0 );
+   linear_function->add_variable( &v_active_power[t], 1.0 );
+   linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+   linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
 
    MinPower_Constraints[t].set_lhs( kappa * min_power[ t ]);
    MinPower_Constraints[t].set_rhs( Inf< double >() );
@@ -187,7 +223,7 @@ double gamma = f_gamma ? : 0;
 
   auto linear_function = new LinearFunction();
 
-  linear_function->add_variable( &v_active_power[t][0], 1.0 );
+  linear_function->add_variable( &v_active_power[t], 1.0 );
 
   active_power_bounds_Constraints[t].set_lhs( kappa *min_power[ t ]);
   active_power_bounds_Constraints[t].set_rhs( kappa *max_power[ t ] );

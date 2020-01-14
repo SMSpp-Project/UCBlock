@@ -183,8 +183,7 @@ class IntermittentUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the IntermittentUnitBlock
-/** The IntermittentUnitBlock class use get_variable() method to access to
- *  each "group" of variable that may create in UnitBlock class which are:
+/** The IntermittentUnitBlock class has three different variables which are:
  *
  *  - the primary spinning reserve variables;
  *
@@ -308,9 +307,41 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the inertia power for the problem at time t for each electrical generator
  *   g. */
 
- const boost::multi_array< double , 2 > & get_inertia_power()
- const override {
-  return( v_inertia_power );
+ double * get_inertia_power( Index generator)
+  override {
+  return( v_inertia_power.data() + generator * f_time_horizon );
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*------ METHODS FOR READING THE Variable OF THE IntermittentUnitBlock -----*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the IntermittentUnitBlock
+ *
+ * These methods allow to read the each group of Variable that any
+ * IntermittentUnitBlock in principle has (although some may not):
+ *
+ * - active_power variables;
+ *
+ * - primary_spinning_reserve variables;
+ *
+ * - secondary_spinning_reserve variables;
+ *
+ * @{ */
+ /// returns the vector of active_power variables
+ ColVariable * get_active_power( Index generator )
+ override {
+  return &( v_active_power.front() );
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary_spinning_reserve variables
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  return &( v_primary_spinning_reserve.front() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary_spinning_reserve variables
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  return &( v_secondary_spinning_reserve.front() );
  }
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
@@ -363,7 +394,15 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
+/*-----------------------------variables------------------------------------*/
+ /// the active power variables
+ std::vector< ColVariable > v_active_power;
 
+ /// the primary spinning reserve variables
+ std::vector< ColVariable > v_primary_spinning_reserve;
+
+ /// the secondary spinning reserve variables
+ std::vector< ColVariable > v_secondary_spinning_reserve;
 /*----------------------------constraints-----------------------------------*/
 /// the active power upper bound constraints
  std::vector< FRowConstraint > MinPower_Constraints;

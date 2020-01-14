@@ -20,7 +20,6 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- *
  * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
  */
 /*--------------------------------------------------------------------------*/
@@ -107,12 +106,7 @@ class HydroUnitBlock : public UnitBlock {
  */
 
  explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block , t ) {
-  f_number_reservoirs = 0;
-  f_number_arcs = 0;
-  f_number_intervals = 0;
-  f_total_number_pieces = 0;
- }
+         UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -513,8 +507,8 @@ class HydroUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the HydroUnitBlock
-/** The HydroUnitBlock class use get_variable() method to access to each
- *  "group" of variable that may create in UnitBlock class which are:
+/** The HydroUnitBlock class has five boost::multi_array< ColVariable, 2 >
+ *  variables where the first four are:
  *
  *  - the primary spinning reserve variables;
  *
@@ -522,16 +516,18 @@ class HydroUnitBlock : public UnitBlock {
  *
  *  - the active power variables;
  *
- *  All of those variables are optional except the active power variables in
- *  the sense that the model may just not have them and whenever a group of
- *  above variables is created, its size will be the time horizon. Moreover,
- *  HydroUnitBlock is defined more groups of variables as follow:
+ *  - the flow rate variables
+ *
+ *   Each of the boost::multi_array< ColVariable, 2 > has as first dimension
+ *   the time horizon and as second dimension the number of arcs(or generators
+ *   which as returned get_number_generators()). The last
+ *   boost::multi_array< ColVariable, 2 > variable is:
  *
  *  - the volumetric variables
  *
- *  - the flow rate variables
+ *  Where its' first dimension is the number of reservoirs and the second
+ *  dimension is the time horizon.
  *
- *  These two groups of variables may have size f_time_horizon or empty size.
  *  All of these variables are optional,and it is also possible to restrict
  *  which of the subsets are generated with the parameter stvv. If stvv is not
  *  nullptr and it is a SimpleConfiguration<int>, or if
@@ -811,8 +807,8 @@ class HydroUnitBlock : public UnitBlock {
  * - otherwise, the matrix has size the time horizon per
  *   get_number_arcs(), and U[ t , l ] contains the contribution to
  *   inertia power of arc(generator) l at time instant t. */
- const boost::multi_array< double , 2 > & get_inertia_power() const override {
-  return ( v_inertia_power );
+ double * get_inertia_power( Index generator )  override {
+  return ( v_inertia_power.data() + generator * f_time_horizon );
  }
 /*--------------------------------------------------------------------------*/
 /// returns the matrix of minimum volumetric
@@ -1157,16 +1153,24 @@ class HydroUnitBlock : public UnitBlock {
 
 /** @name Reading the Variable of the HydroUnitBlock
  *
- * These methods allow to read the two groups of Variable that any
+ * These methods allow to read the five groups of Variable that any
  * HydroUnitBlock in principle has (although some may not):
  *
- * - the volumetric variables;
+ *  - the volumetric variables;
  *
- * - the flow rate variables;
+ *  - the flow rate variables;
  *
- * All these two groups of variables are (if not empty)
- * boost::multi_array< ColVariable , 2 > with first dimension time horizon
- * and second dimension number of arcs (generators).
+ *  - the active power variables;
+ *
+ *  - the primary spinning reserve variables;
+ *
+ *  - the secondary spinning reserve variables;
+ *
+ * All these five groups of variables are (if not empty)
+ * boost::multi_array< ColVariable , 2 > where the volumetric variables with
+ * the first dimension number reservoirs and the second dimension time horizon
+ * and all the rest with first dimension time horizon and second dimension
+ * number of arcs (generators).
  * @{ */
 
 /// returns the matrix of volumetric variables
@@ -1189,7 +1193,7 @@ class HydroUnitBlock : public UnitBlock {
  * flow rate variables and is indexed over the dimensions time horizon and
  * number of arcs (generators). There are two possible cases:
  *
- * - if V is empty(), then these variables are not defined;
+ * - if F is empty(), then these variables are not defined;
  *
  * - otherwise, F must have f_time_horizon rows and f_number_arcs columns, and
  *   M[ t , a ] is the flow rate variable for time step t of arc (generator)
@@ -1205,13 +1209,13 @@ class HydroUnitBlock : public UnitBlock {
   return ( v_active_power.data() + generator * f_time_horizon );
  }
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary_spinning_reserve variables
+ /// returns the matrix of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator )
  override {
   return ( v_primary_spinning_reserve.data() + generator * f_time_horizon );
  }
 /*--------------------------------------------------------------------------*/
- /// returns the vector of secondary_spinning_reserve variables
+ /// returns the matrix of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator )
  override {
   return ( v_secondary_spinning_reserve.data() + generator * f_time_horizon );

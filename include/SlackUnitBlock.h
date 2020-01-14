@@ -230,8 +230,7 @@ class SlackUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the SlackUnitBlock
-/** The SlackUnitBlock class use get_variable() method to access to each
- *  "group" of variable that may create in UnitBlock class which are:
+/** The SlackUnitBlock class has several different variables which are:
  *
  *  - the binary commitment variables which takes the continues values between
  *    1 and zero.
@@ -418,31 +417,23 @@ class SlackUnitBlock : public UnitBlock {
   return( v_secondary_cost );
  }
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum inertia
+/// returns the vector of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
  *  variables returned by get_commitment()) of all the generators at all time
- *  instants. There are four possible cases:
+ *  instants. There are three possible cases:
  *
- * - if the matrix is empty, then the maximum inertia is always 0;
+ * - if the vector is empty, then the inertia commitment is always 0;
  *
- * - if the matrix only has one row (i.e., the first dimension has size 1),
- *   then the maximum inertia for each generator g is U[ 0 , g ] for all t
- *   which means that the second dimension has size get_number_generators();
+ * - if the vector only has one element, then the inertia commitment for the
+ *   fixed consumption of the unit for all t
  *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the MaxInertia[ t , 0 ] gives the
- *   maximum inertia for the problem at time t. Since in this unit  there is
- *   only one electrical generator, this case should happen by  assumption;
- *
- * - otherwise, the matrix has size get_time_horizon() per
- *   get_number_generators(), then the MaxInertia[ t , g ] represents
- *   the maximum inertia for the problem at time t for each electrical
- *   generator g. */
+ * - otherwise, the vector must have size get_time_horizon(), and each element
+ *   of vector represents the inertia commitment at time t. */
 
- const boost::multi_array< double , 2 > & get_inertia_commitment()
- const override {
-  return( v_MaxInertia );
+ double * get_inertia_commitment( Index generator )
+ override {
+  return & ( v_inertia_commitment.front() );
  }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of inertia cost
@@ -460,8 +451,47 @@ class SlackUnitBlock : public UnitBlock {
  const std::vector< double > & get_inertia_cost() const {
   return( v_inertia_cost );
  }
+
 /**@} ----------------------------------------------------------------------*/
-/*------------------ METHODS FOR SAVING THE SlackUnitBlock ---------------*/
+/*--------- METHODS FOR READING THE Variable OF THE SlackUnitBlock ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the SlackUnitBlock
+ *
+ * These methods allow to read the each group of Variable that any
+ * SlackUnitBlock in principle has (although some may not):
+ *
+ * - commitment variables;
+ *
+ * - active_power variables;
+ *
+ * - primary_spinning_reserve variables;
+ *
+ * - secondary_spinning_reserve variables;
+ *
+ * @{ */
+ /// returns the vector of commitment variables
+ ColVariable * get_commitment( Index generator  ) override {
+  return &( v_commitment.front() );
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of active_power variables
+ ColVariable * get_active_power( Index generator )
+ override {
+  return &( v_active_power.front() );
+ }
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary_spinning_reserve variables
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  return &( v_primary_spinning_reserve.front() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary_spinning_reserve variables
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  return &( v_secondary_spinning_reserve.front() );
+ }
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the SlackUnitBlock
  *  @{ */
@@ -518,6 +548,22 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
+
+ /// the vector of inertia commitment of generator
+ std::vector< double > v_inertia_commitment;
+
+ /*-----------------------------variables------------------------------------*/
+ /// the commitment variables
+ std::vector< ColVariable > v_commitment;
+
+ /// the active power variables
+ std::vector< ColVariable > v_active_power;
+
+ /// the primary spinning reserve variables
+ std::vector< ColVariable > v_primary_spinning_reserve;
+
+ /// the secondary spinning reserve variables
+ std::vector< ColVariable > v_secondary_spinning_reserve;
 
  /// the objective function
  FRealObjective objective;

@@ -97,9 +97,7 @@ class ThermalUnitBlock : public UnitBlock {
   * father Block and the time horizon. */
 
  explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
-  UnitBlock( f_block ) {
-  v_inertia_commitment.resize( boost::extents[ 0 ][ 0 ] );
- }
+  UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock, it is empty
@@ -859,26 +857,19 @@ class ThermalUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the matrix of fixed consumption
+/// returns the vector of fixed consumption
 /** The returned value U = get_fixed_consumption() contains the contribution
  *  to fixed consumption (basically, the constants to be multiplied by the
  *  commitment variables returned by get_commitment()) of all the generators
- *  at all time instants. There are four possible cases:
+ *  at all time instants. There are three possible cases:
  *
- * - if the matrix is empty, then the fixed consumption is always 0;
+ * - if the vector is empty, then the fixed consumption is always 0;
  *
- * - if the matrix only has one row (i.e., the first dimension has size 1),
- *   then the fixed consumption for each generator g is U[ 0 , g ] for all t
- *   which means that the second dimension has size get_number_generators();
+ * - if the vector only has one element, then the fixed consumption for the
+ *   fixed consumption of the unit for all t
  *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the FixedConsumption[ t , 0 ] gives
- *   the fixed consumption of the problem at time t. Since in this unit there
- *   is only one electrical generator, this case should happen by assumption;
- *
- * - otherwise, the matrix has size get_time_horizon() per
- *   get_number_generators(), then the FixedConsumption[ t , g ] represents
- *   fixed consumption at time t for each electrical generator g. */
+ * - otherwise, the vector must have size get_time_horizon(), and each element
+ *   of vector represents the fixed consumption at time t. */
 
  double * get_fixed_consumption( Index generator )
   override {
@@ -886,32 +877,23 @@ class ThermalUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the matrix of inertia commitment
+/// returns the vector of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
  *  variables returned by get_commitment()) of all the generators at all time
- *  instants. There are four possible cases:
+ *  instants. There are three possible cases:
  *
- * - if the matrix is empty, then the inertia commitment is always 0;
+ * - if the vector is empty, then the inertia commitment is always 0;
  *
- * - if the matrix only has one row (i.e., the first dimension has size 1),
- *   then the inertia commitment for each generator g is U[ 0 , g ] for all t
- *   which means that the second dimension has size get_number_generators();
+ * - if the vector only has one element, then the inertia commitment for the
+ *   fixed consumption of the unit for all t
  *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the InertiaCommitment[ t , 0 ] gives
- *   the inertia commitment for the problem at time t. Since in this unit
- *   there is only one electrical generator, this case should happen by
- *   assumption;
- *
- * - otherwise, the matrix has size get_time_horizon() per
- *   get_number_generators(), then the InertiaCommitment[ t , g ] represents
- *   the inertia commitment for the problem at time t for each electrical
- *   generator g. */
+ * - otherwise, the vector must have size get_time_horizon(), and each element
+ *   of vector represents the inertia commitment at time t. */
 
- const boost::multi_array< double , 2 > & get_inertia_commitment()
- const override {
-  return( v_inertia_commitment );
+ double * get_inertia_commitment( Index generator )
+  override {
+  return & ( v_inertia_commitment.front() );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1040,8 +1022,8 @@ class ThermalUnitBlock : public UnitBlock {
  /// the vector of fixed consumption of generator
  std::vector< double > v_fixed_consumption;
 
- /// the matrix of inertia commitment of generator
- boost::multi_array< double, 2 > v_inertia_commitment;
+ /// the vector of inertia commitment of generator
+ std::vector< double > v_inertia_commitment;
 
  /// the MinUpTime value
  Index f_MinUpTime{};
@@ -1056,11 +1038,6 @@ class ThermalUnitBlock : public UnitBlock {
  Index init_t{};
 
 /*-----------------------------variables------------------------------------*/
- /* Each of the following vectors of Variable may either have size
-  * f_time_horizon - init_t, meaning that there is not any Variable for each
-  * defining time step (init_t , ..., f_time_horizon-1), or be empty, in which
-  * case the variables simply do not exist. */
-
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
 

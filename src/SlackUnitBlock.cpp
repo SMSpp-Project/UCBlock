@@ -85,29 +85,59 @@ void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 void SlackUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
- UnitBlock::generate_abstract_variables( stvv );
- if( f_time_horizon == 0 ) {
-  // there are no variables to be generated
-  return;
- }
+/*--------------------------------------------------------------------------*/
+ if ( f_time_horizon > 0 ){
 
- if( !v_commitment.empty()  ) {
-  // the abstract variables should be generated only once
-  return;
- }
- v_commitment.resize(boost::extents[ f_time_horizon ][ get_number_generators() ]);
+  // Commitment Variable
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
-  for( Index g = 0; g < get_number_generators(); ++g ) {
-   auto & Commitment = v_commitment[ t ][ g ];
-
-   Commitment.set_type( ColVariable::kPosUnitary );
-
-   add_static_variable ( Commitment, "u_" +
-                                     std::to_string( t ) + "_" +
-                                     std::to_string( g )  );
+  if( v_commitment.size() != f_time_horizon ) {
+   assert( v_commitment.empty() ); // this should only happen once
+   v_commitment.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_commitment ) {
+    i.set_type( ColVariable::kBinary );
+    add_static_variable( i, "u_" + std::to_string( n++ ) );
+   }
   }
+
+  // Active Power Variable
+
+  if( v_active_power.size() != f_time_horizon ) {
+   assert( v_active_power.empty() ); // this should only happen once
+   v_active_power.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_active_power ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "p_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Primary Spinning Reserve Variable
+
+  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_primary_spinning_reserve.empty() ); // this should only happen once
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_primary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "pr_" + std::to_string( n++ ) );
+   }
+  }
+
+  // Secondary Spinning Reserve Variable
+
+  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+   assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   int n = 0;
+   for( auto & i : v_secondary_spinning_reserve ) {
+    i.set_type( ColVariable::kNonNegative );
+    add_static_variable( i, "sr_" + std::to_string( n++ ) );
+   }
+  }
+
  }
+
 } // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -262,17 +292,17 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  auto dquad_function = new DQuadFunction();
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_active_power[ t ][ 0 ],
+  dquad_function->add_variable( &v_active_power[ t ],
                                 active_power_cost[ t ],
                                 0.0 );
-  dquad_function->add_variable( &v_primary_spinning_reserve[ t ][ 0 ],
+  dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
                                 primary_cost[ t ],
                                 0.0 );
 
-  dquad_function->add_variable( &v_secondary_spinning_reserve[ t ][ 0 ],
+  dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
                                 secondary_cost[ t ],
                                 0.0 );
-  dquad_function->add_variable( &v_commitment[ t ][ 0 ],
+  dquad_function->add_variable( &v_commitment[ t ],
                                 inertia_cost[ t ] * MaxInertia[ t ][0],
                                 0.0 );
  }

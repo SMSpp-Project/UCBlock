@@ -240,13 +240,13 @@ class UnitBlock : public Block {
  virtual Index get_number_generators( void ) const { return( 1 ); }
  
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of fixed consumption
+ /// returns the vector of fixed consumption
  /** The returned value U = get_fixed_consumption() contains the contribution
   *  to fixed consumption (basically, the constants to be multiplied by the
   *  commitment variables returned by get_commitment()) of all the generators
   *  at all time instants.
   *
-  * The default implementation of the methods returns an empty matrix; and
+  * The default implementation of the methods returns an empty vector; and
   * derived classes will have to handle their own data (if any). */
 
  virtual double * get_fixed_consumption( Index generator )
@@ -254,20 +254,18 @@ class UnitBlock : public Block {
   return( nullptr );
  }
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of inertia commitment
+ /// returns the vector of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution
   *  to inertia (basically, the constants to be multiplied by the commitment
   *  variables returned by get_commitment()) of all the generators at all time
   *  instants.
   *
-  * The default implementation of the methods returns an empty matrix; and
+  * The default implementation of the methods returns an empty vector; and
   * derived classes will have to handle their own data (if any). */
 
- virtual const boost::multi_array< double , 2 > & get_inertia_commitment()
-  const {
-  const static boost::multi_array< double , 2 > _ic {};
-
-  return( _ic );
+ virtual double *  get_inertia_commitment( Index generator )
+   {
+  return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -280,9 +278,9 @@ class UnitBlock : public Block {
   * The default implementation of the methods returns an empty matrix; and
   * derived classes will have to handle their own data (if any).  */
 
- virtual const boost::multi_array< double , 2 > & get_inertia_power()
-  const {
-  const static boost::multi_array< double , 2 > _ip {}; return( _ip );
+ virtual double * get_inertia_power( Index generator  )
+   {
+ return( nullptr );
   }
 
 /**@} ----------------------------------------------------------------------*/
