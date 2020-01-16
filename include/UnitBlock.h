@@ -115,13 +115,7 @@ class UnitBlock : public Block {
  *
  * UnitBlock defines the following main public type:
  *
- * - Index, the type of parameters indices;
- *
  * @{ */
-
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index;  ///< index of parameters
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
