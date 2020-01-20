@@ -38,6 +38,7 @@
 
 #include "Block.h"
 #include "PolyhedralFunctionBlock.h"
+#include "UnitBlock.h"
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -111,8 +112,6 @@ class HydroSystemUnitBlock : public Block {
  *
  * - The dimension "NumberHydroUnits" containing the number of hydro units
  *   (HydroUnitBlock) in the problem;
- *
- * - The dimension "TimeHorizon" .. ?
  *
  * - The groups "HydroUnitBlock_0", "HydroUnitBlock_1", ... ,
  *   "HydroUnitBlock_n" with n == NumberUnits - 1, containing each one
