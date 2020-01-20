@@ -28,7 +28,8 @@ target_sources(UCBlock PRIVATE
                src/ThermalUnitBlock.cpp
                src/HydroUnitBlock.cpp
                src/IntermittentUnitBlock.cpp
-               src/SlackUnitBlock.cpp)
+               src/SlackUnitBlock.cpp
+               src/HydroSystemUnitBlock.cpp)
 
 # Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when
 # generating the target import file (***Targets.cmake), that must be different
