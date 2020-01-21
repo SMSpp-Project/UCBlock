@@ -14,7 +14,7 @@ project(UCBlock VERSION 1.0.0 LANGUAGES CXX)
 find_package(SMSpp REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
-add_library(UCBlock)
+add_library(UCBlock src/PolyheadralFunctionBlock.cpp)
 target_compile_features(UCBlock PUBLIC cxx_std_17)
 
 target_sources(UCBlock PRIVATE
@@ -29,7 +29,8 @@ target_sources(UCBlock PRIVATE
                src/HydroUnitBlock.cpp
                src/IntermittentUnitBlock.cpp
                src/SlackUnitBlock.cpp
-               src/HydroSystemUnitBlock.cpp)
+               src/HydroSystemUnitBlock.cpp
+               src/PolyheadralFunctionBlock.cpp)
 
 # Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when
 # generating the target import file (***Targets.cmake), that must be different
