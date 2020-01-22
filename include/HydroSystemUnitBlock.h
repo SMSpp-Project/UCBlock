@@ -113,17 +113,22 @@ class HydroSystemUnitBlock : public Block {
  * :Block, the group should contain the following:
  *
  * - The dimension "NumberHydroUnits" containing the number of hydro units
- *   (HydroUnitBlock) in the problem;
+ *   (HydroUnitBlock) in the problem. The dimension is optional: if it is not
+ *   provided then it is taken to be 0, which means that there is no hydro
+ *   unit block in the problem.
  *
  * - The groups "HydroUnitBlock_0", "HydroUnitBlock_1", ... ,
- *   "HydroUnitBlock_( n - 1 )", "PolyhedralFunctionBlock_n" with
+ *   "HydroUnitBlock_(n-1)", "PolyhedralFunctionBlock_n" with
  *   n == NumberHydroUnits, containing each one HydroUnitBlock, and the last
- *   one is corresponding to the polyhedral function block of the UCBlock.
+ *   one is corresponding to the polyhedral function block of the UCBlock. When
+ *   NumberHydroUnits == 0, these groups need not be there since they are not
+ *   read. If, instead, NumberHydroUnits > 0, it is an error if the
+ *   corresponding groups are not there.
  *
  * - The groups "BellmanValue_0", "BellmanValue_1", ... ,"BellmanValue_R" with
- *   R == TotalNumberReservoirs, containing the future value of water
- *   (Volumetric variable) of each reservoir in each HydroUnitBlock. Since
- *   each HydroUnitBlock can have more than one reservoir(cf. HydroUnitBlock::
+ *   R == NumberHydroUnits, containing the future value of water (Volumetric
+ *   variable) of each reservoir in each HydroUnitBlock. Since each
+ *   HydroUnitBlock can have more than one reservoir(cf. HydroUnitBlock::
  *   get_number_reservoirs()), a value that is useful in the following is the
  *   total number of reservoirs. We will refer to such number as
  *   "TotalNumberReservoirs", which is computed by just calling
@@ -164,13 +169,38 @@ class HydroSystemUnitBlock : public Block {
  *
  * @{ */
 
-/**@} ----------------------------------------------------------------------*/
-/*------ METHODS FOR READING THE Variable OF THE HydroSystemUnitBlock ------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the Variable of the HydroSystemUnitBlock
- *
- * @{ */
+ /// Returns the number of hydro units of the problem
+ Index get_number_hydro_units() const { return f_number_hydro_units; }
 
+/*--------------------------------------------------------------------------*/
+/// Returns the vector of (pointers to) HydroUnitBlock elements.
+/** The vector of hydro units in the problem. There are two possible
+ * cases:
+ *
+ * - if the vector is empty, then the there is no hydro unit block;
+ *
+ * - otherwise the vector must have the size of the number of hydro unit
+ *   blocks plus one, and the h-th entry gives the corresponding hydro unit
+ *   block h and the last element is the PolyhedralFunctionBlock. */
+
+ const std::vector< HydroUnitBlock * > & get_hydro_unit_blocks() const {
+  return v_hydro_unit_blocks;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// Returns the vector of (pointers to) HydroUnitBlock elements.
+/** The vector of bellman values in the problem. There are three possible
+ * cases:
+ *
+ * - if the vector is empty, then the there is no hydro unit block;
+ *
+ * - otherwise the vector must have the size of the total number of reservoirs
+ *   and the h-th entry gives the corresponding bellman value of reservoir h.
+ *   */
+
+ const std::vector< HydroUnitBlock * > & get_bellman_values() const {
+  return v_bellman_values;
+ }
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
@@ -179,16 +209,10 @@ class HydroSystemUnitBlock : public Block {
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- *  HydroSystemUnitBlock. See HydroSystemUnitBlock::deserialize( netCDF::NcGroup ) for
- *  details of the format of the created netCDF group. */
+ *  HydroSystemUnitBlock. See HydroSystemUnitBlock::deserialize( netCDF::
+ *  NcGroup ) for details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
-
-/**@} ----------------------------------------------------------------------*/
-/*------------- METHODS FOR MODIFYING THE HydroSystemUnitBlock -------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the HydroSystemUnitBlock
- *  @{ */
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/

@@ -84,7 +84,9 @@ namespace SMSpp_di_unipi_it {
  * - The number of generators in the unit (1 by default, see
  *   get_number_generators());
  *
- * - The default implementation of four variables which are:
+ * - The default implementation of four variables which are assumed that the
+ *   Variable (of each type) for each generator are organised in arrays of
+ *   size get_time_horizon() which are:
  *
  *     (i)   the commitment of the generators in the unit;
  *

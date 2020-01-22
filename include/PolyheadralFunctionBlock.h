@@ -37,7 +37,6 @@
 /*--------------------------------------------------------------------------*/
 
 #include "HydroSystemUnitBlock.h"
-#include "PolyhedralFunction.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -52,8 +51,11 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-class PolyhedralFunctionBlock : public AbstractBlock {
+/// ...
+/**
+ *
+ * */
+class PolyhedralFunctionBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -67,13 +69,19 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /** @name Public Types
     @{ */
 
-/*--------------------------------------------------------------------------*/
-/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------- CONSTRUCTING AND DESTRUCTING PolyhedralFunctionBlock -----------*/
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing PolyhedralFunctionBlock
  *  @{ */
+
+ explicit PolyhedralFunctionBlock( Block * f_block = nullptr):
+ HydroSystemUnitBlock( f_block ) {}
+
+/*--------------------------------------------------------------------------*/
+/// destructor of PolyhedralFunctionBlock
+
+ ~PolyhedralFunctionBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
@@ -83,15 +91,33 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*----- METHODS FOR READING THE Variable OF THE PolyhedralFunctionBlock ----*/
 /*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the PolyhedralFunctionBlock
+ *
+ * @{ */
 
- protected:
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS FOR MODIFYING THE PolyhedralFunctionBlock -------------*/
+/*--------------------------------------------------------------------------*/
+ /** @name Methods for modifying the PolyhedralFunctionBlock
+  *  @{ */
+
+ /// get PolyhedralFunction
+ /**
+  *
+  */
 
 /*--------------------------------------------------------------------------*/
-/** @name Protected methods for inserting and extracting
- */
+ /// sets the set of active Variable of the PolyhedralFunction
+ /** Sets the set of active Variable of the PolyhedralFunction.
+  */
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS FOR INITIALIZING THE PolyhedralFunctionBlock ----------*/
 /*--------------------------------------------------------------------------*/
+ /** @name Handling the data of the PolyhedralFunctionBlock
+    @{ */
+
  /// load the PolyhedralFunctionBlock out of an istream
  /** Method to deserialize the PolyhedralFunctionBlock out of an istream.
   *
@@ -100,10 +126,19 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * but it still have to be defined (throwing exception) to make the class
   * concrete. */
 
- virtual void load( std::istream &input ) override {
+ void load ( std::istream &input ) override {
   throw( std::logic_error(
           "PolyhedralFunctionBlock::load not implemented yet" ) );
  }
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
