@@ -110,17 +110,13 @@ class HydroSystemUnitBlock : public Block {
  * :Block, the group should contain the following:
  *
  * - The dimension "NumberHydroUnits" containing the number of hydro units
- *   (HydroUnitBlock) in the problem. The dimension is optional: if it is not
- *   provided then it is taken to be 0, which means that there is no hydro
- *   unit block in the problem.
+ *   (HydroUnitBlock) in the problem.
  *
  * - The groups "HydroUnitBlock_0", "HydroUnitBlock_1", ... ,
  *   "HydroUnitBlock_(n-1)", "PolyhedralFunctionBlock" with
  *   n == NumberHydroUnits, containing each one HydroUnitBlock, and plus the
  *   last one which is corresponding to the polyhedral function block of the
- *   problem. When NumberHydroUnits == 0, these groups need not be there since
- *   they are not read. If, instead, NumberHydroUnits > 0, it is an error if
- *   the corresponding groups are not there.
+ *   problem.
  *
  * Note: It must be considered the vector x with the length of R, where each
  *   element of that represents the Volumetric variables (future value of
