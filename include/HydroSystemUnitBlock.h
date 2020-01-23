@@ -118,17 +118,18 @@ class HydroSystemUnitBlock : public Block {
  *   last one which is corresponding to the polyhedral function block of the
  *   problem.
  *
- * Note: It must be considered the vector x with the length of R, where each
- *   element of that represents the Volumetric variables (future value of
- *   water) of each reservoir in each HydroUnitBlock at the end of time
- *   horizon. Note that the order of the variables in this vector is crucial,
- *   since that will dictate the order of the "Active" ColVariable of the
- *   PolyhedralFunction. The elements of vector X can be assumed as "x_0",
- *   "X_1", ... ,"X_R" where R == NumberHydroUnits. Since each  HydroUnitBlock
- *   can have more than one reservoir (cf. HydroUnitBlock::
- *   get_number_reservoirs()) a value that is useful in the following is the
- *   total number of reservoirs. We will refer to such number as
- *   "TotalNumberReservoirs", which is computed by just calling
+ * Note: Bellman values is represented by a single PolyhedralFunction which
+ *   lives inside the PolyhedralFunctionBlock. The PolyhedralFunction is
+ *   considered as a vector x with the length of R, where each element of that
+ *   represents the Volumetric variables of each reservoir in each
+ *   HydroUnitBlock at the end of time horizon. Note that the order of the
+ *   variables in this vector is crucial, since that will dictate the order of
+ *   the active ColVariable of the PolyhedralFunction. The elements of vector
+ *   X are assumed as "x_0", "X_1", ... ,"X_R" where R == NumberHydroUnits.
+ *   Since each  HydroUnitBlock can have more than one reservoir (cf.
+ *   HydroUnitBlock:: get_number_reservoirs()) a value that is useful in the
+ *   following is the  total number of reservoirs. We will refer to such
+ *   number as  "TotalNumberReservoirs", which is computed by just calling
  *   get_number_reservoirs() on each of the HydroUnitBlock and summing all the
  *   results. Clearly, TotalNumberReservoirs >= NumberHydroUnits. Some of the
  *   HydroUnitBlock may have just one reservoir; if this happens for all the
