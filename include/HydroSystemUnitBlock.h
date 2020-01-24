@@ -120,28 +120,28 @@ class HydroSystemUnitBlock : public Block {
  *
  * Note: Bellman values is represented by a single PolyhedralFunction which
  *   lives inside the PolyhedralFunctionBlock. The PolyhedralFunction is
- *   considered as a vector x with the length of R, where each element of that
- *   represents the Volumetric variables of each reservoir in each
- *   HydroUnitBlock at the end of time horizon. Note that the order of the
- *   variables in this vector is crucial, since that will dictate the order of
- *   the active ColVariable of the PolyhedralFunction. The elements of vector
- *   X are assumed as "x_0", "X_1", ... ,"X_R" where R == NumberHydroUnits.
- *   Since each  HydroUnitBlock can have more than one reservoir (cf.
+ *   considered as X which is a R_vector of pointers to ColVariable, where
+ *   each element of that represents the Volumetric variable of each reservoir
+ *   of each HydroUnitBlock at the end of time horizon. Note that the order of
+ *   the variables in X is crucial, since that will dictate the order of the
+ *   active ColVariable of the PolyhedralFunction. The elements of vector X
+ *   are assumed as "X_0", "X_1", ... ,"X_R" where R == TotalNumberReservoirs.
+ *   Since each HydroUnitBlock can have more than one reservoir (cf.
  *   HydroUnitBlock:: get_number_reservoirs()) a value that is useful in the
- *   following is the  total number of reservoirs. We will refer to such
- *   number as  "TotalNumberReservoirs", which is computed by just calling
+ *   following is the total number of reservoirs. We will refer to such number
+ *   as "TotalNumberReservoirs", which is computed by just calling
  *   get_number_reservoirs() on each of the HydroUnitBlock and summing all the
  *   results. Clearly, TotalNumberReservoirs >= NumberHydroUnits. Some of the
  *   HydroUnitBlock may have just one reservoir; if this happens for all the
  *   hydro unit blocks (but this is not likely), then TotalNumberReservoirs ==
  *   NumberHydroUnits. It is then useful to be able to assign a unique index
- *   h = 0, 1, ..., NumberHydroUnits - 1 to each of the hydro unit block in
- *   the UCBlock. When TotalNumberReservoirs == NumberHydroUnits the index is
- *   the same as b = 0, 1, ..., NumberHydroUnits - 1 (there is a one-to-one
+ *   h = 0, 1, ..., TotalNumberReservoirs - 1 to each of the reservoir in the
+ *   problem. When TotalNumberReservoirs == NumberHydroUnits the index is
+ *   the same as n = 0, 1, ..., NumberHydroUnits - 1 (there is a one-to-one
  *   correspondence between HydroUnitBlock and reservoir, but this is not
  *   likely to happen). When, instead, TotalNumberReservoirs >
  *   NumberHydroUnits, a mapping must be defined. The mapping is the obvious
- *   one: HydroUnitBlock have an ordering b = 0, 1, ..., NumberHydroUnits - 1
+ *   one: HydroUnitBlock have an ordering n = 0, 1, ..., NumberHydroUnits - 1
  *   (cf. the groups "HydroUnitBlock_0", "HydroUnitBlock_1", ... above), and
  *   the number of reservoirs into each HydroUnitBlock also have some natural
  *   ordering, Thus, in general the mapping is:
@@ -162,7 +162,7 @@ class HydroSystemUnitBlock : public Block {
  *                                      HydroUnitBlock_1 at the end of horizon
  *     ...
  *
- *   which of course boils down to "h = b" when each HydroUnitBlock has
+ *   which of course boils down to "h = n" when each HydroUnitBlock has
  *   exactly one reservoir (but this is not assumed to happen).
  */
  void deserialize( netCDF::NcGroup & group ) override;
