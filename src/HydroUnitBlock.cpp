@@ -65,92 +65,97 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  UnitBlock::deserialize( group );
 
-
  if (v_minimum_flow.empty()) {
-  v_minimum_flow.resize( boost::extents[ 0 ][ 0 ] );
   ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
-
  }
 
- if (v_minimum_volumetric.empty()) {
-  v_minimum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
- }
- if (v_maximum_volumetric.empty()) {
-  v_maximum_volumetric.resize( boost::extents[ 1 ][ 1 ] );
+ long rows = v_minimum_flow.shape()[0];
+ long cols = v_minimum_flow.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_minimum_flow.reshape(dims);
  }
 
- if (v_minimum_power.empty()) {
-  v_minimum_power.resize( boost::extents[ 0 ][ 0 ] );
+ if (v_maximum_flow.empty()) {
+  ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
  }
- if (v_maximum_power.empty()) {
-  v_maximum_power.resize( boost::extents[ 0 ][ 0 ] );
- }
- if (v_delta_ramp_up.empty()) {
-  v_delta_ramp_up.resize( boost::extents[ 0 ][ 0 ] );
- }
- if (v_delta_ramp_down.empty()) {
-  v_delta_ramp_down.resize( boost::extents[ 0 ][ 0 ] );
 
-  v_inertia_power.resize( boost::extents[ 0 ][ 0 ] );
+ rows = v_maximum_flow.shape()[0];
+ cols = v_maximum_flow.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_maximum_flow.reshape(dims);
  }
 
  ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
 
  ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
 
- ::deserialize( group, "NumberPieces", f_number_arcs ? : 1, v_number_pieces, true, true );
+ // ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true );
 
- ::deserialize( group, "StartLine", f_number_arcs ? : 1, v_start_arc);
+ ::deserialize( group, "NumberPieces", f_number_arcs ? f_number_arcs : 1, v_number_pieces, true, true );
 
- ::deserialize( group, "EndLine", f_number_arcs ? : 1, v_end_arc );
-
- if (v_inflows.empty()) {
-  v_inflows.resize( boost::extents[ f_number_reservoirs ? : 1 ][ f_time_horizon ] );
-
+ for (auto& n : v_number_pieces) {
+  f_total_number_pieces += n;
  }
+
+ ::deserialize( group, "StartLine", f_number_arcs ? f_number_arcs : 1, v_start_arc);
+
+ ::deserialize( group, "EndLine", f_number_arcs ? f_number_arcs : 1, v_end_arc );
+
  ::deserialize( group, "Inflows", v_inflows, true, false );
 
- if (v_maximum_flow.empty()) {
-  v_maximum_flow.resize( boost::extents[ 1 ][ 1 ] );
-  ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
-
+ rows = v_inflows.shape()[0];
+ cols = v_inflows.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_inflows.reshape(dims);
  }
 
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
 
+ rows = v_minimum_power.shape()[0];
+ cols = v_minimum_power.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_minimum_power.reshape(dims);
+ }
+
  ::deserialize( group, "MaxPower", v_maximum_power, true, true );
+
+ rows = v_maximum_power.shape()[0];
+ cols = v_maximum_power.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_maximum_power.reshape(dims);
+ }
 
  ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
 
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
 
-
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
-
 
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
 
+ ::deserialize( group, "LinearTerm", f_total_number_pieces ? f_total_number_pieces : 1, v_linear_term, true, true );
 
- ::deserialize( group, "LinearTerm", f_number_arcs ? : 1, v_linear_term, true, true );
-
-
- ::deserialize( group, "ConstantTerm", f_total_number_pieces, v_const_term, false, true );
+ ::deserialize( group, "ConstantTerm", f_total_number_pieces ? f_total_number_pieces : 1, v_const_term, true, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
+ ::deserialize( group, "InitialFlowRate", f_number_arcs ? f_number_arcs : 1, v_initial_flow_rate, true, true );
 
- ::deserialize( group, "InitialFlowRate", f_number_arcs ? : 1, v_initial_flow_rate, true, true );
+ ::deserialize( group, "InitialVolumetric", f_number_reservoirs ? f_number_reservoirs : 1, v_initial_volumetric, true, true );
 
+ ::deserialize( group, "UphillFlow", f_number_arcs ? f_number_arcs : 1, v_uphill_delay, true, true );
 
- ::deserialize( group, "InitialVolumetric", f_number_reservoirs ? : 1, v_initial_volumetric, true, true );
-
-
- ::deserialize( group, "UphillFlow", f_number_arcs ? : 1, v_uphill_delay, true, true );
-
-
- ::deserialize( group, "DownhillFlow", f_number_arcs ? : 1, v_downhill_delay, true, true );
-
-
+ ::deserialize( group, "DownhillFlow", f_number_arcs ? f_number_arcs : 1, v_downhill_delay, true, true );
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
 
@@ -164,8 +169,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
  UnitBlock::generate_abstract_variables( stvv );
 
- unsigned int number_arcs = f_number_arcs ? : 1;
- unsigned int number_reservoirs = f_number_reservoirs ? : 1;
+ unsigned int number_arcs = f_number_arcs ? f_number_arcs : 1;
+ unsigned int number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
 
  if( f_time_horizon == 0 ) {
   // there are no variables to be generated
@@ -218,56 +223,56 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  }
  add_static_variable ( v_active_power, "p" );
 
- if( !v_primary_spinning_reserve.empty()  ) {
-  // the abstract variables should be generated only once
-  return;
- }
- v_primary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
-
- for( Index t = 0; t < f_time_horizon; ++t ) {
-  for( Index g = 0; g < f_number_arcs; ++g ) {
-   v_primary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
-
-  }
- }
- add_static_variable ( v_primary_spinning_reserve, "pr" );
-
- if( !v_secondary_spinning_reserve.empty()  ) {
-  // the abstract variables should be generated only once
-  return;
- }
- v_secondary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
-
- for( Index t = 0; t < f_time_horizon; ++t ) {
-  for( Index g = 0; g < f_number_arcs; ++g ) {
-   v_secondary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
-
-  }
- }
- add_static_variable ( v_secondary_spinning_reserve, "sr" );
+ // if( !v_primary_spinning_reserve.empty()  ) {
+ //  // the abstract variables should be generated only once
+ //  return;
+ // }
+ // v_primary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
+ //
+ // for( Index t = 0; t < f_time_horizon; ++t ) {
+ //  for( Index g = 0; g < f_number_arcs; ++g ) {
+ //   v_primary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
+ //
+ //  }
+ // }
+ // add_static_variable ( v_primary_spinning_reserve, "pr" );
+ //
+ // if( !v_secondary_spinning_reserve.empty()  ) {
+ //  // the abstract variables should be generated only once
+ //  return;
+ // }
+ // v_secondary_spinning_reserve.resize(boost::extents[f_time_horizon][f_number_arcs]);
+ //
+ // for( Index t = 0; t < f_time_horizon; ++t ) {
+ //  for( Index g = 0; g < f_number_arcs; ++g ) {
+ //   v_secondary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
+ //
+ //  }
+ // }
+ // add_static_variable ( v_secondary_spinning_reserve, "sr" );
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
- unsigned int number_arcs = f_number_arcs ?: 1;
- unsigned int number_reservoirs = f_number_reservoirs ?: 1;
+ unsigned int number_arcs = f_number_arcs ? f_number_arcs : 1;
+ unsigned int number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
 
  // initial condition of matrix MinFlow
  boost::multi_array< double, 2 > MinFlow = v_minimum_flow;
 
- if( MinFlow.size() == number_arcs ) {
-  MinFlow.resize( boost::extents[f_time_horizon][number_arcs] );
+ if( MinFlow.shape()[ 0 ] == 1 ) {
+  MinFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
   for( Index t = 0; t < f_time_horizon; ++t ) {
    for( Index g = 0; g < number_arcs; ++g ) {
-    MinFlow[t][g] = v_minimum_flow[0][g];
-
+    MinFlow[ t ][ g ] = v_minimum_flow[ 0 ][ g ];
    }
   }
- } else if( MinFlow.size() > number_arcs ) {
 
-  MinFlow.resize( boost::extents[f_time_horizon][number_arcs] );
+ } else if( MinFlow.shape()[ 0 ] < f_time_horizon ) {
+
+  MinFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
 
   for( Index g = 0; g < number_arcs; ++g ) {
 
@@ -277,11 +282,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( i == v_change_intervals.size() - 1 ) {
      sup = f_time_horizon;
     } else {
-     sup = v_change_intervals[i];
+     sup = v_change_intervals[ i ];
     }
     for( ; j < sup; ++j ) {
 
-     MinFlow[j][g] = v_minimum_flow[i][g];
+     MinFlow[ j ][ g ] = v_minimum_flow[ i ][ g ];
     }
    }
   }
@@ -291,17 +296,17 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of matrix MaxFlow
  boost::multi_array< double, 2 > MaxFlow = v_maximum_flow;
 
- if( MaxFlow.size() == number_arcs ) {
-  MaxFlow.resize( boost::extents[f_time_horizon][number_arcs] );
+ if( MaxFlow.shape()[ 0 ] == 1 ) {
+  MaxFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
   for( Index t = 0; t < f_time_horizon; ++t ) {
    for( Index g = 0; g < number_arcs; ++g ) {
-    MaxFlow[t][g] = v_maximum_flow[0][g];
+    MaxFlow[ t ][ g ] = v_maximum_flow[ 0 ][ g ];
 
    }
   }
- } else if( MaxFlow.size() > number_arcs ) {
+ } else if( MaxFlow.shape()[ 0 ] < f_time_horizon ) {
 
-  MaxFlow.resize( boost::extents[f_time_horizon][number_arcs] );
+  MaxFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
 
   for( Index g = 0; g < number_arcs; ++g ) {
 
@@ -311,11 +316,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( i == v_change_intervals.size() - 1 ) {
      sup = f_time_horizon;
     } else {
-     sup = v_change_intervals[i];
+     sup = v_change_intervals[ i ];
     }
     for( ; j < sup; ++j ) {
 
-     MaxFlow[j][g] = v_maximum_flow[i][g];
+     MaxFlow[ j ][ g ] = v_maximum_flow[ i ][ g ];
     }
    }
   }
@@ -324,19 +329,19 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of matrix MinVolumetric
  boost::multi_array< double, 2 > MinVolumetric = v_minimum_volumetric;
 
- if( MinVolumetric.size() == number_reservoirs ) {
-  MinVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
+ if( MinVolumetric.shape()[ 1 ] == 1 ) {
+  MinVolumetric.resize( boost::extents[ number_reservoirs ][ f_time_horizon ] );
 
-   for( Index n = 0; n < number_reservoirs; ++n ) {
-    for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index n = 0; n < number_reservoirs; ++n ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-    MinVolumetric[n][t] = v_minimum_volumetric[n][0];
+    MinVolumetric[ n ][ t ] = v_minimum_volumetric[ n ][ 0 ];
 
    }
   }
- } else if( MinVolumetric.size() > number_reservoirs ) {
+ } else if( MinVolumetric.shape()[ 1 ] < f_time_horizon ) {
 
-  MinVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
+  MinVolumetric.resize( boost::extents[ number_reservoirs ][ f_time_horizon ] );
 
   for( Index n = 0; n < number_reservoirs; ++n ) {
 
@@ -346,11 +351,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( i == v_change_intervals.size() - 1 ) {
      sup = f_time_horizon;
     } else {
-     sup = v_change_intervals[i];
+     sup = v_change_intervals[ i ];
     }
     for( ; j < sup; ++j ) {
 
-     MinVolumetric[n][j] = v_minimum_volumetric[n][i];
+     MinVolumetric[ n ][ j ] = v_minimum_volumetric[ n ][ i ];
     }
    }
   }
@@ -359,7 +364,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of matrix MaxVolumetric
  boost::multi_array< double, 2 > MaxVolumetric = v_maximum_volumetric;
 
- if( MaxVolumetric.size() == number_reservoirs ) {
+ if( MaxVolumetric.shape()[ 1 ] == 1 ) {
   MaxVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
 
    for( Index n = 0; n < number_reservoirs; ++n ) {
@@ -370,7 +375,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    }
   }
- } else if( MaxVolumetric.size() > number_reservoirs ) {
+ } else if( MaxVolumetric.shape()[ 1 ] < f_time_horizon ) {
 
   MaxVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
 
@@ -415,18 +420,16 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of matrix MinPower
  boost::multi_array< double, 2 > MinPower = v_minimum_power;
 
- if( MinPower.size() == number_arcs ) {
-  MinPower.resize( boost::extents[f_time_horizon][number_arcs] );
+ if( MinPower.shape()[ 0 ] == 1 ) {
+  MinPower.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
 
   for( Index n = 0; n < number_arcs; ++n ) {
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-    MinPower[t][n] = v_minimum_power[0][n];
-
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    MinPower[ t ][ n ] = v_minimum_power[ 0 ][ n ];
    }
   }
- } else if( MinPower.size() > number_reservoirs ) {
 
+ } else if( MinPower.shape()[ 0 ] < f_time_horizon ) {
   MinPower.resize( boost::extents[f_time_horizon][number_arcs] );
 
   for( Index n = 0; n < number_arcs; ++n ) {
@@ -449,7 +452,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  boost::multi_array< double, 2 > MaxPower = v_maximum_power;
 
- if( MaxPower.size() == number_arcs ) {
+ if( MaxPower.shape()[0] == 1 ) {
   MaxPower.resize( boost::extents[f_time_horizon][number_arcs] );
 
   for( Index n = 0; n < number_arcs; ++n ) {
@@ -459,7 +462,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    }
   }
- } else if( MaxPower.size() > number_reservoirs ) {
+ } else if( MaxPower.shape()[ 0 ] < f_time_horizon ) {
 
   MaxPower.resize( boost::extents[number_reservoirs][f_time_horizon] );
 
@@ -1140,10 +1143,10 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
                                                f_total_number_pieces );
 
  auto dim_number_reservoirs =
-         group.addDim( "NumberReservoirs", f_number_reservoirs ? : 1 );
+         group.addDim( "NumberReservoirs", f_number_reservoirs ? f_number_reservoirs : 1 );
 
  auto dim_number_arcs =
-         group.addDim( "NumberArcs", f_number_arcs ? : 1 );
+         group.addDim( "NumberArcs", f_number_arcs ? f_number_arcs : 1 );
 
 
  ::serialize( group, "NumberPieces", netCDF::NcUint64(),

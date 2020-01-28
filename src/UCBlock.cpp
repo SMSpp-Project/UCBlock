@@ -192,7 +192,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
                     f_total_number_pollutant_zones,        true );
 
  boost::multi_array< double, 2 > v_active_power_demand;
- v_active_power_demand.resize( boost::extents[ number_nodes ][ f_time_horizon ] );
  bool ap_found = ::deserialize( group, "ActivePowerDemand",
                                 v_active_power_demand, true, false );
 
@@ -305,7 +304,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
     if( sub_block->get_active_demand().empty() ) {
-     sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+     sub_block->set_ActiveDemand( { v_active_power_demand[ i ][ 0 ] } );
     }
 
    } else {
@@ -316,7 +315,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     if( f_NetworkData ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
-    sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+    sub_block->set_ActiveDemand( { v_active_power_demand[ i ][ 0 ] } );
    }
 
 
@@ -324,7 +323,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
    // DCNetworkBlock
 
    typedef boost::multi_array_types::index_range range;
-   auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
+   auto ap_c = v_active_power_demand[ boost::indices[ i ][ range( 0, number_nodes ) ] ];
    std::vector< double > ap_v( number_nodes );
    std::copy( ap_c.begin(), ap_c.end(), ap_v.begin() );
 
