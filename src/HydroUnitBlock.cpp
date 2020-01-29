@@ -93,8 +93,6 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
 
- // ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true );
-
  ::deserialize( group, "NumberPieces", f_number_arcs ? f_number_arcs : 1, v_number_pieces, true, true );
 
  for (auto& n : v_number_pieces) {
@@ -137,11 +135,43 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
 
+ rows = v_delta_ramp_up.shape()[0];
+ cols = v_delta_ramp_up.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_delta_ramp_up.reshape(dims);
+ }
+
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
+
+ rows = v_delta_ramp_down.shape()[0];
+ cols = v_delta_ramp_down.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_delta_ramp_down.reshape(dims);
+ }
 
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
 
+ rows = v_primary_rho.shape()[0];
+ cols = v_primary_rho.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_primary_rho.reshape(dims);
+ }
+
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
+
+ rows = v_secondary_rho.shape()[0];
+ cols = v_secondary_rho.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_secondary_rho.reshape(dims);
+ }
 
  ::deserialize( group, "LinearTerm", f_total_number_pieces ? f_total_number_pieces : 1, v_linear_term, true, true );
 
@@ -159,8 +189,22 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
 
+ rows = v_minimum_volumetric.shape()[0];
+ cols = v_minimum_volumetric.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_minimum_volumetric.reshape(dims);
+ }
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
 
+ rows = v_maximum_volumetric.shape()[0];
+ cols = v_maximum_volumetric.shape()[1];
+ if (rows > 1 && cols == 1) {
+  // The vector must be transposed
+  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
+  v_maximum_volumetric.reshape(dims);
+ }
 }// end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -487,7 +531,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of matrix DeltaRampUp
  boost::multi_array< double, 2 > DeltaRampUp = v_delta_ramp_up;
 
- if( DeltaRampUp.size() == number_arcs ) {
+ if( DeltaRampUp.shape()[0] == 1  ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
    for( Index g = 0; g < number_arcs; ++g ) {
@@ -498,7 +542,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    }
   }
- } else if( DeltaRampUp.size() > number_arcs ) {
+ } else if( DeltaRampUp.shape()[ 0 ] < f_time_horizon ) {
 
   DeltaRampUp.resize( boost::extents[f_time_horizon][number_arcs] );
 
@@ -638,7 +682,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
  // initial condition of vector ConstantTerm
  std::vector< double > ConstantTerm = v_const_term;
-
+ if( ConstantTerm.size() == 1 ) {
+  ConstantTerm.resize( number_arcs, ConstantTerm[0] );
+ }
  // initial condition of matrix InertiaPower
  boost::multi_array< double, 2 > InertiaPower = v_inertia_power;
 
@@ -828,7 +874,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary");
- } */
+ }
  // primary reserves constraints for pumps
  if( MaxFlow[0][0] <= 0 ) {
 
@@ -880,7 +926,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   add_static_constraint( SecondaryPumps_Const, "SecondaryPumps");
  }
-
+*/
  // flow to active power function constraints for pumps
  if( MaxFlow[0][0] <= 0 ) {
 
@@ -926,10 +972,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     auto linear_function = new LinearFunction();
 
     linear_function->add_variable( &v_active_power[arc][t], 1.0 );
-    linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[arc] );
 
+    for( Index l = 0 ; l < NumberPieces[arc]; ++l ) {
 
-    FlowActivePowerTurbines_Const[t][arc].set_rhs( 0.0 );
+     linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[l] );
+
+     FlowActivePowerTurbines_Const[t][arc].set_rhs( ConstantTerm[l] );
+
+    }
+
     FlowActivePowerTurbines_Const[t][arc].set_lhs( -Inf< double >());
     FlowActivePowerTurbines_Const[t][arc].set_function( linear_function );
    }
