@@ -756,8 +756,10 @@ class HydroUnitBlock : public UnitBlock {
  Index get_number_reservoirs() const { return f_number_reservoirs; }
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of arcs
- Index get_number_arcs() const { return f_number_arcs; }
+ /// returns the number of arcs/generators
+ Index get_number_generators() const override {
+  return f_number_arcs ? f_number_arcs : 1;
+ }
 
 /*--------------------------------------------------------------------------*/
 /// returns the vector of start arcs

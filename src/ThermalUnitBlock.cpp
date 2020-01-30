@@ -124,8 +124,8 @@ if ( f_time_horizon > 0 ){
   int n = 0;
   for( auto & i : v_commitment ) {
    i.set_type( ColVariable::kBinary );
-   add_static_variable( i, "u_" + std::to_string( n++ ) );
   }
+  add_static_variable( v_commitment, "u" );
  }
 
  // Active Power Variable
@@ -136,8 +136,8 @@ if ( f_time_horizon > 0 ){
   int n = 0;
   for( auto & i : v_active_power ) {
    i.set_type( ColVariable::kNonNegative );
-   add_static_variable( i, "p_" + std::to_string( n++ ) );
   }
+  add_static_variable( v_active_power, "p" );
  }
 
  // Primary Spinning Reserve Variable
@@ -148,8 +148,8 @@ if ( f_time_horizon > 0 ){
   int n = 0;
   for( auto & i : v_primary_spinning_reserve ) {
    i.set_type( ColVariable::kNonNegative );
-   add_static_variable( i, "pr_" + std::to_string( n++ ) );
   }
+   add_static_variable( v_primary_spinning_reserve, "pr" );
  }
 
  // Secondary Spinning Reserve Variable
@@ -160,8 +160,8 @@ if ( f_time_horizon > 0 ){
   int n = 0;
   for( auto & i : v_secondary_spinning_reserve ) {
    i.set_type( ColVariable::kNonNegative );
-   add_static_variable( i, "sr_" + std::to_string( n++ ) );
   }
+   add_static_variable( v_secondary_spinning_reserve, "sr" );
  }
 
 }
@@ -178,9 +178,8 @@ if ( f_time_horizon > 0 ){
    int n = 0;
    for( auto & i : v_start_up ) {
     i.set_type( ColVariable::kBinary );
-    add_static_variable( i, "v_" + std::to_string( n++ ) );
    }
-   // add_static_variable( v_start_up, "v" );
+   add_static_variable( v_start_up, "v" );
   }
 
   if( v_shut_down.size() != startup_shutdown_size ) {
@@ -189,9 +188,8 @@ if ( f_time_horizon > 0 ){
    int n = 0;
    for( auto & i : v_shut_down ) {
     i.set_type( ColVariable::kBinary );
-    add_static_variable( i, "w_" + std::to_string( n++ ) );
    }
-   // add_static_variable( v_shut_down, "w" );
+   add_static_variable( v_shut_down, "w" );
   }
  }
 
