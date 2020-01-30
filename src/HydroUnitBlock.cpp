@@ -973,13 +973,19 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     linear_function->add_variable( &v_active_power[arc][t], 1.0 );
 
-    for( Index l = 0 ; l < NumberPieces[arc]; ++l ) {
+     if (!v_linear_term.empty()) {
+     linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[arc] );
+    } else{
+      linear_function->add_variable( &v_flow_rate[t][arc], 0.0 );
 
-     linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[l] );
+     }
+     if (!v_const_term.empty()) {
+      FlowActivePowerTurbines_Const[t][arc].set_rhs( ConstantTerm[arc] );
+     } else{
+      FlowActivePowerTurbines_Const[t][arc].set_rhs( 0.0 );
 
-     FlowActivePowerTurbines_Const[t][arc].set_rhs( ConstantTerm[l] );
+     }
 
-    }
 
     FlowActivePowerTurbines_Const[t][arc].set_lhs( -Inf< double >());
     FlowActivePowerTurbines_Const[t][arc].set_function( linear_function );
@@ -1105,7 +1111,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // final volumes fo each reservoir constraints
-
+/*
  if( FinalVolumeReservoir_Const.size() != f_time_horizon ) {
   // this should only happen once
   assert( FinalVolumeReservoir_Const.empty());
@@ -1149,7 +1155,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir");
 
-
+*/
 
  // volumetric bounds constraints
 
