@@ -967,28 +967,29 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
+   int piece = 0;
+
    for( Index arc = 0; arc < number_arcs; ++arc ) {
 
     auto linear_function = new LinearFunction();
+    linear_function->add_variable( &v_active_power[ arc ][ t ], 1.0 );
 
-    linear_function->add_variable( &v_active_power[arc][t], 1.0 );
-
-     if (!v_linear_term.empty()) {
-     linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[arc] );
-    } else{
-      linear_function->add_variable( &v_flow_rate[t][arc], 0.0 );
-
+    if( !v_linear_term.empty() ) {
+     for( ; piece < NumberPieces[ arc ]; ++piece ) {
+      linear_function
+       ->add_variable( &v_flow_rate[ t ][ arc ], -LinearTerm[ piece ] );
      }
-     if (!v_const_term.empty()) {
-      FlowActivePowerTurbines_Const[t][arc].set_rhs( ConstantTerm[arc] );
-     } else{
-      FlowActivePowerTurbines_Const[t][arc].set_rhs( 0.0 );
+    } else {
+     linear_function->add_variable( &v_flow_rate[ t ][ arc ], 0.0 );
+    }
+    if( !v_const_term.empty() ) {
+     FlowActivePowerTurbines_Const[ t ][ arc ].set_rhs( ConstantTerm[ arc ] );
+    } else {
+     FlowActivePowerTurbines_Const[ t ][ arc ].set_rhs( 0.0 );
+    }
 
-     }
-
-
-    FlowActivePowerTurbines_Const[t][arc].set_lhs( -Inf< double >());
-    FlowActivePowerTurbines_Const[t][arc].set_function( linear_function );
+    FlowActivePowerTurbines_Const[ t ][ arc ].set_lhs( -Inf< double >() );
+    FlowActivePowerTurbines_Const[ t ][ arc ].set_function( linear_function );
    }
   }
 
