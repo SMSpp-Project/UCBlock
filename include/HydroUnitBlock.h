@@ -1380,7 +1380,7 @@ class HydroUnitBlock : public UnitBlock {
  boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
 
  /// flow to active power function constraints for turbine
- boost::multi_array< FRowConstraint, 2 >  FlowActivePowerTurbines_Const;
+ boost::multi_array< FRowConstraint, 3 >  FlowActivePowerTurbines_Const;
 
  /// ramp-up constraints
  boost::multi_array< FRowConstraint, 2 >  RampUp_Const;

@@ -955,7 +955,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // flow to active power function constraints for turbines
- if (number_arcs > 0 ) {
+ if (MaxFlow[0][0] > 0 ) {
+  if (number_arcs > 0 ) {
   int TotalNumberPieces = f_total_number_pieces ? f_total_number_pieces : number_arcs;
   if( FlowActivePowerTurbines_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -966,10 +967,10 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     FlowActivePowerTurbines_Const.resize
             ( boost::multi_array< FRowConstraint, 3 >::
               extent_gen()[f_time_horizon][number_arcs][1] );
-   } else if ( TotalNumberPieces > number_arcs ) {
+   } else if( TotalNumberPieces > number_arcs ) {
     FlowActivePowerTurbines_Const.resize
             ( boost::multi_array< FRowConstraint, 3 >::
-              extent_gen()[f_time_horizon][number_arcs][TotalNumberPieces] );
+              extent_gen()[f_time_horizon][1][TotalNumberPieces] );
    }
   }
 
@@ -978,96 +979,61 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    Index piece = 0;
    Index end = 0;
    for( Index arc = 0; arc < number_arcs; ++arc ) {
-    end += NumberPieces[ arc ];
+    if( !NumberPieces.empty()) {
+     end += NumberPieces[arc];
+    }
     if( TotalNumberPieces == number_arcs ) {
 
      auto linear_function = new LinearFunction();
 
-     linear_function->add_variable( &v_active_power[ arc ][ t ], 1.0 );
-     if( !v_linear_term.empty() ) {
+     linear_function->add_variable( &v_active_power[arc][t], 1.0 );
+     if( !v_linear_term.empty()) {
       linear_function
-       ->add_variable( &v_flow_rate[ t ][ arc ], -LinearTerm[ arc ] );
+              ->add_variable( &v_flow_rate[t][arc], -LinearTerm[arc] );
      } else {
-      linear_function->add_variable( &v_flow_rate[ t ][ arc ], 0.0 );
+      linear_function->add_variable( &v_flow_rate[t][arc], 0.0 );
 
      }
-     if( !v_const_term.empty() ) {
-      FlowActivePowerTurbines_Const[ t ][ arc ][ 0 ]
-       .set_rhs( ConstantTerm[ arc ] );
+     if( !v_const_term.empty()) {
+      FlowActivePowerTurbines_Const[t][arc][0]
+              .set_rhs( ConstantTerm[arc] );
      } else {
-      FlowActivePowerTurbines_Const[ t ][ arc ][ 0 ].set_rhs( 0.0 );
+      FlowActivePowerTurbines_Const[t][arc][0].set_rhs( 0.0 );
 
      }
-     FlowActivePowerTurbines_Const[ t ][ arc ][ 0 ].set_lhs( -Inf< double >() );
-     FlowActivePowerTurbines_Const[ t ][ arc ][ 0 ]
-      .set_function( linear_function );
+     FlowActivePowerTurbines_Const[t][arc][0].set_lhs( -Inf< double >());
+     FlowActivePowerTurbines_Const[t][arc][0]
+             .set_function( linear_function );
 
     } else if( TotalNumberPieces > number_arcs ) {
 
      for( ; piece < end; ++piece ) {
       auto linear_function = new LinearFunction();
 
-      linear_function->add_variable( &v_active_power[ arc ][ t ], 1.0 );
-      if( !v_linear_term.empty() ) {
+      linear_function->add_variable( &v_active_power[arc][t], 1.0 );
+      if( !v_linear_term.empty()) {
        linear_function
-        ->add_variable( &v_flow_rate[ t ][ arc ], -LinearTerm[ piece ] );
+               ->add_variable( &v_flow_rate[t][arc], -LinearTerm[piece] );
       } else {
-       linear_function->add_variable( &v_flow_rate[ t ][ arc ], 0.0 );
+       linear_function->add_variable( &v_flow_rate[t][arc], 0.0 );
       }
-      if( !v_const_term.empty() ) {
-       FlowActivePowerTurbines_Const[ t ][ arc ][ piece ]
-        .set_rhs( ConstantTerm[ piece ] );
+      if( !v_const_term.empty()) {
+       FlowActivePowerTurbines_Const[t][0][piece]
+               .set_rhs( ConstantTerm[piece] );
       } else {
-       FlowActivePowerTurbines_Const[ t ][ arc ][ piece ].set_rhs( 0.0 );
+       FlowActivePowerTurbines_Const[t][0][piece].set_rhs( 0.0 );
       }
-      FlowActivePowerTurbines_Const[ t ][ arc ][ piece ]
-       .set_lhs( -Inf< double >() );
-      FlowActivePowerTurbines_Const[ t ][ arc ][ piece ]
-       .set_function( linear_function );
+      FlowActivePowerTurbines_Const[t][0][piece]
+              .set_lhs( -Inf< double >());
+      FlowActivePowerTurbines_Const[t][0][piece]
+              .set_function( linear_function );
      }
     }
    }
   }
   add_static_constraint( FlowActivePowerTurbines_Const, "FlowActivePowerTurbines" );
-
  }
-/*
-    auto linear_function = new LinearFunction();
-    linear_function->add_variable( &v_active_power[ arc ][ t ], 1.0 );
-
-    if( !v_linear_term.empty() && !v_const_term.empty() ) {
-
-
-     for( int piece = 0 ; piece < NumberPieces[ arc ]; ++piece ) {
-
-       linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[piece] );
-       FlowActivePowerTurbines_Const[t][arc][piece].set_rhs( ConstantTerm[piece] );
-      FlowActivePowerTurbines_Const[ t ][ arc ][piece].set_lhs( -Inf< double >() );
-      FlowActivePowerTurbines_Const[ t ][ arc ][piece].set_function( linear_function );
-     }
-    } else {
-     if (!v_linear_term.empty()) {
-      linear_function->add_variable( &v_flow_rate[t][arc], -LinearTerm[arc] );
-     }else{
-      linear_function->add_variable( &v_flow_rate[t][arc], 0.0 );
-
-     }
-     if (!v_const_term.empty()) {
-      FlowActivePowerTurbines_Const[t][arc][0].set_rhs( ConstantTerm[arc] );
-     }else{
-      FlowActivePowerTurbines_Const[t][arc][0].set_rhs(0.0 );
-
-     }
-     FlowActivePowerTurbines_Const[ t ][ arc ][0].set_lhs( -Inf< double >() );
-     FlowActivePowerTurbines_Const[ t ][ arc ][0].set_function( linear_function );
-    }
-   }
-  }
-
-  add_static_constraint( FlowActivePowerTurbines_Const, "FlowActivePowerTurbines" );
-
  }
- */
  // flow rate bounds constraints
  {
   if( FlowRateBounds_Const.size() != f_time_horizon ) {
