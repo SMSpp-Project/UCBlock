@@ -1156,7 +1156,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   assert( FinalVolumeReservoir_Const.empty());
   FinalVolumeReservoir_Const.resize
           ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon ][ number_reservoirs  ] );
+            extent_gen()[number_reservoirs ][ f_time_horizon ] );
  }
 
  for( Index n = 0; n < number_reservoirs; ++n ) {
@@ -1170,8 +1170,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    l_f->add_variable( &v_flow_rate[0][l], 1.0 );
 
   }
-  FinalVolumeReservoir_Const[0][n].set_both( InitialVolumetric[n] + Inflows[n][0] );
-  FinalVolumeReservoir_Const[0][n].set_function( l_f );
+  FinalVolumeReservoir_Const[n][0].set_both( InitialVolumetric[n] + Inflows[n][0] );
+  FinalVolumeReservoir_Const[n][0].set_function( l_f );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
        ++t, ++constraint_index  ) {
@@ -1187,8 +1187,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     linear_function->add_variable( &v_flow_rate[t][l], 1.0 );
 
    }
-   FinalVolumeReservoir_Const[constraint_index][n].set_both(  Inflows[n][t] );
-   FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
+   FinalVolumeReservoir_Const[n][constraint_index].set_both(  Inflows[n][constraint_index] );
+   FinalVolumeReservoir_Const[n][constraint_index].set_function( linear_function );
   }
   }
 
