@@ -1206,11 +1206,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
           ( boost::multi_array< FRowConstraint, 2 >::
             extent_gen()[number_reservoirs][f_time_horizon] );
  }
- for( Index t = 0; t < f_time_horizon; ++t ) {
  for( Index node = 0; node < number_reservoirs; ++node ) {
-   auto linear_function = new LinearFunction();
+  for( Index t = 0; t < f_time_horizon; ++t ) {
 
+   auto linear_function = new LinearFunction();
    linear_function->add_variable( &v_volumetric[node][t], 1.0 );
+
    VolumetricBounds_Const[node][t].set_lhs( MinVolumetric[node][t] );
    VolumetricBounds_Const[node][t].set_rhs( MaxVolumetric[node][t] );
    VolumetricBounds_Const[node][t].set_function( linear_function );

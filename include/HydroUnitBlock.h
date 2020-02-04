@@ -753,7 +753,7 @@ class HydroUnitBlock : public UnitBlock {
  * @{ */
 
 /// returns the number of reservoirs
- Index get_number_reservoirs() const { return f_number_reservoirs; }
+ Index get_number_reservoirs() const { return f_number_reservoirs? f_number_reservoirs : 1 ; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of arcs/generators
@@ -1186,8 +1186,8 @@ class HydroUnitBlock : public UnitBlock {
  *   M[ t , a ] is the volumetric variable for time step t of arc (generator)
  *   a. */
 
- const boost::multi_array< ColVariable , 2 > & get_volumetric() const {
-  return v_volumetric;
+ ColVariable * get_volumetric( Index reservior  ) {
+  return ( v_volumetric.data() + reservior * f_time_horizon );
  }
  /*--------------------------------------------------------------------------*/
 /// returns the matrix of flow rate variables
@@ -1201,8 +1201,8 @@ class HydroUnitBlock : public UnitBlock {
  *   M[ t , a ] is the flow rate variable for time step t of arc (generator)
  *   a. */
 
- const boost::multi_array< ColVariable , 2 > & get_flow_rate() const {
-  return v_flow_rate;
+ ColVariable * get_flow_rate( Index arc)  {
+  return ( v_flow_rate.data() + arc * f_time_horizon);
  }
 
 /*--------------------------------------------------------------------------*/
