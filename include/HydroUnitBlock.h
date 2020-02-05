@@ -753,7 +753,8 @@ class HydroUnitBlock : public UnitBlock {
  * @{ */
 
 /// returns the number of reservoirs
- Index get_number_reservoirs() const { return f_number_reservoirs? f_number_reservoirs : 1 ; }
+ Index get_number_reservoirs() const {
+  return f_number_reservoirs? f_number_reservoirs : 1 ; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of arcs/generators
@@ -1178,16 +1179,16 @@ class HydroUnitBlock : public UnitBlock {
 /// returns the matrix of volumetric variables
 /** The returned boost::multi_array< ColVariable , 2 >, say V, contains the
  * volumetric variables and is indexed over the dimensions time horizon and
- * number of arcs (generators). There are two possible cases:
+ * number of reservoirs. There are two possible cases:
  *
  * - if V is empty(), then these variables are not defined;
  *
- * - otherwise, V must have f_time_horizon rows and f_number_arcs columns, and
- *   M[ t , a ] is the volumetric variable for time step t of arc (generator)
- *   a. */
+ * - otherwise, V must have f_time_horizon rows and f_number_reservoir columns
+ *   and M[ t , n ] is the volumetric variable for time step t of reservoir n.
+ *   */
 
- ColVariable * get_volumetric( Index reservior  ) {
-  return ( v_volumetric.data() + reservior * f_time_horizon );
+ ColVariable * get_volumetric( Index reservoir  ) {
+  return ( v_volumetric.data() + reservoir * f_time_horizon );
  }
  /*--------------------------------------------------------------------------*/
 /// returns the matrix of flow rate variables
@@ -1344,19 +1345,19 @@ class HydroUnitBlock : public UnitBlock {
 /*-----------------------------variables------------------------------------*/
 
  /// the matrix of volumetric variables
- boost::multi_array< ColVariable , 2> v_volumetric;
+ boost::multi_array< ColVariable , 2 > v_volumetric;
 
  /// the matrix of flow rate variables
- boost::multi_array< ColVariable , 2> v_flow_rate;
+ boost::multi_array< ColVariable , 2 > v_flow_rate;
 
  /// the active power variables
- boost::multi_array< ColVariable , 2> v_active_power;
+ boost::multi_array< ColVariable , 2 > v_active_power;
 
  /// the primary spinning reserve variables
- boost::multi_array< ColVariable , 2> v_primary_spinning_reserve;
+ boost::multi_array< ColVariable , 2 > v_primary_spinning_reserve;
 
  /// the secondary spinning reserve variables
- boost::multi_array< ColVariable , 2> v_secondary_spinning_reserve;
+ boost::multi_array< ColVariable , 2 > v_secondary_spinning_reserve;
 /*----------------------------constraints-----------------------------------*/
  /// maximum power output according to primary-secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  MaxPowerPrimarySecondary_Const;
