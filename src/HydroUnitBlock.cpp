@@ -99,9 +99,9 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
   f_total_number_pieces += n;
  }
 
- ::deserialize( group, "StartLine", f_number_arcs ? f_number_arcs : 1, v_start_arc);
+ ::deserialize( group, "StartArc", f_number_arcs ? f_number_arcs : 1, v_start_arc);
 
- ::deserialize( group, "EndLine", f_number_arcs ? f_number_arcs : 1, v_end_arc );
+ ::deserialize( group, "EndArc", f_number_arcs ? f_number_arcs : 1, v_end_arc );
 
  ::deserialize( group, "Inflows", v_inflows, true, false );
 
@@ -731,6 +731,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  // initial condition of vector DownhillFlow
  std::vector< Index > DownhillFlow = v_downhill_delay;
 
+ // initial condition of vector StartArc
+ std::vector< Index > StartArc = v_start_arc;
+
+ // initial condition of vector EndArc
+ std::vector< Index > EndArc = v_end_arc;
+
 /*--------------------------------------------------------------------------*/
 
  // maximum power output according to primary-secondary reserves constraints
@@ -1157,10 +1163,41 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   l_f->add_variable( &v_volumetric[n][0], 1.0 );
 
+
   for( Index l = 0; l < number_arcs; ++l ) {
 
-   l_f->add_variable( &v_flow_rate[l][0], 1.0 );
+   if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
+    if( StartArc[l] < EndArc[l] ) {
+
+     if( !v_uphill_delay.empty()) {
+
+      l_f->add_variable( &v_flow_rate[l][0 - UphillFlow[l]], 1.0 );
+
+     } else {
+
+      l_f->add_variable( &v_flow_rate[l][0], 1.0 );
+
+     }
+
+    } else if( StartArc[l] > EndArc[l] ) {
+
+     if( !v_downhill_delay.empty()) {
+
+      l_f->add_variable( &v_flow_rate[l][0 - DownhillFlow[l]], -1.0 );
+
+     } else {
+
+      l_f->add_variable( &v_flow_rate[l][0], -1.0 );
+
+     }
+    }
+
+   } else {
+
+     l_f->add_variable( &v_flow_rate[l][0], 1.0 );
+
+   }
   }
   FinalVolumeReservoir_Const[0][n].set_both( InitialVolumetric[n] +  Inflows[n][0] );
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
@@ -1176,8 +1213,36 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    for( Index l = 0; l < number_arcs; ++l ) {
 
-    linear_function->add_variable( &v_flow_rate[l][t], 1.0 );
+    if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
+     if( StartArc[l] < EndArc[l] ) {
+
+      if( !v_uphill_delay.empty()) {
+
+       linear_function->add_variable( &v_flow_rate[l][t - UphillFlow[l]], 1.0 );
+
+      } else {
+
+       linear_function->add_variable( &v_flow_rate[l][t], 1.0 );
+
+      }
+     } else if( StartArc[l] > EndArc[l] ) {
+
+      if( !v_downhill_delay.empty()) {
+
+       linear_function->add_variable( &v_flow_rate[l][t - DownhillFlow[l]], -1.0 );
+
+      } else {
+
+       linear_function->add_variable( &v_flow_rate[l][t], -1.0 );
+
+      }
+     }
+    } else {
+
+     linear_function->add_variable( &v_flow_rate[l][t], 1.0 );
+
+    }
    }
    FinalVolumeReservoir_Const[constraint_index][n].set_both(  Inflows[n][constraint_index] );
    FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
@@ -1231,11 +1296,11 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
   auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",
                                                f_total_number_pieces );
 
- auto dim_number_reservoirs =
-         group.addDim( "NumberReservoirs", f_number_reservoirs ? f_number_reservoirs : 1 );
+ auto dim_number_reservoirs = group.addDim( "NumberReservoirs",
+         f_number_reservoirs ? f_number_reservoirs : 1 );
 
- auto dim_number_arcs =
-         group.addDim( "NumberArcs", f_number_arcs ? f_number_arcs : 1 );
+ auto dim_number_arcs = group.addDim( "NumberArcs",
+         f_number_arcs ? f_number_arcs : 1 );
 
 
  ::serialize( group, "NumberPieces", netCDF::NcUint64(),
