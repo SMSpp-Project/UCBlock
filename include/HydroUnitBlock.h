@@ -719,14 +719,14 @@ class HydroUnitBlock : public UnitBlock {
  *   n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
  *   \f[
  *
- *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(d,s) \in
- *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(s,d) \in
+ *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(n',n) \in
+ *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(n,n') \in
  *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l , l }) \quad t \in \mathcal{T},
  *      \quad n \in \mathcal{N}^{hy}    \quad (12)
  *
  *   \f]
- *   where in each arc \f$ l=(s,d) \in \mathcal{L}^{hy} \f$, \f$ s \f$ and
- *   \f$ d \f$ are supposed to be the start and the end point of that
+ *   where in each arc \f$ l=(n,n') \in \mathcal{L}^{hy} \f$, \f$ n \f$ and
+ *   \f$ n' \f$ are supposed to be the start and the end point of that
  *   respectively.
  *
  * - final volumes variable bounds: This inequality(13) indicates upper and
