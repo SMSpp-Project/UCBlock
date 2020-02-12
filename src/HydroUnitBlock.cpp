@@ -780,44 +780,44 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  // minimum power output according to primary-secondary reserves constraints
 
-  if( MinPowerPrimarySecondary_Const.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( MinPowerPrimarySecondary_Const.empty());
+ if( MinPowerPrimarySecondary_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( MinPowerPrimarySecondary_Const.empty());
 
-   MinPowerPrimarySecondary_Const.resize
-           ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
-  }
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  MinPowerPrimarySecondary_Const.resize
+          ( boost::multi_array< FRowConstraint, 2 >::
+            extent_gen()[f_time_horizon][number_arcs] );
+ }
+ for( Index arc = 0; arc < number_arcs; ++arc ) {
 
-   for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-    auto linear_function = new LinearFunction();
+   auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &v_active_power[arc][t], 1.0 );
-    if ( !v_primary_rho.empty() ) {
-     linear_function->add_variable( &v_primary_spinning_reserve[arc][t], -1.0 );
-    }
-    if ( !v_secondary_rho.empty() ) {
-     linear_function->add_variable( &v_secondary_spinning_reserve[arc][t], -1.0 );
-    }
-    if (!v_minimum_power.empty() ) {
-     MinPowerPrimarySecondary_Const[t][arc].set_lhs( MinPower[t][arc] );
-    } else {
-     MinPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
-
-    }
-    if (!v_maximum_power.empty() ) {
-     MinPowerPrimarySecondary_Const[t][arc].set_rhs( MaxPower[t][arc] );
-    } else {
-     MinPowerPrimarySecondary_Const[t][arc].set_rhs( LinearTerm[0] * MaxFlow[t][arc] );
-
-    }
-    MinPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
+   linear_function->add_variable( &v_active_power[arc][t], 1.0 );
+   if ( !v_primary_rho.empty() ) {
+    linear_function->add_variable( &v_primary_spinning_reserve[arc][t], -1.0 );
    }
-  }
+   if ( !v_secondary_rho.empty() ) {
+    linear_function->add_variable( &v_secondary_spinning_reserve[arc][t], -1.0 );
+   }
+   if (!v_minimum_power.empty() ) {
+    MinPowerPrimarySecondary_Const[t][arc].set_lhs( MinPower[t][arc] );
+   } else {
+    MinPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
 
-  add_static_constraint( MinPowerPrimarySecondary_Const, "MinPowerPrimarySecondary");
+   }
+   if (!v_maximum_power.empty() ) {
+    MinPowerPrimarySecondary_Const[t][arc].set_rhs( MaxPower[t][arc] );
+   } else {
+    MinPowerPrimarySecondary_Const[t][arc].set_rhs( LinearTerm[0] * MaxFlow[t][arc] );
+
+   }
+   MinPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
+  }
+ }
+
+ add_static_constraint( MinPowerPrimarySecondary_Const, "MinPowerPrimarySecondary");
 
  // power output relation with to primary reserves constraints
  if( MaxFlow[0][0] > 0 ) {
@@ -1156,6 +1156,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
           ( boost::multi_array< FRowConstraint, 2 >::
             extent_gen()[f_time_horizon][ number_reservoirs ] );
  }
+ Index end = 0;
 
  for( Index n = 0; n < number_reservoirs; ++n ) {
 
@@ -1163,45 +1164,45 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   l_f->add_variable( &v_volumetric[n][0], 1.0 );
 
-  for( Index l = 0; l < number_arcs; ++l ) {
+  end += n;
+
+  for( Index l = 0; l <= end; ++l ) {
 
    if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-    if( StartArc[l] == n ) {
-
-     if( StartArc[l] < EndArc[l] ) {
+     if( StartArc[l] == n ) {
 
       if( !v_uphill_delay.empty()) {
 
        l_f->add_variable( &v_flow_rate[l][0 - UphillFlow[l]], 1.0 );
 
-      } else {
+       } else {
 
        l_f->add_variable( &v_flow_rate[l][0], 1.0 );
 
-      }
-
-     } else if( StartArc[l] > EndArc[l] ) {
+         }
+   } else  {
 
       if( !v_downhill_delay.empty()) {
-
-       l_f->add_variable( &v_flow_rate[l][0 - DownhillFlow[l]], -1.0 );
+       if ( DownhillFlow[l] == 0 ){
+       l_f->add_variable( &v_flow_rate[l][0], -1.0 );
+       }
 
       } else {
 
        l_f->add_variable( &v_flow_rate[l][0], -1.0 );
 
       }
-     }
-    }
-    } else {
+   }
 
-     l_f->add_variable( &v_flow_rate[n][0], 1.0 );
+   } else {
+
+     l_f->add_variable( &v_flow_rate[l][0], 1.0 );
 
     }
 
   }
-  FinalVolumeReservoir_Const[0][n].set_both( InitialVolumetric[n] +  Inflows[n][0] );
+  FinalVolumeReservoir_Const[0][n].set_both( InitialVolumetric[n] + Inflows[n][0] );
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
@@ -1212,15 +1213,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_function->add_variable( &v_volumetric[n][t], 1.0 );
    linear_function->add_variable( &v_volumetric[n][t-1], -1.0 );
 
-  // linear_function->add_variable( &v_flow_rate[n][t], 1.0 );
-
-   for( Index l = 0; l < number_arcs; ++l ) {
+   for( Index l = 0; l <= end; ++l ) {
 
     if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-     if( StartArc[l] == n ) {
 
-      if( StartArc[l] < EndArc[l] ) {
+      if( StartArc[l] == n ) {
 
       if( !v_uphill_delay.empty()) {
 
@@ -1231,21 +1229,21 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
        linear_function->add_variable( &v_flow_rate[l][t], 1.0 );
 
       }
-     } else if( StartArc[l] > EndArc[l] ) {
+     } else  {
 
-      if( !v_downhill_delay.empty()) {
+      if( !v_downhill_delay.empty()  ) {
 
-       linear_function->add_variable( &v_flow_rate[l][t - DownhillFlow[l]], -1.0 );
+        linear_function->add_variable( &v_flow_rate[l][t - DownhillFlow[l]], -1.0 );
 
       } else {
 
        linear_function->add_variable( &v_flow_rate[l][t], -1.0 );
       }
       }
-     }
+
     } else {
 
-     linear_function->add_variable( &v_flow_rate[n][t], 1.0 );
+     linear_function->add_variable( &v_flow_rate[l][t], 1.0 );
 
     }
    }
