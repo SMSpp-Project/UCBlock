@@ -33,7 +33,6 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "DCNetworkBlock.h"
-#include "UCBlock.h"
 
 
 /*--------------------------------------------------------------------------*/
@@ -56,37 +55,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/*
-void DCNetworkBlock::deserialize( netCDF::NcGroup & group )
-{
-//TODO Implementation is not ready
- auto network_data = new NetworkBlock::NetworkData();
- network_data->deserialize( group );
- if( network_data ) {  // there is a NetworkData object in the group
-  // use it, whatever has happened before
-  // if there was a previous NetworkData and it was local, delete it
-  if( f_NetworkData && f_local_NetworkData )
-   delete f_NetworkData;
 
-  // set the new NetworkData, and recall it is local
-  f_local_NetworkData = true;
-  }
- else        // there is no NetworkData object in the group
- if( ! f_NetworkData ) {
-   // if the NetworkData has not been passed from outside
-   auto father = dynamic_cast< UCBlock *>( get_f_Block() );
-   if( !father )
-    throw( std::logic_error( "NetworkBlock has no NetworkData access" ) );
-   else
-   // now read the NetworkData from the father this->set_time_horizon
-    this->set_NetworkData( father->get_NetworkData() );
-    f_NetworkData = father->get_NetworkData();
-
-    f_local_NetworkData = false;
-   }
-
- }  // end( DCNetworkBlock::deserialize )
-*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -160,20 +129,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock -----*/
 /*--------------------------------------------------------------------------*/
-/*
-void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-  NetworkBlock::serialize( group );
-
-  //TODO
-
-  auto dim_number_nodes = group.addDim( "NumberNodes",
-                                        f_NetworkData->get_number_nodes() );
-
-  ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
-               { dim_number_nodes}, v_active_demand);
-}    // end( DCNetworkBlock::serialize )
-*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/
