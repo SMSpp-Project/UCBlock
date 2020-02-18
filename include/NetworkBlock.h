@@ -95,13 +95,9 @@ class NetworkBlock : public Block {
  *
  * NetworkBlock defines a main public type:
  *
- * - Index, the type of indices;
- *
  * - NetworkData, a small auxiliary class to bunch together the basic data
  *   (topology and electrical characteristics) of the transmission network.
  *  @{ */
-
- typedef std::size_t Index;                 ///< index of parameters
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
@@ -161,32 +157,40 @@ class NetworkBlock : public Block {
  *   transmission network.
  *
  * - The variable "StartLine", of type int and indexed over the dimension
- *   "NumberLines"; the i-th entry of the variable is the starting point of
+ *   "NumberLines"; the l-th entry of the variable is the starting point of
  *   the line (a number in 0, ..., NumberLines - 1). Note that lines are not
  *   oriented, but the flow of energy is; that is, a positive flow along line
- *   i means that energy is being taken away from StartLine[ i ] and delivered
- *   to EndLine[ i ] (see next), a negative flow means vice-versa. Note that
+ *   l means that energy is being taken away from StartLine[ l ] and delivered
+ *   to EndLine[ l ] (see next), a negative flow means vice-versa. Note that
  *   node names here go from 0 to NNodes.getSize() - 1;
  *
  * - The variable "EndLine", of type int and indexed over the dimension
- *   "NumberLines"; the i-th entry of the variable is the ending point of the
+ *   "NumberLines"; the l-th entry of the variable is the ending point of the
  *   line (a number in 0, ..., NumberLines - 1; lines are not oriented, but
- *   see above). StartLine[ i ] == EndLine[ i ] (a self-loop) is not allowed,
+ *   see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is not allowed,
  *   but multiple lines between the same pair of nodes are. Note that node
  *   names here go from 0 to NNodes.getSize() - 1;
  *
  * - The variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the minimum power flow on line i (note that this is typically
- *   a negative number as lines are bi-directional, see above).
+ *   dimension "NumberLines". This is meant to represent the vector MnP[ l ]
+ *   that, for each line l, contains the minimum power flow at line l (note
+ *   that this is typically a negative number as lines are bi-directional, see
+ *   above).
  *
  * - The variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines"; the i-th entry of the variable is assumed to
- *   contain the maximum power flow at line i (a non-negative number).
+ *   dimension "NumberLines". This is meant to represent the vector MxP[ l ]
+ *   that, for each line l, contains the maximum power flow at line l (a
+ *   non-negative number).
  *
  * - The variable "Susceptance", of type double and indexed over the dimension
- *   "NumberLines"; the i-th entry of this variable is assumed to contain the
- *   susceptance of line i. Note that this is strictly a positive value. */
+ *   "NumberLines". This is meant to represent the vector S[ l ] that, for
+ *   each line i contains the susceptance of the network for the corresponding
+ *   line i. Note that this variable is optional, for each line l if it is
+ *   provided then it is assumed that S[ l ] > 0, otherwise it is assumed that
+ *   S[ l ] == 0. In fact, when S[ l ] > 0 this corresponds to a model with AC
+ *   liens, and when for each line l, it's not defined or S[ l ] == 0, then it
+ *   corresponds to a single connected grid composed of HVDC lines only which
+ *   is also known as the Net Transfer Capacity (NTC) model.*/
   
   virtual void deserialize( netCDF::NcGroup & group );
 

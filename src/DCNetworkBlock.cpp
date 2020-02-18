@@ -56,6 +56,25 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
+
+ int number_lines = f_NetworkData->get_number_lines();
+
+ if ( number_lines > 0 ) {
+
+  // power flow Variable
+
+  if( v_power_flow.size() != number_lines ) {
+   assert( v_power_flow.empty()); // this should only happen once
+   v_power_flow.resize( number_lines );
+   int n = 0;
+   for( auto & i : v_power_flow ) {
+    i.set_type( ColVariable::kContinuous );
+   }
+   add_static_variable( v_power_flow, "pf" );
+  }
+ }
+ }
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -73,10 +92,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
                              "number of lines of DCNetworkBlock is not set"));
   }
 
-  if( v_flow_limit_constraints.size() != f_NetworkData->get_number_lines() ) {
+  if( v_AC_flow_limit_constraints.size() != f_NetworkData->get_number_lines() ) {
     // this should only happen once
-    assert( v_flow_limit_constraints.size() == 0 );
-    v_flow_limit_constraints.resize( f_NetworkData->get_number_lines() );
+    assert( v_AC_flow_limit_constraints.size() == 0 );
+   v_AC_flow_limit_constraints.resize( f_NetworkData->get_number_lines() );
   }
 
   // Flow limit constraints
@@ -108,19 +127,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     // Set the function of the constraint
 
-    v_flow_limit_constraints[line_id].set_function( linear_function );
+   v_AC_flow_limit_constraints[line_id].set_function( linear_function );
 
     // Set the left- and right-hand sides
 
-    v_flow_limit_constraints[line_id].set_lhs
+   v_AC_flow_limit_constraints[line_id].set_lhs
         ( min_power_flow - constant_term );
 
-    v_flow_limit_constraints[line_id].set_rhs
+   v_AC_flow_limit_constraints[line_id].set_rhs
         ( max_power_flow - constant_term );
 
   } // for each line
 
-  add_static_constraint( v_flow_limit_constraints );
+  add_static_constraint( v_AC_flow_limit_constraints );
 
 }
 
