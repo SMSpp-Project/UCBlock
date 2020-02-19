@@ -61,7 +61,7 @@ namespace SMSpp_di_unipi_it {
  *    model.
  *
  *  - DCNetworkBlock with just AC lines; where the susceptance for all lines
- *    is strictly a positive value.
+ *    is a non-zero value.
  *
  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines). This
  *    is a combination of first and second cases, where for some lines(not all
@@ -104,19 +104,19 @@ class DCNetworkBlock : public NetworkBlock {
  }
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the DCNetworkBlock
-/** The DCNetworkBlock class in general doesn't have any variable, but in a
- * special case when it corresponds to a model with a single connected grid
- * composed of HVDC lines only, the cass has the power flow variables. This
- * variable is optional, if it is created, its size will be the number of
- * lines. It is also possible to restrict which of the subsets are generated
- * with the parameter stvv. If stvv is not nullptr and it is a
- * SimpleConfiguration<int> or if
- * f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
- * SimpleConfiguration<int>, then the f_value (an int) indicates whether each
- * of the optional variables should be created. If the Configuration is not
- * available, the default value is taken to be 0. */
+/** Depending on the susceptance for each line of the network, the
+ * DCNetworkBlock class may have a power flow variable or not. In other word,
+ * if the susceptance is equal to zero(or not defined), the corresponding line
+ * is a HVDC line and it must have the power flow variable. It means, each
+ * HVDC line correspond to a power flow variable, then for the Net Transfer
+ * Capacity (NTC) model all lines must have a power flow variable. If the
+ * susceptance value is a non-zero value, the corresponding line is called AC
+ * and there is no needed to define the power flow variable for that line.
+ * Therefor, in the case of pure AC line there is no needed to define power
+ * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
+ * variable must define just for HVDC lines. */
 
-  void generate_abstract_variables( Configuration *stvv ) override;
+  void generate_abstract_variables() ;
 
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
@@ -147,7 +147,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   grid:
  *
  *    \f[
- *      \sum_{l=(n',n) } F_l - \sum_{l=(n,n')} F_l) = S_{n}
+ *      \sum_{l=(n',n) } F_l - \sum_{l=(n,n')} F_l = S_{n}
  *                                                   \quad n \in N   \quad (2)
  *    \f]
  *
@@ -222,9 +222,28 @@ class DCNetworkBlock : public NetworkBlock {
  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
  *
  */
- void generate_abstract_constraints( Configuration *stcc = nullptr )
- override;
+ void generate_abstract_constraints();
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Variable of the DCNetworkBlock
+ *
+ * @{ */
 
+/// returns the vector of power flow variables
+/** The returned std::vector< ColVariable >, say F, contains the power flow
+ * variables and is indexed over the dimension number of lines. There are two
+ * possible cases:
+ *
+ * - if F is empty(), then this variable is not defined;
+ *
+ * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
+ *   variable for line l.
+ *   */
+
+  const std::vector< ColVariable > & get_power_flow( ) const {
+   return v_power_flow;
+  }
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE DCNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -265,44 +284,64 @@ class DCNetworkBlock : public NetworkBlock {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-SMSpp_insert_in_factory_h;
-
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------data--------------------------------------*/
   /// the NetworkData object
   NetworkBlock::NetworkData * f_NetworkData;
 
   /// true if the NetworkData object has not been passed from outside
   bool f_local_NetworkData;
 
-  /// DC flow limit constraints
-  std::vector<FRowConstraint> v_AC_flow_limit_constraints;
-
-  /// HVDC power flow limit constraints
-  std::vector<FRowConstraint> v_HVDC_flow_limit_constraints;
-
-  /// HVDC power flow and node injection constraints
-  std::vector<FRowConstraint> v_flow_injection_constraints;
-
-  /// AC_HVDC power flow constraints
-  std::vector<FRowConstraint> v_AC_HVDC_flow_constraints;
-
-  };   // end( class( DCNetworkBlock ) )
-
 /*-----------------------------variables------------------------------------*/
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;
 
+/*----------------------------constraints-----------------------------------*/
+  /// AC power flow limit constraints
+  std::vector<FRowConstraint> v_AC_power_flow_limit_constraints;
+
+  /// HVDC power flow limit constraints
+  std::vector<FRowConstraint> v_HVDC_power_flow_limit_constraints;
+
+  /// HVDC power flow and node injection constraints
+  std::vector<FRowConstraint> v_power_flow_injection_constraints;
+
+  /// AC_HVDC power flow constraints
+  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+  private:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PRIVATE FIELDS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-}  /* namespace SMSpp_di_unipi_it */
+  SMSpp_insert_in_factory_h;
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DCNetworkBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ }  // end( namespace SMSpp_di_unipi_it )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif /* DCNetworkBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ End File DCNetworkBlock.h -----------------------*/
+/*-------------------- End File DCNetworkBlock.h ---------------------------*/
 /*--------------------------------------------------------------------------*/

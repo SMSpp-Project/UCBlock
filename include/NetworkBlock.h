@@ -186,8 +186,8 @@ class NetworkBlock : public Block {
  *   "NumberLines". This is meant to represent the vector S[ l ] that, for
  *   each line i contains the susceptance of the network for the corresponding
  *   line i. Note that this variable is optional, for each line l if it is
- *   provided then it is assumed that S[ l ] > 0, otherwise it is assumed that
- *   S[ l ] == 0. In fact, when S[ l ] > 0 this corresponds to a model with AC
+ *   provided then it is assumed that S[ l ] != 0, otherwise it is assumed that
+ *   S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a model with AC
  *   liens, and when for each line l, it's not defined or S[ l ] == 0, then it
  *   corresponds to a single connected grid composed of HVDC lines only which
  *   is also known as the Net Transfer Capacity (NTC) model.*/
