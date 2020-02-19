@@ -114,9 +114,12 @@ class DCNetworkBlock : public NetworkBlock {
  * and there is no needed to define the power flow variable for that line.
  * Therefor, in the case of pure AC line there is no needed to define power
  * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
- * variable must define just for HVDC lines. */
+ * variable must define just for HVDC lines.
+ *
+ * Note that since in this class the configuration is ignored, it should be
+ * equal to a null pointer.*/
 
-  void generate_abstract_variables() ;
+  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
@@ -130,7 +133,8 @@ class DCNetworkBlock : public NetworkBlock {
  *  each line \f$ l \in L \f$  are defined as \f$S_{n}\f$ and \f$ F_l \f$
  *  respectively.
  *
- *  - The particular case of Net Transfer Capacity (NTC) model:
+ *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
+ *    model:
  *    In this special case the susceptance value for each line is equal to
  *    zero. In fact, this corresponds to a model with a single connected grid
  *    composed of HVDC lines only. In this case, the flow limit equations
@@ -147,7 +151,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   grid:
  *
  *    \f[
- *      \sum_{l=(n',n) } F_l - \sum_{l=(n,n')} F_l = S_{n}
+ *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n}
  *                                                   \quad n \in N   \quad (2)
  *    \f]
  *
@@ -222,7 +226,8 @@ class DCNetworkBlock : public NetworkBlock {
  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
  *
  */
- void generate_abstract_constraints();
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+ override;
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
