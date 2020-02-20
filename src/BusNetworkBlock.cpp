@@ -73,6 +73,7 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  auto active_demand = get_active_demand()[ 0 ];
  v_node_injection[ 0 ].set_value( active_demand );
  v_node_injection[ 0 ].is_fixed( true );
+ v_node_injection[ 0 ].set_type( ColVariable::kContinuous );
  add_static_variable( v_node_injection[ 0 ], "S");
 }
 /*--------------------------------------------------------------------------*/

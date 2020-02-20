@@ -69,7 +69,7 @@ if (number_nodes > 1) {
   v_node_injection.resize( number_nodes );
   int n = 0;
   for( auto & i : v_node_injection ) {
-   i.set_type( ColVariable::kNonNegative );
+   i.set_type( ColVariable::kContinuous );
   }
   add_static_variable( v_node_injection, "S" );
 

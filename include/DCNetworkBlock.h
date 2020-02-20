@@ -116,22 +116,21 @@ class DCNetworkBlock : public NetworkBlock {
  * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
  * variable must define just for HVDC lines.
  *
- * Note that since in this class the configuration is ignored, it should be
- * equal to a null pointer.*/
+ * Note that since in this class the configuration is ignored.*/
 
   void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
 /** Three different kinds of DCNetworkBlock constraints are defined as below:
- *  The topology of the transmission network is defined by a set of nodes
- *  \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
- *  \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
- *  at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
- *  at node \f$ n \in N \f$ in the network respectively. The node injection
- *  variable of each node \f$ n \in N \f$ in and the power flows variable of
- *  each line \f$ l \in L \f$  are defined as \f$S_{n}\f$ and \f$ F_l \f$
- *  respectively.
+ * The topology of the transmission network is defined by a set of nodes
+ * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
+ * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
+ * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
+ * at node \f$ n \in N \f$ in the network respectively. The node injection
+ * variable of each node \f$ n \in N \f$ in and the power flows variable of
+ * each line \f$ l \in L \f$  are defined as \f$S_{n}\f$ and \f$ F_l \f$
+ * respectively.
  *
  *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
  *    model:
@@ -225,7 +224,8 @@ class DCNetworkBlock : public NetworkBlock {
  *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
  *
- */
+ * Note that since in this class the configuration is ignored.*/
+
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
 /**@} ----------------------------------------------------------------------*/
