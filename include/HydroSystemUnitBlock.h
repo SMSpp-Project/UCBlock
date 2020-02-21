@@ -262,8 +262,17 @@ class HydroSystemUnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// Deserialize the sub-blocks of HydroSystemUnitBlock
+ void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
+ /// Deserialize the sub-blocks of HydroSystemUnitBlock that have the given
+ /// prefix name
+ void deserialize_sub_blocks( const netCDF::NcGroup & group,
+                              const std::string & sub_group_name_prefix,
+                              int num_sub_blocks );
 
+ /// Deserialize the PolyhedralFunctionBlock of HydroSystemUnitBlock
+ void deserialize_polyhedral_function_block( const netCDF::NcGroup & group );
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( HydroSystemUnitBlock ) )

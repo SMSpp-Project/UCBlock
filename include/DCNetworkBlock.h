@@ -156,7 +156,7 @@ class DCNetworkBlock : public NetworkBlock {
  *
  *  - DCNetworkBlock with just AC lines model:
  *    By considering a \f$ |L| \times |N| \f$ matrix
- *    \f$ B_t \f$, which constitutes the so-called Power Transfer Distribution
+ *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
  *    Factor matrix (PTDF-matrix) which represents the linear relationship
  *    between power injections at each node of the grid and active power flows
  *    through the transmission lines.
@@ -164,8 +164,8 @@ class DCNetworkBlock : public NetworkBlock {
  *  The flow limit equations can be written as follow:
  *
  *  \f[
- *   P^{mn}_l\leq \sum_{ n \in N} (B)_({l , n})
- *   (S_{ n} - D^{ac}_{n}) \leq  P^{mx}_l
+ *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
+ *   (S_n - D^{ac}_n) \leq  P^{mx}_l
  *                                                     \quad l \in L \quad (3)
  *  \f]
  *
@@ -219,8 +219,8 @@ class DCNetworkBlock : public NetworkBlock {
  *
  *      \f]
  *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
- *      \f$ b = (b_m)_{m = 1, ... , |l^{dc}| }\f$ are such that for any
- *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |l^{dc}|\}\f$
+ *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
+ *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
  *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
  *
