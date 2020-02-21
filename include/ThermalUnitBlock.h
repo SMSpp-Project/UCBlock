@@ -975,6 +975,43 @@ class ThermalUnitBlock : public UnitBlock {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_maximum_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_maximum_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_init_updown_time( std::vector< int >::const_iterator it,
+                            Subset && subset,
+                            bool ordered = false,
+                            c_ModParam issuePMod = eNoBlck,
+                            c_ModParam issueAMod = eNoBlck );
+
+ void set_init_updown_time( std::vector< int >::const_iterator it,
+                            Range rng = Range( 0, Inf< Index >() ),
+                            c_ModParam issuePMod = eNoBlck,
+                            c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1093,6 +1130,32 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// the objective function
  FRealObjective objective;
+
+ static void static_initialization() {
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+                                       &ThermalUnitBlock::set_maximum_power,
+                                       MS_dbl_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+                                       &ThermalUnitBlock::set_maximum_power,
+                                       MS_dbl_rngd::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+                                       &ThermalUnitBlock::set_initial_power,
+                                       MS_dbl_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+                                       &ThermalUnitBlock::set_initial_power,
+                                       MS_dbl_rngd::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+                                       &ThermalUnitBlock::set_init_updown_time,
+                                       MS_int_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+                                       &ThermalUnitBlock::set_init_updown_time,
+                                       MS_int_rngd::args() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

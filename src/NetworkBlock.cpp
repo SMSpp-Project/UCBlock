@@ -135,7 +135,38 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
                { dim_number_nodes }, v_active_demand );
 
-} // end( NetworkBlock::serialize )
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::set_active_demand( std::vector< double >::const_iterator it,
+                                      Block::Subset && subset,
+                                      const bool ordered,
+                                      c_ModParam issuePMod,
+                                      c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+ // 1) Modify the internal data structures (std::vector, boost::multi_array) where the data is.
+ // Note that, in particular, if it's a boost::multi_array then you have to define exactly how
+ // the "simple" indices in Subset/Range match with the multi-indices in the boost::multi_array.
+
+ // 2) Issue an appropriate "physical" Modification, which must be defined.
+ // You can look at MCFBlock for examples.
+
+ // 3) If the "abstract representation" is constructed, and issueAMod != eDryRun, modify that as well.
+ // This will automatically issue appropriate Modification by passing the issueAMod parameter to the methods doing the changes.
+ // If you are changing "many things" (say, many Constraint) you may want to "pack" all the Modification
+ // into a GroupModificaton by opening and then closing a channel. Again, look at MCFBlock for examples.
+}
+
+void NetworkBlock::set_active_demand( std::vector< double >::const_iterator it,
+                                      Block::Range rng,
+                                      c_ModParam issuePMod,
+                                      c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+// end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/

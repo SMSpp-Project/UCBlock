@@ -370,6 +370,21 @@ class IntermittentUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_maximum_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_maximum_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -412,6 +427,16 @@ class IntermittentUnitBlock : public UnitBlock {
 
 /// the active power bounds constraints
  std::vector< FRowConstraint > active_power_bounds_Constraints;
+
+ static void static_initialization() {
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_sbst::args() );
+
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_rngd::args() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

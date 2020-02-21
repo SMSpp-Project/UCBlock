@@ -572,8 +572,29 @@ class NetworkBlock : public Block {
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+
+ void set_active_demand( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         const bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_active_demand( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ static void static_initialization() {
+  register_method< NetworkBlock >( "NetworkBlock::set_active_demand",
+                                   &NetworkBlock::set_active_demand,
+                                   MS_dbl_sbst::args() );
+
+  register_method< NetworkBlock >( "NetworkBlock::set_active_demand",
+                                   &NetworkBlock::set_active_demand,
+                                   MS_dbl_rngd::args() );
+ }
 
  protected:
 

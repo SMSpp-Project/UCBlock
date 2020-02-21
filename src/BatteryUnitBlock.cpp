@@ -817,5 +817,25 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+void
+BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator it,
+                                       Block::Subset && subset,
+                                       const bool ordered,
+                                       c_ModParam issuePMod,
+                                       c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator it,
+                                       Block::Range rng,
+                                       c_ModParam issuePMod,
+                                       c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+/*--------------------------------------------------------------------------*/
 /*------------- End File BatteryUnitBlock.cpp -----------------------*/
 /*--------------------------------------------------------------------------*/

@@ -1248,6 +1248,45 @@ class HydroUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_inflow( std::vector< double >::const_iterator it,
+                  Subset && subset,
+                  bool ordered = false,
+                  c_ModParam issuePMod = eNoBlck,
+                  c_ModParam issueAMod = eNoBlck );
+
+ void set_inflow( std::vector< double >::const_iterator it,
+                  Range rng = Range( 0, Inf< Index >() ),
+                  c_ModParam issuePMod = eNoBlck,
+                  c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_volumetric( std::vector< double >::const_iterator it,
+                              Subset && subset,
+                              bool ordered = false,
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_volumetric( std::vector< double >::const_iterator it,
+                              Range rng = Range( 0, Inf< Index >() ),
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
+
+
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1397,6 +1436,32 @@ class HydroUnitBlock : public UnitBlock {
 
  /// volumetric bounds constraints
  boost::multi_array< FRowConstraint, 2 >  VolumetricBounds_Const;
+
+ static void static_initialization() {
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+                                     &HydroUnitBlock::set_inflow,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+                                     &HydroUnitBlock::set_inflow,
+                                     MS_dbl_rngd::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_power",
+                                     &HydroUnitBlock::set_initial_power,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_power",
+                                     &HydroUnitBlock::set_initial_power,
+                                     MS_dbl_rngd::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+                                     &HydroUnitBlock::set_initial_volumetric,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+                                     &HydroUnitBlock::set_initial_volumetric,
+                                     MS_dbl_rngd::args() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

@@ -1403,5 +1403,61 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 }  // end( HydroUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+void
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator it,
+                            Block::Subset && subset,
+                            const bool ordered,
+                            c_ModParam issuePMod,
+                            c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator it,
+                            Block::Range rng,
+                            c_ModParam issuePMod,
+                            c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+                                   Block::Subset && subset,
+                                   const bool ordered,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+                                   Block::Range rng,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+HydroUnitBlock::set_initial_volumetric(
+ std::vector< double >::const_iterator it,
+ Block::Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+HydroUnitBlock::set_initial_volumetric(
+ std::vector< double >::const_iterator it,
+ Block::Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+/*--------------------------------------------------------------------------*/
 /*------------------- End File HydroUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

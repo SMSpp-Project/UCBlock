@@ -1025,7 +1025,63 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
               {NumberIntervals}, v_inertia_commitment, true );
-}  // end( ThermalUnitBlock::serialize )
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+void
+ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator it,
+                                     Block::Subset && subset,
+                                     const bool ordered,
+                                     c_ModParam issuePMod,
+                                     c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator it,
+                                     Block::Range rng,
+                                     c_ModParam issuePMod,
+                                     c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+ThermalUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+                                     Block::Subset && subset,
+                                     const bool ordered,
+                                     c_ModParam issuePMod,
+                                     c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+ThermalUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+                                     Block::Range rng,
+                                     c_ModParam issuePMod,
+                                     c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+ThermalUnitBlock::set_init_updown_time( std::vector< int >::const_iterator it,
+                                        Block::Subset && subset,
+                                        const bool ordered,
+                                        c_ModParam issuePMod,
+                                        c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+void
+ThermalUnitBlock::set_init_updown_time( std::vector< int >::const_iterator it,
+                                        Block::Range rng,
+                                        c_ModParam issuePMod,
+                                        c_ModParam issueAMod ) {
+ // TODO PUT STUFF HERE
+}
+
+// end( ThermalUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File ThermalUnitBlock.cpp ------------------------*/
