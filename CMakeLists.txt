@@ -7,8 +7,7 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-# TODO: set proper version
-project(UCBlock VERSION 1.0.0 LANGUAGES CXX)
+project(UCBlock VERSION 0.1.0 LANGUAGES CXX)
 
 # ----- Requirements -------------------------------------------------------- #
 find_package(SMSpp REQUIRED)
@@ -29,7 +28,7 @@ target_sources(UCBlock PRIVATE
                src/HydroUnitBlock.cpp
                src/IntermittentUnitBlock.cpp
                src/SlackUnitBlock.cpp
-               #src/HydroSystemUnitBlock.cpp
+               src/HydroSystemUnitBlock.cpp
                )
 
 # Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when

@@ -91,7 +91,7 @@ class HydroSystemUnitBlock : public Block {
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit HydroSystemUnitBlock( Block * father_block = nullptr );
+ explicit HydroSystemUnitBlock( Block * father_block = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of HydroSystemUnitBlock: it is virtual, and empty
