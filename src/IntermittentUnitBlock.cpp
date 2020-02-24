@@ -178,7 +178,25 @@ double gamma = f_gamma ? f_gamma : 0;
  // Initializing maximum power constraints
 
  if( gamma != 0 ) {
-
+  // INITIAL CONDITION
+  std::vector< double > Max_power_kappa_gamma = v_maximum_power;
+  if( Max_power_kappa_gamma.size() == 1 ) {
+   Max_power_kappa_gamma.resize( f_time_horizon, kappa * gamma * Max_power_kappa_gamma[0] );
+  } else if( Max_power_kappa_gamma.size() < f_time_horizon ) {
+   Max_power_kappa_gamma.resize( f_time_horizon );
+   int j = 0;
+   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
+    Index sup;
+    if( i == v_change_intervals.size() - 1 ) {
+     sup = f_time_horizon;
+    } else {
+     sup = v_change_intervals[i];
+    }
+    for( ; j < sup; ++j ) {
+     Max_power_kappa_gamma[j] = kappa * gamma * v_maximum_power[i];
+    }
+   }
+  }
   if( MaxPower_Constraints.size() != f_time_horizon ) {
    // this should only happen once
    assert( MaxPower_Constraints.empty());
@@ -191,13 +209,12 @@ double gamma = f_gamma ? f_gamma : 0;
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t], f_gamma );
+   linear_function->add_variable( &v_active_power[t], gamma );
    linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
    linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
 
    MaxPower_Constraints[t].set_lhs( -Inf< double >());
-   //todo fix gamma * max_power[t]
-   MaxPower_Constraints[t].set_rhs(( gamma * max_power[t] ));
+   MaxPower_Constraints[t].set_rhs(( Max_power_kappa_gamma[t] ));
    MaxPower_Constraints[t].set_function( linear_function );
   }
 
