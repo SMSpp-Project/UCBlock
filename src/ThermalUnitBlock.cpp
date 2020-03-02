@@ -275,6 +275,7 @@ if ( f_time_horizon > 0 ){
    }
   }
  }
+ AR |= HasVar;
 } // end( ThermalUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -840,6 +841,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( SecondaryRho_Constraints, "SecondaryRho" );
  }
 
+ AR |= HasCst;
 } // end( ThermalUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -969,7 +971,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
  // Set Block objective
  this->set_objective( &objective );
-
+ AR |= HasObj;
 }  // end( ThermalUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
@@ -1031,20 +1033,141 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 void
-ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator it,
+ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator values,
                                      Block::Subset && subset,
                                      const bool ordered,
                                      c_ModParam issuePMod,
                                      c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+ if (subset.empty()) {
+  return;
+ }
+
+ if( v_MaxPower.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element(std::begin(subset), std::end(subset));
+  v_MaxPower.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto temp_values = values;
+ for (auto i : subset) {
+  if (i >= v_MaxPower.size()) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_MaxPower[ i ] != *( temp_values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   v_MaxPower[ i ] = *( values++ );
+  }
+
+  if( issue_pmod( issuePMod ) ) {
+   // Issue a Physical Modification
+   if( !ordered ) {
+    std::sort( subset.begin(), subset.end() );
+   }
+
+   if( not_dry_run( issueAMod ) && AR & HasObj ) {
+    // Change the abstract representation
+
+    for( auto i : subset ) {
+     // FIXME: v_MaxPower is not correctly indexed
+     auto f = MaxPower_Constraints[ i ].get_function();
+     for( auto v = f->begin(); v != f->end(); ++v ) {
+      if( &( *v ) == &v_commitment[ i ] ) {
+       v_commitment[ i ].set_value( v_MaxPower[ i ] );
+      }
+     }
+    }
+   }
+
+   Block::add_Modification(
+    std::make_shared< ThermalUnitBlockSbstMod >( this,
+                                                 ThermalUnitBlockMod::eSetMaxP,
+                                                 std::move( subset ) ),
+    Observer::par2chnl( issuePMod ) );
+  }
+ }
+
+
 }
 
 void
-ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator it,
+ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator values,
                                      Block::Range rng,
                                      c_ModParam issuePMod,
                                      c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+
+ rng.second = std::min( rng.second , f_number_intervals );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_MaxPower.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_MaxPower.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_MaxPower.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+   std::copy( values,
+             values + ( rng.second - rng.first ),
+              v_MaxPower.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+
+   for( Index t = rng.first; t < rng.second; ++t ) {
+    auto f = MaxPower_Constraints[ t ].get_function();
+    for( auto v = f->begin(); v != f->end(); ++v ) {
+     if( &( *v ) == &v_commitment[ t ] ) {
+      // FIXME: v_MaxPower is not correctly indexed
+      v_commitment[ t ].set_value( v_MaxPower[ t ] );
+     }
+    }
+   }
+  }
+
+  if( issue_pmod( issuePMod ) ) {
+   Block::add_Modification(
+    std::make_shared< ThermalUnitBlockRngdMod >( this,
+                                                 ThermalUnitBlockMod::eSetMaxP,
+                                                 rng ),
+    Observer::par2chnl( issuePMod ) );
+  }
+ }
 }
 
 void

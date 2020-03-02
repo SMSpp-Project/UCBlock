@@ -90,6 +90,7 @@ if (number_nodes > 1) {
    add_static_variable( v_power_flow, "pf" );
   }
  }
+ AR |= HasVar;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -268,6 +269,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_limits" );
 
  }
+ AR |= HasCst;
 }
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

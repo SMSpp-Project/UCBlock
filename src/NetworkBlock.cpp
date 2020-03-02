@@ -141,30 +141,123 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::set_active_demand( std::vector< double >::const_iterator it,
-                                      Block::Subset && subset,
-                                      const bool ordered,
-                                      c_ModParam issuePMod,
-                                      c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
- // 1) Modify the internal data structures (std::vector, boost::multi_array) where the data is.
- // Note that, in particular, if it's a boost::multi_array then you have to define exactly how
- // the "simple" indices in Subset/Range match with the multi-indices in the boost::multi_array.
+void
+NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
+                                 Block::Subset && subset,
+                                 const bool ordered,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) {
+ if( subset.empty() ) {
+  return;
+ }
 
- // 2) Issue an appropriate "physical" Modification, which must be defined.
- // You can look at MCFBlock for examples.
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
 
- // 3) If the "abstract representation" is constructed, and issueAMod != eDryRun, modify that as well.
- // This will automatically issue appropriate Modification by passing the issueAMod parameter to the methods doing the changes.
- // If you are changing "many things" (say, many Constraint) you may want to "pack" all the Modification
- // into a GroupModificaton by opening and then closing a channel. Again, look at MCFBlock for examples.
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_active_demand.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_active_demand.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_active_demand[ i ] != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   v_active_demand[ i ] = *( values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+
+   // TODO: Change the maxpower values where they are used!
+  }
+
+  if( issue_pmod( issuePMod ) ) {
+   // Issue a Physical Modification
+   if( !ordered ) {
+    std::sort( subset.begin(), subset.end() );
+   }
+
+   Block::add_Modification(
+    std::make_shared< NetworkBlockSbstMod >( this,
+                                             NetworkBlockMod::eSetActD,
+                                             std::move( subset ) ),
+    Observer::par2chnl( issuePMod ) );
+  }
+ }
 }
 
-void NetworkBlock::set_active_demand( std::vector< double >::const_iterator it,
-                                      Block::Range rng,
-                                      c_ModParam issuePMod,
-                                      c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+void
+NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
+                                 Block::Range rng,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, get_number_nodes() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_active_demand.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_active_demand.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_active_demand.begin() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   // TODO: Change the maxpower values where they are used!
+  }
+
+  if( issue_pmod( issuePMod ) ) {
+   Block::add_Modification(
+    std::make_shared< NetworkBlockRngdMod >( this,
+                                             NetworkBlockMod::eSetActD,
+                                             rng ),
+    Observer::par2chnl( issuePMod ) );
+  }
+ }
 }
 // end( NetworkBlock::serialize )
 

@@ -978,35 +978,35 @@ class ThermalUnitBlock : public UnitBlock {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator it,
+ void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
                          bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_maximum_power( std::vector< double >::const_iterator it,
+ void set_maximum_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator it,
+ void set_initial_power( std::vector< double >::const_iterator values,
                          Subset && subset,
                          bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator it,
+ void set_initial_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_init_updown_time( std::vector< int >::const_iterator it,
+ void set_init_updown_time( std::vector< int >::const_iterator values,
                             Subset && subset,
                             bool ordered = false,
                             c_ModParam issuePMod = eNoBlck,
                             c_ModParam issueAMod = eNoBlck );
 
- void set_init_updown_time( std::vector< int >::const_iterator it,
+ void set_init_updown_time( std::vector< int >::const_iterator values,
                             Range rng = Range( 0, Inf< Index >() ),
                             c_ModParam issuePMod = eNoBlck,
                             c_ModParam issueAMod = eNoBlck );
@@ -1176,6 +1176,123 @@ private:
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( ThermalUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS ThermalUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a ThermalUnitBlock
+class ThermalUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of ThermalUnitBlockMod
+ enum TUBB_mod_type {
+  eSetMaxP = 0 ,   ///< Set max power values
+  eSetInitP    ,   ///< Set initial power values
+  eSetInitUD       ///< Set initial up/down times
+ };
+
+ /// Constructor, takes the ThermalUnitBlock and the type
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~ThermalUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "ThermalUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case ( eSetMaxP ):
+    output << "set max power values ";
+    break;
+   case ( eSetInitP ):
+    output << "set initial power values ";
+    break;
+   default:
+    output << "set initial up/down times ";
+  }
+ }
+
+ ThermalUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( ThermalUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS ThermalUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from ThermalUnitBlockMod for "ranged" modifications
+class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the ThermalUnitBlock, the type, and the range
+ ThermalUnitBlockRngdMod( ThermalUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : ThermalUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~ThermalUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  ThermalUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( ThermalUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS ThermalUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from ThermalUnitBlockMod for "subset" modifications
+class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the ThermalUnitBlock, the type, and the subset
+ ThermalUnitBlockSbstMod( ThermalUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : ThermalUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~ThermalUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  ThermalUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( ThermalUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
