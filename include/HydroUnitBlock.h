@@ -1251,35 +1251,35 @@ class HydroUnitBlock : public UnitBlock {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_inflow( std::vector< double >::const_iterator it,
+ void set_inflow( std::vector< double >::const_iterator values,
                   Subset && subset,
                   bool ordered = false,
                   c_ModParam issuePMod = eNoBlck,
                   c_ModParam issueAMod = eNoBlck );
 
- void set_inflow( std::vector< double >::const_iterator it,
+ void set_inflow( std::vector< double >::const_iterator values,
                   Range rng = Range( 0, Inf< Index >() ),
                   c_ModParam issuePMod = eNoBlck,
                   c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator it,
+ void set_initial_power( std::vector< double >::const_iterator values,
                          Subset && subset,
                          bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator it,
+ void set_initial_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator it,
+ void set_initial_volumetric( std::vector< double >::const_iterator values,
                               Subset && subset,
                               bool ordered = false,
                               c_ModParam issuePMod = eNoBlck,
                               c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator it,
+ void set_initial_volumetric( std::vector< double >::const_iterator values,
                               Range rng = Range( 0, Inf< Index >() ),
                               c_ModParam issuePMod = eNoBlck,
                               c_ModParam issueAMod = eNoBlck );
@@ -1482,6 +1482,123 @@ class HydroUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( HydroUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS HydroUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a HydroUnitBlock
+class HydroUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of HydroUnitBlockMod
+ enum HUB_mod_type {
+  eSetInf = 0 ,    ///< Set inflow values
+  eSetInitP    ,   ///< Set initial power values
+  eSetInitV        ///< Set initial volumetric values
+ };
+
+ /// Constructor, takes the HydroUnitBlock and the type
+ HydroUnitBlockMod( HydroUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~HydroUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "HydroUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case ( eSetInf ):
+    output << "set inflow values ";
+    break;
+   case ( eSetInitP ):
+    output << "set initial power values ";
+    break;
+   default:
+    output << "set initial volumetric values ";
+  }
+ }
+
+ HydroUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( HydroUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS HydroUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from HydroUnitBlockMod for "ranged" modifications
+class HydroUnitBlockRngdMod : public HydroUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the HydroUnitBlock, the type, and the range
+ HydroUnitBlockRngdMod( HydroUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : HydroUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~HydroUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  HydroUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( HydroUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS HydroUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from HydroUnitBlockMod for "subset" modifications
+class HydroUnitBlockSbstMod : public HydroUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the HydroUnitBlock, the type, and the subset
+ HydroUnitBlockSbstMod( HydroUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : HydroUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~HydroUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  HydroUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( HydroUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
