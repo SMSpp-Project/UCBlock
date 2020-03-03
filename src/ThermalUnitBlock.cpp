@@ -1038,9 +1038,12 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
                                      const bool ordered,
                                      c_ModParam issuePMod,
                                      c_ModParam issueAMod ) {
- if (subset.empty()) {
+ if( subset.empty() ) {
   return;
  }
+
+ // FIXME: v_MaxPower is not correctly indexed
+ // Here we assume that it is indexed over time_horizon
 
  if( v_MaxPower.empty() ) {
   if( std::all_of( values,
@@ -1051,15 +1054,15 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
    return;
   }
 
-  Index max_index = *max_element(std::begin(subset), std::end(subset));
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
   v_MaxPower.assign( max_index, 0 );
  }
 
  // If nothing changes, return
  bool identical = true;
  auto temp_values = values;
- for (auto i : subset) {
-  if (i >= v_MaxPower.size()) {
+ for( auto i : subset ) {
+  if( i >= v_MaxPower.size() ) {
    throw ( std::invalid_argument( "invalid value in subset" ) );
   }
   if( v_MaxPower[ i ] != *( temp_values++ ) ) {
@@ -1073,39 +1076,33 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
+  temp_values = values;
   for( auto i : subset ) {
-   v_MaxPower[ i ] = *( values++ );
+   v_MaxPower[ i ] = *( temp_values++ );
   }
 
-  if( issue_pmod( issuePMod ) ) {
-   // Issue a Physical Modification
-   if( !ordered ) {
-    std::sort( subset.begin(), subset.end() );
+  if( not_dry_run( issueAMod ) && AR & HasObj ) {
+   // Change the abstract representation
+
+   for( auto i : subset ) {
+    auto f = dynamic_cast<LinearFunction *>(MaxPower_Constraints[ i ]
+     .get_function());
+    f->modify_coefficient( i, *( values++ ), issueAMod );
    }
-
-   if( not_dry_run( issueAMod ) && AR & HasObj ) {
-    // Change the abstract representation
-
-    for( auto i : subset ) {
-     // FIXME: v_MaxPower is not correctly indexed
-     auto f = MaxPower_Constraints[ i ].get_function();
-     for( auto v = f->begin(); v != f->end(); ++v ) {
-      if( &( *v ) == &v_commitment[ i ] ) {
-       v_commitment[ i ].set_value( v_MaxPower[ i ] );
-      }
-     }
-    }
-   }
-
-   Block::add_Modification(
-    std::make_shared< ThermalUnitBlockSbstMod >( this,
-                                                 ThermalUnitBlockMod::eSetMaxP,
-                                                 std::move( subset ) ),
-    Observer::par2chnl( issuePMod ) );
   }
  }
 
-
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >( this,
+                                                ThermalUnitBlockMod::eSetMaxP,
+                                                std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
@@ -1114,7 +1111,10 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
                                      c_ModParam issuePMod,
                                      c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second , f_number_intervals );
+ // FIXME: v_MaxPower is not correctly indexed
+ // Here we assume that it is indexed over time_horizon
+
+ rng.second = std::min( rng.second, f_number_intervals );
  if( rng.second <= rng.first ) {
   return;
  }
@@ -1142,31 +1142,27 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
-   std::copy( values,
+  std::copy( values,
              values + ( rng.second - rng.first ),
-              v_MaxPower.begin() + rng.first );
+             v_MaxPower.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && AR & HasCst ) {
    // Change the abstract representation
 
    for( Index t = rng.first; t < rng.second; ++t ) {
-    auto f = MaxPower_Constraints[ t ].get_function();
-    for( auto v = f->begin(); v != f->end(); ++v ) {
-     if( &( *v ) == &v_commitment[ t ] ) {
-      // FIXME: v_MaxPower is not correctly indexed
-      v_commitment[ t ].set_value( v_MaxPower[ t ] );
-     }
-    }
+    auto f = dynamic_cast<LinearFunction *>(MaxPower_Constraints[ t ]
+     .get_function());
+    f->modify_coefficient( t, *( values++ ), issueAMod );
    }
   }
+ }
 
-  if( issue_pmod( issuePMod ) ) {
-   Block::add_Modification(
-    std::make_shared< ThermalUnitBlockRngdMod >( this,
-                                                 ThermalUnitBlockMod::eSetMaxP,
-                                                 rng ),
-    Observer::par2chnl( issuePMod ) );
-  }
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >( this,
+                                                ThermalUnitBlockMod::eSetMaxP,
+                                                rng ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 

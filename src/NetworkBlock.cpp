@@ -188,21 +188,22 @@ NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
   if( not_dry_run( issueAMod ) && AR & HasCst ) {
    // Change the abstract representation
 
-   // TODO: Change the maxpower values where they are used!
+   // FIXME: This is correct only for BusNetworkBlock
+
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
   }
 
-  if( issue_pmod( issuePMod ) ) {
-   // Issue a Physical Modification
-   if( !ordered ) {
-    std::sort( subset.begin(), subset.end() );
-   }
-
-   Block::add_Modification(
-    std::make_shared< NetworkBlockSbstMod >( this,
-                                             NetworkBlockMod::eSetActD,
-                                             std::move( subset ) ),
-    Observer::par2chnl( issuePMod ) );
-  }
+  Block::add_Modification(
+   std::make_shared< NetworkBlockSbstMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 
@@ -247,16 +248,16 @@ NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
   if( AR & HasCst ) {
    // Change the abstract representation
 
-   // TODO: Change the maxpower values where they are used!
+   // TODO
   }
+ }
 
-  if( issue_pmod( issuePMod ) ) {
-   Block::add_Modification(
-    std::make_shared< NetworkBlockRngdMod >( this,
-                                             NetworkBlockMod::eSetActD,
-                                             rng ),
-    Observer::par2chnl( issuePMod ) );
-  }
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< NetworkBlockRngdMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            rng ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 // end( NetworkBlock::serialize )

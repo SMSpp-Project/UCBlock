@@ -305,6 +305,8 @@ void IntermittentUnitBlock::set_maximum_power(
   return;
  }
 
+ // FIXME: v_maximum_power is not correctly indexed
+
  if( v_maximum_power.empty() ) {
   if( std::all_of( values,
                    values + subset.size(),
@@ -345,32 +347,31 @@ void IntermittentUnitBlock::set_maximum_power(
    if( !MaxPower_Constraints.empty() ) {
     for( auto t : subset ) {
      MaxPower_Constraints[ t ]
-      .set_rhs( f_kappa * f_gamma * v_maximum_power[ t ], eModBlck );
+      .set_rhs( f_kappa * f_gamma * v_maximum_power[ t ], issueAMod );
      // FIXME: use a GroupModification
     }
    }
    if( !active_power_bounds_Constraints.empty() ) {
     for( auto t : subset ) {
      active_power_bounds_Constraints[ t ]
-      .set_rhs( v_maximum_power[ t ], eModBlck );
+      .set_rhs( v_maximum_power[ t ], issueAMod );
      // FIXME: use a GroupModification
-     // FIXME: v_maximum_power is not correctly indexed
     }
    }
   }
+ }
 
-  if( issue_pmod( issuePMod ) ) {
-   // Issue a Physical Modification
-   if( !ordered ) {
-    std::sort( subset.begin(), subset.end() );
-   }
-
-   Block::add_Modification(
-    std::make_shared< IntermittentUnitBlockSbstMod >( this,
-                                                      IntermittentUnitBlockMod::eSetMaxP,
-                                                      std::move( subset ) ),
-    Observer::par2chnl( issuePMod ) );
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
   }
+
+  Block::add_Modification(
+   std::make_shared< IntermittentUnitBlockSbstMod >( this,
+                                                     IntermittentUnitBlockMod::eSetMaxP,
+                                                     std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 
@@ -417,27 +418,26 @@ void IntermittentUnitBlock::set_maximum_power(
    if( !MaxPower_Constraints.empty() ) {
     for( Index t = rng.first; t < rng.second; ++t ) {
      MaxPower_Constraints[ t ]
-      .set_rhs( f_kappa * f_gamma * v_maximum_power[ t ], eModBlck );
+      .set_rhs( f_kappa * f_gamma * v_maximum_power[ t ], issueAMod );
      // FIXME: use a GroupModification
     }
    }
    if( !active_power_bounds_Constraints.empty() ) {
     for( Index t = rng.first; t < rng.second; ++t ) {
      active_power_bounds_Constraints[ t ]
-      .set_rhs( v_maximum_power[ t ], eModBlck );
+      .set_rhs( v_maximum_power[ t ], issueAMod );
      // FIXME: use a GroupModification
-     // FIXME: v_maximum_power is not correctly indexed
     }
    }
   }
+ }
 
-  if( issue_pmod( issuePMod ) ) {
-   Block::add_Modification(
-    std::make_shared< IntermittentUnitBlockRngdMod >( this,
-                                                      IntermittentUnitBlockMod::eSetMaxP,
-                                                      rng ),
-    Observer::par2chnl( issuePMod ) );
-  }
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< IntermittentUnitBlockRngdMod >( this,
+                                                     IntermittentUnitBlockMod::eSetMaxP,
+                                                     rng ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 

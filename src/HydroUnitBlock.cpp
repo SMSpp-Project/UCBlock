@@ -69,6 +69,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
  }
 
+ // FIXME: This is ugly
  long rows = v_minimum_flow.shape()[0];
  long cols = v_minimum_flow.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -81,6 +82,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
  }
 
+ // FIXME: This is ugly
  rows = v_maximum_flow.shape()[0];
  cols = v_maximum_flow.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -105,6 +107,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "Inflows", v_inflows, true, false );
 
+ // FIXME: This is ugly
  rows = v_inflows.shape()[0];
  cols = v_inflows.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -115,6 +118,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
 
+ // FIXME: This is ugly
  rows = v_minimum_power.shape()[0];
  cols = v_minimum_power.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -125,6 +129,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MaxPower", v_maximum_power, true, true );
 
+ // FIXME: This is ugly
  rows = v_maximum_power.shape()[0];
  cols = v_maximum_power.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -135,6 +140,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
 
+ // FIXME: This is ugly
  rows = v_delta_ramp_up.shape()[0];
  cols = v_delta_ramp_up.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -145,6 +151,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
 
+ // FIXME: This is ugly
  rows = v_delta_ramp_down.shape()[0];
  cols = v_delta_ramp_down.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -155,6 +162,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
 
+ // FIXME: This is ugly
  rows = v_primary_rho.shape()[0];
  cols = v_primary_rho.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -165,6 +173,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
 
+ // FIXME: This is ugly
  rows = v_secondary_rho.shape()[0];
  cols = v_secondary_rho.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -189,6 +198,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
 
+ // FIXME: This is ugly
  rows = v_minimum_volumetric.shape()[0];
  cols = v_minimum_volumetric.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -198,6 +208,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
  }
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
 
+ // FIXME: This is ugly
  rows = v_maximum_volumetric.shape()[0];
  cols = v_maximum_volumetric.shape()[1];
  if (rows > 1 && cols == 1) {
@@ -292,6 +303,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   }
  }
   add_static_variable ( v_secondary_spinning_reserve, "sr" );
+ AR |= HasVar;
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -1280,7 +1292,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  add_static_constraint( VolumetricBounds_Const, "VolumetricBounds");
-
+ AR |= HasCst;
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
 
@@ -1406,24 +1418,147 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 void
-HydroUnitBlock::set_inflow( std::vector< double >::const_iterator it,
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
                             Block::Subset && subset,
                             const bool ordered,
                             c_ModParam issuePMod,
                             c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_inflows.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inflows.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_inflows.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( *( v_inflows.data() + i ) != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   Index t = i % f_time_horizon;
+   Index r = i / f_time_horizon;
+   v_inflows[ r ][ t ] = *( values++ );
+   // *( v_inflows.data() + i ) = *( values++ );
+  }
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   for( auto i : subset ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    } else {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInf,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
-HydroUnitBlock::set_inflow( std::vector< double >::const_iterator it,
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
                             Block::Range rng,
                             c_ModParam issuePMod,
                             c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+ rng.second = std::min( rng.second,
+                        get_time_horizon() * get_number_reservoirs() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_inflows.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inflows.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_inflows.begin() + rng.first ) ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_inflows.begin() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   for( Index i = rng.first; i < rng.second; ++i ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    } else {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInf,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
-HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator values,
                                    Block::Subset && subset,
                                    const bool ordered,
                                    c_ModParam issuePMod,
@@ -1432,7 +1567,7 @@ HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
 }
 
 void
-HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
+HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator values,
                                    Block::Range rng,
                                    c_ModParam issuePMod,
                                    c_ModParam issueAMod ) {
@@ -1441,7 +1576,7 @@ HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
 
 void
 HydroUnitBlock::set_initial_volumetric(
- std::vector< double >::const_iterator it,
+ std::vector< double >::const_iterator values,
  Block::Subset && subset,
  const bool ordered,
  c_ModParam issuePMod,
@@ -1451,7 +1586,7 @@ HydroUnitBlock::set_initial_volumetric(
 
 void
 HydroUnitBlock::set_initial_volumetric(
- std::vector< double >::const_iterator it,
+ std::vector< double >::const_iterator values,
  Block::Range rng,
  c_ModParam issuePMod,
  c_ModParam issueAMod ) {
