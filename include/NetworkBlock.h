@@ -575,26 +575,16 @@ class NetworkBlock : public Block {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Subset && subset,
+                                 bool ordered,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
-
- static void static_initialization() {
-  register_method< NetworkBlock >( "NetworkBlock::set_active_demand",
-                                   &NetworkBlock::set_active_demand,
-                                   MS_dbl_sbst::args() );
-
-  register_method< NetworkBlock >( "NetworkBlock::set_active_demand",
-                                   &NetworkBlock::set_active_demand,
-                                   MS_dbl_rngd::args() );
- }
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Range rng,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
 
  protected:
 

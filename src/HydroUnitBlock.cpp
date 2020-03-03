@@ -1520,7 +1520,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
  // If nothing changes, return
  if( std::equal( values,
                  values + ( rng.second - rng.first ),
-                 v_inflows.begin() + rng.first ) ) {
+                 v_inflows.data() + rng.first ) ) {
   return;
  }
  if( not_dry_run( issuePMod ) ) {
@@ -1528,7 +1528,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
 
   std::copy( values,
              values + ( rng.second - rng.first ),
-             v_inflows.begin() + rng.first );
+             v_inflows.data() + rng.first );
 
   if( AR & HasCst ) {
    // Change the abstract representation
