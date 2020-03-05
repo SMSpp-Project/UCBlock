@@ -59,25 +59,26 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- UnitBlock::deserialize( group );
+ UnitBlock::deserialize_time_horizon( group );
+ UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize( group, "MaxPower", f_number_intervals, v_MaxPower, true, true );
-
- ::deserialize( group, "MaxPrimaryPower", f_number_intervals, v_MaxPrimaryPower, true, true );
-
- ::deserialize( group, "MaxSecondaryPower", f_number_intervals, v_MaxSecondaryPower, true, true );
-
- ::deserialize( group, "ActivePowerCost", f_number_intervals, v_active_power_cost, true, true );
-
- ::deserialize( group, "PrimaryCost", f_number_intervals, v_primary_cost, true, true );
-
- ::deserialize( group, "SecondaryCost", f_number_intervals, v_secondary_cost, true, true );
-
- ::deserialize( group, "InertiaCost", f_number_intervals,v_inertia_cost, true, true );
-
+ ::deserialize( group, "MaxPower", f_number_intervals,
+                v_MaxPower, true, true );
+ ::deserialize( group, "MaxPrimaryPower", f_number_intervals,
+                v_MaxPrimaryPower, true, true );
+ ::deserialize( group, "MaxSecondaryPower", f_number_intervals,
+                v_MaxSecondaryPower, true, true );
+ ::deserialize( group, "ActivePowerCost", f_number_intervals,
+                v_active_power_cost, true, true );
+ ::deserialize( group, "PrimaryCost", f_number_intervals,
+                v_primary_cost, true, true );
+ ::deserialize( group, "SecondaryCost", f_number_intervals,
+                v_secondary_cost, true, true );
+ ::deserialize( group, "InertiaCost", f_number_intervals,
+                v_inertia_cost, true, true );
  ::deserialize( group, "MaxInertia", v_MaxInertia, true, true );
 
-
+ UnitBlock::deserialize( group );
 }// end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -345,7 +346,7 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
               NumberIntervals, v_inertia_cost, true );
 
  ::serialize( group, "MaxInertia", netCDF::NcDouble(),
-              {NumberIntervals}, v_MaxInertia, true );
+              { NumberIntervals }, v_MaxInertia, true );
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

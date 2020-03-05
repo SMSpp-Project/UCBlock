@@ -143,10 +143,10 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize( netCDF::NcGroup & group ) {
+ // deserialize_time_horizon( group );
+ // deserialize_change_intervals( group );
 
- deserialize_time_horizon( group );
- deserialize_change_intervals( group );
-
+ Block::deserialize( group );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -158,7 +158,9 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::serialize( netCDF::NcGroup & group ) const {
- group.putAtt( "type", name() );
+
+ Block::serialize( group );
+
  group.addDim( "TimeHorizon", f_time_horizon );
 
  auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );

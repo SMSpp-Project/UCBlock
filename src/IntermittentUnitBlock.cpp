@@ -61,11 +61,14 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- UnitBlock::deserialize( group );
+ UnitBlock::deserialize_time_horizon( group );
+ UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize( group, "MinPower", f_number_intervals, v_minimum_power, true, true );
+ ::deserialize( group, "MinPower", f_number_intervals,
+                v_minimum_power, true, true );
 
- ::deserialize( group, "MaxPower", f_number_intervals, v_maximum_power, true, true );
+ ::deserialize( group, "MaxPower", f_number_intervals,
+                v_maximum_power, true, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
@@ -73,7 +76,7 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "Kappa", &f_kappa );
 
-
+ UnitBlock::deserialize( group );
 }// end( IntermittentUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -283,7 +286,6 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group, "Kappa", netCDF::NcDouble(), f_kappa );
 
-
  ::serialize( group, "MinPower", netCDF::NcDouble(),
               NumberIntervals, v_minimum_power, true );
 
@@ -291,7 +293,7 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
               NumberIntervals, v_maximum_power, true );
 
  ::serialize( group, "InertiaPower", netCDF::NcDouble(),
-              {NumberIntervals}, v_inertia_power, true );
+              { NumberIntervals }, v_inertia_power, true );
 }  // end( IntermittentUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

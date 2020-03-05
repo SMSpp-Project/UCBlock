@@ -64,35 +64,36 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 /*--------------------------------------------------------------------------*/
 void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- UnitBlock::deserialize( group );
+ UnitBlock::deserialize_time_horizon( group );
+ UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize( group, "MinStorage", f_number_intervals, v_minimum_storage, true, true );
-
- ::deserialize( group, "MaxStorage", f_number_intervals, v_maximum_storage, true, true );
-
- ::deserialize( group, "MinPower", f_number_intervals, v_minimum_power, true, true );
-
- ::deserialize( group, "MaxPower", f_number_intervals, v_maximum_power, true, true );
-
+ ::deserialize( group, "MinStorage", f_number_intervals,
+                v_minimum_storage, true, true );
+ ::deserialize( group, "MaxStorage", f_number_intervals,
+                v_maximum_storage, true, true );
+ ::deserialize( group, "MinPower", f_number_intervals,
+                v_minimum_power, true, true );
+ ::deserialize( group, "MaxPower", f_number_intervals,
+                v_maximum_power, true, true );
  ::deserialize( group, "InitialPower", &f_initial_power );
-
- ::deserialize( group, "MaxPrimaryPower", f_number_intervals, v_maximum_primary_rho, true, true );
-
- ::deserialize( group, "MaxSecondaryPower", f_number_intervals, v_maximum_secondary_rho, true, true );
-
- ::deserialize( group, "DeltaRampUp", f_number_intervals, v_delta_ramp_up, true, true );
-
- ::deserialize( group, "DeltaRampDown", f_number_intervals, v_delta_ramp_down, true, true );
-
- ::deserialize( group, "StoringBatteryRho", f_number_intervals, v_storing_battery_rho, true, true );
-
- ::deserialize( group, "ExtractingBatteryRho", f_number_intervals, v_extracting_battery_rho, true, true );
+ ::deserialize( group, "MaxPrimaryPower", f_number_intervals,
+                v_maximum_primary_rho, true, true );
+ ::deserialize( group, "MaxSecondaryPower", f_number_intervals,
+                v_maximum_secondary_rho, true, true );
+ ::deserialize( group, "DeltaRampUp", f_number_intervals,
+                v_delta_ramp_up, true, true );
+ ::deserialize( group, "DeltaRampDown", f_number_intervals,
+                v_delta_ramp_down, true, true );
+ ::deserialize( group, "StoringBatteryRho", f_number_intervals,
+                v_storing_battery_rho, true, true );
+ ::deserialize( group, "ExtractingBatteryRho", f_number_intervals,
+                v_extracting_battery_rho, true, true );
+ ::deserialize( group, "Cost", f_number_intervals, v_cost, true, true );
+ ::deserialize( group, "Demand", f_time_horizon, v_demand, true, false );
 
  ::deserialize( group, "InitialStorage", &f_initial_storage );
 
- ::deserialize( group, "Cost", f_number_intervals, v_cost, true, true );
-
- ::deserialize( group, "Demand", f_time_horizon, v_demand, true, false );
+ UnitBlock::deserialize( group );
 
 }// end( BatteryUnitBlock::deserialize )
 
@@ -772,6 +773,8 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
+
+ UnitBlock::serialize( group );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  auto TimeHorizon = group.getDim( "TimeHorizon" );
