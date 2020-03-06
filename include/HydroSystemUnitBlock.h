@@ -91,7 +91,7 @@ class HydroSystemUnitBlock : public Block {
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit HydroSystemUnitBlock( Block * father_block = nullptr );
+ explicit HydroSystemUnitBlock( Block * father_block = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of HydroSystemUnitBlock: it is virtual, and empty
@@ -262,8 +262,17 @@ class HydroSystemUnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// Deserialize the sub-blocks of HydroSystemUnitBlock
+ void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
+ /// Deserialize the sub-blocks of HydroSystemUnitBlock that have the given
+ /// prefix name
+ void deserialize_sub_blocks( const netCDF::NcGroup & group,
+                              const std::string & sub_group_name_prefix,
+                              int num_sub_blocks );
 
+ /// Deserialize the PolyhedralFunctionBlock of HydroSystemUnitBlock
+ void deserialize_polyhedral_function_block( const netCDF::NcGroup & group );
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( HydroSystemUnitBlock ) )

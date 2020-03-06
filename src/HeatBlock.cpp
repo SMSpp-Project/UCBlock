@@ -146,11 +146,11 @@ void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
-    deserialize_time_horizon( group );
-    deserialize_change_intervals( group );
+ deserialize_time_horizon( group );
+ deserialize_change_intervals( group );
 
-    ::deserialize( group, "TotalHeatDemand", f_time_horizon,
-                   v_heat_demand );
+ ::deserialize( group, "TotalHeatDemand", f_time_horizon,
+                v_heat_demand );
 /*
     ::deserialize( group, "CostHeatUnit",
                    { f_number_intervals , f_number_heat_units },
@@ -164,16 +164,18 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
                    { f_number_intervals , f_number_heat_units },
                    v_max_heat_production );*/
 
-    ::deserialize( group, "MinHeatStorage", f_number_intervals,
-                   v_min_heat_storage );
+ ::deserialize( group, "MinHeatStorage", f_number_intervals,
+                v_min_heat_storage );
 
-    ::deserialize( group, "MaxHeatStorage", f_number_intervals,
-                   v_max_heat_storage );
+ ::deserialize( group, "MaxHeatStorage", f_number_intervals,
+                v_max_heat_storage );
 
-    ::deserialize( group, "StoringHeatRho",       & f_storing_heat_rho );
-    ::deserialize( group, "ExtractingHeatRho",    & f_extracting_heat_rho );
-    ::deserialize( group, "KeepingHeatRho",       & f_keeping_heat_rho );
-    ::deserialize( group, "InitialHeatAvailable", & f_initial_heat_storage );
+ ::deserialize( group, "StoringHeatRho", &f_storing_heat_rho );
+ ::deserialize( group, "ExtractingHeatRho", &f_extracting_heat_rho );
+ ::deserialize( group, "KeepingHeatRho", &f_keeping_heat_rho );
+ ::deserialize( group, "InitialHeatAvailable", &f_initial_heat_storage );
+
+ Block::deserialize( group );
 
 }  // end( HeatBlock::deserialize )
 
@@ -450,40 +452,40 @@ void HeatBlock::generate_objective( Configuration *objc ) {
 
 void HeatBlock::serialize( netCDF::NcGroup & group ) const {
 
-    group.putAtt( "type" , "HeatBlock" );
-    group.addDim( "TimeHorizon" , f_time_horizon );
+ Block::serialize( group );
+ group.addDim( "TimeHorizon", f_time_horizon );
 
-    auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals);
+ auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
 
-    ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-                 NumberIntervals, v_change_intervals );
+ ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+              NumberIntervals, v_change_intervals );
 
-    auto dim_number_units = group.addDim( "NumberHeatUnits",
-                                          f_number_heat_units );
+ auto dim_number_units = group.addDim( "NumberHeatUnits",
+                                       f_number_heat_units );
 
-    ::serialize( group, "StoringHeatRho", netCDF::NcDouble(),
-                 f_storing_heat_rho );
+ ::serialize( group, "StoringHeatRho", netCDF::NcDouble(),
+              f_storing_heat_rho );
 
-    ::serialize( group, "ExtractingHeatRho", netCDF::NcDouble(),
-                 f_extracting_heat_rho );
+ ::serialize( group, "ExtractingHeatRho", netCDF::NcDouble(),
+              f_extracting_heat_rho );
 
-    ::serialize( group, "StoringHeatRho", netCDF::NcDouble(),
-                 f_keeping_heat_rho );
+ ::serialize( group, "StoringHeatRho", netCDF::NcDouble(),
+              f_keeping_heat_rho );
 
-    ::serialize( group, "InitialHeatAvailable", netCDF::NcDouble(),
-                 f_initial_heat_storage );
+ ::serialize( group, "InitialHeatAvailable", netCDF::NcDouble(),
+              f_initial_heat_storage );
 
-    ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-                 {NumberIntervals}, v_change_intervals );
+ ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
+              { NumberIntervals }, v_change_intervals );
 
-    ::serialize( group, "TotalHeatDemand", netCDF::NcDouble(),
-                 {NumberIntervals}, v_heat_demand);
+ ::serialize( group, "TotalHeatDemand", netCDF::NcDouble(),
+              { NumberIntervals }, v_heat_demand );
 
-    ::serialize( group, "MinHeatStorage", netCDF::NcDouble(),
-                 {NumberIntervals},v_min_heat_storage);
+ ::serialize( group, "MinHeatStorage", netCDF::NcDouble(),
+              { NumberIntervals }, v_min_heat_storage );
 
-    ::serialize( group, "MaxHeatStorage", netCDF::NcDouble(),
-                 {NumberIntervals}, v_max_heat_storage);
+ ::serialize( group, "MaxHeatStorage", netCDF::NcDouble(),
+              { NumberIntervals }, v_max_heat_storage );
 /*
     ::serialize( group, "MinHeatProduction", netCDF::NcDouble(),
                  {NumberIntervals , dim_number_units},

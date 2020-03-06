@@ -60,34 +60,22 @@ NetworkBlock::NetworkData::NetworkData() {
 
 void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
- /*
- *  * //TODO: In NetworkBlock::NetworkData::deserialize(), NumberLines need not be
- *       read if NumberNodes == 1 (or not present). Also, we have to make
- *       the basic checks on data:
- *       - self loops are not allowed
- *       - min capacity <= 0 <= max capacity
- *       - susceptance > 0 (if it is)
- */
 
- ::deserialize_dim( group, "NumberNodes", f_number_nodes );
+ ::deserialize_dim( group, "NumberNodes", f_number_nodes, true );
 
- if( f_number_nodes > 1 ) {
-  ::deserialize_dim( group, "NumberLines", f_number_nodes );
+ if ( f_number_nodes > 1  ) {  // DCNetworkBlock
 
-  ::deserialize( group, "StartLine", f_number_lines, v_start_line );
-  ::deserialize( group, "EndLine", f_number_lines, v_end_line );
+  ::deserialize_dim( group, "NumberLines", f_number_lines, false );
 
-  for( Index line = 0; line < f_number_lines; ++line ) {
-   if( v_min_power_flow[ line ] <= 0 && 0 <= v_max_power_flow[ line ] ) {
+  ::deserialize( group, "StartLine", f_number_lines, v_start_line, false, true );
 
-    ::deserialize( group, "MinPowerFlow", f_number_lines, v_min_power_flow );
-    ::deserialize( group, "MaxPowerFlow", f_number_lines, v_max_power_flow );
-   } else {
-    throw ( std::logic_error( "UCBlock::NetworkData::deserialize: "
-                              "MinPowerFlow larger than MaxPowerFlow" ) );
-   }
-  }
-  ::deserialize( group, "Susceptance", f_number_lines, v_susceptance );
+  ::deserialize( group, "EndLine", f_number_lines, v_end_line, false, true );
+
+  ::deserialize( group, "MinPowerFlow", f_number_lines, v_min_power_flow, true, true );
+
+  ::deserialize( group, "MaxPowerFlow", f_number_lines, v_max_power_flow, true, true );
+
+  ::deserialize( group, "Susceptance", f_number_lines, v_susceptance, true, true );
  }
 
 }
@@ -104,6 +92,7 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "ActiveDemand", dim_number_nodes.getSize(),
                  v_active_demand );
 
+ Block::deserialize( group );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -116,7 +105,7 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 
  auto dim_number_nodes = group.addDim( "NumberNodes", f_number_nodes );
 
- if( f_number_nodes > 1 ) {
+ if( f_number_nodes > 1 ) { // DCNetworkBlock
   auto dim_number_lines = group.addDim( "NumberLines", f_number_lines );
 
   ::serialize( group, "StartLine", netCDF::NcUint64(),
@@ -140,7 +129,8 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
- group.putAtt( "type", name() );
+ Block::serialize( group );
+
  auto dim_number_nodes = group.getDim( "NumberNodes" );
 
  if( !dim_number_nodes.isNull() )

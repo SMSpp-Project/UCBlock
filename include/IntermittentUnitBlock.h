@@ -330,18 +330,18 @@ class IntermittentUnitBlock : public UnitBlock {
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator )
  override {
-  return &( v_active_power.front() );
+  return &( v_active_power.front());
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
-  return &( v_primary_spinning_reserve.front() );
+  return &( v_primary_spinning_reserve.front());
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
-  return &( v_secondary_spinning_reserve.front() );
+  return &( v_secondary_spinning_reserve.front());
  }
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
