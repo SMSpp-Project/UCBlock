@@ -25,5 +25,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First test release.
 
 [Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.2.0...develop
-[0.2.0]: https://gitlab.com/smspp/milpsolver/-/compare/0.1.0...0.2.0
+[0.2.0]: https://gitlab.com/smspp/ucblock/-/compare/0.1.0...0.2.0
 [0.1.0]: https://gitlab.com/smspp/ucblock/-/tags/0.1.0
