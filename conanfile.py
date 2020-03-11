@@ -3,7 +3,7 @@ from conans import ConanFile, CMake, tools
 
 class SmilpblockConan(ConanFile):
     name = "ucblock"
-    version = "0.1.0"
+    version = "0.2.0"
     description = "Unit Commitment Blocks for SMS++"
     topics = ("conan", "smspp", "ucblock")
     url = "https://gitlab.com/smspp/ucblock"
@@ -16,7 +16,7 @@ class SmilpblockConan(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     requires = (
-        "smspp/0.1.1@smspp/testing"
+        "smspp/0.2.0@smspp/testing"
     )
 
     exports_sources = [
@@ -30,8 +30,8 @@ class SmilpblockConan(ConanFile):
     def source(self):
         tools.replace_in_file(
             "CMakeLists.txt",
-            '''project(UCBlock VERSION 0.1.0 LANGUAGES CXX)''',
-            '''project(UCBlock VERSION 0.1.0 LANGUAGES CXX)\n''' +
+            '''project(UCBlock VERSION 0.2.0 LANGUAGES CXX)''',
+            '''project(UCBlock VERSION 0.2.0 LANGUAGES CXX)\n''' +
             '''include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)\n''' +
             '''conan_basic_setup()'''
         )

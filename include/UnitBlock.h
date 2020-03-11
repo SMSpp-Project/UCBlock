@@ -410,6 +410,11 @@ class UnitBlock : public Block {
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// deserializes the time horizon from a netCDF group
+ void deserialize_time_horizon( netCDF::NcGroup & group );
+
+ /// deserializes the change intervals vector from a netCDF group
+ void deserialize_change_intervals( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -447,14 +452,6 @@ class UnitBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// deserializes the time horizon from a netCDF group
- void deserialize_time_horizon( netCDF::NcGroup & group );
-
- /// deserializes the change intervals vector from a netCDF group
- void deserialize_change_intervals( netCDF::NcGroup & group );
-
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( UnitBlock ) )

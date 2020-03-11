@@ -58,7 +58,7 @@ void HydroSystemUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize_dim( group, "NumberHydroUnits", f_number_hydro_units, true );
 
-
+ Block::deserialize( group );
 }
 /*--------------------------------------------------------------------------*/
 
@@ -118,7 +118,7 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+ Block::serialize( group );
 }
 
 /*--------------------------------------------------------------------------*/

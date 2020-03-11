@@ -92,6 +92,7 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
   ::deserialize( group, "ActiveDemand", dim_number_nodes.getSize(),
                  v_active_demand );
 
+ Block::deserialize( group );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -128,7 +129,8 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
- group.putAtt( "type", name() );
+ Block::serialize( group );
+
  auto dim_number_nodes = group.getDim( "NumberNodes" );
 
  if( !dim_number_nodes.isNull() )

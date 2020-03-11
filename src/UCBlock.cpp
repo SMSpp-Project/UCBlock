@@ -97,7 +97,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
  v_Block.clear();
 
  deserialize_sub_blocks( group, "UnitBlock_", f_number_units );
- v_network_blocks.resize(f_time_horizon);
+ v_network_blocks.resize( f_time_horizon );
  deserialize_network_blocks( group, f_time_horizon );
  deserialize_sub_blocks( group, "HeatBlock_", f_number_heat_blocks );
 
@@ -105,9 +105,9 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::deserialize_sub_blocks
- ( const netCDF::NcGroup & group, const std::string & sub_group_name_prefix,
-   const int num_sub_blocks ) {
+void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group,
+                                      const std::string & sub_group_name_prefix,
+                                      const int num_sub_blocks ) {
 
  for( int i = 0; i < num_sub_blocks; ++i ) {
 
@@ -119,26 +119,19 @@ void UCBlock::deserialize_sub_blocks
                                   sub_group_name + " is not present" ) );
   }
 
-  auto class_name_attribute = sub_group.getAtt( "type" );
-
-  if( class_name_attribute.isNull() ) {
-   throw ( std::invalid_argument
-    ( "UCBlock::deserialize: type attribute "
-      "is not present in group " + sub_group_name ) );
-  }
-
-  std::string class_name;
-  class_name_attribute.getValues( class_name );
-  auto sub_block = new_Block( class_name, this );
-  sub_block->deserialize( sub_group );
-  v_Block.push_back( sub_block );
+  // std::string class_name;
+  // class_name_attribute.getValues( class_name );
+  // auto sub_block = new_Block( class_name, this );
+  // sub_block->deserialize( sub_group );
+  v_Block.push_back( new_Block( sub_group, this ) );
  }
 }
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
-                                int num_sub_blocks ) {
+                                          int num_sub_blocks ) {
+
  for( int i = 0; i < num_sub_blocks; ++i ) {
 
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -330,6 +323,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
    }
   }
  }
+
+ Block::deserialize( group );
 }  // end( UCBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -762,7 +757,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
- group.putAtt( "type", "UCBlock" );
+ Block::serialize( group );
 
  auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
  auto dim_number_units = group.addDim( "NumberUnits", f_number_units );

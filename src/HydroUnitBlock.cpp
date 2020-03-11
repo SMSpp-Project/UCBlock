@@ -31,7 +31,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <iostream>
 #include <random>
 #include "HydroUnitBlock.h"
 #include "LinearFunction.h"
@@ -63,159 +62,166 @@ SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 /*--------------------------------------------------------------------------*/
 void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- UnitBlock::deserialize( group );
+ UnitBlock::deserialize_time_horizon( group );
+ UnitBlock::deserialize_change_intervals( group );
 
- if (v_minimum_flow.empty()) {
+ if( v_minimum_flow.empty() ) {
   ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
  }
 
- // FIXME: This is ugly
- long rows = v_minimum_flow.shape()[0];
- long cols = v_minimum_flow.shape()[1];
- if (rows > 1 && cols == 1) {
+
+ long rows = v_minimum_flow.shape()[ 0 ];
+ long cols = v_minimum_flow.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_minimum_flow.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_minimum_flow.reshape( dims );
  }
 
- if (v_maximum_flow.empty()) {
+ if( v_maximum_flow.empty() ) {
   ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
  }
 
- // FIXME: This is ugly
- rows = v_maximum_flow.shape()[0];
- cols = v_maximum_flow.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_maximum_flow.shape()[ 0 ];
+ cols = v_maximum_flow.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_maximum_flow.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_maximum_flow.reshape( dims );
  }
 
  ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
 
  ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
 
- ::deserialize( group, "NumberPieces", f_number_arcs ? f_number_arcs : 1, v_number_pieces, true, true );
+ ::deserialize( group, "NumberPieces",
+                f_number_arcs ? f_number_arcs
+                              : 1, v_number_pieces, true, true );
 
- for (auto& n : v_number_pieces) {
+ for( auto & n : v_number_pieces ) {
   f_total_number_pieces += n;
  }
 
- ::deserialize( group, "StartArc", f_number_arcs ? f_number_arcs : 1, v_start_arc);
+ ::deserialize( group, "StartArc",
+                f_number_arcs ? f_number_arcs : 1, v_start_arc );
 
  ::deserialize( group, "EndArc", f_number_arcs ? f_number_arcs : 1, v_end_arc );
 
  ::deserialize( group, "Inflows", v_inflows, true, false );
 
- // FIXME: This is ugly
- rows = v_inflows.shape()[0];
- cols = v_inflows.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_inflows.shape()[ 0 ];
+ cols = v_inflows.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_inflows.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_inflows.reshape( dims );
  }
 
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
 
- // FIXME: This is ugly
- rows = v_minimum_power.shape()[0];
- cols = v_minimum_power.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_minimum_power.shape()[ 0 ];
+ cols = v_minimum_power.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_minimum_power.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_minimum_power.reshape( dims );
  }
 
  ::deserialize( group, "MaxPower", v_maximum_power, true, true );
 
- // FIXME: This is ugly
- rows = v_maximum_power.shape()[0];
- cols = v_maximum_power.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_maximum_power.shape()[ 0 ];
+ cols = v_maximum_power.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_maximum_power.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_maximum_power.reshape( dims );
  }
 
  ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
 
- // FIXME: This is ugly
- rows = v_delta_ramp_up.shape()[0];
- cols = v_delta_ramp_up.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_delta_ramp_up.shape()[ 0 ];
+ cols = v_delta_ramp_up.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_delta_ramp_up.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_delta_ramp_up.reshape( dims );
  }
 
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
 
- // FIXME: This is ugly
- rows = v_delta_ramp_down.shape()[0];
- cols = v_delta_ramp_down.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_delta_ramp_down.shape()[ 0 ];
+ cols = v_delta_ramp_down.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_delta_ramp_down.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_delta_ramp_down.reshape( dims );
  }
 
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
 
- // FIXME: This is ugly
- rows = v_primary_rho.shape()[0];
- cols = v_primary_rho.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_primary_rho.shape()[ 0 ];
+ cols = v_primary_rho.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_primary_rho.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_primary_rho.reshape( dims );
  }
 
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
 
- // FIXME: This is ugly
- rows = v_secondary_rho.shape()[0];
- cols = v_secondary_rho.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_secondary_rho.shape()[ 0 ];
+ cols = v_secondary_rho.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_secondary_rho.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_secondary_rho.reshape( dims );
  }
 
- ::deserialize( group, "LinearTerm", f_total_number_pieces ? f_total_number_pieces : 1, v_linear_term, true, true );
+ ::deserialize( group, "LinearTerm",
+                f_total_number_pieces ? f_total_number_pieces : 1,
+                v_linear_term, true, true );
 
- ::deserialize( group, "ConstantTerm", f_total_number_pieces ? f_total_number_pieces : 1, v_const_term, true, true );
+ ::deserialize( group, "ConstantTerm",
+                f_total_number_pieces ? f_total_number_pieces : 1,
+                v_const_term, true, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
- ::deserialize( group, "InitialFlowRate", f_number_arcs ? f_number_arcs : 1, v_initial_flow_rate, true, true );
+ ::deserialize( group, "InitialFlowRate",
+                f_number_arcs ? f_number_arcs
+                              : 1, v_initial_flow_rate, true, true );
 
- ::deserialize( group, "InitialVolumetric", f_number_reservoirs ? f_number_reservoirs : 1, v_initial_volumetric, true, true );
+ ::deserialize( group, "InitialVolumetric",
+                f_number_reservoirs ? f_number_reservoirs : 1,
+                v_initial_volumetric, true, true );
 
- ::deserialize( group, "UphillFlow", f_number_arcs ? f_number_arcs : 1, v_uphill_delay, true, true );
+ ::deserialize( group, "UphillFlow",
+                f_number_arcs ? f_number_arcs : 1, v_uphill_delay, true, true );
 
- ::deserialize( group, "DownhillFlow", f_number_arcs ? f_number_arcs : 1, v_downhill_delay, true, true );
+ ::deserialize( group, "DownhillFlow",
+                f_number_arcs ? f_number_arcs
+                              : 1, v_downhill_delay, true, true );
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
 
- // FIXME: This is ugly
- rows = v_minimum_volumetric.shape()[0];
- cols = v_minimum_volumetric.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_minimum_volumetric.shape()[ 0 ];
+ cols = v_minimum_volumetric.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_minimum_volumetric.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_minimum_volumetric.reshape( dims );
  }
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
 
- // FIXME: This is ugly
- rows = v_maximum_volumetric.shape()[0];
- cols = v_maximum_volumetric.shape()[1];
- if (rows > 1 && cols == 1) {
+ rows = v_maximum_volumetric.shape()[ 0 ];
+ cols = v_maximum_volumetric.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array<boost::multi_array<double, 2>::index, 2> dims = {{1, rows}};
-  v_maximum_volumetric.reshape(dims);
+  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
+  v_maximum_volumetric.reshape( dims );
  }
+
+ UnitBlock::deserialize( group );
 }// end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -1308,51 +1314,52 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
 
-  auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",
-                                               f_total_number_pieces );
+ auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",
+                                              f_total_number_pieces );
 
  auto dim_number_reservoirs = group.addDim( "NumberReservoirs",
-         f_number_reservoirs ? f_number_reservoirs : 1 );
+                                            f_number_reservoirs
+                                            ? f_number_reservoirs : 1 );
 
  auto dim_number_arcs = group.addDim( "NumberArcs",
-         f_number_arcs ? f_number_arcs : 1 );
+                                      f_number_arcs ? f_number_arcs : 1 );
 
 
  ::serialize( group, "NumberPieces", netCDF::NcUint64(),
               dim_number_arcs, v_number_pieces, true );
 
-  ::serialize( group, "StartLine", netCDF::NcInt64(),
-               dim_number_reservoirs, v_start_arc, false );
+ ::serialize( group, "StartLine", netCDF::NcInt64(),
+              dim_number_reservoirs, v_start_arc, false );
 
-  ::serialize( group, "EndLine", netCDF::NcInt64(),
-               dim_number_reservoirs, v_end_arc, false );
+ ::serialize( group, "EndLine", netCDF::NcInt64(),
+              dim_number_reservoirs, v_end_arc, false );
 
 
  if( !v_minimum_flow.empty() ) {
 
   ::serialize( group, "MinFlow", netCDF::NcDouble(),
-               {NumberIntervals, dim_number_arcs},
+               { NumberIntervals, dim_number_arcs },
                v_minimum_flow, true );
  }
 
  if( !v_maximum_flow.empty() ) {
 
   ::serialize( group, "MaxFlow", netCDF::NcDouble(),
-               {NumberIntervals, dim_number_arcs},
+               { NumberIntervals, dim_number_arcs },
                v_maximum_flow, true );
  }
 
  if( !v_minimum_volumetric.empty() ) {
 
   ::serialize( group, "MinVolumetric", netCDF::NcDouble(),
-               {dim_number_reservoirs, NumberIntervals},
+               { dim_number_reservoirs, NumberIntervals },
                v_minimum_volumetric, true );
  }
 
  if( !v_maximum_volumetric.empty() ) {
 
   ::serialize( group, "MaxVolumetric", netCDF::NcDouble(),
-               {dim_number_reservoirs, NumberIntervals},
+               { dim_number_reservoirs, NumberIntervals },
                v_maximum_volumetric, true );
  }
 
@@ -1378,17 +1385,16 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  if( !v_primary_rho.empty() ) {
   ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-               {NumberIntervals, dim_number_arcs},
+               { NumberIntervals, dim_number_arcs },
                v_primary_rho, true );
  }
 
  if( !v_secondary_rho.empty() ) {
 
   ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-               {NumberIntervals, dim_number_arcs},
+               { NumberIntervals, dim_number_arcs },
                v_secondary_rho, true );
  }
-
 
  ::serialize( group, "LinearTerm", netCDF::NcDouble(),
               dim_total_number_pieces, v_linear_term, false );

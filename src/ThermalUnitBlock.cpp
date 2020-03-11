@@ -68,36 +68,38 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
 void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
- UnitBlock::deserialize( group );
+ UnitBlock::deserialize_time_horizon( group );
+ UnitBlock::deserialize_change_intervals( group );
 
  ::deserialize( group, "MinPower", f_number_intervals, v_MinPower, true, true );
-
  ::deserialize( group, "MaxPower", f_number_intervals, v_MaxPower, true, true );
-
- ::deserialize( group, "DeltaRampUp", f_number_intervals, v_DeltaRampUp, true, true );
-
- ::deserialize( group, "DeltaRampDown", f_number_intervals, v_DeltaRampDown, true, true );
-
- ::deserialize( group, "PrimaryRho", f_number_intervals, v_PrimaryRho, true, true );
-
- ::deserialize( group, "SecondaryRho", f_number_intervals, v_SecondaryRho, true, true );
-
- ::deserialize( group, "LinearTerm", f_number_intervals, v_LinearTerm, true, true );
-
- ::deserialize( group, "QuadTerm", f_number_intervals, v_QuadTerm, true, true );
-
- ::deserialize( group, "ConstTerm", f_number_intervals, v_ConstTerm, true, true );
-
- ::deserialize( group, "StartUpCost", f_number_intervals, v_StartUpCost, true, true );
-
- ::deserialize( group, "FixedConsumption", f_number_intervals,v_fixed_consumption, true, true );
- ::deserialize( group, "InertiaCommitment", f_number_intervals, v_inertia_commitment, true, true );
+ ::deserialize( group, "DeltaRampUp", f_number_intervals,
+                v_DeltaRampUp, true, true );
+ ::deserialize( group, "DeltaRampDown", f_number_intervals,
+                v_DeltaRampDown, true, true );
+ ::deserialize( group, "PrimaryRho", f_number_intervals,
+                v_PrimaryRho, true, true );
+ ::deserialize( group, "SecondaryRho", f_number_intervals,
+                v_SecondaryRho, true, true );
+ ::deserialize( group, "LinearTerm", f_number_intervals,
+                v_LinearTerm, true, true );
+ ::deserialize( group, "QuadTerm", f_number_intervals,
+                v_QuadTerm, true, true );
+ ::deserialize( group, "ConstTerm", f_number_intervals,
+                v_ConstTerm, true, true );
+ ::deserialize( group, "StartUpCost", f_number_intervals,
+                v_StartUpCost, true, true );
+ ::deserialize( group, "FixedConsumption", f_number_intervals,
+                v_fixed_consumption, true, true );
+ ::deserialize( group, "InertiaCommitment", f_number_intervals,
+                v_inertia_commitment, true, true );
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
  ::deserialize( group, "MinDownTime", &f_MinDownTime );
  ::deserialize( group, "InitUpDownTime", &f_InitUpDownTime );
 
+ UnitBlock::deserialize( group );
 }  // end( ThermalUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -1023,10 +1025,10 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
               NumberIntervals, v_StartUpCost, true );
 
  ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
-              {NumberIntervals}, v_fixed_consumption, true );
+              { NumberIntervals }, v_fixed_consumption, true );
 
  ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
-              {NumberIntervals}, v_inertia_commitment, true );
+              { NumberIntervals }, v_inertia_commitment, true );
 }
 
 /*--------------------------------------------------------------------------*/
