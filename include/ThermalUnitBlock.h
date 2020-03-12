@@ -688,107 +688,59 @@ class ThermalUnitBlock : public UnitBlock {
  /// Returns the minimum allowed down time value
  Index get_min_down_time() const { return f_MinDownTime; }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of minimum power
-/** The returned vector contains to minimum power at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the minimum power of the unit is 0;
- *
- * - if the vector has only one element, then the minimum power of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the minimum power value at time t. */
-
+ /// Returns the vector of minimum power
+ /**
+  * The returned vector contains the minimum power for each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_min_power() const {
-  return( v_MinPower );
-  }
+  return v_MinPower;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of maximum power
-/** The returned vector contains to maximum power at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the maximum power of the unit is 0;
- *
- * - if the vector has only one element, then the maximum power of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum power value at time t.   */
-
+ /// Returns the vector of maximum power
+ /**
+  * The returned vector contains the maximum power for each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_max_power() const {
-  return( v_MaxPower );
-  }
+  return v_MaxPower;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of primary rho
-/** The returned vector contains to primary rho at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the primary rho of the unit is 0;
- *
- * - if the vector has only one element, then the primary rho of the unit for
- *   all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the primary rho value at time t. */
-
+ /// Returns the vector of primary rho
+ /**
+  * The returned vector contains the primary rho at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_primary_rho() const {
-  return( v_PrimaryRho );
-  }
+  return v_PrimaryRho;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of secondary rho
-/** The returned vector contains to secondary rho at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the secondary rho of the unit is 0;
- *
- * - if the vector has only one element, then the secondary rho of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the secondary rho value at time t. */
- 
+ /// Returns the vector of secondary rho
+ /**
+  * The returned vector contains the secondary rho at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_secondary_rho() const {
-  return( v_SecondaryRho );
-  }
+  return v_SecondaryRho;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// Returns the vector of delta ramp-up
-/** The returned vector contains to delta ramp-up at time t.  There are three
- * possible cases:
- *
- * - if the vector is empty, then the delta ramp-up of the unit is 0;
- *
- * - if the vector has only one element, then the delta ramp-up of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the delta ramp-up value at time t. */
-
+ /// Returns the vector of delta ramp-up
+ /**
+  * The returned vector contains the delta ramp-up at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_delta_ramp_up() const {
-  return( v_DeltaRampUp );
-  }
+  return v_DeltaRampUp;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of delta ramp-down
-/** The returned vector contains to delta ramp-down at time t. There are
- * three possible cases:
- *
- * - if the vector is empty, then the delta ramp-down of the unit is 0;
- *
- * - if the vector has only one element, then the delta ramp-down of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the delta ramp-down value at time t.  */
-
+ /// Returns the vector of delta ramp-down
+ /**
+  * The returned vector contains the delta ramp-up at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_delta_ramp_down() const {
-  return( v_DeltaRampDown );
-  }
+  return v_DeltaRampDown;
+ }
 
 /*--------------------------------------------------------------------------*/
 /// Returns the vector of quadratic term
@@ -1172,6 +1124,8 @@ private:
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
