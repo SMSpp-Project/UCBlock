@@ -999,7 +999,7 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
                                      c_ModParam issuePMod,
                                      c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_number_intervals );
+ rng.second = std::min( rng.second, f_time_horizon );
  if( rng.second <= rng.first ) {
   return;
  }
@@ -1051,39 +1051,146 @@ ThermalUnitBlock::set_maximum_power( std::vector< double >::const_iterator value
  }
 }
 
-void
-ThermalUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
-                                     Block::Subset && subset,
-                                     const bool ordered,
-                                     c_ModParam issuePMod,
-                                     c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+void ThermalUnitBlock::set_initial_power(
+ std::vector< double >::const_iterator values,
+ Block::Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.size() != 1 ) {
+  return;
+ }
+
+ if( f_initial_power == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  f_initial_power = *values;
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
+   RampUp_Constraints[ 0 ].set_rhs(
+    v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
+    issueAMod );
+   RampDown_Constraints[ 0 ].set_lhs( f_initial_power, issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >( this,
+                                                ThermalUnitBlockMod::eSetInitP,
+                                                std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
-void
-ThermalUnitBlock::set_initial_power( std::vector< double >::const_iterator it,
-                                     Block::Range rng,
-                                     c_ModParam issuePMod,
-                                     c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+void ThermalUnitBlock::set_initial_power(
+ std::vector< double >::const_iterator values,
+ Block::Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second != rng.first ) {
+  return;
+ }
+
+ if( f_initial_power == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  f_initial_power = *values;
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
+   RampUp_Constraints[ 0 ].set_rhs(
+    v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
+    issueAMod );
+   RampDown_Constraints[ 0 ].set_lhs( f_initial_power, issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >( this,
+                                                ThermalUnitBlockMod::eSetInitP,
+                                                rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
-void
-ThermalUnitBlock::set_init_updown_time( std::vector< int >::const_iterator it,
-                                        Block::Subset && subset,
-                                        const bool ordered,
-                                        c_ModParam issuePMod,
-                                        c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+void ThermalUnitBlock::set_init_updown_time(
+ std::vector< int >::const_iterator values,
+ Block::Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.size() != 1 ) {
+  return;
+ }
+
+ if( f_InitUpDownTime == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  f_InitUpDownTime = *values;
+
+  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+   // TODO Nuclear option
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >( this,
+                                                ThermalUnitBlockMod::eSetInitUD,
+                                                std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
-void
-ThermalUnitBlock::set_init_updown_time( std::vector< int >::const_iterator it,
-                                        Block::Range rng,
-                                        c_ModParam issuePMod,
-                                        c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
-}
+void ThermalUnitBlock::set_init_updown_time(
+ std::vector< int >::const_iterator values,
+ Block::Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second != rng.first ) {
+  return;
+ }
+
+ if( f_InitUpDownTime == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  f_InitUpDownTime = *values;
+
+  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+   // TODO Nuclear option
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >( this,
+                                                ThermalUnitBlockMod::eSetInitP,
+                                                rng ),
+   Observer::par2chnl( issuePMod ) );
+ }}
 
 template< typename T >
 void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
