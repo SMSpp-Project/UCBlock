@@ -67,158 +67,97 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  if( v_minimum_flow.empty() ) {
   ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
- }
-
-
- long rows = v_minimum_flow.shape()[ 0 ];
- long cols = v_minimum_flow.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_minimum_flow.reshape( dims );
+  transpose( v_minimum_flow );
  }
 
  if( v_maximum_flow.empty() ) {
   ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
- }
-
- rows = v_maximum_flow.shape()[ 0 ];
- cols = v_maximum_flow.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_maximum_flow.reshape( dims );
+  transpose( v_maximum_flow );
  }
 
  ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
-
  ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
-
- ::deserialize( group, "NumberPieces",
-                f_number_arcs ? f_number_arcs
-                              : 1, v_number_pieces, true, true );
+ ::deserialize( group, "NumberPieces", f_number_arcs,
+                v_number_pieces, true, true );
 
  for( auto & n : v_number_pieces ) {
   f_total_number_pieces += n;
  }
 
- ::deserialize( group, "StartArc",
-                f_number_arcs ? f_number_arcs : 1, v_start_arc );
+ f_number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
+ f_number_arcs = f_number_arcs ? f_number_arcs : 1;
+ // f_total_number_pieces = f_total_number_pieces ? f_total_number_pieces : 1;
+ f_total_number_pieces = f_total_number_pieces ?
+                         f_total_number_pieces : f_number_arcs;
 
- ::deserialize( group, "EndArc", f_number_arcs ? f_number_arcs : 1, v_end_arc );
+ ::deserialize( group, "StartArc", f_number_arcs, v_start_arc );
+ ::deserialize( group, "EndArc", f_number_arcs, v_end_arc );
 
  ::deserialize( group, "Inflows", v_inflows, true, false );
-
- rows = v_inflows.shape()[ 0 ];
- cols = v_inflows.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_inflows.reshape( dims );
- }
+ transpose( v_inflows );
 
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
-
- rows = v_minimum_power.shape()[ 0 ];
- cols = v_minimum_power.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_minimum_power.reshape( dims );
- }
+ transpose( v_minimum_power );
 
  ::deserialize( group, "MaxPower", v_maximum_power, true, true );
-
- rows = v_maximum_power.shape()[ 0 ];
- cols = v_maximum_power.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_maximum_power.reshape( dims );
- }
+ transpose( v_maximum_power );
 
  ::deserialize( group, "DeltaRampUp", v_delta_ramp_up, true, true );
-
- rows = v_delta_ramp_up.shape()[ 0 ];
- cols = v_delta_ramp_up.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_delta_ramp_up.reshape( dims );
- }
+ transpose( v_delta_ramp_up );
 
  ::deserialize( group, "DeltaRampDown", v_delta_ramp_down, true, true );
-
- rows = v_delta_ramp_down.shape()[ 0 ];
- cols = v_delta_ramp_down.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_delta_ramp_down.reshape( dims );
- }
+ transpose( v_delta_ramp_down );
 
  ::deserialize( group, "PrimaryRho", v_primary_rho, true, true );
-
- rows = v_primary_rho.shape()[ 0 ];
- cols = v_primary_rho.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_primary_rho.reshape( dims );
- }
+ transpose( v_primary_rho );
 
  ::deserialize( group, "SecondaryRho", v_secondary_rho, true, true );
+ transpose( v_secondary_rho );
 
- rows = v_secondary_rho.shape()[ 0 ];
- cols = v_secondary_rho.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_secondary_rho.reshape( dims );
- }
-
- ::deserialize( group, "LinearTerm",
-                f_total_number_pieces ? f_total_number_pieces : 1,
+ ::deserialize( group, "LinearTerm", f_total_number_pieces,
                 v_linear_term, true, true );
 
- ::deserialize( group, "ConstantTerm",
-                f_total_number_pieces ? f_total_number_pieces : 1,
+ ::deserialize( group, "ConstantTerm", f_total_number_pieces,
                 v_const_term, true, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
- ::deserialize( group, "InitialFlowRate",
-                f_number_arcs ? f_number_arcs
-                              : 1, v_initial_flow_rate, true, true );
+ ::deserialize( group, "InitialFlowRate", f_number_arcs,
+                v_initial_flow_rate, true, true );
 
- ::deserialize( group, "InitialVolumetric",
-                f_number_reservoirs ? f_number_reservoirs : 1,
+ ::deserialize( group, "InitialVolumetric", f_number_reservoirs,
                 v_initial_volumetric, true, true );
 
- ::deserialize( group, "UphillFlow",
-                f_number_arcs ? f_number_arcs : 1, v_uphill_delay, true, true );
+ ::deserialize( group, "UphillFlow", f_number_arcs,
+                v_uphill_delay, true, true );
 
- ::deserialize( group, "DownhillFlow",
-                f_number_arcs ? f_number_arcs
-                              : 1, v_downhill_delay, true, true );
+ ::deserialize( group, "DownhillFlow", f_number_arcs,
+                v_downhill_delay, true, true );
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
-
- rows = v_minimum_volumetric.shape()[ 0 ];
- cols = v_minimum_volumetric.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_minimum_volumetric.reshape( dims );
- }
+ transpose( v_minimum_volumetric );
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
+ transpose( v_maximum_volumetric );
 
- rows = v_maximum_volumetric.shape()[ 0 ];
- cols = v_maximum_volumetric.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< boost::multi_array< double, 2 >::index, 2 > dims = { { 1, rows } };
-  v_maximum_volumetric.reshape( dims );
+ decompress_array( v_minimum_flow );
+ decompress_array( v_maximum_flow );
+ decompress_vol( v_minimum_volumetric );
+ decompress_vol( v_maximum_volumetric );
+ decompress_vol( v_inflows );
+
+ decompress_array( v_minimum_power );
+ decompress_array( v_maximum_power );
+ decompress_array( v_delta_ramp_up );
+ decompress_array( v_delta_ramp_down );
+ decompress_array( v_primary_rho );
+ decompress_array( v_secondary_rho );
+ decompress_array( v_inertia_power );
+
+ if( v_linear_term.size() == 1 ) {
+  v_linear_term.resize( f_number_arcs, v_linear_term[ 0 ] );
+ }
+ if( v_const_term.size() == 1 ) {
+  v_const_term.resize( f_number_arcs, v_const_term[ 0 ] );
  }
 
  UnitBlock::deserialize( group );
@@ -230,9 +169,6 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
  UnitBlock::generate_abstract_variables( stvv );
 
- unsigned int number_arcs = f_number_arcs ? f_number_arcs : 1;
- unsigned int number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
-
  if( f_time_horizon == 0 ) {
   // there are no variables to be generated
   return;
@@ -242,8 +178,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   // the abstract variables should be generated only once
   return;
  }
- v_volumetric.resize(boost::extents[number_reservoirs][ f_time_horizon]);
- for( Index g = 0; g < number_reservoirs; ++g ) {
+ v_volumetric.resize(boost::extents[f_number_reservoirs][ f_time_horizon]);
+ for( Index g = 0; g < f_number_reservoirs; ++g ) {
  for( Index t = 0; t < f_time_horizon; ++t ) {
    auto & volumetric = v_volumetric[ g ][ t ];
 
@@ -256,8 +192,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   // the abstract variables should be generated only once
   return;
  }
- v_flow_rate.resize(boost::extents[number_arcs][f_time_horizon]);
- for( Index g = 0; g < number_arcs; ++g ) {
+ v_flow_rate.resize(boost::extents[f_number_arcs][f_time_horizon]);
+ for( Index g = 0; g < f_number_arcs; ++g ) {
  for( Index t = 0; t < f_time_horizon; ++t ) {
    auto & flow_rate = v_flow_rate[ g ][ t ];
 
@@ -271,10 +207,9 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   return;
  }
 
- int n_gen = f_number_arcs == 0 ? 1 : f_number_arcs;
- v_active_power.resize(boost::extents[n_gen][f_time_horizon]);
+ v_active_power.resize(boost::extents[f_number_arcs][f_time_horizon]);
 
- for( Index g = 0; g < n_gen; ++g ) {
+ for( Index g = 0; g < f_number_arcs; ++g ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous );
 
@@ -286,9 +221,9 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
    // the abstract variables should be generated only once
    return;
   }
-  v_primary_spinning_reserve.resize(boost::extents[n_gen][f_time_horizon]);
+  v_primary_spinning_reserve.resize(boost::extents[f_number_arcs][f_time_horizon]);
 
- for( Index g = 0; g < n_gen; ++g ) {
+ for( Index g = 0; g < f_number_arcs; ++g ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
     v_primary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
 
@@ -300,9 +235,9 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
    // the abstract variables should be generated only once
   return;
   }
- v_secondary_spinning_reserve.resize(boost::extents[n_gen][f_time_horizon]);
+ v_secondary_spinning_reserve.resize(boost::extents[f_number_arcs][f_time_horizon]);
 
- for( Index g = 0; g < n_gen; ++g ) {
+ for( Index g = 0; g < f_number_arcs; ++g ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
  v_secondary_spinning_reserve[ g ][ t ].set_type( ColVariable::kNonNegative );
 
@@ -316,447 +251,6 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
- unsigned int number_arcs = f_number_arcs ? f_number_arcs : 1;
- unsigned int number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
-
- // initial condition of matrix MinFlow
- boost::multi_array< double, 2 > MinFlow = v_minimum_flow;
-
- if( MinFlow.shape()[ 0 ] == 1 ) {
-  MinFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-    MinFlow[ t ][ g ] = v_minimum_flow[ 0 ][ g ];
-   }
-  }
-
- } else if( MinFlow.shape()[ 0 ] < f_time_horizon ) {
-
-  MinFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[ i ];
-    }
-    for( ; j < sup; ++j ) {
-
-     MinFlow[ j ][ g ] = v_minimum_flow[ i ][ g ];
-    }
-   }
-  }
- }
-
-
- // initial condition of matrix MaxFlow
- boost::multi_array< double, 2 > MaxFlow = v_maximum_flow;
-
- if( MaxFlow.shape()[ 0 ] == 1 ) {
-  MaxFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-    MaxFlow[ t ][ g ] = v_maximum_flow[ 0 ][ g ];
-
-   }
-  }
- } else if( MaxFlow.shape()[ 0 ] < f_time_horizon ) {
-
-  MaxFlow.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[ i ];
-    }
-    for( ; j < sup; ++j ) {
-
-     MaxFlow[ j ][ g ] = v_maximum_flow[ i ][ g ];
-    }
-   }
-  }
- }
-
- // initial condition of matrix MinVolumetric
- boost::multi_array< double, 2 > MinVolumetric = v_minimum_volumetric;
-
- if( MinVolumetric.shape()[ 1 ] == 1 ) {
-  MinVolumetric.resize( boost::extents[ number_reservoirs ][ f_time_horizon ] );
-
-  for( Index n = 0; n < number_reservoirs; ++n ) {
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-
-    MinVolumetric[ n ][ t ] = v_minimum_volumetric[ n ][ 0 ];
-
-   }
-  }
- } else if( MinVolumetric.shape()[ 1 ] < f_time_horizon ) {
-
-  MinVolumetric.resize( boost::extents[ number_reservoirs ][ f_time_horizon ] );
-
-  for( Index n = 0; n < number_reservoirs; ++n ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[ i ];
-    }
-    for( ; j < sup; ++j ) {
-
-     MinVolumetric[ n ][ j ] = v_minimum_volumetric[ n ][ i ];
-    }
-   }
-  }
- }
-
- // initial condition of matrix MaxVolumetric
- boost::multi_array< double, 2 > MaxVolumetric = v_maximum_volumetric;
-
- if( MaxVolumetric.shape()[ 1 ] == 1 ) {
-  MaxVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
-
-   for( Index n = 0; n < number_reservoirs; ++n ) {
-    for( Index t = 0; t < f_time_horizon; ++t ) {
-
-
-    MaxVolumetric[n][t] = v_maximum_volumetric[n][0];
-
-   }
-  }
- } else if( MaxVolumetric.shape()[ 1 ] < f_time_horizon ) {
-
-  MaxVolumetric.resize( boost::extents[number_reservoirs][f_time_horizon] );
-
-  for( Index n = 0; n < number_reservoirs; ++n ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     MaxVolumetric[n][j] = v_maximum_volumetric[n][i];
-    }
-   }
-  }
- }
-
- // initial condition of matrix Inflows
- boost::multi_array< double, 2 > Inflows;
-
- if( number_reservoirs == 1 ) {
-  Inflows.resize( boost::extents[1][f_time_horizon] );
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   Inflows[0][t] = v_inflows[0][t];
-
-  }
- } else {
-  Inflows.resize( boost::extents[number_reservoirs][f_time_horizon] );
-  for( Index g = 0; g < number_reservoirs; ++g ) {
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    Inflows[g][t] = v_inflows[g][t];
-   }
-  }
- }
-
-
-
- // initial condition of matrix MinPower
- boost::multi_array< double, 2 > MinPower = v_minimum_power;
-
- if( MinPower.shape()[ 0 ] == 1 ) {
-  MinPower.resize( boost::extents[ f_time_horizon ][ number_arcs ] );
-
-  for( Index n = 0; n < number_arcs; ++n ) {
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    MinPower[ t ][ n ] = v_minimum_power[ 0 ][ n ];
-   }
-  }
-
- } else if( MinPower.shape()[ 0 ] < f_time_horizon ) {
-  MinPower.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index n = 0; n < number_arcs; ++n ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     MinPower[n][j] = v_minimum_power[n][i];
-    }
-   }
-  }
- }  // initial condition of matrix MaxPower
-
- boost::multi_array< double, 2 > MaxPower = v_maximum_power;
-
- if( MaxPower.shape()[0] == 1 ) {
-  MaxPower.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index n = 0; n < number_arcs; ++n ) {
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-    MaxPower[t][n] = v_maximum_power[0][n];
-
-   }
-  }
- } else if( MaxPower.shape()[ 0 ] < f_time_horizon ) {
-
-  MaxPower.resize( boost::extents[number_reservoirs][f_time_horizon] );
-
-  for( Index n = 0; n < number_reservoirs; ++n ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     MaxPower[n][j] = v_maximum_power[n][i];
-    }
-   }
-  }
- }
-
- // initial condition of matrix DeltaRampUp
- boost::multi_array< double, 2 > DeltaRampUp = v_delta_ramp_up;
-
- if( DeltaRampUp.shape()[0] == 1  ) {
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-
-    DeltaRampUp.resize( boost::extents[f_time_horizon][number_arcs] );
-
-    DeltaRampUp[t][g] = v_delta_ramp_up[0][g];
-
-   }
-  }
- } else if( DeltaRampUp.shape()[ 0 ] < f_time_horizon ) {
-
-  DeltaRampUp.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     DeltaRampUp[j][g] = v_delta_ramp_up[i][g];
-    }
-   }
-  }
- }
-
- // initial condition of matrix DeltaRampDown
- boost::multi_array< double, 2 > DeltaRampDown = v_delta_ramp_down;
-
- if( DeltaRampDown.size() == number_arcs ) {
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-
-    DeltaRampDown.resize( boost::extents[f_time_horizon][number_arcs] );
-
-    DeltaRampDown[t][g] = v_delta_ramp_down[0][g];
-
-   }
-  }
- } else if( DeltaRampDown.size() > number_arcs ) {
-
-  DeltaRampDown.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     DeltaRampDown[j][g] = v_delta_ramp_down[i][g];
-    }
-   }
-  }
- }
-
- // initial condition of matrix PrimaryRho
- boost::multi_array< double, 2 > PrimaryRho = v_primary_rho;
-
- if( PrimaryRho.size() == number_arcs ) {
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-
-    PrimaryRho.resize( boost::extents[f_time_horizon][number_arcs] );
-
-    PrimaryRho[t][g] = v_primary_rho[0][g];
-
-   }
-  }
- } else if( PrimaryRho.size() > number_arcs ) {
-
-  PrimaryRho.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     PrimaryRho[j][g] = v_primary_rho[i][g];
-    }
-   }
-  }
- }
-
- // initial condition of matrix SecondaryRho
- boost::multi_array< double, 2 > SecondaryRho = v_secondary_rho;
-
- if( SecondaryRho.size() == number_arcs ) {
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-
-    SecondaryRho.resize( boost::extents[f_time_horizon][number_arcs] );
-
-    SecondaryRho[t][g] = v_secondary_rho[0][g];
-
-   }
-  }
- } else if( SecondaryRho.size() > number_arcs ) {
-
-  SecondaryRho.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     SecondaryRho[j][g] = v_secondary_rho[i][g];
-    }
-   }
-  }
- }
-
- // initial condition of vector NumberPieces
- std::vector< Index > NumberPieces = v_number_pieces;
-
- // initial condition of vector LinearTerm
- std::vector< double > LinearTerm = v_linear_term;
- if( LinearTerm.size() == 1 ) {
-  LinearTerm.resize( number_arcs, LinearTerm[0] );
- }
- // initial condition of vector ConstantTerm
- std::vector< double > ConstantTerm = v_const_term;
- if( ConstantTerm.size() == 1 ) {
-  ConstantTerm.resize( number_arcs, ConstantTerm[0] );
- }
- // initial condition of matrix InertiaPower
- boost::multi_array< double, 2 > InertiaPower = v_inertia_power;
-
- if( InertiaPower.size() == number_arcs ) {
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < number_arcs; ++g ) {
-
-    InertiaPower.resize( boost::extents[f_time_horizon][number_arcs] );
-
-    InertiaPower[t][g] = v_inertia_power[0][g];
-
-   }
-  }
- } else if( InertiaPower.size() > number_arcs ) {
-
-  InertiaPower.resize( boost::extents[f_time_horizon][number_arcs] );
-
-  for( Index g = 0; g < number_arcs; ++g ) {
-
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[i];
-    }
-    for( ; j < sup; ++j ) {
-
-     InertiaPower[j][g] = v_inertia_power[i][g];
-    }
-   }
-  }
- }
-
- // initial condition of vector InitialFlowRate
- std::vector< double > InitialFlowRate = v_initial_flow_rate;
-
- // initial condition of vector InitialVolumetric
- std::vector< double > InitialVolumetric = v_initial_volumetric;
-
- // initial condition of vector UphillFlow
- std::vector< Index > UphillFlow = v_uphill_delay;
-
- // initial condition of vector DownhillFlow
- std::vector< Index > DownhillFlow = v_downhill_delay;
-
- // initial condition of vector StartArc
- std::vector< Index > StartArc = v_start_arc;
-
- // initial condition of vector EndArc
- std::vector< Index > EndArc = v_end_arc;
-
-/*--------------------------------------------------------------------------*/
-
  // maximum power output according to primary-secondary reserves constraints
   if( MaxPowerPrimarySecondary_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -764,9 +258,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    MaxPowerPrimarySecondary_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
- for( Index arc = 0; arc < number_arcs; ++arc ) {
+ for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
     auto linear_function = new LinearFunction();
@@ -779,15 +273,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      linear_function->add_variable( &v_secondary_spinning_reserve[arc][t], 1.0 );
     }
     if (!v_minimum_power.empty() ) {
-     MaxPowerPrimarySecondary_Const[t][arc].set_lhs( MinPower[t][arc] );
+     MaxPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
     } else {
      MaxPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
 
     }
    if (!v_maximum_power.empty() ) {
-    MaxPowerPrimarySecondary_Const[t][arc].set_rhs( MaxPower[t][arc] );
+    MaxPowerPrimarySecondary_Const[t][arc].set_rhs( v_maximum_power[t][arc] );
    } else {
-    MaxPowerPrimarySecondary_Const[t][arc].set_rhs( LinearTerm[0] * MaxFlow[t][arc] );
+    MaxPowerPrimarySecondary_Const[t][arc].set_rhs( v_linear_term[0] * v_maximum_flow[t][arc] );
 
    }
     MaxPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
@@ -804,9 +298,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   MinPowerPrimarySecondary_Const.resize
           ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon][number_arcs] );
+            extent_gen()[f_time_horizon][f_number_arcs] );
  }
- for( Index arc = 0; arc < number_arcs; ++arc ) {
+ for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
@@ -820,15 +314,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     linear_function->add_variable( &v_secondary_spinning_reserve[arc][t], -1.0 );
    }
    if (!v_minimum_power.empty() ) {
-    MinPowerPrimarySecondary_Const[t][arc].set_lhs( MinPower[t][arc] );
+    MinPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
    } else {
     MinPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
 
    }
    if (!v_maximum_power.empty() ) {
-    MinPowerPrimarySecondary_Const[t][arc].set_rhs( MaxPower[t][arc] );
+    MinPowerPrimarySecondary_Const[t][arc].set_rhs( v_maximum_power[t][arc] );
    } else {
-    MinPowerPrimarySecondary_Const[t][arc].set_rhs( LinearTerm[0] * MaxFlow[t][arc] );
+    MinPowerPrimarySecondary_Const[t][arc].set_rhs( v_linear_term[0] * v_maximum_flow[t][arc] );
 
    }
    MinPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
@@ -838,7 +332,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  add_static_constraint( MinPowerPrimarySecondary_Const, "MinPowerPrimarySecondary");
 
  // power output relation with to primary reserves constraints
- if( MaxFlow[0][0] > 0 ) {
+ if( v_maximum_flow[0][0] > 0 ) {
 
   if( !v_primary_rho.empty()) {
    if( ActivePowerPrimary_Const.size() != f_time_horizon ) {
@@ -847,15 +341,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     ActivePowerPrimary_Const.resize
             ( boost::multi_array< FRowConstraint, 2 >::
-              extent_gen()[f_time_horizon][number_arcs] );
+              extent_gen()[f_time_horizon][f_number_arcs] );
    }
-   for( Index arc = 0; arc < number_arcs; ++arc ) {
+   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
 
      auto linear_function = new LinearFunction();
 
-     linear_function->add_variable( &v_active_power[arc][t], PrimaryRho[t][arc] );
+     linear_function->add_variable( &v_active_power[arc][t], v_primary_rho[t][arc] );
 
      linear_function->add_variable( &v_primary_spinning_reserve[arc][t], -1.0 );
      ActivePowerPrimary_Const[t][arc].set_lhs( 0.0 );
@@ -869,7 +363,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
  // power output relation with to secondary reserves constraints
- if( MaxFlow[0][0] > 0 ) {
+ if( v_maximum_flow[0][0] > 0 ) {
   if( !v_secondary_rho.empty()) {
    if( ActivePowerSecondary_Const.size() != f_time_horizon ) {
     // this should only happen once
@@ -877,12 +371,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     ActivePowerSecondary_Const.resize
             ( boost::multi_array< FRowConstraint, 2 >::
-              extent_gen()[f_time_horizon][number_arcs] );
+              extent_gen()[f_time_horizon][f_number_arcs] );
    }
-   for( Index arc = 0; arc < number_arcs; ++arc ) {
+   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
     for( Index t = 0; t < f_time_horizon; ++t ) {
      auto linear_function = new LinearFunction();
-     linear_function->add_variable( &v_active_power[arc][t], SecondaryRho[t][arc] );
+     linear_function->add_variable( &v_active_power[arc][t], v_secondary_rho[t][arc] );
      linear_function->add_variable( &v_secondary_spinning_reserve[arc][t], -1.0 );
      ActivePowerSecondary_Const[t][arc].set_lhs( 0.0 );
      ActivePowerSecondary_Const[t][arc].set_rhs( Inf< double >());
@@ -893,16 +387,16 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
  // primary reserves constraints for pumps
- if( MaxFlow[0][0] <= 0 ) {
+ if( v_maximum_flow[0][0] <= 0 ) {
   if( PrimaryPumps_Const.size() != f_time_horizon ) {
    // this should only happen once
    assert( PrimaryPumps_Const.empty());
 
    PrimaryPumps_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
 
@@ -918,7 +412,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   add_static_constraint( PrimaryPumps_Const, "PrimaryPumps");
  }
  // secondary reserves constraints for pumps
- if( MaxFlow[0][0] <= 0 ) {
+ if( v_maximum_flow[0][0] <= 0 ) {
 
   if( SecondaryPumps_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -926,9 +420,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    SecondaryPumps_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
      auto linear_function = new LinearFunction();
@@ -944,7 +438,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // flow to active power function constraints for pumps
- if( MaxFlow[0][0] <= 0 ) {
+ if( v_maximum_flow[0][0] <= 0 ) {
 
   if( FlowActivePowerPumps_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -952,16 +446,16 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    FlowActivePowerPumps_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
     auto linear_function = new LinearFunction();
 
     linear_function->add_variable( &v_active_power[arc][t], 1.0 );
-    linear_function->add_variable( &v_flow_rate[arc][t], -LinearTerm[arc] );
+    linear_function->add_variable( &v_flow_rate[arc][t], -v_linear_term[arc] );
     FlowActivePowerPumps_Const[t][arc].set_both( 0.0 );
     FlowActivePowerPumps_Const[t][arc].set_function( linear_function );
 
@@ -971,22 +465,21 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // flow to active power function constraints for turbines
- if (MaxFlow[0][0] > 0 ) {
-  if (number_arcs > 0 ) {
-  int TotalNumberPieces = f_total_number_pieces ? f_total_number_pieces : number_arcs;
+ if (v_maximum_flow[0][0] > 0 ) {
+  if (f_number_arcs > 0 ) {
   if( FlowActivePowerTurbines_Const.size() != f_time_horizon ) {
    // this should only happen once
    assert( FlowActivePowerTurbines_Const.empty());
 
-   if( TotalNumberPieces == number_arcs ) {
+   if( f_total_number_pieces == f_number_arcs ) {
 
     FlowActivePowerTurbines_Const.resize
             ( boost::multi_array< FRowConstraint, 3 >::
-              extent_gen()[f_time_horizon][number_arcs][1] );
-   } else if( TotalNumberPieces > number_arcs ) {
+              extent_gen()[f_time_horizon][f_number_arcs][1] );
+   } else if( f_total_number_pieces > f_number_arcs ) {
     FlowActivePowerTurbines_Const.resize
             ( boost::multi_array< FRowConstraint, 3 >::
-              extent_gen()[f_time_horizon][1][TotalNumberPieces] );
+              extent_gen()[f_time_horizon][1][f_total_number_pieces] );
    }
   }
 
@@ -994,25 +487,25 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    Index piece = 0;
    Index end = 0;
-   for( Index arc = 0; arc < number_arcs; ++arc ) {
-    if( !NumberPieces.empty()) {
-     end += NumberPieces[arc];
+   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
+    if( !v_number_pieces.empty()) {
+     end += v_number_pieces[arc];
     }
-    if( TotalNumberPieces == number_arcs ) {
+    if( f_total_number_pieces == f_number_arcs ) {
 
      auto linear_function = new LinearFunction();
 
      linear_function->add_variable( &v_active_power[arc][t], 1.0 );
      if( !v_linear_term.empty()) {
       linear_function
-              ->add_variable( &v_flow_rate[arc][t], -LinearTerm[arc] );
+              ->add_variable( &v_flow_rate[arc][t], -v_linear_term[arc] );
      } else {
       linear_function->add_variable( &v_flow_rate[arc][t], 0.0 );
 
      }
      if( !v_const_term.empty()) {
       FlowActivePowerTurbines_Const[t][arc][0]
-              .set_rhs( ConstantTerm[arc] );
+              .set_rhs( v_const_term[arc] );
      } else {
       FlowActivePowerTurbines_Const[t][arc][0].set_rhs( 0.0 );
 
@@ -1021,7 +514,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      FlowActivePowerTurbines_Const[t][arc][0]
              .set_function( linear_function );
 
-    } else if( TotalNumberPieces > number_arcs ) {
+    } else if( f_total_number_pieces > f_number_arcs ) {
 
      for( ; piece < end; ++piece ) {
       auto linear_function = new LinearFunction();
@@ -1029,13 +522,13 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
       linear_function->add_variable( &v_active_power[arc][t], 1.0 );
       if( !v_linear_term.empty()) {
        linear_function
-               ->add_variable( &v_flow_rate[arc][t], -LinearTerm[piece] );
+               ->add_variable( &v_flow_rate[arc][t], -v_linear_term[piece] );
       } else {
        linear_function->add_variable( &v_flow_rate[arc][t], 0.0 );
       }
       if( !v_const_term.empty()) {
        FlowActivePowerTurbines_Const[t][0][piece]
-               .set_rhs( ConstantTerm[piece] );
+               .set_rhs( v_const_term[piece] );
       } else {
        FlowActivePowerTurbines_Const[t][0][piece].set_rhs( 0.0 );
       }
@@ -1058,9 +551,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    FlowRateBounds_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
@@ -1068,7 +561,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     linear_function->add_variable( &v_flow_rate[arc][t], 1.0 );
     FlowRateBounds_Const[t][arc].set_lhs( 0.0 );
-    FlowRateBounds_Const[t][arc].set_rhs( MaxFlow[t][arc] );
+    FlowRateBounds_Const[t][arc].set_rhs( v_maximum_flow[t][arc] );
     FlowRateBounds_Const[t][arc].set_function( linear_function );
 
    }
@@ -1087,31 +580,31 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    RampUp_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
   // Initial condition
 
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_flow_rate[arc][0], 1.0 );
 
    RampUp_Const[0][arc].set_lhs( -Inf< double >());
-   RampUp_Const[0][arc].set_rhs( DeltaRampUp[0][arc] + InitialFlowRate[arc] );
+   RampUp_Const[0][arc].set_rhs( v_delta_ramp_up[0][arc] + v_initial_flow_rate[arc] );
    RampUp_Const[0][arc].set_function( linear_function );
 
   }
 
   for( Index t = 1; t < f_time_horizon; ++t ) {
-   for( Index arc = 0; arc < number_arcs; ++arc ) {
+   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
     auto linear_function = new LinearFunction();
 
     linear_function->add_variable( &v_flow_rate[arc][t], 1.0 );
     linear_function->add_variable( &v_flow_rate[arc][t - 1], -1.0 );
 
     RampUp_Const[t][arc].set_lhs( -Inf< double >());
-    RampUp_Const[t][arc].set_rhs( DeltaRampUp[t][arc] );
+    RampUp_Const[t][arc].set_rhs( v_delta_ramp_up[t][arc] );
     RampUp_Const[t][arc].set_function( linear_function );
 
    }
@@ -1130,24 +623,24 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    RampDown_Const.resize
            ( boost::multi_array< FRowConstraint, 2 >::
-             extent_gen()[f_time_horizon][number_arcs] );
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
 
   // Initial condition
 
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
 
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_flow_rate[arc][0], 1.0 );
 
-   RampDown_Const[0][arc].set_lhs( InitialFlowRate[arc] - DeltaRampDown[0][arc] );
+   RampDown_Const[0][arc].set_lhs( v_initial_flow_rate[arc] - v_delta_ramp_down[0][arc] );
    RampDown_Const[0][arc].set_rhs( Inf< double >());
    RampDown_Const[0][arc].set_function( linear_function );
 
   }
 
-  for( Index arc = 0; arc < number_arcs; ++arc ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
   for( Index t = 1; t < f_time_horizon; ++t ) {
     auto linear_function = new LinearFunction();
 
@@ -1155,7 +648,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     linear_function->add_variable( &v_flow_rate[arc][t], -1.0 );
 
     RampDown_Const[t][arc].set_lhs( -Inf< double >());
-    RampDown_Const[t][arc].set_rhs( DeltaRampDown[t][arc] );
+    RampDown_Const[t][arc].set_rhs( v_delta_ramp_down[t][arc] );
     RampDown_Const[t][arc].set_function( linear_function );
 
    }
@@ -1172,11 +665,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   assert( FinalVolumeReservoir_Const.empty());
   FinalVolumeReservoir_Const.resize
           ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon][ number_reservoirs ] );
+            extent_gen()[f_time_horizon][ f_number_reservoirs ] );
  }
  Index end = 0;
 
- for( Index n = 0; n < number_reservoirs; ++n ) {
+ for( Index n = 0; n < f_number_reservoirs; ++n ) {
 
   auto l_f = new LinearFunction();
 
@@ -1188,11 +681,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-     if( StartArc[l] == n ) {
+     if( v_start_arc[l] == n ) {
 
       if( !v_uphill_delay.empty()) {
 
-       l_f->add_variable( &v_flow_rate[l][0 - UphillFlow[l]], 1.0 );
+       l_f->add_variable( &v_flow_rate[l][0 - v_uphill_delay[l]], 1.0 );
 
        } else {
 
@@ -1202,7 +695,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    } else  {
 
       if( !v_downhill_delay.empty()) {
-       if ( DownhillFlow[l] == 0 ){
+       if ( v_downhill_delay[l] == 0 ){
        l_f->add_variable( &v_flow_rate[l][0], -1.0 );
        }
 
@@ -1220,7 +713,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
 
   }
-  FinalVolumeReservoir_Const[0][n].set_both( InitialVolumetric[n] + Inflows[n][0] );
+  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[n][0] );
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
@@ -1236,11 +729,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
 
-      if( StartArc[l] == n ) {
+      if( v_start_arc[l] == n ) {
 
       if( !v_uphill_delay.empty()) {
 
-       linear_function->add_variable( &v_flow_rate[l][t - UphillFlow[l]], 1.0 );
+       linear_function->add_variable( &v_flow_rate[l][t - v_uphill_delay[l]], 1.0 );
 
       } else {
 
@@ -1251,7 +744,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       if( !v_downhill_delay.empty()  ) {
 
-        linear_function->add_variable( &v_flow_rate[l][t - DownhillFlow[l]], -1.0 );
+        linear_function->add_variable( &v_flow_rate[l][t - v_downhill_delay[l]], -1.0 );
 
       } else {
 
@@ -1265,7 +758,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     }
    }
-   FinalVolumeReservoir_Const[constraint_index][n].set_both(  Inflows[n][constraint_index] );
+   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[n][constraint_index] );
    FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
   }
   }
@@ -1282,16 +775,16 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   VolumetricBounds_Const.resize
           ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[number_reservoirs][f_time_horizon] );
+            extent_gen()[f_number_reservoirs][f_time_horizon] );
  }
- for( Index node = 0; node < number_reservoirs; ++node ) {
+ for( Index node = 0; node < f_number_reservoirs; ++node ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
    auto linear_function = new LinearFunction();
    linear_function->add_variable( &v_volumetric[node][t], 1.0 );
 
-   VolumetricBounds_Const[node][t].set_lhs( MinVolumetric[node][t] );
-   VolumetricBounds_Const[node][t].set_rhs( MaxVolumetric[node][t] );
+   VolumetricBounds_Const[node][t].set_lhs( v_minimum_volumetric[node][t] );
+   VolumetricBounds_Const[node][t].set_rhs( v_maximum_volumetric[node][t] );
    VolumetricBounds_Const[node][t].set_function( linear_function );
 
   }
@@ -1599,6 +1092,77 @@ HydroUnitBlock::set_initial_volumetric(
  // TODO PUT STUFF HERE
 }
 
+template< typename T >
+void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {
+ long rows = a.shape()[ 0 ];
+ long cols = a.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
+  // The vector must be transposed
+  boost::array< typename boost::multi_array< T, 2 >::index, 2 > dims = { { 1, rows } };
+  a.reshape( dims );
+ }
+}
+
+void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
+
+ boost::multi_array< double, 2 > temp = a;
+ a.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+
+ if( a.shape()[ 0 ] == 1 ) {
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+   for( Index g = 0; g < f_number_arcs; ++g ) {
+    a[ t ][ g ] = temp[ 0 ][ g ];
+   }
+  }
+
+ } else if( a.shape()[ 0 ] < f_time_horizon ) {
+  for( Index g = 0; g < f_number_arcs; ++g ) {
+   int j = 0;
+   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
+    Index sup;
+    if( i == v_change_intervals.size() - 1 ) {
+     sup = f_time_horizon;
+    } else {
+     sup = v_change_intervals[ i ];
+    }
+    for( ; j < sup; ++j ) {
+     a[ j ][ g ] = temp[ i ][ g ];
+    }
+   }
+  }
+ }
+}
+
+void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
+
+ boost::multi_array< double, 2 > temp = a;
+ a.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+
+ if( a.shape()[ 1 ] == 1 ) {
+
+  for( Index n = 0; n < f_number_reservoirs; ++n ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    a[ n ][ t ] = temp[ n ][ 0 ];
+   }
+  }
+
+ } else if( a.shape()[ 1 ] < f_time_horizon ) {
+  for( Index n = 0; n < f_number_reservoirs; ++n ) {
+   int j = 0;
+   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
+    Index sup;
+    if( i == v_change_intervals.size() - 1 ) {
+     sup = f_time_horizon;
+    } else {
+     sup = v_change_intervals[ i ];
+    }
+    for( ; j < sup; ++j ) {
+     a[ n ][ j ] = temp[ n ][ i ];
+    }
+   }
+  }
+ }
+}
 /*--------------------------------------------------------------------------*/
 /*------------------- End File HydroUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -1478,6 +1478,15 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Transposes a deserialized multiarray if needed
+ template< typename T >
+ void transpose( boost::multi_array< T, 2 > & a );
+
+ /// Decompress a multi_array using the change intervals
+ void decompress_array( boost::multi_array< double, 2 > & a );
+
+ /// Decompress a max/min volumetric multi_array using the change intervals
+ void decompress_vol( boost::multi_array< double, 2 > & a );
 
 /*--------------------------------------------------------------------------*/
 
