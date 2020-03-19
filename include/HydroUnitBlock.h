@@ -1413,6 +1413,12 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Transposes a deserialized multiarray if needed
+ template< typename T >
+ void transpose( boost::multi_array< T, 2 > & a );
+
+ template< typename T >
+ void decompress_matrix( boost::multi_array< T, 2 > & a );
 
 /*--------------------------------------------------------------------------*/
 
