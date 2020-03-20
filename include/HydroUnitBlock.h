@@ -1262,13 +1262,13 @@ class HydroUnitBlock : public UnitBlock {
                   c_ModParam issuePMod = eNoBlck,
                   c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
+ void set_inertia_power( std::vector< double >::const_iterator values,
                          Subset && subset,
                          bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
+ void set_inertia_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
@@ -1446,12 +1446,12 @@ class HydroUnitBlock : public UnitBlock {
                                      &HydroUnitBlock::set_inflow,
                                      MS_dbl_rngd::args() );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_power",
-                                     &HydroUnitBlock::set_initial_power,
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+                                     &HydroUnitBlock::set_inertia_power,
                                      MS_dbl_sbst::args() );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_power",
-                                     &HydroUnitBlock::set_initial_power,
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+                                     &HydroUnitBlock::set_inertia_power,
                                      MS_dbl_rngd::args() );
 
   register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
@@ -1504,7 +1504,7 @@ class HydroUnitBlockMod : public Modification {
  /// Public enum for the types of HydroUnitBlockMod
  enum HUB_mod_type {
   eSetInf = 0 ,    ///< Set inflow values
-  eSetInitP    ,   ///< Set initial power values
+  eSetInerP    ,   ///< Set inertia power values
   eSetInitV        ///< Set initial volumetric values
  };
 
@@ -1531,8 +1531,8 @@ class HydroUnitBlockMod : public Modification {
    case ( eSetInf ):
     output << "set inflow values ";
     break;
-   case ( eSetInitP ):
-    output << "set initial power values ";
+   case ( eSetInerP ):
+    output << "set inertia power values ";
     break;
    default:
     output << "set initial volumetric values ";

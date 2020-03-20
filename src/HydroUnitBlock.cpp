@@ -1057,20 +1057,119 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
 }
 
 void
-HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator values,
-                                   Block::Subset && subset,
+HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
+                                   Subset && subset,
                                    const bool ordered,
                                    c_ModParam issuePMod,
                                    c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_inertia_power.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inertia_power.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_inertia_power.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( *( v_inertia_power.data() + i ) != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   Index a = i % f_number_arcs;
+   Index t = i / f_number_arcs;
+   v_inertia_power[ t ][ a ] = *( values++ );
+   // *( v_inflows.data() + i ) = *( values++ );
+  }
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+   // TODO
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInerP,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
-HydroUnitBlock::set_initial_power( std::vector< double >::const_iterator values,
+HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
                                    Block::Range rng,
                                    c_ModParam issuePMod,
                                    c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+ rng.second = std::min( rng.second, f_number_arcs * get_time_horizon() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_inertia_power.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inertia_power.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_inertia_power.data() + rng.first ) ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_inertia_power.data() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+   // TODO
+
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInerP,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
@@ -1080,7 +1179,64 @@ HydroUnitBlock::set_initial_volumetric(
  const bool ordered,
  c_ModParam issuePMod,
  c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_initial_volumetric.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_initial_volumetric.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto temp_values = values;
+ for( auto i : subset ) {
+  if( i >= v_initial_volumetric.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_initial_volumetric[ i ] != *( temp_values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  temp_values = values;
+  for( auto i : subset ) {
+   v_initial_volumetric[ i ] = *( temp_values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && AR & HasObj ) {
+   // Change the abstract representation
+   // TODO
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInitV,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 void
@@ -1089,7 +1245,52 @@ HydroUnitBlock::set_initial_volumetric(
  Block::Range rng,
  c_ModParam issuePMod,
  c_ModParam issueAMod ) {
- // TODO PUT STUFF HERE
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_initial_volumetric.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_initial_volumetric.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_initial_volumetric.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_initial_volumetric.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+   // TODO
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInitV,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
 }
 
 template< typename T >
