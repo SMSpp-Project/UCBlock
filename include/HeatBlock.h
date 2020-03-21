@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 07 - 2019
+ * \date 21 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -139,26 +139,31 @@ class HeatBlock : public Block {
  *   time-dependent data in the HeatBlock can only change at a subset of
  *   the time instants of the time interval, being therefore
  *   piecewise-constant (possibly, constant). "NumberIntervals" should
- *   therefore be <= "TimeHorizon", with three distinct cases:
- *  
- *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
- *        == 1; this is what is assumed if the dimension, that is optional,
- *        is not there. This means that the value of each  relevant data in
- *        the HeatBlock (see e.g. "CostHeatUnit", "MinHeatProduction" and
- *        "MaxHeatProduction" below) is the same for each time instant
- *        0, ..., "TimeHorizon" - 1 in the time horizon. In this case, also
- *        the variable "ChangeIntervals" (see below) is ignored.
+ *   therefore be <= "TimeHorizon", with four distinct cases:
  *
- *   ii)  1 < "NumberIntervals" < "TimeHorizon", which means that in some
+ *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
  *        time instants, *but not all of them*, the values of some of the
  *        relevant data are changing; the intervals are then described in
  *        variable "ChangeIntervals".
  *
- *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of 
- *        the relevant data changes at every time interval (in principle;
- *	      of course there is nothing preventing the same value to be
- *        repeated in the netCDF input). Also in this case the variable
- *        "ChangeIntervals" is ignored, since it is useless.
+ *   ii) "NumberIntervals" == 1, which means that the value of each relevant
+ *        data in the HeatBlock (see e.g. "CostHeatUnit", "MinHeatProduction"
+ *        and "MaxHeatProduction" below) is the same for each time instant 0,
+ *        ..., "TimeHorizon" - 1 in the time horizon. In this case, the
+ *        variable "ChangeIntervals" (see below) is ignored.
+ *
+ *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
+ *        relevant data changes at every time interval (in principle; of
+ *        course there is nothing preventing the same value to be repeated in
+ *        the netCDF input). Also in this case the variable "ChangeIntervals"
+ *        is ignored, since it is useless.
+ *
+ *   iv)  The dimension "NumberIntervals" is not provided, which means that
+ *        the values of the relevant data may be the same for each time
+ *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
+ *        case iii above). Also in this case, of course, "ChangeIntervals"
+ *        (see below) is ignored, and therefore it can (and should) not be
+ *        present.
  *
  *   Note that (together with "ChangeIntervals", if defined) obviously sets
  *   the "maximum frequency" at which data can change; is some data changes
@@ -186,66 +191,73 @@ class HeatBlock : public Block {
  *   usually changing from one time instant to the next.
  *
  * - The variable "CostHeatUnit", of type double and indexed over two
- *   dimensions. The first dimension can have size 1 or "NumberIntervals".
- *   The second dimension has size "NumberHeatUnits". This is meant to
- *   represent the matrix CHU[ t , i ] which is assumed to contain the
- *   unitary cost of heat production of heat-producing unit i for time
- *   instant t. If the first dimension has size 1, then the cost is the
- *   same for all time instants (for the same unit). Otherwise,
- *   CostHeatUnit[ h , i ] is the fixed value of CHU[ t , i ] for all t in
- *   the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+ *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon").  The second dimension has size "NumberHeatUnits". This is
+ *   meant to represent the matrix CHU[ t , i ] which is assumed to contain
+ *   the unitary cost of heat production of heat-producing unit i for time
+ *   instant t. If the first dimension has size 1, then the cost is the same
+ *   for all time instants (for the same unit). Otherwise, CostHeatUnit[ h , i
+ *   ] is the fixed value of CHU[ t , i ] for all t in the interval [
+ *   ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0.
  *
- * - The variable "MinHeatProduction", of type double and indexed over
- *   two dimensions. The first dimension can have size 1 or "NumberIntervals".
- *   The second dimension has size "NumberHeatUnits". This is meant to
- *   represent the matrix MinHP[ t , i ] which is assumed to contain the
- *   minimum heat production of heat-producing unit i for time instant t. The
- *   variable is optional; if it is not provided at all, it is intended
+ * - The variable "MinHeatProduction", of type double and indexed over two
+ *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon").  The second dimension has size "NumberHeatUnits". This is
+ *   meant to represent the matrix MinHP[ t , i ] which is assumed to contain
+ *   the minimum heat production of heat-producing unit i for time instant
+ *   t. The variable is optional; if it is not provided at all, it is intended
  *   MnHP[ t , i ] == 0 for all i and t. If the first dimension has size 1,
  *   then the minimum heat production is the same for all time instants (for
  *   the same unit). Otherwise, MinHeatProduction[ h , i ] is the fixed value
- *   of MinHP[ t , i ] for all t in the interval
- *   [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0.
+ *   of MinHP[ t , i ] for all t in the interval [ ChangeIntervals[ h - 1 ],
+ *   ChangeIntervals[ h ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0.
  *
  * - The variable "MaxHeatProduction", of type double and indexed over two
- *   dimensions. The first dimension can have size 1 or "NumberIntervals". The
- *   second dimension has size "NumberHeatUnits". This is meant to represent
- *   the matrix MaxHP[ t , i ] which is assumed to contain the maximum heat
- *   production of heat-producing unit i for time instant t. It is assumed
- *   MaxHP[ t , i ] >= MinHP[ t , i ] >= 0 for all i and t, with strict
- *   inequality holding for at least some t for each unit i (otherwise the
- *   production of unit i is fixed and there is nothing to decide). The
- *   variable is optional; if it is not provided at all, it is intended
- *   MaxHP[ t , i ] == 0 for all i and t. If the first dimension has size 1,
- *   then the maximum heat production is the same for all time instants (for
- *   the same unit). Otherwise, MaxHeatProduction[ h , i ] is  the fixed value
- *   of MaxHP[ t , i ] for all t in the interval [ ChangeIntervals[ h - 1 ],
- *   ChangeIntervals[ h ] ], with the assumption that
- *   ChangeIntervals[ - 1 ] = 0.
+ *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon"). The second dimension has size "NumberHeatUnits". This is
+ *   meant to represent the matrix MaxHP[ t , i ] which is assumed to contain
+ *   the maximum heat production of heat-producing unit i for time instant
+ *   t. It is assumed MaxHP[ t , i ] >= MinHP[ t , i ] >= 0 for all i and t,
+ *   with strict inequality holding for at least some t for each unit i
+ *   (otherwise the production of unit i is fixed and there is nothing to
+ *   decide). The variable is optional; if it is not provided at all, it is
+ *   intended MaxHP[ t , i ] == 0 for all i and t. If the first dimension has
+ *   size 1, then the maximum heat production is the same for all time
+ *   instants (for the same unit). Otherwise, MaxHeatProduction[ h , i ] is
+ *   the fixed value of MaxHP[ t , i ] for all t in the interval [
+ *   ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0.
  *
- * - The variable "MinHeatStorage", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector MinHS[ t ] which, for each time instant t, contains the minimum
- *   heat storage of this HB. The variable is optional, if it is not provided
- *   at all it is intended that MinHS[ t ] == 0 for all t. If the variable has
- *   size 1, then the minimum heat storage is the same for all time instants.
- *   Otherwise, MinHeatStorage[ h ] is the fixed value of MinHS[ t ] for all t
- *   in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0.
+ * - The variable "MinHeatStorage", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MinHS[ t ] which,
+ *   for each time instant t, contains the minimum heat storage of this
+ *   HB. The variable is optional, if it is not provided at all it is intended
+ *   that MinHS[ t ] == 0 for all t. If the variable has size 1, then the
+ *   minimum heat storage is the same for all time instants.  Otherwise,
+ *   MinHeatStorage[ h ] is the fixed value of MinHS[ t ] for all t in the
+ *   interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
  *
- * - The variable "MaxHeatStorage", of type double and either indexed over
- *   the dimension "NumberIntervals" or has size 1. This is meant to represent
- *   the vector MxHS[ t ] which, for each time instant t, contains the
- *   maximum heat storage of this HB. The variable is optional, if it is not
- *   provided at all it is intended that MaxHS[ t ] == 0 for all t, and since
- *   it's assumed that MaxHS[ t ] >= MinHS[ t ] >= 0 for all t, this means
- *   that there is no heat storage in this HB. If the variable has size 1,
- *   then the maximum heat storage is the same for all time instants.
- *   Otherwise, MaxHeatStorage[ h ] is the fixed value of MaxHS[ t ] for all
- *   t in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+ * - The variable "MaxHeatStorage", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MxHS[ t ] which,
+ *   for each time instant t, contains the maximum heat storage of this
+ *   HB. The variable is optional, if it is not provided at all it is intended
+ *   that MaxHS[ t ] == 0 for all t, and since it's assumed that MaxHS[ t ] >=
+ *   MinHS[ t ] >= 0 for all t, this means that there is no heat storage in
+ *   this HB. If the variable has size 1, then the maximum heat storage is the
+ *   same for all time instants.  Otherwise, MaxHeatStorage[ h ] is the fixed
+ *   value of MaxHS[ t ] for all t in the interval [ ChangeIntervals[ h - 1 ],
+ *   ChangeIntervals[ h ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0.
  *
  * - The scalar variable "InitialHeatAvailable", of type double and not
  *   indexed over any dimension, which indicates the the amount of heat in

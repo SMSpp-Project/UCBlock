@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 08 - 2019
+ * \date 21 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -127,45 +127,51 @@ class IntermittentUnitBlock : public UnitBlock {
  * must then also contain:
  *
  * - The variable "MinPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MinP[ t ] that, for each time instant t, contains the minimum
- *   potential production value of the unit for the corresponding time step.
- *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
- *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MnP[ t ] >= 0 for all t.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that, for
+ *   each time instant t, contains the minimum potential production value of
+ *   the unit for the corresponding time step.  If "MinPower" has length 1
+ *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
+ *   ] is the fixed value of MinP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded. Note that it must be MnP[
+ *   t ] >= 0 for all t.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MaxP[ t ] that, for each time instant t, contains the maximum
- *   potential production value of the unit for the corresponding time step.
- *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
- *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MxP[ t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is
- *   possible: it means that (at time instant t) the unit cannot be curtailed
- *   and cannot provide any reserve.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that, for
+ *   each time instant t, contains the maximum potential production value of
+ *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
+ *   ] is the fixed value of MaxP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded. Note that it must be MxP[
+ *   t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is possible:
+ *   it means that (at time instant t) the unit cannot be curtailed and cannot
+ *   provide any reserve.
  *
- * - The variable "InertiaPower", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector IP[ t ] which, for each time instant t, contains the contribution
- *   that the unit can give to the inertia constraint which depends on the
- *   active power that it is currently generating (basically, the constant to
- *   be multiplied to the active power variable) at time t for this unit. The
- *   variable is optional; if it is not defined, IP[ t ] == 0 for each time
- *   instants t. If it has size 1 then the entry IP[ 0 ] is assumed to contain
- *   the the inertia power value for this unit and all time instants t.
- *   Otherwise, InertiaPower[ i ] is the fixed value of IP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ * - The variable "InertiaPower", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector IP[ t ] which, for
+ *   each time instant t, contains the contribution that the unit can give to
+ *   the inertia constraint which depends on the active power that it is
+ *   currently generating (basically, the constant to be multiplied to the
+ *   active power variable) at time t for this unit. The variable is optional;
+ *   if it is not defined, IP[ t ] == 0 for each time instants t. If it has
+ *   size 1 then the entry IP[ 0 ] is assumed to contain the the inertia power
+ *   value for this unit and all time instants t.  Otherwise, InertiaPower[ i
+ *   ] is the fixed value of IP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
  * - The scalar variable "Gamma", of type double and not indexed over any
  *   dimension. This variable is used to take into account an uncertainty on

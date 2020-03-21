@@ -15,7 +15,7 @@
  *
  * \version 0.10
  *
- * \date 10 - 12 - 2019
+ * \date 21 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,118 +113,128 @@ class SlackUnitBlock : public UnitBlock {
  * must then also contain:
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MxP[ t ] that, for each time instant t, contains the maximum
- *   active power output value of the unit for the corresponding time step.
- *   If "MaxPower" has length 1 then MxP[ t ] contains the same value for all
- *   t. Otherwise, MaxPower[ i ] is the fixed value of MxP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
- *   if is not provided then MxP[ t ] == 0 for all t. Note that it must be
- *   MxP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
+ *   each time instant t, contains the maximum active power output value of
+ *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   then MxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i ]
+ *   is the fixed value of MxP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not
+ *   provided then MxP[ t ] == 0 for all t. Note that it must be MxP[ t ] >= 0
+ *   for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector MaxPP[ t ] that, for each time instant t, contains the maximum
- *   amount of primary reserve that the unit can produce in the corresponding
- *   time step. If "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the
- *   same value for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value
- *   of MaxPP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that
- *   ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not provided
- *   then MaxPP[ t ] == 0 for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxPP[ t ] that,
+ *   for each time instant t, contains the maximum amount of primary reserve
+ *   that the unit can produce in the corresponding time step. If
+ *   "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
+ *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t
+ *   ] for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
+ *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0. This variable
+ *   is optional, if is not provided then MaxPP[ t ] == 0 for all t. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "MaxSecondaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector MaxSP[ t ] that, for each time instant t, contains the maximum
- *   amount of secondary reserve that the unit can produce in the corresponding
- *   time step. If "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains
- *   the same value for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed
- *   value of MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that
- *   ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not provided
- *   then MaxSP[ t ] == 0 for all t. If NumberIntervals <= 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxSP[ t ] that,
+ *   for each time instant t, contains the maximum amount of secondary reserve
+ *   that the unit can produce in the corresponding time step. If
+ *   "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the same value
+ *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of MaxSP[
+ *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
+ *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
+ *
+ * - The variable "MaxInertia", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxI[ t ] which,
+ *   for each time instant t, contains the maximum "amount of inertia"
+ *   (contribution that the SlackUnit can give to the inertia constraint) at
+ *   time t. The variable is optional; if it is not defined, MaxI[ t ] == 0
+ *   for all time instants. If it has size 1, then MaxI[ t ] == MaxInertia[ 0
+ *   ] for all t, regardless to what "NumberIntervals" says. Otherwise,
+ *   MaxInertia[ i ] is the fixed value of MaxI[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "MaxInertia", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector MaxI[ t ] which, for each time instant t, contains the maximum
- *   "amount of inertia" (contribution that the SlackUnit can give to the
- *   inertia constraint) at time t. The variable is optional; if it is not
- *   defined, MaxI[ t ] == 0 for all time instants. If it has size 1, then
- *   MaxI[ t ] == MaxInertia[ 0 ] for all t, regardless to what
- *   "NumberIntervals" says. Otherwise, MaxInertia[ i ] is the fixed value of
- *   MaxI[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ * - The variable "ActivePowerCost", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector APC[ t ] that, for
+ *   each time instant t, contains the cost of producing one unit of active
+ *   power at the corresponding time step. This variable is optional, if it is
+ *   not provided then it's taken to be zero (although this is a very strange
+ *   setting, as it would typically imply that all the demand, or at least as
+ *   much as possible of it, is satisfied by the fictitious SlackUnit rather
+ *   than from "real" ones). If "ActivePowerCost" has length 1 then APC[ t ]
+ *   contains the same value for t. Otherwise, ActivePowerCost[ i ] is the
+ *   fixed value of APC[ t ] for all t in the interval [ ChangeIntervals[ i -
+ *   1 ] , ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ -
+ *   1 ] = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *
- * - The variable "ActivePowerCost", of type double and either indexed over
- *   the dimension "NumberIntervals" or has size 1. This is meant to represent
- *   the vector APC[ t ] that, for each time instant t, contains the cost of
- *   producing one unit of active power at the corresponding time step. This
- *   variable is optional, if it is not provided then it's taken to be zero
- *   (although this is a very strange setting, as it would typically imply that
- *   all the demand, or at least as much as possible of it, is satisfied by the
- *   fictitious SlackUnit rather than from "real" ones). If "ActivePowerCost"
- *   has length 1 then APC[ t ] contains the same value for t. Otherwise,
- *   ActivePowerCost[ i ] is the fixed value of APC[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ * - The variable "PrimaryCost", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector PC[ t ] that, for
+ *   each time instant t, contains the cost of producing one unit of primary
+ *   reserve at the corresponding time step.  This variable is optional; if it
+ *   is not provided then it's taken to be zero (but this is a very strange
+ *   setting, cf. the discussion in ActivePowerCost). If "PrimaryCost" has
+ *   length 1 then PC[ t ] contains the same value for t. Otherwise,
+ *   PrimaryCost[ i ] is the fixed value of PC[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "SecondaryCost", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
+ *   each time instant t, contains the cost of producing one unit of secondary
+ *   reserve at the corresponding time step.  This variable is optional; if it
+ *   is not provided then it's taken to be zero (but this is a very strange
+ *   setting, cf. the discussion in ActivePowerCost). If "SecondaryCost" has
+ *   length 1 then SC[ t ] contains the same value for t. Otherwise,
+ *   SecondaryCost[ i ] is the fixed value of SC[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "PrimaryCost", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector PC[ t ] that, for each time instant t, contains the cost of
- *   producing one unit of primary reserve at the corresponding time step.
- *   This variable is optional; if it is not provided then it's taken to be
- *   zero (but this is a very strange setting, cf. the discussion in
- *   ActivePowerCost). If "PrimaryCost" has length 1 then PC[ t ] contains the
- *   same value for t. Otherwise, PrimaryCost[ i ] is the fixed value of
- *   PC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
- *
- * - The variable "SecondaryCost", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector SC[ t ] that, for each time instant t, contains the cost of
- *   producing one unit of secondary reserve at the corresponding time step.
- *   This variable is optional; if it is not provided then it's taken to be
- *   zero (but this is a very strange setting, cf. the discussion in
- *   ActivePowerCost). If "SecondaryCost" has length 1 then SC[ t ] contains
- *   the same value for t. Otherwise, SecondaryCost[ i ] is the fixed value of
- *   SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
- *
- * - The variable "InertiaCost", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector IC[ t ] that, for each time instant t, contains the "the cost of
- *   producing "one unit" of inertia. Since the inertia-producing variable is
- *   u[ t ] which is in the interval [ 0 , 1 ], the cost of u[ t ] is
- *   MaxI[ t ] * IC[ t ]; in other words, u[ t ] represents the fraction the
- *   maximum possible amount of inertia (MaxI[ t ]) that can be produced at
- *   time step t This variable is optional; if it is not provided then it's
- *   taken to be zero (but this is a very strange setting, cf. the discussion
- *   in ActivePowerCost). If "InertiaCost" has length 1 then IC[ t ] contains
- *   the same value for t. Otherwise, InertiaCost[ i ] is the fixed value of
- *   IC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
- *   */
+ * - The variable "InertiaCost", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector IC[ t ] that, for
+ *   each time instant t, contains the "the cost of producing "one unit" of
+ *   inertia. Since the inertia-producing variable is u[ t ] which is in the
+ *   interval [ 0 , 1 ], the cost of u[ t ] is MaxI[ t ] * IC[ t ]; in other
+ *   words, u[ t ] represents the fraction the maximum possible amount of
+ *   inertia (MaxI[ t ]) that can be produced at time step t This variable is
+ *   optional; if it is not provided then it's taken to be zero (but this is a
+ *   very strange setting, cf. the discussion in ActivePowerCost). If
+ *   "InertiaCost" has length 1 then IC[ t ] contains the same value for
+ *   t. Otherwise, InertiaCost[ i ] is the fixed value of IC[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
