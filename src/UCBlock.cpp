@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 06 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -162,22 +162,20 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
- unsigned int number_nodes = 1;
+ Index number_nodes = 1;
+ if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
+  number_nodes = 1;
 
- auto network_data = new NetworkBlock::NetworkData();
- auto network_data_g = group.getGroup( "NetworkData" );
- if( !network_data_g.isNull() ) {
-  network_data->deserialize( network_data_g );
+ if( number_nodes > 1 ) {
   delete f_NetworkData;
-  f_NetworkData = network_data;
-  number_nodes = f_NetworkData->get_number_nodes();
+  f_NetworkData = new NetworkBlock::NetworkData();
+  f_NetworkData->deserialize( group );
  }
 
  ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
  ::deserialize_dim( group, "NumberElectricalGenerators",
-                                 f_number_elc_generators,  true );
- f_number_elc_generators = f_number_units;
+                    f_number_elc_generators,  true );
 
  ::deserialize_dim( group, "NumberHeatGenerators",
                                 f_number_heat_generators,  true );
@@ -236,7 +234,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
                    v_pollutant_rho, true , true );
   ::deserialize( group, "PollutantHeatRho", v_pollutant_heat_rho, true , true );
 
-  ::deserialize( group, "GeneratorNode", f_number_elc_generators,
+ ::deserialize( group, "GeneratorNode", f_number_elc_generators,
                  v_generator_node, true , true );
 
  ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho, true , true );
@@ -279,7 +277,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
     if( sub_block->get_active_demand().empty() ) {
-     sub_block->set_ActiveDemand( { v_active_power_demand[ i ][ 0 ] } );
+     sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
     }
 
    } else {
@@ -290,7 +288,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     if( f_NetworkData ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
-    sub_block->set_ActiveDemand( { v_active_power_demand[ i ][ 0 ] } );
+    sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
    }
 
 
@@ -298,7 +296,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
    // DCNetworkBlock
 
    typedef boost::multi_array_types::index_range range;
-   auto ap_c = v_active_power_demand[ boost::indices[ i ][ range( 0, number_nodes ) ] ];
+   auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
    std::vector< double > ap_v( number_nodes );
    std::copy( ap_c.begin(), ap_c.end(), ap_v.begin() );
 
@@ -325,6 +323,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  }
 
  Block::deserialize( group );
+
 }  // end( UCBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -463,7 +462,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_PrimaryDemand_Const[t][zone_id].get_function());
      linear_function->
-             add_variable( &primary_spinning_reserve[t], 1.0 );
+             add_variable( primary_spinning_reserve , 1.0 );
 
      generator_id++;
 
@@ -517,7 +516,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_SecondaryDemand_Const[t][zone_id].get_function());
-     linear_function->add_variable( &secondary_spinning_reserve[t], 1.0 );
+     linear_function->add_variable( secondary_spinning_reserve, 1.0 );
      generator_id++;
 
     }
@@ -580,10 +579,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
      if (inertia_commitment != nullptr && c != nullptr ) {
 
-      linear_function->add_variable( &commitment[t], inertia_commitment[t] );
+      linear_function->add_variable( commitment , inertia_commitment[t] );
      }
 
-     linear_function->add_variable( &active_power[t], inertia_power[t] );
+     if( ap != nullptr && inertia_power != nullptr ) {
+      linear_function->add_variable( active_power , inertia_power[t] );
+     }
     }
    }
   }
