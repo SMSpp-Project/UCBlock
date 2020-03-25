@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 26 - 07 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -138,12 +138,6 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  public:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index; ///< Type for indices
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -1216,7 +1210,7 @@ class UCBlock : public Block {
  boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector<std::vector< FRowConstraint> >  v_PollutantBudget_Const;
+ std::vector< std::vector< FRowConstraint> > v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
