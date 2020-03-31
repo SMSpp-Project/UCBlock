@@ -307,8 +307,6 @@ void IntermittentUnitBlock::set_maximum_power(
   return;
  }
 
- // FIXME: v_maximum_power is not correctly indexed
-
  if( v_maximum_power.empty() ) {
   if( std::all_of( values,
                    values + subset.size(),

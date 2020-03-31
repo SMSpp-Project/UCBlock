@@ -1098,12 +1098,11 @@ HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
    Index a = i % f_number_arcs;
    Index t = i / f_number_arcs;
    v_inertia_power[ t ][ a ] = *( values++ );
-   // *( v_inflows.data() + i ) = *( values++ );
   }
 
   if( AR & HasCst ) {
    // Change the abstract representation
-   // TODO
+   // FIXME: v_inertia_power is not used
   }
  }
 
@@ -1158,7 +1157,7 @@ HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
 
   if( AR & HasCst ) {
    // Change the abstract representation
-   // TODO
+   // FIXME: v_inertia_power is not used
 
   }
  }
@@ -1222,7 +1221,15 @@ HydroUnitBlock::set_initial_volumetric(
 
   if( not_dry_run( issueAMod ) && AR & HasObj ) {
    // Change the abstract representation
-   // TODO
+   for( auto i : subset ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    }
+   }
   }
  }
 
@@ -1280,7 +1287,15 @@ HydroUnitBlock::set_initial_volumetric(
 
   if( not_dry_run( issueAMod ) && AR & HasCst ) {
    // Change the abstract representation
-   // TODO
+   for( Index i = rng.first; i < rng.second; ++i ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    }
+   }
   }
  }
 

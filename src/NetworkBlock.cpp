@@ -136,8 +136,8 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
  if( !dim_number_nodes.isNull() )
   ::serialize( group, "ActiveDemand", netCDF::NcDouble(),
                { dim_number_nodes }, v_active_demand );
-}
-// end( NetworkBlock::serialize )
+
+} // end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/
