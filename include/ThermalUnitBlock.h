@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 30 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -289,27 +289,26 @@ class ThermalUnitBlock : public UnitBlock {
  *   therefore InitialPower == 0 by definition. In fact, if InitUpDownTime
  *   <= 0 then this variable need not be defined since it is not loaded.
  *
- * - The scalar variable "InitUpDownTime", of type Int64 and not indexed over
- *   any dimension and indicates the initial time to generating the unit.
- *   If InitUpDownTime > 0, this means that the unit has been on for
- *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
- *   horizon). If, instead, InitUpDownTime <= 0, this means that the unit
- *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
- *   note that InitUpDownTime == 0 means that the unit has been just shut
- *   down at the end of time instant -1, i.e., the beginning of time
- *   instant 0.
+ * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
+ *   indexed over any dimension and indicates the initial time to generating
+ *   the unit.  If InitUpDownTime > 0, this means that the unit has been on
+ *   for InitUpDownTime time stamps prior to time stamp 0 (the beginning of
+ *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
+ *   has been off for - InitUpDownTime time stamps prior to time stamp 0; note
+ *   that InitUpDownTime == 0 means that the unit has been just shut down at
+ *   the end of time instant -1, i.e., the beginning of time instant 0.
  *
- * - The positive scalar variable "MinUpTime", of type UInt64 and not indexed
- *   over any dimension, which indicates the minimum allowed up time in this
- *   unit. This variable is optional, if it is not provided it is taken to be
- *   MinUpTime == 0, which mean that the unit can shut down in the very
- *   same time stamp in which it starts up.
+ * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
+ *   indexed over any dimension, which indicates the minimum allowed up time
+ *   in this unit. This variable is optional, if it is not provided it is
+ *   taken to be MinUpTime == 0, which mean that the unit can shut down in the
+ *   very same time stamp in which it starts up.
  *
- * - The positive scalar variable "MinDownTime", of type UInt64 and not
- *   indexed over any dimension, which indicates the minimum allowed down time
- *   in this unit.This variable is optional, if it is not provided it is taken
- *   to be MinDownTime == 0, which mean that the unit can start up in the very
- *   same time stamp in which it shuts down.
+ * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
+ *   not indexed over any dimension, which indicates the minimum allowed down
+ *   time in this unit.This variable is optional, if it is not provided it is
+ *   taken to be MinDownTime == 0, which mean that the unit can start up in
+ *   the very same time stamp in which it shuts down.
  *
  * - The variable "FixedConsumption", of type double and either indexed over
  *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 06 - 2019
+ * \date 30 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -983,9 +983,9 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  UnitBlock::serialize( group );
 
  ::serialize( group, "InitialPower", netCDF::NcDouble(), f_initial_power );
- ::serialize( group, "MinUpTime", netCDF::NcUint64(), f_MinUpTime );
- ::serialize( group, "MinDownTime", netCDF::NcUint64(), f_MinDownTime );
- ::serialize( group, "InitUpDownTime", netCDF::NcInt64(), f_InitUpDownTime );
+ ::serialize( group, "MinUpTime", netCDF::NcUint(), f_MinUpTime );
+ ::serialize( group, "MinDownTime", netCDF::NcUint(), f_MinDownTime );
+ ::serialize( group, "InitUpDownTime", netCDF::NcInt(), f_InitUpDownTime );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 

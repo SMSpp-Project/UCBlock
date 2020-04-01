@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 30 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -467,16 +467,16 @@ class HydroUnitBlock : public UnitBlock {
  *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the volumes
  *   of water in reservoir r at time instant -1.
  *
- * - The negative or positive scalar variable "UphillFlow", of type Int64 and
- *   indexed over the dimension "NumberArcs". Each entry UpF[ l ] indicates
- *   the uphill flow delay for each unit (arc) l; the nontrivial concept is
- *   detailed below. This variable is optional, if it is not provided it is
- *   taken to be UpF[ l ] == 0.
+ * - The negative or positive scalar variable "UphillFlow", of type
+ *   netCDF::NcUint and indexed over the dimension "NumberArcs". Each entry
+ *   UpF[ l ] indicates the uphill flow delay for each unit (arc) l; the
+ *   nontrivial concept is detailed below. This variable is optional, if it is
+ *   not provided it is taken to be UpF[ l ] == 0.
  *
- * - The positive scalar variable "DownhillFlow", of type UInt64 and indexed
- *   over the dimension "NumberArcs". Each entry DnF[ l ] indicates the
- *   downhill flow delay for each arc (unit) l. This variable is optional, if
- *   it is not provided it is taken to be DnF[ l ] == 0.
+ * - The positive scalar variable "DownhillFlow", of type netCDF::NcUint and
+ *   indexed over the dimension "NumberArcs". Each entry DnF[ l ] indicates
+ *   the downhill flow delay for each arc (unit) l. This variable is optional,
+ *   if it is not provided it is taken to be DnF[ l ] == 0.
  *
  * The last two quantities require some comment. Let us assume that we have
  * any arc l, with ( StartArc[ l ] = n , EndArc[ l ] = n' ), which

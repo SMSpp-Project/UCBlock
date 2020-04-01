@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 07 - 2019
+ * \date 30 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -817,13 +817,13 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
                                       f_number_arcs ? f_number_arcs : 1 );
 
 
- ::serialize( group, "NumberPieces", netCDF::NcUint64(),
+ ::serialize( group, "NumberPieces", netCDF::NcUint(),
               dim_number_arcs, v_number_pieces, true );
 
- ::serialize( group, "StartLine", netCDF::NcInt64(),
+ ::serialize( group, "StartLine", netCDF::NcUint(),
               dim_number_reservoirs, v_start_arc, false );
 
- ::serialize( group, "EndLine", netCDF::NcInt64(),
+ ::serialize( group, "EndLine", netCDF::NcUint(),
               dim_number_reservoirs, v_end_arc, false );
 
 
@@ -905,10 +905,10 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "InitialVolumetric", netCDF::NcDouble(),
               dim_number_reservoirs, v_initial_volumetric, false );
 
- ::serialize( group, "UphillFlow", netCDF::NcInt64(),
+ ::serialize( group, "UphillFlow", netCDF::NcUint(),
               dim_number_arcs, v_uphill_delay, true );
 
- ::serialize( group, "DownhillFlow", netCDF::NcUint64(),
+ ::serialize( group, "DownhillFlow", netCDF::NcUint(),
               dim_number_arcs, v_downhill_delay, true );
 }  // end( HydroUnitBlock::serialize )
 
