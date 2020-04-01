@@ -378,10 +378,10 @@ DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    if( s.empty() || std::all_of( s.begin(), s.end(),
                                  []( double i ) { return i == 0; } ) ) {
     // NTC Model
-    for( auto i : subset ) {
-     v_power_flow_injection_constraints[ i ]
-      .set_both( v_active_demand[ i ], issueAMod );
-    }
+    // for( auto i : subset ) {
+    //  v_power_flow_injection_constraints[ i ]
+    //   .set_both( v_active_demand[ i ], issueAMod );
+    // }
 
    } else if( std::all_of( s.begin(), s.end(),
                            []( double i ) { return i != 0; } ) ) {
@@ -454,10 +454,10 @@ DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    if( s.empty() || std::all_of( s.begin(), s.end(),
                                  []( double i ) { return i == 0; } ) ) {
     // NTC Model
-    for( Index i = rng.first; i < rng.second; ++i ) {
-     v_power_flow_injection_constraints[ i ]
-      .set_both( v_active_demand[ i ], issueAMod );
-    }
+    // for( Index i = rng.first; i < rng.second; ++i ) {
+    //  v_power_flow_injection_constraints[ i ]
+    //   .set_both( v_active_demand[ i ], issueAMod );
+    // }
 
    } else if( std::all_of( s.begin(), s.end(),
                            []( double i ) { return i != 0; } ) ) {
