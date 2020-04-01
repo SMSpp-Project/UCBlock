@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 06 - 2019
+ * \date 21 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -60,8 +60,8 @@ NetworkBlock::NetworkData::NetworkData() {
 
 void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
-
- ::deserialize_dim( group, "NumberNodes", f_number_nodes, true );
+ if( ! ::deserialize_dim( group, "NumberNodes", f_number_nodes, true ) )
+  f_number_nodes = 1;
 
  if ( f_number_nodes > 1  ) {  // DCNetworkBlock
 

@@ -178,52 +178,60 @@ class BatteryUnitBlock : public UnitBlock {
  * must then also contain:
  *
  * - The variable "MinStorage", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MinS[ t ] that, for each time instant t, contains the minimum
- *   storage level of the unit for the corresponding time step. If
- *   "MinStorage" has length 1 then MinS[ t ] contains the same value for all
- *   t. Otherwise, MinStorage[ i ] is the fixed value of MinS[ t ] for all t
- *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   always be 0 <= MinS[ t ] < MaxS[ t ] for all t. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MinS[ t ] that, for
+ *   each time instant t, contains the minimum storage level of the unit for
+ *   the corresponding time step. If "MinStorage" has length 1 then MinS[ t ]
+ *   contains the same value for all t. Otherwise, MinStorage[ i ] is the
+ *   fixed value of MinS[ t ] for all t in the interval [ ChangeIntervals[ i -
+ *   1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ -
+ *   1 ] = 0. Note that it must always be 0 <= MinS[ t ] < MaxS[ t ] for all
+ *   t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "MaxStorage", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MaxS[ t ] that, for each time instant t, contains the maximum
- *   storage level of the unit for the corresponding time step. If
- *   "MaxStorage" has length 1 then MaxS[ t ] contains the same value for all
- *   t. Otherwise, MaxStorage[ i ] is the fixed value of MaxS[ t ] for all t
- *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must always
- *   be [0 <=] MinS[ t ] < MaxS[ t ] for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxS[ t ] that, for
+ *   each time instant t, contains the maximum storage level of the unit for
+ *   the corresponding time step. If "MaxStorage" has length 1 then MaxS[ t ]
+ *   contains the same value for all t. Otherwise, MaxStorage[ i ] is the
+ *   fixed value of MaxS[ t ] for all t in the interval [ ChangeIntervals[ i -
+ *   1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ -
+ *   1 ] = 0. Note that it must always be [0 <=] MinS[ t ] < MaxS[ t ] for all
+ *   t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "MinPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MinP[ t ] that, for each time instant t, contains the minimum
- *   active power output value of the unit for the corresponding time step.
- *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
- *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   be MinP[ t ] <= 0 for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that, for
+ *   each time instant t, contains the minimum active power output value of
+ *   the unit for the corresponding time step.  If "MinPower" has length 1
+ *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
+ *   ] is the fixed value of MinP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] <= 0 for
+ *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MaxP[ t ] that, for each time instant t, contains the maximum
- *   active power output value of the unit for the corresponding time step.
- *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
- *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must
- *   be MinP[ t ] < MaxP[ t ] for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that, for
+ *   each time instant t, contains the maximum active power output value of
+ *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
+ *   ] is the fixed value of MaxP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] < MaxP[ t
+ *   ] for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
@@ -236,74 +244,79 @@ class BatteryUnitBlock : public UnitBlock {
  *   value is taken to be 0.
  *
  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector MaxPP[ t ] that, for each time instant t, contains the maximum
- *   active power that can be used as primary reserve of the unit for the
- *   corresponding time step. If "MaxPrimaryPower" has length 1 then
- *   MaxPP[ t ] contains the same value for all t. Otherwise,
- *   MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
- *   if is not provided then MaxPP[ t ] == 0 for all t. If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does
- *   not require "ChangeIntervals", which in fact is not loaded. 
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxPP[ t ] that,
+ *   for each time instant t, contains the maximum active power that can be
+ *   used as primary reserve of the unit for the corresponding time step. If
+ *   "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
+ *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t
+ *   ] for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
+ *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0. This variable
+ *   is optional, if is not provided then MaxPP[ t ] == 0 for all t. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "MaxSecondaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector MaxSP[ t ] that, for each time instant t, contains the maximum
- *   active power that can be used as secondary reserve of the unit for the
- *   corresponding time step. If "MaxSecondaryPower" has length 1 then
- *   MaxSP[ t ] contains the same value for all t. Otherwise,
- *   MaxSecondaryPower[ i ] is the fixed value of MaxSP[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
- *   if is not provided then MaxSP[ t ] == 0 for all t. Note that
- *   MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if MaxPrimaryPower is
- *   not defined then neither should MaxSecondaryPower). If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does
- *   not require "ChangeIntervals", which in fact is not loaded. 
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxSP[ t ] that,
+ *   for each time instant t, contains the maximum active power that can be
+ *   used as secondary reserve of the unit for the corresponding time step. If
+ *   "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the same value
+ *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of MaxSP[
+ *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
+ *   all t. Note that MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if
+ *   MaxPrimaryPower is not defined then neither should MaxSecondaryPower). If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "DeltaRampUp", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector DP[ t ] that, for each time instant t, contains the ramp-up
- *   value of the unit for the corresponding time step, i.e., the maximum
- *   possible increase of active power production w.r.t. the power that had
- *   been produced in time instant t - 1, if any. If "DeltaRampUp" has length
- *   1 then DP[ t ] contains the same value for all t. Otherwise,
- *   DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. This variable is optional; if it is not
- *   provided then it is assumed that DP[ t ] == MaxP[ t ], i.e., the unit
- *   can ramp up by an arbitrary amount, i.e., there are no ramp-up
- *   constraints. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector DP[ t ] that, for
+ *   each time instant t, contains the ramp-up value of the unit for the
+ *   corresponding time step, i.e., the maximum possible increase of active
+ *   power production w.r.t. the power that had been produced in time instant
+ *   t - 1, if any. If "DeltaRampUp" has length 1 then DP[ t ] contains the
+ *   same value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of
+ *   DP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. This variable is optional; if it is not provided then it is assumed
+ *   that DP[ t ] == MaxP[ t ], i.e., the unit can ramp up by an arbitrary
+ *   amount, i.e., there are no ramp-up constraints. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "DeltaRampDown", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector DM[ t ] that, for each time instant t, contains the ramp-down
- *   value of the unit for the corresponding time step, i.e., the maximum
- *   possible decrease of active power production w.r.t. the power that had
- *   been produced in time instant t - 1, if any. If "DeltaRampDown" has
- *   length 1 then DM[ t ] contains the same value for all t. Otherwise,
- *   DeltaRampDown[ i ] is the fixed value of DM[ t ] for all t in the 
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional;
- *   if it is not provided then it is assumed that DM[ t ] == MaxP[ t ], i.e.,
- *   the unit can ramp down an arbitrary amount, i.e., there are no
- *   ramp-down constraints. If NumberIntervals <= 1 or NumberIntervals >=
- *   TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector DM[ t ] that, for
+ *   each time instant t, contains the ramp-down value of the unit for the
+ *   corresponding time step, i.e., the maximum possible decrease of active
+ *   power production w.r.t. the power that had been produced in time instant
+ *   t - 1, if any. If "DeltaRampDown" has length 1 then DM[ t ] contains the
+ *   same value for all t. Otherwise, DeltaRampDown[ i ] is the fixed value of
+ *   DM[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. This variable is optional; if it is not provided then it is assumed
+ *   that DM[ t ] == MaxP[ t ], i.e., the unit can ramp down an arbitrary
+ *   amount, i.e., there are no ramp-down constraints. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "StoringBatteryRho", of type double and to be either of size
- *   1 or indexed over the dimension "NumberIntervals". This is meant to
- *   represent the vector SBR[ t ] that, for each time instant t, contains the
- *   inefficiency of storing energy of the unit for the corresponding time
- *   step. This variable is optional; if it is not provided then it is
- *   assumed that SBR[ t ] == 1 for all t, i.e., no (significant) energy is
- *   spent just for storing it in the battery (this simplifies the model
- *   somewhat, see below). If "StoringBatteryRho" has length 1 then
- *   SBR[ t ] contains the same value for all t. Otherwise,
+ *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+ *   is not provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector SBR[ t ] that, for
+ *   each time instant t, contains the inefficiency of storing energy of the
+ *   unit for the corresponding time step. This variable is optional; if it is
+ *   not provided then it is assumed that SBR[ t ] == 1 for all t, i.e., no
+ *   (significant) energy is spent just for storing it in the battery (this
+ *   simplifies the model somewhat, see below). If "StoringBatteryRho" has
+ *   length 1 then SBR[ t ] contains the same value for all t. Otherwise,
  *   StoringBatteryRho[ i ] is the fixed value of SBR[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
@@ -313,22 +326,23 @@ class BatteryUnitBlock : public UnitBlock {
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "ExtractingBatterRho", of type double and to be either of
- *   size 1 or indexed over the dimension "NumberIntervals". This is meant to
- *   represent the vector EBR[ t ] that, for each time instant t, contains the
- *   inefficiency of extracting energy of the unit for the corresponding time
- *   step. This variable is optional; if it is not provided, then it is
- *   assumed that EBR[ t ] == 1 for all t, i.e., no (significant) energy is
- *   spent just for extracting it from the battery (this simplifies the model
- *   somewhat, see below). If "ExtractingBatterRho" has length 1 then
- *   EBR[ t ] contains the same value for all t. Otherwise,
- *   ExtractingBatterRho[ i ] is the fixed value of EBR[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
- *   such that EBR[ t ] <= 1 [<= SBR[ t ]] for all t (as EBR[ t ] is the
- *   amount of energy that is obtained when 1 unit of energy is removed from
- *   the battery). If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   size 1 or indexed over the dimension "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then this variable can also be indexed
+ *   over "TimeHorizon"). This is meant to represent the vector EBR[ t ] that,
+ *   for each time instant t, contains the inefficiency of extracting energy
+ *   of the unit for the corresponding time step. This variable is optional;
+ *   if it is not provided, then it is assumed that EBR[ t ] == 1 for all t,
+ *   i.e., no (significant) energy is spent just for extracting it from the
+ *   battery (this simplifies the model somewhat, see below). If
+ *   "ExtractingBatterRho" has length 1 then EBR[ t ] contains the same value
+ *   for all t. Otherwise, ExtractingBatterRho[ i ] is the fixed value of EBR[
+ *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. Note that it must be always such that EBR[ t ] <= 1 [<= SBR[ t ]] for
+ *   all t (as EBR[ t ] is the amount of energy that is obtained when 1 unit
+ *   of energy is removed from the battery). If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
  * Note: the special case in which EBR[ t ] == SBR[ t ] == 1 for all t, i.e.,
  * no energy is spent for storing it in / retrieving it from the battery,
@@ -347,17 +361,19 @@ class BatteryUnitBlock : public UnitBlock {
  *   connection with intake and outtake constraints.
  *
  * - The variable "Cost", of type double and either of size 1 or indexed over
- *   the dimension "NumberIntervals". This is meant to represent the vector
- *   C[ t ] that, for each time instant t, contains the monetary cost of
- *   storing one unit or energy into, or extracting it from, the battery
- *   (the cost is the same in both cases) at the corresponding time step.
- *   This variable is optional; if it is not provided then it's taken to be
- *   zero. If "Cost" has length 1 then C[ t ] contains the same value for
- *   all t. Otherwise, Cost[ i ] is the fixed value of C[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
+ *   then this variable can also be indexed over "TimeHorizon"). This is meant
+ *   to represent the vector C[ t ] that, for each time instant t, contains
+ *   the monetary cost of storing one unit or energy into, or extracting it
+ *   from, the battery (the cost is the same in both cases) at the
+ *   corresponding time step.  This variable is optional; if it is not
+ *   provided then it's taken to be zero. If "Cost" has length 1 then C[ t ]
+ *   contains the same value for all t. Otherwise, Cost[ i ] is the fixed
+ *   value of C[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "Demand", of type double and indexed over the dimension
  *   "TimeHorizon": the entry Demand[ t ] is assumed to contain the amount of

@@ -157,25 +157,30 @@ class UnitBlock : public Block {
  *   time-dependent data in the UnitBlock can only change at a subset of
  *   the time instants of the time interval, being therefore
  *   piecewise-constant (possibly, constant). "NumberIntervals" should
- *   therefore be <= "TimeHorizon", with three distinct cases:
+ *   therefore be <= "TimeHorizon", with four distinct cases:
  *
- *    i)  "NumberIntervals" <= 1, which is taken to mean "NumberIntervals"
- *        == 1; this is what is assumed if the dimension, that is optional,
- *        is not there. This means that the value of each relevant data in
- *        the UnitBlock is the same for each time instant
- *        0, ..., "TimeHorizon" - 1 in the time horizon. In this case, the
- *        variable "ChangeIntervals" (see below) is ignored.
- *
- *   ii)  1 < "NumberIntervals" < "TimeHorizon", which means that in some
+ *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
  *        time instants, *but not all of them*, the values of some of the
  *        relevant data are changing; the intervals are then described in
  *        variable "ChangeIntervals".
  *
- *   iii) "NumberIntervals" == "TimeHorizon",  which means that values of
- *        the relevant data changes at every time interval (in principle;
- *	       of course there is nothing preventing the same value to be
- *        repeated in the netCDF input). Also in this case the variable
- *        "ChangeIntervals" is ignored, since it is useless.
+ *   ii) "NumberIntervals" == 1, which means that the value of each relevant
+ *        data in the UnitBlock is the same for each time instant 0, ...,
+ *        "TimeHorizon" - 1 in the time horizon. In this case, the variable
+ *        "ChangeIntervals" (see below) is ignored.
+ *
+ *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
+ *        relevant data changes at every time interval (in principle; of
+ *        course there is nothing preventing the same value to be repeated in
+ *        the netCDF input). Also in this case the variable "ChangeIntervals"
+ *        is ignored, since it is useless.
+ *
+ *   iv)  The dimension "NumberIntervals" is not provided, which means that
+ *        the values of the relevant data may be the same for each time
+ *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
+ *        case iii above). Also in this case, of course, "ChangeIntervals"
+ *        (see below) is ignored, and therefore it can (and should) not be
+ *        present.
  *
  *   Note that this (together with "ChangeIntervals", if defined) obviously
  *   sets the "maximum frequency" at which data can change; if some data

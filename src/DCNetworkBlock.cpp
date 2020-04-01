@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 06 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -107,31 +107,30 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   // initial condition of number lines
-  int number_lines = f_NetworkData->get_number_lines();
+  auto number_lines = f_NetworkData->get_number_lines();
 
   // initial condition of vector StartLine
-  std::vector< Index > StartLine = f_NetworkData->get_start_line();
+  auto & StartLine = f_NetworkData->get_start_line();
 
   // initial condition of vector EndLine
-  std::vector< Index > EndLine = f_NetworkData->get_end_line();
+  auto & EndLine = f_NetworkData->get_end_line();
 
   // initial condition of minimum power flow
   std::vector< double > MinPowerFlow = f_NetworkData->get_min_power_flow();
   if( MinPowerFlow.size() == 1 ) {
-   MinPowerFlow.resize( number_lines, MinPowerFlow[0] );
-
+   MinPowerFlow.resize( number_lines , MinPowerFlow[ 0 ] );
   }
+
   // initial condition of maximum power flow
   std::vector< double > MaxPowerFlow = f_NetworkData->get_max_power_flow();
   if( MaxPowerFlow.size() == 1 ) {
-   MaxPowerFlow.resize( number_lines, MaxPowerFlow[0] );
-
+   MaxPowerFlow.resize( number_lines , MaxPowerFlow[ 0 ] );
   }
+
   // initial condition of Susceptance
   std::vector< double > Susceptance = f_NetworkData->get_susceptance();
   if( Susceptance.size() == 1 ) {
-   Susceptance.resize( number_lines, Susceptance[0] );
-
+   Susceptance.resize( number_lines , Susceptance[ 0 ] );
   }
 
   //  Net Transfer Capacity (NTC) model
@@ -163,40 +162,35 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
   // HVDC power flow and node injection constraints
-  if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_lines()) {
-
-   assert( v_power_flow_injection_constraints.empty());
-   v_power_flow_injection_constraints.resize( f_NetworkData->get_number_lines());
+  if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_nodes() ) {
+   assert( v_power_flow_injection_constraints.empty() );
+   v_power_flow_injection_constraints.resize( f_NetworkData->get_number_nodes() );
   }
 
-  Index end = 0;
-
-  for( Index n = 0; n < f_NetworkData->get_number_nodes(); ++n ) {
+  for( Index n = 0 ; n < f_NetworkData->get_number_nodes() ; ++n ) {
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_node_injection[n], -1.0 );
+   linear_function->add_variable( &v_node_injection[ n ] , -1.0 );
 
-   end += n;
+   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-   for( Index line_id = 0; line_id < end; ++line_id ) {
+    if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
 
-    if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
-
-     if( StartLine[line_id] == n ) {
-
-      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
-     } else {
-      linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+     if( StartLine[ line_id ] == n ) {
+      linear_function->add_variable( &v_power_flow[ n ], 1.0 );
+     }
+     else if( EndLine[ line_id ] == n ) {
+      linear_function->add_variable( &v_power_flow[ n ], - 1.0 );
 
      }
-     v_power_flow_injection_constraints[ n ].set_both( v_active_demand[ n ] );
+     v_power_flow_injection_constraints[ n ].set_both( 0.0 );
      v_power_flow_injection_constraints[ n ].set_function( linear_function );
-
     }
    }
   }
-  add_static_constraint( v_power_flow_injection_constraints, "HVDC_power_flow_injection" );
+  add_static_constraint( v_power_flow_injection_constraints ,
+                         "HVDC_power_flow_injection" );
 
 /*--------------------------------------------------------------------------*/
 
