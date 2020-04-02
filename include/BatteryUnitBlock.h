@@ -892,6 +892,21 @@ class BatteryUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_initial_storage( std::vector< double >::const_iterator it,
+                           Subset && subset,
+                           bool ordered = false,
+                           c_ModParam issuePMod = eNoBlck,
+                           c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_storage( std::vector< double >::const_iterator it,
+                           Range rng = Range( 0, Inf< Index >() ),
+                           c_ModParam issuePMod = eNoBlck,
+                           c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1021,6 +1036,8 @@ class BatteryUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
