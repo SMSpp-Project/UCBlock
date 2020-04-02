@@ -1047,6 +1047,8 @@ class BatteryUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
