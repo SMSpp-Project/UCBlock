@@ -185,6 +185,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  boost::multi_array< double, 2 > v_active_power_demand;
  bool ap_found = ::deserialize( group, "ActivePowerDemand",
                                 v_active_power_demand, true, false );
+ transpose(v_active_power_demand);
 
  // Default values for optional dimensions
  f_number_heat_blocks = 0;
@@ -867,6 +868,16 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  }
 }  // end( UCBlock::serialize )
 
+template< typename T >
+void UCBlock::transpose( boost::multi_array< T, 2 > & a ) {
+ long rows = a.shape()[ 0 ];
+ long cols = a.shape()[ 1 ];
+ if( rows > 1 && cols == 1 ) {
+  // The vector must be transposed
+  boost::array< typename boost::multi_array< T, 2 >::index, 2 > dims = { { 1, rows } };
+  a.reshape( dims );
+ }
+}
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

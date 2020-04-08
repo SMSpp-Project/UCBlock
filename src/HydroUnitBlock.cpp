@@ -925,6 +925,9 @@ void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {
 
 void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
 
+ if (a.empty()) {
+  return;
+ }
  boost::multi_array< double, 2 > temp = a;
  a.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
 
@@ -955,6 +958,9 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
 
 void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
 
+ if (a.empty()) {
+  return;
+ }
  boost::multi_array< double, 2 > temp = a;
  a.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
 

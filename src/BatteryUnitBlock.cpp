@@ -612,6 +612,10 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
 template< typename T >
 void BatteryUnitBlock::decompress_vector( std::vector< T > & v ) {
+ if (v.empty()) {
+  return;
+ }
+
  if( v.size() == 1 ) {
   v.resize( f_time_horizon, v[ 0 ] );
  } else if( v.size() < f_time_horizon ) {
