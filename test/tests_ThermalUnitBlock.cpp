@@ -57,9 +57,37 @@ class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters > {
 /*--------------------------------------------------------------------------*/
 /*------------------------ PARAMETRIZED TEST CASES -------------------------*/
 /*--------------------------------------------------------------------------*/
-TEST_P( ThermalUnitBlockTest, SimpleTest ) {
 
+TEST_P( ThermalUnitBlockTest, ChangeMaxPowerRange ) {
+
+ std::vector<double> orig(block->get_max_power());
+
+ std::vector<double> new_values( 10 , 1);
+
+ block->set_maximum_power( new_values.begin(), Block::Range( 0, 10 ) );
+
+ auto max_power = block->get_max_power();
+
+ for (int i = 0; i < 10; ++i) {
+  EXPECT_EQ(max_power[i], 1);
+ }
 }
+
+TEST_P( ThermalUnitBlockTest, ChangeMaxPowerSubset ) {
+
+ std::vector<double> orig(block->get_max_power());
+
+ std::vector<double> new_values( 10 , 1);
+
+ block->set_maximum_power( new_values.begin(), Block::Range( 0, 10 ) );
+
+ auto max_power = block->get_max_power();
+
+ for (int i = 0; i < 10; ++i) {
+  EXPECT_EQ(max_power[i], 1);
+ }
+}
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- TEST CASE INSTANCES ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -67,7 +95,7 @@ TEST_P( ThermalUnitBlockTest, SimpleTest ) {
 INSTANTIATE_TEST_CASE_P( ThermalUnitBlockTests,
                          ThermalUnitBlockTest,
                          ::testing::Values(
-                          TestParameters{ "../netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
+                          TestParameters{ "netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
                          ) );
 
 /*--------------------------------------------------------------------------*/
