@@ -1021,6 +1021,17 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// the objective function
  FRealObjective objective;
+
+ static void static_initialization() {
+
+  register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+                                       &BatteryUnitBlock::set_initial_storage,
+                                       MS_dbl_sbst::args() );
+
+  register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+                                       &BatteryUnitBlock::set_initial_storage,
+                                       MS_dbl_rngd::args() );
+ }
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/

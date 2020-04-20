@@ -433,6 +433,16 @@ class UnitBlock : public Block {
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
+
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
+
+ static constexpr unsigned char HasVar = 1;
+ ///< first bit of AR == 1 if the Variables have been constructed
+ static constexpr unsigned char HasCst = 2;
+ ///< third bit of AR == 1 if the Constraints have been constructed
+ static constexpr unsigned char HasObj = 4;
+ ///< second bit of AR == 1 if the Objective has been constructed
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -573,8 +573,19 @@ class NetworkBlock : public Block {
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Subset && subset,
+                                 bool ordered,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Range rng,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
 
  protected:
 
@@ -588,9 +599,125 @@ class NetworkBlock : public Block {
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
+
+ static constexpr unsigned char HasVar = 1;
+ ///< first bit of AR == 1 if the Variables have been constructed
+ static constexpr unsigned char HasCst = 2;
+ ///< third bit of AR == 1 if the Constraints have been constructed
+
 /*--------------------------------------------------------------------------*/
 
  };   // end( class( NetworkBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS NetworkBlockMod --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a NetworkBlock
+class NetworkBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of NetworkBlockMod
+ enum NetB_mod_type {
+  eSetActD = 0    ///< Set max power values
+ };
+
+ /// Constructor, takes the NetworkBlock and the type
+ NetworkBlockMod( NetworkBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~NetworkBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the NetworkBlockMod
+ void print( std::ostream & output ) const override {
+  output << "NetworkBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active demand values ";
+  }
+ }
+
+ NetworkBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( NetworkBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from NetworkBlockMod for "ranged" modifications
+class NetworkBlockRngdMod : public NetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the NetworkBlock, the type, and the range
+ NetworkBlockRngdMod( NetworkBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~NetworkBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the NetworkBlockRngdMod
+ void print( std::ostream & output ) const override {
+  NetworkBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( NetworkBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS NetworkBlockSbstMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from NetworkBlockMod for "subset" modifications
+class NetworkBlockSbstMod : public NetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the NetworkBlock, the type, and the subset
+ NetworkBlockSbstMod( NetworkBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~NetworkBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the NetworkBlockSbstMod
+ void print( std::ostream &output ) const override {
+  NetworkBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( NetworkBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 

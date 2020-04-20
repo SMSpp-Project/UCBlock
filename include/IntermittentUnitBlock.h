@@ -376,6 +376,21 @@ class IntermittentUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -393,10 +408,10 @@ class IntermittentUnitBlock : public UnitBlock {
  std::vector< double >  v_maximum_power;
 
  /// the gamma value
- double f_gamma;
+ double f_gamma = 1;
 
  /// the kappa value
- double f_kappa;
+ double f_kappa = 0;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
@@ -419,6 +434,16 @@ class IntermittentUnitBlock : public UnitBlock {
 /// the active power bounds constraints
  std::vector< FRowConstraint > active_power_bounds_Constraints;
 
+ static void static_initialization() {
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_sbst::args() );
+
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_rngd::args() );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -438,6 +463,115 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( IntermittentUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS IntermittentUnitBlockMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a IntermittentUnitBlock
+class IntermittentUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of IntermittentUnitBlockMod
+ enum TUBB_mod_type {
+  eSetMaxP = 0    ///< Set max power values
+ };
+
+ /// Constructor, takes the IntermittentUnitBlock and the type
+ IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~IntermittentUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "IntermittentUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set max power values ";
+  }
+ }
+
+ IntermittentUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( IntermittentUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- CLASS IntermittentUnitBlockRngdMod -------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from IntermittentUnitBlockMod for "ranged" modifications
+class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the IntermittentUnitBlock, the type, and the range
+ IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : IntermittentUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~IntermittentUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  IntermittentUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( IntermittentUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- CLASS IntermittentUnitBlockSbstMod -------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from IntermittentUnitBlockMod for "subset" modifications
+class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the IntermittentUnitBlock, the type, and the subset
+ IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : IntermittentUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~IntermittentUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  IntermittentUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( IntermittentUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

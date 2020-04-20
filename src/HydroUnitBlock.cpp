@@ -240,6 +240,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   }
  }
   add_static_variable ( v_secondary_spinning_reserve, "sr" );
+ AR |= HasVar;
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -786,7 +787,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  add_static_constraint( VolumetricBounds_Const, "VolumetricBounds");
-
+ AR |= HasCst;
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
 
@@ -907,6 +908,401 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "DownhillFlow", netCDF::NcUint(),
               dim_number_arcs, v_downhill_delay, true );
 }  // end( HydroUnitBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+void
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
+                            Block::Subset && subset,
+                            const bool ordered,
+                            c_ModParam issuePMod,
+                            c_ModParam issueAMod ) {
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_inflows.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inflows.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_inflows.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( *( v_inflows.data() + i ) != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   Index t = i % f_time_horizon;
+   Index r = i / f_time_horizon;
+   v_inflows[ r ][ t ] = *( values++ );
+   // *( v_inflows.data() + i ) = *( values++ );
+  }
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   for( auto i : subset ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    } else {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInf,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
+                            Block::Range rng,
+                            c_ModParam issuePMod,
+                            c_ModParam issueAMod ) {
+ rng.second = std::min( rng.second,
+                        get_time_horizon() * get_number_reservoirs() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_inflows.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inflows.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_inflows.data() + rng.first ) ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_inflows.data() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   for( Index i = rng.first; i < rng.second; ++i ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    } else {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInf,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
+                                   Subset && subset,
+                                   const bool ordered,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_inertia_power.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inertia_power.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_inertia_power.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( *( v_inertia_power.data() + i ) != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   Index a = i % f_number_arcs;
+   Index t = i / f_number_arcs;
+   v_inertia_power[ t ][ a ] = *( values++ );
+  }
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+   // FIXME: v_inertia_power is not used
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInerP,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
+                                   Block::Range rng,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+ rng.second = std::min( rng.second, f_number_arcs * get_time_horizon() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_inertia_power.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_inertia_power.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_inertia_power.data() + rng.first ) ) {
+  return;
+ }
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_inertia_power.data() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+   // FIXME: v_inertia_power is not used
+
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInerP,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+HydroUnitBlock::set_initial_volumetric(
+ std::vector< double >::const_iterator values,
+ Block::Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_initial_volumetric.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_initial_volumetric.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto temp_values = values;
+ for( auto i : subset ) {
+  if( i >= v_initial_volumetric.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_initial_volumetric[ i ] != *( temp_values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  temp_values = values;
+  for( auto i : subset ) {
+   v_initial_volumetric[ i ] = *( temp_values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && AR & HasObj ) {
+   // Change the abstract representation
+   for( auto i : subset ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >( this,
+                                              HydroUnitBlockMod::eSetInitV,
+                                              std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+HydroUnitBlock::set_initial_volumetric(
+ std::vector< double >::const_iterator values,
+ Block::Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_initial_volumetric.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_initial_volumetric.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_initial_volumetric.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_initial_volumetric.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+   for( Index i = rng.first; i < rng.second; ++i ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     FinalVolumeReservoir_Const[ t ][ r ]
+      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >( this,
+                                              HydroUnitBlockMod::eSetInitV,
+                                              rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
 
 template< typename T >
 void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {

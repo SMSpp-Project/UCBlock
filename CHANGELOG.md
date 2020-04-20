@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Methods for changing data after deserialization.
+- ThermalUnitBlock unit tests.
+
+### Changed
+
+- Some getter methods for ThermalUnitBlock data.
+
 ## [0.2.0] - 2020-03-06
 
 ### Added

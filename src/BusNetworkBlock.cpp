@@ -75,14 +75,114 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  v_node_injection[ 0 ].is_fixed( true );
  v_node_injection[ 0 ].set_type( ColVariable::kContinuous );
  add_static_variable( v_node_injection[ 0 ], "S");
+
+ AR |= HasVar;
 }
+
 /*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
-/*---------- METHODS FOR LOADING, PRINTING & SAVING THE BusNetworkBlock ----*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void BusNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values,
+ Block::Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
 
+ // For BusNetworkBlock, this method degenerates a bit
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if (subset.size() > 1 ) {
+  throw ( std::invalid_argument( "subset is too big" ) );
+ }
+
+ if( v_active_demand.empty() ) {
+  if( *values == 0 ) {
+   return;
+  }
+  v_active_demand.assign( 1, 0 );
+ }
+
+ if( subset[0] >= 1 ) {
+  throw ( std::invalid_argument( "invalid value in subset" ) );
+ }
+
+ // If nothing changes, return
+ if( v_active_demand[ 0 ] == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  v_active_demand[ 0 ] = *values ;
+
+  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+   // Change the abstract representation
+
+   v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+
+  Block::add_Modification(
+   std::make_shared< NetworkBlockSbstMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void BusNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values,
+ Block::Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ // For BusNetworkBlock, this method degenerates a bit
+
+ if( rng != Range( 0, 1 ) ) {
+  throw ( std::invalid_argument( "invalid value in subset" ) );
+ }
+
+ if( v_active_demand.empty() ) {
+  if( *values == 0 ) {
+   return;
+  }
+  v_active_demand.assign( 1, 0 );
+ }
+
+ // If nothing changes, return
+ if( v_active_demand[ 0 ] == *values ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  v_active_demand[ 0 ] = *values ;
+
+  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+   // Change the abstract representation
+
+   v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< NetworkBlockRngdMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File BusNetworkBlock.cpp -----------------------*/
