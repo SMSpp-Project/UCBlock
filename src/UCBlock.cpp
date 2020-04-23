@@ -174,8 +174,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize_dim( group, "TimeHorizon", f_time_horizon, false );
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
- ::deserialize_dim( group, "NumberElectricalGenerators",
-                    f_number_elc_generators,  true );
 
  ::deserialize_dim( group, "NumberHeatGenerators",
                                 f_number_heat_generators,  true );
@@ -235,8 +233,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
                    v_pollutant_rho, true , true );
   ::deserialize( group, "PollutantHeatRho", v_pollutant_heat_rho, true , true );
 
- ::deserialize( group, "GeneratorNode", f_number_elc_generators,
-                 v_generator_node, true , true );
 
  ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho, true , true );
 
@@ -323,6 +319,18 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
  }
 
+
+
+ for( auto block : get_nested_Blocks() ) { //TODO Cheek it again
+  auto unit_block = dynamic_cast<UnitBlock *>(block);
+  if( unit_block == nullptr )
+   continue;
+  Index g = unit_block->get_number_generators();
+  f_number_elc_generators += g;
+ }
+ ::deserialize( group, "GeneratorNode", f_number_elc_generators,
+                v_generator_node, true , true );
+
  Block::deserialize( group );
 
 }  // end( UCBlock::deserialize )
@@ -368,46 +376,81 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      auto unit_block = dynamic_cast<UnitBlock *>(block);
      if( unit_block == nullptr )
       continue;
+     unit_block->get_number_generators();
 
-     //TODO FIX for GeneratorNode
-     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
+   if ( number_nodes == 1) { //BusNetwork no need to GeneratorNode
 
-      auto fixed_consumption = unit_block->get_fixed_consumption(g);
+    for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-      auto ap = unit_block->get_active_power( g );
-      auto active_power = &ap[t];
+     auto fixed_consumption = unit_block->get_fixed_consumption( g );
 
-      auto c = unit_block->get_commitment( g );
-      auto commitment = &c[t];
+     auto ap = unit_block->get_active_power( g );
+     auto active_power = &ap[t];
 
-      linear_function->add_variable( active_power, 1.0 , eNoMod);
-      if ( c != nullptr ) {
-       if (fixed_consumption != nullptr) {
-        linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
-       } else {
-        linear_function->add_variable( commitment, 0.0, eNoMod );
+     auto c = unit_block->get_commitment( g );
+     auto commitment = &c[t];
 
-       }
+     linear_function->add_variable( active_power, 1.0, eNoMod );
+     if( c != nullptr ) {
+      if( fixed_consumption != nullptr ) {
+       linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+      } else {
+       linear_function->add_variable( commitment, 0.0, eNoMod );
       }
-      if (fixed_consumption != nullptr) {
-
-       v_node_injection_constraints[t][node_id].set_both
-               ( v_node_injection_constraints[t][node_id].get_rhs()
-                 - fixed_consumption[t] );
-      } else{
-       v_node_injection_constraints[t][node_id].set_both
-               ( v_node_injection_constraints[t][node_id].get_rhs()
-                - 0.0 );
-      }
-      generator_id++;
      }
+     if( fixed_consumption != nullptr ) {
+      v_node_injection_constraints[t][node_id].set_both
+              ( v_node_injection_constraints[t][node_id].get_rhs()
+                - fixed_consumption[t] );
+     } else {
+      v_node_injection_constraints[t][node_id].set_both
+              ( v_node_injection_constraints[t][node_id].get_rhs()
+                - 0.0 );
+     }
+     generator_id++;
     }
-    v_node_injection_constraints[ t ][ node_id ].set_function( linear_function );
+    } else {  //DCNetwork needs GeneratorNode
+
+    for( Index g = 0; g < f_number_elc_generators; ++g ) { //TODO Cheek it again
+
+     Index generator_node = 0;
+     generator_node = v_generator_node[ g ];
+
+     auto fixed_consumption = unit_block->get_fixed_consumption( generator_node );
+
+     auto ap = unit_block->get_active_power( generator_node );
+     auto active_power = &ap[t];
+
+     auto c = unit_block->get_commitment( generator_node );
+     auto commitment = &c[t];
+
+     linear_function->add_variable( active_power, 1.0, eNoMod );
+     if( c != nullptr ) {
+      if( fixed_consumption != nullptr ) {
+       linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+      } else {
+       linear_function->add_variable( commitment, 0.0, eNoMod );
+      }
+     }
+     if( fixed_consumption != nullptr ) {
+      v_node_injection_constraints[t][node_id].set_both
+              ( v_node_injection_constraints[t][node_id].get_rhs()
+                - fixed_consumption[t] );
+     } else {
+      v_node_injection_constraints[t][node_id].set_both
+              ( v_node_injection_constraints[t][node_id].get_rhs()
+                - 0.0 );
+     }
+     generator_id++;
+    }
    }
   }
+    v_node_injection_constraints[ t ][ node_id ].set_function( linear_function );
+ }
+}
 
   add_static_constraint( v_node_injection_constraints, "node_injection_c" );
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
