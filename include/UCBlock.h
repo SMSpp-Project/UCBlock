@@ -1234,7 +1234,6 @@ class UCBlock : public Block {
  void deserialize_network_blocks( const netCDF::NcGroup & group,
                                   int num_sub_blocks );
 
- /// FIXME this is also defined in HydroUB so let's put it in a common file
  /// Transposes a deserialized multiarray if needed.
  /**
   * Checks if the multiarray has one column and more than one rows. If so,

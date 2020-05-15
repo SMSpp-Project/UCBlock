@@ -280,14 +280,14 @@ class ThermalUnitBlock : public UnitBlock {
  *   unit was producing at time instant -1, i.e., before the start of the
  *   time horizon; this is necessary to compute the ramp-up and ramp-down
  *   constraints. Clearly, it must be that MaxPower >= InitialPower >=
- *   MinPower if the unit was "on" at time instant -1, and it must be that
- *   InitialPower == 0 if the unit was "off" at time instant -1. The on/off
- *   status of the unit is also encoded by the scalar variable InitUpDownTime:
- *   in particular, InitUpDownTime > 0 then the unit was on at time instant
- *   -1, and therefore InitialPower >= MinPower must hold, while if
- *   InitUpDownTime <= 0 then the unit was off at time instant -1, and
- *   therefore InitialPower == 0 by definition. In fact, if InitUpDownTime
- *   <= 0 then this variable need not be defined since it is not loaded.
+ *   MinPower if the unit was "on" at time instant -1, and it would be ignored
+ *   if the unit was "off" at time instant -1. The on/off status of the unit
+ *   is also encoded by the scalar variable InitUpDownTime: in particular,
+ *   InitUpDownTime > 0 then the unit was on at time instant -1, and therefore
+ *   InitialPower >= MinPower must hold, while if InitUpDownTime <= 0 then the
+ *   unit was off at time instant -1, and therefore InitialPower is ignored.
+ *   In fact, if InitUpDownTime <= 0 then this variable need not be defined
+ *   since it is not loaded.
  *
  * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
  *   indexed over any dimension and indicates the initial time to generating
