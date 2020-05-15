@@ -47,12 +47,18 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- METHODS OF HydroSystemUnitBlock ---------------------*/
-/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
+/*--------------------------------------------------------------------------*/
 
+HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
+ return dynamic_cast<HydroUnitBlock *>( v_Block[ i ] );
+}
+
+/*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
@@ -62,19 +68,19 @@ void HydroSystemUnitBlock::deserialize( netCDF::NcGroup & group ) {
 }
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ) {
+void HydroSystemUnitBlock::deserialize_sub_hydro_blocks( const netCDF::NcGroup & group ) {
 
  for( auto block : v_Block )
   delete block;
 
  v_Block.clear();
 
- deserialize_sub_blocks( group, "HydroUnitBlock_", f_number_hydro_units );
+ deserialize_sub_hydro_blocks( group, "HydroUnitBlock_", f_number_hydro_units );
 
 }
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize_sub_blocks
+void HydroSystemUnitBlock::deserialize_sub_hydro_blocks
         ( const netCDF::NcGroup & group, const std::string & sub_group_name_prefix,
           const int num_sub_blocks ) {
 
@@ -108,6 +114,8 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
 void HydroSystemUnitBlock::deserialize_polyhedral_function_block
 ( const netCDF::NcGroup & group ) {
 
+ deserialize_sub_hydro_blocks( group, "PolyhedralFunctionBlock", 1 );
+
 }
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE HydroSystemUnitBlock -------------*/
@@ -118,7 +126,19 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
+
  Block::serialize( group );
+
+ auto dim_number_hydro_units = group.addDim( "NumberHydroUnits", f_number_hydro_units );
+
+ // Serialize sub-blocks
+
+ for( Index i = 0; i < f_number_hydro_units; ++i ) {
+  auto sub_block = get_hydro_unit_block( i );
+  auto sub_group = group.addGroup( "HydroUnitBlock_" + std::to_string( i ) );
+  sub_block->serialize( sub_group );
+ }
+
 }
 
 /*--------------------------------------------------------------------------*/
