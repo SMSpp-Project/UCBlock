@@ -187,19 +187,9 @@ class HydroSystemUnitBlock : public Block {
  Index get_number_hydro_units() const { return f_number_hydro_units; }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of (pointers to) HydroUnitBlock elements.
-/** The vector of hydro units in the problem. There are two possible
- * cases:
- *
- * - if the vector is empty, then the there is no hydro unit block;
- *
- * - otherwise the vector must have the size of the number of hydro unit
- *   blocks plus one, and the h-th entry gives the corresponding hydro unit
- *   block h and the last element is the PolyhedralFunctionBlock. */
+/// Returns the i-th HydroUnitBlock
 
- const std::vector< HydroUnitBlock * > & get_hydro_unit_blocks() const {
-  return v_hydro_unit_blocks;
- }
+ HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
@@ -244,9 +234,6 @@ class HydroSystemUnitBlock : public Block {
  /// The number of hydro units of the problem
  Index f_number_hydro_units;
 
- /// The set of HydroUnitBlock
- std::vector< HydroUnitBlock * > v_hydro_unit_blocks;
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -263,11 +250,11 @@ class HydroSystemUnitBlock : public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
  /// Deserialize the sub-blocks of HydroSystemUnitBlock
- void deserialize_sub_blocks( const netCDF::NcGroup & group );
+ void deserialize_sub_hydro_blocks( const netCDF::NcGroup & group );
 
  /// Deserialize the sub-blocks of HydroSystemUnitBlock that have the given
  /// prefix name
- void deserialize_sub_blocks( const netCDF::NcGroup & group,
+ void deserialize_sub_hydro_blocks( const netCDF::NcGroup & group,
                               const std::string & sub_group_name_prefix,
                               int num_sub_blocks );
 
