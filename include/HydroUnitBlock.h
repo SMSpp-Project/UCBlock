@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2020
+ * \date 19 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1195,7 +1195,25 @@ class HydroUnitBlock : public UnitBlock {
  ColVariable * get_volumetric( Index reservoir  ) {
   return ( v_volumetric.data() + reservoir * f_time_horizon );
  }
- /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the volume of the given reservoir at the given time
+ /** Returns a pointer to the ColVariable representing the volume of the given
+  * \p reservoir at the given \p time.
+  *
+  * @param reservoir The index of the reservoir whose volume is desired.
+  *
+  * @param time The time at which the volume is desired.
+  *
+  * @return A pointer to the ColVariable representing the volume of the given
+  *         \p reservoir at the given \p time.
+  */
+ ColVariable * get_volume( Index reservoir , Index time ) {
+  return ( v_volumetric.data() + reservoir * f_time_horizon + time );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// returns the matrix of flow rate variables
 /** The returned boost::multi_array< ColVariable , 2 >, say F, contains the
  * flow rate variables and is indexed over the dimensions time horizon and
