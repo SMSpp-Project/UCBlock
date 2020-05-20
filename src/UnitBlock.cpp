@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 07 - 2019
+ * \date 19 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -73,8 +73,10 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
   // dimension TimeHorizon is not present in the netCDF input
 
   if( f_time_horizon == 0 ) {
-   auto f_B = dynamic_cast< UCBlock * >( get_f_Block() );
-   if( f_B )
+   if( auto f_B = dynamic_cast< UCBlock * >( get_f_Block() ) )
+    // The father Block is available. Take time horizon from it.
+    this->set_time_horizon( f_B->get_time_horizon() );
+   else if( auto f_B = dynamic_cast< UnitBlock * >( get_f_Block() ) )
     // The father Block is available. Take time horizon from it.
     this->set_time_horizon( f_B->get_time_horizon() );
    else
