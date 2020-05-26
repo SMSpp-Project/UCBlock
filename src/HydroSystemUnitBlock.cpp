@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 05 - 2020
+ * \date 26 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -125,7 +125,7 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
   if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
    auto number_reservoirs = hydro_unit_block->get_number_reservoirs();
    for( Index i = 0 ; i < number_reservoirs ; ++i )
-    x.push_back( hydro_unit_block->get_volume( i  , f_time_horizon ) );
+    x.push_back( hydro_unit_block->get_volume( i , f_time_horizon - 1 ) );
   }
 
  // Set the active Variable of the PolyhedralFunction
