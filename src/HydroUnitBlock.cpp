@@ -799,7 +799,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
+ auto dim_time_horizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
 
