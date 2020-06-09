@@ -461,7 +461,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
  unsigned int number_inertia_zones = f_number_inertia_zones ;
 
 
- // Primary demand constraints.
+ // Primary demand constraints. For BusNetwork
 
  if( number_primary_zones > 0 ) {
 
@@ -477,11 +477,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
    for( Index zone_id = 0; zone_id < number_primary_zones; ++zone_id ) {
+
     v_PrimaryDemand_Const[t][zone_id].set_lhs
-            ( get_primary_demand()[zone_id][t] );
+            ( get_primary_demand()[t][zone_id] );
     v_PrimaryDemand_Const[t][zone_id].set_rhs( Inf< double >());
-    v_PrimaryDemand_Const[t][zone_id].set_function
-            ( new LinearFunction());
+    v_PrimaryDemand_Const[t][zone_id].set_function( new LinearFunction());
    }
 
    Index generator_id = 0;
@@ -489,29 +489,23 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     auto unit_block = dynamic_cast<UnitBlock *>(block);
     if( unit_block == nullptr )
      continue;
+    unit_block->get_number_generators();
 
     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
-
-     auto node_id = get_generator_node()[g];
-
-     assert( node_id >= 0 && node_id < number_nodes );
-
-     auto zone_id = get_primary_zone()[node_id];
-     if( zone_id >= number_primary_zones )
-      continue; // this unit does not belong to any zone
 
      auto primary_s_r = unit_block->get_primary_spinning_reserve( g );
      auto primary_spinning_reserve = &primary_s_r[t];
 
-     auto linear_function = dynamic_cast<LinearFunction *>
-     ( v_PrimaryDemand_Const[t][zone_id].get_function());
-     linear_function->
-             add_variable( primary_spinning_reserve , 1.0 );
+     auto linear_function = static_cast<LinearFunction *>
+     ( v_PrimaryDemand_Const[ t ][ 0 ].get_function() );
 
-     generator_id++;
+     linear_function->
+             add_variable( primary_spinning_reserve, 1.0 );
 
     }
+    generator_id++;
    }
+
   }
   add_static_constraint( v_PrimaryDemand_Const );
  }
@@ -533,7 +527,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index zone_id = 0; zone_id < number_secondary_zones; ++zone_id ) {
     v_SecondaryDemand_Const[t][zone_id].set_lhs
-            ( get_secondary_demand()[zone_id][t] );
+            ( get_secondary_demand()[t][zone_id] );
     v_SecondaryDemand_Const[t][zone_id].set_rhs( Inf< double >());
     v_SecondaryDemand_Const[t][zone_id].
             set_function( new LinearFunction());
@@ -543,23 +537,17 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     auto unit_block = dynamic_cast<UnitBlock *>(block);
     if( unit_block == nullptr )
      continue;
+
+    unit_block->get_number_generators();
+
     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
-
-     auto node_id = get_generator_node()[g];
-
-     assert( node_id >= 0 && node_id < number_nodes );
-
-     auto zone_id = get_secondary_zone()[node_id];
-     if( zone_id >= number_secondary_zones )
-      continue; // this unit does not belong to any zone
-
 
      auto secondary_s_r = unit_block->get_secondary_spinning_reserve( g );
      auto secondary_spinning_reserve = &secondary_s_r[t];
 
 
      auto linear_function = dynamic_cast<LinearFunction *>
-     ( v_SecondaryDemand_Const[t][zone_id].get_function());
+     ( v_SecondaryDemand_Const[t][0].get_function());
      linear_function->add_variable( secondary_spinning_reserve, 1.0 );
      generator_id++;
 

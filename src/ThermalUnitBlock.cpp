@@ -475,6 +475,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( !v_DeltaRampUp.empty() & !v_DeltaRampDown.empty()) {
 
+  if( f_InitUpDownTime > 0 ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    if( v_MinPower[t] > f_initial_power || v_MaxPower[t] < f_initial_power) {
+     throw ( std::logic_error
+             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0, "
+               "it must be that MaxPower >= InitialPower >= MinPower." ));
+    }
+   }
+  }
+
   RampUp_Constraints.resize( f_time_horizon );
 
   // Initial condition
@@ -677,23 +687,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
  // Initializing minimum power constraints
- if( !v_PrimaryRho.empty() & !v_SecondaryRho.empty()) {
-  MinPower_Constraints.resize( f_time_horizon );
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-   auto linear_function = new LinearFunction();
-
-   linear_function->add_variable( &v_active_power[t], 1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
-   linear_function->add_variable( &v_commitment[t], -v_MinPower[t] );
-
-   MinPower_Constraints[t].set_rhs( Inf< double >());
-   MinPower_Constraints[t].set_lhs( 0.0 );
-   MinPower_Constraints[t].set_function( linear_function );
-  }
- } else {
 
   MinPower_Constraints.resize( f_time_horizon );
 
@@ -702,17 +696,21 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_active_power[t], 1.0 );
+   if ( v_PrimaryRho[t] > 0 ) {
+    linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+   }
+   if (v_SecondaryRho[t] > 0 ) {
+    linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+   }
    linear_function->add_variable( &v_commitment[t], -v_MinPower[t] );
 
    MinPower_Constraints[t].set_rhs( Inf< double >());
    MinPower_Constraints[t].set_lhs( 0.0 );
    MinPower_Constraints[t].set_function( linear_function );
   }
- }
  add_static_constraint( MinPower_Constraints, "MinPower" );
 
  // Initializing maximum power constraints
- if( !v_PrimaryRho.empty() & !v_SecondaryRho.empty()) {
   MaxPower_Constraints.resize( f_time_horizon );
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -720,36 +718,24 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_active_power[t], -1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[ t ], -1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ], -1.0 );
+   if ( v_PrimaryRho[t] > 0 ) {
+    linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+   }
+   if (v_SecondaryRho[t] > 0 ) {
+    linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+   }
    linear_function->add_variable( &v_commitment[t], v_MaxPower[t] );
 
    MaxPower_Constraints[t].set_lhs( 0.0 );
    MaxPower_Constraints[t].set_rhs( Inf< double >());
    MaxPower_Constraints[t].set_function( linear_function );
   }
- } else {
-
-  MaxPower_Constraints.resize( f_time_horizon );
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-   auto linear_function = new LinearFunction();
-
-   linear_function->add_variable( &v_active_power[t], -1.0 );
-   linear_function->add_variable( &v_commitment[t], v_MaxPower[t] );
-
-   MaxPower_Constraints[t].set_lhs( 0.0 );
-   MaxPower_Constraints[t].set_rhs( Inf< double >());
-   MaxPower_Constraints[t].set_function( linear_function );
-  }
- }
  add_static_constraint( MaxPower_Constraints, "MaxPower" );
 
 
  // Initializing primary rho fraction constraints
 
- if( !v_PrimaryRho.empty() ) {
+ if( v_PrimaryRho[0] > 0 ) {
   PrimaryRho_Constraints.resize( f_time_horizon );
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -768,7 +754,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
  // Initializing secondary rho fraction constraints
 
- if( !v_SecondaryRho.empty() ) {
+ if( v_SecondaryRho[0] > 0  ) {
   SecondaryRho_Constraints.resize( f_time_horizon );
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
