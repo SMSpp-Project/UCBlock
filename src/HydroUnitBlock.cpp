@@ -73,11 +73,13 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "NumberPieces", f_number_arcs,
                 v_number_pieces, true, true );
 
+ ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true );
 
- for( auto & n : v_number_pieces ) {
-  f_total_number_pieces += n;
+ if ( f_total_number_pieces == 0 ) {
+  for( auto & n : v_number_pieces ) {
+   f_total_number_pieces += n;
+  }
  }
-
  f_total_number_pieces = f_total_number_pieces ?
                          f_total_number_pieces : f_number_arcs;
 
