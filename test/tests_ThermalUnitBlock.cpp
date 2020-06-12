@@ -92,11 +92,11 @@ TEST_P( ThermalUnitBlockTest, ChangeMaxPowerSubset ) {
 /*------------------------- TEST CASE INSTANCES ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-INSTANTIATE_TEST_CASE_P( ThermalUnitBlockTests,
-                         ThermalUnitBlockTest,
-                         ::testing::Values(
-                          TestParameters{ "netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
-                         ) );
+INSTANTIATE_TEST_SUITE_P( ThermalUnitBlockTests,
+                          ThermalUnitBlockTest,
+                          ::testing::Values(
+                           TestParameters{ "netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
+                          ) );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------------- MAIN ----------------------------------*/
