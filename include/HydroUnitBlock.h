@@ -1183,13 +1183,13 @@ class HydroUnitBlock : public UnitBlock {
 
 /// returns the matrix of volumetric variables
 /** The returned boost::multi_array< ColVariable , 2 >, say V, contains the
- * volumetric variables and is indexed over the dimensions time horizon and
- * number of reservoirs. There are two possible cases:
+ * volumetric variables and is indexed over the dimensions number of
+ * reservoirs and time horizon. There are two possible cases:
  *
  * - if V is empty(), then these variables are not defined;
  *
- * - otherwise, V must have f_time_horizon rows and f_number_reservoir columns
- *   and M[ t , n ] is the volumetric variable for time step t of reservoir n.
+ * - otherwise, V must have f_number_reservoir rows and f_time_horizon columns
+ *   and M[ n , t ] is the volumetric variable for time step t of reservoir n.
  *   */
 
  ColVariable * get_volumetric( Index reservoir  ) {

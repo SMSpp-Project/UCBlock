@@ -669,77 +669,39 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  for( Index n = 0; n < f_number_reservoirs; ++n ) {
 
-  Index t = 0;
-
   auto l_f = new LinearFunction();
 
-  l_f->add_variable( &v_volumetric[n][t], 1.0 );
+  l_f->add_variable( &v_volumetric[n][0], 1.0 );
 
   // end += n;
 
   for( Index l = 0; l < f_number_arcs; ++l ) {
 
-   if( v_start_arc[ l ] == n ) {
-    if( t - v_uphill_delay[ l ] >= 0 &&
-        t - v_uphill_delay[ l ] <= f_time_horizon ) {
-     l_f->add_variable( &v_flow_rate[ t - v_uphill_delay[ l ] ][ l ], 1.0 );
+   if( v_start_arc[l] == n ) {
+    if( -v_uphill_delay[l] > 0 &&
+        -v_uphill_delay[l] <= f_time_horizon ) {
+     l_f->add_variable( &v_flow_rate[0 - v_uphill_delay[l]][l], 1.0 );
+    } else if( v_uphill_delay[l] == 0 ) {
+     l_f->add_variable( &v_flow_rate[0][l], 1.0 );
     }
    }
 
-   if( v_end_arc[ l ] == n ) {
-    if( t - v_downhill_delay[ l ] >= 0 &&
-        t - v_downhill_delay[ l ] <= f_time_horizon ) {
-     l_f->add_variable( &v_flow_rate[ t - v_downhill_delay[ l ] ][ l ], -1.0 );
+   if( v_end_arc[l] == n ) {
+    if( -v_downhill_delay[l] >= 0 &&
+        -v_downhill_delay[l] <= f_time_horizon ) {
+     l_f->add_variable( &v_flow_rate[0 - v_downhill_delay[l]][l], -1.0 );
+    } else if( v_uphill_delay[l] == 0 ) {
+     l_f->add_variable( &v_flow_rate[0][l], -1.0 );
     }
    }
   }
 
-  // l=0;
-  // for (auto it : v_end_arc) {
-  //  l_f->add_variable(&v_flow_rate[t][l], -1.0);
-  //  l++;
-  // }
-
-  // for( Index l = 0; l <= end; ++l ) {
-  //
-  //  if( !v_start_arc.empty() && !v_end_arc.empty()) {
-  //
-  //    if( v_start_arc[l] == n ) {
-  //
-  //     if( !v_uphill_delay.empty()) {
-  //
-  //      l_f->add_variable( &v_flow_rate[0 - v_uphill_delay[l]][l], 1.0 );
-  //
-  //      } else {
-  //
-  //      l_f->add_variable( &v_flow_rate[0][l], 1.0 );
-  //
-  //        }
-  //  } else  {
-  //
-  //     if( !v_downhill_delay.empty()) {
-  //      if ( v_downhill_delay[l] == 0 ){
-  //      l_f->add_variable( &v_flow_rate[0][l], -1.0 );
-  //      }
-  //
-  //     } else {
-  //
-  //      l_f->add_variable( &v_flow_rate[0][l], -1.0 );
-  //
-  //     }
-  //  }
-  //
-  //  } else {
-  //
-  //    l_f->add_variable( &v_flow_rate[0][l], 1.0 );
-  //
-  //   }
-  //
-  // }
-  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[n][0] );
+  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[0][n] );
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
 
-  for( t = 1, constraint_index = 1; t < f_time_horizon;
+
+
+  for( Index t = 1, constraint_index = 1; t < f_time_horizon;
        ++t, ++constraint_index  ) {
 
    auto linear_function = new LinearFunction();
@@ -747,41 +709,36 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_function->add_variable( &v_volumetric[n][t], 1.0 );
    linear_function->add_variable( &v_volumetric[n][t-1], -1.0 );
 
-   for( Index l = 0; l <= end; ++l ) {
+   for( Index l = 0; l < f_number_arcs; ++l ) {
 
-    if( !v_start_arc.empty() && !v_end_arc.empty()) {
-
-
-      if( v_start_arc[l] == n ) {
-
-      if( !v_uphill_delay.empty()) {
+    if( !v_start_arc.empty()) {
+     if( v_start_arc[l] == n ) {
+      if( t - v_uphill_delay[l] >= 0 &&
+          t - v_uphill_delay[l] <= f_time_horizon ) {
 
        linear_function->add_variable( &v_flow_rate[t - v_uphill_delay[l]][l], 1.0 );
 
-      } else {
+      } else if( v_uphill_delay[l] == 0 ) {
 
        linear_function->add_variable( &v_flow_rate[t][l], 1.0 );
 
       }
-     } else  {
+     }
+    }
 
-      if( !v_downhill_delay.empty()  ) {
+    if( !v_end_arc.empty() ) {
+      if( v_end_arc[l] == n ) {
+       if( t - v_downhill_delay[ l ] >= 0 &&
+           t - v_downhill_delay[ l ] <= f_time_horizon ) {
 
-        linear_function->add_variable( &v_flow_rate[t - v_downhill_delay[l]][l], -1.0 );
-
-      } else {
-
-       linear_function->add_variable( &v_flow_rate[t][l], -1.0 );
-      }
-      }
-
-    } else {
-
-     linear_function->add_variable( &v_flow_rate[t][l], 1.0 );
-
+        linear_function->add_variable( &v_flow_rate[ t - v_downhill_delay[ l ] ][ l ], -1.0 );
+     } else if ( v_downhill_delay[ l ] == 0 ) {
+        linear_function->add_variable( &v_flow_rate[t][l], -1.0 );
+       }
     }
    }
-   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[n][constraint_index] );
+   }
+   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[constraint_index][n] );
    FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
   }
   }
