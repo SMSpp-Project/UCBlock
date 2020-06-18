@@ -665,6 +665,49 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
           ( boost::multi_array< FRowConstraint, 2 >::
             extent_gen()[f_time_horizon][ f_number_reservoirs ] );
  }
+
+ for( Index n = 0; n < f_number_reservoirs; ++n ) {
+
+  std::vector<Index> count( get_number_reservoirs() );
+
+  for( Index l = 0 ; l < get_number_generators() ; ++l ) {
+
+   if( v_uphill_delay[l] == 0 &&
+       v_downhill_delay[l] == 0 ) {
+
+    count[v_start_arc[l]]++;
+    count[v_end_arc[l]]++;
+
+   }
+  }
+
+  // initialize the vectors of coefficients, and reset count[]
+  std::vector< LinearFunction::v_coeff_pair > coeffs( get_number_generators() );
+
+  for( Index n = 0 ; n < get_number_reservoirs() ; ++n ) {
+   coeffs[ n ].resize( count[ n ] );
+   count[ n ] = 0;
+  }
+
+
+  for( Index l = 0; l < get_number_generators(); ++l ) {
+
+   if( -v_uphill_delay[l] >= 0 &&
+       -v_uphill_delay[l] <= f_time_horizon ) {
+    coeffs[v_start_arc[l]][count[v_start_arc[l]]++] =
+            std::make_pair( &v_flow_rate[0 - v_uphill_delay[l]][l], double( 1 ));
+   }
+   if( v_end_arc[l] == n && v_downhill_delay[l] == 0 ) {
+    coeffs[v_end_arc[l]][count[v_end_arc[l]]++] =
+            std::make_pair( &v_flow_rate[0 - v_downhill_delay[l]][l], double( -1 ));
+   }
+  }
+
+  coeffs[n][0] = std::make_pair( &v_volumetric[n][0], double( 1 ));
+
+  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[n][0] );
+  FinalVolumeReservoir_Const[0][n].set_function( new LinearFunction( std::move( coeffs[ n ] ) , 0 ) );
+ }
  // Index end = 0;
 
  for( Index n = 0; n < f_number_reservoirs; ++n ) {
@@ -678,7 +721,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   for( Index l = 0; l < f_number_arcs; ++l ) {
 
    if( v_start_arc[l] == n ) {
-    if( -v_uphill_delay[l] > 0 &&
+    if( -v_uphill_delay[l] >= 0 &&
         -v_uphill_delay[l] <= f_time_horizon ) {
      l_f->add_variable( &v_flow_rate[0 - v_uphill_delay[l]][l], 1.0 );
     } else if( v_uphill_delay[l] == 0 ) {
@@ -690,13 +733,13 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( -v_downhill_delay[l] >= 0 &&
         -v_downhill_delay[l] <= f_time_horizon ) {
      l_f->add_variable( &v_flow_rate[0 - v_downhill_delay[l]][l], -1.0 );
-    } else if( v_uphill_delay[l] == 0 ) {
+    } else if( v_downhill_delay[l] == 0 ) {
      l_f->add_variable( &v_flow_rate[0][l], -1.0 );
     }
    }
   }
 
-  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[0][n] );
+  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[n][0] );
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
 
 
@@ -738,7 +781,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
    }
-   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[constraint_index][n] );
+   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[n][constraint_index] );
    FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
   }
   }
