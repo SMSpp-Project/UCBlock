@@ -201,8 +201,8 @@ class HydroUnitBlock : public UnitBlock {
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * Note: MinFlow and MaxFlow values can be either positive or negative (or
- * zero); whenever MinF[ t , l ] < MaxF[ t , l ] <= 0 for each t and l,
- * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <
+ * zero); whenever MinF[ t , l ] <= MaxF[ t , l ] <= 0 for each t and l,
+ * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <=
  * MaxF[ t , l ], the unit is considered a turbine. Note that an arc must
  * *always* be the same kind for *all* instants, i.e., it is not allowed
  * that a unit suddenly changes between a turbine and a pump, or vice-versa.
@@ -230,8 +230,8 @@ class HydroUnitBlock : public UnitBlock {
  *   "TimeHorizon"). This is meant to represent the matrix MinV[ r , t ]
  *   which, for each reservoir r at each time instant t contains the minimum
  *   volumetric value of the unit for each reservoir and corresponding time
- *   step. It must be that 0 <= MinV[ r , t ] < MaxV[ r , t ] for all r and t
- *   and . This variable is optional; if it's not provided then it is assumed
+ *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
+ *   t. This variable is optional; if it's not provided then it is assumed
  *   that MinV[ r , t ] == 0, i.e., the minimum volumetric of the unit is
  *   zero. If the second dimension has size 1 then the entry MinV[ r , 0 ]
  *   gives the fixed minimum volumetric value of the unit for each reservoir r
@@ -250,7 +250,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "TimeHorizon"). This is meant to represent the matrix MaxV[ r , t ]
  *   which, for each reservoir r at each time instant t contains the maximum
  *   volumetric value of the unit for each reservoir and corresponding time
- *   step. It must be that 0 <= MinV[ r , t ] < MaxV[ r , t ] for all r and
+ *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
  *   t. This variable is not optional (a reservoir must have some available
  *   volume). If the second dimension has size 1 then the entry MaxV[ r , 0 ]
  *   gives the fixed maximum volumetric value of the unit for each reservoir r
@@ -286,7 +286,7 @@ class HydroUnitBlock : public UnitBlock {
  *   one always has size NumberArcs (if it is provided at all). This is meant
  *   to represent the matrix MinP[ t , l ] which, for each time instant t at
  *   each arc l contains the minimum power value of the unit; it must be that
- *   MinP[ t , l ] < MaxP[ t , l ] for each time instant t and each arc l.
+ *   MinP[ t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.
  *   This variable is optional; if it is not provided then it is assumed that
  *   MinP[ t , l ] == 0, i.e., the minimum power of all units is zero (which
  *   means, each unit is a turbine). If the first dimension has size 1 then
@@ -305,7 +305,7 @@ class HydroUnitBlock : public UnitBlock {
  *   always has size NumberArcs (if it is provided at all). This is meant to
  *   represent the matrix MaxP[ t , l ] which, for each time instant t at each
  *   arc l contains the maximum power value of the unit; it must be that MinP[
- *   t , l ] < MaxP[ t , l ] for each time instant t and each arc l.  This
+ *   t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.  This
  *   variable is optional; if it is not provided then it is assumed that MaxP[
  *   t , l ] == 0, i.e., the maximum power of all units is zero (i.e., all
  *   units are pumps). If the first dimension has size 1 then the entry MaxP[
@@ -1432,12 +1432,6 @@ class HydroUnitBlock : public UnitBlock {
 
  /// power output relation with to secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  ActivePowerSecondary_Const;
-
- /// primary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  PrimaryPumps_Const;
-
- /// secondary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  SecondaryPumps_Const;
 
  /// flow to active power function constraints for pumps
  boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
