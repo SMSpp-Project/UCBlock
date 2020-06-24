@@ -1433,6 +1433,9 @@ class HydroUnitBlock : public UnitBlock {
  /// power output relation with to secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  ActivePowerSecondary_Const;
 
+ /// flow to active power function constraints
+ boost::multi_array< FRowConstraint, 2 >  FlowActivePower_Const;
+
  /// flow to active power function constraints for pumps
  boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
 
