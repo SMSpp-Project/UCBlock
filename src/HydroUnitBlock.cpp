@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2020
+ * \date 06 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -65,18 +65,18 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true );
- ::deserialize_dim( group, "NumberArcs", f_number_arcs, true );
- f_number_reservoirs = f_number_reservoirs ? f_number_reservoirs : 1;
- f_number_arcs = f_number_arcs ? f_number_arcs : 1;
+ if( ! ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true ) )
+  f_number_reservoirs = 1;
+
+ if( ! ::deserialize_dim( group, "NumberArcs", f_number_arcs, true ) )
+  f_number_arcs = 1;
 
  ::deserialize( group, "NumberPieces", f_number_arcs,
                 v_number_pieces, true, true );
 
- ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true );
-
- if ( f_total_number_pieces == 0 ) {
-  for( auto & n : v_number_pieces ) {
+ if( ! ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true ) ) {
+  f_total_number_pieces = 0;
+  for( const auto & n : v_number_pieces ) {
    f_total_number_pieces += n;
   }
  }
