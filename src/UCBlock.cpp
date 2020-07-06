@@ -319,16 +319,18 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   }
  }
 
-
+  f_number_elc_generators = 0;
+ if( ! ::deserialize_dim( group, "NumberElectricalGenerators", f_number_elc_generators, true ) )
 
  for( auto block : get_nested_Blocks() ) { //TODO Cheek it again
-  auto unit_block = dynamic_cast<UnitBlock *>(block);
+  auto unit_block = static_cast<UnitBlock *>(block);
   if( unit_block == nullptr )
    continue;
   Index g = unit_block->get_number_generators();
   f_number_elc_generators += g;
  }
- ::deserialize( group, "GeneratorNode", f_number_elc_generators,
+
+  ::deserialize( group, "GeneratorNode", f_number_elc_generators,
                 v_generator_node, true , true );
 
  Block::deserialize( group );
