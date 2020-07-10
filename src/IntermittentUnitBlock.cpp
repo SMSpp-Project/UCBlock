@@ -64,17 +64,18 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize( group, "MinPower", f_number_intervals,
-                v_minimum_power, true, true );
+  ::deserialize( group, "MinPower", v_minimum_power, true );
 
- ::deserialize( group, "MaxPower", f_number_intervals,
-                v_maximum_power, true, true );
+ ::deserialize( group, "MaxPower",v_maximum_power, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
 
  ::deserialize( group, "Gamma", &f_gamma );
 
  ::deserialize( group, "Kappa", &f_kappa );
+
+ decompress_vector( v_minimum_power );
+ decompress_vector( v_maximum_power );
 
  UnitBlock::deserialize( group );
 }// end( IntermittentUnitBlock::deserialize )
@@ -438,6 +439,29 @@ void IntermittentUnitBlock::set_maximum_power(
                                                      IntermittentUnitBlockMod::eSetMaxP,
                                                      rng ),
    Observer::par2chnl( issuePMod ) );
+ }
+}
+
+
+template< typename T >
+void IntermittentUnitBlock::decompress_vector( std::vector< T > & v ) {
+ if( v.size() == 1 ) {
+  v.resize( f_time_horizon, v[ 0 ] );
+ } else if( v.size() < f_time_horizon ) {
+  std::vector< T > temp = v;
+  v.resize( f_time_horizon );
+  int j = 0;
+  for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
+   Index sup;
+   if( i == v_change_intervals.size() - 1 ) {
+    sup = f_time_horizon;
+   } else {
+    sup = v_change_intervals[ i ];
+   }
+   for( ; j < sup; ++j ) {
+    v[ j ] = temp[ i ];
+   }
+  }
  }
 }
 

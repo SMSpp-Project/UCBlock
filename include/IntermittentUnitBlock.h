@@ -458,7 +458,8 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
+ /// Resize a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
