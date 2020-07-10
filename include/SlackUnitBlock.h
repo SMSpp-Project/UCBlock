@@ -553,8 +553,8 @@ class SlackUnitBlock : public UnitBlock {
  /// the vector of SecondaryCost
  std::vector< double > v_secondary_cost;
 
- /// the matrix of MaxInertia
- boost::multi_array< double, 2 > v_MaxInertia;
+ /// the vector of MaxInertia
+ std::vector< double > v_MaxInertia;
 
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
@@ -591,8 +591,8 @@ class SlackUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( SlackUnitBlock ) )
