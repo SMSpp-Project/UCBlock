@@ -64,7 +64,9 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
-  ::deserialize( group, "MinPower", v_minimum_power, true );
+  ::deserialize( group, "MinPower", f_time_horizon, v_minimum_power, true, true );
+
+  ::deserialize( group, "MaxPower",f_time_horizon,v_maximum_power, true, true );
 
  ::deserialize( group, "MaxPower",v_maximum_power, true );
 

@@ -62,14 +62,14 @@ void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
- ::deserialize( group, "MaxPower",v_MaxPower, true);
- ::deserialize( group, "MaxPrimaryPower",v_MaxPrimaryPower, true);
- ::deserialize( group, "MaxSecondaryPower",v_MaxSecondaryPower, true);
- ::deserialize( group, "ActivePowerCost",v_active_power_cost, true );
- ::deserialize( group, "PrimaryCost",v_primary_cost, true);
- ::deserialize( group, "SecondaryCost",v_secondary_cost, true );
- ::deserialize( group, "InertiaCost",v_inertia_cost, true);
- ::deserialize( group, "MaxInertia", v_MaxInertia, true );
+ ::deserialize( group, "MaxPower",f_time_horizon,v_MaxPower, true, true);
+ ::deserialize( group, "MaxPrimaryPower",f_time_horizon,v_MaxPrimaryPower, true,true);
+ ::deserialize( group, "MaxSecondaryPower",f_time_horizon,v_MaxSecondaryPower, true,true);
+ ::deserialize( group, "ActivePowerCost",f_time_horizon,v_active_power_cost, true,true );
+ ::deserialize( group, "PrimaryCost",f_time_horizon,v_primary_cost, true,true);
+ ::deserialize( group, "SecondaryCost",f_time_horizon,v_secondary_cost, true,true );
+ ::deserialize( group, "InertiaCost",f_time_horizon,v_inertia_cost, true,true);
+ ::deserialize( group, "MaxInertia",f_time_horizon, v_MaxInertia, true,true );
 
  decompress_vector(v_MaxPower);
  decompress_vector(v_MaxPrimaryPower);
