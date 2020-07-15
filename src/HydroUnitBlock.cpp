@@ -576,6 +576,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
  if (f_number_arcs > 0 ) {
 
+ if (!v_minimum_flow.empty() && !v_maximum_flow.empty() ) {
+
   for( Index t = 0; t < f_time_horizon; ++t ) {
    Index piece = 0;
    Index constraint_index = 0;
@@ -585,8 +587,82 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      end += v_number_pieces[arc];
     }
 
-     if( v_minimum_flow[t][arc] >= 0 && v_maximum_flow[t][arc] > 0 ) { //Turbines
-      for( ; piece < end; ++piece ) {
+    if( v_minimum_flow[t][arc] >= 0 && v_maximum_flow[t][arc] > 0 ) { //Turbines
+     for( ; piece < end; ++piece ) {
+
+      auto linear_function_turbin = new LinearFunction();
+
+      auto ap = get_active_power( arc );
+      auto active_power = &ap[t];
+
+      auto fr = get_flow_rate( arc );
+      auto flow_rate = &fr[t];
+
+      linear_function_turbin->add_variable( active_power, 1.0 );
+
+      if( !v_linear_term.empty()) {
+       linear_function_turbin->add_variable( flow_rate, -v_linear_term[piece] );
+      } else {
+       linear_function_turbin->add_variable( flow_rate, 0.0 );
+      }
+      if( !v_const_term.empty()) {
+       FlowActivePower_Const[t][piece].set_rhs( v_const_term[piece] );
+      } else {
+       FlowActivePower_Const[t][piece].set_rhs( 0.0 );
+      }
+      FlowActivePower_Const[t][piece].set_lhs( -Inf< double >());
+      FlowActivePower_Const[t][piece].set_function( linear_function_turbin );
+      ++constraint_index;
+     }
+    }
+
+    if( v_maximum_flow[t][arc] <= 0 && v_minimum_flow[t][arc] < 0 ) { //Pumps
+
+     auto linear_function_pump = new LinearFunction();
+
+     auto ap = get_active_power( arc );
+     auto active_power = &ap[t];
+
+     auto fr = get_flow_rate( arc );
+     auto flow_rate = &fr[t];
+
+     linear_function_pump->add_variable( active_power, 1.0 );
+     linear_function_pump->add_variable( flow_rate, -v_linear_term[constraint_index] );
+     FlowActivePower_Const[t][constraint_index].set_both( 0.0 );
+     FlowActivePower_Const[t][constraint_index].set_function( linear_function_pump );
+     ++constraint_index;
+     piece = constraint_index;
+    }
+
+    if( v_maximum_flow[t][arc] == 0 && v_minimum_flow[t][arc] == 0 ) { //Nothing
+
+     auto linear_function_nothing = new LinearFunction();
+
+     auto fr = get_flow_rate( arc );
+     auto flow_rate = &fr[t];
+
+     linear_function_nothing->add_variable( flow_rate, 1.0 );
+     FlowActivePower_Const[t][constraint_index].set_both( 0.0 );
+     FlowActivePower_Const[t][constraint_index].set_function( linear_function_nothing );
+     ++constraint_index;
+     piece = constraint_index;
+    }
+   }
+  }
+ }
+  if ( v_minimum_flow.empty() && !v_maximum_flow.empty() ) {
+
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    Index piece = 0;
+    Index constraint_index = 0;
+    Index end = 0;
+    for( Index arc = 0; arc < f_number_arcs; ++arc ) {
+     if( !v_number_pieces.empty()) {
+      end += v_number_pieces[arc];
+     }
+
+     if(  v_maximum_flow[t][arc] > 0 ) { //Turbines
+      for( ; piece <= end; ++piece ) {
 
        auto linear_function_turbin = new LinearFunction();
 
@@ -613,40 +689,23 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
        ++constraint_index;
       }
      }
-     if( v_maximum_flow[t][arc] <= 0 && v_minimum_flow[t][arc] < 0 ) { //Pumps
 
-      auto linear_function_pump = new LinearFunction();
+     if( v_maximum_flow[t][arc] == 0 ) { //Nothing
 
-      auto ap = get_active_power( arc );
-      auto active_power = &ap[t];
+      auto linear_function_nothing = new LinearFunction();
 
       auto fr = get_flow_rate( arc );
       auto flow_rate = &fr[t];
 
-      linear_function_pump->add_variable( active_power, 1.0 );
-      linear_function_pump->add_variable( flow_rate, -v_linear_term[constraint_index] );
-      FlowActivePower_Const[t][constraint_index].set_both( 0.0 );
-      FlowActivePower_Const[t][constraint_index].set_function( linear_function_pump );
-      ++constraint_index;
-      piece = constraint_index;
-     }
-
-    if( v_maximum_flow[t][arc] == 0 && v_minimum_flow[t][arc] == 0 ) { //Nothing
-
-      auto linear_function_nothing = new LinearFunction();
-
-     auto fr = get_flow_rate( arc );
-     auto flow_rate = &fr[t];
-
       linear_function_nothing->add_variable( flow_rate, 1.0 );
       FlowActivePower_Const[t][constraint_index].set_both( 0.0 );
       FlowActivePower_Const[t][constraint_index].set_function( linear_function_nothing );
-     ++constraint_index;
-     piece = constraint_index;
+      ++constraint_index;
+      piece = constraint_index;
      }
-   }
-   }
-
+    }
+  }
+  }
   add_static_constraint( FlowActivePower_Const, "FlowActivePower" );
 
  }
@@ -808,16 +867,18 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
   for( Index l = 0; l < f_number_arcs; ++l ) {
 
-   if ( v_start_arc[l] == n &&
-   v_end_arc[l] < f_number_reservoirs) {
-    if( v_uphill_delay[l] == 0 ) {
+   if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-     auto fr0 = get_flow_rate( l );
-     auto flow_rate0 = &fr0[0];
+    if( v_start_arc[l] == n &&
+        v_end_arc[l] < f_number_reservoirs ) {
+     if( v_uphill_delay[l] == 0 ) {
 
-     l_f->add_variable( flow_rate0, 1.0 );
+      auto fr0 = get_flow_rate( l );
+      auto flow_rate0 = &fr0[0];
+
+      l_f->add_variable( flow_rate0, 1.0 );
+     }
     }
-   }
     if( v_downhill_delay[l] == 0 &&
         v_end_arc[l] == n ) {
 
@@ -826,8 +887,14 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
      l_f->add_variable( flow_rate00, -1.0 );
     }
-   }
+   } else{
 
+    auto fr00 = get_flow_rate( l );
+    auto flow_rate00 = &fr00[0];
+
+    l_f->add_variable( flow_rate00, 1.0 );
+   }
+  }
   auto vol0 = get_volumetric( n );
   auto volumetric0 = &vol0[0];
 
@@ -841,22 +908,31 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    auto linear_function = new LinearFunction();
 
    for( Index l = 0; l < f_number_arcs; ++l ) {
+    if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-    if( t - v_uphill_delay[ l ] >= 0  &&
-       v_start_arc[ l ] == n  &&
-       v_end_arc[l] < f_number_reservoirs) {
+     if( t - v_uphill_delay[l] >= 0 &&
+         v_start_arc[l] == n &&
+         v_end_arc[l] < f_number_reservoirs ) {
 
-     auto fr = get_flow_rate( l );
-     auto flow_rate = &fr[t - v_uphill_delay[ l ]];
+      auto fr = get_flow_rate( l );
+      auto flow_rate = &fr[t - v_uphill_delay[l]];
 
-     linear_function->add_variable( flow_rate, 1.0 );
-    }
+      linear_function->add_variable( flow_rate, 1.0 );
+     }
 
-    if( t - v_downhill_delay[ l ] >= 0 &&
-     t - v_downhill_delay[ l ] <= f_time_horizon &&
-     v_end_arc[ l ] == n ) {
+     if( t - v_downhill_delay[l] >= 0 &&
+         t - v_downhill_delay[l] <= f_time_horizon &&
+         v_end_arc[l] == n ) {
 
-     linear_function->add_variable( &v_flow_rate[ t - v_downhill_delay[ l ]][ l ], -1.0 );
+      auto fr_d = get_flow_rate( l );
+      auto flow_rate_d = &fr_d[t - v_downhill_delay[l]];
+
+      linear_function->add_variable( flow_rate_d, -1.0 );
+     }
+    } else {
+     auto fr_d = get_flow_rate( l );
+     auto flow_rate_d = &fr_d[t];
+     linear_function->add_variable( flow_rate_d, 1.0 );
     }
    }
 
