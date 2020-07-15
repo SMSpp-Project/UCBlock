@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 26 - 07 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -138,12 +138,6 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  public:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index; ///< Type for indices
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -1216,7 +1210,7 @@ class UCBlock : public Block {
  boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector<std::vector< FRowConstraint> >  v_PollutantBudget_Const;
+ std::vector< std::vector< FRowConstraint> > v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1240,6 +1234,19 @@ class UCBlock : public Block {
  void deserialize_network_blocks( const netCDF::NcGroup & group,
                                   int num_sub_blocks );
 
+ /// Transposes a deserialized multiarray if needed.
+ /**
+  * Checks if the multiarray has one column and more than one rows. If so,
+  * it transposes it.
+  * This procedure is needed because some 2D matrices have the first dimension
+  * optional, and the ::deserialize() method doesn't know that the only
+  * dimension that is given is actually the second one.
+  *
+  * @tparam T The type of the boost::multi_array
+  * @param a  A boost::multi_array that has been just deserialized
+  */
+ template< typename T >
+ void transpose( boost::multi_array< T, 2 > & a );
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
  SMSpp_insert_in_factory_h;

@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 07 - 2019
+ * \date 30 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -120,203 +120,220 @@ class ThermalUnitBlock : public UnitBlock {
  * must then also contain:
  *
  * - The variable "MinPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MnP[ t ] that, for each time instant t, contains the minimum
- *   active power output value of the unit for the corresponding time step.
- *   If "MinPower" has length 1 then MnP[ t ] contains the same value for all
- *   t. Otherwise, MinPower[ i ] is the fixed value of MnP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *   MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
- *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
- *    which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MnP[ t ] that, for
+ *   each time instant t, contains the minimum active power output value of
+ *   the unit for the corresponding time step.  If "MinPower" has length 1
+ *   then MnP[ t ] contains the same value for all t. Otherwise, MinPower[ i ]
+ *   is the fixed value of MnP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MnP[ t ] >= 0 for
+ *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MxP[ t ] that, for each time instant t, contains the maximum
- *   active power output value of the unit for the corresponding time step.
- *   If "MaxPower" has length 1 then MxP[ t ] contains the same value for all
- *   t. Otherwise, MaxPower[ i ] is the fixed value of MxP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be
- *   MxP[ t ] >= MnP[ t ] >= 0 for all t. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
+ *   each time instant t, contains the maximum active power output value of
+ *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   then MxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i ]
+ *   is the fixed value of MxP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MxP[ t ] >= MnP[ t
+ *   ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
+ *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
+ *   which in fact is not loaded.
  *
  * - The variable "DeltaRampUp", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector DP[ t ] that, for each time instant t, contains the ramp-up
- *   value of the unit for the corresponding time step, i.e., the maximum
- *   possible increase of active power production w.r.t. the power that had
- *   been produced in time instant t - 1, if any. This variable is optional;
- *   if it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
- *   the unit can ramp up by an arbitrary amount, i.e., there are no ramp-up
- *   constraints. If "DeltaRampUp" has length 1 then DP[ t ] contains the same
- *   value for all t. Otherwise, DeltaRampUp[ i ] is the fixed value of
- *   DP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
- *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
- *
- * - The variable "DeltaRampDown", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector DM[ t ] that, for each time instant t, contains the ramp-down
- *   value of the unit for the corresponding time step, i.e., the maximum
- *   possible decrease of active power production w.r.t. the power that had
- *   been produced in time instant t - 1, if any. This variable is optional;
- *   if it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
- *   the unit can ramp down an arbitrary amount, i.e., there are no
- *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
- *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
- *   fixed value of DM[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector DP[ t ] that, for
+ *   each time instant t, contains the ramp-up value of the unit for the
+ *   corresponding time step, i.e., the maximum possible increase of active
+ *   power production w.r.t. the power that had been produced in time instant
+ *   t - 1, if any. This variable is optional; if it is not provided then it
+ *   is assumed that DP[ t ] == MxP[ t ], i.e., the unit can ramp up by an
+ *   arbitrary amount, i.e., there are no ramp-up constraints. If
+ *   "DeltaRampUp" has length 1 then DP[ t ] contains the same value for all
+ *   t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "PrimaryRho", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector PR[ t ] that, for each time instant t, contains the maximum
- *   possible fraction of active power that can be used as primary reserve
- *   value of the unit for the corresponding time step. This variable is
- *   optional; if it is not provided then it is assumed that this unit may not
- *   be capable of producing any primary reserve, which correspond to
- *   PR[ t ] == 0 for all t. If "PrimaryRho" has length 1 then PR[ t ]
- *   contains the same value for all t. Otherwise, PrimaryRho[ i ] is the
- *   fixed value of PR[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ * - The variable "DeltaRampDown", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector DM[ t ] that, for
+ *   each time instant t, contains the ramp-down value of the unit for the
+ *   corresponding time step, i.e., the maximum possible decrease of active
+ *   power production w.r.t. the power that had been produced in time instant
+ *   t - 1, if any. This variable is optional; if it is not provided then it
+ *   is assumed that DP[ t ] == MxP[ t ], i.e., the unit can ramp down an
+ *   arbitrary amount, i.e., there are no ramp-down constraints. If
+ *   "DeltaRampDown" has length 1 then DM[ t ] contains the same value for all
+ *   t. Otherwise, DeltaRampDown[ i ] is the fixed value of DM[ t ] for all t
+ *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
+ *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "PrimaryRho", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector PR[ t ] that, for
+ *   each time instant t, contains the maximum possible fraction of active
+ *   power that can be used as primary reserve value of the unit for the
+ *   corresponding time step. This variable is optional; if it is not provided
+ *   then it is assumed that this unit may not be capable of producing any
+ *   primary reserve, which correspond to PR[ t ] == 0 for all t. If
+ *   "PrimaryRho" has length 1 then PR[ t ] contains the same value for all
+ *   t. Otherwise, PrimaryRho[ i ] is the fixed value of PR[ t ] for all t in
+ *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "SecondaryRho", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector SR[ t ] that, for each time instant t, contains the maximum
- *   possible fraction of active power that can be used as secondary reserve
- *   value of the unit for the corresponding time step. This variable is
- *   optional; if it is not provided then it is assumed that this unit may not
- *   be capable of producing any secondary reserve, which correspond to
- *   SR[ t ] == 0 for all t. If "SecondaryRho" has length 1 then SR[ t ]
- *   contains the same value for all t. Otherwise, SecondaryRho[ i ] is the
- *   fixed value of SR[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector SR[ t ] that, for
+ *   each time instant t, contains the maximum possible fraction of active
+ *   power that can be used as secondary reserve value of the unit for the
+ *   corresponding time step. This variable is optional; if it is not provided
+ *   then it is assumed that this unit may not be capable of producing any
+ *   secondary reserve, which correspond to SR[ t ] == 0 for all t. If
+ *   "SecondaryRho" has length 1 then SR[ t ] contains the same value for all
+ *   t. Otherwise, SecondaryRho[ i ] is the fixed value of SR[ t ] for all t
+ *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with
+ *   the assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
+ *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "QuadTerm", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector A[ t ] that, for each time instant t, contains the quadratic
- *   term of power cost function of the unit for the corresponding time step.
- *   This variable is optional; if it is not provided then it is assumed that
- *   A[ t ] == 0, i.e., the cost of the unit is linear in the produced power.
- *   If "QuadTerm" has length 1 then A[ t ] contains the same value for all t.
- *   Otherwise, QuadTerm[ i ] is the fixed value of A[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+ * - The variable "QuadTerm", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector A[ t ] that, for
+ *   each time instant t, contains the quadratic term of power cost function
+ *   of the unit for the corresponding time step.  This variable is optional;
+ *   if it is not provided then it is assumed that A[ t ] == 0, i.e., the cost
+ *   of the unit is linear in the produced power.  If "QuadTerm" has length 1
+ *   then A[ t ] contains the same value for all t.  Otherwise, QuadTerm[ i ]
+ *   is the fixed value of A[ t ] for all t in the interval [ ChangeIntervals[
+ *   i - 1 ] , ChangeIntervals[ i ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded.
  *
  * - The variable "StartUpCost", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector SC[ t ] that, for each time instant t, contains the start up
- *   cost value of the unit for the corresponding time step. This variable is
- *   optional; if it is not provided then it is assumed that SC[ t ] == 0,
- *   i.e., this unit may not have any start up cost. If "StartUpCost" has
- *   length 1 then SC[ t ] contains the same value for all t. Otherwise,
- *   StartUpCost[ i ] is the fixed value of SC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
+ *   each time instant t, contains the start up cost value of the unit for the
+ *   corresponding time step. This variable is optional; if it is not provided
+ *   then it is assumed that SC[ t ] == 0, i.e., this unit may not have any
+ *   start up cost. If "StartUpCost" has length 1 then SC[ t ] contains the
+ *   same value for all t. Otherwise, StartUpCost[ i ] is the fixed value of
+ *   SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *
- * - The variable "LinearTerm", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector B[ t ] that, for each time instant t, contains the linear term
- *   of power cost function of the unit for the corresponding time step.
- *   This variable is optional; if it is not provided then it is assumed that
- *   B[ t ] == 0, i.e., the cost of the unit has no linear dependence on the
- *   produced power (say, only the quadratic one). If "LinearTerm" has length
- *   1 then A[ t ] contains the same value for all t. Otherwise,
- *   LinearTerm[ i ] is the fixed value of B[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ * - The variable "LinearTerm", of type double and either of size 1 or indexed
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
+ *   each time instant t, contains the linear term of power cost function of
+ *   the unit for the corresponding time step.  This variable is optional; if
+ *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost of
+ *   the unit has no linear dependence on the produced power (say, only the
+ *   quadratic one). If "LinearTerm" has length 1 then A[ t ] contains the
+ *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of B[
+ *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
+ *   the mapping clearly does not require "ChangeIntervals", which in fact is
+ *   not loaded.
  *   
  * - The variable "ConstTerm", of type double and to be either of size 1 or
- *   indexed over the dimension "NumberIntervals". This is meant to represent
- *   the vector C[ t ] that, for each time instant t, contains the constant
- *   term of power cost function of the unit for the corresponding time step.
- *   This variable is optional; if it is not provided then it is assumed that
- *   C[ t ] == 0, i.e., the cost of the unit has no fixed term, only those
- *   depending (linearly or quadratically) on the produced power. If
- *   "ConstTerm" has length 1 then C[ t ] contains the same value for all t.
- *   Otherwise, ConstTerm[ i ] is the fixed value of C[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
- *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector C[ t ] that, for
+ *   each time instant t, contains the constant term of power cost function of
+ *   the unit for the corresponding time step.  This variable is optional; if
+ *   it is not provided then it is assumed that C[ t ] == 0, i.e., the cost of
+ *   the unit has no fixed term, only those depending (linearly or
+ *   quadratically) on the produced power. If "ConstTerm" has length 1 then C[
+ *   t ] contains the same value for all t.  Otherwise, ConstTerm[ i ] is the
+ *   fixed value of C[ t ] for all t in the interval [ ChangeIntervals[ i - 1
+ *   ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1
+ *   ] = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
+ *   then the mapping clearly does not require "ChangeIntervals", which in
+ *   fact is not loaded.
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
  *   unit was producing at time instant -1, i.e., before the start of the
  *   time horizon; this is necessary to compute the ramp-up and ramp-down
  *   constraints. Clearly, it must be that MaxPower >= InitialPower >=
- *   MinPower if the unit was "on" at time instant -1, and it must be that
- *   InitialPower == 0 if the unit was "off" at time instant -1. The on/off
- *   status of the unit is also encoded by the scalar variable InitUpDownTime:
- *   in particular, InitUpDownTime > 0 then the unit was on at time instant
- *   -1, and therefore InitialPower >= MinPower must hold, while if
- *   InitUpDownTime <= 0 then the unit was off at time instant -1, and
- *   therefore InitialPower == 0 by definition. In fact, if InitUpDownTime
- *   <= 0 then this variable need not be defined since it is not loaded.
+ *   MinPower if the unit was "on" at time instant -1, and it would be ignored
+ *   if the unit was "off" at time instant -1. The on/off status of the unit
+ *   is also encoded by the scalar variable InitUpDownTime: in particular,
+ *   InitUpDownTime > 0 then the unit was on at time instant -1, and therefore
+ *   InitialPower >= MinPower must hold, while if InitUpDownTime <= 0 then the
+ *   unit was off at time instant -1, and therefore InitialPower is ignored.
+ *   In fact, if InitUpDownTime <= 0 then this variable need not be defined
+ *   since it is not loaded.
  *
- * - The scalar variable "InitUpDownTime", of type Int64 and not indexed over
- *   any dimension and indicates the initial time to generating the unit.
- *   If InitUpDownTime > 0, this means that the unit has been on for
- *   InitUpDownTime time stamps prior to time stamp 0 (the beginning of the
- *   horizon). If, instead, InitUpDownTime <= 0, this means that the unit
- *   has been off for - InitUpDownTime time stamps prior to time stamp 0;
- *   note that InitUpDownTime == 0 means that the unit has been just shut
- *   down at the end of time instant -1, i.e., the beginning of time
- *   instant 0.
+ * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
+ *   indexed over any dimension and indicates the initial time to generating
+ *   the unit.  If InitUpDownTime > 0, this means that the unit has been on
+ *   for InitUpDownTime time stamps prior to time stamp 0 (the beginning of
+ *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
+ *   has been off for - InitUpDownTime time stamps prior to time stamp 0; note
+ *   that InitUpDownTime == 0 means that the unit has been just shut down at
+ *   the end of time instant -1, i.e., the beginning of time instant 0.
  *
- * - The positive scalar variable "MinUpTime", of type UInt64 and not indexed
- *   over any dimension, which indicates the minimum allowed up time in this
- *   unit. This variable is optional, if it is not provided it is taken to be
- *   MinUpTime == 0, which mean that the unit can shut down in the very
- *   same time stamp in which it starts up.
+ * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
+ *   indexed over any dimension, which indicates the minimum allowed up time
+ *   in this unit. This variable is optional, if it is not provided it is
+ *   taken to be MinUpTime == 0, which mean that the unit can shut down in the
+ *   very same time stamp in which it starts up.
  *
- * - The positive scalar variable "MinDownTime", of type UInt64 and not
- *   indexed over any dimension, which indicates the minimum allowed down time
- *   in this unit.This variable is optional, if it is not provided it is taken
- *   to be MinDownTime == 0, which mean that the unit can start up in the very
- *   same time stamp in which it shuts down.
+ * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
+ *   not indexed over any dimension, which indicates the minimum allowed down
+ *   time in this unit.This variable is optional, if it is not provided it is
+ *   taken to be MinDownTime == 0, which mean that the unit can start up in
+ *   the very same time stamp in which it shuts down.
  *
- * - The variable "FixedConsumption", of type double and either indexed
- *   over the dimension "NumberIntervals", or having size 1. This is meant
- *   to represent the vector FC[ t ] which, for each time instant t,
- *   contains the fixed consumption of the power plant if it is OFF at time
- *   t. The variable is optional; if it is not defined, FC[ t ] == 0 for all
- *   time instants. If it has size 1, then FC[ t ] == FixedConsumption[ 0 ]
- *   for all t, regardless to what "NumberIntervals" says. Otherwise,
- *   FixedConsumption[ i ] is the fixed value of FC[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
+ * - The variable "FixedConsumption", of type double and either indexed over
+ *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
+ *   then this variable can also be indexed over "TimeHorizon"), or having
+ *   size 1. This is meant to represent the vector FC[ t ] which, for each
+ *   time instant t, contains the fixed consumption of the power plant if it
+ *   is OFF at time t. The variable is optional; if it is not defined, FC[ t ]
+ *   == 0 for all time instants. If it has size 1, then FC[ t ] ==
+ *   FixedConsumption[ 0 ] for all t, regardless to what "NumberIntervals"
+ *   says. Otherwise, FixedConsumption[ i ] is the fixed value of FC[ t ] for
+ *   all t in the interval [ ChangeIntervals[ i - 1 ], ChangeIntervals[ i ] ],
+ *   with the assumption that ChangeIntervals[ - 1 ] = 0.
  *
  * - The variable "InertiaCommitment", of type double and either indexed over
- *   the dimension "NumberIntervals" or has size 1. This is meant to
- *   represent the vector IC[ t ] which, for each time instant t, contains
- *   the contribution that the unit can give to the inertia constraint for
- *   the sole fact that is is on (basically, the constant to be multiplied to
- *   the commitment variable) at time t. The variable is optional; if it is
- *   not defined, IC[ t ] == 0 for all time instants. If it has size 1, then
- *   IC[ t ] == InertiaCommitment[ 0 ] for all t, regardless to what
- *   "NumberIntervals" says. Otherwise, InertiaCommitment[ i ] is the
- *   fixed value of IC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
+ *   then this variable can also be indexed over "TimeHorizon") or has size
+ *   1. This is meant to represent the vector IC[ t ] which, for each time
+ *   instant t, contains the contribution that the unit can give to the
+ *   inertia constraint for the sole fact that is is on (basically, the
+ *   constant to be multiplied to the commitment variable) at time t. The
+ *   variable is optional; if it is not defined, IC[ t ] == 0 for all time
+ *   instants. If it has size 1, then IC[ t ] == InertiaCommitment[ 0 ] for
+ *   all t, regardless to what "NumberIntervals" says. Otherwise,
+ *   InertiaCommitment[ i ] is the fixed value of IC[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. */
 
  void deserialize( netCDF::NcGroup & group ) override;
@@ -688,107 +705,59 @@ class ThermalUnitBlock : public UnitBlock {
  /// Returns the minimum allowed down time value
  Index get_min_down_time() const { return f_MinDownTime; }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of minimum power
-/** The returned vector contains to minimum power at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the minimum power of the unit is 0;
- *
- * - if the vector has only one element, then the minimum power of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the minimum power value at time t. */
-
+ /// Returns the vector of minimum power
+ /**
+  * The returned vector contains the minimum power for each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_min_power() const {
-  return( v_MinPower );
-  }
+  return v_MinPower;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of maximum power
-/** The returned vector contains to maximum power at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the maximum power of the unit is 0;
- *
- * - if the vector has only one element, then the maximum power of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum power value at time t.   */
-
+ /// Returns the vector of maximum power
+ /**
+  * The returned vector contains the maximum power for each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_max_power() const {
-  return( v_MaxPower );
-  }
+  return v_MaxPower;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of primary rho
-/** The returned vector contains to primary rho at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the primary rho of the unit is 0;
- *
- * - if the vector has only one element, then the primary rho of the unit for
- *   all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the primary rho value at time t. */
-
+ /// Returns the vector of primary rho
+ /**
+  * The returned vector contains the primary rho at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_primary_rho() const {
-  return( v_PrimaryRho );
-  }
+  return v_PrimaryRho;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of secondary rho
-/** The returned vector contains to secondary rho at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the secondary rho of the unit is 0;
- *
- * - if the vector has only one element, then the secondary rho of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the secondary rho value at time t. */
- 
+ /// Returns the vector of secondary rho
+ /**
+  * The returned vector contains the secondary rho at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_secondary_rho() const {
-  return( v_SecondaryRho );
-  }
+  return v_SecondaryRho;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// Returns the vector of delta ramp-up
-/** The returned vector contains to delta ramp-up at time t.  There are three
- * possible cases:
- *
- * - if the vector is empty, then the delta ramp-up of the unit is 0;
- *
- * - if the vector has only one element, then the delta ramp-up of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the delta ramp-up value at time t. */
-
+ /// Returns the vector of delta ramp-up
+ /**
+  * The returned vector contains the delta ramp-up at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_delta_ramp_up() const {
-  return( v_DeltaRampUp );
-  }
+  return v_DeltaRampUp;
+ }
 
-/*--------------------------------------------------------------------------*/
-/// returns the vector of delta ramp-down
-/** The returned vector contains to delta ramp-down at time t. There are
- * three possible cases:
- *
- * - if the vector is empty, then the delta ramp-down of the unit is 0;
- *
- * - if the vector has only one element, then the delta ramp-down of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the delta ramp-down value at time t.  */
-
+ /// Returns the vector of delta ramp-down
+ /**
+  * The returned vector contains the delta ramp-up at each time.
+  * The size of the vector is always get_time_horizon().
+  */
  const std::vector< double > & get_delta_ramp_down() const {
-  return( v_DeltaRampDown );
-  }
+  return v_DeltaRampDown;
+ }
 
 /*--------------------------------------------------------------------------*/
 /// Returns the vector of quadratic term
@@ -975,6 +944,43 @@ class ThermalUnitBlock : public UnitBlock {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_init_updown_time( std::vector< int >::const_iterator values,
+                            Subset && subset,
+                            bool ordered = false,
+                            c_ModParam issuePMod = eNoBlck,
+                            c_ModParam issueAMod = eNoBlck );
+
+ void set_init_updown_time( std::vector< int >::const_iterator values,
+                            Range rng = Range( 0, Inf< Index >() ),
+                            c_ModParam issuePMod = eNoBlck,
+                            c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1094,6 +1100,32 @@ class ThermalUnitBlock : public UnitBlock {
  /// the objective function
  FRealObjective objective;
 
+ static void static_initialization() {
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+                                       &ThermalUnitBlock::set_maximum_power,
+                                       MS_dbl_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+                                       &ThermalUnitBlock::set_maximum_power,
+                                       MS_dbl_rngd::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+                                       &ThermalUnitBlock::set_initial_power,
+                                       MS_dbl_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+                                       &ThermalUnitBlock::set_initial_power,
+                                       MS_dbl_rngd::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+                                       &ThermalUnitBlock::set_init_updown_time,
+                                       MS_int_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+                                       &ThermalUnitBlock::set_init_updown_time,
+                                       MS_int_rngd::args() );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1109,10 +1141,129 @@ private:
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( ThermalUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS ThermalUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a ThermalUnitBlock
+class ThermalUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of ThermalUnitBlockMod
+ enum TUBB_mod_type {
+  eSetMaxP = 0 ,   ///< Set max power values
+  eSetInitP    ,   ///< Set initial power values
+  eSetInitUD       ///< Set initial up/down times
+ };
+
+ /// Constructor, takes the ThermalUnitBlock and the type
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~ThermalUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "ThermalUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case ( eSetMaxP ):
+    output << "set max power values ";
+    break;
+   case ( eSetInitP ):
+    output << "set initial power values ";
+    break;
+   default:
+    output << "set initial up/down times ";
+  }
+ }
+
+ ThermalUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( ThermalUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS ThermalUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from ThermalUnitBlockMod for "ranged" modifications
+class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the ThermalUnitBlock, the type, and the range
+ ThermalUnitBlockRngdMod( ThermalUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : ThermalUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~ThermalUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  ThermalUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( ThermalUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS ThermalUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from ThermalUnitBlockMod for "subset" modifications
+class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the ThermalUnitBlock, the type, and the subset
+ ThermalUnitBlockSbstMod( ThermalUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : ThermalUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~ThermalUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the ThermalUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  ThermalUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( ThermalUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

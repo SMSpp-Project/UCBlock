@@ -119,6 +119,31 @@ class BusNetworkBlock : public NetworkBlock {
  void generate_abstract_variables( Configuration * stvv ) override;
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_active_demand( std::vector< double >::const_iterator values,
+                         Subset && subset = { 0 },
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck ) final;
+
+ void set_active_demand( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, 1 ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck ) final;
+
+ static void static_initialization() {
+  register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+                                      &BusNetworkBlock::set_active_demand,
+                                      MS_dbl_sbst::args() );
+
+  register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+                                      &BusNetworkBlock::set_active_demand,
+                                      MS_dbl_rngd::args() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

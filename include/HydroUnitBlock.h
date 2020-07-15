@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 09 - 2019
+ * \date 19 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -141,68 +141,68 @@ class HydroUnitBlock : public UnitBlock {
  *   a turbine generating electricity by converting potential energy of water
  *   going downhill, or a pump consuming electricity for moving water uphill.
  *
- * - The variable "StartArc", of type int and indexed over the dimension
- *   "NumberArcs"; the r-th entry of the variable is the starting point of
- *   the arc (a number in 0, ..., NumberReservoirs - 1). Note that arcs are
- *   oriented; that is, a positive flow along arc r (turbine) means that water
- *   is being taken away from StartArc[ r ] and delivered to EndArc[ r ]
- *   (see next), a negative flow (pump) means vice-versa. Note that reservoir
- *   names here go from 0 to NumberReservoirs - 1.
+ * - The variable "StartArc", of type netCDF::NcUint and indexed over the
+ *   dimension "NumberArcs"; the r-th entry of the variable is the starting
+ *   point of the arc (a number in 0, ..., NumberReservoirs - 1). Note that
+ *   arcs are oriented; that is, a positive flow along arc r (turbine) means
+ *   that water is being taken away from StartArc[ r ] and delivered to
+ *   EndArc[ r ] (see next), a negative flow (pump) means vice-versa. Note
+ *   that reservoir names here go from 0 to NumberReservoirs - 1.
  *
- * - The variable "EndArc", of type int and indexed over the dimension
- *   "NumberArcs"; the r-th entry of the variable is the ending point of the
- *   arc; this is a number in 0, ..., NumberReservoirs. Note: this is
- *   NumberReservoirs and *not* NumberReservoirs - 1, because arcs can end in
- *   the "fake" reservoir NumberReservoirs. This indicates that water that
- *   flows along that arc "goes away from the system" and it is no longer
+ * - The variable "EndArc", of type netCDF::NcUint and indexed over the
+ *   dimension "NumberArcs"; the r-th entry of the variable is the ending
+ *   point of the arc; this is a number in 0, ..., NumberReservoirs. Note:
+ *   this is NumberReservoirs and *not* NumberReservoirs - 1, because arcs can
+ *   end in the "fake" reservoir NumberReservoirs. This indicates that water
+ *   that flows along that arc "goes away from the system" and it is no longer
  *   counted, because it can no longer be used to produce electricity further
  *   down the river, or pumped back into one of its reservoirs. Indeed, there
  *   will be something like "the most downstream turbines": after water has
- *   been used there, it just goes away down some river and does not go to
- *   any other reservoir. Arcs are oriented (see above); StartArc[ r ] ==
- *   EndArc[ r ] (a self-loop) is not allowed, but multiple arcs between the
- *   same pair of reservoirs are. Indeed, often the same physical equipment
- *   can be used both as a turbine and as a pump; in our model these are
- *   represented as two parallel arcs (but with different upper and lower
- *   flow capacity, see "MinFlow" and "MaxFlow" below).
+ *   been used there, it just goes away down some river and does not go to any
+ *   other reservoir. Arcs are oriented (see above); StartArc[ r ] == EndArc[
+ *   r ] (a self-loop) is not allowed, but multiple arcs between the same pair
+ *   of reservoirs are. Indeed, often the same physical equipment can be used
+ *   both as a turbine and as a pump; in our model these are represented as
+ *   two parallel arcs (but with different upper and lower flow capacity, see
+ *   "MinFlow" and "MaxFlow" below).
  *
- * - The variable "MinFlow", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". The first dimension may have either
- *   size 1 or size NumberIntervals whereas the second one always has size
- *   NumberArcs (if the variable is provided at all). This is meant to
- *   represent the matrix MinF[ t , l ] which, for each time instant t and
- *   each arc l, contains the minimum flow value of the unit. This variable
- *   is optional; if it is not provided then it is assumed that MinF[ t , l ]
- *   == 0, i.e., the minimum flow of the unit is zero. If the first dimension
- *   has size 1 then the entry MinF[ 0 , l ] gives the fixed minimum flow
- *   value of the unit for all time steps and each arc l. Otherwise,
+ * - The variable "MinFlow", of type netCDF::NcDouble and indexed over both
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then the size can also be "TimeHorizon") whereas the second one
+ *   always has size NumberArcs (if the variable is provided at all). This is
+ *   meant to represent the matrix MinF[ t , l ] which, for each time instant
+ *   t and each arc l, contains the minimum flow value of the unit. This
+ *   variable is optional; if it is not provided then it is assumed that MinF[
+ *   t , l ] == 0, i.e., the minimum flow of the unit is zero. If the first
+ *   dimension has size 1 then the entry MinF[ 0 , l ] gives the fixed minimum
+ *   flow value of the unit for all time steps and each arc l. Otherwise,
  *   MinFlow[ i , l ] is the fixed value of MinF[ t , l ] for all time t and
- *   arc l in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ *   arc l in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
+ *   ], with the assumption that ChangeIntervals[ - 1 ] = 0. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "MaxFlow", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". The first dimension may have either
- *   size 1 or size NumberIntervals whereas the second one always has size
- *   NumberArcs (if the variable is provided at all). This is meant to
- *   represent the matrix MaxF[ t , l ] which, for each time instant t and
- *   each arc l, contains the maximum flow value of the unit. This variable
- *   is optional; if it is not provided then it is assumed that MaxF[ t , l ]
- *   == 0, i.e., the maximum flow of the unit is zero. If the first dimension
- *   has size 1 then the entry MaxF[ 0 , l ] gives the fixed maximum flow
- *   value of the unit for all time steps and each arc l. Otherwise,
+ * - The variable "MaxFlow", of type netCDF::NcDouble and indexed over both
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then the size can also be "TimeHorizon") whereas the second one
+ *   always has size NumberArcs (if the variable is provided at all). This is
+ *   meant to represent the matrix MaxF[ t , l ] which, for each time instant
+ *   t and each arc l, contains the maximum flow value of the unit. This
+ *   variable is optional; if it is not provided then it is assumed that MaxF[
+ *   t , l ] == 0, i.e., the maximum flow of the unit is zero. If the first
+ *   dimension has size 1 then the entry MaxF[ 0 , l ] gives the fixed maximum
+ *   flow value of the unit for all time steps and each arc l. Otherwise,
  *   MaxFlow[ i , l ] is the fixed value of MaxF[ t , l ] for all time t and
- *   arc l in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ *   arc l in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
+ *   ], with the assumption that ChangeIntervals[ - 1 ] = 0. If
+ *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
+ *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
  * Note: MinFlow and MaxFlow values can be either positive or negative (or
- * zero); whenever MinF[ t , l ] < MaxF[ t , l ] <= 0 for each t and l,
- * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <
+ * zero); whenever MinF[ t , l ] <= MaxF[ t , l ] <= 0 for each t and l,
+ * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <=
  * MaxF[ t , l ], the unit is considered a turbine. Note that an arc must
  * *always* be the same kind for *all* instants, i.e., it is not allowed
  * that a unit suddenly changes between a turbine and a pump, or vice-versa.
@@ -222,40 +222,42 @@ class HydroUnitBlock : public UnitBlock {
  * ever happen, this occurrence is not handled in our model (which lets it
  * happen).
  *
- * - The variable "MinVolumetric", of type double and indexed over both
- *   dimensions "NumberReservoirs" and "NumberIntervals". The first dimension
- *   always has size NumberReservoirs (if it is provided at all), whereas the
- *   second one may have size one or size NumberIntervals. This is meant to
- *   represent the matrix MinV[ r , t ] which, for each reservoir r at each
- *   time instant t contains the minimum volumetric value of the unit for 
- *   each reservoir and corresponding time step. It must be that
- *   0 <= MinV[ r , t ] < MaxV[ r , t ] for all r and t and . This variable
- *   is optional; if it's not provided then it is assumed that
- *   MinV[ r , t ] == 0, i.e., the minimum volumetric of the unit is zero. If
- *   the second dimension has size 1 then the entry MinV[ r , 0 ] gives the
- *   fixed minimum volumetric value of the unit for each reservoir r along
- *   all the time horizon. Otherwise, MinVolumetric[ r , i ] is the fixed
- *   value of MinV[ r , t ] for reservoir r and all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ * - The variable "MinVolumetric", of type netCDF::NcDouble and indexed over
+ *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
+ *   dimension always has size "NumberReservoirs" (if it is provided at all),
+ *   whereas the second one may have size one or size "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon"). This is meant to represent the matrix MinV[ r , t ]
+ *   which, for each reservoir r at each time instant t contains the minimum
+ *   volumetric value of the unit for each reservoir and corresponding time
+ *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
+ *   t. This variable is optional; if it's not provided then it is assumed
+ *   that MinV[ r , t ] == 0, i.e., the minimum volumetric of the unit is
+ *   zero. If the second dimension has size 1 then the entry MinV[ r , 0 ]
+ *   gives the fixed minimum volumetric value of the unit for each reservoir r
+ *   along all the time horizon. Otherwise, MinVolumetric[ r , i ] is the
+ *   fixed value of MinV[ r , t ] for reservoir r and all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "MaxVolumetric", of type double and indexed over both
- *   dimensions "NumberReservoirs" and "NumberIntervals". The first dimension
- *   is always has size NumberReservoirs (if it is provided at all), whereas
- *   the second one may have size one or size NumberIntervals. This is meant
- *   to represent the matrix MaxV[ r , t ] which, for each reservoir r at
- *   each time instant t contains the maximum volumetric value of the unit
- *   for each reservoir and corresponding time step. It must be that
- *   0 <= MinV[ r , t ] < MaxV[ r , t ] for all r and t. This variable is not
- *   optional (a reservoir must have some available volume). If the second
- *   dimension has size 1 then the entry MaxV[ r , 0 ] gives the fixed
- *   maximum volumetric value of the unit for each reservoir r during the all
- *   the time horizon. Otherwise, the MaxVolumetric[ r , i ] is the fixed
- *   value of MaxV[ r , t ] for reservoir r and all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ * - The variable "MaxVolumetric", of type netCDF::NcDouble and indexed over
+ *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
+ *   dimension is always has size "NumberReservoirs" (if it is provided at
+ *   all), whereas the second one may have size one or size "NumberIntervals"
+ *   (if "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon"). This is meant to represent the matrix MaxV[ r , t ]
+ *   which, for each reservoir r at each time instant t contains the maximum
+ *   volumetric value of the unit for each reservoir and corresponding time
+ *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
+ *   t. This variable is not optional (a reservoir must have some available
+ *   volume). If the second dimension has size 1 then the entry MaxV[ r , 0 ]
+ *   gives the fixed maximum volumetric value of the unit for each reservoir r
+ *   during the all the time horizon. Otherwise, the MaxVolumetric[ r , i ] is
+ *   the fixed value of MaxV[ r , t ] for reservoir r and all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
@@ -266,210 +268,213 @@ class HydroUnitBlock : public UnitBlock {
  * instead, they depend on t, then equality can be accepted at some instants
  * (but not all of them).
  *
- * - The variable "Inflows", of type double and indexed over both dimensions
- *   "NumberReservoirs" and "TimeHorizon". This is meant to represent the
- *   matrix InF[ r , t ] which, for each reservoir r, contains the amount of
- *   water that "naturally" enters into reservoir r (because of rain, ice
- *   melting, non-controlled rivers flowing, and of course net of water
- *   leaving by evaporation, human consumption etc.) during time all the time
- *   interval t, and therefore that is available in the reservoir at the end
- *   of time step t (hence, the beginning of time step t + 1, if any). This
- *   variable is optional; if it isn't defined, it is taken to be zero.
- *   Inflows can be either positive or negative.
+ * - The variable "Inflows", of type netCDF::NcDouble and indexed over both
+ *   dimensions "NumberReservoirs" and "TimeHorizon". This is meant to
+ *   represent the matrix InF[ r , t ] which, for each reservoir r, contains
+ *   the amount of water that "naturally" enters into reservoir r (because of
+ *   rain, ice melting, non-controlled rivers flowing, and of course net of
+ *   water leaving by evaporation, human consumption etc.) during time all the
+ *   time interval t, and therefore that is available in the reservoir at the
+ *   end of time step t (hence, the beginning of time step t + 1, if
+ *   any). This variable is optional; if it isn't defined, it is taken to be
+ *   zero.  Inflows can be either positive or negative.
  *
- * - The variable "MinPower", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". The first dimension may have either
- *   size 1 or size NumberIntervals, whereas the second one always has size
- *   NumberArcs (if it is provided at all). This is meant to represent the
- *   matrix MinP[ t , l ] which, for each time instant t at each arc l
- *   contains the minimum power value of the unit; it must be that
- *   MinP[ t , l ] < MaxP[ t , l ] for each time instant t and each arc l.
- *   This variable is optional; if it is not provided then it is assumed
- *   that MinP[ t , l ] == 0, i.e., the minimum power of all units is zero
- *   (which means, each unit is a turbine). If the first dimension has size 1
- *   then the entry MinP[ 0 , l ] is assumed to contain the minimum power of
- *   arc l for all time instants. Otherwise, MinPower[ i , l ] is the fixed
- *   value of MinP[ t , l ] for arc l and all time t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "MaxPower", of type double and indexed over both dimensions
- *   "NumberIntervals" and "NumberArcs". The first dimension may have either
- *   size 1 or size NumberIntervals whereas the second one always has size
- *   NumberArcs (if it is provided at all). This is meant to represent the
- *   matrix MaxP[ t , l ] which, for each time instant t at each arc l
- *   contains the maximum power value of the unit; it must be that
- *   MinP[ t , l ] < MaxP[ t , l ] for each time instant t and each arc l.
+ * - The variable "MinPower", of type netCDF::NcDouble and indexed over both
+ *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
+ *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then the size can also be "TimeHorizon"), whereas the second
+ *   one always has size NumberArcs (if it is provided at all). This is meant
+ *   to represent the matrix MinP[ t , l ] which, for each time instant t at
+ *   each arc l contains the minimum power value of the unit; it must be that
+ *   MinP[ t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.
  *   This variable is optional; if it is not provided then it is assumed that
- *   MaxP[ t , l ] == 0, i.e., the maximum power of all units is zero (i.e.,
- *   all units are pumps). If the first dimension has size 1 then the entry
- *   MaxP[ 0 , l ] is assumed to contain the maximum power of arc l for all
- *   time instants. Otherwise, MaxPower[ i , l ] is the fixed value of
- *   MaxP[ t , l ] for arc l and all time t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ *   MinP[ t , l ] == 0, i.e., the minimum power of all units is zero (which
+ *   means, each unit is a turbine). If the first dimension has size 1 then
+ *   the entry MinP[ 0 , l ] is assumed to contain the minimum power of arc l
+ *   for all time instants. Otherwise, MinPower[ i , l ] is the fixed value of
+ *   MinP[ t , l ] for arc l and all time t in the interval [ ChangeIntervals[
+ *   i - 1 ] , ChangeIntervals[ i ] ], with the assumption that
+ *   ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals >=
+ *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
+ *   which in fact is not loaded.
  *
- * - The variable "DeltaRampUp", of type double and indexed over both
+ * - The variable "MaxPower", of type netCDF::NcDouble and indexed over both
  *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size NumberIntervals, whereas the second one
- *   always has size NumberArcs (if it is provided at all). This is meant
- *   to represent the matrix DP[ t , l ] which contains the maximum possible
- *   increase of the flow rate at time instant t for arc l. This variable is
- *   optional; if it is not provided then it is assumed that DP[ t , l ] ==
- *   MaxP[ t , l ] - MinP[ t , l ], i.e., all units can ramp up by an
- *   arbitrary amount, i.e., there are no ramp-up constraints. If the first
- *   dimension has size 1 then the entry DP[ 0 , l ] is assumed to contain
- *   the maximum possible increase of the flow rate of arc l for all time
- *   instants. Otherwise, DeltaRampUp[ i , l ] is the fixed value of
- *   DP[ t , l ] for arc l and all time t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "DeltaRampDown", of type double and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size NumberIntervals, whereas the second one
- *   always has size NumberArcs (if it is provided at all). This is meant
- *   to represent the matrix DM[ t , l ] which contains the maximum possible
- *   decrease of the flow rate at each time instant t of each arc l. This
- *   variable is optional; if it is not provided then it is assumed that
- *   DM[ t , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., the unit can ramp
- *   down by an arbitrary amount, i.e., there are no ramp-down constraints.
- *   If first dimension has size 1 then the entry DM[ 0 , l ] is assumed to
- *   contain the maximum possible decrease of the flow rate of arc l for all
- *   time instants. Otherwise, DeltaRampDown[ i , l ] is the fixed value of
- *   DM[ t , l ] for arc l and all time t  in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "PrimaryRho", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size NumberIntervals, whereas the second one
- *   always has size NumberArcs (if it is provided at all). This is meant
- *   to represent the matrix PR[ t , l ] which, for each time instant t and
- *   arc l, contains the maximum possible fraction of active power that can
- *   be used as primary reserve. This variable is optional, when it's not
- *   present then PR[ t , l ] == 0 for all t and l, i.e., the unit is not
- *   capable of producing any primary reserve. Note that only turbines can
- *   produce primary reserve, i.e., PR[ t , l ] > 0 ==> MaxP[ t , l ] > 0.
- *   If the first dimension has size 1 then the entry PR[ 0 , l ] is assumed
- *   to contain the maximum possible fraction of active power that can be
- *   used as primary reserve by arc l for all time instants. Otherwise,
- *   PrimaryRho[ i , l ] is the fixed value of PR[ t , l ] for arc l and all
- *   t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
- *   with the assumption that ChangeIntervals[ - 1 ] = 0 and all l. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "SecondaryRho", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size NumberIntervals, whereas the second one
+ *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then the size can also be "TimeHorizon") whereas the second one
  *   always has size NumberArcs (if it is provided at all). This is meant to
- *   represent the matrix SR[ t , l ] which, for each time instant t and arc
- *   l contains the maximum possible fraction of active power that can be
- *   used as secondary reserve. This variable is optional, when it's not
- *   present then SR[ t , l ] == 0 for all t and l, i.e., the unit is not
- *   capable of producing any secondary reserve. Note that only turbines can
- *   produce secondary reserve, i.e., SR[ t , l ] > 0 ==> MaxP[ t , l ] > 0.
- *   If the first dimension has size 1 then the entry SR[ 0 , l ] is assumed
- *   to contain the maximum possible fraction of active power that can use as
- *   secondary reserve by arc l for all time instant. Otherwise,
- *   SecondaryRho[ i , l ] is the fixed value of SR[ t , l ] for arc l and
- *   all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals" which in fact is not
+ *   represent the matrix MaxP[ t , l ] which, for each time instant t at each
+ *   arc l contains the maximum power value of the unit; it must be that MinP[
+ *   t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.  This
+ *   variable is optional; if it is not provided then it is assumed that MaxP[
+ *   t , l ] == 0, i.e., the maximum power of all units is zero (i.e., all
+ *   units are pumps). If the first dimension has size 1 then the entry MaxP[
+ *   0 , l ] is assumed to contain the maximum power of arc l for all time
+ *   instants. Otherwise, MaxPower[ i , l ] is the fixed value of MaxP[ t , l
+ *   ] for arc l and all time t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
  *   loaded.
  *
- * - The variable "NumberPieces", indexed over the dimension "NumberArcs".
- *   NumberPieces[ l ] tells how many pieces the concave flow-to-active-power
- *   function has for unit (arc) l. Note that pumps must necessarily have
- *   exactly one piece. The sum over all i of NumberPieces[ i ] is the total
- *   number of pieces (say, "TotalNumberPieces"). Clearly, TotalNumberPieces
- *   >= NumberArcs; if the flow-to-active-power function for all turbines only
- *   have one piece (those of pumps necessarily are so), then 
- *   TotalNumberPieces == NumberArcs and there is no need to define this
- *   variable. If, instead, if it is defined, then should always be such that
- *   TotalNumberPieces >= NumberArcs.
+ * - The variable "DeltaRampUp", of type netCDF::NcDouble and indexed over
+ *   both dimensions "NumberIntervals" and "NumberArcs". The first dimension
+ *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
+ *   not provided, then the size can also be "TimeHorizon"), whereas the
+ *   second one always has size NumberArcs (if it is provided at all). This is
+ *   meant to represent the matrix DP[ t , l ] which contains the maximum
+ *   possible increase of the flow rate at time instant t for arc l. This
+ *   variable is optional; if it is not provided then it is assumed that DP[ t
+ *   , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., all units can ramp up by an
+ *   arbitrary amount, i.e., there are no ramp-up constraints. If the first
+ *   dimension has size 1 then the entry DP[ 0 , l ] is assumed to contain the
+ *   maximum possible increase of the flow rate of arc l for all time
+ *   instants. Otherwise, DeltaRampUp[ i , l ] is the fixed value of DP[ t , l
+ *   ] for arc l and all time t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+ *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
- * - The variable "LinearTerm", of type double and indexed over the set
- *   { 0 , ..., TotalNumberPieces - 1 } (see "NumberPieces"). LinearTerm[ h ]
- *   gives the linear term a_h of the linear function a_h * f + b_h that
+ * - The variable "DeltaRampDown", of type netCDF::NcDouble and indexed over
+ *   both dimensions "NumberIntervals" and "NumberArcs". The first dimension
+ *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
+ *   not provided, then the size can also be "TimeHorizon"), whereas the
+ *   second one always has size NumberArcs (if it is provided at all). This is
+ *   meant to represent the matrix DM[ t , l ] which contains the maximum
+ *   possible decrease of the flow rate at each time instant t of each arc
+ *   l. This variable is optional; if it is not provided then it is assumed
+ *   that DM[ t , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., the unit can
+ *   ramp down by an arbitrary amount, i.e., there are no ramp-down
+ *   constraints.  If first dimension has size 1 then the entry DM[ 0 , l ] is
+ *   assumed to contain the maximum possible decrease of the flow rate of arc
+ *   l for all time instants. Otherwise, DeltaRampDown[ i , l ] is the fixed
+ *   value of DM[ t , l ] for arc l and all time t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "PrimaryRho", of type netCDF::NcDouble and indexed both over
+ *   the dimensions "NumberIntervals" and "NumberArcs". The first dimension
+ *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
+ *   not provided, then the size can also be "TimeHorizon"), whereas the
+ *   second one always has size NumberArcs (if it is provided at all). This is
+ *   meant to represent the matrix PR[ t , l ] which, for each time instant t
+ *   and arc l, contains the maximum possible fraction of active power that
+ *   can be used as primary reserve. This variable is optional, when it's not
+ *   present then PR[ t , l ] == 0 for all t and l, i.e., the unit is not
+ *   capable of producing any primary reserve. Note that only turbines can
+ *   produce primary reserve, i.e., PR[ t , l ] > 0 ==> MaxP[ t , l ] > 0.  If
+ *   the first dimension has size 1 then the entry PR[ 0 , l ] is assumed to
+ *   contain the maximum possible fraction of active power that can be used as
+ *   primary reserve by arc l for all time instants. Otherwise, PrimaryRho[ i
+ *   , l ] is the fixed value of PR[ t , l ] for arc l and all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0 and all l. If NumberIntervals
+ *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
+ *
+ * - The variable "SecondaryRho", of type netCDF::NcDouble and indexed both
+ *   over the dimensions "NumberIntervals" and "NumberArcs". The first
+ *   dimension may have either size 1 or size "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon"), whereas the second one always has size NumberArcs (if it
+ *   is provided at all). This is meant to represent the matrix SR[ t , l ]
+ *   which, for each time instant t and arc l contains the maximum possible
+ *   fraction of active power that can be used as secondary reserve. This
+ *   variable is optional, when it's not present then SR[ t , l ] == 0 for all
+ *   t and l, i.e., the unit is not capable of producing any secondary
+ *   reserve. Note that only turbines can produce secondary reserve, i.e., SR[
+ *   t , l ] > 0 ==> MaxP[ t , l ] > 0.  If the first dimension has size 1
+ *   then the entry SR[ 0 , l ] is assumed to contain the maximum possible
+ *   fraction of active power that can use as secondary reserve by arc l for
+ *   all time instant. Otherwise, SecondaryRho[ i , l ] is the fixed value of
+ *   SR[ t , l ] for arc l and all t in the interval [ ChangeIntervals[ i - 1
+ *   ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1
+ *   ] = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
+ *   the mapping clearly does not require "ChangeIntervals" which in fact is
+ *   not loaded.
+ *
+ * - The variable "NumberPieces", of type netCDF::NcUint and indexed over the
+ *   dimension "NumberArcs".  NumberPieces[ l ] tells how many pieces the
+ *   concave flow-to-active-power function has for unit (arc) l. Note that
+ *   pumps must necessarily have exactly one piece. The sum over all i of
+ *   NumberPieces[ i ] is the total number of pieces (say,
+ *   "TotalNumberPieces"). Clearly, TotalNumberPieces >= NumberArcs; if the
+ *   flow-to-active-power function for all turbines only have one piece (those
+ *   of pumps necessarily are so), then TotalNumberPieces == NumberArcs and
+ *   there is no need to define this variable. If, instead, if it is defined,
+ *   then should always be such that TotalNumberPieces >= NumberArcs.
+ *
+ * - The variable "LinearTerm", of type netCDF::NcDouble and indexed over the
+ *   set { 0 , ..., TotalNumberPieces - 1 } (see "NumberPieces"). LinearTerm[
+ *   h ] gives the linear term a_h of the linear function a_h * f + b_h that
  *   defines the concave flow-to-active-power function for some unit; the
  *   total function if F2AP( t ) = min { a_h * f + b_h , h \in H } for some
- *   finite set H that depends on the individual unit. It is then necessary
- *   to be able to assign a unique index h = 0, 1, ..., TotalNumberPieces - 1
- *   to each pair ( unit , linear function a_h * f + b_h ). When
+ *   finite set H that depends on the individual unit. It is then necessary to
+ *   be able to assign a unique index h = 0, 1, ..., TotalNumberPieces - 1 to
+ *   each pair ( unit , linear function a_h * f + b_h ). When
  *   TotalNumberPieces == NumberArcs, the index is the same as i = 0, 1, ...,
  *   NumberArcs - 1 (there is a one-to-one correspondence between each (unit)
  *   arc and each piece). When, instead, TotalNumberPieces > NumberArcs, a
- *   mapping must be defined. The mapping is the obvious one: each index of
- *   i = 0, 1, ..., NumberArcs - 1, corresponds with a unit (arc), and the
+ *   mapping must be defined. The mapping is the obvious one: each index of i
+ *   = 0, 1, ..., NumberArcs - 1, corresponds with a unit (arc), and the
  *   linear functions for each unit (arc) also have some natural ordering.
- *   Thus, in general the mapping is:
- *     piece 0 = first piece of unit (arc) 0
- *     piece 1 = second piece of unit (arc) 0
- *     ...
- *     piece NumberPieces[ 0 ] - 1 = last piece of unit (arc) 0
- *     piece NumberPieces[ 0 ] = first piece of unit (arc) 1
- *     piece NumberPieces[ 0 ] + 1 = second piece of unit (arc) 1
- *     ...
+ *   Thus, in general the mapping is: piece 0 = first piece of unit (arc) 0
+ *   piece 1 = second piece of unit (arc) 0 ...  piece NumberPieces[ 0 ] - 1 =
+ *   last piece of unit (arc) 0 piece NumberPieces[ 0 ] = first piece of unit
+ *   (arc) 1 piece NumberPieces[ 0 ] + 1 = second piece of unit (arc) 1 ...
  *   which of course boils down to "h = i" when each arc has exactly one
  *   piece.
  *
- * - The variable "ConstantTerm", of type double and indexed over the set
- *   { 0 , ..., TotalNumberPieces" - 1 }. ConstantTerm[ h ] gives the
+ * - The variable "ConstantTerm", of type netCDF::NcDouble and indexed over
+ *   the set { 0 , ..., TotalNumberPieces" - 1 }. ConstantTerm[ h ] gives the
  *   constant term b_h of the linear function a_h * f + b_h that defines the
  *   concave flow-to-active-power function for some unit; see the comments to
  *   "LinearTerm" for details.
  *
- * - The variable "InertiaPower", of type double and indexed both over the
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size NumberIntervals whereas the second one
- *   always has size NumberArcs (if it is provided at all). This is meant to
- *   represent the matrix IP[ t , l ] which, for each time instant t and arc
- *   l, contains the contribution that the unit can give to the inertia
- *   constraint which depends on the active power that it is currently
- *   generating (basically, the constant to be multiplied to the active
- *   power variable) at time t for arc l. The variable is optional; if it is
- *   not defined, IP[ t , l ] == 0 for each time instants t and arc l. If the
- *   first dimension has size 1 then the entry IP[ 0 , l ] is assumed to
- *   contain the the inertia power value for arc l and all time instants t.
- *   Otherwise, InertiaPower[ i , l ] is the fixed value of IP[ t , l ] for
- *   all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *    = 0 and all l. If  NumberIntervals <= 1 or NumberIntervals >= 
+ * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
+ *   over the dimensions "NumberIntervals" and "NumberArcs". The first
+ *   dimension may have either size 1 or size "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon") whereas the second one always has size NumberArcs (if it
+ *   is provided at all). This is meant to represent the matrix IP[ t , l ]
+ *   which, for each time instant t and arc l, contains the contribution that
+ *   the unit can give to the inertia constraint which depends on the active
+ *   power that it is currently generating (basically, the constant to be
+ *   multiplied to the active power variable) at time t for arc l. The
+ *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
+ *   time instants t and arc l. If the first dimension has size 1 then the
+ *   entry IP[ 0 , l ] is assumed to contain the the inertia power value for
+ *   arc l and all time instants t.  Otherwise, InertiaPower[ i , l ] is the
+ *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
+ *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
+ *   - 1 ] = 0 and all l. If NumberIntervals <= 1 or NumberIntervals >=
  *   TimeHorizon then the mapping clearly does not require "ChangeIntervals",
  *   which in fact is not loaded.
  *
- * - The variable "InitialFlowRate", of type double and indexed over the
- *   dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of the
- *   flow that was going along arc i at time instant -1. This is necessary to
- *   compute ramp-up and ramp-down limits (cf. "DeltaRampUp" and
+ * - The variable "InitialFlowRate", of type netCDF::NcDouble and indexed over
+ *   the dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of
+ *   the flow that was going along arc i at time instant -1. This is necessary
+ *   to compute ramp-up and ramp-down limits (cf. "DeltaRampUp" and
  *   "DeltaRampDown"), and therefore it is useless if there are no ramp
  *   constraints on *any* unit (arc), in which case it is not loaded.
  *
- * - The variable "InitialVolumetric", of type double and indexed over the
- *   dimension "NumberReservoirs". Each entry InV[ r ] indicates the volumes
- *   of water in reservoir r at time instant -1.
+ * - The variable "InitialVolumetric", of type netCDF::NcDouble and indexed
+ *   over the dimension "NumberReservoirs". Each entry InV[ r ] indicates the
+ *   volumes of water in reservoir r at time instant -1.
  *
- * - The negative or positive scalar variable "UphillFlow", of type Int64 and
- *   indexed over the dimension "NumberArcs". Each entry UpF[ l ] indicates
- *   the uphill flow delay for each unit (arc) l; the nontrivial concept is
- *   detailed below. This variable is optional, if it is not provided it is
- *   taken to be UpF[ l ] == 0.
+ * - The negative or positive scalar variable "UphillFlow", of type
+ *   netCDF::NcUint and indexed over the dimension "NumberArcs". Each entry
+ *   UpF[ l ] indicates the uphill flow delay for each unit (arc) l; the
+ *   nontrivial concept is detailed below. This variable is optional, if it is
+ *   not provided it is taken to be UpF[ l ] == 0.
  *
- * - The positive scalar variable "DownhillFlow", of type UInt64 and indexed
- *   over the dimension "NumberArcs". Each entry DnF[ l ] indicates the
- *   downhill flow delay for each arc (unit) l. This variable is optional, if
- *   it is not provided it is taken to be DnF[ l ] == 0.
+ * - The positive scalar variable "DownhillFlow", of type netCDF::NcUint and
+ *   indexed over the dimension "NumberArcs". Each entry DnF[ l ] indicates
+ *   the downhill flow delay for each arc (unit) l. This variable is optional,
+ *   if it is not provided it is taken to be DnF[ l ] == 0.
  *
  * The last two quantities require some comment. Let us assume that we have
  * any arc l, with ( StartArc[ l ] = n , EndArc[ l ] = n' ), which
@@ -1178,19 +1183,37 @@ class HydroUnitBlock : public UnitBlock {
 
 /// returns the matrix of volumetric variables
 /** The returned boost::multi_array< ColVariable , 2 >, say V, contains the
- * volumetric variables and is indexed over the dimensions time horizon and
- * number of reservoirs. There are two possible cases:
+ * volumetric variables and is indexed over the dimensions number of
+ * reservoirs and time horizon. There are two possible cases:
  *
  * - if V is empty(), then these variables are not defined;
  *
- * - otherwise, V must have f_time_horizon rows and f_number_reservoir columns
- *   and M[ t , n ] is the volumetric variable for time step t of reservoir n.
+ * - otherwise, V must have f_number_reservoir rows and f_time_horizon columns
+ *   and M[ n , t ] is the volumetric variable for time step t of reservoir n.
  *   */
 
  ColVariable * get_volumetric( Index reservoir  ) {
   return ( v_volumetric.data() + reservoir * f_time_horizon );
  }
- /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the volume of the given reservoir at the given time
+ /** Returns a pointer to the ColVariable representing the volume of the given
+  * \p reservoir at the given \p time.
+  *
+  * @param reservoir The index of the reservoir whose volume is desired.
+  *
+  * @param time The time at which the volume is desired.
+  *
+  * @return A pointer to the ColVariable representing the volume of the given
+  *         \p reservoir at the given \p time.
+  */
+ ColVariable * get_volume( Index reservoir , Index time ) {
+  return ( v_volumetric.data() + reservoir * f_time_horizon + time );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// returns the matrix of flow rate variables
 /** The returned boost::multi_array< ColVariable , 2 >, say F, contains the
  * flow rate variables and is indexed over the dimensions time horizon and
@@ -1248,6 +1271,45 @@ class HydroUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_inflow( std::vector< double >::const_iterator values,
+                  Subset && subset,
+                  bool ordered = false,
+                  c_ModParam issuePMod = eNoBlck,
+                  c_ModParam issueAMod = eNoBlck );
+
+ void set_inflow( std::vector< double >::const_iterator values,
+                  Range rng = Range( 0, Inf< Index >() ),
+                  c_ModParam issuePMod = eNoBlck,
+                  c_ModParam issueAMod = eNoBlck );
+
+ void set_inertia_power( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_inertia_power( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_volumetric( std::vector< double >::const_iterator values,
+                              Subset && subset,
+                              bool ordered = false,
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_volumetric( std::vector< double >::const_iterator values,
+                              Range rng = Range( 0, Inf< Index >() ),
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
+
+
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1371,11 +1433,8 @@ class HydroUnitBlock : public UnitBlock {
  /// power output relation with to secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  ActivePowerSecondary_Const;
 
- /// primary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  PrimaryPumps_Const;
-
- /// secondary reserves constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  SecondaryPumps_Const;
+ /// flow to active power function constraints
+ boost::multi_array< FRowConstraint, 2 >  FlowActivePower_Const;
 
  /// flow to active power function constraints for pumps
  boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
@@ -1398,6 +1457,32 @@ class HydroUnitBlock : public UnitBlock {
  /// volumetric bounds constraints
  boost::multi_array< FRowConstraint, 2 >  VolumetricBounds_Const;
 
+ static void static_initialization() {
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+                                     &HydroUnitBlock::set_inflow,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+                                     &HydroUnitBlock::set_inflow,
+                                     MS_dbl_rngd::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+                                     &HydroUnitBlock::set_inertia_power,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+                                     &HydroUnitBlock::set_inertia_power,
+                                     MS_dbl_rngd::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+                                     &HydroUnitBlock::set_initial_volumetric,
+                                     MS_dbl_sbst::args() );
+
+  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+                                     &HydroUnitBlock::set_initial_volumetric,
+                                     MS_dbl_rngd::args() );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1413,10 +1498,147 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// FIXME this is also defined in UCBlock so let's put it in a common file
+ /// Transposes a deserialized multiarray if needed.
+ /**
+  * Checks if the multiarray has one column and more than one rows. If so,
+  * it transposes it.
+  * This procedure is needed because some 2D matrices have the first dimension
+  * optional, and the ::deserialize() method doesn't know that the only
+  * dimension that is given is actually the second one.
+  *
+  * @tparam T The type of the boost::multi_array
+  * @param a  A boost::multi_array that has been just deserialized
+  */
+ template< typename T >
+ void transpose( boost::multi_array< T, 2 > & a );
+
+ /// Decompress a multi_array using the change intervals
+ void decompress_array( boost::multi_array< double, 2 > & a );
+
+ /// Decompress a max/min volumetric multi_array using the change intervals
+ void decompress_vol( boost::multi_array< double, 2 > & a );
 
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( HydroUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS HydroUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a HydroUnitBlock
+class HydroUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of HydroUnitBlockMod
+ enum HUB_mod_type {
+  eSetInf = 0 ,    ///< Set inflow values
+  eSetInerP    ,   ///< Set inertia power values
+  eSetInitV        ///< Set initial volumetric values
+ };
+
+ /// Constructor, takes the HydroUnitBlock and the type
+ HydroUnitBlockMod( HydroUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~HydroUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "HydroUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case ( eSetInf ):
+    output << "set inflow values ";
+    break;
+   case ( eSetInerP ):
+    output << "set inertia power values ";
+    break;
+   default:
+    output << "set initial volumetric values ";
+  }
+ }
+
+ HydroUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( HydroUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS HydroUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from HydroUnitBlockMod for "ranged" modifications
+class HydroUnitBlockRngdMod : public HydroUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the HydroUnitBlock, the type, and the range
+ HydroUnitBlockRngdMod( HydroUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : HydroUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~HydroUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  HydroUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( HydroUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS HydroUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from HydroUnitBlockMod for "subset" modifications
+class HydroUnitBlockSbstMod : public HydroUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the HydroUnitBlock, the type, and the subset
+ HydroUnitBlockSbstMod( HydroUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : HydroUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~HydroUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the HydroUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  HydroUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( HydroUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

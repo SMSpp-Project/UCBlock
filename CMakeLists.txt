@@ -7,7 +7,7 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-project(UCBlock VERSION 0.2.0 LANGUAGES CXX)
+project(UCBlock VERSION 0.3.0 LANGUAGES CXX)
 
 # ----- Requirements -------------------------------------------------------- #
 find_package(SMSpp REQUIRED)
@@ -102,3 +102,8 @@ endif ()
 
 # ----- Tools --------------------------------------------------------------- #
 add_subdirectory(tools)
+
+# ----- Unit testing -------------------------------------------------------- #
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()

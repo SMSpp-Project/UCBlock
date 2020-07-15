@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 08 - 2019
+ * \date 21 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -127,45 +127,51 @@ class IntermittentUnitBlock : public UnitBlock {
  * must then also contain:
  *
  * - The variable "MinPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MinP[ t ] that, for each time instant t, contains the minimum
- *   potential production value of the unit for the corresponding time step.
- *   If "MinPower" has length 1 then MinP[ t ] contains the same value for all
- *   t. Otherwise, MinPower[ i ] is the fixed value of MinP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MnP[ t ] >= 0 for all t.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that, for
+ *   each time instant t, contains the minimum potential production value of
+ *   the unit for the corresponding time step.  If "MinPower" has length 1
+ *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
+ *   ] is the fixed value of MinP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded. Note that it must be MnP[
+ *   t ] >= 0 for all t.
  *
  * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals". This is meant to represent the
- *   vector MaxP[ t ] that, for each time instant t, contains the maximum
- *   potential production value of the unit for the corresponding time step.
- *   If "MaxPower" has length 1 then MaxP[ t ] contains the same value for all
- *   t. Otherwise, MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. Note that it must
- *   be MxP[ t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is
- *   possible: it means that (at time instant t) the unit cannot be curtailed
- *   and cannot provide any reserve.
+ *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that, for
+ *   each time instant t, contains the maximum potential production value of
+ *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
+ *   ] is the fixed value of MaxP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded. Note that it must be MxP[
+ *   t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is possible:
+ *   it means that (at time instant t) the unit cannot be curtailed and cannot
+ *   provide any reserve.
  *
- * - The variable "InertiaPower", of type double and either indexed over the
- *   dimension "NumberIntervals" or has size 1. This is meant to represent the
- *   vector IP[ t ] which, for each time instant t, contains the contribution
- *   that the unit can give to the inertia constraint which depends on the
- *   active power that it is currently generating (basically, the constant to
- *   be multiplied to the active power variable) at time t for this unit. The
- *   variable is optional; if it is not defined, IP[ t ] == 0 for each time
- *   instants t. If it has size 1 then the entry IP[ 0 ] is assumed to contain
- *   the the inertia power value for this unit and all time instants t.
- *   Otherwise, InertiaPower[ i ] is the fixed value of IP[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ * - The variable "InertiaPower", of type double and either of size 1 or
+ *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+ *   provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector IP[ t ] which, for
+ *   each time instant t, contains the contribution that the unit can give to
+ *   the inertia constraint which depends on the active power that it is
+ *   currently generating (basically, the constant to be multiplied to the
+ *   active power variable) at time t for this unit. The variable is optional;
+ *   if it is not defined, IP[ t ] == 0 for each time instants t. If it has
+ *   size 1 then the entry IP[ 0 ] is assumed to contain the the inertia power
+ *   value for this unit and all time instants t.  Otherwise, InertiaPower[ i
+ *   ] is the fixed value of IP[ t ] for all t in the interval [
+ *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
  *
  * - The scalar variable "Gamma", of type double and not indexed over any
  *   dimension. This variable is used to take into account an uncertainty on
@@ -370,6 +376,21 @@ class IntermittentUnitBlock : public UnitBlock {
  };
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_maximum_power( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -387,10 +408,10 @@ class IntermittentUnitBlock : public UnitBlock {
  std::vector< double >  v_maximum_power;
 
  /// the gamma value
- double f_gamma;
+ double f_gamma = 1;
 
  /// the kappa value
- double f_kappa;
+ double f_kappa = 0;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
@@ -413,6 +434,16 @@ class IntermittentUnitBlock : public UnitBlock {
 /// the active power bounds constraints
  std::vector< FRowConstraint > active_power_bounds_Constraints;
 
+ static void static_initialization() {
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_sbst::args() );
+
+  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+                                            &IntermittentUnitBlock::set_maximum_power,
+                                            MS_dbl_rngd::args() );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -427,11 +458,121 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
+ /// Resize a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( IntermittentUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS IntermittentUnitBlockMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a IntermittentUnitBlock
+class IntermittentUnitBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of IntermittentUnitBlockMod
+ enum TUBB_mod_type {
+  eSetMaxP = 0    ///< Set max power values
+ };
+
+ /// Constructor, takes the IntermittentUnitBlock and the type
+ IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~IntermittentUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "IntermittentUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set max power values ";
+  }
+ }
+
+ IntermittentUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( IntermittentUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- CLASS IntermittentUnitBlockRngdMod -------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from IntermittentUnitBlockMod for "ranged" modifications
+class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the IntermittentUnitBlock, the type, and the range
+ IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : IntermittentUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~IntermittentUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  IntermittentUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( IntermittentUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- CLASS IntermittentUnitBlockSbstMod -------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from IntermittentUnitBlockMod for "subset" modifications
+class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
+
+ public:
+
+ /// constructor: takes the IntermittentUnitBlock, the type, and the subset
+ IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : IntermittentUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~IntermittentUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the IntermittentUnitBlockSbstMod
+ void print( std::ostream &output ) const override {
+  IntermittentUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( IntermittentUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

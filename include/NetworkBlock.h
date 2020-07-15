@@ -156,41 +156,42 @@ class NetworkBlock : public Block {
  * - The dimension "NumberLines" containing the number of lines in the
  *   transmission network.
  *
- * - The variable "StartLine", of type int and indexed over the dimension
- *   "NumberLines"; the l-th entry of the variable is the starting point of
- *   the line (a number in 0, ..., NumberLines - 1). Note that lines are not
- *   oriented, but the flow of energy is; that is, a positive flow along line
- *   l means that energy is being taken away from StartLine[ l ] and delivered
- *   to EndLine[ l ] (see next), a negative flow means vice-versa. Note that
- *   node names here go from 0 to NNodes.getSize() - 1;
+ * - The variable "StartLine", of type netCDF::NcUint and indexed over the
+ *   dimension "NumberLines"; the l-th entry of the variable is the starting
+ *   point of the line (a number in 0, ..., NumberLines - 1). Note that lines
+ *   are not oriented, but the flow of energy is; that is, a positive flow
+ *   along line l means that energy is being taken away from StartLine[ l ]
+ *   and delivered to EndLine[ l ] (see next), a negative flow means
+ *   vice-versa. Note that node names here go from 0 to NNodes.getSize() - 1;
  *
- * - The variable "EndLine", of type int and indexed over the dimension
- *   "NumberLines"; the l-th entry of the variable is the ending point of the
- *   line (a number in 0, ..., NumberLines - 1; lines are not oriented, but
- *   see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is not allowed,
- *   but multiple lines between the same pair of nodes are. Note that node
- *   names here go from 0 to NNodes.getSize() - 1;
+ * - The variable "EndLine", of type netCDF::NcUint and indexed over the
+ *   dimension "NumberLines"; the l-th entry of the variable is the ending
+ *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
+ *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
+ *   not allowed, but multiple lines between the same pair of nodes are. Note
+ *   that node names here go from 0 to NNodes.getSize() - 1;
  *
- * - The variable "MinPowerFlow", of type double and indexed over the
- *   dimension "NumberLines". This is meant to represent the vector MnP[ l ]
- *   that, for each line l, contains the minimum power flow at line l (note
+ * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
+ *   the dimension "NumberLines". This is meant to represent the vector MnP[ l
+ *   ] that, for each line l, contains the minimum power flow at line l (note
  *   that this is typically a negative number as lines are bi-directional, see
  *   above).
  *
- * - The variable "MaxPowerFlow", of type double and indexed over the
- *   dimension "NumberLines". This is meant to represent the vector MxP[ l ]
- *   that, for each line l, contains the maximum power flow at line l (a
+ * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
+ *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
+ *   ] that, for each line l, contains the maximum power flow at line l (a
  *   non-negative number).
  *
- * - The variable "Susceptance", of type double and indexed over the dimension
- *   "NumberLines". This is meant to represent the vector S[ l ] that, for
- *   each line i contains the susceptance of the network for the corresponding
- *   line i. Note that this variable is optional, for each line l if it is
- *   provided then it is assumed that S[ l ] != 0, otherwise it is assumed that
- *   S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a model with AC
- *   liens, and when for each line l, it's not defined or S[ l ] == 0, then it
- *   corresponds to a single connected grid composed of HVDC lines only which
- *   is also known as the Net Transfer Capacity (NTC) model.*/
+ * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
+ *   dimension "NumberLines". This is meant to represent the vector S[ l ]
+ *   that, for each line i contains the susceptance of the network for the
+ *   corresponding line i. Note that this variable is optional, for each line
+ *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
+ *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
+ *   model with AC liens, and when for each line l, it's not defined or S[ l ]
+ *   == 0, then it corresponds to a single connected grid composed of HVDC
+ *   lines only which is also known as the Net Transfer Capacity (NTC)
+ *   model.*/
   
   virtual void deserialize( netCDF::NcGroup & group );
 
@@ -572,8 +573,19 @@ class NetworkBlock : public Block {
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Subset && subset,
+                                 bool ordered,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values,
+                                 Range rng,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) = 0;
 
  protected:
 
@@ -587,9 +599,125 @@ class NetworkBlock : public Block {
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
+
+ static constexpr unsigned char HasVar = 1;
+ ///< first bit of AR == 1 if the Variables have been constructed
+ static constexpr unsigned char HasCst = 2;
+ ///< third bit of AR == 1 if the Constraints have been constructed
+
 /*--------------------------------------------------------------------------*/
 
  };   // end( class( NetworkBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS NetworkBlockMod --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a NetworkBlock
+class NetworkBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of NetworkBlockMod
+ enum NetB_mod_type {
+  eSetActD = 0    ///< Set max power values
+ };
+
+ /// Constructor, takes the NetworkBlock and the type
+ NetworkBlockMod( NetworkBlock * const fblock,
+                      const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ ///< Destructor, does nothing
+ ~NetworkBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the NetworkBlockMod
+ void print( std::ostream & output ) const override {
+  output << "NetworkBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active demand values ";
+  }
+ }
+
+ NetworkBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( NetworkBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from NetworkBlockMod for "ranged" modifications
+class NetworkBlockRngdMod : public NetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the NetworkBlock, the type, and the range
+ NetworkBlockRngdMod( NetworkBlock * const fblock,
+                          const int type,
+                          Block::Range rng )
+  : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ ~NetworkBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the NetworkBlockRngdMod
+ void print( std::ostream & output ) const override {
+  NetworkBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( NetworkBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS NetworkBlockSbstMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from NetworkBlockMod for "subset" modifications
+class NetworkBlockSbstMod : public NetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the NetworkBlock, the type, and the subset
+ NetworkBlockSbstMod( NetworkBlock * const fblock,
+                          const int type,
+                          Block::Subset && nms )
+  : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ ~NetworkBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the NetworkBlockSbstMod
+ void print( std::ostream &output ) const override {
+  NetworkBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( NetworkBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 

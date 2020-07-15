@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 16 - 01 - 2020
+ * \date 19 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -61,10 +61,16 @@ namespace SMSpp_di_unipi_it {
  * - The number of HydroUnitBlock in the problem;
  *
  * - A set of hydro units, represented by derived classes of the base class
- * HydroUnitBlock.
- * */
+ *   HydroUnitBlock;
+ *
+ * - Possibly a PolyhedralFunctionBlock as sub-Block.
+ *
+ * The first sub-Block of this HydroSystemUnitBlock are the HydroUnitBlock. If
+ * this HydroSystemUnitBlock also has a PolyhedralFunctionBlock, then the
+ * PolyhedralFunctionBlock is the last sub-Block of this HydroSystemUnitBlock.
+ */
 
-class HydroSystemUnitBlock : public Block {
+class HydroSystemUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -91,7 +97,8 @@ class HydroSystemUnitBlock : public Block {
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit HydroSystemUnitBlock( Block * father_block = nullptr ) {}
+ explicit HydroSystemUnitBlock( Block * father_block = nullptr ) :
+  UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of HydroSystemUnitBlock: it is virtual, and empty
@@ -187,18 +194,19 @@ class HydroSystemUnitBlock : public Block {
  Index get_number_hydro_units() const { return f_number_hydro_units; }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of (pointers to) HydroUnitBlock elements.
-/** The vector of hydro units in the problem. There are two possible
- * cases:
- *
- * - if the vector is empty, then the there is no hydro unit block;
- *
- * - otherwise the vector must have the size of the number of hydro unit
- *   blocks plus one, and the h-th entry gives the corresponding hydro unit
- *   block h and the last element is the PolyhedralFunctionBlock. */
 
- const std::vector< HydroUnitBlock * > & get_hydro_unit_blocks() const {
-  return v_hydro_unit_blocks;
+ /// Returns the i-th HydroUnitBlock
+ HydroUnitBlock * get_hydro_unit_block( Index i ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual Index get_number_generators( void ) const override {
+  Index number_generators = 0;
+  for( auto sub_block : get_nested_Blocks() ) {
+   if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ) )
+    number_generators += unit_block->get_number_generators();
+  }
+  return number_generators;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -244,9 +252,6 @@ class HydroSystemUnitBlock : public Block {
  /// The number of hydro units of the problem
  Index f_number_hydro_units;
 
- /// The set of HydroUnitBlock
- std::vector< HydroUnitBlock * > v_hydro_unit_blocks;
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -262,17 +267,29 @@ class HydroSystemUnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Deserialize the sub-blocks of HydroSystemUnitBlock
+
+ /// Deserialize the sub-Blocks of HydroSystemUnitBlock
  void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
- /// Deserialize the sub-blocks of HydroSystemUnitBlock that have the given
+/*--------------------------------------------------------------------------*/
+
+ /// Deserialize the sub-Blocks of HydroSystemUnitBlock that have the given
  /// prefix name
  void deserialize_sub_blocks( const netCDF::NcGroup & group,
                               const std::string & sub_group_name_prefix,
-                              int num_sub_blocks );
+                              Index num_sub_blocks );
 
- /// Deserialize the PolyhedralFunctionBlock of HydroSystemUnitBlock
- void deserialize_polyhedral_function_block( const netCDF::NcGroup & group );
+/*--------------------------------------------------------------------------*/
+
+ /// Deserialize the PolyhedralFunctionBlock
+ void deserialize_polyhedral_function_block
+ ( const netCDF::NcGroup & group , const std::string & sub_group_name );
+
+/*--------------------------------------------------------------------------*/
+
+ /// Compute the total number of reservoirs
+ Index get_total_number_reservoirs() const;
+
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( HydroSystemUnitBlock ) )

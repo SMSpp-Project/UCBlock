@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 24 - 06 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -90,6 +90,7 @@ if (number_nodes > 1) {
    add_static_variable( v_power_flow, "pf" );
   }
  }
+ AR |= HasVar;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -106,31 +107,30 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   // initial condition of number lines
-  int number_lines = f_NetworkData->get_number_lines();
+  auto number_lines = f_NetworkData->get_number_lines();
 
   // initial condition of vector StartLine
-  std::vector< Index > StartLine = f_NetworkData->get_start_line();
+  auto & StartLine = f_NetworkData->get_start_line();
 
   // initial condition of vector EndLine
-  std::vector< Index > EndLine = f_NetworkData->get_end_line();
+  auto & EndLine = f_NetworkData->get_end_line();
 
   // initial condition of minimum power flow
   std::vector< double > MinPowerFlow = f_NetworkData->get_min_power_flow();
   if( MinPowerFlow.size() == 1 ) {
-   MinPowerFlow.resize( number_lines, MinPowerFlow[0] );
-
+   MinPowerFlow.resize( number_lines , MinPowerFlow[ 0 ] );
   }
+
   // initial condition of maximum power flow
   std::vector< double > MaxPowerFlow = f_NetworkData->get_max_power_flow();
   if( MaxPowerFlow.size() == 1 ) {
-   MaxPowerFlow.resize( number_lines, MaxPowerFlow[0] );
-
+   MaxPowerFlow.resize( number_lines , MaxPowerFlow[ 0 ] );
   }
+
   // initial condition of Susceptance
   std::vector< double > Susceptance = f_NetworkData->get_susceptance();
   if( Susceptance.size() == 1 ) {
-   Susceptance.resize( number_lines, Susceptance[0] );
-
+   Susceptance.resize( number_lines , Susceptance[ 0 ] );
   }
 
   //  Net Transfer Capacity (NTC) model
@@ -162,40 +162,35 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
   // HVDC power flow and node injection constraints
-  if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_lines()) {
-
-   assert( v_power_flow_injection_constraints.empty());
-   v_power_flow_injection_constraints.resize( f_NetworkData->get_number_lines());
+  if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_nodes() ) {
+   assert( v_power_flow_injection_constraints.empty() );
+   v_power_flow_injection_constraints.resize( f_NetworkData->get_number_nodes() );
   }
 
-  Index end = 0;
-
-  for( Index n = 0; n < f_NetworkData->get_number_nodes(); ++n ) {
+  for( Index n = 0 ; n < f_NetworkData->get_number_nodes() ; ++n ) {
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_node_injection[n], -1.0 );
+   linear_function->add_variable( &v_node_injection[ n ] , -1.0 );
 
-   end += n;
+   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-   for( Index line_id = 0; line_id < end; ++line_id ) {
+    if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
 
-    if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
-
-     if( StartLine[line_id] == n ) {
-
-      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
-     } else {
-      linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+     if( StartLine[ line_id ] == n ) {
+      linear_function->add_variable( &v_power_flow[ n ], 1.0 );
+     }
+     else if( EndLine[ line_id ] == n ) {
+      linear_function->add_variable( &v_power_flow[ n ], - 1.0 );
 
      }
-     v_power_flow_injection_constraints[line_id].set_both( 0.0 );
-     v_power_flow_injection_constraints[line_id].set_function( linear_function );
-
+     v_power_flow_injection_constraints[ n ].set_both( 0.0 );
+     v_power_flow_injection_constraints[ n ].set_function( linear_function );
     }
    }
   }
-  add_static_constraint( v_power_flow_injection_constraints, "HVDC_power_flow_injection" );
+  add_static_constraint( v_power_flow_injection_constraints ,
+                         "HVDC_power_flow_injection" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -267,6 +262,220 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_limits" );
 
+ }
+ AR |= HasCst;
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void
+NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
+                                 Block::Subset && subset,
+                                 const bool ordered,
+                                 c_ModParam issuePMod,
+                                 c_ModParam issueAMod ) {
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_active_demand.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_active_demand.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_active_demand[ i ] != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   v_active_demand[ i ] = *( values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+
+   // FIXME: This is correct only for BusNetworkBlock
+
+  }
+ }
+
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void
+DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
+                                   Block::Subset && subset,
+                                   const bool ordered,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) { return cst == 0; } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_active_demand.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_active_demand.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_active_demand[ i ] != *( values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  for( auto i : subset ) {
+   v_active_demand[ i ] = *( values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+   // Change the abstract representation
+
+   auto s = f_NetworkData->get_susceptance();
+
+   if( s.empty() || std::all_of( s.begin(), s.end(),
+                                 []( double i ) { return i == 0; } ) ) {
+    // NTC Model
+    // for( auto i : subset ) {
+    //  v_power_flow_injection_constraints[ i ]
+    //   .set_both( v_active_demand[ i ], issueAMod );
+    // }
+
+   } else if( std::all_of( s.begin(), s.end(),
+                           []( double i ) { return i != 0; } ) ) {
+    // Just DC lines
+    // TODO
+   } else {
+    // HVDC/DC
+    // TODO
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< NetworkBlockSbstMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+void
+DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
+                                   Block::Range rng,
+                                   c_ModParam issuePMod,
+                                   c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, get_number_nodes() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_active_demand.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_active_demand.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_active_demand.begin() + rng.first );
+
+  if( AR & HasCst ) {
+   // Change the abstract representation
+
+   auto s = f_NetworkData->get_susceptance();
+
+   if( s.empty() || std::all_of( s.begin(), s.end(),
+                                 []( double i ) { return i == 0; } ) ) {
+    // NTC Model
+    // for( Index i = rng.first; i < rng.second; ++i ) {
+    //  v_power_flow_injection_constraints[ i ]
+    //   .set_both( v_active_demand[ i ], issueAMod );
+    // }
+
+   } else if( std::all_of( s.begin(), s.end(),
+                           []( double i ) { return i != 0; } ) ) {
+    // Just DC lines
+    // TODO
+   } else {
+    // HVDC/DC
+    // TODO
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< NetworkBlockRngdMod >( this,
+                                            NetworkBlockMod::eSetActD,
+                                            rng ),
+   Observer::par2chnl( issuePMod ) );
  }
 }
 /*--------------------------------------------------------------------------*/
