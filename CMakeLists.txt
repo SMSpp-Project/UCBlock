@@ -104,6 +104,6 @@ endif ()
 add_subdirectory(tools)
 
 # ----- Unit testing -------------------------------------------------------- #
-if (BUILD_TESTING)
-    add_subdirectory(test)
-endif()
+#if (BUILD_TESTING)
+#    add_subdirectory(test)
+#endif()
