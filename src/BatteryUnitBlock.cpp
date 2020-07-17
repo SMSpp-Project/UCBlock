@@ -349,7 +349,12 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
    linear_fun->add_variable( &v_intake_level[0], 1 );
 
   }
-  demand_Constraints[0].set_both( (f_initial_storage - v_demand[0]));
+  if (!v_demand.empty()) {
+   demand_Constraints[0].set_both(( f_initial_storage - v_demand[0] ));
+  } else {
+   demand_Constraints[0].set_both(( f_initial_storage ));
+
+  }
   demand_Constraints[0].set_function( linear_fun );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon; ++t, ++constraint_index ) {
@@ -370,8 +375,12 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc )
    linear_function->add_variable( &v_storage_level[t], 1.0 );
    linear_function->add_variable( &v_storage_level[t-1], -1.0 );
 
+   if (!v_demand.empty()) {
+    demand_Constraints[constraint_index].set_both( -v_demand[t] );
+   } else {
+    demand_Constraints[constraint_index].set_both( 0.0);
 
-   demand_Constraints[constraint_index].set_both( -v_demand[t]);
+   }
    demand_Constraints[constraint_index].set_function( linear_function );
   }
  }

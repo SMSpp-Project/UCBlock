@@ -871,24 +871,32 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if( v_start_arc[l] == n &&
         v_end_arc[l] < f_number_reservoirs ) {
-     if( v_uphill_delay[l] == 0 ) {
+     if (!v_uphill_delay.empty()) {
+      if( v_uphill_delay[l] == 0 ) {
 
+       auto fr0 = get_flow_rate( l );
+       auto flow_rate0 = &fr0[0];
+
+       l_f->add_variable( flow_rate0, 1.0 );
+      }
+     } else {
       auto fr0 = get_flow_rate( l );
       auto flow_rate0 = &fr0[0];
 
       l_f->add_variable( flow_rate0, 1.0 );
      }
     }
-    if( v_downhill_delay[l] == 0 &&
-        v_end_arc[l] == n ) {
+    if ( !v_downhill_delay.empty() ) {
+     if( v_downhill_delay[l] == 0 &&
+         v_end_arc[l] == n ) {
 
-     auto fr00 = get_flow_rate( l );
-     auto flow_rate00 = &fr00[0];
+      auto fr00 = get_flow_rate( l );
+      auto flow_rate00 = &fr00[0];
 
-     l_f->add_variable( flow_rate00, -1.0 );
+      l_f->add_variable( flow_rate00, -1.0 );
+     }
     }
    } else{
-
     auto fr00 = get_flow_rate( l );
     auto flow_rate00 = &fr00[0];
 
@@ -910,24 +918,45 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    for( Index l = 0; l < f_number_arcs; ++l ) {
     if( !v_start_arc.empty() && !v_end_arc.empty()) {
 
-     if( t - v_uphill_delay[l] >= 0 &&
-         v_start_arc[l] == n &&
-         v_end_arc[l] < f_number_reservoirs ) {
+     if (!v_uphill_delay.empty()) {
 
-      auto fr = get_flow_rate( l );
-      auto flow_rate = &fr[t - v_uphill_delay[l]];
+      if( t - v_uphill_delay[l] >= 0 &&
+          v_start_arc[l] == n &&
+          v_end_arc[l] < f_number_reservoirs ) {
 
-      linear_function->add_variable( flow_rate, 1.0 );
+       auto fr = get_flow_rate( l );
+       auto flow_rate = &fr[t - v_uphill_delay[l]];
+
+       linear_function->add_variable( flow_rate, 1.0 );
+      }
+     } else {
+      if( v_start_arc[l] == n &&
+          v_end_arc[l] < f_number_reservoirs ) {
+
+       auto fr = get_flow_rate( l );
+       auto flow_rate = &fr[t];
+
+       linear_function->add_variable( flow_rate, 1.0 );
+      }
      }
+     if ( !v_downhill_delay.empty() ) {
+      if( t - v_downhill_delay[l] >= 0 &&
+          t - v_downhill_delay[l] <= f_time_horizon &&
+          v_end_arc[l] == n ) {
 
-     if( t - v_downhill_delay[l] >= 0 &&
-         t - v_downhill_delay[l] <= f_time_horizon &&
-         v_end_arc[l] == n ) {
+       auto fr_d = get_flow_rate( l );
+       auto flow_rate_d = &fr_d[t - v_downhill_delay[l]];
 
-      auto fr_d = get_flow_rate( l );
-      auto flow_rate_d = &fr_d[t - v_downhill_delay[l]];
+       linear_function->add_variable( flow_rate_d, -1.0 );
+      }
+     } else {
+      if( v_end_arc[l] == n ) {
 
-      linear_function->add_variable( flow_rate_d, -1.0 );
+       auto fr_d = get_flow_rate( l );
+       auto flow_rate_d = &fr_d[t];
+
+       linear_function->add_variable( flow_rate_d, -1.0 );
+      }
      }
     } else {
      auto fr_d = get_flow_rate( l );
