@@ -46,5 +46,6 @@ include $(UCBckDIR)lib/makefile
 
 # external libraries for UCBlock
 UCBckLIB = $(SMS++LIB)
+UCBckINC = $(SMS++INC)
 
 ########################### End of makefile-c ################################

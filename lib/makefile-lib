@@ -30,9 +30,9 @@ endif
 NAME = $(UCBckDIR)lib/libUCBck.a
 
 # debug switches
-SW = -g -std=c++14
+SW = -g -std=c++17
 # production switches
-#SW = -O3 -DNDEBUG -std=c++11
+#SW = -O3 -DNDEBUG -std=c++17
 
 # compiler
 CC = clang++

@@ -17,13 +17,13 @@
 ##############################################################################
 
 # module name
-NAME = ucblock_test
+NAME = test
 
 # basic directory
 DIR = ./
 
 # debug switches
-SW = -g -std=c++14
+SW = -g -std=c++17
 
 # production switches
 #SW = -O3 -DNDEBUG -std=c++14
@@ -62,8 +62,8 @@ MOBJ =  $(UCBckOBJ)
 # libreries
 MLIB =  $(UCBckLIB)
 
-$(NAME): $(MOBJ) $(DIR)ucblock_test.o
-	$(CC) -o $(NAME) $(DIR)ucblock_test.o $(MOBJ) $(MLIB) $(SW)
+$(NAME): $(MOBJ) $(DIR)$(NAME).o
+	$(CC) -o $(NAME) $(DIR)$(NAME).o $(MOBJ) $(MLIB) $(SW)
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
@@ -75,7 +75,7 @@ MH =    $(UCBckH)
 
 # compile command
 
-$(DIR)main.o: $(DIR)ucblock_test.cpp $(MH)
+$(DIR)$(NAME).o: $(DIR)$(NAME).cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
 ############################ End of makefile ################################
