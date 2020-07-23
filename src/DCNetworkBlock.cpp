@@ -135,6 +135,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   //  Net Transfer Capacity (NTC) model
 /*--------------------------------------------------------------------------*/
+
   // HVDC power flow limit
   if( v_HVDC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
 
@@ -145,7 +146,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
        ++line_id ) {
 
-   if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
+ //  if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
 
     auto linear_function = new LinearFunction();
 
@@ -155,7 +156,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     v_HVDC_power_flow_limit_constraints[line_id].set_rhs( MaxPowerFlow[line_id] );
     v_HVDC_power_flow_limit_constraints[line_id].set_function( linear_function );
 
-   }
+   //}
   }
   add_static_constraint( v_HVDC_power_flow_limit_constraints, "HVDC_power_flow_limit" );
 
@@ -175,7 +176,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-    if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
+   // if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
 
      if( StartLine[ line_id ] == n ) {
       linear_function->add_variable( &v_power_flow[ n ], 1.0 );
@@ -187,13 +188,13 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_power_flow_injection_constraints[ n ].set_both( 0.0 );
      v_power_flow_injection_constraints[ n ].set_function( linear_function );
     }
-   }
+  // }
   }
   add_static_constraint( v_power_flow_injection_constraints ,
                          "HVDC_power_flow_injection" );
 
 /*--------------------------------------------------------------------------*/
-
+/*
 // TODO implementation of AC and AC-HVDC lines is not ready
 
   // AC power flow limit
@@ -261,7 +262,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   // TODO
 
   add_static_constraint( v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_limits" );
-
+*/
  }
  AR |= HasCst;
 }

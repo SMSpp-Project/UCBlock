@@ -360,17 +360,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( number_nodes > 0 ) {
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  if ( number_nodes == 1) { //BusNetwork no need to GeneratorNode
+
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
    auto & node_injection = v_network_blocks[ t ]->get_node_injection();
-
-   for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-
     auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &node_injection[ node_id ], -1.0 , eNoMod);
+    linear_function->add_variable( &node_injection[ 0 ], -1.0 , eNoMod);
 
-    v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+    v_node_injection_constraints[ t ][ 0 ].set_both( 0.0 );
 
     Index generator_id = 0;
     Index unit_id = 0;
@@ -380,8 +379,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      if( unit_block == nullptr )
       continue;
      unit_block->get_number_generators();
-
-   if ( number_nodes == 1) { //BusNetwork no need to GeneratorNode
 
     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
@@ -402,56 +399,80 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
      }
      if( fixed_consumption != nullptr ) {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
+      v_node_injection_constraints[t][0].set_both
+              ( v_node_injection_constraints[t][0].get_rhs()
                 - fixed_consumption[t] );
      } else {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
+      v_node_injection_constraints[t][0].set_both
+              ( v_node_injection_constraints[t][0].get_rhs()
                 - 0.0 );
      }
      generator_id++;
     }
-    } else {  //DCNetwork needs GeneratorNode
+    }
+    v_node_injection_constraints[ t ][ 0 ].set_function( linear_function );
+   //}
+ }
+} else {  //DCNetwork needs GeneratorNode
 
-    for( Index g = 0; g < f_number_elc_generators; ++g ) { //TODO Cheek it again
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-     Index generator_node = 0;
-     generator_node = v_generator_node[ g ];
+    auto & node_injection = v_network_blocks[t]->get_node_injection();
 
-     auto fixed_consumption = unit_block->get_fixed_consumption( generator_node );
+    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
-     auto ap = unit_block->get_active_power( generator_node );
-     auto active_power = &ap[t];
+     auto linear_function = new LinearFunction();
 
-     auto c = unit_block->get_commitment( generator_node );
-     auto commitment = &c[t];
+     linear_function->add_variable( &node_injection[node_id], -1.0, eNoMod );
 
-     linear_function->add_variable( active_power, 1.0, eNoMod );
-     if( c != nullptr ) {
-      if( fixed_consumption != nullptr ) {
-       linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
-      } else {
-       linear_function->add_variable( commitment, 0.0, eNoMod );
+     v_node_injection_constraints[t][node_id].set_both( 0.0 );
+
+     Index generator_id = 0;
+     Index unit_id = 0;
+
+     for( auto block : get_nested_Blocks()) {
+      auto unit_block = dynamic_cast<UnitBlock *>(block);
+      if( unit_block == nullptr )
+       continue;
+      unit_block->get_number_generators();
+
+      for( Index g = 0; g < unit_block->get_number_generators(); ++g  ) { //TODO Cheek it again
+
+       Index generator_node = 0;
+       generator_node = v_generator_node[g];
+
+       auto fixed_consumption = unit_block->get_fixed_consumption( generator_node );
+
+       auto ap = unit_block->get_active_power( generator_node );
+       auto active_power = &ap[t];
+
+       auto c = unit_block->get_commitment( generator_node );
+       auto commitment = &c[t];
+
+       linear_function->add_variable( active_power, 1.0, eNoMod );
+       if( c != nullptr ) {
+        if( fixed_consumption != nullptr ) {
+         linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+        } else {
+         linear_function->add_variable( commitment, 0.0, eNoMod );
+        }
+       }
+       if( fixed_consumption != nullptr ) {
+        v_node_injection_constraints[t][node_id].set_both
+                ( v_node_injection_constraints[t][node_id].get_rhs()
+                  - fixed_consumption[t] );
+       } else {
+        v_node_injection_constraints[t][node_id].set_both
+                ( v_node_injection_constraints[t][node_id].get_rhs()
+                  - 0.0 );
+       }
+       generator_node++;
       }
      }
-     if( fixed_consumption != nullptr ) {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - fixed_consumption[t] );
-     } else {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - 0.0 );
-     }
-     generator_id++;
+     v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
    }
   }
-    v_node_injection_constraints[ t ][ node_id ].set_function( linear_function );
- }
-}
-
   add_static_constraint( v_node_injection_constraints, "node_injection_c" );
 }
 
