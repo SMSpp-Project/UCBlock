@@ -922,7 +922,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
       if( t - v_uphill_delay[l] >= 0 &&
           v_start_arc[l] == n &&
-          v_end_arc[l] < f_number_reservoirs ) {
+          v_end_arc[l] <= f_number_reservoirs ) {
 
        auto fr = get_flow_rate( l );
        auto flow_rate = &fr[t - v_uphill_delay[l]];
