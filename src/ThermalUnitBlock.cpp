@@ -467,10 +467,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( f_InitUpDownTime > 0 ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( v_MinPower[t] > f_initial_power || v_MaxPower[t] < f_initial_power) {
+    if(  f_initial_power + v_DeltaRampUp[ 0 ] < v_MinPower[ 0 ] ||
+         f_initial_power - v_DeltaRampDown[ 0 ] > v_MaxPower[ 0 ]) {
      throw ( std::logic_error
-             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0, "
-               "it must be that MaxPower >= InitialPower >= MinPower." ));
+             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
+               "it must be that"
+               "f_initial_power + v_DeltaRampUp[ 0 ] >= v_MinPower[ 0 ]"
+               "f_initial_power - v_DeltaRampDown[ 0 ] <= v_MaxPower[ 0 ]" ));
     }
    }
   }

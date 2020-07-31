@@ -307,6 +307,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
 
+ if( !v_primary_rho.empty() & !v_secondary_rho.empty() ) {
 
   if( MaxPowerPrimarySecondary_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -316,95 +317,121 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
            ( boost::multi_array< FRowConstraint, 2 >::
              extent_gen()[f_time_horizon][f_number_arcs] );
   }
- for( Index arc = 0; arc < f_number_arcs; ++arc ) {
- for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-   auto linear_function = new LinearFunction();
+    auto linear_function = new LinearFunction();
 
-   auto ap = get_active_power( arc );
-   auto active_power = &ap[t];
+    auto ap = get_active_power( arc );
+    auto active_power = &ap[t];
 
-  auto psr = get_primary_spinning_reserve( arc );
-  auto primary_spinning_reserve = &psr[t];
+    auto psr = get_primary_spinning_reserve( arc );
+    auto primary_spinning_reserve = &psr[t];
 
-  auto ssr = get_secondary_spinning_reserve( arc );
-  auto secondary_spinning_reserve = &ssr[t];
+    auto ssr = get_secondary_spinning_reserve( arc );
+    auto secondary_spinning_reserve = &ssr[t];
 
     linear_function->add_variable( active_power, 1.0 );
 
-    if( !v_primary_rho.empty()) {
      linear_function->add_variable( primary_spinning_reserve, 1.0 );
-    }
-    if( !v_secondary_rho.empty()) {
-     linear_function->add_variable( secondary_spinning_reserve, 1.0 );
-    }
-    if( !v_minimum_power.empty()) {
-     MaxPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
-    } else {
-     MaxPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
 
-    }
+     linear_function->add_variable( secondary_spinning_reserve, 1.0 );
+
+    MaxPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
+
     if( !v_maximum_power.empty()) {
      MaxPowerPrimarySecondary_Const[t][arc].set_rhs( v_maximum_power[t][arc] );
     } else {
-     MaxPowerPrimarySecondary_Const[t][arc].set_rhs( v_linear_term[0] * v_maximum_flow[t][arc] );
+     MaxPowerPrimarySecondary_Const[t][arc].set_rhs( 0.0 );
 
-   }
+    }
     MaxPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
    }
   }
   add_static_constraint( MaxPowerPrimarySecondary_Const, "MaxPowerPrimarySecondary" );
 
 
- // minimum power output according to primary-secondary reserves constraints
+  // minimum power output according to primary-secondary reserves constraints
 
- if( MinPowerPrimarySecondary_Const.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( MinPowerPrimarySecondary_Const.empty());
+  if( MinPowerPrimarySecondary_Const.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( MinPowerPrimarySecondary_Const.empty());
 
-  MinPowerPrimarySecondary_Const.resize
-          ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon][f_number_arcs] );
- }
- for( Index arc = 0; arc < f_number_arcs; ++arc ) {
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-   auto linear_function = new LinearFunction();
-
-   auto ap = get_active_power( arc );
-   auto active_power = &ap[t];
-
-   auto psr = get_primary_spinning_reserve( arc );
-   auto primary_spinning_reserve = &psr[t];
-
-   auto ssr = get_secondary_spinning_reserve( arc );
-   auto secondary_spinning_reserve = &ssr[t];
-
-   linear_function->add_variable( active_power, 1.0 );
-   if ( !v_primary_rho.empty() ) {
-    linear_function->add_variable( primary_spinning_reserve, -1.0 );
-   }
-   if ( !v_secondary_rho.empty() ) {
-    linear_function->add_variable( secondary_spinning_reserve, -1.0 );
-   }
-   if (!v_minimum_power.empty() ) {
-    MinPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
-   } else {
-    MinPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
-
-   }
-   if (!v_maximum_power.empty() ) {
-    MinPowerPrimarySecondary_Const[t][arc].set_rhs( v_maximum_power[t][arc] );
-   } else {
-    MinPowerPrimarySecondary_Const[t][arc].set_rhs( v_linear_term[0] * v_maximum_flow[t][arc] );
-
-   }
-   MinPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
+   MinPowerPrimarySecondary_Const.resize
+           ( boost::multi_array< FRowConstraint, 2 >::
+             extent_gen()[f_time_horizon][f_number_arcs] );
   }
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+
+    auto linear_function = new LinearFunction();
+
+    auto ap = get_active_power( arc );
+    auto active_power = &ap[t];
+
+    auto psr = get_primary_spinning_reserve( arc );
+    auto primary_spinning_reserve = &psr[t];
+
+    auto ssr = get_secondary_spinning_reserve( arc );
+    auto secondary_spinning_reserve = &ssr[t];
+
+    linear_function->add_variable( active_power, 1.0 );
+
+    linear_function->add_variable( primary_spinning_reserve, -1.0 );
+
+    linear_function->add_variable( secondary_spinning_reserve, -1.0 );
+
+    if( !v_minimum_power.empty()) {
+     MinPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
+    } else {
+     MinPowerPrimarySecondary_Const[t][arc].set_lhs( 0.0 );
+
+    }
+    MinPowerPrimarySecondary_Const[t][arc].set_rhs( Inf< double >());
+
+    MinPowerPrimarySecondary_Const[t][arc].set_function( linear_function );
+   }
+  }
+
+  add_static_constraint( MinPowerPrimarySecondary_Const, "MinPowerPrimarySecondary" );
+ } else {
+
+  if( ActivePowerBounds_Const.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( ActivePowerBounds_Const.empty());
+
+   ActivePowerBounds_Const.resize
+           ( boost::multi_array< FRowConstraint, 2 >::
+             extent_gen()[f_time_horizon][f_number_arcs] );
+  }
+  for( Index arc = 0; arc < f_number_arcs; ++arc ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+
+    auto linear_function = new LinearFunction();
+
+    auto ap = get_active_power( arc );
+    auto active_power = &ap[t];
+
+    linear_function->add_variable( active_power, 1.0 );
+
+    if( !v_maximum_power.empty()) {
+
+     ActivePowerBounds_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
+    } else {
+     ActivePowerBounds_Const[t][arc].set_lhs( 0.0 );
+    }
+    if( !v_maximum_power.empty()) {
+     ActivePowerBounds_Const[t][arc].set_rhs( v_maximum_power[t][arc] );
+    } else {
+     ActivePowerBounds_Const[t][arc].set_rhs( 0.0 );
+
+    }
+    ActivePowerBounds_Const[t][arc].set_function( linear_function );
+   }
+  }
+  add_static_constraint( ActivePowerBounds_Const, "ActivePowerBounds" );
+
  }
-
- add_static_constraint( MinPowerPrimarySecondary_Const, "MinPowerPrimarySecondary");
-
  // power output relation with to primary reserves constraints
 
   if( !v_primary_rho.empty()) {
@@ -590,7 +617,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( v_minimum_flow[t][arc] >= 0 && v_maximum_flow[t][arc] > 0 ) { //Turbines
      for( ; piece < end; ++piece ) {
 
-      auto linear_function_turbin = new LinearFunction();
+      auto linear_function_turbine = new LinearFunction();
 
       auto ap = get_active_power( arc );
       auto active_power = &ap[t];
@@ -598,12 +625,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
       auto fr = get_flow_rate( arc );
       auto flow_rate = &fr[t];
 
-      linear_function_turbin->add_variable( active_power, 1.0 );
+      linear_function_turbine->add_variable( active_power, 1.0 );
 
       if( !v_linear_term.empty()) {
-       linear_function_turbin->add_variable( flow_rate, -v_linear_term[piece] );
+       linear_function_turbine->add_variable( flow_rate, -v_linear_term[piece] );
       } else {
-       linear_function_turbin->add_variable( flow_rate, 0.0 );
+       linear_function_turbine->add_variable( flow_rate, 0.0 );
       }
       if( !v_const_term.empty()) {
        FlowActivePower_Const[t][piece].set_rhs( v_const_term[piece] );
@@ -611,7 +638,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
        FlowActivePower_Const[t][piece].set_rhs( 0.0 );
       }
       FlowActivePower_Const[t][piece].set_lhs( -Inf< double >());
-      FlowActivePower_Const[t][piece].set_function( linear_function_turbin );
+      FlowActivePower_Const[t][piece].set_function( linear_function_turbine );
       ++constraint_index;
      }
     }
