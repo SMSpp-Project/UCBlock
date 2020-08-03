@@ -76,8 +76,8 @@ void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "MaxSecondaryPower",f_time_horizon, v_maximum_secondary_rho, true,true );
  ::deserialize( group, "DeltaRampUp",f_time_horizon, v_delta_ramp_up, true,true );
  ::deserialize( group, "DeltaRampDown",f_time_horizon, v_delta_ramp_down, true,true);
- ::deserialize( group, "StoringBatteryrho",f_time_horizon, v_storing_battery_rho, true,true );
- ::deserialize( group, "ExtractingBatteryrho",f_time_horizon, v_extracting_battery_rho, true,true );
+ ::deserialize( group, "StoringBatteryRho",f_time_horizon, v_storing_battery_rho, true,true );
+ ::deserialize( group, "ExtractingBatteryRho",f_time_horizon, v_extracting_battery_rho, true,true );
  ::deserialize( group, "Cost", f_time_horizon, v_cost, true,true);
  ::deserialize( group, "Demand", f_time_horizon, v_demand, true, false );
 
