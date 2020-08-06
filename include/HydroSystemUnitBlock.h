@@ -199,6 +199,22 @@ class HydroSystemUnitBlock : public UnitBlock {
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of active_power variables of each HydroUnitBlock
+
+ ColVariable * get_active_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_active_power( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
+ }
+/*--------------------------------------------------------------------------*/
 
  virtual Index get_number_generators( void ) const override {
   Index number_generators = 0;
