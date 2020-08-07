@@ -61,6 +61,26 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] IntermittentUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] IntermittentUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "MinPower",
+                                              "MaxPower",
+                                              "InertiaPower",
+                                              "Gamma",
+                                              "Kappa" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
+
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 

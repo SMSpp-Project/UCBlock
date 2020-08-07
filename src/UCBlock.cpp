@@ -162,6 +162,40 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberUnits",
+                                              "NumberHeatBlocks",
+                                              "NumberPrimaryZones",
+                                              "NumberSecondaryZones",
+                                              "NumberInertiaZones",
+                                              "NumberPollutants"};
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "ActivePowerDemand",
+                                              "GeneratorNode",
+                                              "HeatNode",
+                                              "HeatSet",
+                                              "PowerHeatRho",
+                                              "PrimaryZones",
+                                              "PrimaryDemand",
+                                              "SecondaryZones",
+                                              "SecondaryDemand",
+                                              "InertiaZones",
+                                              "InertiaDemand",
+                                              "NumberPollutantZones",
+                                              "PollutantZones",
+                                              "PollutantBudget",
+                                              "PollutantRho" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  Index number_nodes = 1;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
   number_nodes = 1;

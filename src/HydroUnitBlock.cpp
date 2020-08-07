@@ -62,6 +62,43 @@ SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 /*--------------------------------------------------------------------------*/
 void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] HydroUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals",
+                                              "NumberReservoirs",
+                                              "NumberArcs"  };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] HydroUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "StartArc",
+                                              "EndArc",
+                                              "MinFlow",
+                                              "MaxFlow",
+                                              "MinVolumetric",
+                                              "MaxVolumetric",
+                                              "Inflows",
+                                              "MinPower",
+                                              "MaxPower",
+                                              "DeltaRampUp",
+                                              "DeltaRampDown",
+                                              "PrimaryRho",
+                                              "SecondaryRho",
+                                              "NumberPieces",
+                                              "LinearTerm",
+                                              "ConstantTerm",
+                                              "InertiaPower",
+                                              "InitialFlowRate",
+                                              "InitialVolumetric",
+                                              "UphillFlow",
+                                              "DownhillFlow"};
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 

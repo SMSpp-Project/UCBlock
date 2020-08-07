@@ -59,6 +59,29 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "MaxPower",
+                                              "MaxPrimaryPower",
+                                              "MaxSecondaryPower",
+                                              "ActivePowerCost",
+                                              "PrimaryCost",
+                                              "SecondaryCost",
+                                              "InertiaCost",
+                                              "MaxInertia"};
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
