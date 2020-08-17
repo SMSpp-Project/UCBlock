@@ -541,7 +541,7 @@ class HydroUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the HydroUnit
@@ -747,7 +747,7 @@ class HydroUnitBlock : public UnitBlock {
  *   \f]
  *
  */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -1140,6 +1140,7 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< double > & get_initial_volumetric() const {
   return ( v_initial_volumetric);
  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of initial flow rate
 /** The returned vector contains the initial flow rate for each unit (arc) i.
@@ -1155,6 +1156,22 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< double > & get_initial_flow_rate() const {
   return ( v_initial_flow_rate);
  }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of initial flow rate at the given \p arc
+/** This method returns the initial flow rate at the given \p arc.
+ *
+ * @param arc The index of the arc whose initial flow rate is desired.
+ *
+ * @return The initial flow rate at the given \p arc. */
+ double get_initial_flow_rate( Index arc ) const {
+  assert( arc < f_number_arcs );
+  return v_initial_flow_rate.empty() ? 0.0 :
+   ( ( v_initial_flow_rate.size() == 1 ) ? v_initial_flow_rate.front() :
+     v_initial_flow_rate[ arc ] );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE HydroUnitBlock --------*/
 /*--------------------------------------------------------------------------*/

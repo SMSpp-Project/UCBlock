@@ -217,11 +217,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  }
  v_volumetric.resize(boost::extents[f_number_reservoirs][ f_time_horizon]);
  for( Index g = 0; g < f_number_reservoirs; ++g ) {
- for( Index t = 0; t < f_time_horizon; ++t ) {
-   auto & volumetric = v_volumetric[ g ][ t ];
-
-   volumetric.set_type( ColVariable::kNonNegative );
-  }
+  for( Index t = 0; t < f_time_horizon; ++t )
+   v_volumetric[ g ][ t ].set_type( ColVariable::kNonNegative );
  }
  add_static_variable ( v_volumetric, "vol" );
 
@@ -344,7 +341,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
 
- if( !v_primary_rho.empty() & !v_secondary_rho.empty() ) {
+ if( !v_primary_rho.empty() && !v_secondary_rho.empty() ) {
 
   if( MaxPowerPrimarySecondary_Const.size() != f_time_horizon ) {
    // this should only happen once
@@ -836,7 +833,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_f->add_variable( flow_rate0, 1.0 );
 
    RampUp_Const[0][arc].set_lhs( -Inf< double >());
-   RampUp_Const[0][arc].set_rhs( v_delta_ramp_up[0][arc] + v_initial_flow_rate[arc] );
+   RampUp_Const[0][arc].set_rhs( v_delta_ramp_up[0][arc] +
+                                 get_initial_flow_rate( arc ) );
    RampUp_Const[0][arc].set_function( linear_f );
 
 
@@ -887,7 +885,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    linear_f->add_variable( flow_rate0, 1.0 );
 
-   RampDown_Const[0][arc].set_lhs( v_initial_flow_rate[arc] - v_delta_ramp_down[0][arc] );
+   RampDown_Const[0][arc].set_lhs( get_initial_flow_rate( arc ) -
+                                   v_delta_ramp_down[0][arc] );
    RampDown_Const[0][arc].set_rhs( Inf< double >());
    RampDown_Const[0][arc].set_function( linear_f );
 
