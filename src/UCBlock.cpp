@@ -475,12 +475,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         generator_node = v_generator_node[g];
 
-        auto fixed_consumption = unit_block->get_fixed_consumption( generator_node );
+        auto fixed_consumption = unit_block->get_fixed_consumption( g );
 
-        auto ap = unit_block->get_active_power( generator_node );
+        auto ap = unit_block->get_active_power( g );
         auto active_power = &ap[t];
 
-        auto c = unit_block->get_commitment( generator_node );
+        auto c = unit_block->get_commitment( g );
         auto commitment = &c[t];
 
         linear_function->add_variable( active_power, 1.0, eNoMod );
