@@ -136,6 +136,14 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
  for( auto sub_block : get_nested_Blocks() )
   if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
    auto number_reservoirs = hydro_unit_block->get_number_reservoirs();
+
+   // TODO We need the Variables of the HydroUnitBlocks. However, it is not
+   // appropriate to generate the abstract variables here, as it is
+   // responsibility of BlockConfig. Since Variables cannot be generated more
+   // than once, later calls to generate_abstract_variables() will be ignored
+   // and a possible Configuration being passed will have no effect.
+   hydro_unit_block->generate_abstract_variables();
+
    for( Index i = 0 ; i < number_reservoirs ; ++i )
     x.push_back( hydro_unit_block->get_volume( i , f_time_horizon - 1 ) );
   }

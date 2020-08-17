@@ -687,7 +687,7 @@ class UCBlock : public Block {
  *   in UC parlance).
  */
 
- void generate_abstract_constraints( Configuration * stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
