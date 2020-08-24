@@ -87,7 +87,7 @@ if (number_nodes > 1) {
    for( auto & i : v_power_flow ) {
     i.set_type( ColVariable::kContinuous );
    }
-   add_static_variable( v_power_flow, "pf" );
+   add_static_variable( v_power_flow, "f" );
   }
  }
  AR |= HasVar;
@@ -179,10 +179,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    // if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
 
      if( StartLine[ line_id ] == n ) {
-      linear_function->add_variable( &v_power_flow[ n ], 1.0 );
+      linear_function->add_variable( &v_power_flow[ line_id ], 1.0 );
      }
-     else if( EndLine[ line_id ] == n ) {
-      linear_function->add_variable( &v_power_flow[ n ], - 1.0 );
+
+     if( EndLine[ line_id ] == n ) {
+      linear_function->add_variable( &v_power_flow[ line_id ], - 1.0 );
 
      }
      v_power_flow_injection_constraints[ n ].set_both( 0.0 );
