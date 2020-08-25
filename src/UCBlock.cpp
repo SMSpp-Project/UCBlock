@@ -463,7 +463,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       if( node_id == v_generator_node[g] ) {
 
        //for( auto block : get_nested_Blocks()) {
-       auto block = get_nested_Blocks()[generator_id];
+       auto block = get_nested_Blocks()[generator_id++];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
        if( unit_block == nullptr )
         continue;
@@ -495,9 +495,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
                    - 0.0 );
         }
        }
-       generator_id++;
        // }
       }
+      generator_id++;
+
      }
      v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
