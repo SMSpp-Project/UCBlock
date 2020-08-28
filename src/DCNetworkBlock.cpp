@@ -197,7 +197,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
 // TODO implementation of AC and AC-HVDC lines is not ready
-
+/*
   // AC power flow limit
   if( v_AC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
    // this should only happen once
