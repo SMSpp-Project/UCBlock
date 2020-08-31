@@ -283,6 +283,124 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
+ // final volumes fo each reservoir constraints
+
+ if( FinalVolumeReservoir_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( FinalVolumeReservoir_Const.empty());
+  FinalVolumeReservoir_Const.resize
+          ( boost::multi_array< FRowConstraint, 2 >::
+            extent_gen()[f_time_horizon][ f_number_reservoirs ] );
+ }
+ for( Index n = 0; n < f_number_reservoirs; ++n ) {
+
+  auto l_f = new LinearFunction();
+
+  for( Index l = 0; l < f_number_arcs; ++l ) {
+
+   if( ! v_start_arc.empty() && ! v_end_arc.empty() ) {
+    if( v_start_arc[l] == n && v_end_arc[l] <= f_number_reservoirs ) {
+     if ( ! v_uphill_delay.empty() ) {
+      if( v_uphill_delay[l] == 0 ) {
+       auto fr0 = get_flow_rate( l );
+       auto flow_rate0 = &fr0[0];
+       l_f->add_variable( flow_rate0, 1.0 );
+      }
+     }
+     else {
+      auto fr0 = get_flow_rate( l );
+      auto flow_rate0 = &fr0[0];
+      l_f->add_variable( flow_rate0, 1.0 );
+     }
+    }
+    if ( ! v_downhill_delay.empty() ) {
+     if( v_downhill_delay[l] == 0 && v_end_arc[l] == n ) {
+      auto fr00 = get_flow_rate( l );
+      auto flow_rate00 = &fr00[0];
+      l_f->add_variable( flow_rate00, -1.0 );
+     }
+    }
+   }
+   else {
+    auto fr00 = get_flow_rate( l );
+    auto flow_rate00 = &fr00[0];
+    l_f->add_variable( flow_rate00, 1.0 );
+   }
+  }
+  auto vol0 = get_volumetric( n );
+  auto volumetric0 = &vol0[0];
+
+  l_f->add_variable( volumetric0, 1.0 );
+  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] +
+                                             v_inflows[n][0] );
+  FinalVolumeReservoir_Const[0][n].set_function( l_f );
+
+  for( Index t = 1, constraint_index = 1; t < f_time_horizon;
+    ++t, ++constraint_index  ) {
+
+   auto linear_function = new LinearFunction();
+
+   for( Index l = 0; l < f_number_arcs; ++l ) {
+    if( !v_start_arc.empty() && !v_end_arc.empty() ) {
+
+     if( !v_uphill_delay.empty() ) {
+
+      if( t - v_uphill_delay[l] >= 0 &&
+          v_start_arc[l] == n &&
+          v_end_arc[l] <= f_number_reservoirs ) {
+
+       auto fr = get_flow_rate( l );
+       auto flow_rate = &fr[t - v_uphill_delay[l]];
+       linear_function->add_variable( flow_rate, 1.0 );
+      }
+     }
+     else {
+      if( v_start_arc[l] == n && v_end_arc[l] <= f_number_reservoirs ) {
+       auto fr = get_flow_rate( l );
+       auto flow_rate = &fr[t];
+       linear_function->add_variable( flow_rate, 1.0 );
+      }
+     }
+     if ( !v_downhill_delay.empty() ) {
+      if( t - v_downhill_delay[l] >= 0 &&
+          t - v_downhill_delay[l] <= f_time_horizon &&
+          v_end_arc[l] == n ) {
+
+       auto fr_d = get_flow_rate( l );
+       auto flow_rate_d = &fr_d[t - v_downhill_delay[l]];
+       linear_function->add_variable( flow_rate_d, -1.0 );
+      }
+     }
+     else {
+      if( v_end_arc[l] == n ) {
+       auto fr_d = get_flow_rate( l );
+       auto flow_rate_d = &fr_d[t];
+       linear_function->add_variable( flow_rate_d, -1.0 );
+      }
+     }
+    }
+    else {
+     auto fr_d = get_flow_rate( l );
+     auto flow_rate_d = &fr_d[t];
+     linear_function->add_variable( flow_rate_d, 1.0 );
+    }
+   }
+
+   auto volt = get_volumetric( n );
+   auto volumetric_t = &volt[t];
+
+   auto volt_1 = get_volumetric( n );
+   auto volumetric_t_1 = &volt[t-1];
+
+   linear_function->add_variable( volumetric_t, 1.0 );
+   linear_function->add_variable( volumetric_t_1, -1.0 );
+
+   FinalVolumeReservoir_Const[constraint_index][n].set_both( v_inflows[n][constraint_index] );
+   FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
+  }
+ }
+ add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir");
+
  // maximum power output according to primary-secondary reserves constraints
 
  // Initial data check
@@ -913,137 +1031,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   add_static_constraint( RampDown_Const, "RampDown");
 
  }
-
- // final volumes fo each reservoir constraints
-
- if( FinalVolumeReservoir_Const.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( FinalVolumeReservoir_Const.empty());
-  FinalVolumeReservoir_Const.resize
-          ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon][ f_number_reservoirs ] );
- }
- for( Index n = 0; n < f_number_reservoirs; ++n ) {
-
-
-  auto l_f = new LinearFunction();
-
-  for( Index l = 0; l < f_number_arcs; ++l ) {
-
-   if( !v_start_arc.empty() && !v_end_arc.empty()) {
-
-    if( v_start_arc[l] == n &&
-        v_end_arc[l] <= f_number_reservoirs ) {
-     if (!v_uphill_delay.empty()) {
-      if( v_uphill_delay[l] == 0 ) {
-
-       auto fr0 = get_flow_rate( l );
-       auto flow_rate0 = &fr0[0];
-
-       l_f->add_variable( flow_rate0, 1.0 );
-      }
-     } else {
-      auto fr0 = get_flow_rate( l );
-      auto flow_rate0 = &fr0[0];
-
-      l_f->add_variable( flow_rate0, 1.0 );
-     }
-    }
-    if ( !v_downhill_delay.empty() ) {
-     if( v_downhill_delay[l] == 0 &&
-         v_end_arc[l] == n ) {
-
-      auto fr00 = get_flow_rate( l );
-      auto flow_rate00 = &fr00[0];
-
-      l_f->add_variable( flow_rate00, -1.0 );
-     }
-    }
-   } else{
-    auto fr00 = get_flow_rate( l );
-    auto flow_rate00 = &fr00[0];
-
-    l_f->add_variable( flow_rate00, 1.0 );
-   }
-  }
-  auto vol0 = get_volumetric( n );
-  auto volumetric0 = &vol0[0];
-
-  l_f->add_variable( volumetric0, 1.0 );
-  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] + v_inflows[n][0] );
-  FinalVolumeReservoir_Const[0][n].set_function( l_f );
-
-  for( Index t = 1, constraint_index = 1; t < f_time_horizon;
-    ++t, ++constraint_index  ) {
-
-   auto linear_function = new LinearFunction();
-
-   for( Index l = 0; l < f_number_arcs; ++l ) {
-    if( !v_start_arc.empty() && !v_end_arc.empty()) {
-
-     if (!v_uphill_delay.empty()) {
-
-      if( t - v_uphill_delay[l] >= 0 &&
-          v_start_arc[l] == n &&
-          v_end_arc[l] <= f_number_reservoirs ) {
-
-       auto fr = get_flow_rate( l );
-       auto flow_rate = &fr[t - v_uphill_delay[l]];
-
-       linear_function->add_variable( flow_rate, 1.0 );
-      }
-     } else {
-      if( v_start_arc[l] == n &&
-          v_end_arc[l] <= f_number_reservoirs ) {
-
-       auto fr = get_flow_rate( l );
-       auto flow_rate = &fr[t];
-
-       linear_function->add_variable( flow_rate, 1.0 );
-      }
-     }
-     if ( !v_downhill_delay.empty() ) {
-      if( t - v_downhill_delay[l] >= 0 &&
-          t - v_downhill_delay[l] <= f_time_horizon &&
-          v_end_arc[l] == n ) {
-
-       auto fr_d = get_flow_rate( l );
-       auto flow_rate_d = &fr_d[t - v_downhill_delay[l]];
-
-       linear_function->add_variable( flow_rate_d, -1.0 );
-      }
-     } else {
-      if( v_end_arc[l] == n ) {
-
-       auto fr_d = get_flow_rate( l );
-       auto flow_rate_d = &fr_d[t];
-
-       linear_function->add_variable( flow_rate_d, -1.0 );
-      }
-     }
-    } else {
-     auto fr_d = get_flow_rate( l );
-     auto flow_rate_d = &fr_d[t];
-     linear_function->add_variable( flow_rate_d, 1.0 );
-    }
-   }
-
-   auto volt = get_volumetric( n );
-   auto volumetric_t = &volt[t];
-
-   auto volt_1 = get_volumetric( n );
-   auto volumetric_t_1 = &volt[t-1];
-
-   linear_function->add_variable( volumetric_t, 1.0);
-   linear_function->add_variable( volumetric_t_1, -1.0 );
-
-   FinalVolumeReservoir_Const[constraint_index][n].set_both(  v_inflows[n][constraint_index] );
-   FinalVolumeReservoir_Const[constraint_index][n].set_function( linear_function );
-  }
- }
- add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir");
-
-
 
  // volumetric bounds constraints
 
