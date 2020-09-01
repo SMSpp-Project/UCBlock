@@ -189,7 +189,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
     }
    }
-    v_power_flow_injection_constraints[n].set_both( 0.0 );
+    v_power_flow_injection_constraints[n].set_both( -v_active_demand[n] );
     v_power_flow_injection_constraints[n].set_function( linear_function );
 
 

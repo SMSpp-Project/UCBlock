@@ -150,7 +150,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   grid:
  *
  *    \f[
- *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n}
+ *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
  *                                                   \quad n \in N   \quad (2)
  *    \f]
  *
