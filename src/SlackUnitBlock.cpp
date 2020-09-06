@@ -111,6 +111,10 @@ void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 void SlackUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
+
+ if( AR & HasVar )
+  return; // variables have already been generated
+
 /*--------------------------------------------------------------------------*/
  if ( f_time_horizon > 0 ){
 
@@ -164,6 +168,8 @@ void SlackUnitBlock::generate_abstract_variables
 
  }
 
+ AR |= HasVar;
+
 } // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -171,8 +177,15 @@ void SlackUnitBlock::generate_abstract_variables
 void SlackUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
+
+
  //TODO ADD BOUND CONSTRAINTS
 
+
+ AR |= HasCst;
 } // end( SlackUnitBlock::generate_abstract_constraints )
 
 
@@ -231,6 +244,8 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
 
  // Set Block objective
  this->set_objective( &objective );
+
+ AR |= HasObj;
 }  // end( SlackUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/

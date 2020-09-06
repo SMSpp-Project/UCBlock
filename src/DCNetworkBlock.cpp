@@ -58,46 +58,41 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  int number_nodes = f_NetworkData->get_number_nodes();
 
  int number_lines = f_NetworkData->get_number_lines();
 
-if (number_nodes > 1) {
- // the node injection variables
- if (v_node_injection.size() != number_nodes ){
-  assert( v_node_injection.empty()); // this should only happen once
+ if( number_nodes > 1 ) {
+  // the node injection variables
   v_node_injection.resize( number_nodes );
-  int n = 0;
-  for( auto & i : v_node_injection ) {
-   i.set_type( ColVariable::kContinuous );
-  }
+  for( auto & var : v_node_injection )
+   var.set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection, "S" );
-
  }
-}
 
- if ( number_lines > 0 ) {
-
+ if( number_lines > 0 ) {
   // the power flow Variable
+  v_power_flow.resize( number_lines );
+  for( auto & var : v_power_flow )
+   var.set_type( ColVariable::kContinuous );
+  add_static_variable( v_power_flow, "f" );
+ }
 
-  if( v_power_flow.size() != number_lines ) {
-   assert( v_power_flow.empty()); // this should only happen once
-   v_power_flow.resize( number_lines );
-   int n = 0;
-   for( auto & i : v_power_flow ) {
-    i.set_type( ColVariable::kContinuous );
-   }
-   add_static_variable( v_power_flow, "f" );
-  }
- }
  AR |= HasVar;
- }
+
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
 
  if( f_NetworkData->get_number_nodes() > 1 ) {
 

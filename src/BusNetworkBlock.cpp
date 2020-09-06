@@ -69,6 +69,9 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  // In BusNetworkBlock, number_nodes = 1
  auto active_demand = get_active_demand()[ 0 ];
  v_node_injection[ 0 ].set_value( active_demand );

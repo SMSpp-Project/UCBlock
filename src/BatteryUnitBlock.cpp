@@ -131,6 +131,9 @@ void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 void BatteryUnitBlock::generate_abstract_variables  ( Configuration *stvv ) {
 
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  UnitBlock::generate_abstract_variables( stvv );
 
  auto var_size = f_time_horizon ;
@@ -215,14 +218,16 @@ void BatteryUnitBlock::generate_abstract_variables  ( Configuration *stvv ) {
    add_static_variable( v_secondary_spinning_reserve, "sr"  );
 
   }
-
  }
+
+ AR |= HasVar;
 } // end( BatteryUnitBlock::generate_abstract_variables )
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
-
+ if( AR & HasCst )
+  return; // constraints have already been generated
 
  // Initial data check
    for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -563,14 +568,17 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   add_static_constraint( secondary_upper_bound_Constraints, "Secondary Upper Bound Constraints" );
  }
 
-
- } // end( BatteryUnitBlock::generate_abstract_constraints )
+ AR |= HasCst;
+} // end( BatteryUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_objective( Configuration *objc )
 {
-// Initial condition of each vector
+ if( AR & HasObj )
+  return; // Objective has already been generated
+
+ // Initial condition of each vector
 
  std::vector<double> cost = v_cost;
  if (cost.size() == 1) {
@@ -599,13 +607,13 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  if( v_intake_level.size() != f_time_horizon  ) {
   throw ( std::logic_error
-          ( "BatteryUnitBlock::generate_objective: v_intake_level and  must v_intake_level have "
+          ( "BatteryUnitBlock::generate_objective: v_intake_level must have "
             "size equal to the time horizon." ));
  }
 
  if(  v_outtake_level.size() != f_time_horizon) {
   throw ( std::logic_error
-          ( "BatteryUnitBlock::generate_objective: v_intake_level and  must v_outtake_level have "
+          ( "BatteryUnitBlock::generate_objective: v_outtake_level must have "
             "size equal to the time horizon." ));
  }
   auto dquad_function = new DQuadFunction();
@@ -625,6 +633,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  // Set Block objective
  this->set_objective( &objective );
+
  AR |= HasObj;
 
 }  // end( BatteryUnitBlock::generate_objective )
