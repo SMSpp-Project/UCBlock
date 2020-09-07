@@ -41,6 +41,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+#include "OneVarConstraint.h"
 #include "ColVariable.h"
 #include "FRowConstraint.h"
 #include "FRealObjective.h"
@@ -182,7 +183,7 @@ class HeatBlock : public Block {
  *   ChangeIntervals[ NumberIntervals - 1 ] is ignored. Anyway, the whole
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
  *   is not defined), or "NumberIntervals" >= "TimeHorizon".
- * 
+ *
  * - The variable "TotalHeatDemand", of type double and indexed over the
  *   dimension "TimeHorizon": entry TotalHeatDemand[ t ] is assumed to contain
  *   the total heat demand of this heat block to be satisfied for the
@@ -336,14 +337,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
 /// Generate the static constraint of the HeatBlock
 /** Method that generates the static constraint of the HeatBlock.
  *
- *  The constraints in the HB write as follow:
- *
- * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
- *   at time period \f$ t \in \mathcal{T} \f$:
- *   \f[
- *     \sum_{ i \in \mathcal{I} } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
- *      \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
- *   \f]
+ *  The constraints in the HeatBlock are as follows:
  *
  * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
  *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
@@ -352,6 +346,13 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   \f[
  *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
  *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
+ *   \f]
+ *
+ * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
+ *   at time period \f$ t \in \mathcal{T} \f$:
+ *   \f[
+ *     \sum_{ i \in \mathcal{I} } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
+ *      \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
  *   \f]
  *
  * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
@@ -679,13 +680,13 @@ void generate_abstract_variables( Configuration *stvv ) override;
 /*----------------------------constraints-----------------------------------*/
 
  /// the heat demand satisfaction constraints
- std::vector< FRowConstraint > v_HeatDemand_Constraints;
+ std::vector< BoxConstraint > v_HeatDemand_Constraints;
 
  /// the heat bound satisfaction constraints
  boost::multi_array<FRowConstraint, 2> v_HeatBounds_Constraints;
 
  /// the heat storage bound satisfaction constraints
- std::vector< FRowConstraint > v_HeatStorageBounds_Constraints;
+ std::vector< BoxConstraint > v_HeatStorageBounds_Constraints;
 
  /// the evolution in the  stored heat constraints
  std::vector< FRowConstraint > v_EvolutionStoredHeat_Constraints;

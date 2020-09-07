@@ -241,47 +241,63 @@ class UnitBlock : public Block {
  virtual Index get_number_generators( void ) const { return( 1 ); }
  
 /*--------------------------------------------------------------------------*/
- /// returns the vector of fixed consumption
- /** The returned value U = get_fixed_consumption() contains the contribution
-  *  to fixed consumption (basically, the constants to be multiplied by the
-  *  commitment variables returned by get_commitment()) of all the generators
-  *  at all time instants.
+ /// returns the fixed consumption of the given generator
+ /** This method returns a pointer to the array containing the fixed
+  * consumption (basically, the constants to be multiplied by the commitment
+  * variables returned by get_commitment()) of the given \p generator at all
+  * time instants. Being C the value returned by this method, C[t] is the
+  * inertia commitment of the given \p generator at the time instant t for
+  * each t in {0, ..., time_horizon - 1}.
   *
-  * The default implementation of the methods returns an empty vector; and
-  * derived classes will have to handle their own data (if any). */
+  * The default implementation of the method returns nullptr; and derived
+  * classes will have to handle their own data (if any).
+  *
+  * @param generator The index of the generator whose fixed consumption is
+  *        desired. */
 
  virtual double * get_fixed_consumption( Index generator )
  {
   return( nullptr );
- }
+  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the vector of inertia commitment
- /** The returned value U = get_inertia_commitment() contains the contribution
-  *  to inertia (basically, the constants to be multiplied by the commitment
-  *  variables returned by get_commitment()) of all the generators at all time
-  *  instants.
+ /// returns the inertia commitment of the given generator
+ /** This method returns a pointer to the array containing the contribution to
+  * inertia (basically, the constants to be multiplied by the commitment
+  * variables returned by get_commitment()) of the given \p generator at all
+  * time instants. Being C the value returned by this method, C[t] is the
+  * inertia commitment of the given \p generator at the time instant t for
+  * each t in {0, ..., time_horizon - 1}.
   *
-  * The default implementation of the methods returns an empty vector; and
-  * derived classes will have to handle their own data (if any). */
+  * The default implementation of the method returns nullptr; and derived
+  * classes will have to handle their own data (if any).
+  *
+  * @param generator The index of the generator whose inertia commitment is
+  *        desired. */
 
  virtual double *  get_inertia_commitment( Index generator )
-   {
+ {
   return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of inertia power
- /** The returned value U = get_inertia_power() contains the contribution to
-  *  inertia (basically, the constants to be multiplied by the active power
-  *  variables returned by get_active_power()) of all the generators at all
-  *  time instants.
+ /// returns the inertia power of the given generator
+ /** This method returns a pointer to the array of inertia power (basically,
+  * the constants to be multiplied by the active power variables returned by
+  * get_active_power()) of the given \p generator at all time instants. Being
+  * P the value returned by this method, P[t] is the inertia power of the
+  * given \p generator at the time instant t for each t in {0, ...,
+  * time_horizon - 1}.
   *
-  * The default implementation of the methods returns an empty matrix; and
-  * derived classes will have to handle their own data (if any).  */
+  * The default implementation of the method returns nullptr; and derived
+  * classes will have to handle their own data (if any).
+  *
+  * @param generator The index of the generator whose inertia power is
+  *        desired. */
 
- virtual double * get_inertia_power( Index generator  )
-   {
- return( nullptr );
+ virtual double * get_inertia_power( Index generator )
+ {
+  return( nullptr );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -301,38 +317,72 @@ class UnitBlock : public Block {
  * - active power variables.
  * @{ */
 
- /// returns the vector of commitment variables
- /** The default implementation of the methods returns an empty vector; and
- * derived classes will have to handle the commitment variable (if any). */
+ /// returns the array of commitment variables
+ /** This method returns a pointer to the array containing the commitment
+  * variables of the given \p generator at all time instants. Being C the
+  * value returned by this method, C[t] is the commitment variable at time t
+  * for each t in {0, ..., time_horizon - 1}.
+  *
+  * The default implementation of this method returns nullptr; and derived
+  * classes will have to handle the commitment variable (if any).
+  *
+  * @param generator The index of the generator whose commitment variables are
+  *        desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
   return ( nullptr);
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary spinning reserve variables
- /** The default implementation of the methods returns an empty vector; and
- * derived classes will have to handle the primary spinning reserve variable
- * (if any). */
+ /// returns the array of primary spinning reserve variables
+ /** This method returns a pointer to the array containing the primary
+  * spinning reserve variables of the given \p generator at all time
+  * instants. Being R the value returned by this method, R[t] is the primary
+  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
+  * 1}.
+  *
+  * The default implementation of this method returns nullptr; and derived
+  * classes will have to handle the primary spinning reserve variable (if
+  * any).
+  *
+  * @param generator The index of the generator whose primary spinning reserve
+  *        variables are desired. */
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of secondary spinning reserve variables
- /** The default implementation of the methods returns an empty vector; and
- * derived classes will have to handle the secondary spinning reserve variable
- * (if any). */
+ /// returns the array of secondary spinning reserve variables
+ /** This method returns a pointer to the array containing the secondary
+  * spinning reserve variables of the given \p generator at all time
+  * instants. Being R the value returned by this method, R[t] is the secondary
+  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
+  * 1}.
+  *
+  * The default implementation of this method returns nullptr; and derived
+  * classes will have to handle the secondary spinning reserve variable (if
+  * any).
+  *
+  * @param generator The index of the generator whose secondary spinning
+  *        reserve variables are desired. */
 
  virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
   return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of active power variables
- /** The default implementation of the methods returns an empty vector; and
- * derived classes will have to handle the active power variable (if any). */
+ /// returns the array of active power variables
+ /** This method returns a pointer to the array containing the active power
+  * variables of the given \p generator at all time instants. Being P the
+  * value returned by this method, P[t] is the active power variable at time t
+  * for each t in {0, ..., time_horizon - 1}.
+  *
+  * The default implementation of this method returns nullptr; and derived
+  * classes will have to handle the active power variable (if any).
+  *
+  * @param generator The index of the generator whose active power variables
+  *        are desired. */
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
