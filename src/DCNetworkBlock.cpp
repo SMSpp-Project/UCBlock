@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -52,6 +52,25 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+DCNetworkBlock::~DCNetworkBlock() {
+ for( auto & constraint : v_AC_power_flow_limit_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_HVDC_power_flow_limit_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_power_flow_injection_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_AC_HVDC_power_flow_constraints )
+  constraint.clear();
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
