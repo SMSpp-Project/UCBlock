@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -100,9 +100,9 @@ class ThermalUnitBlock : public UnitBlock {
   UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
- /// destructor of ThermalUnitBlock, it is empty
+ /// destructor of ThermalUnitBlock
 
- ~ThermalUnitBlock() override = default;
+ virtual ~ThermalUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1170,7 +1170,7 @@ class ThermalUnitBlockMod : public Modification {
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
- ~ThermalUnitBlockMod() override = default;
+ virtual ~ThermalUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block() const override { return ( f_Block ); }
@@ -1216,7 +1216,7 @@ class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod {
   : ThermalUnitBlockMod( fblock, type ), f_rng( rng ) {}
 
  /// destructor, does nothing
- ~ThermalUnitBlockRngdMod() override = default;
+ virtual ~ThermalUnitBlockRngdMod() override = default;
 
  /// accessor to the range
  Block::c_Range & rng() { return( f_rng ); }
@@ -1248,7 +1248,7 @@ class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod {
   : ThermalUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
- ~ThermalUnitBlockSbstMod() override = default;
+ virtual ~ThermalUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
  Block::c_Subset & nms() { return( f_nms ); }

@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -116,9 +116,9 @@ class HeatBlock : public Block {
  explicit HeatBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
-/// Destructor of HeatBlock: it is virtual, and empty
+/// Destructor of HeatBlock
 
- ~HeatBlock() override = default;
+ virtual ~HeatBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

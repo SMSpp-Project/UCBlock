@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 07 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -58,7 +58,31 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*------------------- METHODS OF BatteryUnitBlock -------------------*/
+/*----------------------- METHODS OF BatteryUnitBlock ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+BatteryUnitBlock::~BatteryUnitBlock() {
+ auto clear_constraints =
+  []( std::vector< FRowConstraint > & constraints ) {
+   for( auto & constraint : constraints )
+    constraint.clear();
+  };
+
+ clear_constraints( active_power_upper_bound_Constraints );
+ clear_constraints( active_power_lower_bound_Constraints );
+ clear_constraints( ramp_up_Constraints );
+ clear_constraints( ramp_down_Constraints );
+ clear_constraints( power_intake_outtake_Constraints );
+ clear_constraints( intake_upper_bound_Constraints );
+ clear_constraints( storage_intake_outtake_Constraints );
+ clear_constraints( storage_level_bounds_Constraints );
+ clear_constraints( intake_binary_Constraints );
+ clear_constraints( outtake_binary_Constraints );
+ clear_constraints( demand_Constraints );
+ clear_constraints( primary_upper_bound_Constraints );
+ clear_constraints( secondary_upper_bound_Constraints );
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/

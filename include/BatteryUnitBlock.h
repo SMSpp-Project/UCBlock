@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 09 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -161,7 +161,7 @@ class BatteryUnitBlock : public UnitBlock {
 
 /// destructor of BatteryUnitBlock
 
- ~BatteryUnitBlock() override = default;
+ virtual ~BatteryUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

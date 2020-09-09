@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,10 +113,6 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
  std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group, expected_vars, std::cerr );
 #endif
-
-
- auto network_data = new NetworkBlock::NetworkData();
- network_data->deserialize( group );
 
  auto dim_number_nodes = group.getDim( "NumberNodes" );
 

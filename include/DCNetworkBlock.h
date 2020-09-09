@@ -99,7 +99,7 @@ class DCNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
 /// destructor of DCNetworkBlock
- ~DCNetworkBlock() override;
+ virtual ~DCNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the DCNetworkBlock

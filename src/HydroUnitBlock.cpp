@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 06 - 07 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -56,8 +56,33 @@ SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS OF HydroUnitBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
+
+HydroUnitBlock::~HydroUnitBlock() {
+ auto clear_constraints =
+  []( boost::multi_array< FRowConstraint, 2 > & constraints ) {
+   auto constraint = constraints.data();
+   auto n = constraints.num_elements();
+   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+    constraint->clear();
+  };
+
+ clear_constraints( MaxPowerPrimarySecondary_Const );
+ clear_constraints( MinPowerPrimarySecondary_Const );
+ clear_constraints( ActivePowerPrimary_Const );
+ clear_constraints( ActivePowerSecondary_Const );
+ clear_constraints( FlowActivePower_Const );
+ clear_constraints( ActivePowerBounds_Const );
+ clear_constraints( RampUp_Const );
+ clear_constraints( RampDown_Const );
+ clear_constraints( FlowRateBounds_Const );
+ clear_constraints( FinalVolumeReservoir_Const );
+ clear_constraints( VolumetricBounds_Const );
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+
 void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 
@@ -281,8 +306,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     l_f->add_variable( get_flow_rate( l , 0 ) , 1.0 );
    }
   }
-  auto vol0 = get_volumetric( n );
-  auto volumetric0 = &vol0[0];
+
+  auto volumetric0 = get_volume( n , 0 );
 
   l_f->add_variable( volumetric0, 1.0 );
   FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] +
@@ -334,11 +359,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
 
-   auto volt = get_volumetric( n );
-   auto volumetric_t = &volt[t];
-
-   auto volt_1 = get_volumetric( n );
-   auto volumetric_t_1 = &volt[t-1];
+   auto volumetric_t = get_volume( n , t );
+   auto volumetric_t_1 = get_volume( n , t-1 );
 
    linear_function->add_variable( volumetric_t, 1.0 );
    linear_function->add_variable( volumetric_t_1, -1.0 );
@@ -945,9 +967,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     auto linear_function = new LinearFunction();
 
-    auto v = get_volumetric( node );
-    auto volumetric = &v[t];
-
+    auto volumetric = get_volume( node , t );
     linear_function->add_variable( volumetric, 1.0 );
 
     VolumetricBounds_Const[node][t].set_lhs( v_minimum_volumetric[node][t] );
