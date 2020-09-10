@@ -483,7 +483,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // Initializing ramp-up constraints with 3-Binary Variables
 
  if( ! v_DeltaRampUp.empty() && ! v_DeltaRampDown.empty() ) {
-
+/*
   if( f_InitUpDownTime > 0 ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     if( f_initial_power + v_DeltaRampUp[ 0 ] < v_MinPower[ 0 ] ||
@@ -495,7 +495,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                "f_initial_power - v_DeltaRampDown[ 0 ] <= v_MaxPower[ 0 ]" ) );
     }
    }
-  }
+  }*/
 
   RampUp_Constraints.resize( f_time_horizon );
 
