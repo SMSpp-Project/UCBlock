@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 09 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -112,7 +112,7 @@ class HydroUnitBlock : public UnitBlock {
 
 /// destructor of HydroUnitBlock
 
- ~HydroUnitBlock() override = default;
+ virtual ~HydroUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1676,7 +1676,7 @@ class HydroUnitBlockMod : public Modification {
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
- ~HydroUnitBlockMod() override = default;
+ virtual ~HydroUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block() const override { return ( f_Block ); }
@@ -1722,7 +1722,7 @@ class HydroUnitBlockRngdMod : public HydroUnitBlockMod {
   : HydroUnitBlockMod( fblock, type ), f_rng( rng ) {}
 
  /// destructor, does nothing
- ~HydroUnitBlockRngdMod() override = default;
+ virtual ~HydroUnitBlockRngdMod() override = default;
 
  /// accessor to the range
  Block::c_Range & rng() { return( f_rng ); }
@@ -1754,7 +1754,7 @@ class HydroUnitBlockSbstMod : public HydroUnitBlockMod {
   : HydroUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
- ~HydroUnitBlockSbstMod() override = default;
+ virtual ~HydroUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
  Block::c_Subset & nms() { return( f_nms ); }

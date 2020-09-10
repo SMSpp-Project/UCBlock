@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -62,6 +62,29 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ThermalUnitBlock ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ThermalUnitBlock::~ThermalUnitBlock() {
+ auto clear_constraints =
+  []( std::vector< FRowConstraint > & constraints ) {
+   for( auto & constraint : constraints )
+    constraint.clear();
+  };
+
+ clear_constraints( Power_StartUp_ShutDown_Variables_Constraints );
+ clear_constraints( Power_StartUp_Variable_Constraints );
+ clear_constraints( Power_ShutDown_Variable_Constraints );
+ clear_constraints( StartUp_ShutDown_Variables_Constraints );
+ clear_constraints( StartUp_Constraints );
+ clear_constraints( ShutDown_Constraints );
+ clear_constraints( RampUp_Constraints );
+ clear_constraints( RampDown_Constraints );
+ clear_constraints( PrimaryRho_Constraints );
+ clear_constraints( SecondaryRho_Constraints );
+ clear_constraints( MinPower_Constraints );
+ clear_constraints( MaxPower_Constraints );
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -21,7 +21,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 07 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -133,9 +133,13 @@ class UnitBlock : public Block {
  explicit UnitBlock( Block * father_block = nullptr, Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of UnitBlock: it is virtual, and empty
+ /// Destructor of UnitBlock
 
- ~UnitBlock() override = default;
+ virtual ~UnitBlock() override {
+  for( auto & block : v_Block )
+   delete block;
+  v_Block.clear();
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

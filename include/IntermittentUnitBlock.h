@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -109,7 +109,7 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /// destructor of IntermittentUnitBlock
 
- ~IntermittentUnitBlock() override = default;
+ virtual ~IntermittentUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -485,7 +485,7 @@ class IntermittentUnitBlockMod : public Modification {
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
- ~IntermittentUnitBlockMod() override = default;
+ virtual ~IntermittentUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block() const override { return ( f_Block ); }
@@ -525,7 +525,7 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
   : IntermittentUnitBlockMod( fblock, type ), f_rng( rng ) {}
 
  /// destructor, does nothing
- ~IntermittentUnitBlockRngdMod() override = default;
+ virtual ~IntermittentUnitBlockRngdMod() override = default;
 
  /// accessor to the range
  Block::c_Range & rng() { return( f_rng ); }
@@ -557,7 +557,7 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
   : IntermittentUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
- ~IntermittentUnitBlockSbstMod() override = default;
+ virtual ~IntermittentUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
  Block::c_Subset & nms() { return( f_nms ); }

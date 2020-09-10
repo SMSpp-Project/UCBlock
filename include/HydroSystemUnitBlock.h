@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 05 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -101,9 +101,13 @@ class HydroSystemUnitBlock : public UnitBlock {
   UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of HydroSystemUnitBlock: it is virtual, and empty
+ /// Destructor of HydroSystemUnitBlock
 
- ~HydroSystemUnitBlock() override = default;
+ virtual ~HydroSystemUnitBlock() override {
+  for( auto block : v_Block )
+   delete block;
+  v_Block.clear();
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

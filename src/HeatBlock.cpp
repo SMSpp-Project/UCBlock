@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 06 - 09 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -62,6 +62,26 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF HeatBlock -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+HeatBlock::~HeatBlock() {
+ auto clear_constraints =
+  []( boost::multi_array< FRowConstraint, 2 > & constraints ) {
+   auto constraint = constraints.data();
+   auto n = constraints.num_elements();
+   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+    constraint->clear();
+  };
+
+ clear_constraints( v_HeatBounds_Constraints );
+
+ for( auto & constraint : v_HeatStorageBounds_Constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_EvolutionStoredHeat_Constraints )
+  constraint.clear();
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/

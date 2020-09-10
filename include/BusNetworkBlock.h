@@ -91,7 +91,7 @@ class BusNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
  /// destructor of BusNetworkBlock, (understandably) does nothing
 
- ~BusNetworkBlock() override = default;
+ virtual ~BusNetworkBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

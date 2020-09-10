@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 07 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -57,8 +57,20 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlock::~IntermittentUnitBlock() {
+ for( auto & constraint : MinPower_Constraints )
+  constraint.clear();
+ for( auto & constraint : MaxPower_Constraints )
+  constraint.clear();
+ for( auto & constraint : active_power_bounds_Constraints )
+  constraint.clear();
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 

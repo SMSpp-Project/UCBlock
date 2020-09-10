@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 02 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -99,9 +99,8 @@ class DCNetworkBlock : public NetworkBlock {
 
 /*--------------------------------------------------------------------------*/
 /// destructor of DCNetworkBlock
- ~DCNetworkBlock() override {
-  delete f_NetworkData;
- }
+ virtual ~DCNetworkBlock() override;
+
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the DCNetworkBlock
 /** Depending on the susceptance for each line of the network, the
@@ -228,6 +227,33 @@ class DCNetworkBlock : public NetworkBlock {
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the NetworkBlock
+    @{ */
+
+ /// returns the number of nodes
+ /** Returns the number of nodes in the transmission network. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
+
+ Index get_number_nodes( void ) const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_nodes();
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns a pointer to the NetworkData
+ /** Return a pointer to the NetworkData. */
+
+ NetworkData * get_NetworkData() const override {
+  return f_NetworkData;
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -249,6 +275,7 @@ class DCNetworkBlock : public NetworkBlock {
   const std::vector< ColVariable > & get_power_flow( ) const {
    return v_power_flow;
   }
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE DCNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/

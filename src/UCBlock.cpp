@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -59,10 +59,10 @@
 using namespace SMSpp_di_unipi_it;
 
 SMSpp_insert_in_factory_cpp_1( UCBlock );
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -79,9 +79,44 @@ UCBlock::UCBlock( Block * father ) : Block( father ) {
  f_number_pollutants = 0;
 }
 
+/*--------------------------------------------------------------------------*/
+
+UCBlock::~UCBlock() {
+
+ auto clear_constraints =
+  []( boost::multi_array< FRowConstraint, 2 > & constraints ) {
+   auto constraint = constraints.data();
+   auto n = constraints.num_elements();
+   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+    constraint->clear();
+  };
+
+ clear_constraints( v_node_injection_constraints );
+ clear_constraints( v_node_injection_constraints );
+ clear_constraints( v_PrimaryDemand_Const );
+ clear_constraints( v_SecondaryDemand_Const );
+ clear_constraints( v_InertiaDemand_Const );
+ clear_constraints( v_power_Heat_Rho_Const );
+
+ for( auto & v : v_PollutantBudget_Const )
+  for( auto & constraint : v )
+   constraint.clear();
+
+ for( auto & block : v_Block )
+  delete block;
+ v_Block.clear();
+
+ delete f_NetworkData;
+ f_NetworkData = nullptr;
+}
+
+/*--------------------------------------------------------------------------*/
+
 UnitBlock * UCBlock::get_unit_block( Index i ) const {
  return dynamic_cast<UnitBlock *>( v_Block[i] );
 }
+
+/*--------------------------------------------------------------------------*/
 
 NetworkBlock * UCBlock::get_network_block( Index t ) const {
  return dynamic_cast<NetworkBlock *>( v_Block[f_number_units + t] );
@@ -445,6 +480,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     //}
    }
   } else {  //DCNetwork needs GeneratorNode
+
+   // TODO this is wrong
 
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
