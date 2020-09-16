@@ -407,6 +407,9 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
+ if( AR & HasCst )
+  return; // constraints have already been generated
+
  Block::generate_abstract_constraints( stcc );
 
  unsigned int number_nodes = f_NetworkData ? f_NetworkData->
@@ -414,14 +417,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Node injection constraints.
 
- if( v_node_injection_constraints.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( v_node_injection_constraints.empty());
-
-  v_node_injection_constraints.resize
-          ( boost::multi_array< FRowConstraint, 2 >::
-            extent_gen()[f_time_horizon][number_nodes] );
- }
+ v_node_injection_constraints.resize
+  ( boost::multi_array< FRowConstraint, 2 >::
+    extent_gen()[f_time_horizon][number_nodes] );
 
  if( number_nodes > 0 ) {
 
@@ -873,7 +871,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 */
 /*--------------------------------------------------------------------------*/
 
-}  // end( UCBlock::global constraints )
+ AR |= HasCst;
+
+}  // end( UCBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
