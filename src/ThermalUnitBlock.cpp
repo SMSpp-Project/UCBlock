@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -63,26 +63,77 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ThermalUnitBlock ----------------------*/
 /*--------------------------------------------------------------------------*/
+
+ThermalUnitBlock::~ThermalUnitBlock() {
+ auto clear_constraints =
+  []( std::vector< FRowConstraint > & constraints ) {
+   for( auto & constraint : constraints )
+    constraint.clear();
+  };
+
+ clear_constraints( Power_StartUp_ShutDown_Variables_Constraints );
+ clear_constraints( Power_StartUp_Variable_Constraints );
+ clear_constraints( Power_ShutDown_Variable_Constraints );
+ clear_constraints( StartUp_ShutDown_Variables_Constraints );
+ clear_constraints( StartUp_Constraints );
+ clear_constraints( ShutDown_Constraints );
+ clear_constraints( RampUp_Constraints );
+ clear_constraints( RampDown_Constraints );
+ clear_constraints( PrimaryRho_Constraints );
+ clear_constraints( SecondaryRho_Constraints );
+ clear_constraints( MinPower_Constraints );
+ clear_constraints( MaxPower_Constraints );
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] ThermalUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] ThermalUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "MinPower",
+                                              "MaxPower",
+                                              "DeltaRampUp",
+                                              "DeltaRampDown",
+                                              "PrimaryRho",
+                                              "SecondaryRho",
+                                              "LinearTerm",
+                                              "QuadTerm",
+                                              "ConstTerm",
+                                              "StartUpCost",
+                                              "FixedConsumption",
+                                              "InertiaCommitment",
+                                              "InitialPower",
+                                              "MinUpTime",
+                                              "MinDownTime",
+                                              "InitUpDownTime" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
-  ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
-  ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
-  ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true, true );
-  ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown, true, true );
-  ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
-  ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho, true, true );
-  ::deserialize( group, "LinearTerm", f_time_horizon, v_LinearTerm, true, true );
-  ::deserialize( group, "QuadTerm", f_time_horizon, v_QuadTerm, true, true );
-  ::deserialize( group, "ConstTerm", f_time_horizon, v_ConstTerm, true, true );
-  ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost, true, true );
-  ::deserialize( group, "FixedConsumption", f_time_horizon, v_fixed_consumption, true, true );
-  ::deserialize( group, "InertiaCommitment", f_time_horizon, v_inertia_commitment, true, true );
+ ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
+ ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
+ ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true, true );
+ ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown, true, true );
+ ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
+ ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho, true, true );
+ ::deserialize( group, "LinearTerm", f_time_horizon, v_LinearTerm, true, true );
+ ::deserialize( group, "QuadTerm", f_time_horizon, v_QuadTerm, true, true );
+ ::deserialize( group, "ConstTerm", f_time_horizon, v_ConstTerm, true, true );
+ ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost, true, true );
+ ::deserialize( group, "FixedConsumption", f_time_horizon, v_fixed_consumption, true, true );
+ ::deserialize( group, "InertiaCommitment", f_time_horizon, v_inertia_commitment, true, true );
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
@@ -109,6 +160,9 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  UnitBlock::generate_abstract_variables( stvv );
 
  if( f_InitUpDownTime > 0 ) {
@@ -118,58 +172,36 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
  }
+
 /*--------------------------------------------------------------------------*/
-if ( f_time_horizon > 0 ){
 
  // Commitment Variable
 
- if( v_commitment.size() != f_time_horizon ) {
-  assert( v_commitment.empty() ); // this should only happen once
-  v_commitment.resize( f_time_horizon );
-  int n = 0;
-  for( auto & i : v_commitment ) {
-   i.set_type( ColVariable::kBinary );
-  }
-  add_static_variable( v_commitment, "u" );
- }
+ v_commitment.resize( f_time_horizon );
+ for( auto & var : v_commitment )
+  var.set_type( ColVariable::kBinary );
+ add_static_variable( v_commitment, "u" );
 
  // Active Power Variable
 
- if( v_active_power.size() != f_time_horizon ) {
-  assert( v_active_power.empty() ); // this should only happen once
-  v_active_power.resize( f_time_horizon );
-  int n = 0;
-  for( auto & i : v_active_power ) {
-   i.set_type( ColVariable::kNonNegative );
-  }
-  add_static_variable( v_active_power, "p" );
- }
+ v_active_power.resize( f_time_horizon );
+ for( auto & var : v_active_power )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_active_power, "p" );
 
  // Primary Spinning Reserve Variable
 
- if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-  assert( v_primary_spinning_reserve.empty() ); // this should only happen once
-  v_primary_spinning_reserve.resize( f_time_horizon );
-  int n = 0;
-  for( auto & i : v_primary_spinning_reserve ) {
-   i.set_type( ColVariable::kNonNegative );
-  }
-   add_static_variable( v_primary_spinning_reserve, "pr" );
- }
+ v_primary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_primary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_primary_spinning_reserve, "pr" );
 
  // Secondary Spinning Reserve Variable
 
- if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-  assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
-  v_secondary_spinning_reserve.resize( f_time_horizon );
-  int n = 0;
-  for( auto & i : v_secondary_spinning_reserve ) {
-   i.set_type( ColVariable::kNonNegative );
-  }
-   add_static_variable( v_secondary_spinning_reserve, "sr" );
- }
-
-}
+ v_secondary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_secondary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_secondary_spinning_reserve, "sr" );
 
 /*--------------------------------------------------------------------------*/
  // START UP AND SHUT DOWN BINARY VARIABLES
@@ -177,25 +209,16 @@ if ( f_time_horizon > 0 ){
 
  if( startup_shutdown_size > 0 ) {
 
-  if( v_start_up.size() != startup_shutdown_size ) {
-   assert( v_start_up.empty() ); // this should only happen once
-   v_start_up.resize( startup_shutdown_size );
-   int n = 0;
-   for( auto & i : v_start_up ) {
-    i.set_type( ColVariable::kBinary );
-   }
-   add_static_variable( v_start_up, "v" );
-  }
+  v_start_up.resize( startup_shutdown_size );
+  for( auto & var : v_start_up )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_start_up, "v" );
 
-  if( v_shut_down.size() != startup_shutdown_size ) {
-   assert( v_shut_down.empty() ); // this should only happen once
-   v_shut_down.resize( startup_shutdown_size );
-   int n = 0;
-   for( auto & i : v_shut_down ) {
-    i.set_type( ColVariable::kBinary );
-   }
-   add_static_variable( v_shut_down, "w" );
-  }
+  v_shut_down.resize( startup_shutdown_size );
+  for( auto & var : v_shut_down )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_shut_down, "w" );
+
  }
 
 /*--------------------------------------------------------------------------*/
@@ -212,24 +235,24 @@ if ( f_time_horizon > 0 ){
    // This unit must remain off from time 0 to init_t - 1. Therefore,
    // it should not produce any power.
 
-   if( !v_active_power.empty()) {
-    for( Index t = 0; t < init_t; ++t ) {
-     v_active_power[t].set_value( 0.0 );
-     v_active_power[t].is_fixed( true );
+   if( ! v_active_power.empty() ) {
+    for( Index t = 0 ; t < init_t ; ++t ) {
+     v_active_power[ t ].set_value( 0.0 );
+     v_active_power[ t ].is_fixed( true );
     }
    }
 
-   if( !v_primary_spinning_reserve.empty()) {
-    for( Index t = 0; t < init_t; ++t ) {
-     v_primary_spinning_reserve[t].set_value( 0.0 );
-     v_primary_spinning_reserve[t].is_fixed( true );
+   if( ! v_primary_spinning_reserve.empty() ) {
+    for( Index t = 0 ; t < init_t ; ++t ) {
+     v_primary_spinning_reserve[ t ].set_value( 0.0 );
+     v_primary_spinning_reserve[ t ].is_fixed( true );
     }
    }
 
-   if( !v_secondary_spinning_reserve.empty()) {
-    for( Index t = 0; t < init_t; ++t ) {
-     v_secondary_spinning_reserve[t].set_value( 0.0 );
-     v_secondary_spinning_reserve[t].is_fixed( true );
+   if( ! v_secondary_spinning_reserve.empty() ) {
+    for( Index t = 0 ; t < init_t ; ++t ) {
+     v_secondary_spinning_reserve[ t ].set_value( 0.0 );
+     v_secondary_spinning_reserve[ t ].is_fixed( true );
     }
    }
   } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
@@ -238,92 +261,91 @@ if ( f_time_horizon > 0 ){
 
   }
 
-  if( !v_commitment.empty()) {
+  if( ! v_commitment.empty() ) {
    if( commitment_variable_value >= 0.0 ) {
     // Fixing the commitment variables v_commitment to 0 or 1 from
     // time 0 to init_t - 1, depending on whether this unit must
     // remain off or on for the first init_t time steps.
-    for( Index t = 0; t < init_t; ++t ) {
-     v_commitment[t].set_value( commitment_variable_value );
-     v_commitment[t].is_fixed( true );
+    for( Index t = 0 ; t < init_t ; ++t ) {
+     v_commitment[ t ].set_value( commitment_variable_value );
+     v_commitment[ t ].is_fixed( true );
     }
    }
   }
 
- if ( f_InitUpDownTime > 0 ) {
+  if( f_InitUpDownTime > 0 ) {
 
-   if ( f_MinDownTime < startup_shutdown_size ) {
-    for( Index t = 0; t < f_MinDownTime; ++t ) {
-
-     v_start_up[t].set_value( 0.0 );
-     v_start_up[t].is_fixed( true );
-    }
-   } else if ( f_MinDownTime >= startup_shutdown_size ) {
-    for( Index t = 0; t < startup_shutdown_size; ++t ) {
-
-     v_start_up[t].set_value( 0.0 );
-     v_start_up[t].is_fixed( true );
-
+   if( f_MinDownTime < startup_shutdown_size ) {
+    for( Index t = 0 ; t < f_MinDownTime ; ++t ) {
+     v_start_up[ t ].set_value( 0.0 );
+     v_start_up[ t ].is_fixed( true );
     }
    }
-  } else if (f_InitUpDownTime <= 0) {
+   else if ( f_MinDownTime >= startup_shutdown_size ) {
+    for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
+     v_start_up[ t ].set_value( 0.0 );
+     v_start_up[ t ].is_fixed( true );
+    }
+   }
+  }
+  else if( f_InitUpDownTime <= 0 ) {
    if( f_MinUpTime < startup_shutdown_size ) {
-    for( Index t = 0; t < f_MinUpTime; ++t ) {
-     v_shut_down[t].set_value( 0.0 );
-     v_shut_down[t].is_fixed( true );
+    for( Index t = 0 ; t < f_MinUpTime ; ++t ) {
+     v_shut_down[ t ].set_value( 0.0 );
+     v_shut_down[ t ].is_fixed( true );
     }
-   } else if( f_MinUpTime >= startup_shutdown_size ) {
-    for( Index t = 0; t < startup_shutdown_size; ++t ) {
-     v_shut_down[t].set_value( 0.0 );
-     v_shut_down[t].is_fixed( true );
-
+   }
+   else if( f_MinUpTime >= startup_shutdown_size ) {
+    for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
+     v_shut_down[ t ].set_value( 0.0 );
+     v_shut_down[ t ].is_fixed( true );
     }
    }
   }
  }
 
- if ( init_t == 0 ) {
+ else if ( init_t == 0 ) {
 
-  if ( f_InitUpDownTime > 0 ) {
+  if( f_InitUpDownTime > 0 ) {
 
-   if ( f_MinDownTime < f_time_horizon ) {
-   for ( Index t = 0; t < f_MinDownTime ; ++t ) {
-
-    v_start_up[t].set_value( 0.0 );
-    v_start_up[t].is_fixed( true );
-
+   if( f_MinDownTime < f_time_horizon ) {
+    for( Index t = 0 ; t < f_MinDownTime ; ++t ) {
+     v_start_up[ t ].set_value( 0.0 );
+     v_start_up[ t ].is_fixed( true );
+    }
    }
-   } else if ( f_MinDownTime >= f_time_horizon ){
-    for ( Index t = 0; t < f_time_horizon ; ++t) {
-
-     v_start_up[t].set_value( 0.0 );
-     v_start_up[t].is_fixed( true );
+   else if( f_MinDownTime >= f_time_horizon ) {
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     v_start_up[ t ].set_value( 0.0 );
+     v_start_up[ t ].is_fixed( true );
     }
    }
   }
-  if ( f_InitUpDownTime <= 0 ) {
+  if( f_InitUpDownTime <= 0 ) {
    if( f_MinUpTime < f_time_horizon ) {
-    for( Index t = 0; t < f_MinUpTime; ++t ) {
-
-     v_shut_down[t].set_value( 0.0 );
-     v_shut_down[t].is_fixed( true );
-
+    for( Index t = 0 ; t < f_MinUpTime ; ++t ) {
+     v_shut_down[ t ].set_value( 0.0 );
+     v_shut_down[ t ].is_fixed( true );
     }
-   } else  if( f_MinUpTime >= f_time_horizon ) {
-    for( Index t = 0; t < f_time_horizon; ++t ) {
-
-     v_shut_down[t].set_value( 0.0 );
-     v_shut_down[t].is_fixed( true );
+   }
+   else if( f_MinUpTime >= f_time_horizon ) {
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     v_shut_down[ t ].set_value( 0.0 );
+     v_shut_down[ t ].is_fixed( true );
     }
    }
   }
  }
+
  AR |= HasVar;
 } // end( ThermalUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
 
  // Initializing start up and shut down variables connection constraints
  if( init_t == 0 ) {
@@ -336,29 +358,26 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_commitment[0], 1.0 );
-   linear_function->add_variable( &v_start_up[0], -1.0 );
-   linear_function->add_variable( &v_shut_down[0], 1.0 );
+   linear_function->add_variable( & v_commitment[ 0 ] ,  1.0 );
+   linear_function->add_variable( & v_start_up[ 0 ]   , -1.0 );
+   linear_function->add_variable( & v_shut_down[ 0 ]  ,  1.0 );
 
    auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
 
-   StartUp_ShutDown_Variables_Constraints[0].set_both( initial_commitment );
-   StartUp_ShutDown_Variables_Constraints[0].set_function( linear_function );
+   StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( initial_commitment );
+   StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( linear_function );
 
-
-   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
-        ++t, ++constraint_index ) {
+   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
+        ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_commitment[t], 1.0 );
-    lf->add_variable( &v_start_up[t], -1.0 );
-    lf->add_variable( &v_shut_down[t], 1.0 );
-    lf->add_variable( &v_commitment[t - 1], -1.0 );
+    lf->add_variable( & v_commitment[ t ]     ,  1.0 );
+    lf->add_variable( & v_start_up[ t ]       , -1.0 );
+    lf->add_variable( & v_shut_down[ t ]      ,  1.0 );
+    lf->add_variable( & v_commitment[ t - 1 ] , -1.0 );
     StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
-
-    StartUp_ShutDown_Variables_Constraints[constraint_index].
-            set_function( lf );
+    StartUp_ShutDown_Variables_Constraints[constraint_index].set_function( lf );
    }
   }
  }
@@ -375,105 +394,108 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    auto l_function = new LinearFunction();
 
-   l_function->add_variable( &v_commitment[init_t], 1.0 );
-   l_function->add_variable( &v_start_up[0], -1.0 );
-   l_function->add_variable( &v_shut_down[0], 1.0 );
+   l_function->add_variable( & v_commitment[ init_t ] ,  1.0 );
+   l_function->add_variable( & v_start_up[ 0 ]        , -1.0 );
+   l_function->add_variable( & v_shut_down[ 0 ]       ,  1.0 );
 
    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
-
-    StartUp_ShutDown_Variables_Constraints[0].set_both( 0.0 );
-    StartUp_ShutDown_Variables_Constraints[0].set_function( l_function );
-
-   } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
-
-    StartUp_ShutDown_Variables_Constraints[0].set_both( 1.0 );
-    StartUp_ShutDown_Variables_Constraints[0].set_function( l_function );
+    StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( 0.0 );
+    StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
+   }
+   else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+    StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( 1.0 );
+    StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
    }
 
-   for( Index t = init_t + 1 , constraint_index = 1; t < f_time_horizon;
-        ++t, ++constraint_index ) {
+   for( Index t = init_t + 1 , constraint_index = 1 ; t < f_time_horizon ;
+        ++t , ++constraint_index ) {
 
     auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &v_commitment[t], 1.0 );
-    linear_function->add_variable( &v_start_up[t - init_t], -1.0 );
-    linear_function->add_variable( &v_shut_down[t - init_t], 1.0 );
-    linear_function->add_variable( &v_commitment[t - 1], -1.0 );
+    linear_function->add_variable( & v_commitment[ t ]         ,  1.0 );
+    linear_function->add_variable( & v_start_up[ t - init_t ]  , -1.0 );
+    linear_function->add_variable( & v_shut_down[ t - init_t ] ,  1.0 );
+    linear_function->add_variable( & v_commitment[ t - 1 ]     , -1.0 );
     StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
-
     StartUp_ShutDown_Variables_Constraints[constraint_index].
-            set_function( linear_function );
+     set_function( linear_function );
    }
   }
  }
  add_static_constraint( StartUp_ShutDown_Variables_Constraints,
                         "StartUp_ShutDown_Vars" );
 
-
  // Initializing turn on constraints (start up constraints)
 
- auto startup_const_size = static_cast<int>(f_time_horizon - init_t - f_MinUpTime);
+ auto startup_const_size = static_cast<int>
+  ( f_time_horizon - init_t - f_MinUpTime );
+
  if( startup_const_size > 0 ) {
 
   StartUp_Constraints.resize( startup_const_size );
 
-  for( Index t = init_t + f_MinUpTime, constraint_index = 0;
-       t < f_time_horizon; ++t, ++constraint_index ) {
+  for( Index t = init_t + f_MinUpTime , constraint_index = 0;
+       t < f_time_horizon ; ++t , ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
 
-   for( Index s = t - f_MinUpTime; s < t; ++s ) {
-    linear_function->add_variable( &v_start_up[s - init_t + 1], -1.0 );
+   for( Index s = t - f_MinUpTime ; s < t ; ++s ) {
+    linear_function->add_variable( & v_start_up[ s - init_t + 1 ] , -1.0 );
    }
 
-   linear_function->add_variable( &v_commitment[t], 1.0 );
-   StartUp_Constraints[constraint_index].set_lhs( 0.0 );
-   StartUp_Constraints[constraint_index].set_rhs( Inf< double >());
-   StartUp_Constraints[constraint_index].set_function( linear_function );
+   linear_function->add_variable( & v_commitment[ t ] , 1.0 );
+   StartUp_Constraints[ constraint_index ].set_lhs( 0.0 );
+   StartUp_Constraints[ constraint_index ].set_rhs( Inf< double >());
+   StartUp_Constraints[ constraint_index ].set_function( linear_function );
   }
 
-  add_static_constraint( StartUp_Constraints, "StartUp" );
+  add_static_constraint( StartUp_Constraints , "StartUp" );
  }
 
  // Initializing turn off constraints (shut down constraints)
 
- auto shutdown_const_size = static_cast<int>(f_time_horizon - init_t - f_MinDownTime);
+ auto shutdown_const_size = static_cast<int>
+  ( f_time_horizon - init_t - f_MinDownTime );
+
  if( shutdown_const_size > 0 ) {
 
   ShutDown_Constraints.resize( shutdown_const_size );
 
-  for( Index t = init_t + f_MinDownTime, constraint_index = 0;
-       t < f_time_horizon; ++t, ++constraint_index ) {
+  for( Index t = init_t + f_MinDownTime , constraint_index = 0 ;
+       t < f_time_horizon ; ++t , ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
 
-   for( Index s = t - f_MinDownTime; s < t; ++s ) {
-    linear_function->add_variable( &v_shut_down[s - init_t + 1], 1.0 );
+   for( Index s = t - f_MinDownTime ; s < t ; ++s ) {
+    linear_function->add_variable( & v_shut_down[ s - init_t + 1 ] , 1.0 );
    }
 
-   linear_function->add_variable( &v_commitment[t], 1.0 );
-   ShutDown_Constraints[constraint_index].set_lhs( 0.0 );
-   ShutDown_Constraints[constraint_index].set_rhs( 1.0 );
-   ShutDown_Constraints[constraint_index].set_function( linear_function );
+   linear_function->add_variable( & v_commitment[ t ] , 1.0 );
+   ShutDown_Constraints[ constraint_index ].set_lhs( 0.0 );
+   ShutDown_Constraints[ constraint_index ].set_rhs( 1.0 );
+   ShutDown_Constraints[ constraint_index ].set_function( linear_function );
   }
 
-  add_static_constraint( ShutDown_Constraints, "ShutDown" );
+  add_static_constraint( ShutDown_Constraints , "ShutDown" );
  }
 
 /*--------------------------------------------------------------------------*/
  // Initializing ramp-up constraints with 3-Binary Variables
 
- if( !v_DeltaRampUp.empty() & !v_DeltaRampDown.empty()) {
-
+ if( ! v_DeltaRampUp.empty() && ! v_DeltaRampDown.empty() ) {
+/*
   if( f_InitUpDownTime > 0 ) {
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( v_MinPower[t] > f_initial_power || v_MaxPower[t] < f_initial_power) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( f_initial_power + v_DeltaRampUp[ 0 ] < v_MinPower[ 0 ] ||
+        f_initial_power - v_DeltaRampDown[ 0 ] > v_MaxPower[ 0 ] ) {
      throw ( std::logic_error
-             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0, "
-               "it must be that MaxPower >= InitialPower >= MinPower." ));
+             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
+               "it must be that"
+               "f_initial_power + v_DeltaRampUp[ 0 ] >= v_MinPower[ 0 ]"
+               "f_initial_power - v_DeltaRampDown[ 0 ] <= v_MaxPower[ 0 ]" ) );
     }
    }
-  }
+  }*/
 
   RampUp_Constraints.resize( f_time_horizon );
 
@@ -484,112 +506,111 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // Initial condition
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[0], 1.0 );
-   linear_function->add_variable( &v_start_up[0], -v_MinPower[0] );
+   linear_function->add_variable( &v_active_power[ 0 ], 1.0 );
+   linear_function->add_variable( &v_start_up[ 0 ], -v_MinPower[ 0 ] );
    auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
 
-   RampUp_Constraints[0].set_lhs
-           ( 0.0 );
-   if ( f_InitUpDownTime > 0 ) {
-    RampUp_Constraints[0].set_rhs(( v_DeltaRampUp[0] * initial_commitment ) + f_initial_power );
-   } else if ( f_InitUpDownTime <= 0 ){
-    RampUp_Constraints[0].set_rhs(( v_DeltaRampUp[0] * initial_commitment ) );
+   RampUp_Constraints[ 0 ].set_lhs( 0.0 );
+
+   if( f_InitUpDownTime > 0 ) {
+    RampUp_Constraints[ 0 ].set_rhs
+     ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) + f_initial_power );
+   }
+   else if( f_InitUpDownTime <= 0 ){
+    RampUp_Constraints[ 0 ].set_rhs
+     ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) );
    }
    RampUp_Constraints[0].set_function( linear_function );
 
-   for( Index t = 1, constraint_index = 1; t < f_time_horizon; ++t, ++constraint_index ) {
+   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
+        ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t], -1.0 );
-    lf->add_variable( &v_active_power[t - 1], 1.0 );
-    lf->add_variable( &v_start_up[t], v_MinPower[t] );
+    lf->add_variable( & v_active_power[ t ]     , -1.0 );
+    lf->add_variable( & v_active_power[ t - 1 ] ,  1.0 );
+    lf->add_variable( & v_start_up[ t ]         , v_MinPower[t] );
+    lf->add_variable( & v_commitment[ t - 1 ]   , v_DeltaRampUp[t] );
 
-    lf->add_variable( &v_commitment[t - 1], ( v_DeltaRampUp[t] ));
-
-    RampUp_Constraints[constraint_index].set_lhs( 0.0 );
-    RampUp_Constraints[constraint_index].set_rhs( Inf< double >());
-    RampUp_Constraints[constraint_index].set_function( lf );
+    RampUp_Constraints[ constraint_index ].set_lhs( 0.0 );
+    RampUp_Constraints[ constraint_index ].set_rhs( Inf< double >() );
+    RampUp_Constraints[ constraint_index ].set_function( lf );
    }
-
   }
 
   if( init_t > 0 ) {
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[0], 1.0 );
+   linear_function->add_variable( & v_active_power[ 0 ] , 1.0 );
 
    auto initial_commitment = ( f_InitUpDownTime > 0 ? 1.0 : 0.0 );
 
-   RampUp_Constraints[0].set_lhs
-           ( 0.0 );
-   if ( f_InitUpDownTime > 0 ) {
-    RampUp_Constraints[0].set_rhs(( v_DeltaRampUp[0] * initial_commitment ) + f_initial_power );
-   } else if ( f_InitUpDownTime <= 0 ){
-    RampUp_Constraints[0].set_rhs(( v_DeltaRampUp[0] * initial_commitment ) );
-   }
-   RampUp_Constraints[0].set_function( linear_function );
+   RampUp_Constraints[ 0 ].set_lhs( 0.0 );
 
-   for( Index t = 1, constraint_index = 1; t < init_t;
-        ++t, ++constraint_index ) {
+   if( f_InitUpDownTime > 0 ) {
+    RampUp_Constraints[ 0 ].set_rhs
+     ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) + f_initial_power );
+   }
+   else if( f_InitUpDownTime <= 0 ) {
+    RampUp_Constraints[ 0 ].set_rhs( v_DeltaRampUp[0] * initial_commitment );
+   }
+   RampUp_Constraints[ 0 ].set_function( linear_function );
+
+   for( Index t = 1 , constraint_index = 1 ; t < init_t ;
+        ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t], -1.0 );
-    lf->add_variable( &v_active_power[t - 1], 1.0 );
-    lf->add_variable
-            ( &v_commitment[t - 1], ( v_DeltaRampUp[t] ));
+    lf->add_variable( & v_active_power[ t ]     , -1.0 );
+    lf->add_variable( & v_active_power[ t - 1 ] ,  1.0 );
+    lf->add_variable( & v_commitment[ t - 1 ]   , v_DeltaRampUp[ t ] );
 
-    RampUp_Constraints[constraint_index].set_lhs( 0.00 );
-    RampUp_Constraints[constraint_index].set_rhs( Inf< double >());
+    RampUp_Constraints[constraint_index].set_lhs( 0.0 );
+    RampUp_Constraints[constraint_index].set_rhs( Inf< double >() );
     RampUp_Constraints[constraint_index].set_function( lf );
    }
-
 
    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
 
     auto LFunction = new LinearFunction();
-    LFunction->add_variable( &v_active_power[init_t], 1.0 );
-    LFunction->add_variable( &v_start_up[0], -v_MinPower[init_t] );
+    LFunction->add_variable( & v_active_power[ init_t ] , 1.0 );
+    LFunction->add_variable( & v_start_up[ 0 ] , -v_MinPower[ init_t ] );
 
-    RampUp_Constraints[init_t].set_lhs( -Inf< double >() );
-    RampUp_Constraints[init_t].set_rhs( 0.0 );
-    RampUp_Constraints[init_t].set_function( LFunction );
+    RampUp_Constraints[ init_t ].set_lhs( -Inf< double >() );
+    RampUp_Constraints[ init_t ].set_rhs( 0.0 );
+    RampUp_Constraints[ init_t ].set_function( LFunction );
 
-   } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+   }
+   else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
 
     auto LFunction = new LinearFunction();
-    LFunction->add_variable( &v_active_power[init_t], 1.0 );
-    LFunction->add_variable( &v_active_power[init_t - 1], -1.0 );
-    LFunction->add_variable( &v_start_up[0], -v_MinPower[init_t] );
+    LFunction->add_variable( & v_active_power[ init_t ]     ,  1.0 );
+    LFunction->add_variable( & v_active_power[ init_t - 1 ] , -1.0 );
+    LFunction->add_variable( & v_start_up[ 0 ] , -v_MinPower[init_t] );
 
     RampUp_Constraints[init_t].set_lhs( -Inf< double >() );
-    RampUp_Constraints[init_t].set_rhs( v_DeltaRampUp[init_t] );
+    RampUp_Constraints[init_t].set_rhs( v_DeltaRampUp[ init_t ] );
     RampUp_Constraints[init_t].set_function( LFunction );
    }
 
-   for( Index t = init_t + 1, constraint_index = init_t + 1; t < f_time_horizon; ++t, ++constraint_index ) {
+   for( Index t = init_t + 1 , constraint_index = init_t + 1 ;
+        t < f_time_horizon ; ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t], -1.0 );
-    lf->add_variable( &v_active_power[t - 1], 1.0 );
-    lf->add_variable( &v_start_up[t - init_t], v_MinPower[t] );
+    lf->add_variable( & v_active_power[ t ]      , -1.0 );
+    lf->add_variable( & v_active_power[ t - 1 ]  ,  1.0 );
+    lf->add_variable( & v_start_up[ t - init_t ] , v_MinPower[ t ] );
+    lf->add_variable( & v_commitment[ t - 1 ]    , v_DeltaRampUp[ t ] );
 
-    lf->add_variable
-            ( &v_commitment[t - 1], ( v_DeltaRampUp[t] ));
-
-    RampUp_Constraints[constraint_index].set_lhs( 0.0 );
-    RampUp_Constraints[constraint_index].set_rhs( Inf< double >());
-    RampUp_Constraints[constraint_index].set_function( lf );
+    RampUp_Constraints[ constraint_index ].set_lhs( 0.0 );
+    RampUp_Constraints[ constraint_index ].set_rhs( Inf< double >() );
+    RampUp_Constraints[ constraint_index ].set_function( lf );
    }
-
   }
   add_static_constraint( RampUp_Constraints, "RampUp" );
 
-
   // Initializing ramp down constraints
-
 
   RampDown_Constraints.resize( f_time_horizon );
 
@@ -597,143 +618,141 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   if( init_t == 0 ) {
    // Remaining constraints
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[0], 1.0 );
-   linear_function->add_variable
-           ( &v_commitment[0], v_DeltaRampDown[0] );
-   linear_function->add_variable
-           ( &v_shut_down[0], v_MinPower[0] );
-   if ( f_InitUpDownTime > 0 ) {
-    RampDown_Constraints[0].set_lhs( f_initial_power );
-   } else if ( f_InitUpDownTime <= 0 ){
-    RampDown_Constraints[0].set_lhs( 0.0 );
+   linear_function->add_variable( & v_active_power[ 0 ], 1.0 );
+   linear_function->add_variable( & v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
+   linear_function->add_variable( & v_shut_down[ 0 ] , v_MinPower[ 0 ] );
+   if( f_InitUpDownTime > 0 ) {
+    RampDown_Constraints[ 0 ].set_lhs( f_initial_power );
    }
-   RampDown_Constraints[0].set_rhs( Inf< double >());
-   RampDown_Constraints[0].set_function( linear_function );
-   for( Index t = 1, constraint_index = 1; t < f_time_horizon; ++t, ++constraint_index ) {
+   else if( f_InitUpDownTime <= 0 ){
+    RampDown_Constraints[ 0 ].set_lhs( 0.0 );
+   }
+   RampDown_Constraints[ 0 ].set_rhs( Inf< double >() );
+   RampDown_Constraints[ 0 ].set_function( linear_function );
+
+   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
+        ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t], 1.0 );
-    lf->add_variable( &v_active_power[t - 1], -1.0 );
-    lf->add_variable
-            ( &v_shut_down[t], v_MinPower[t] );
-    lf->add_variable
-            ( &v_commitment[t], ( v_DeltaRampDown[t] ));
+    lf->add_variable( & v_active_power[ t ]     , 1.0 );
+    lf->add_variable( & v_active_power[ t - 1 ] , -1.0 );
+    lf->add_variable( & v_shut_down[ t ] , v_MinPower[ t ] );
+    lf->add_variable( & v_commitment[ t ] , v_DeltaRampDown[ t ] );
 
-    RampDown_Constraints[constraint_index].set_lhs( 0.0 );
-    RampDown_Constraints[constraint_index].set_rhs( Inf< double >());
-    RampDown_Constraints[constraint_index].set_function( lf );
+    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
+    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ constraint_index ].set_function( lf );
    }
   }
 
   if( init_t > 0 ) {
    // Initial condition
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[0], 1.0 );
-   linear_function->add_variable
-           ( &v_commitment[0], v_DeltaRampDown[0] );
+   linear_function->add_variable( & v_active_power[ 0 ] , 1.0 );
+   linear_function->add_variable( & v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
    if ( f_InitUpDownTime > 0 ) {
-    RampDown_Constraints[0].set_lhs( f_initial_power );
-   } else if ( f_InitUpDownTime <= 0 ){
-    RampDown_Constraints[0].set_lhs( 0.0 );
+    RampDown_Constraints[ 0 ].set_lhs( f_initial_power );
    }
-   RampDown_Constraints[0].set_rhs( Inf< double >());
-   RampDown_Constraints[0].set_function( linear_function );
+   else if ( f_InitUpDownTime <= 0 ) {
+    RampDown_Constraints[ 0 ].set_lhs( 0.0 );
+   }
+   RampDown_Constraints[ 0 ].set_rhs( Inf< double >() );
+   RampDown_Constraints[ 0 ].set_function( linear_function );
 
-   for( Index t = 1, constraint_index = 1; t < init_t;
-        ++t, ++constraint_index ) {
+   for( Index t = 1 , constraint_index = 1 ; t < init_t ;
+        ++t , ++constraint_index ) {
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t - 1], -1.0 );
-    lf->add_variable( &v_active_power[t], 1.0 );
-    lf->add_variable
-            ( &v_commitment[t], v_DeltaRampDown[t] );
-    RampDown_Constraints[constraint_index].set_lhs( 0.0 );
-    RampDown_Constraints[constraint_index].set_rhs( Inf< double >());
-    RampDown_Constraints[constraint_index].set_function( lf );
+    lf->add_variable( & v_active_power[ t - 1 ] , -1.0 );
+    lf->add_variable( & v_active_power[ t ]     ,  1.0 );
+    lf->add_variable( & v_commitment[ t ] , v_DeltaRampDown[ t ] );
+    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
+    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ constraint_index ].set_function( lf );
    }
+
    // Remaining constraints
 
-   for( Index t = init_t, constraint_index = init_t; t < f_time_horizon; ++t, ++constraint_index ) {
+   for( Index t = init_t , constraint_index = init_t ; t < f_time_horizon ;
+        ++t , ++constraint_index ) {
 
     auto lf = new LinearFunction();
 
-    lf->add_variable( &v_active_power[t], 1.0 );
-    lf->add_variable( &v_active_power[t - 1], -1.0 );
-    lf->add_variable
-            ( &v_shut_down[t - init_t], v_MinPower[t] );
-    lf->add_variable
-            ( &v_commitment[t], ( v_DeltaRampDown[t] ));
+    lf->add_variable( & v_active_power[ t ]       ,  1.0 );
+    lf->add_variable( & v_active_power[ t - 1 ]   , -1.0 );
+    lf->add_variable( & v_shut_down[ t - init_t ] , v_MinPower[ t ] );
+    lf->add_variable( & v_commitment[ t ]         , v_DeltaRampDown[ t ] );
 
-    RampDown_Constraints[constraint_index].set_lhs( 0.0 );
-    RampDown_Constraints[constraint_index].set_rhs( Inf< double >());
-    RampDown_Constraints[constraint_index].set_function( lf );
+    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
+    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ constraint_index ].set_function( lf );
    }
   }
 
   add_static_constraint( RampDown_Constraints, "RampDown" );
 
  }
+
 /*--------------------------------------------------------------------------*/
 
  // Initializing minimum power constraints
 
+ MinPower_Constraints.resize( f_time_horizon );
 
-  MinPower_Constraints.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  auto linear_function = new LinearFunction();
 
-   auto linear_function = new LinearFunction();
-
-   linear_function->add_variable( &v_active_power[t], 1.0 );
-   if ( v_PrimaryRho[t] > 0 ) {
-    linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
-   }
-   if (v_SecondaryRho[t] > 0 ) {
-    linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
-   }
-   linear_function->add_variable( &v_commitment[t], -v_MinPower[t] );
-
-   MinPower_Constraints[t].set_rhs( Inf< double >());
-   MinPower_Constraints[t].set_lhs( 0.0 );
-   MinPower_Constraints[t].set_function( linear_function );
+  linear_function->add_variable( & v_active_power[ t ] , 1.0 );
+  if( v_PrimaryRho[ t ] > 0 ) {
+   linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
   }
+  if(v_SecondaryRho[ t ] > 0 ) {
+   linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
+  }
+  linear_function->add_variable( & v_commitment[ t ] , -v_MinPower[ t ] );
+
+  MinPower_Constraints[t].set_rhs( Inf< double >() );
+  MinPower_Constraints[t].set_lhs( 0.0 );
+  MinPower_Constraints[t].set_function( linear_function );
+ }
  add_static_constraint( MinPower_Constraints, "MinPower" );
 
  // Initializing maximum power constraints
-  MaxPower_Constraints.resize( f_time_horizon );
+ MaxPower_Constraints.resize( f_time_horizon );
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   auto linear_function = new LinearFunction();
+  auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[t], -1.0 );
-   if ( v_PrimaryRho[t] > 0 ) {
-    linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
-   }
-   if (v_SecondaryRho[t] > 0 ) {
-    linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
-   }
-   linear_function->add_variable( &v_commitment[t], v_MaxPower[t] );
-
-   MaxPower_Constraints[t].set_lhs( 0.0 );
-   MaxPower_Constraints[t].set_rhs( Inf< double >());
-   MaxPower_Constraints[t].set_function( linear_function );
+  linear_function->add_variable( & v_active_power[ t ] , -1.0 );
+  if( v_PrimaryRho[ t ] > 0 ) {
+   linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
   }
+  if(v_SecondaryRho[ t ] > 0 ) {
+   linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
+  }
+  linear_function->add_variable( & v_commitment[ t ] , v_MaxPower[ t ] );
+
+  MaxPower_Constraints[ t ].set_lhs( 0.0 );
+  MaxPower_Constraints[ t ].set_rhs( Inf< double >() );
+  MaxPower_Constraints[ t ].set_function( linear_function );
+ }
  add_static_constraint( MaxPower_Constraints, "MaxPower" );
 
 
  // Initializing primary rho fraction constraints
 
- if( v_PrimaryRho[0] > 0 ) {
+ if( v_PrimaryRho[ 0 ] > 0 ) {
   PrimaryRho_Constraints.resize( f_time_horizon );
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( &v_active_power[ t ], v_PrimaryRho[ t ] );
-   linear_function->add_variable( &v_primary_spinning_reserve[ t ], -1.0 );
+   linear_function->add_variable( & v_active_power[ t ] , v_PrimaryRho[ t ] );
+   linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
 
    PrimaryRho_Constraints[ t ].set_lhs( 0.0 );
    PrimaryRho_Constraints[ t ].set_rhs( Inf< double >() );
@@ -744,16 +763,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
  // Initializing secondary rho fraction constraints
 
- if( v_SecondaryRho[0] > 0  ) {
+ if( v_SecondaryRho[ 0 ] > 0  ) {
   SecondaryRho_Constraints.resize( f_time_horizon );
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[ t ],
-                                  v_SecondaryRho[ t ] );
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                  -1.0 );
+   linear_function->add_variable( & v_active_power[ t ] , v_SecondaryRho[ t ] );
+   linear_function->add_variable( & v_secondary_spinning_reserve[ t ], -1.0 );
 
    SecondaryRho_Constraints[ t ].set_lhs( 0.0 );
    SecondaryRho_Constraints[ t ].set_rhs( Inf< double >() );
@@ -770,7 +787,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
-// Initial condition of each vector
+ if( AR & HasObj )
+  return; // Objective has already been generated
+
+ // Initial condition of each vector
  std::vector<double> start_up_cost = this->v_StartUpCost;
  if( start_up_cost.size() == 1 ) {
   start_up_cost.resize( f_time_horizon - init_t, start_up_cost[ 0 ] );
@@ -848,8 +868,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
   }
  }
 /*--------------------------------------------------------------------------*/
- if( get_objective() != nullptr )  // an objective is there already
-  return;                        // cowardly (and silently) return
 
  // Initialize objective function
 
@@ -874,18 +892,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  auto dquad_function = new DQuadFunction();
 
  for( Index t = init_t; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_start_up[ t - init_t ],
-                                start_up_cost[ t - init_t ],
+  dquad_function->add_variable( &v_start_up[ t - init_t ] ,
+                                start_up_cost[ t - init_t ] ,
                                 0.0 );
  }
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_active_power[ t ],
-                                linear_term[ t ],
-                                quad_term[ t ] );
-  dquad_function->add_variable( &v_commitment[ t ],
-                                const_term[ t ],
-                                0.0 );
+  dquad_function->add_variable
+   ( & v_active_power[ t ] , linear_term[ t ] , quad_term[ t ] );
+
+  dquad_function->add_variable
+   ( & v_commitment[ t ] , const_term[ t ] , 0.0 );
  }
 
  objective.set_function( dquad_function );
@@ -893,6 +910,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
  // Set Block objective
  this->set_objective( &objective );
+
  AR |= HasObj;
 }  // end( ThermalUnitBlock::generate_objective )
 

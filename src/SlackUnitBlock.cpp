@@ -59,6 +59,29 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "MaxPower",
+                                              "MaxPrimaryPower",
+                                              "MaxSecondaryPower",
+                                              "ActivePowerCost",
+                                              "PrimaryCost",
+                                              "SecondaryCost",
+                                              "InertiaCost",
+                                              "MaxInertia"};
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
@@ -88,6 +111,10 @@ void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 void SlackUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
+
+ if( AR & HasVar )
+  return; // variables have already been generated
+
 /*--------------------------------------------------------------------------*/
  if ( f_time_horizon > 0 ){
 
@@ -141,6 +168,8 @@ void SlackUnitBlock::generate_abstract_variables
 
  }
 
+ AR |= HasVar;
+
 } // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -148,8 +177,15 @@ void SlackUnitBlock::generate_abstract_variables
 void SlackUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
+
+
  //TODO ADD BOUND CONSTRAINTS
 
+
+ AR |= HasCst;
 } // end( SlackUnitBlock::generate_abstract_constraints )
 
 
@@ -208,6 +244,8 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
 
  // Set Block objective
  this->set_objective( &objective );
+
+ AR |= HasObj;
 }  // end( SlackUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/

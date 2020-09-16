@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 07 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -57,9 +57,41 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlock::~IntermittentUnitBlock() {
+ for( auto & constraint : MinPower_Constraints )
+  constraint.clear();
+ for( auto & constraint : MaxPower_Constraints )
+  constraint.clear();
+ for( auto & constraint : active_power_bounds_Constraints )
+  constraint.clear();
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
+
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] IntermittentUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] IntermittentUnitBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "MinPower",
+                                              "MaxPower",
+                                              "InertiaPower",
+                                              "Gamma",
+                                              "Kappa" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
 
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
@@ -87,9 +119,13 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 void IntermittentUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
+
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  UnitBlock::generate_abstract_variables( stvv );
 
- if ( f_time_horizon > 0 ){
+ if( f_time_horizon > 0 ) {
 
   // Active Power Variable
 
@@ -137,6 +173,10 @@ void IntermittentUnitBlock::generate_abstract_variables
 void IntermittentUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
+
  // initial condition of each vector
  std::vector<double> min_power = v_minimum_power;
  if (min_power.size() == 1) {

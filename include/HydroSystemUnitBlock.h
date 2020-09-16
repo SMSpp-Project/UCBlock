@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 05 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -101,9 +101,13 @@ class HydroSystemUnitBlock : public UnitBlock {
   UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of HydroSystemUnitBlock: it is virtual, and empty
+ /// Destructor of HydroSystemUnitBlock
 
- ~HydroSystemUnitBlock() override = default;
+ virtual ~HydroSystemUnitBlock() override {
+  for( auto block : v_Block )
+   delete block;
+  v_Block.clear();
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -198,6 +202,22 @@ class HydroSystemUnitBlock : public UnitBlock {
  /// Returns the i-th HydroUnitBlock
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of active_power variables of each HydroUnitBlock
+
+ ColVariable * get_active_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_active_power( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
+ }
 /*--------------------------------------------------------------------------*/
 
  virtual Index get_number_generators( void ) const override {

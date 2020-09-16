@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 02 - 09 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -161,7 +161,7 @@ class BatteryUnitBlock : public UnitBlock {
 
 /// destructor of BatteryUnitBlock
 
- ~BatteryUnitBlock() override = default;
+ virtual ~BatteryUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -320,8 +320,8 @@ class BatteryUnitBlock : public UnitBlock {
  *   StoringBatteryRho[ i ] is the fixed value of SBR[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must be always
- *   such that 1 <= SBR[ t ] for all t (as SBR[ t ] is the amount of energy
- *   that has to be used to store 1 unit of energy in the battery). If
+ *   such that SBR[ t ] <= 1 for all t (as SBR[ t ] is the amount of energy
+ *   actually going in the battery for each 1 unit of input energy). If
  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
@@ -338,9 +338,9 @@ class BatteryUnitBlock : public UnitBlock {
  *   for all t. Otherwise, ExtractingBatterRho[ i ] is the fixed value of EBR[
  *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ - 1 ] =
- *   0. Note that it must be always such that EBR[ t ] <= 1 [<= SBR[ t ]] for
- *   all t (as EBR[ t ] is the amount of energy that is obtained when 1 unit
- *   of energy is removed from the battery). If NumberIntervals <= 1 or
+ *   0. Note that it must be always such that EBR[ t ] >= 1 [>= SBR[ t ]] for
+ *   all t (as EBR[ t ] is the amount of energy that is taken away from the
+ *   battery to obtain 1 unit of output energy). If NumberIntervals <= 1 or
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
@@ -516,10 +516,10 @@ class BatteryUnitBlock : public UnitBlock {
  *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
  *                              \quad t \in \mathcal{T}          \quad (9)
  *   \f]
- *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the StoringBatteryRho
- *   and ExtractingBatteryRho and \f$ V^{mn}_t\f$ and \f$ V^{mx}_t\f$ are the
- *   minimum and maximum storage level for each time t of the time horizon
- *   \f$ \mathcal{T} \f$ respectively.
+ *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the
+ *   ExtractingBatteryRho and StoringBatteryRho, and \f$ V^{mn}_t\f$ and
+ *   \f$ V^{mx}_t\f$ are the minimum and maximum storage level for each time t
+ *   of the time horizon \f$ \mathcal{T} \f$ respectively.
  *
  * - binary variable relation with storing and extracting energy level(if any)
  *   constraints are presented in (10-11). Each of them is a

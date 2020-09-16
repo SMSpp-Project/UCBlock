@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -59,10 +59,10 @@
 using namespace SMSpp_di_unipi_it;
 
 SMSpp_insert_in_factory_cpp_1( UCBlock );
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -79,12 +79,47 @@ UCBlock::UCBlock( Block * father ) : Block( father ) {
  f_number_pollutants = 0;
 }
 
-UnitBlock * UCBlock::get_unit_block( Index i ) const {
- return dynamic_cast<UnitBlock *>( v_Block[ i ] );
+/*--------------------------------------------------------------------------*/
+
+UCBlock::~UCBlock() {
+
+ auto clear_constraints =
+  []( boost::multi_array< FRowConstraint, 2 > & constraints ) {
+   auto constraint = constraints.data();
+   auto n = constraints.num_elements();
+   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+    constraint->clear();
+  };
+
+ clear_constraints( v_node_injection_constraints );
+ clear_constraints( v_node_injection_constraints );
+ clear_constraints( v_PrimaryDemand_Const );
+ clear_constraints( v_SecondaryDemand_Const );
+ clear_constraints( v_InertiaDemand_Const );
+ clear_constraints( v_power_Heat_Rho_Const );
+
+ for( auto & v : v_PollutantBudget_Const )
+  for( auto & constraint : v )
+   constraint.clear();
+
+ for( auto & block : v_Block )
+  delete block;
+ v_Block.clear();
+
+ delete f_NetworkData;
+ f_NetworkData = nullptr;
 }
 
+/*--------------------------------------------------------------------------*/
+
+UnitBlock * UCBlock::get_unit_block( Index i ) const {
+ return dynamic_cast<UnitBlock *>( v_Block[i] );
+}
+
+/*--------------------------------------------------------------------------*/
+
 NetworkBlock * UCBlock::get_network_block( Index t ) const {
- return dynamic_cast<NetworkBlock *>( v_Block[ f_number_units + t ] );
+ return dynamic_cast<NetworkBlock *>( v_Block[f_number_units + t] );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -114,16 +149,16 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group,
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
 
-  if( sub_group.isNull() ) {
+  if( sub_group.isNull()) {
    throw ( std::invalid_argument( "UCBlock::deserialize: " +
-                                  sub_group_name + " is not present" ) );
+                                  sub_group_name + " is not present" ));
   }
 
   // std::string class_name;
   // class_name_attribute.getValues( class_name );
   // auto sub_block = new_Block( class_name, this );
   // sub_block->deserialize( sub_group );
-  v_Block.push_back( new_Block( sub_group, this ) );
+  v_Block.push_back( new_Block( sub_group, this ));
  }
 }
 
@@ -137,16 +172,16 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
 
-  if( sub_group.isNull() ) {
+  if( sub_group.isNull()) {
    return;
   }
 
   auto class_name_attribute = sub_group.getAtt( "type" );
 
-  if( class_name_attribute.isNull() ) {
+  if( class_name_attribute.isNull()) {
    throw ( std::invalid_argument
-    ( "UCBlock::deserialize: type attribute "
-      "is not present in group " + sub_group_name ) );
+           ( "UCBlock::deserialize: type attribute "
+             "is not present in group " + sub_group_name ));
   }
 
   std::string class_name;
@@ -154,7 +189,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
   auto sub_block = new_Block( class_name, this );
   sub_block->deserialize( sub_group );
   v_Block.push_back( sub_block );
-  v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+  v_network_blocks[i] = dynamic_cast<NetworkBlock *>(sub_block);
  }
 }
 
@@ -162,8 +197,42 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
 
 void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = {"TimeHorizon",
+                                             "NumberUnits",
+                                             "NumberHeatBlocks",
+                                             "NumberPrimaryZones",
+                                             "NumberSecondaryZones",
+                                             "NumberInertiaZones",
+                                             "NumberPollutants"};
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = {"ActivePowerDemand",
+                                             "GeneratorNode",
+                                             "HeatNode",
+                                             "HeatSet",
+                                             "PowerHeatRho",
+                                             "PrimaryZones",
+                                             "PrimaryDemand",
+                                             "SecondaryZones",
+                                             "SecondaryDemand",
+                                             "InertiaZones",
+                                             "InertiaDemand",
+                                             "NumberPollutantZones",
+                                             "PollutantZones",
+                                             "PollutantBudget",
+                                             "PollutantRho"};
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  Index number_nodes = 1;
- if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
+ if( !::deserialize_dim( group, "NumberNodes", number_nodes, true ))
   number_nodes = 1;
 
  if( number_nodes > 1 ) {
@@ -176,14 +245,14 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize_dim( group, "NumberUnits", f_number_units, false );
 
  ::deserialize_dim( group, "NumberHeatGenerators",
-                                f_number_heat_generators,  true );
+                    f_number_heat_generators, true );
  ::deserialize_dim( group, "TotalNumberPollutantZones",
-                    f_total_number_pollutant_zones,        true );
+                    f_total_number_pollutant_zones, true );
 
  boost::multi_array< double, 2 > v_active_power_demand;
  bool ap_found = ::deserialize( group, "ActivePowerDemand",
                                 v_active_power_demand, true, false );
- transpose(v_active_power_demand);
+ transpose( v_active_power_demand );
 
  // Default values for optional dimensions
  f_number_heat_blocks = 0;
@@ -199,53 +268,53 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize_dim( group, "NumberPollutants", f_number_pollutants, true );
 
 
-  ::deserialize( group, "HeatSet", { f_number_units, f_number_heat_blocks },
-                   v_heat_set, true , false);
+ ::deserialize( group, "HeatSet", {f_number_units, f_number_heat_blocks},
+                v_heat_set, true, false );
 
-  ::deserialize( group, "PrimaryZones", number_nodes,
-                 v_primary_zones, true , true );
+ ::deserialize( group, "PrimaryZones", number_nodes,
+                v_primary_zones, true, true );
 
-  ::deserialize( group, "PrimaryDemand", v_primary_demand, true, false );
-
-
-  ::deserialize( group, "SecondaryZones", number_nodes,
-                 v_secondary_zones, true , true );
-
-  ::deserialize( group, "SecondaryDemand",
-                   v_secondary_demand, true , false );
-
-  ::deserialize( group, "InertiaZones", number_nodes,
-                 v_inertia_zones, true , true );
-
-  ::deserialize( group, "InertiaDemand",
-                   v_inertia_demand, true , false );
-
-  ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
-                 v_number_pollutant_zones, true , true );
-
-  ::deserialize( group, "PollutantZones",
-                   v_pollutant_zones, true , true );
-
-  ::deserialize( group, "PollutantBudget", {f_total_number_pollutant_zones},
-                 v_pollutant_budget, true , false );
-
-  ::deserialize( group, "PollutantRho",
-                   v_pollutant_rho, true , true );
-  ::deserialize( group, "PollutantHeatRho", v_pollutant_heat_rho, true , true );
+ ::deserialize( group, "PrimaryDemand", v_primary_demand, true, false );
 
 
- ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho, true , true );
+ ::deserialize( group, "SecondaryZones", number_nodes,
+                v_secondary_zones, true, true );
 
-  ::deserialize( group, "HeatNode", f_number_heat_blocks, v_heat_node, true , true );
+ ::deserialize( group, "SecondaryDemand",
+                v_secondary_demand, true, false );
 
-  // TODO
-  /* Notice that for units into a HeatBlock that also are electrical
-   * units, the v_heat_node variable provides another time an
-   * information that is already known, i.e., to which node they
-   * belong to. Of course *the two information must agree*,
-   * otherwise the input file is ill-defined and exception is
-   * thrown.
-   */
+ ::deserialize( group, "InertiaZones", number_nodes,
+                v_inertia_zones, true, true );
+
+ ::deserialize( group, "InertiaDemand",
+                v_inertia_demand, true, false );
+
+ ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
+                v_number_pollutant_zones, true, true );
+
+ ::deserialize( group, "PollutantZones",
+                v_pollutant_zones, true, true );
+
+ ::deserialize( group, "PollutantBudget", {f_total_number_pollutant_zones},
+                v_pollutant_budget, true, false );
+
+ ::deserialize( group, "PollutantRho",
+                v_pollutant_rho, true, true );
+ ::deserialize( group, "PollutantHeatRho", v_pollutant_heat_rho, true, true );
+
+
+ ::deserialize( group, "PowerHeatRho", f_number_units, v_power_heat_rho, true, true );
+
+ ::deserialize( group, "HeatNode", f_number_heat_blocks, v_heat_node, true, true );
+
+ // TODO
+ /* Notice that for units into a HeatBlock that also are electrical
+  * units, the v_heat_node variable provides another time an
+  * information that is already known, i.e., to which node they
+  * belong to. Of course *the two information must agree*,
+  * otherwise the input file is ill-defined and exception is
+  * thrown.
+  */
 
 
  deserialize_sub_blocks( group );
@@ -254,8 +323,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   for( auto i : v_network_blocks ) {
    if( i == nullptr )
     throw ( std::invalid_argument
-     ( "UCBlock::deserialize: ActivePowerDemand is "
-       "mandatory if NetworkBlocks are not specified" ) );
+            ( "UCBlock::deserialize: ActivePowerDemand is "
+              "mandatory if NetworkBlocks are not specified" ));
   }
   return;
  }
@@ -267,25 +336,25 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
   if( number_nodes == 1 ) {
    // BusNetworkBlock
 
-   if( v_network_blocks[ i ] ) {
+   if( v_network_blocks[i] ) {
     // A NetworkBlock already exists
-    sub_block = v_network_blocks[ i ];
+    sub_block = v_network_blocks[i];
     if( !sub_block->get_NetworkData() && f_NetworkData ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
-    if( sub_block->get_active_demand().empty() ) {
-     sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+    if( sub_block->get_active_demand().empty()) {
+     sub_block->set_ActiveDemand( {v_active_power_demand[0][i]} );
     }
 
    } else {
     // Create a new BusNetworkBlock
     sub_block = new BusNetworkBlock( this );
     v_Block.push_back( sub_block );
-    v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    v_network_blocks[i] = dynamic_cast<NetworkBlock *>(sub_block);
     if( f_NetworkData ) {
      sub_block->set_NetworkData( f_NetworkData );
     }
-    sub_block->set_ActiveDemand( { v_active_power_demand[ 0 ][ i ] } );
+    sub_block->set_ActiveDemand( {v_active_power_demand[0][i]} );
    }
 
 
@@ -293,18 +362,18 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
    // DCNetworkBlock
 
    typedef boost::multi_array_types::index_range range;
-   auto ap_c = v_active_power_demand[ boost::indices[ range( 0, number_nodes ) ][ i ] ];
+   auto ap_c = v_active_power_demand[boost::indices[range( 0, number_nodes )][i]];
    std::vector< double > ap_v( number_nodes );
-   std::copy( ap_c.begin(), ap_c.end(), ap_v.begin() );
+   std::copy( ap_c.begin(), ap_c.end(), ap_v.begin());
 
-   if( v_network_blocks[ i ] ) {
+   if( v_network_blocks[i] ) {
     // A NetworkBlock already exists
-    sub_block = v_network_blocks[ i ];
-    if( !sub_block->get_NetworkData() ) {
+    sub_block = v_network_blocks[i];
+    if( !sub_block->get_NetworkData()) {
      // If we are here, we know that f_NetworkData is not null
      sub_block->set_NetworkData( f_NetworkData );
     }
-    if( sub_block->get_active_demand().empty() ) {
+    if( sub_block->get_active_demand().empty()) {
      sub_block->set_ActiveDemand( ap_v );
     }
 
@@ -312,27 +381,23 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
     // Create a new DCNetworkBlock
     sub_block = new DCNetworkBlock( this );
     v_Block.push_back( sub_block );
-    v_network_blocks[ i ] = dynamic_cast<NetworkBlock *>(sub_block);
+    v_network_blocks[i] = dynamic_cast<NetworkBlock *>(sub_block);
     sub_block->set_NetworkData( f_NetworkData );
     sub_block->set_ActiveDemand( ap_v );
    }
   }
  }
 
- if( ! ::deserialize_dim( group, "NumberElectricalGenerators", f_number_elc_generators, true ) ) {
+ if( !::deserialize_dim( group, "NumberElectricalGenerators", f_number_elc_generators, true )) {
   f_number_elc_generators = 0;
-
-  for( auto block : get_nested_Blocks()) { //TODO Cheek it again
-   auto unit_block = static_cast<UnitBlock *>(block);
-   if( unit_block == nullptr )
-    continue;
-   Index g = unit_block->get_number_generators();
-   f_number_elc_generators += g;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ))
+    f_number_elc_generators += unit_block->get_number_generators();
   }
  }
 
-  ::deserialize( group, "GeneratorNode", f_number_elc_generators,
-                v_generator_node, true , true );
+ ::deserialize( group, "GeneratorNode", f_number_elc_generators,
+                v_generator_node, true, true );
 
  Block::deserialize( group );
 
@@ -342,126 +407,150 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- Block::generate_abstract_constraints(stcc);
+ Block::generate_abstract_constraints( stcc );
 
  unsigned int number_nodes = f_NetworkData ? f_NetworkData->
-  get_number_nodes() : 1;
+         get_number_nodes() : 1;
 
  // Node injection constraints.
 
  if( v_node_injection_constraints.size() != f_time_horizon ) {
   // this should only happen once
-  assert( v_node_injection_constraints.empty() );
+  assert( v_node_injection_constraints.empty());
 
   v_node_injection_constraints.resize
-   ( boost::multi_array< FRowConstraint, 2 >::
-     extent_gen()[ f_time_horizon ][ number_nodes ] );
+          ( boost::multi_array< FRowConstraint, 2 >::
+            extent_gen()[f_time_horizon][number_nodes] );
  }
 
  if( number_nodes > 0 ) {
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  if( number_nodes == 1 ) { //BusNetwork no need to GeneratorNode
 
-   auto & node_injection = v_network_blocks[ t ]->get_node_injection();
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-   for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-
+    auto & node_injection = v_network_blocks[t]->get_node_injection();
     auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &node_injection[ node_id ], -1.0 , eNoMod);
+    linear_function->add_variable( &node_injection[0], -1.0, eNoMod );
 
-    v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+    v_node_injection_constraints[t][0].set_both( 0.0 );
 
     Index generator_id = 0;
     Index unit_id = 0;
 
-    for( auto block : get_nested_Blocks() ) {
+    for( auto block : get_nested_Blocks()) {
      auto unit_block = dynamic_cast<UnitBlock *>(block);
      if( unit_block == nullptr )
       continue;
      unit_block->get_number_generators();
 
-   if ( number_nodes == 1) { //BusNetwork no need to GeneratorNode
+     for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
 
-    for( Index g = 0; g < unit_block->get_number_generators(); ++g ) {
+      auto fixed_consumption = unit_block->get_fixed_consumption( g );
 
-     auto fixed_consumption = unit_block->get_fixed_consumption( g );
+      auto ap = unit_block->get_active_power( g );
+      auto active_power = &ap[t];
 
-     auto ap = unit_block->get_active_power( g );
-     auto active_power = &ap[t];
+      auto c = unit_block->get_commitment( g );
+      auto commitment = &c[t];
 
-     auto c = unit_block->get_commitment( g );
-     auto commitment = &c[t];
+      linear_function->add_variable( active_power, 1.0, eNoMod );
 
-     linear_function->add_variable( active_power, 1.0, eNoMod );
-     if( c != nullptr ) {
-      if( fixed_consumption != nullptr ) {
-       linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
-      } else {
-       linear_function->add_variable( commitment, 0.0, eNoMod );
+      if( c != nullptr ) {
+       if( fixed_consumption != nullptr ) {
+        linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+       } else {
+        linear_function->add_variable( commitment, 0.0, eNoMod );
+       }
       }
+      if( fixed_consumption != nullptr ) {
+       v_node_injection_constraints[t][0].set_both
+               ( v_node_injection_constraints[t][0].get_rhs()
+                 - fixed_consumption[t] );
+      } else {
+       v_node_injection_constraints[t][0].set_both
+               ( v_node_injection_constraints[t][0].get_rhs()
+                 - 0.0 );
+      }
+      generator_id++;
      }
-     if( fixed_consumption != nullptr ) {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - fixed_consumption[t] );
-     } else {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - 0.0 );
-     }
-     generator_id++;
     }
-    } else {  //DCNetwork needs GeneratorNode
+    v_node_injection_constraints[t][0].set_function( linear_function );
+    //}
+   }
+  } else {  //DCNetwork needs GeneratorNode
 
-    for( Index g = 0; g < f_number_elc_generators; ++g ) { //TODO Cheek it again
+   // TODO this is wrong
 
-     Index generator_node = 0;
-     generator_node = v_generator_node[ g ];
+   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-     auto fixed_consumption = unit_block->get_fixed_consumption( generator_node );
+    auto & node_injection = v_network_blocks[t]->get_node_injection();
 
-     auto ap = unit_block->get_active_power( generator_node );
-     auto active_power = &ap[t];
+    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
-     auto c = unit_block->get_commitment( generator_node );
-     auto commitment = &c[t];
+     auto linear_function = new LinearFunction();
 
-     linear_function->add_variable( active_power, 1.0, eNoMod );
-     if( c != nullptr ) {
-      if( fixed_consumption != nullptr ) {
-       linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
-      } else {
-       linear_function->add_variable( commitment, 0.0, eNoMod );
+     linear_function->add_variable( &node_injection[node_id], -1.0, eNoMod );
+
+     v_node_injection_constraints[t][node_id].set_both( 0.0 );
+
+     Index generator_id = 0;
+     for( Index g = 0; g < f_number_elc_generators; ++g ) {
+      if( node_id == v_generator_node[g] ) {
+
+       //for( auto block : get_nested_Blocks()) {
+       auto block = get_nested_Blocks()[generator_id++];
+       auto unit_block = dynamic_cast<UnitBlock *>(block);
+       if( unit_block == nullptr )
+        continue;
+       for( Index generator_id = 0; generator_id < unit_block->get_number_generators(); ++generator_id ) {
+
+        auto fixed_consumption = unit_block->get_fixed_consumption( generator_id );
+
+        auto ap = unit_block->get_active_power( generator_id );
+        auto active_power = &ap[t];
+
+        auto c = unit_block->get_commitment( generator_id );
+        auto commitment = &c[t];
+
+        linear_function->add_variable( active_power, 1.0, eNoMod );
+        if( c != nullptr ) {
+         if( fixed_consumption != nullptr ) {
+          linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+         } else {
+          linear_function->add_variable( commitment, 0.0, eNoMod );
+         }
+        }
+        if( fixed_consumption != nullptr ) {
+         v_node_injection_constraints[t][node_id].set_both
+                 ( v_node_injection_constraints[t][node_id].get_rhs()
+                   - fixed_consumption[t] );
+        } else {
+         v_node_injection_constraints[t][node_id].set_both
+                 ( v_node_injection_constraints[t][node_id].get_rhs()
+                   - 0.0 );
+        }
+       }
+       // }
       }
+      generator_id++;
+
      }
-     if( fixed_consumption != nullptr ) {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - fixed_consumption[t] );
-     } else {
-      v_node_injection_constraints[t][node_id].set_both
-              ( v_node_injection_constraints[t][node_id].get_rhs()
-                - 0.0 );
-     }
-     generator_id++;
+     v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
    }
   }
-    v_node_injection_constraints[ t ][ node_id ].set_function( linear_function );
- }
-}
-
   add_static_constraint( v_node_injection_constraints, "node_injection_c" );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 // initial conditions
 
- unsigned int number_primary_zones = f_number_primary_zones ;
- unsigned int number_secondary_zones = f_number_secondary_zones ;
- unsigned int number_inertia_zones = f_number_inertia_zones ;
+ unsigned int number_primary_zones = f_number_primary_zones;
+ unsigned int number_secondary_zones = f_number_secondary_zones;
+ unsigned int number_inertia_zones = f_number_inertia_zones;
 
 
  // Primary demand constraints. For BusNetwork
@@ -500,7 +589,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      auto primary_spinning_reserve = &primary_s_r[t];
 
      auto linear_function = static_cast<LinearFunction *>
-     ( v_PrimaryDemand_Const[ t ][ 0 ].get_function() );
+     ( v_PrimaryDemand_Const[t][0].get_function());
 
      linear_function->
              add_variable( primary_spinning_reserve, 1.0 );
@@ -519,11 +608,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( v_SecondaryDemand_Const.size() != f_time_horizon ) {
    // this should only happen once
-   assert( v_SecondaryDemand_Const.empty() );
+   assert( v_SecondaryDemand_Const.empty());
 
    v_SecondaryDemand_Const.resize
-    ( boost::multi_array< FRowConstraint, 2 >::
-      extent_gen()[ f_time_horizon ][ number_secondary_zones ] );
+           ( boost::multi_array< FRowConstraint, 2 >::
+             extent_gen()[f_time_horizon][number_secondary_zones] );
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -568,11 +657,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( v_InertiaDemand_Const.size() != f_time_horizon ) {
    // this should only happen once
-   assert( v_InertiaDemand_Const.empty() );
+   assert( v_InertiaDemand_Const.empty());
 
    v_InertiaDemand_Const.resize
-    ( boost::multi_array< FRowConstraint *, 2 >::
-      extent_gen()[ f_time_horizon ][ number_inertia_zones ] );
+           ( boost::multi_array< FRowConstraint *, 2 >::
+             extent_gen()[f_time_horizon][number_inertia_zones] );
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -606,19 +695,19 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      auto c = unit_block->get_commitment( g );
      auto commitment = &c[t];
 
-     auto inertia_commitment = unit_block->get_inertia_commitment(g);
-     auto inertia_power = unit_block->get_inertia_power(g);
+     auto inertia_commitment = unit_block->get_inertia_commitment( g );
+     auto inertia_power = unit_block->get_inertia_power( g );
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_InertiaDemand_Const[t][zone_id].get_function());
 
-     if (inertia_commitment != nullptr && c != nullptr ) {
+     if( inertia_commitment != nullptr && c != nullptr ) {
 
-      linear_function->add_variable( commitment , inertia_commitment[t] );
+      linear_function->add_variable( commitment, inertia_commitment[t] );
      }
 
      if( ap != nullptr && inertia_power != nullptr ) {
-      linear_function->add_variable( active_power , inertia_power[t] );
+      linear_function->add_variable( active_power, inertia_power[t] );
      }
     }
    }
@@ -798,117 +887,117 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
  auto dim_number_units = group.addDim( "NumberUnits", f_number_units );
  auto dim_number_elc_generators = group.addDim( "NumberElectricalGenerators",
-         f_number_elc_generators);
+                                                f_number_elc_generators );
  auto dim_number_heat_generators = group.addDim( "NumberHeatGenerators",
-                                       f_number_heat_generators );
+                                                 f_number_heat_generators );
  auto dim_total_number_pollutant_zone = group.addDim( "TotalNumberPollutantZones",
-                                                 f_total_number_pollutant_zones );
+                                                      f_total_number_pollutant_zones );
  auto dim_number_nodes = group.addDim( "NumberNodes",
-         f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
+                                       f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
 
 
  auto dim_number_heat_blocks =
-  group.addDim( "NumberHeatBlocks", f_number_heat_blocks );
+         group.addDim( "NumberHeatBlocks", f_number_heat_blocks );
  auto dim_number_primary_zones =
-  group.addDim( "NumberPrimaryZones", f_number_primary_zones );
+         group.addDim( "NumberPrimaryZones", f_number_primary_zones );
  auto dim_number_secondary_zones =
-  group.addDim( "NumberSecondaryZones", f_number_secondary_zones );
+         group.addDim( "NumberSecondaryZones", f_number_secondary_zones );
  auto dim_number_inertia_zones =
-  group.addDim( "NumberInertiaZones", f_number_inertia_zones );
+         group.addDim( "NumberInertiaZones", f_number_inertia_zones );
  auto dim_number_pollutants =
-  group.addDim( "NumberPollutants", f_number_pollutants );
+         group.addDim( "NumberPollutants", f_number_pollutants );
 
-  ::serialize( group, "HeatSet", netCDF::NcUint64(),
-                 { dim_number_units, dim_number_heat_blocks }, v_heat_set);
-
-
-  ::serialize( group, "PrimaryZones", netCDF::NcUint64(),
-               {dim_number_nodes}, v_primary_zones, true );
+ ::serialize( group, "HeatSet", netCDF::NcUint64(),
+              {dim_number_units, dim_number_heat_blocks}, v_heat_set );
 
 
-  ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
-                 { dim_number_primary_zones, dim_time_horizon },
-                 v_primary_demand, false );
+ ::serialize( group, "PrimaryZones", netCDF::NcUint64(),
+              {dim_number_nodes}, v_primary_zones, true );
 
 
-  ::serialize( group, "SecondaryZones", netCDF::NcUint64(),
-               { dim_number_nodes }, v_secondary_zones, true );
-
-  ::serialize( group, "SecondaryDemand", netCDF::NcDouble(),
-                 { dim_number_secondary_zones, dim_time_horizon },
-                 v_secondary_demand, false );
+ ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
+              {dim_number_primary_zones, dim_time_horizon},
+              v_primary_demand, false );
 
 
-  ::serialize( group, "InertiaZones", netCDF::NcUint64(),
-               { dim_number_nodes }, v_inertia_zones, true );
+ ::serialize( group, "SecondaryZones", netCDF::NcUint64(),
+              {dim_number_nodes}, v_secondary_zones, true );
 
-    ::serialize( group, "InertiaDemand", netCDF::NcDouble(),
-                 { dim_number_inertia_zones, dim_time_horizon } ,
-                 v_inertia_demand, false);
+ ::serialize( group, "SecondaryDemand", netCDF::NcDouble(),
+              {dim_number_secondary_zones, dim_time_horizon},
+              v_secondary_demand, false );
 
-  ::serialize( group, "NumberPollutantZones", netCDF::NcUint64(),
-               { dim_number_pollutants }, v_number_pollutant_zones, true );
 
-     ::serialize( group, "PollutantZones", netCDF::NcUint64(),
-                 { dim_number_pollutants, dim_number_nodes },
-                 v_pollutant_zones, true );
+ ::serialize( group, "InertiaZones", netCDF::NcUint64(),
+              {dim_number_nodes}, v_inertia_zones, true );
 
-    ::serialize( group, "PollutantBudget", netCDF::NcDouble(),
-                 { dim_total_number_pollutant_zone}, v_pollutant_budget, false );
+ ::serialize( group, "InertiaDemand", netCDF::NcDouble(),
+              {dim_number_inertia_zones, dim_time_horizon},
+              v_inertia_demand, false );
 
-    ::serialize( group, "PollutantRho", netCDF::NcDouble(),
-                 { dim_time_horizon, dim_number_pollutants, dim_number_units },
-                 v_pollutant_rho );
+ ::serialize( group, "NumberPollutantZones", netCDF::NcUint64(),
+              {dim_number_pollutants}, v_number_pollutant_zones, true );
 
-    ::serialize( group, "PollutantHeatRho", netCDF::NcDouble(),
-                 { dim_time_horizon, dim_number_pollutants,
-                     dim_number_heat_blocks },
-                 v_pollutant_heat_rho );
+ ::serialize( group, "PollutantZones", netCDF::NcUint64(),
+              {dim_number_pollutants, dim_number_nodes},
+              v_pollutant_zones, true );
+
+ ::serialize( group, "PollutantBudget", netCDF::NcDouble(),
+              {dim_total_number_pollutant_zone}, v_pollutant_budget, false );
+
+ ::serialize( group, "PollutantRho", netCDF::NcDouble(),
+              {dim_time_horizon, dim_number_pollutants, dim_number_units},
+              v_pollutant_rho );
+
+ ::serialize( group, "PollutantHeatRho", netCDF::NcDouble(),
+              {dim_time_horizon, dim_number_pollutants,
+               dim_number_heat_blocks},
+              v_pollutant_heat_rho );
 
  ::serialize( group, "PowerHeatRho", netCDF::NcDouble(),
-              { dim_number_units }, v_power_heat_rho );
+              {dim_number_units}, v_power_heat_rho );
 
-  ::serialize( group, "GeneratorNode", netCDF::NcUint64(),
-               { dim_number_elc_generators }, v_generator_node );
+ ::serialize( group, "GeneratorNode", netCDF::NcUint64(),
+              {dim_number_elc_generators}, v_generator_node );
 
 
-  ::serialize( group, "HeatNode", netCDF::NcUint64(),
-               { dim_number_heat_blocks }, v_heat_node );
+ ::serialize( group, "HeatNode", netCDF::NcUint64(),
+              {dim_number_heat_blocks}, v_heat_node );
 
 
  // Serialize sub-blocks
 
- if (f_NetworkData) {
+ if( f_NetworkData ) {
   auto sub_group = group.addGroup( "NetworkData" );
-  f_NetworkData->serialize(sub_group);
+  f_NetworkData->serialize( sub_group );
  }
 
  for( Index i = 0; i < f_number_units; ++i ) {
   auto sub_block = get_unit_block( i );
-  auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ) );
+  auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ));
   sub_block->serialize( sub_group );
  }
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
   auto sub_block = get_network_block( t );
-  auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ) );
+  auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ));
   sub_block->serialize( sub_group );
  }
 
  for( Index i = 0; i < f_number_heat_blocks; ++i ) {
-  auto sub_block = get_heat_block() [ i ];
-  auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ) );
+  auto sub_block = get_heat_block()[i];
+  auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ));
   sub_block->serialize( sub_group );
  }
 }  // end( UCBlock::serialize )
 
 template< typename T >
 void UCBlock::transpose( boost::multi_array< T, 2 > & a ) {
- long rows = a.shape()[ 0 ];
- long cols = a.shape()[ 1 ];
+ long rows = a.shape()[0];
+ long cols = a.shape()[1];
  if( rows > 1 && cols == 1 ) {
   // The vector must be transposed
-  boost::array< typename boost::multi_array< T, 2 >::index, 2 > dims = { { 1, rows } };
+  boost::array< typename boost::multi_array< T, 2 >::index, 2 > dims = {{1, rows}};
   a.reshape( dims );
  }
 }

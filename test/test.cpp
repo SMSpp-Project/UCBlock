@@ -24,11 +24,12 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*
 #include <experimental/filesystem>
-#include <boost/lambda/bind.hpp>
 #include <chrono>
 namespace fs = std::experimental::filesystem;
 using namespace boost::lambda;
+*/
 
 #include "SMSTypedefs.h"
 #include "ColVariable.h"

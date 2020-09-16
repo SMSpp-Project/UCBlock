@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -52,52 +52,66 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+DCNetworkBlock::~DCNetworkBlock() {
+ for( auto & constraint : v_AC_power_flow_limit_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_HVDC_power_flow_limit_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_power_flow_injection_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_AC_HVDC_power_flow_constraints )
+  constraint.clear();
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
+ if( AR & HasVar )
+  return; // variables have already been generated
+
  int number_nodes = f_NetworkData->get_number_nodes();
 
  int number_lines = f_NetworkData->get_number_lines();
 
-if (number_nodes > 1) {
- // the node injection variables
- if (v_node_injection.size() != number_nodes ){
-  assert( v_node_injection.empty()); // this should only happen once
+ if( number_nodes > 1 ) {
+  // the node injection variables
   v_node_injection.resize( number_nodes );
-  int n = 0;
-  for( auto & i : v_node_injection ) {
-   i.set_type( ColVariable::kContinuous );
-  }
+  for( auto & var : v_node_injection )
+   var.set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection, "S" );
-
  }
-}
 
- if ( number_lines > 0 ) {
-
+ if( number_lines > 0 ) {
   // the power flow Variable
+  v_power_flow.resize( number_lines );
+  for( auto & var : v_power_flow )
+   var.set_type( ColVariable::kContinuous );
+  add_static_variable( v_power_flow, "f" );
+ }
 
-  if( v_power_flow.size() != number_lines ) {
-   assert( v_power_flow.empty()); // this should only happen once
-   v_power_flow.resize( number_lines );
-   int n = 0;
-   for( auto & i : v_power_flow ) {
-    i.set_type( ColVariable::kContinuous );
-   }
-   add_static_variable( v_power_flow, "pf" );
-  }
- }
  AR |= HasVar;
- }
+
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
+
+ if( AR & HasCst )
+  return; // constraints have already been generated
 
  if( f_NetworkData->get_number_nodes() > 1 ) {
 
@@ -135,18 +149,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   //  Net Transfer Capacity (NTC) model
 /*--------------------------------------------------------------------------*/
+
   // HVDC power flow limit
+
+
+  // if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
+
   if( v_HVDC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
 
    assert( v_HVDC_power_flow_limit_constraints.empty());
    v_HVDC_power_flow_limit_constraints.resize( f_NetworkData->get_number_lines());
   }
-
   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
        ++line_id ) {
-
-   if( Susceptance.empty() || Susceptance[line_id] == 0 ) {
-
     auto linear_function = new LinearFunction();
 
     linear_function->add_variable( &v_power_flow[line_id], 1.0 );
@@ -155,13 +170,16 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     v_HVDC_power_flow_limit_constraints[line_id].set_rhs( MaxPowerFlow[line_id] );
     v_HVDC_power_flow_limit_constraints[line_id].set_function( linear_function );
 
-   }
+
+  // }
+
   }
   add_static_constraint( v_HVDC_power_flow_limit_constraints, "HVDC_power_flow_limit" );
 
 /*--------------------------------------------------------------------------*/
 
   // HVDC power flow and node injection constraints
+
   if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_nodes() ) {
    assert( v_power_flow_injection_constraints.empty() );
    v_power_flow_injection_constraints.resize( f_NetworkData->get_number_nodes() );
@@ -175,27 +193,28 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-    if( Susceptance.empty() || Susceptance[ line_id ] == 0 ) {
+    if( StartLine[line_id] == n ) {
 
-     if( StartLine[ line_id ] == n ) {
-      linear_function->add_variable( &v_power_flow[ n ], 1.0 );
-     }
-     else if( EndLine[ line_id ] == n ) {
-      linear_function->add_variable( &v_power_flow[ n ], - 1.0 );
+     linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+    }
 
-     }
-     v_power_flow_injection_constraints[ n ].set_both( 0.0 );
-     v_power_flow_injection_constraints[ n ].set_function( linear_function );
+    if( EndLine[line_id] == n ) {
+
+     linear_function->add_variable( &v_power_flow[line_id], -1.0 );
     }
    }
+    v_power_flow_injection_constraints[n].set_both( -v_active_demand[n] );
+    v_power_flow_injection_constraints[n].set_function( linear_function );
+
+
+
   }
   add_static_constraint( v_power_flow_injection_constraints ,
                          "HVDC_power_flow_injection" );
-
 /*--------------------------------------------------------------------------*/
 
 // TODO implementation of AC and AC-HVDC lines is not ready
-
+/*
   // AC power flow limit
   if( v_AC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
    // this should only happen once
@@ -205,24 +224,17 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // Flow limit constraints
 
-  // TODO
   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
        ++line_id ) {
-   if( Susceptance[line_id] != 0 ) { //  just AC lines model
 
 
-    auto min_power_flow = f_NetworkData->get_min_power_flow()[line_id];
-    auto max_power_flow = f_NetworkData->get_max_power_flow()[line_id];
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
-    for( Index node_id = 0; node_id < v_node_injection.size(); ++node_id ) {
+    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
 
-     double coefficient = 0.0; // TODO Compute the Power Transfer
+     double coefficient = 0.0;
      // Distribution Factor Matrix
-
-     if( coefficient == 0.0 )
-      continue;
 
      linear_function->add_variable
              ( &v_node_injection[node_id], coefficient );
@@ -231,6 +243,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     } // for each node
 
+
     // Set the function of the constraint
 
     v_AC_power_flow_limit_constraints[line_id].set_function( linear_function );
@@ -238,19 +251,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     // Set the left- and right-hand sides
 
     v_AC_power_flow_limit_constraints[line_id].set_lhs
-            ( min_power_flow - constant_term );
+            ( MinPowerFlow[line_id] - constant_term );
 
     v_AC_power_flow_limit_constraints[line_id].set_rhs
-            ( max_power_flow - constant_term );
-
-   } // for each line
+            ( MaxPowerFlow[line_id] - constant_term );
 
   }
   add_static_constraint( v_AC_power_flow_limit_constraints, "AC_power_low_limits" );
+  */
+/*--------------------------------------------------------------------------*/
 
 
   // AC-HVDC power flow limit
-
+/*
   if( v_AC_HVDC_power_flow_constraints.size() != f_NetworkData->get_number_lines()) {
    // this should only happen once
    assert( v_AC_HVDC_power_flow_constraints.empty());
@@ -261,7 +274,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   // TODO
 
   add_static_constraint( v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_limits" );
-
+*/
  }
  AR |= HasCst;
 }

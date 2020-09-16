@@ -7,10 +7,16 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-project(UCBlock VERSION 0.3.1 LANGUAGES CXX)
+project(UCBlock VERSION 0.4.0 LANGUAGES CXX)
 
 # ----- Requirements -------------------------------------------------------- #
 find_package(SMSpp REQUIRED)
+
+# ----- Settings ------------------------------------------------------------ #
+# Debug checks and printouts
+if (NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    add_compile_definitions(NDEBUG)
+endif ()
 
 # ----- Library ------------------------------------------------------------- #
 add_library(UCBlock )

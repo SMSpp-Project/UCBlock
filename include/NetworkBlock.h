@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 01 - 07 - 2019
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -132,7 +132,7 @@ class NetworkBlock : public Block {
   NetworkData();
 
   /// destructor of NetworkData: it is virtual, and empty
-  ~NetworkData() = default;
+  virtual ~NetworkData() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -356,7 +356,7 @@ class NetworkBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /// Destructor of NetworkBlock
 
- ~NetworkBlock() override = default;
+ virtual ~NetworkBlock() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -630,7 +630,7 @@ class NetworkBlockMod : public Modification {
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
- ~NetworkBlockMod() override = default;
+ virtual ~NetworkBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block() const override { return ( f_Block ); }
@@ -670,7 +670,7 @@ class NetworkBlockRngdMod : public NetworkBlockMod {
   : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
 
  /// destructor, does nothing
- ~NetworkBlockRngdMod() override = default;
+ virtual ~NetworkBlockRngdMod() override = default;
 
  /// accessor to the range
  Block::c_Range & rng() { return( f_rng ); }
@@ -702,7 +702,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod {
   : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
- ~NetworkBlockSbstMod() override = default;
+ virtual ~NetworkBlockSbstMod() override = default;
 
  /// accessor to the subset
  Block::c_Subset & nms() { return( f_nms ); }

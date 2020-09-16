@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 25 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -150,9 +150,9 @@ class UCBlock : public Block {
  explicit UCBlock( Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of UCBlock: it is virtual, and empty
+ /// Destructor of UCBlock
 
- ~UCBlock() override = default;
+ virtual ~UCBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -687,7 +687,7 @@ class UCBlock : public Block {
  *   in UC parlance).
  */
 
- void generate_abstract_constraints( Configuration * stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/

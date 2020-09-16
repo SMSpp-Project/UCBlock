@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 03 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -60,6 +60,24 @@ NetworkBlock::NetworkData::NetworkData() {
 
 void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "NumberNodes",
+                                              "NumberLines"};
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "StartLine",
+                                              "EndLine",
+                                              "MinPowerFlow",
+                                              "MaxPowerFlow",
+                                              "Susceptance" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
+
+
  if( ! ::deserialize_dim( group, "NumberNodes", f_number_nodes, true ) )
   f_number_nodes = 1;
 
@@ -83,8 +101,18 @@ void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
- auto network_data = new NetworkBlock::NetworkData();
- network_data->deserialize( group );
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = {"NumberNodes"};
+ check_dimensions( group, expected_dims, std::cerr );
+
+ std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Vars"
+           << std::endl;
+ std::vector< std::string > expected_vars = { "ActiveDemand" };
+ check_variables( group, expected_vars, std::cerr );
+#endif
 
  auto dim_number_nodes = group.getDim( "NumberNodes" );
 

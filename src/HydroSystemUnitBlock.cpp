@@ -57,6 +57,18 @@ HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::deserialize( netCDF::NcGroup & group ) {
+
+#ifndef NDEBUG
+ std::cerr << "[DEBUG] HydroSystemUnitBlock::deserialize() - Checking Dims"
+           << std::endl;
+ std::vector< std::string > expected_dims = { "TimeHorizon",
+                                              "NumberIntervals",
+                                              "NumberHydroUnits"};
+ check_dimensions( group, expected_dims, std::cerr );
+
+#endif
+
+
  UnitBlock::deserialize_time_horizon( group );
  ::deserialize_dim( group, "NumberHydroUnits", f_number_hydro_units, true );
  deserialize_sub_blocks( group );
@@ -124,6 +136,14 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
  for( auto sub_block : get_nested_Blocks() )
   if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
    auto number_reservoirs = hydro_unit_block->get_number_reservoirs();
+
+   // TODO We need the Variables of the HydroUnitBlocks. However, it is not
+   // appropriate to generate the abstract variables here, as it is
+   // responsibility of BlockConfig. Since Variables cannot be generated more
+   // than once, later calls to generate_abstract_variables() will be ignored
+   // and a possible Configuration being passed will have no effect.
+   hydro_unit_block->generate_abstract_variables();
+
    for( Index i = 0 ; i < number_reservoirs ; ++i )
     x.push_back( hydro_unit_block->get_volume( i , f_time_horizon - 1 ) );
   }

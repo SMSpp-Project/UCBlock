@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 05 - 2020
+ * \date 08 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -112,7 +112,7 @@ class HydroUnitBlock : public UnitBlock {
 
 /// destructor of HydroUnitBlock
 
- ~HydroUnitBlock() override = default;
+ virtual ~HydroUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -524,8 +524,8 @@ class HydroUnitBlock : public UnitBlock {
  *  - the flow rate variables
  *
  *   Each of the boost::multi_array< ColVariable, 2 > has as first dimension
- *   the time horizon and as second dimension the number of arcs(or generators
- *   which as returned get_number_generators()). The last
+ *   the time horizon and as second dimension the number of arcs (or
+ *   generators, which is returned by get_number_generators()). The last
  *   boost::multi_array< ColVariable, 2 > variable is:
  *
  *  - the volumetric variables
@@ -541,7 +541,7 @@ class HydroUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the HydroUnit
@@ -559,12 +559,12 @@ class HydroUnitBlock : public UnitBlock {
  * associated lower and upper bounds \f$ V^{hy,mn}_{n,t}\f$,
  * \f$ V^{hy,mx}_{n,t}\f$ and inflows \f$ A_{n,t}\f$ in \f$ m^3 /s \f$. The
  * uphill and downhill flow rate are defined as \f$ \tau^{up} \f$ and
- * \f$ \tau^{dn}\f$ respectively. For each arc \f$ l \in \mathcal{L}^{hy}\f$
- * in each time \f$ t \in \mathcal{T}\f$ the continuous flow rate variable
- * \f$ f_{l,t} \f$ in \f$ m^3 /s \f$ and ramping conditions
- * \f$ \Delta^{up}_{l,t} \f$ and \f$ \Delta^{dn}_{l,t} \f$ in
+ * \f$ \tau^{dn}\f$ respectively. For each time \f$ t \in \mathcal{T}\f$ and
+ * each arc \f$ l \in \mathcal{L}^{hy}\f$ the continuous flow rate variable
+ * \f$ f_{t,l} \f$ in \f$ m^3 /s \f$ and ramping conditions
+ * \f$ \Delta^{up}_{t,l} \f$ and \f$ \Delta^{dn}_{t,l} \f$ in
  * \f$ (m^3 /s)/h \f$ are disposed. The flow rate variable will be subject to
- * bounds \f$ F^{mn}_{l,t} \f$ and \f$ F^{mx}_{l,t} \f$ and it's assumed
+ * bounds \f$ F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} \f$ and it's assumed
  * moreover given a cutting plane model describing power as a function of flow
  * rate as below:
  *   \f[
@@ -579,9 +579,9 @@ class HydroUnitBlock : public UnitBlock {
  * be symmetrically available to increase or decrease power injected into the
  * grid. For some of the constraints we will need to distinguish between pumps
  * and turbines. The distinction is made by considering the set of feasible
- * flow rates. Whenever \f$ [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_- \f$
+ * flow rates. Whenever \f$ [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_- \f$
  * for each arc and each time, the unit is considered a pump, and whenever
- * \f$ [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+ \f$ the unit is considered
+ * \f$ [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+ \f$ the unit is considered
  * a turbine. Any possible mixed situation can be accounted for by
  * artificially splitting the unit into “two units”, which should be done at
  * the data processing stage (see deserialize() comments). With above
@@ -623,7 +623,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (3)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (3)
  *
  *   \f]
  *
@@ -631,7 +631,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (4)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (4)
  *
  *   \f]
  *  where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
@@ -649,7 +649,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-      \quad (5)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-      \quad (5)
  *
  *   \f]
  *
@@ -657,7 +657,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-     \quad (6)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-     \quad (6)
  *
  *   \f]
  *
@@ -671,7 +671,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
  *        l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_-       \quad (7)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (7)
  *
  *   \f]
  *
@@ -681,7 +681,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  *      p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
  *        \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
- *        \quad  [ F^{mn}_{l,t} , F^{mx}_{l,t}] \subseteq R_+       \quad (8)
+ *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (8)
  *
  *   \f]
  *
@@ -747,7 +747,7 @@ class HydroUnitBlock : public UnitBlock {
  *   \f]
  *
  */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -759,7 +759,7 @@ class HydroUnitBlock : public UnitBlock {
 
 /// returns the number of reservoirs
  Index get_number_reservoirs() const {
-  return f_number_reservoirs? f_number_reservoirs : 1 ; }
+  return f_number_reservoirs ? f_number_reservoirs : 1 ; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of arcs/generators
@@ -1140,6 +1140,7 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< double > & get_initial_volumetric() const {
   return ( v_initial_volumetric);
  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of initial flow rate
 /** The returned vector contains the initial flow rate for each unit (arc) i.
@@ -1155,6 +1156,22 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< double > & get_initial_flow_rate() const {
   return ( v_initial_flow_rate);
  }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of initial flow rate at the given \p arc
+/** This method returns the initial flow rate at the given \p arc.
+ *
+ * @param arc The index of the arc whose initial flow rate is desired.
+ *
+ * @return The initial flow rate at the given \p arc. */
+ double get_initial_flow_rate( Index arc ) const {
+  assert( arc < f_number_arcs );
+  return v_initial_flow_rate.empty() ? 0.0 :
+   ( ( v_initial_flow_rate.size() == 1 ) ? v_initial_flow_rate.front() :
+     v_initial_flow_rate[ arc ] );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE HydroUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -1175,24 +1192,25 @@ class HydroUnitBlock : public UnitBlock {
  *  - the secondary spinning reserve variables;
  *
  * All these five groups of variables are (if not empty)
- * boost::multi_array< ColVariable , 2 > where the volumetric variables with
- * the first dimension number reservoirs and the second dimension time horizon
- * and all the rest with first dimension time horizon and second dimension
- * number of arcs (generators).
- * @{ */
+ * boost::multi_array<ColVariable,2>. The volumetric variables have the number
+ * reservoirs as the first dimension and time horizon as the second dimension;
+ * all other variables have number of arcs (generators) as the first dimension
+ * and time horizon as the second one.  @{ */
 
-/// returns the matrix of volumetric variables
-/** The returned boost::multi_array< ColVariable , 2 >, say V, contains the
- * volumetric variables and is indexed over the dimensions number of
- * reservoirs and time horizon. There are two possible cases:
- *
- * - if V is empty(), then these variables are not defined;
- *
- * - otherwise, V must have f_number_reservoir rows and f_time_horizon columns
- *   and M[ n , t ] is the volumetric variable for time step t of reservoir n.
- *   */
+/*--------------------------------------------------------------------------*/
 
- ColVariable * get_volumetric( Index reservoir  ) {
+ /// returns the array of volume variables of the given \p reservoir
+ /** This method returns the array of ColVariable representing the volumes of
+  * the given \p reservoir at all time instants t in {0, ..., time_horizon -
+  * 1}.
+  *
+  * @param reservoir The index of a reservoir (a number between 0 and
+  *        get_number_reservoirs() - 1).
+  *
+  * @return The array of ColVariable representing the volumes of the given \p
+  *         reservoir. */
+
+ ColVariable * get_volumetric( Index reservoir ) {
   return ( v_volumetric.data() + reservoir * f_time_horizon );
  }
 
@@ -1202,50 +1220,166 @@ class HydroUnitBlock : public UnitBlock {
  /** Returns a pointer to the ColVariable representing the volume of the given
   * \p reservoir at the given \p time.
   *
-  * @param reservoir The index of the reservoir whose volume is desired.
+  * @param reservoir The index of the reservoir whose volume is desired (a
+  *        number between 0 and get_number_reservoirs() - 1).
   *
-  * @param time The time at which the volume is desired.
+  * @param time The time at which the volume is desired (a number between 0
+  *        and get_time_horizon() - 1).
   *
   * @return A pointer to the ColVariable representing the volume of the given
-  *         \p reservoir at the given \p time.
-  */
+  *         \p reservoir at the given \p time. */
+
  ColVariable * get_volume( Index reservoir , Index time ) {
   return ( v_volumetric.data() + reservoir * f_time_horizon + time );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the matrix of flow rate variables
-/** The returned boost::multi_array< ColVariable , 2 >, say F, contains the
- * flow rate variables and is indexed over the dimensions time horizon and
- * number of arcs (generators). There are two possible cases:
- *
- * - if F is empty(), then these variables are not defined;
- *
- * - otherwise, F must have f_time_horizon rows and f_number_arcs columns, and
- *   M[ t , a ] is the flow rate variable for time step t of arc (generator)
- *   a. */
 
- ColVariable * get_flow_rate( Index arc)  {
-  return ( v_flow_rate.data() + arc * f_time_horizon);
- }
+ /// returns the array of active power variables of the given \p generator
+ /** This method returns the array of ColVariable representing the active
+  * power of the given \p generator at all time instants t in {0, ...,
+  * time_horizon - 1}.
+  *
+  * @param generator The index of a generator (a number between 0 and
+  *        get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the active power of the
+  *         given \p generator. */
 
-/*--------------------------------------------------------------------------*/
- /// returns the vector of active_power variables
- ColVariable * get_active_power( Index generator  ) override {
+ ColVariable * get_active_power( Index generator ) override {
   return ( v_active_power.data() + generator * f_time_horizon );
  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of primary_spinning_reserve variables
- ColVariable * get_primary_spinning_reserve( Index generator )
- override {
+
+ /// returns the active power of the given generator at the given time
+ /** Returns a pointer to the ColVariable representing the active power of the
+  * given \p generator at the given \p time.
+  *
+  * @param generator The index of the generator whose active power is desired
+  *        (a number between 0 and get_number_generators() - 1).
+  *
+  * @param time The time at which the active power is desired (a number
+  *        between 0 and get_time_horizon() - 1).
+  *
+  * @return A pointer to the ColVariable representing the active power of the
+  *         given \p generator at the given \p time. */
+
+ ColVariable * get_active_power( Index generator , Index time ) {
+  return ( v_active_power.data() + generator * f_time_horizon + time );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the array of flow rate variables along the given \p arc
+ /** This method returns the array of ColVariable representing the flow rate
+  * along the given \p arc at all time instants t in {0, ..., time_horizon -
+  * 1}.
+  *
+  * @param arc The index of an arc (a number between 0 and
+  *        get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the flow rate along the
+  *         given \p arc. */
+
+ ColVariable * get_flow_rate( Index arc ) {
+  return ( v_flow_rate.data() + arc * f_time_horizon );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the flow rate along the given arc at the given time
+ /** Returns a pointer to the ColVariable representing the flow rate along the
+  * given \p arc at the given \p time.
+  *
+  * @param arc The index of the arc whose flow rate is desired (a number
+  *        between 0 and get_number_generators() - 1).
+  *
+  * @param time The time at which the flow rate is desired (a number
+  *        between 0 and get_time_horizon() - 1).
+  *
+  * @return A pointer to the ColVariable representing the flow rate along the
+  *         given \p arc at the given \p time. */
+
+ ColVariable * get_flow_rate( Index arc , Index time ) {
+  return ( v_flow_rate.data() + arc * f_time_horizon + time );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the array of primary spinning reserve of the given \p generator
+ /** This method returns the array of ColVariable representing the primary
+  * spinning reserve of the given \p generator at all time instants t in {0,
+  * ..., time_horizon - 1}.
+  *
+  * @param generator The index of a generator (a number between 0 and
+  *        get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the primary spinning
+  *         reserve of the given \p generator. */
+
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
   return ( v_primary_spinning_reserve.data() + generator * f_time_horizon );
  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of secondary_spinning_reserve variables
- ColVariable * get_secondary_spinning_reserve( Index generator )
- override {
+
+ /// returns the primary spinning reserve of a generator at the given time
+ /** Returns a pointer to the ColVariable representing the primary spinning
+  * reserve of the given \p generator at the given \p time.
+  *
+  * @param generator The index of the generator whose primary spinning reserve
+  *        is desired (a number between 0 and get_number_generators() - 1).
+  *
+  * @param time The time at which the primary spinning reserve is desired (a
+  *        number between 0 and get_time_horizon() - 1).
+  *
+  * @return A pointer to the ColVariable representing the primary spinning
+  *         reserve of the given \p generator at the given \p time. */
+
+ ColVariable * get_primary_spinning_reserve( Index generator , Index time ) {
+  return ( v_primary_spinning_reserve.data() +
+           generator * f_time_horizon + time );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the array of secondary spinning reserve of the given \p generator
+ /** This method returns the array of ColVariable representing the secondary
+  * spinning reserve of the given \p generator at all time instants t in {0,
+  * ..., time_horizon - 1}.
+  *
+  * @param generator The index of a generator (a number between 0 and
+  *        get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the secondary spinning
+  *         reserve of the given \p generator. */
+
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   return ( v_secondary_spinning_reserve.data() + generator * f_time_horizon );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the secondary spinning reserve of a generator at the given time
+ /** Returns a pointer to the ColVariable representing the secondary spinning
+  * reserve of the given \p generator at the given \p time.
+  *
+  * @param generator The index of the generator whose secondary spinning
+  *        reserve is desired (a number between 0 and get_number_generators()
+  *        - 1).
+  *
+  * @param time The time at which the secondary spinning reserve is desired (a
+  *        number between 0 and get_time_horizon() - 1).
+  *
+  * @return A pointer to the ColVariable representing the secondary spinning
+  *         reserve of the given \p generator at the given \p time. */
+
+ ColVariable * get_secondary_spinning_reserve( Index generator , Index time ) {
+  return ( v_secondary_spinning_reserve.data() +
+           generator * f_time_horizon + time );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE HydroUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1436,11 +1570,8 @@ class HydroUnitBlock : public UnitBlock {
  /// flow to active power function constraints
  boost::multi_array< FRowConstraint, 2 >  FlowActivePower_Const;
 
- /// flow to active power function constraints for pumps
- boost::multi_array< FRowConstraint, 2 >  FlowActivePowerPumps_Const;
-
- /// flow to active power function constraints for turbine
- boost::multi_array< FRowConstraint, 3 >  FlowActivePowerTurbines_Const;
+ /// active power bounds
+ boost::multi_array< FRowConstraint, 2 >  ActivePowerBounds_Const;
 
  /// ramp-up constraints
  boost::multi_array< FRowConstraint, 2 >  RampUp_Const;
@@ -1545,7 +1676,7 @@ class HydroUnitBlockMod : public Modification {
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
- ~HydroUnitBlockMod() override = default;
+ virtual ~HydroUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block() const override { return ( f_Block ); }
@@ -1591,7 +1722,7 @@ class HydroUnitBlockRngdMod : public HydroUnitBlockMod {
   : HydroUnitBlockMod( fblock, type ), f_rng( rng ) {}
 
  /// destructor, does nothing
- ~HydroUnitBlockRngdMod() override = default;
+ virtual ~HydroUnitBlockRngdMod() override = default;
 
  /// accessor to the range
  Block::c_Range & rng() { return( f_rng ); }
@@ -1623,7 +1754,7 @@ class HydroUnitBlockSbstMod : public HydroUnitBlockMod {
   : HydroUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
- ~HydroUnitBlockSbstMod() override = default;
+ virtual ~HydroUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
  Block::c_Subset & nms() { return( f_nms ); }
