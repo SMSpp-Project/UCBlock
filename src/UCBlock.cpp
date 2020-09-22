@@ -479,8 +479,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else {  //DCNetwork needs GeneratorNode
 
-   // TODO this is wrong
-
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
     auto & node_injection = v_network_blocks[t]->get_node_injection();
@@ -498,18 +496,18 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       if( node_id == v_generator_node[g] ) {
 
        //for( auto block : get_nested_Blocks()) {
-       auto block = get_nested_Blocks()[generator_id++];
+       auto block = get_nested_Blocks()[generator_id];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
        if( unit_block == nullptr )
         continue;
-       for( Index generator_id = 0; generator_id < unit_block->get_number_generators(); ++generator_id ) {
+       for( Index g_i = 0; g_i < unit_block->get_number_generators(); ++g_i ) {
 
-        auto fixed_consumption = unit_block->get_fixed_consumption( generator_id );
+        auto fixed_consumption = unit_block->get_fixed_consumption( g_i );
 
-        auto ap = unit_block->get_active_power( generator_id );
+        auto ap = unit_block->get_active_power( g_i );
         auto active_power = &ap[t];
 
-        auto c = unit_block->get_commitment( generator_id );
+        auto c = unit_block->get_commitment( g_i );
         auto commitment = &c[t];
 
         linear_function->add_variable( active_power, 1.0, eNoMod );
