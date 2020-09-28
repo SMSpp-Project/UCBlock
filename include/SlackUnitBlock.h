@@ -44,6 +44,7 @@
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
 #include "FRealObjective.h"
+#include "FRowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -574,6 +575,17 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
+/*----------------------------constraints-----------------------------------*/
+
+ /// the active power bound constraints
+ std::vector< FRowConstraint > ActivePower_Bound_Constraints;
+
+ /// the primary spinning reserve bound constraints
+ std::vector< FRowConstraint > Primary_Spinning_Reserve_Bound_Constraints;
+
+ /// the secondary spinning reserve bound constraints
+ std::vector< FRowConstraint > Secondary_Spinning_Reserve_Bound_Constraints;
 
  /// the objective function
  FRealObjective objective;
