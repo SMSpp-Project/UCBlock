@@ -36,7 +36,7 @@
 #include "SlackUnitBlock.h"
 #include "DQuadFunction.h"
 #include "FRealObjective.h"
-
+#include "LinearFunction.h"
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -181,8 +181,71 @@ void SlackUnitBlock::generate_abstract_constraints
  if( AR & HasCst )
   return; // constraints have already been generated
 
+ // Initializing active power bounds constraints
+ if( ActivePower_Bound_Constraints.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( ActivePower_Bound_Constraints.empty());
 
- //TODO ADD BOUND CONSTRAINTS
+  ActivePower_Bound_Constraints.resize( f_time_horizon );
+ }
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_active_power[t], 1.0 );
+
+  ActivePower_Bound_Constraints[t].set_lhs( 0.0 );
+  ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
+  ActivePower_Bound_Constraints[t].set_function( linear_function );
+ }
+
+ add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_C" );
+/*--------------------------------------------------------------------------*/
+
+ // Initializing primary spinning reserve bounds constraints
+ if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
+
+  Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+ }
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
+
+  Primary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
+  Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+  Primary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
+ }
+
+ add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_C" );
+
+/*--------------------------------------------------------------------------*/
+
+ // Initializing secondary spinning reserve bounds constraints
+ if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
+
+  Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+ }
+
+ for( Index t = 0; t < f_time_horizon; ++t ) {
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
+
+  Secondary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
+  Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+  Secondary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
+ }
+
+ add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_C" );
 
 
  AR |= HasCst;
