@@ -730,6 +730,8 @@ class ThermalUnitBlock : public UnitBlock {
  /// returns the minimum allowed down time value
  Index get_min_down_time() const { return f_MinDownTime; }
 
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of nominal minimum active power output
  /** This method returns (a const reference to) the vector containing the
   * nominal minimum active power output of the unit for all time steps. When
@@ -739,6 +741,8 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< double > & get_min_power() const {
   return v_MinPower;
  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the vector of nominal maximum active power output
  /** This method returns (a const reference to) the vector containing the
@@ -750,6 +754,25 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< double > & get_max_power() const {
   return v_MaxPower;
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational maximum active power output at the given time \t
+ /** This method returns the operational maximum active power output of the
+  * unit at the given time \t. See get_availability() for the definition of
+  * operational maximum power.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @return The operational maximum active power output of the unit at the
+  *         given time \t.
+  */
+ double get_operational_max_power( Index t ) const {
+  assert( t < get_time_horizon() );
+  return v_MaxPower[ t ] * get_availability( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the availability of the unit at all time instants
  /** This method returns (a const reference to) the vector containing the
@@ -783,6 +806,18 @@ class ThermalUnitBlock : public UnitBlock {
   return v_Availability;
  }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the availability of the unit at the given time \t
+ double get_availability( Index t ) const {
+  if( v_Availability.empty() )
+   return 1.0;
+  assert( t < get_time_horizon() );
+  return v_Availability[ t ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary rho
  /** The returned vector contains the primary rho at each time.
   * The size of the vector is always get_time_horizon().
@@ -790,6 +825,8 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< double > & get_primary_rho() const {
   return v_PrimaryRho;
  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the vector of secondary rho
  /** The returned vector contains the secondary rho at each time.
@@ -799,6 +836,8 @@ class ThermalUnitBlock : public UnitBlock {
   return v_SecondaryRho;
  }
 
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon().
@@ -806,6 +845,8 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< double > & get_delta_ramp_up() const {
   return v_DeltaRampUp;
  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.

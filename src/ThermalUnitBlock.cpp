@@ -124,6 +124,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
  ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
+ ::deserialize( group, "Availability", f_time_horizon, v_Availability, true, true );
  ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true, true );
  ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown, true, true );
  ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
@@ -142,6 +143,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
+ decompress_vector( v_Availability );
  decompress_vector( v_DeltaRampUp );
  decompress_vector( v_DeltaRampDown );
  decompress_vector( v_PrimaryRho );
@@ -487,12 +489,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   if( f_InitUpDownTime > 0 ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     if( f_initial_power + v_DeltaRampUp[ 0 ] < v_MinPower[ 0 ] ||
-        f_initial_power - v_DeltaRampDown[ 0 ] > v_MaxPower[ 0 ] ) {
+        f_initial_power - v_DeltaRampDown[ 0 ] > get_operational_max_power( 0 ) ) {
      throw ( std::logic_error
              ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
                "it must be that"
                "f_initial_power + v_DeltaRampUp[ 0 ] >= v_MinPower[ 0 ]"
-               "f_initial_power - v_DeltaRampDown[ 0 ] <= v_MaxPower[ 0 ]" ) );
+               "f_initial_power - v_DeltaRampDown[ 0 ] <= get_operational_max_power( 0 ) " ) );
     }
    }
   }*/
@@ -733,7 +735,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   if(v_SecondaryRho[ t ] > 0 ) {
    linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
   }
-  linear_function->add_variable( & v_commitment[ t ] , v_MaxPower[ t ] );
+  linear_function->add_variable( & v_commitment[ t ] ,
+                                 get_operational_max_power( t ) );
 
   MaxPower_Constraints[ t ].set_lhs( 0.0 );
   MaxPower_Constraints[ t ].set_rhs( Inf< double >() );
@@ -935,6 +938,9 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group, "MaxPower", netCDF::NcDouble(),
               NumberIntervals, v_MaxPower, true );
 
+ ::serialize( group, "Availability", netCDF::NcDouble(),
+              NumberIntervals, v_Availability, true );
+
  ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
               NumberIntervals, v_DeltaRampUp, true );
 
@@ -996,13 +1002,13 @@ void ThermalUnitBlock::set_maximum_power
  // If nothing changes, return
  bool identical = true;
  auto temp_values = values;
- for( auto i : subset ) {
-  if( i >= v_MaxPower.size() ) {
+ for( auto t : subset ) {
+  if( t >= v_MaxPower.size() ) {
    throw( std::invalid_argument
           ( "ThermalUnitBlock::set_maximum_power: invalid index in subset: "
-            + std::to_string( i ) ) );
+            + std::to_string( t ) ) );
   }
-  if( v_MaxPower[ i ] != *( temp_values++ ) ) {
+  if( v_MaxPower[ t ] != *( temp_values++ ) ) {
    identical = false;
    break;
   }
@@ -1014,19 +1020,20 @@ void ThermalUnitBlock::set_maximum_power
   // Change the physical representation
 
   temp_values = values;
-  for( auto i : subset ) {
-   v_MaxPower[ i ] = *( temp_values++ );
+  for( auto t : subset ) {
+   v_MaxPower[ t ] = *( temp_values++ );
   }
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
-   for( auto i : subset ) {
+   for( auto t : subset ) {
     auto f = dynamic_cast<LinearFunction *>
-     ( MaxPower_Constraints[ i ].get_function() );
-    auto var_index = f->is_active( & v_commitment[ i ] );
+     ( MaxPower_Constraints[ t ].get_function() );
+    auto var_index = f->is_active( & v_commitment[ t ] );
     assert( var_index < f->get_num_active_var() );
-    f->modify_coefficient( var_index , *( values++ ) , issueAMod );
+    f->modify_coefficient( var_index , get_operational_max_power( t ) ,
+                           issueAMod );
    }
   }
  }
@@ -1092,7 +1099,8 @@ void ThermalUnitBlock::set_maximum_power
      ( MaxPower_Constraints[ t ].get_function() );
     auto var_index = f->is_active( & v_commitment[ t ] );
     assert( var_index < f->get_num_active_var() );
-    f->modify_coefficient( var_index , *( values++ ) , issueAMod );
+    f->modify_coefficient( var_index , get_operational_max_power( t ) ,
+                           issueAMod );
    }
   }
  }
