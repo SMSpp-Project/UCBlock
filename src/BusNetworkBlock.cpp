@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 01 - 07 - 2019
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -69,7 +69,7 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  // In BusNetworkBlock, number_nodes = 1
@@ -79,7 +79,7 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  v_node_injection[ 0 ].set_type( ColVariable::kContinuous );
  add_static_variable( v_node_injection[ 0 ], "S");
 
- AR |= HasVar;
+ set_variables_generated();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -124,7 +124,7 @@ void BusNetworkBlock::set_active_demand(
 
   v_active_demand[ 0 ] = *values ;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // Change the abstract representation
 
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
@@ -171,7 +171,7 @@ void BusNetworkBlock::set_active_demand(
 
   v_active_demand[ 0 ] = *values ;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // Change the abstract representation
 
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );

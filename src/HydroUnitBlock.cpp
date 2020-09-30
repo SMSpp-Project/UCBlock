@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -227,7 +227,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
@@ -262,14 +262,14 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
  add_static_variable ( v_primary_spinning_reserve, "pr" );
  add_static_variable ( v_secondary_spinning_reserve, "sr" );
 
- AR |= HasVar;
+ set_variables_generated();
 } // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  // final volumes fo each reservoir constraints
@@ -979,7 +979,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   add_static_constraint( VolumetricBounds_Const, "VolumetricBounds" );
  }
 
- AR |= HasCst;
+ set_constraints_generated();
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
 
@@ -1150,7 +1150,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
    // *( v_inflows.data() + i ) = *( values++ );
   }
 
-  if( AR & HasCst ) {
+  if( constraints_generated() ) {
    // Change the abstract representation
 
    for( auto i : subset ) {
@@ -1220,7 +1220,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
              values + ( rng.second - rng.first ),
              v_inflows.data() + rng.first );
 
-  if( AR & HasCst ) {
+  if( constraints_generated() ) {
    // Change the abstract representation
 
    for( Index i = rng.first; i < rng.second; ++i ) {
@@ -1293,7 +1293,7 @@ HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
    v_inertia_power[ t ][ a ] = *( values++ );
   }
 
-  if( AR & HasCst ) {
+  if( constraints_generated() ) {
    // Change the abstract representation
    // FIXME: v_inertia_power is not used
   }
@@ -1350,7 +1350,7 @@ HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
              values + ( rng.second - rng.first ),
              v_inertia_power.data() + rng.first );
 
-  if( AR & HasCst ) {
+  if( constraints_generated() ) {
    // Change the abstract representation
    // FIXME: v_inertia_power is not used
 
@@ -1416,7 +1416,7 @@ HydroUnitBlock::set_initial_volumetric(
    v_initial_volumetric[ i ] = *( temp_values++ );
   }
 
-  if( not_dry_run( issueAMod ) && ( AR & HasObj ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( auto i : subset ) {
     Index t = i % f_time_horizon;
@@ -1484,7 +1484,7 @@ HydroUnitBlock::set_initial_volumetric(
              values + ( rng.second - rng.first ),
              v_initial_volumetric.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && ( AR & HasCst ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index i = rng.first; i < rng.second; ++i ) {
     Index t = i % f_time_horizon;

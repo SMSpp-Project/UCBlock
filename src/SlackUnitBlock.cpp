@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 10 - 12 - 2019
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -112,7 +112,7 @@ void SlackUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
 /*--------------------------------------------------------------------------*/
@@ -168,7 +168,7 @@ void SlackUnitBlock::generate_abstract_variables
 
  }
 
- AR |= HasVar;
+ set_variables_generated();
 
 } // end( SlackUnitBlock::generate_abstract_variables )
 
@@ -178,7 +178,7 @@ void SlackUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  // Initializing active power bounds constraints
@@ -247,8 +247,7 @@ void SlackUnitBlock::generate_abstract_constraints
 
  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_C" );
 
-
- AR |= HasCst;
+ set_constraints_generated();
 } // end( SlackUnitBlock::generate_abstract_constraints )
 
 
@@ -308,7 +307,7 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  // Set Block objective
  this->set_objective( &objective );
 
- AR |= HasObj;
+ set_objective_generated();
 }  // end( SlackUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/

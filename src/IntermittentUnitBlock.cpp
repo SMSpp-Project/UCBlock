@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -120,7 +120,7 @@ void IntermittentUnitBlock::generate_abstract_variables
         ( Configuration *stvv )
 {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
@@ -165,7 +165,7 @@ void IntermittentUnitBlock::generate_abstract_variables
 
  }
 
- AR |= HasVar;
+ set_variables_generated();
 } // end( IntermittentUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -174,7 +174,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
         ( Configuration *stcc )
 {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  // initial condition of each vector
@@ -310,7 +310,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
  add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_c" );
 
- AR |= HasCst;
+ set_constraints_generated();
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -384,7 +384,7 @@ void IntermittentUnitBlock::set_maximum_power(
    v_maximum_power[ i ] = *( values++ );
   }
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    if( !MaxPower_Constraints.empty() ) {
@@ -455,7 +455,7 @@ void IntermittentUnitBlock::set_maximum_power(
              values + ( rng.second - rng.first ),
              v_maximum_power.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    if( !MaxPower_Constraints.empty() ) {

@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -192,7 +192,7 @@ class NetworkBlock : public Block {
  *   == 0, then it corresponds to a single connected grid composed of HVDC
  *   lines only which is also known as the Net Transfer Capacity (NTC)
  *   model.*/
-  
+
   virtual void deserialize( netCDF::NcGroup & group );
 
 /**@} ----------------------------------------------------------------------*/
@@ -213,7 +213,7 @@ class NetworkBlock : public Block {
  * node). */
 
   Index get_number_lines() const { return( f_number_lines ); }
- 
+
 /*--------------------------------------------------------------------------*/
 /// returns the vector of start lines
 /** Method for returning the vector of starting point of each line. This
@@ -292,7 +292,7 @@ class NetworkBlock : public Block {
  *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
  *    element of the vectors gives the Susceptance value for each line in the
  *    network. */
-  
+
   const std::vector< double > & get_susceptance() const {
    return v_susceptance;
    }
@@ -402,7 +402,7 @@ class NetworkBlock : public Block {
  * base NetworkBlock class has just the node injection variables, which are
  * mandatory as that's how the NetworkBlock is linked to the rest of the UC
  * model. The size of this variable is the number of nodes, which can be
- * read 
+ * read
  *
  * - if NetworkData object is not provided (basically, "NumberNodes" is not
  *   provided or it is == 1) then the transmission network is taken to have
@@ -587,7 +587,33 @@ class NetworkBlock : public Block {
                                  c_ModParam issuePMod,
                                  c_ModParam issueAMod ) = 0;
 
+/*--------------------------------------------------------------------------*/
+/*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// states that the Variable of the NetworkBlock have been generated
+ void set_variables_generated() { AR |= HasVar; }
+
+ /// states that the Constraint of the NetworkBlock have been generated
+ void set_constraints_generated() { AR |= HasCst; }
+
+ /// states that the Objective of the NetworkBlock has been generated
+ void set_objective_generated() { AR |= HasObj; }
+
+ /// indicates whether the Variable of the NetworkBlock have been generated
+ bool variables_generated() const { return( AR & HasVar ); }
+
+ /// indicates whether the Constraint of the NetworkBlock have been generated
+ bool constraints_generated() const { return( AR & HasCst ); }
+
+ /// indicates whether the Objective of the NetworkBlock has been generated
+ bool objective_generated() const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -599,12 +625,24 @@ class NetworkBlock : public Block {
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
+/*--------------------------------------------------------------------------*/
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PRIVATE FIELDS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
  unsigned char AR{}; ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed
  static constexpr unsigned char HasCst = 2;
- ///< third bit of AR == 1 if the Constraints have been constructed
+ ///< second bit of AR == 1 if the Constraints have been constructed
+ static constexpr unsigned char HasObj = 4;
+ ///< third bit of AR == 1 if the Objective has been constructed
 
 /*--------------------------------------------------------------------------*/
 

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -153,9 +153,9 @@ void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_abstract_variables  ( Configuration *stvv ) {
+void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
@@ -244,13 +244,13 @@ void BatteryUnitBlock::generate_abstract_variables  ( Configuration *stvv ) {
   }
  }
 
- AR |= HasVar;
+ set_variables_generated();
 } // end( BatteryUnitBlock::generate_abstract_variables )
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  // Initial data check
@@ -592,14 +592,14 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   add_static_constraint( secondary_upper_bound_Constraints, "Secondary Upper Bound Constraints" );
  }
 
- AR |= HasCst;
+ set_constraints_generated();
 } // end( BatteryUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_objective( Configuration *objc )
 {
- if( AR & HasObj )
+ if( objective_generated() )
   return; // Objective has already been generated
 
  // Initial condition of each vector
@@ -658,7 +658,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  // Set Block objective
  this->set_objective( &objective );
 
- AR |= HasObj;
+ set_objective_generated();
 
 }  // end( BatteryUnitBlock::generate_objective )
 

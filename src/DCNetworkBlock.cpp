@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -77,7 +77,7 @@ DCNetworkBlock::~DCNetworkBlock() {
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  int number_nodes = f_NetworkData->get_number_nodes();
@@ -100,7 +100,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
   add_static_variable( v_power_flow, "f" );
  }
 
- AR |= HasVar;
+ set_variables_generated();
 
 }
 
@@ -110,7 +110,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  if( f_NetworkData->get_number_nodes() > 1 ) {
@@ -289,7 +289,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 */
   } // end AC-HVDC constraints
  }
- AR |= HasCst;
+ set_constraints_generated();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -340,7 +340,7 @@ NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    v_active_demand[ i ] = *( values++ );
   }
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    // FIXME: This is correct only for BusNetworkBlock
@@ -396,7 +396,7 @@ DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    v_active_demand[ i ] = *( values++ );
   }
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    auto s = f_NetworkData->get_susceptance();
@@ -472,7 +472,7 @@ DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
              values + ( rng.second - rng.first ),
              v_active_demand.begin() + rng.first );
 
-  if( AR & HasCst ) {
+  if( constraints_generated() ) {
    // Change the abstract representation
 
    auto s = f_NetworkData->get_susceptance();

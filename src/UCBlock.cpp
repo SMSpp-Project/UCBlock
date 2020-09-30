@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -407,7 +407,7 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  Block::generate_abstract_constraints( stcc );
@@ -1258,7 +1258,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 */
 /*--------------------------------------------------------------------------*/
 
- AR |= HasCst;
+ set_constraints_generated();
 
 }  // end( UCBlock::generate_abstract_constraints )
 

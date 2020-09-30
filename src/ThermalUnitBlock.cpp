@@ -160,7 +160,7 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
@@ -337,14 +337,14 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   }
  }
 
- AR |= HasVar;
+ set_variables_generated();
 } // end( ThermalUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( AR & HasCst )
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  // Initializing start up and shut down variables connection constraints
@@ -780,14 +780,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( SecondaryRho_Constraints, "SecondaryRho" );
  }
 
- AR |= HasCst;
+ set_constraints_generated();
 } // end( ThermalUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
- if( AR & HasObj )
+ if( objective_generated() )
   return; // Objective has already been generated
 
  // Initial condition of each vector
@@ -911,7 +911,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  // Set Block objective
  this->set_objective( &objective );
 
- AR |= HasObj;
+ set_objective_generated();
 }  // end( ThermalUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
@@ -1018,7 +1018,7 @@ void ThermalUnitBlock::set_maximum_power
    v_MaxPower[ i ] = *( temp_values++ );
   }
 
-  if( not_dry_run( issueAMod ) && ( AR & HasCst ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    for( auto i : subset ) {
@@ -1084,7 +1084,7 @@ void ThermalUnitBlock::set_maximum_power
              values + ( rng.second - rng.first ),
              v_MaxPower.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && ( AR & HasCst ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    for( Index t = rng.first; t < rng.second; ++t ) {
@@ -1124,7 +1124,7 @@ void ThermalUnitBlock::set_initial_power(
   // Change the physical representation
   f_initial_power = *values;
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
    RampUp_Constraints[ 0 ].set_rhs(
     v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
@@ -1162,7 +1162,7 @@ void ThermalUnitBlock::set_initial_power(
   // Change the physical representation
   f_initial_power = *values;
 
-  if( not_dry_run( issueAMod ) && AR & HasCst ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
    RampUp_Constraints[ 0 ].set_rhs(
     v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
@@ -1199,7 +1199,7 @@ void ThermalUnitBlock::set_init_updown_time(
   // Change the physical representation
   f_InitUpDownTime = *values;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // TODO Nuclear option
   }
  }
@@ -1233,7 +1233,7 @@ void ThermalUnitBlock::set_init_updown_time(
   // Change the physical representation
   f_InitUpDownTime = *values;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // TODO Nuclear option
   }
  }

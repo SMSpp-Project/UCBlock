@@ -185,8 +185,8 @@ class UCBlock : public Block {
  *   generator. If this happens for all the units then 
  *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
  *   (like cascades of hydro generators or combined cycle plants) actually
- *   has more than one electrical generator, then NumberElectricalGenerators
- *   > NumberUnits (each UnitBlock must have at least one). It is then useful
+ *   has more than one electrical generator, then NumberElectricalGenerators >
+ *   NumberUnits (each UnitBlock must have at least one). It is then useful
  *   (cf. "GeneratorNode") to be able to assign a unique index g = 0, 1, ...,
  *   NumberElectricalGenerators - 1 to each of the electrical generators in
  *   the UCBlock. When NumberElectricalGenerators == NumberUnits, the index
@@ -265,9 +265,9 @@ class UCBlock : public Block {
  *   the dimensions "NumberNodes" and "TimeHorizon". This variable is
  *   optional if
  *
- *   = a NetworkBlock is defined for each time instant (see below), and
+ *   - a NetworkBlock is defined for each time instant (see below), and
  *
- *   = each of the defined NetworkBlock has the "ActiveDemand" variable
+ *   - each of the defined NetworkBlock has the "ActiveDemand" variable
  *     specified in the corresponding group.
  *
  *   Otherwise it is mandatory. When it is defined, the entry
@@ -286,20 +286,20 @@ class UCBlock : public Block {
  *   constraints on the transmission network at time t. The NetworkBlocks are
  *   optional, but if any of them are missing, then
  *
- *   = "ActivePowerDemand" (see above) is mandatory in UCBlock
+ *   - "ActivePowerDemand" (see above) is mandatory in UCBlock
  *
- *   = also the NetworkData (see above) is mandatory in UCBlock, unless
+ *   - also the NetworkData (see above) is mandatory in UCBlock, unless
  *     the transmission network is a bus (that is, "NumberNodes" is not
  *     provided or it is == 1).
  *
  *   In particular, when a NetworkBlock is not defined for a given time
- *   instant t then one of these happen:
+ *   instant t then one of these happens:
  *
- *   = If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
+ *   - If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
  *     is automatically constructed for that time instant, and the entry
  *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
  *
- *   = If "NumberNodes" > 1, then a DCNetworkBlock is automatically
+ *   - If "NumberNodes" > 1, then a DCNetworkBlock is automatically
  *     constructed for that time instant, it is provided with the NetworkData
  *     object (which must be present in UCBlock) and the row
  *     ActivePowerDemand[ ... , t ] contains the active demand of each node
@@ -1212,20 +1212,48 @@ class UCBlock : public Block {
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint> > v_PollutantBudget_Const;
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
 
- static constexpr unsigned char HasVar = 1;
- ///< first bit of AR == 1 if the Variables have been constructed
- static constexpr unsigned char HasCst = 2;
- ///< third bit of AR == 1 if the Constraints have been constructed
- static constexpr unsigned char HasObj = 4;
- ///< second bit of AR == 1 if the Objective has been constructed
+ /// states that the Variable of the UCBlock have been generated
+ void set_variables_generated() { AR |= HasVar; }
+
+ /// states that the Constraint of the UCBlock have been generated
+ void set_constraints_generated() { AR |= HasCst; }
+
+ /// states that the Objective of the UCBlock has been generated
+ void set_objective_generated() { AR |= HasObj; }
+
+ /// indicates whether the Variable of the UCBlock have been generated
+ bool variables_generated() const { return( AR & HasVar ); }
+
+ /// indicates whether the Constraint of the UCBlock have been generated
+ bool constraints_generated() const { return( AR & HasCst ); }
+
+ /// indicates whether the Objective of the UCBlock has been generated
+ bool objective_generated() const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
  private:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PRIVATE FIELDS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
+
+ static constexpr unsigned char HasVar = 1;
+ ///< first bit of AR == 1 if the Variables have been constructed
+ static constexpr unsigned char HasCst = 2;
+ ///< second bit of AR == 1 if the Constraints have been constructed
+ static constexpr unsigned char HasObj = 4;
+ ///< third bit of AR == 1 if the Objective has been constructed
+
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -1256,9 +1284,7 @@ class UCBlock : public Block {
   */
  template< typename T >
  void transpose( boost::multi_array< T, 2 > & a );
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
- SMSpp_insert_in_factory_h;
+
 };   // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
