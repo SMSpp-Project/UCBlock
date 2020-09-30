@@ -744,6 +744,25 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns the operational minimum active power output at the given time \t
+ /** This method returns the operational minimum active power output of the
+  * unit at the given time \t. See get_availability() for the definition of
+  * operational minimum power.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @return The operational minimum active power output of the unit at the
+  *         given time \t.
+  */
+ double get_operational_min_power( Index t ) const {
+  assert( t < get_time_horizon() );
+  if( get_availability( t ) > 0.0 )
+   return v_MinPower[ t ];
+  return 0.0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of nominal maximum active power output
  /** This method returns (a const reference to) the vector containing the
   * nominal maximum active power output of the unit for all time steps. When
