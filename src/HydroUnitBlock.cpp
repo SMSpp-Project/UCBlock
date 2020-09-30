@@ -410,7 +410,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
     if( v_maximum_flow[t][arc] <= 0 &&
         v_minimum_flow[t][arc] < 0 &&
-        !v_primary_rho.empty()) {
+        v_primary_rho[t][arc] != 0) {
      throw ( std::logic_error
              ( "HydroUnitBlock::Data Error: it must be that for each pump"
                " v_primary_rho == 0." ));
@@ -425,7 +425,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
     if( ( v_maximum_flow[t][arc] <= 0 ) &&
         ( v_minimum_flow[t][arc] < 0 ) &&
-        ( ! v_secondary_rho.empty() ) ) {
+        ( v_secondary_rho[t][arc] != 0 ) ) {
      throw ( std::logic_error
              ( "HydroUnitBlock::Data Error: it must be that for each pump "
                " then v_secondary_rho == 0." ));
@@ -536,7 +536,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
  // power output relation with to primary reserves constraints
 
-  if( ! v_primary_rho.empty() ) {
+  if( !v_primary_rho.empty() ) {
 
    assert( ActivePowerPrimary_Const.empty());
 
