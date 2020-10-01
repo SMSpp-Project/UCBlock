@@ -369,8 +369,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( initial_commitment );
    StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( linear_function );
 
-   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
-        ++t , ++constraint_index ) {
+   for( Index t = 1 ; t < f_time_horizon ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -378,8 +377,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     lf->add_variable( & v_start_up[ t ]       , -1.0 );
     lf->add_variable( & v_shut_down[ t ]      ,  1.0 );
     lf->add_variable( & v_commitment[ t - 1 ] , -1.0 );
-    StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
-    StartUp_ShutDown_Variables_Constraints[constraint_index].set_function( lf );
+    StartUp_ShutDown_Variables_Constraints[ t ].set_both( 0.0 );
+    StartUp_ShutDown_Variables_Constraints[ t ].set_function( lf );
    }
   }
  }
@@ -418,8 +417,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( & v_start_up[ t - init_t ]  , -1.0 );
     linear_function->add_variable( & v_shut_down[ t - init_t ] ,  1.0 );
     linear_function->add_variable( & v_commitment[ t - 1 ]     , -1.0 );
-    StartUp_ShutDown_Variables_Constraints[constraint_index].set_both( 0.0 );
-    StartUp_ShutDown_Variables_Constraints[constraint_index].
+    StartUp_ShutDown_Variables_Constraints[ constraint_index ].set_both( 0.0 );
+    StartUp_ShutDown_Variables_Constraints[ constraint_index ].
      set_function( linear_function );
    }
   }
@@ -525,8 +524,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
    RampUp_Constraints[0].set_function( linear_function );
 
-   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
-        ++t , ++constraint_index ) {
+   for( Index t = 1 ; t < f_time_horizon ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -535,13 +533,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     lf->add_variable( & v_start_up[ t ] , get_operational_min_power( t ) );
     lf->add_variable( & v_commitment[ t - 1 ]   , v_DeltaRampUp[t] );
 
-    RampUp_Constraints[ constraint_index ].set_lhs( 0.0 );
-    RampUp_Constraints[ constraint_index ].set_rhs( Inf< double >() );
-    RampUp_Constraints[ constraint_index ].set_function( lf );
+    RampUp_Constraints[ t ].set_lhs( 0.0 );
+    RampUp_Constraints[ t ].set_rhs( Inf< double >() );
+    RampUp_Constraints[ t ].set_function( lf );
    }
   }
 
-  if( init_t > 0 ) {
+  else if( init_t > 0 ) {
 
    auto linear_function = new LinearFunction();
    linear_function->add_variable( & v_active_power[ 0 ] , 1.0 );
@@ -559,8 +557,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
    RampUp_Constraints[ 0 ].set_function( linear_function );
 
-   for( Index t = 1 , constraint_index = 1 ; t < init_t ;
-        ++t , ++constraint_index ) {
+   for( Index t = 1 ; t < init_t ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -568,9 +565,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     lf->add_variable( & v_active_power[ t - 1 ] ,  1.0 );
     lf->add_variable( & v_commitment[ t - 1 ]   , v_DeltaRampUp[ t ] );
 
-    RampUp_Constraints[constraint_index].set_lhs( 0.0 );
-    RampUp_Constraints[constraint_index].set_rhs( Inf< double >() );
-    RampUp_Constraints[constraint_index].set_function( lf );
+    RampUp_Constraints[ t ].set_lhs( 0.0 );
+    RampUp_Constraints[ t ].set_rhs( Inf< double >() );
+    RampUp_Constraints[ t ].set_function( lf );
    }
 
    if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
@@ -598,8 +595,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Constraints[init_t].set_function( LFunction );
    }
 
-   for( Index t = init_t + 1 , constraint_index = init_t + 1 ;
-        t < f_time_horizon ; ++t , ++constraint_index ) {
+   for( Index t = init_t + 1 ; t < f_time_horizon ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -609,9 +605,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                       get_operational_min_power( t ) );
     lf->add_variable( & v_commitment[ t - 1 ]    , v_DeltaRampUp[ t ] );
 
-    RampUp_Constraints[ constraint_index ].set_lhs( 0.0 );
-    RampUp_Constraints[ constraint_index ].set_rhs( Inf< double >() );
-    RampUp_Constraints[ constraint_index ].set_function( lf );
+    RampUp_Constraints[ t ].set_lhs( 0.0 );
+    RampUp_Constraints[ t ].set_rhs( Inf< double >() );
+    RampUp_Constraints[ t ].set_function( lf );
    }
   }
   add_static_constraint( RampUp_Constraints, "RampUp" );
@@ -637,8 +633,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    RampDown_Constraints[ 0 ].set_function( linear_function );
 
    // Remaining constraints
-   for( Index t = 1 , constraint_index = 1 ; t < f_time_horizon ;
-        ++t , ++constraint_index ) {
+   for( Index t = 1 ; t < f_time_horizon ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -647,9 +642,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     lf->add_variable( & v_shut_down[ t ] , get_operational_min_power( t ) );
     lf->add_variable( & v_commitment[ t ] , v_DeltaRampDown[ t ] );
 
-    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
-    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
-    RampDown_Constraints[ constraint_index ].set_function( lf );
+    RampDown_Constraints[ t ].set_lhs( 0.0 );
+    RampDown_Constraints[ t ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ t ].set_function( lf );
    }
   }
 
@@ -667,22 +662,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    RampDown_Constraints[ 0 ].set_rhs( Inf< double >() );
    RampDown_Constraints[ 0 ].set_function( linear_function );
 
-   for( Index t = 1 , constraint_index = 1 ; t < init_t ;
-        ++t , ++constraint_index ) {
+   for( Index t = 1 ; t < init_t ; ++t ) {
     auto lf = new LinearFunction();
 
     lf->add_variable( & v_active_power[ t - 1 ] , -1.0 );
     lf->add_variable( & v_active_power[ t ]     ,  1.0 );
     lf->add_variable( & v_commitment[ t ] , v_DeltaRampDown[ t ] );
-    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
-    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
-    RampDown_Constraints[ constraint_index ].set_function( lf );
+    RampDown_Constraints[ t ].set_lhs( 0.0 );
+    RampDown_Constraints[ t ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ t ].set_function( lf );
    }
 
    // Remaining constraints
 
-   for( Index t = init_t , constraint_index = init_t ; t < f_time_horizon ;
-        ++t , ++constraint_index ) {
+   for( Index t = init_t ; t < f_time_horizon ; ++t ) {
 
     auto lf = new LinearFunction();
 
@@ -692,9 +685,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                       get_operational_min_power( t ) );
     lf->add_variable( & v_commitment[ t ]         , v_DeltaRampDown[ t ] );
 
-    RampDown_Constraints[ constraint_index ].set_lhs( 0.0 );
-    RampDown_Constraints[ constraint_index ].set_rhs( Inf< double >() );
-    RampDown_Constraints[ constraint_index ].set_function( lf );
+    RampDown_Constraints[ t ].set_lhs( 0.0 );
+    RampDown_Constraints[ t ].set_rhs( Inf< double >() );
+    RampDown_Constraints[ t ].set_function( lf );
    }
   }
 
@@ -984,6 +977,139 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_availability
+( std::vector< double >::const_iterator values, Block::Subset && subset,
+  const bool ordered, c_ModParam issuePMod, c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_Availability.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 1.0 );
+                   } ) ) {
+   return;
+  }
+
+  v_Availability.assign( get_time_horizon() , 1.0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto temp_values = values;
+ for( auto t : subset ) {
+  if( t >= v_Availability.size() ) {
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock::set_availability: invalid index in subset: "
+            + std::to_string( t ) ) );
+  }
+  if( v_Availability[ t ] != *( temp_values++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  temp_values = values;
+  for( auto t : subset ) {
+   v_Availability[ t ] = *( temp_values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+
+   for( auto t : subset ) {
+
+    // MaxPower_Constraints
+    {
+     auto f = static_cast<LinearFunction *>( MaxPower_Constraints[ t ].
+                                             get_function() );
+     auto var_index = f->is_active( & v_commitment[ t ] );
+     assert( var_index < f->get_num_active_var() );
+     f->modify_coefficient( var_index , get_operational_max_power( t ) ,
+                            issueAMod );
+    }
+
+    // MinPower_Constraints
+    {
+     auto f = static_cast<LinearFunction *>( MinPower_Constraints[ t ].
+                                             get_function() );
+     auto var_index = f->is_active( & v_commitment[ t ] );
+     assert( var_index < f->get_num_active_var() );
+     f->modify_coefficient( var_index , - get_operational_min_power( t ) ,
+                            issueAMod );
+    }
+
+    // RampUp_Constraints
+
+    if( init_t == 0 ) {
+
+     double coefficient = get_operational_min_power( t );
+     if( t == 0 )
+      coefficient *= -1.0;
+
+     auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
+                                             get_function() );
+     auto var_index = f->is_active( & v_start_up[ t ] );
+     assert( var_index < f->get_num_active_var() );
+     f->modify_coefficient( var_index , coefficient , issueAMod );
+    }
+    else if( init_t > 0 ) {
+
+     auto depends_on_min_power = ( t > init_t );
+     depends_on_min_power |= ( t == init_t ) &&
+      ( ( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) ||
+        ( f_InitUpDownTime > 0 &&  f_InitUpDownTime < f_MinUpTime ) );
+
+     if( depends_on_min_power ) {
+
+      auto coefficient = get_operational_min_power( t );
+      if( t == init_t )
+       coefficient *= -1.0;
+
+      auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
+                                              get_function() );
+      auto var_index = f->is_active( & v_start_up[ t - init_t ] );
+      assert( var_index < f->get_num_active_var() );
+      f->modify_coefficient( var_index , coefficient , issueAMod );
+     }
+    }
+
+    // RampDown_Constraints
+    if( ( init_t == 0 && t == 0 ) || ( init_t > 0 && t >= init_t ) ) {
+
+     auto f = static_cast<LinearFunction *>( RampDown_Constraints[ t ].
+                                             get_function() );
+     auto var_index = f->is_active( & v_shut_down[ t - init_t ] );
+     assert( var_index < f->get_num_active_var() );
+     auto coefficient = get_operational_min_power( t );
+     f->modify_coefficient( var_index , coefficient , issueAMod );
+    }
+   } // end( for( auto t : subset ) )
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( ! ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
+                                               ThermalUnitBlockMod::eSetAv ,
+                                               std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}
+
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_maximum_power

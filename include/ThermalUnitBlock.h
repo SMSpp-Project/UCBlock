@@ -1310,12 +1310,12 @@ class ThermalUnitBlockMod : public Modification {
  enum TUBB_mod_type {
   eSetMaxP = 0 ,   ///< Set max power values
   eSetInitP    ,   ///< Set initial power values
-  eSetInitUD       ///< Set initial up/down times
+  eSetInitUD   ,   ///< Set initial up/down times
+  eSetAv           ///< Set availability
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock,
-                      const int type )
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
