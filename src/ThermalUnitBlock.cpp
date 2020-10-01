@@ -979,6 +979,78 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::update_availability_dependents
+( Index t , c_ModParam issuePMod, c_ModParam issueAMod ) {
+
+ // MaxPower_Constraints
+ {
+  auto f = static_cast<LinearFunction *>( MaxPower_Constraints[ t ].
+                                          get_function() );
+  auto var_index = f->is_active( & v_commitment[ t ] );
+  assert( var_index < f->get_num_active_var() );
+  f->modify_coefficient( var_index , get_operational_max_power( t ) ,
+                         issueAMod );
+ }
+
+ // MinPower_Constraints
+ {
+  auto f = static_cast<LinearFunction *>( MinPower_Constraints[ t ].
+                                          get_function() );
+  auto var_index = f->is_active( & v_commitment[ t ] );
+  assert( var_index < f->get_num_active_var() );
+  f->modify_coefficient( var_index , - get_operational_min_power( t ) ,
+                         issueAMod );
+ }
+
+ // RampUp_Constraints
+
+ if( init_t == 0 ) {
+
+  double coefficient = get_operational_min_power( t );
+  if( t == 0 )
+   coefficient *= -1.0;
+
+  auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
+                                          get_function() );
+  auto var_index = f->is_active( & v_start_up[ t ] );
+  assert( var_index < f->get_num_active_var() );
+  f->modify_coefficient( var_index , coefficient , issueAMod );
+ }
+ else if( init_t > 0 ) {
+
+  auto depends_on_min_power = ( t > init_t );
+  depends_on_min_power |= ( t == init_t ) &&
+   ( ( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) ||
+     ( f_InitUpDownTime > 0 &&  f_InitUpDownTime < f_MinUpTime ) );
+
+  if( depends_on_min_power ) {
+
+   auto coefficient = get_operational_min_power( t );
+   if( t == init_t )
+    coefficient *= -1.0;
+
+   auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
+                                           get_function() );
+   auto var_index = f->is_active( & v_start_up[ t - init_t ] );
+   assert( var_index < f->get_num_active_var() );
+   f->modify_coefficient( var_index , coefficient , issueAMod );
+  }
+ }
+
+ // RampDown_Constraints
+ if( ( init_t == 0 && t == 0 ) || ( init_t > 0 && t >= init_t ) ) {
+
+  auto f = static_cast<LinearFunction *>( RampDown_Constraints[ t ].
+                                          get_function() );
+  auto var_index = f->is_active( & v_shut_down[ t - init_t ] );
+  assert( var_index < f->get_num_active_var() );
+  auto coefficient = get_operational_min_power( t );
+  f->modify_coefficient( var_index , coefficient , issueAMod );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::set_availability
 ( std::vector< double >::const_iterator values, Block::Subset && subset,
   const bool ordered, c_ModParam issuePMod, c_ModParam issueAMod ) {
@@ -1026,75 +1098,8 @@ void ThermalUnitBlock::set_availability
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
-
-   for( auto t : subset ) {
-
-    // MaxPower_Constraints
-    {
-     auto f = static_cast<LinearFunction *>( MaxPower_Constraints[ t ].
-                                             get_function() );
-     auto var_index = f->is_active( & v_commitment[ t ] );
-     assert( var_index < f->get_num_active_var() );
-     f->modify_coefficient( var_index , get_operational_max_power( t ) ,
-                            issueAMod );
-    }
-
-    // MinPower_Constraints
-    {
-     auto f = static_cast<LinearFunction *>( MinPower_Constraints[ t ].
-                                             get_function() );
-     auto var_index = f->is_active( & v_commitment[ t ] );
-     assert( var_index < f->get_num_active_var() );
-     f->modify_coefficient( var_index , - get_operational_min_power( t ) ,
-                            issueAMod );
-    }
-
-    // RampUp_Constraints
-
-    if( init_t == 0 ) {
-
-     double coefficient = get_operational_min_power( t );
-     if( t == 0 )
-      coefficient *= -1.0;
-
-     auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
-                                             get_function() );
-     auto var_index = f->is_active( & v_start_up[ t ] );
-     assert( var_index < f->get_num_active_var() );
-     f->modify_coefficient( var_index , coefficient , issueAMod );
-    }
-    else if( init_t > 0 ) {
-
-     auto depends_on_min_power = ( t > init_t );
-     depends_on_min_power |= ( t == init_t ) &&
-      ( ( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) ||
-        ( f_InitUpDownTime > 0 &&  f_InitUpDownTime < f_MinUpTime ) );
-
-     if( depends_on_min_power ) {
-
-      auto coefficient = get_operational_min_power( t );
-      if( t == init_t )
-       coefficient *= -1.0;
-
-      auto f = static_cast<LinearFunction *>( RampUp_Constraints[ t ].
-                                              get_function() );
-      auto var_index = f->is_active( & v_start_up[ t - init_t ] );
-      assert( var_index < f->get_num_active_var() );
-      f->modify_coefficient( var_index , coefficient , issueAMod );
-     }
-    }
-
-    // RampDown_Constraints
-    if( ( init_t == 0 && t == 0 ) || ( init_t > 0 && t >= init_t ) ) {
-
-     auto f = static_cast<LinearFunction *>( RampDown_Constraints[ t ].
-                                             get_function() );
-     auto var_index = f->is_active( & v_shut_down[ t - init_t ] );
-     assert( var_index < f->get_num_active_var() );
-     auto coefficient = get_operational_min_power( t );
-     f->modify_coefficient( var_index , coefficient , issueAMod );
-    }
-   } // end( for( auto t : subset ) )
+   for( auto t : subset )
+    update_availability_dependents( t , issuePMod , issueAMod );
   }
  }
 

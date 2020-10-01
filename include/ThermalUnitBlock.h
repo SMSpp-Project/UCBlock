@@ -1295,6 +1295,9 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ void update_availability_dependents( Index t , c_ModParam issuePMod,
+                                      c_ModParam issueAMod );
+
 };  // end( class( ThermalUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
