@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 01 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -124,7 +124,6 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
  ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
- ::deserialize( group, "Availability", f_time_horizon, v_Availability, true, true );
  ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true, true );
  ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown, true, true );
  ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
@@ -140,6 +139,11 @@ void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
  ::deserialize( group, "MinDownTime", &f_MinDownTime );
  ::deserialize( group, "InitUpDownTime", &f_InitUpDownTime );
+
+ if( ! ::deserialize( group, "Availability", f_time_horizon,
+                      v_Availability, true, true ) ) {
+  v_Availability.resize( get_time_horizon() , 1.0 );
+ }
 
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
