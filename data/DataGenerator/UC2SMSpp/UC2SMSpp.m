@@ -53,19 +53,19 @@ VnamesToExclude(end+1).name = 'MARCIL';
 
 dataSetsUC = struct('basePth', {}, 'name',{});
 
-dataSetsUC(1).basePth = '/Users/ali/Desktop/EDF/20100623/20090907';
+dataSetsUC(1).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20090907';
 dataSetsUC(1).name = '20090907';
-dataSetsUC(2).basePth = '/Users/ali/Desktop/EDF/20100623/20090908';
+dataSetsUC(2).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20090908';
 dataSetsUC(2).name = '20090908';
-dataSetsUC(3).basePth = '/Users/ali/Desktop/EDF/20100623/20091005';
+dataSetsUC(3).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20091005';
 dataSetsUC(3).name = '20091005';
-dataSetsUC(4).basePth = '/Users/ali/Desktop/EDF/20100623/20100311';
+dataSetsUC(4).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20100311';
 dataSetsUC(4).name = '20100311';
-dataSetsUC(5).basePth = '/Users/ali/Desktop/EDF/20100623/20100323';
+dataSetsUC(5).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20100323';
 dataSetsUC(5).name = '20100323';
-dataSetsUC(6).basePth = '/Users/ali/Desktop/EDF/20100623/20100623';
+dataSetsUC(6).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20100623';
 dataSetsUC(6).name = '20100623';
-dataSetsUC(7).basePth = '/Users/ali/Desktop/EDF/20100623/20101231';
+dataSetsUC(7).basePth = '/Users/ali/Desktop/EDF/apogene_grace/20101231';
 dataSetsUC(7).name = '20101231';
 
 
