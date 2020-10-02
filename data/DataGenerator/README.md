@@ -27,7 +27,7 @@ The main file is UC2SMSpp.m which starts with two switchable categories as below
 In each category, to generate each kind of instance, it's enough comment other options.
 Thus, it gives a combinatorial option of picking "k" among "n".
 
-The folder 20100623 contains 7 different base data sets which are essential to generate the UC data to SMS++.
+The folder apogene_grace contains 7 different base data sets which are essential to generate the UC data to SMS++.
 For that matter, the use should load them by changing the path (in lines 56-69) as his/him system.
 Besides, user should give a path(in line 158) to where the SMSpp dataset gets written down.
 
