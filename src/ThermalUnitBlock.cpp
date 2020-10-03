@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 01 - 10 - 2020
+ * \date 03 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1051,7 +1051,7 @@ void ThermalUnitBlock::update_availability_dependents
   auto coefficient = get_operational_min_power( t );
   f->modify_coefficient( var_index , coefficient , issueAMod );
  }
-}
+}  // end( ThermalUnitBlock::update_availability_dependents )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1117,7 +1117,65 @@ void ThermalUnitBlock::set_availability
                                                std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_availability )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_availability
+( std::vector< double >::const_iterator values, Block::Range rng,
+  c_ModParam issuePMod, c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_Availability.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 1.0 );
+                   } ) ) {
+   return;
+  }
+
+  v_Availability.assign( get_time_horizon() , 1.0 );
+ }
+
+ if( rng.first >= v_MaxPower.size() ) {
+  throw( std::invalid_argument
+         ( "ThermalUnitBlock::set_availability: invalid first endpoint of "
+           "range: " + std::to_string( rng.first ) ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_Availability.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_Availability.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+   for( Index t = rng.first; t < rng.second; ++t )
+    update_availability_dependents( t , issuePMod , issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
+                                               ThermalUnitBlockMod::eSetAv ,
+                                               rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( ThermalUnitBlock::set_availability )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1190,7 +1248,9 @@ void ThermalUnitBlock::set_maximum_power
                                                std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_maximum_power )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_maximum_power
 ( std::vector< double >::const_iterator values, Block::Range rng,
@@ -1253,7 +1313,9 @@ void ThermalUnitBlock::set_maximum_power
                                                rng ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_maximum_power )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_initial_power(
  std::vector< double >::const_iterator values,
@@ -1291,7 +1353,9 @@ void ThermalUnitBlock::set_initial_power(
                                                 std::move( subset ) ),
    Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_initial_power )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_initial_power(
  std::vector< double >::const_iterator values,
@@ -1328,7 +1392,9 @@ void ThermalUnitBlock::set_initial_power(
                                                 rng ),
    Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_initial_power )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_init_updown_time(
  std::vector< int >::const_iterator values,
@@ -1362,7 +1428,9 @@ void ThermalUnitBlock::set_init_updown_time(
                                                 std::move( subset ) ),
    Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( ThermalUnitBlock::set_init_updown_time )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_init_updown_time(
  std::vector< int >::const_iterator values,
@@ -1394,7 +1462,10 @@ void ThermalUnitBlock::set_init_updown_time(
                                                 ThermalUnitBlockMod::eSetInitP,
                                                 rng ),
    Observer::par2chnl( issuePMod ) );
- }}
+ }
+}  // end( ThermalUnitBlock::set_init_updown_time )
+
+/*--------------------------------------------------------------------------*/
 
 template< typename T >
 void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
@@ -1417,9 +1488,7 @@ void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
    }
   }
  }
-}
-
-// end( ThermalUnitBlock::serialize )
+} // end( ThermalUnitBlock::decompress_vector )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File ThermalUnitBlock.cpp ------------------------*/

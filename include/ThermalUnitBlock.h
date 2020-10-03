@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 03 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1087,10 +1087,32 @@ class ThermalUnitBlock : public UnitBlock {
                         c_ModParam issuePMod = eNoBlck,
                         c_ModParam issueAMod = eNoBlck );
 
+/*--------------------------------------------------------------------------*/
+
+ // update the availability of the unit
+ /** This method updates the availability of the unit. The \p rng parameter
+  * contains a range of time instants and \p values contains the availability
+  * of the unit at those time instants. The availability of the unit at time
+  * rng.first + i is given by std::next( values , i ) for each i in {0, ...,
+  * ( std::min( rng.second, get_time_horizon() ) - rng.first - 1 )}.
+  *
+  * Let AvMinPower[ t ] and AvMaxPower[ t ] denote the operational minimum and
+  * maximum active power of the unit at time t. Then, the following condition
+  * must be satisfied:
+  *
+  *   AvMinPower[ t ] <= AvMaxPower[ t ]
+  *
+  * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
+  * the definition of operational maximum and minimum active power). If the
+  * given availability in \p values is such that this condition does not hold,
+  * an exception is thrown.  */
+
  void set_availability( std::vector< double >::const_iterator values,
                         Range rng = Range( 0, Inf< Index >() ),
                         c_ModParam issuePMod = eNoBlck,
                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
