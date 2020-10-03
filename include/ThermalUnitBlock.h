@@ -756,9 +756,8 @@ class ThermalUnitBlock : public UnitBlock {
   */
  double get_operational_min_power( Index t ) const {
   assert( t < get_time_horizon() );
-  if( get_availability( t ) > 0.0 )
-   return v_MinPower[ t ];
-  return 0.0;
+  return compute_operational_min_power( v_MinPower[ t ] ,
+                                        get_availability( t ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -788,7 +787,8 @@ class ThermalUnitBlock : public UnitBlock {
   */
  double get_operational_max_power( Index t ) const {
   assert( t < get_time_horizon() );
-  return v_MaxPower[ t ] * get_availability( t );
+  return compute_operational_max_power( v_MaxPower[ t ] ,
+                                        get_availability( t ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1317,8 +1317,71 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- void update_availability_dependents( Index t , c_ModParam issuePMod,
-                                      c_ModParam issueAMod );
+ /// updates the abstract representation dependent on the availability
+ /** This method updates any part of the abstract representation that may
+  * depend on the availability of the unit at the given time \p t.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_availability_dependents( Index t , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if and only if the given availability is consistent
+ /** This method checks whether the given \p availability is consistent at
+  * time \p t. An availability is consistent at a given time instant if the
+  * resulting operational minimum active power output is less than or equal to
+  * the resulting operational maximum active power at that time.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return true if and only if the given \p availability is consistent at
+  *         time \p t. */
+ bool availability_is_consistent( Index t , double availability ) const {
+  assert( t < get_time_horizon() );
+  const auto min_power = compute_operational_min_power
+   ( v_MinPower[ t ] , availability );
+  const auto max_power = compute_operational_max_power
+   ( v_MaxPower[ t ] , availability );
+  return( min_power <= max_power );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational minimum power
+ /** This method computes the operational minimum power for the given nominal
+  * minimum power and availability.
+  *
+  * @param min_power The nominal minimum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational minimum power. */
+ double compute_operational_min_power( double nominal_min_power ,
+                                       double availability ) const {
+  if( availability > 0.0 )
+   return nominal_min_power;
+  return 0.0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational maximum power
+ /** This method computes the operational maximum power for the given nominal
+  * maximum power and availability.
+  *
+  * @param min_power The nominal maximum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational maximum power. */
+ double compute_operational_max_power( double nominal_max_power ,
+                                       double availability ) const {
+  return nominal_max_power * availability;
+ }
 
 };  // end( class( ThermalUnitBlock ) )
 

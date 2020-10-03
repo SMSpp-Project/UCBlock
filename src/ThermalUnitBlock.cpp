@@ -984,7 +984,10 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_availability_dependents
-( Index t , c_ModParam issuePMod, c_ModParam issueAMod ) {
+( Index t , c_ModParam issueAMod ) {
+
+ if( ! constraints_generated() )
+  return;
 
  // MaxPower_Constraints
  {
@@ -1077,33 +1080,46 @@ void ThermalUnitBlock::set_availability
 
  // If nothing changes, return
  bool identical = true;
- auto temp_values = values;
+ auto availability = values;
  for( auto t : subset ) {
+
   if( t >= v_Availability.size() ) {
    throw( std::invalid_argument
           ( "ThermalUnitBlock::set_availability: invalid index in subset: "
             + std::to_string( t ) ) );
   }
-  if( v_Availability[ t ] != *( temp_values++ ) ) {
+
+  // Check change
+
+  if( v_Availability[ t ] != *availability ) {
    identical = false;
-   break;
   }
+
+  // Check consistency
+
+  if( ! availability_is_consistent( t , *availability ) )
+   throw( std::logic_error
+          ( "ThermalUnitBlock::set_availability: availability at time " +
+            std::to_string( t ) + " is not consistent." ) );
+
+  std::advance( availability , 1 );
  }
+
  if( identical )
-  return;
+  return; // nothing changes
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
-  temp_values = values;
+  availability = values;
   for( auto t : subset ) {
-   v_Availability[ t ] = *( temp_values++ );
+   v_Availability[ t ] = *( availability++ );
   }
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( auto t : subset )
-    update_availability_dependents( t , issuePMod , issueAMod );
+    update_availability_dependents( t , issueAMod );
   }
  }
 
@@ -1155,6 +1171,17 @@ void ThermalUnitBlock::set_availability
   return;
  }
 
+ // Check consistency
+
+ auto availability = values;
+ for( Index t = rng.first ; t < rng.second ; ++t ) {
+  if( ! availability_is_consistent( t , *availability ) )
+   throw( std::logic_error
+          ( "ThermalUnitBlock::set_availability: availability at time " +
+            std::to_string( t ) + " is not consistent." ) );
+  std::advance( availability , 1 );
+ }
+
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
@@ -1164,8 +1191,8 @@ void ThermalUnitBlock::set_availability
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
-   for( Index t = rng.first; t < rng.second; ++t )
-    update_availability_dependents( t , issuePMod , issueAMod );
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    update_availability_dependents( t , issueAMod );
   }
  }
 
@@ -1201,14 +1228,14 @@ void ThermalUnitBlock::set_maximum_power
 
  // If nothing changes, return
  bool identical = true;
- auto temp_values = values;
+ auto availability = values;
  for( auto t : subset ) {
   if( t >= v_MaxPower.size() ) {
    throw( std::invalid_argument
           ( "ThermalUnitBlock::set_maximum_power: invalid index in subset: "
             + std::to_string( t ) ) );
   }
-  if( v_MaxPower[ t ] != *( temp_values++ ) ) {
+  if( v_MaxPower[ t ] != *( availability++ ) ) {
    identical = false;
    break;
   }
@@ -1219,9 +1246,9 @@ void ThermalUnitBlock::set_maximum_power
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
-  temp_values = values;
+  availability = values;
   for( auto t : subset ) {
-   v_MaxPower[ t ] = *( temp_values++ );
+   v_MaxPower[ t ] = *( availability++ );
   }
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
