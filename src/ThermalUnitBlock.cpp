@@ -1099,7 +1099,8 @@ void ThermalUnitBlock::set_availability
 
   if( ! availability_is_consistent( t , *availability ) )
    throw( std::logic_error
-          ( "ThermalUnitBlock::set_availability: availability at time " +
+          ( "ThermalUnitBlock::set_availability: availability (" +
+            std::to_string( *availability ) + ") at time " +
             std::to_string( t ) + " is not consistent." ) );
 
   std::advance( availability , 1 );
@@ -1177,7 +1178,8 @@ void ThermalUnitBlock::set_availability
  for( Index t = rng.first ; t < rng.second ; ++t ) {
   if( ! availability_is_consistent( t , *availability ) )
    throw( std::logic_error
-          ( "ThermalUnitBlock::set_availability: availability at time " +
+          ( "ThermalUnitBlock::set_availability: availability (" +
+            std::to_string( *availability ) + ") at time " +
             std::to_string( t ) + " is not consistent." ) );
   std::advance( availability , 1 );
  }

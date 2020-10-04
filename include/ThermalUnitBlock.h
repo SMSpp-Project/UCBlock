@@ -1271,6 +1271,14 @@ class ThermalUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+                                       &ThermalUnitBlock::set_availability,
+                                       MS_dbl_sbst::args() );
+
+  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+                                       &ThermalUnitBlock::set_availability,
+                                       MS_dbl_rngd::args() );
+
   register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
                                        &ThermalUnitBlock::set_maximum_power,
                                        MS_dbl_sbst::args() );
