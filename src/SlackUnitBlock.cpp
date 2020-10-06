@@ -200,7 +200,7 @@ void SlackUnitBlock::generate_abstract_constraints
   ActivePower_Bound_Constraints[t].set_function( linear_function );
  }
 
- add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_C" );
+ add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_Slack" );
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
@@ -222,7 +222,7 @@ void SlackUnitBlock::generate_abstract_constraints
   Primary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
  }
 
- add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_C" );
+ add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -245,7 +245,7 @@ void SlackUnitBlock::generate_abstract_constraints
   Secondary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
  }
 
- add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_C" );
+ add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
 
  set_constraints_generated();
 } // end( SlackUnitBlock::generate_abstract_constraints )

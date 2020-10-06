@@ -261,7 +261,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
    MaxPower_Constraints[t].set_function( linear_function );
   }
 
-  add_static_constraint( MaxPower_Constraints, "MaxPower_c" );
+  add_static_constraint( MaxPower_Constraints, "MaxPower_Intermittent" );
 
 
   // Initializing minimum power constraints
@@ -286,7 +286,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
    MinPower_Constraints[t].set_function( linear_function );
   }
 
-  add_static_constraint( MinPower_Constraints, "MinPower_c" );
+  add_static_constraint( MinPower_Constraints, "MinPower_Intermittent" );
  }
 
  // Initializing active power bounds constraints
@@ -308,7 +308,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
   active_power_bounds_Constraints[t].set_function( linear_function );
  }
 
- add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_c" );
+ add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_Intermittent" );
 
  set_constraints_generated();
 } // end( IntermittentUnitBlock::generate_abstract_constraints )

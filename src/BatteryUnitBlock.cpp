@@ -307,7 +307,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
     active_power_lower_bound_Constraints[t].set_function( linear_function );
    }
   }
-  add_static_constraint( active_power_lower_bound_Constraints, "Active Power Lower Bound Constraints" );
+  add_static_constraint( active_power_lower_bound_Constraints, "ActivePower_LowerBound_Constraints_Battery" );
 
   // Initializing maximum power constraints
 
@@ -329,7 +329,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
     active_power_upper_bound_Constraints[t].set_function( linear_function );
    }
 
-  add_static_constraint( active_power_upper_bound_Constraints, "Active Power Upper Bound Constraints" );
+  add_static_constraint( active_power_upper_bound_Constraints, "ActivePower_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
  // Initializing ramp-up constraints
@@ -358,7 +358,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    }
  }
 
- add_static_constraint( ramp_up_Constraints, "Ramp Up Constraints" );
+ add_static_constraint( ramp_up_Constraints, "RampUp_Constraints_Battery" );
 
  // Initializing ramp-down constraints
  if( !v_delta_ramp_down.empty() ) {
@@ -386,7 +386,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   }
 
  }
- add_static_constraint( ramp_down_Constraints, "Ramp Down Constraints" );
+ add_static_constraint( ramp_down_Constraints, "RampDown_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 // Initializing power_intake_outtake_Constraints
@@ -406,7 +406,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
   }
 
- add_static_constraint( power_intake_outtake_Constraints, "Power_Intake_Outtake Constraints" );
+ add_static_constraint( power_intake_outtake_Constraints, "Power_Intake_Outtake_Constraints_Battery" );
 
 
 // Initializing intake_upper_bound_Constraints
@@ -425,7 +425,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    intake_upper_bound_Constraints[t].set_function( linear_function );
 
   }
- add_static_constraint( intake_upper_bound_Constraints, "Intake UpperBound Constraints" );
+ add_static_constraint( intake_upper_bound_Constraints, "Intake_UpperBound_Constraints_Battery" );
 
  /*--------------------------------------------------------------------------*/
 // Initializing demand_Constraints
@@ -485,7 +485,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   }
  }
 
- add_static_constraint( demand_Constraints, "demand Constraints" );
+ add_static_constraint( demand_Constraints, "demand_Constraints_Battery" );
 
  /*--------------------------------------------------------------------------*/
 // Initializing storage_level_bounds_Constraints
@@ -503,7 +503,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    storage_level_bounds_Constraints[t].set_function( linear_function );
 
   }
- add_static_constraint( storage_level_bounds_Constraints, "Storage Level Bounds Constraints" );
+ add_static_constraint( storage_level_bounds_Constraints, "StorageLevel_Bounds_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -527,7 +527,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
   }
  }
- add_static_constraint( intake_binary_Constraints, "Intake Binary Constraints" );
+ add_static_constraint( intake_binary_Constraints, "Intake_Binary_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -550,7 +550,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
   }
  }
- add_static_constraint( outtake_binary_Constraints, "Outtake Binary Constraints" );
+ add_static_constraint( outtake_binary_Constraints, "Outtake_Binary_Constraints_Battery" );
 /*--------------------------------------------------------------------------*/
 
   // Initializing primary_upper_bound_Constraints
@@ -569,7 +569,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    primary_upper_bound_Constraints[t].set_function( linear_function );
 
   }
-  add_static_constraint( primary_upper_bound_Constraints, "Primary Upper Bound Constraints" );
+  add_static_constraint( primary_upper_bound_Constraints, "Primary_UpperBound_Constraints_Battery" );
  }
 
   // Initializing secondary_upper_bound_Constraints
@@ -589,7 +589,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    secondary_upper_bound_Constraints[t].set_function( linear_function );
 
   }
-  add_static_constraint( secondary_upper_bound_Constraints, "Secondary Upper Bound Constraints" );
+  add_static_constraint( secondary_upper_bound_Constraints, "Secondary_UpperBound_Constraints_Battery" );
  }
 
  set_constraints_generated();

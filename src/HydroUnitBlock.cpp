@@ -310,8 +310,13 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   auto volumetric0 = get_volume( n , 0 );
 
   l_f->add_variable( volumetric0, 1.0 );
-  FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] +
-                                             v_inflows[n][0] );
+
+  if ( ! v_inflows.empty() ) {
+   FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] +
+                                              v_inflows[n][0] );
+  } else {
+   FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] );
+  }
   FinalVolumeReservoir_Const[0][n].set_function( l_f );
 
   for( Index t = 1, constraint_index = 1; t < f_time_horizon;
@@ -365,9 +370,13 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    linear_function->add_variable( volumetric_t, 1.0 );
    linear_function->add_variable( volumetric_t_1, -1.0 );
 
-   FinalVolumeReservoir_Const[constraint_index][n].
-    set_both( v_inflows[n][constraint_index] );
-
+   if ( ! v_inflows.empty() ) {
+    FinalVolumeReservoir_Const[constraint_index][n].
+            set_both( v_inflows[n][constraint_index] );
+   } else{
+    FinalVolumeReservoir_Const[constraint_index][n].
+            set_both( 0.0 );
+   }
    FinalVolumeReservoir_Const[constraint_index][n].
     set_function( linear_function );
   }
@@ -405,6 +414,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // Initial data check
+ /*
  if ( ( ! v_minimum_flow.empty() ) && ( ! v_maximum_flow.empty() ) ) {
   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -433,7 +443,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
  }
-
+*/
  if( ( ! v_primary_rho.empty() ) && ( ! v_secondary_rho.empty() ) ) {
 
   assert( MaxPowerPrimarySecondary_Const.empty());
