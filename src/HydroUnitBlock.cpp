@@ -381,7 +381,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     set_function( linear_function );
   }
  }
- add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir" );
+ add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir_HydroUnit" );
 
  // maximum power output according to primary-secondary reserves constraints
 
@@ -414,16 +414,18 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
 
  // Initial data check
- /*
+
  if ( ( ! v_minimum_flow.empty() ) && ( ! v_maximum_flow.empty() ) ) {
   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( v_maximum_flow[t][arc] <= 0 &&
-        v_minimum_flow[t][arc] < 0 &&
-        v_primary_rho[t][arc] != 0) {
-     throw ( std::logic_error
-             ( "HydroUnitBlock::Data Error: it must be that for each pump"
-               " v_primary_rho == 0." ));
+    if ( ! v_primary_rho.empty() ) {
+     if( v_maximum_flow[t][arc] <= 0 &&
+         v_minimum_flow[t][arc] < 0 &&
+         v_primary_rho[t][arc] != 0 ) {
+      throw ( std::logic_error
+              ( "HydroUnitBlock::Data Error: it must be that for each pump"
+                " v_primary_rho == 0." ));
+     }
     }
    }
   }
@@ -433,17 +435,19 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  if ( ( ! v_minimum_flow.empty() ) && ( ! v_maximum_flow.empty() ) ) {
   for( Index arc = 0; arc < f_number_arcs; ++arc ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( ( v_maximum_flow[t][arc] <= 0 ) &&
+    if ( ! v_secondary_rho.empty() ) {
+     if(( v_maximum_flow[t][arc] <= 0 ) &&
         ( v_minimum_flow[t][arc] < 0 ) &&
-        ( v_secondary_rho[t][arc] != 0 ) ) {
-     throw ( std::logic_error
-             ( "HydroUnitBlock::Data Error: it must be that for each pump "
-               " then v_secondary_rho == 0." ));
+        ( v_secondary_rho[t][arc] != 0 )) {
+      throw ( std::logic_error
+              ( "HydroUnitBlock::Data Error: it must be that for each pump "
+                " then v_secondary_rho == 0." ));
+     }
     }
    }
   }
  }
-*/
+
  if( ( ! v_primary_rho.empty() ) && ( ! v_secondary_rho.empty() ) ) {
 
   assert( MaxPowerPrimarySecondary_Const.empty());
@@ -476,7 +480,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
   add_static_constraint( MaxPowerPrimarySecondary_Const ,
-                         "MaxPowerPrimarySecondary" );
+                         "MaxPowerPrimarySecondary_HydroUnit" );
 
 
   // minimum power output according to primary-secondary reserves constraints
@@ -511,7 +515,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
 
   add_static_constraint( MinPowerPrimarySecondary_Const ,
-                         "MinPowerPrimarySecondary" );
+                         "MinPowerPrimarySecondary_HydroUnit" );
  } else {
 
   assert( ActivePowerBounds_Const.empty());
@@ -542,7 +546,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     ActivePowerBounds_Const[t][arc].set_function( linear_function );
    }
   }
-  add_static_constraint( ActivePowerBounds_Const, "ActivePowerBounds" );
+  add_static_constraint( ActivePowerBounds_Const, "ActivePowerBounds_HydroUnit" );
  }
  // power output relation with to primary reserves constraints
 
@@ -590,7 +594,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      }
     }
    }
-   add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary" );
+   add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary_HydroUnit" );
 
   }
   else {
@@ -610,7 +614,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      ActivePowerPrimary_Const[t][arc].set_function( linear_function );
     }
    }
-   add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary" );
+   add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary_HydroUnit" );
   }
 
  // power output relation with to secondary reserves constraints
@@ -660,7 +664,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      }
     }
    }
-   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary" );
+   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary_HydroUnit" );
   }
   else {
    assert( ActivePowerSecondary_Const.empty());
@@ -680,7 +684,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      ActivePowerSecondary_Const[t][arc].set_function( linear_function );
     }
    }
-   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary" );
+   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary_HydroUnit" );
   }
 
   assert( FlowActivePower_Const.empty());
@@ -820,7 +824,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
   }
-  add_static_constraint( FlowActivePower_Const, "FlowActivePower" );
+  add_static_constraint( FlowActivePower_Const, "FlowActivePower_HydroUnit" );
  }
 
  {
@@ -836,7 +840,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
   }
-  if( ( ! v_minimum_flow.empty() ) && ( ! v_maximum_flow.empty() ) ) {
+
 
    assert( FlowRateBounds_Const.empty());
 
@@ -849,15 +853,23 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      auto linear_function = new LinearFunction();
      auto flow_rate = get_flow_rate( arc , t );
      linear_function->add_variable( flow_rate, 1.0 );
-     FlowRateBounds_Const[t][arc].set_lhs( v_minimum_flow[t][arc] );
-     FlowRateBounds_Const[t][arc].set_rhs( v_maximum_flow[t][arc] );
+     if(  ! v_minimum_flow.empty() ) {
+      FlowRateBounds_Const[t][arc].set_lhs( v_minimum_flow[t][arc] );
+     } else {
+      FlowRateBounds_Const[t][arc].set_lhs( 0.0 );
+     }
+     if(  ! v_maximum_flow.empty() ) {
+      FlowRateBounds_Const[t][arc].set_rhs( v_maximum_flow[t][arc] );
+     } else {
+      FlowRateBounds_Const[t][arc].set_rhs( 0.0 );
+     }
      FlowRateBounds_Const[t][arc].set_function( linear_function );
     }
    }
 
-   add_static_constraint( FlowRateBounds_Const, "FlowRateBounds" );
+   add_static_constraint( FlowRateBounds_Const, "FlowRateBounds_HydroUnit" );
   }
- }
+
 
  // ramp-up constraints
  if( ! v_delta_ramp_up.empty() ) {
@@ -897,7 +909,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
 
-  add_static_constraint( RampUp_Const,"RampUp");
+  add_static_constraint( RampUp_Const,"RampUp_HydroUnit");
  }
 
 
@@ -941,7 +953,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
 
-  add_static_constraint( RampDown_Const, "RampDown");
+  add_static_constraint( RampDown_Const, "RampDown_HydroUnit");
 
  }
 
@@ -963,8 +975,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
 
- if( ( ! v_minimum_volumetric.empty() ) &&
-     ( ! v_maximum_volumetric.empty() ) ) {
+
 
   assert( VolumetricBounds_Const.empty());
 
@@ -980,14 +991,24 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     auto volumetric = get_volume( node , t );
     linear_function->add_variable( volumetric, 1.0 );
 
-    VolumetricBounds_Const[node][t].set_lhs( v_minimum_volumetric[node][t] );
-    VolumetricBounds_Const[node][t].set_rhs( v_maximum_volumetric[node][t] );
+    if( ! v_minimum_volumetric.empty() ) {
+
+     VolumetricBounds_Const[node][t].set_lhs( v_minimum_volumetric[node][t] );
+    } else {
+     VolumetricBounds_Const[node][t].set_lhs( 0.0);
+    }
+    if( ! v_maximum_volumetric.empty() ) {
+     VolumetricBounds_Const[node][t].set_rhs( v_maximum_volumetric[node][t] );
+    } else {
+     VolumetricBounds_Const[node][t].set_rhs( 0.0 );
+
+    }
     VolumetricBounds_Const[node][t].set_function( linear_function );
    }
   }
 
-  add_static_constraint( VolumetricBounds_Const, "VolumetricBounds" );
- }
+  add_static_constraint( VolumetricBounds_Const, "VolumetricBounds_HydroUnit" );
+
 
  set_constraints_generated();
 } // end( HydroUnitBlock::generate_abstract_constraints )
@@ -1576,11 +1597,11 @@ void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
  boost::multi_array< double, 2 > temp = a;
  a.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
 
- if( a.shape()[ 0 ] == 1 ) {
+ if( a.shape()[ 0 ] >= 1 ) {
 
   for( Index n = 0; n < f_number_reservoirs; ++n ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    a[ n ][ t ] = temp[ n ][ 0 ];
+    a[ n ][ t ] = temp[ 0 ][ n ];
    }
   }
 
