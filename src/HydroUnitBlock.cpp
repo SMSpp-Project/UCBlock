@@ -155,7 +155,6 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "MaxFlow", v_maximum_flow, true, true );
  transpose( v_maximum_flow );
 
-
  ::deserialize( group, "MinPower", v_minimum_power, true, true );
  transpose( v_minimum_power );
 
@@ -181,6 +180,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
                 v_const_term, true, true );
 
  ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
+ transpose( v_inertia_power );
 
  ::deserialize( group, "InitialFlowRate", f_number_arcs,
                 v_initial_flow_rate, true, true );
@@ -196,6 +196,7 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
  transpose( v_minimum_volumetric );
+
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
  transpose( v_maximum_volumetric );
 
@@ -1562,7 +1563,7 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
  boost::multi_array< double, 2 > temp = a;
  a.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
 
- if( a.shape()[ 1 ] == 1 ) {
+ if( a.shape()[ 1 ] == f_number_arcs ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
    for( Index g = 0; g < f_number_arcs; ++g ) {
     a[ t ][ g ] = temp[ 0 ][ g ];
@@ -1597,7 +1598,7 @@ void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
  boost::multi_array< double, 2 > temp = a;
  a.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
 
- if( a.shape()[ 0 ] >= 1 ) {
+ if( a.shape()[ 0 ] == f_number_reservoirs ) {
 
   for( Index n = 0; n < f_number_reservoirs; ++n ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
