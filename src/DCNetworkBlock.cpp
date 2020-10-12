@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 11 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -62,6 +62,9 @@ DCNetworkBlock::~DCNetworkBlock() {
   constraint.clear();
 
  for( auto & constraint : v_HVDC_power_flow_limit_constraints )
+  constraint.clear();
+
+ for( auto & constraint : v_AC_HVDC_power_flow_limit_constraints )
   constraint.clear();
 
  for( auto & constraint : v_power_flow_injection_constraints )
@@ -151,20 +154,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 // Initial check on network
 
-   bool HVDC_Lines = false;
-   bool AC_Lines = false;
+  auto lines_type = f_NetworkData->get_lines_type();
 
-  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
-       ++line_id ) {
-   if ( Susceptance[line_id] == 0 ) {
-    HVDC_Lines = true;
-   } else {
-    AC_Lines = true;
-   }
-  }
 /*--------------------------------------------------------------------------*/
 
-   if( Susceptance.empty() || ( HVDC_Lines && !AC_Lines ) ) {   // HVDC power flow limit
+   if( lines_type == kHVDC ) {   // HVDC power flow limit
 
     if( v_HVDC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
 
@@ -224,7 +218,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 // TODO implementation of AC and AC-HVDC lines is not ready
 
-  if(  !HVDC_Lines && AC_Lines  ) {    // AC power flow limit
+  if( lines_type == kAC ) {    // AC power flow limit
 /*
   if( v_AC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
    // this should only happen once
@@ -272,7 +266,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   } // end AC_Lines constraints
 /*--------------------------------------------------------------------------*/
 
-  if( HVDC_Lines && AC_Lines  ) { // AC-HVDC power flow limit
+  if( lines_type == kAC_HVDC ) { // AC-HVDC power flow limit
 
 
 /*
