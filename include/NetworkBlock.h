@@ -93,11 +93,21 @@ class NetworkBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * NetworkBlock defines a main public type:
+ * NetworkBlock defines two main public types:
+ *
+ * - line_type, an enum defining the types of lines present in the network.
  *
  * - NetworkData, a small auxiliary class to bunch together the basic data
  *   (topology and electrical characteristics) of the transmission network.
  *  @{ */
+
+ /// public enum for defining the types of lines of the network
+ enum line_type {
+  kNone = 0 ,  ///< no line
+  kAC ,        ///< AC lines
+  kHVDC ,      ///< HVDC lines
+  kAC_HVDC     ///< AC and HVDC lines
+  };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
@@ -188,7 +198,7 @@ class NetworkBlock : public Block {
  *   corresponding line i. Note that this variable is optional, for each line
  *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
  *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
- *   model with AC liens, and when for each line l, it's not defined or S[ l ]
+ *   model with AC lines, and when for each line l, it's not defined or S[ l ]
  *   == 0, then it corresponds to a single connected grid composed of HVDC
  *   lines only which is also known as the Net Transfer Capacity (NTC)
  *   model.*/
@@ -296,6 +306,26 @@ class NetworkBlock : public Block {
   const std::vector< double > & get_susceptance() const {
    return v_susceptance;
    }
+
+/*--------------------------------------------------------------------------*/
+/// returns the types of lines in the network
+/** This method returns the types of lines present in the network. */
+
+  line_type get_lines_type() const {
+
+   if( get_number_lines() == 0 )
+    return kNone;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s == 0.0; } ) )
+    return kHVDC;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s != 0.0; } ) )
+    return kAC;
+
+   return kAC_HVDC;
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
