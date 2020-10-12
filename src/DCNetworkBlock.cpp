@@ -120,7 +120,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( f_NetworkData->get_number_lines() <= 0 ) {
    throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                             "number of lines of DCNetworkBlock is not set" ));
+                             "number of lines of DCNetworkBlock is not set" ) );
   }
 
   // initial condition of number lines
@@ -158,63 +158,60 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-   if( lines_type == kHVDC ) {   // HVDC power flow limit
+  if( lines_type == kHVDC ) {   // HVDC power flow limit
 
-    if( v_HVDC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
+   if( v_HVDC_power_flow_limit_constraints.size() !=
+       f_NetworkData->get_number_lines() ) {
 
-     assert( v_HVDC_power_flow_limit_constraints.empty());
-     v_HVDC_power_flow_limit_constraints.resize( f_NetworkData->get_number_lines());
-    }
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
-         ++line_id ) {
-     auto linear_function = new LinearFunction();
+    assert( v_HVDC_power_flow_limit_constraints.empty() );
+    v_HVDC_power_flow_limit_constraints.resize
+     ( f_NetworkData->get_number_lines() );
+   }
 
-     linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+        ++line_id ) {
 
-     v_HVDC_power_flow_limit_constraints[line_id].set_lhs( MinPowerFlow[line_id] );
-     v_HVDC_power_flow_limit_constraints[line_id].set_rhs( MaxPowerFlow[line_id] );
-     v_HVDC_power_flow_limit_constraints[line_id].set_function( linear_function );
+    auto linear_function = new LinearFunction();
+    linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+    v_HVDC_power_flow_limit_constraints[line_id].set_lhs(MinPowerFlow[line_id]);
+    v_HVDC_power_flow_limit_constraints[line_id].set_rhs(MaxPowerFlow[line_id]);
+    v_HVDC_power_flow_limit_constraints[line_id].set_function(linear_function);
+   }
 
-    }
-
-    add_static_constraint( v_HVDC_power_flow_limit_constraints, "HVDC_power_flow_limit" );
+   add_static_constraint( v_HVDC_power_flow_limit_constraints ,
+                          "HVDC_power_flow_limit" );
 
 /*--------------------------------------------------------------------------*/
 
-    // HVDC power flow and node injection constraints
+   // HVDC power flow and node injection constraints
 
-    if( v_power_flow_injection_constraints.size() != f_NetworkData->get_number_nodes()) {
-     assert( v_power_flow_injection_constraints.empty());
-     v_power_flow_injection_constraints.resize( f_NetworkData->get_number_nodes());
+   if( v_power_flow_injection_constraints.size() !=
+       f_NetworkData->get_number_nodes() ) {
+
+    assert( v_power_flow_injection_constraints.empty() );
+    v_power_flow_injection_constraints.resize
+     ( f_NetworkData->get_number_nodes() );
+   }
+
+   for( Index n = 0 ; n < f_NetworkData->get_number_nodes() ; ++n ) {
+
+    auto linear_function = new LinearFunction();
+
+    linear_function->add_variable( &v_node_injection[n], -1.0 );
+
+    for( Index line_id = 0; line_id < number_lines; ++line_id ) {
+     if( StartLine[line_id] == n )
+      linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+     if( EndLine[line_id] == n )
+      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
     }
+    v_power_flow_injection_constraints[n].set_both( -v_active_demand[n] );
+    v_power_flow_injection_constraints[n].set_function( linear_function );
+   }
 
-    for( Index n = 0; n < f_NetworkData->get_number_nodes(); ++n ) {
-
-     auto linear_function = new LinearFunction();
-
-     linear_function->add_variable( &v_node_injection[n], -1.0 );
-
-     for( Index line_id = 0; line_id < number_lines; ++line_id ) {
-
-      if( StartLine[line_id] == n ) {
-
-       linear_function->add_variable( &v_power_flow[line_id], 1.0 );
-      }
-
-      if( EndLine[line_id] == n ) {
-
-       linear_function->add_variable( &v_power_flow[line_id], -1.0 );
-      }
-     }
-     v_power_flow_injection_constraints[n].set_both( -v_active_demand[n] );
-     v_power_flow_injection_constraints[n].set_function( linear_function );
-
-
-    }
-    add_static_constraint( v_power_flow_injection_constraints,
-                           "HVDC_power_flow_injection" );
-
-   } // end HVDC_Lines constraints
+   add_static_constraint( v_power_flow_injection_constraints ,
+                          "HVDC_power_flow_injection" );
+  } // end HVDC_Lines constraints
 /*--------------------------------------------------------------------------*/
 // TODO implementation of AC and AC-HVDC lines is not ready
 
