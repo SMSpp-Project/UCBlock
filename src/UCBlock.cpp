@@ -92,7 +92,6 @@ UCBlock::~UCBlock() {
          };
 
  clear_constraints( v_node_injection_constraints );
- clear_constraints( v_node_injection_constraints );
  clear_constraints( v_PrimaryDemand_Const );
  clear_constraints( v_SecondaryDemand_Const );
  clear_constraints( v_InertiaDemand_Const );

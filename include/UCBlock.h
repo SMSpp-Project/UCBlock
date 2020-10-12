@@ -12,7 +12,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 12 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -703,6 +703,9 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// Returns the number of UnitBlock
+ Index get_number_units() const { return f_number_units; }
+
  /// Returns the number of primary zones of the problem
  Index get_number_primary_zones() const { return f_number_primary_zones; }
 
@@ -870,6 +873,16 @@ class UCBlock : public Block {
 
  const boost::multi_array< double, 2 > & get_inertia_demand() const {
   return v_inertia_demand;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of pollutant zones associated with each pollutant
+ /** This method returns a vector containing the number of pollutant zones for
+  * each pollutant. The i-th entry of this vector is the number of pollutant
+  * zones associated with pollutant i. */
+
+ const std::vector< Index > & get_number_pollutant_zones() const {
+  return v_number_pollutant_zones;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1059,6 +1072,62 @@ class UCBlock : public Block {
 
  const std::vector< double > & get_power_heat_rho() const {
   return v_power_heat_rho;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the node injection constraints
+ /** This method returns (a const reference to) the boost multi_array C
+  * containing the node injection constraints. C[ t ][ n ] is the node
+  * injection constraint associated with time t and node n. */
+
+ const boost::multi_array< FRowConstraint, 2 > &
+ get_node_injection_constraints() const {
+  return v_node_injection_constraints;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the primary demand constraints
+ /** This method returns (a const reference to) the boost multi_array C
+  * containing the primary demand constraints. C[ t ][ z ] is the primary
+  * demand constraint associated with time t and primary zone z. */
+
+ const boost::multi_array< FRowConstraint, 2 > &
+ get_primary_demand_constraints() const {
+  return v_PrimaryDemand_Const;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the secondary demand constraints
+ /** This method returns (a const reference to) the boost multi_array C
+  * containing the secondary demand constraints. C[ t ][ z ] is the secondary
+  * demand constraint associated with time t and secondary zone z. */
+
+ const boost::multi_array< FRowConstraint, 2 > &
+ get_secondary_demand_constraints() {
+  return v_SecondaryDemand_Const;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the inertia demand constraints
+ /** This method returns (a const reference to) the boost multi_array C
+  * containing the inertia demand constraints. C[ t ][ z ] is the inertia
+  * demand constraint associated with time t and inertia zone z. */
+
+ const boost::multi_array< FRowConstraint, 2 > &
+ get_inertia_demand_constraints() const {
+  return v_InertiaDemand_Const;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum pollutant emission constraints
+ /** This method returns (a const reference to) the vector C containing the
+  * maximum pollutant emission constraints. C[ p ][ z ] is the maximum
+  * pollutant emission constraint associated with pollutant p and pollutant
+  * zone z. */
+
+ const std::vector< std::vector< FRowConstraint> > &
+ get_pollutant_constraints() const {
+  return v_PollutantBudget_Const;
   }
 
 /**@} ----------------------------------------------------------------------*/
