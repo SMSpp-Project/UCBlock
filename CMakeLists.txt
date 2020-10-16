@@ -6,7 +6,7 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.8...3.15)
+cmake_minimum_required(VERSION 3.11)
 project(UCBlock VERSION 0.4.1 LANGUAGES CXX)
 
 # ----- Requirements -------------------------------------------------------- #
