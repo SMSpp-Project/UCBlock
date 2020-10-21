@@ -514,6 +514,7 @@ void serialize_thermalunit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
 void serialize_hydrounit( netCDF::NcGroup & g, const HydroUnit & unit ) {
  serialize( g, "LinearTerm", netCDF::NcDouble(), unit.volumeToPower );
  serialize( g, "MaxFlow", netCDF::NcDouble(), unit.maxSpillage );
+ serialize( g, "MaxPower", netCDF::NcDouble(), (unit.maxUsage * unit.volumeToPower) );
  serialize( g, "InitialVolumetric", netCDF::NcDouble(), unit.initialFlood );
  serialize( g, "MinVolumetric", netCDF::NcDouble(), unit.minFlood );
  serialize( g, "MaxVolumetric", netCDF::NcDouble(), unit.maxFlood );
