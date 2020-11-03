@@ -245,8 +245,16 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize_dim( group, "NumberHeatGenerators",
                     f_number_heat_generators, true );
- ::deserialize_dim( group, "TotalNumberPollutantZones",
-                    f_total_number_pollutant_zones, true );
+
+ if( ! ::deserialize_dim( group, "TotalNumberPollutantZones", f_total_number_pollutant_zones, true ) ) {
+  f_total_number_pollutant_zones = 0;
+  for( const auto & n : v_number_pollutant_zones ) {
+   f_total_number_pollutant_zones += n;
+  }
+ }
+ f_total_number_pollutant_zones = f_total_number_pollutant_zones ?
+                                  f_total_number_pollutant_zones : f_number_pollutants;
+
 
  boost::multi_array< double, 2 > v_active_power_demand;
  bool ap_found = ::deserialize( group, "ActivePowerDemand",
@@ -542,6 +550,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
  unsigned int number_primary_zones = f_number_primary_zones;
  unsigned int number_secondary_zones = f_number_secondary_zones;
  unsigned int number_inertia_zones = f_number_inertia_zones;
+ unsigned int number_pollutants = f_number_pollutants;
+
 
 /*--------------------------------------------------------------------------*/
 
@@ -713,7 +723,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
   }
-  add_static_constraint( v_PrimaryDemand_Const );
+  add_static_constraint( v_PrimaryDemand_Const, "primary_demand_c"  );
  }
 /*--------------------------------------------------------------------------*/
 
@@ -884,7 +894,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
   }
-  add_static_constraint( v_SecondaryDemand_Const );
+  add_static_constraint( v_SecondaryDemand_Const, "secondary_demand_c"  );
  }
 /*--------------------------------------------------------------------------*/
 
@@ -1093,91 +1103,175 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
   }
-  add_static_constraint( v_InertiaDemand_Const );
+  add_static_constraint( v_InertiaDemand_Const, "inertia_demand_c"  );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ // Pollutant budget constraints.
+ if( number_pollutants > 0 ) {
+
+  v_PollutantBudget_Const.resize( v_number_pollutant_zones[f_total_number_pollutant_zones] );
+
+   if ( number_nodes == 1 ) {
+
+     for( Index pollutant = 0; pollutant < number_pollutants; ++pollutant ) {
+
+      for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
+           ++zone ) {
+
+      for( Index t = 0; t < f_time_horizon; ++t ) {
+
+       // Terms associated with active power
+       auto linear_function = new LinearFunction();
+
+       Index generator_id = 0;
+       for( auto block : get_nested_Blocks()) {
+        auto unit_block = dynamic_cast<UnitBlock *>(block);
+        if( unit_block == nullptr )
+         continue;
+        unit_block->get_number_generators();
+
+        for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
+
+         auto ap = unit_block->get_active_power( generator );
+         auto active_power = &ap[t];
+
+         auto node_id = get_generator_node()[generator];
+         auto zone_id = get_pollutant_zone()[pollutant][node_id];
+
+         if( zone_id >= v_number_pollutant_zones[pollutant] )
+          continue; // this unit does not belong to any zone
+
+         auto rho = get_pollutant_rho()[t][pollutant][generator];
+         linear_function->add_variable( active_power, rho );
+
+         generator_id++;
+        }
+       }
+
+       // Terms associated with heat-only generation units
+
+       if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
+
+        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
+
+         for( std::vector< Index >::size_type i = 0;
+              i <= f_number_units; ++i ) {
+
+          //auto unit_id = v_heat_only_units[ i ];
+          auto heat_id = v_heat_set[i];
+
+          auto zone_id = get_pollutant_zone()[pollutant][h];
+          if( zone_id >= v_number_pollutant_zones[pollutant] )
+           continue; // this unit does not belong to any zone
+
+          auto heat = get_heat_block()[h]->get_heat()[t][i];
+          auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+
+          auto linear_function = dynamic_cast<LinearFunction *>
+          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+
+          linear_function->add_variable( &heat, rho );
+         }
+        }
+       }
+
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
+               ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
+      }
+     }
+    }
+
+   } else { //DCNetwork
+
+    for( Index pollutant = 0; pollutant < number_pollutants; ++pollutant ) {
+
+     for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
+          ++zone ) {
+
+      for( Index t = 0; t < f_time_horizon; ++t ) {
+
+       // Terms associated with active power
+       auto linear_function = new LinearFunction();
+
+       Index pollutant_zone = 0;
+       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
+        if( zone == v_pollutant_zones[pollutant][node_id] ) {
+
+
+       Index generator_id = 0;
+         for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
+          if( node_id == v_generator_node[elc_generator] ) {
+
+           auto block = get_nested_Blocks()[generator_id];
+           auto unit_block = dynamic_cast<UnitBlock *>(block);
+           if( unit_block == nullptr )
+            continue;
+           unit_block->get_number_generators();
+           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
+
+            auto ap = unit_block->get_active_power( generator );
+            auto active_power = &ap[t];
+
+            auto node_id = get_generator_node()[generator];
+            auto zone_id = get_pollutant_zone()[pollutant][node_id];
+
+            if( zone_id >= v_number_pollutant_zones[pollutant] )
+             continue; // this unit does not belong to any zone
+
+            auto rho = get_pollutant_rho()[t][pollutant][generator];
+            linear_function->add_variable( active_power, rho );
+           }
+          }
+         generator_id++;
+        }
+       }
+        pollutant_zone++;
+       }
+
+       // Terms associated with heat-only generation units
+
+       if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
+
+        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
+
+         for( std::vector< Index >::size_type i = 0;
+              i <= f_number_units; ++i ) {
+
+          //auto unit_id = v_heat_only_units[ i ];
+          auto heat_id = v_heat_set[i];
+
+          auto zone_id = get_pollutant_zone()[pollutant][h];
+          if( zone_id >= v_number_pollutant_zones[pollutant] )
+           continue; // this unit does not belong to any zone
+
+          auto heat = get_heat_block()[h]->get_heat()[t][i];
+          auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+
+          auto linear_function = dynamic_cast<LinearFunction *>
+          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+
+          linear_function->add_variable( &heat, rho );
+         }
+        }
+       }
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
+               ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
+       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
+      }
+     }
+    }
+   }
+  add_static_constraint( v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
 
 /*--------------------------------------------------------------------------*/
 
 /*
- // Pollutant budget constraints.
-
- // TODO This constraint should check again
-
- if( f_total_number_pollutant_zones > 0 ) {
-
-  if( v_PollutantBudget_Const.size() != f_total_number_pollutant_zones ) {
-   // this should only happen once
-   assert( v_PollutantBudget_Const.empty() );
-
-   v_PollutantBudget_Const.resize( f_total_number_pollutant_zones );
-  }
-
-  for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
-   for( Index zone = 0; zone < v_number_pollutant_zones[ pollutant ];
-        ++zone ) {
-    v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-     ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
-    v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-    v_PollutantBudget_Const[ pollutant ][ zone ].set_function
-     ( new LinearFunction() );
-   }
-  }
-
-  for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
-
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-
-    // Terms associated with active power
-    for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
-
-     auto node_id = get_generator_node()[ unit_id ];
-     auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
-
-     if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-      continue; // this unit does not belong to any zone
-
-     auto rho = get_pollutant_rho()[ t ][ pollutant ][ unit_id ];
-     auto active_power = get_unit_block( unit_id )->get_active_power() [ t ];
-
-     auto linear_function = dynamic_cast<LinearFunction *>
-     ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
-
-     //linear_function->add_variable( &active_power, rho );
-    }
-
-    // Terms associated with heat-only generation units
-
-    if( f_number_heat_blocks > 0 ) {
-
-     for( Index h = 0; h < f_number_heat_blocks; ++h ) {
-
-      for( std::vector< Index >::size_type i = 0;
-           i <= f_number_units; ++i ) {
-       //TODO
-       //auto unit_id = v_heat_only_units[ i ];
-       auto heat_id = v_heat_set[ i ];
-
-       auto zone_id = get_pollutant_zone()[ pollutant ][ h ];
-       if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-        continue; // this unit does not belong to any zone
-
-       auto heat = get_heat_block() [ h ]->get_heat()[ t ][ i ];
-       auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
-
-       auto linear_function = dynamic_cast<LinearFunction *>
-       ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
-
-       linear_function->add_variable( &heat, rho );
-      }
-     }
-
-    }
-   }
-
-   add_static_constraint( v_PollutantBudget_Const[ f_number_pollutants ] );
-  }
- }
-
  // Heat constraints.
 
  if( f_number_heat_blocks > 0 ) {
