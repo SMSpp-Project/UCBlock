@@ -897,7 +897,7 @@ class BatteryUnitBlock : public UnitBlock {
 
  void set_initial_storage( std::vector< double >::const_iterator it,
                            Subset && subset,
-                           bool ordered = false,
+                           const bool ordered = false,
                            c_ModParam issuePMod = eNoBlck,
                            c_ModParam issueAMod = eNoBlck );
 
