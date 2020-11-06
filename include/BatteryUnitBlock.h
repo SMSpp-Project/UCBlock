@@ -1023,6 +1023,11 @@ class BatteryUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it.
 
   register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
                                        &BatteryUnitBlock::set_initial_storage,
@@ -1031,7 +1036,17 @@ class BatteryUnitBlock : public UnitBlock {
   register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
                                        &BatteryUnitBlock::set_initial_storage,
                                        MS_dbl_rngd::args() );
+				       !!*/
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , const bool >(
+				    "BatteryUnitBlock::set_initial_storage" ,
+                                    & BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range  >(
+				    "BatteryUnitBlock::set_initial_storage" ,
+                                    & BatteryUnitBlock::set_initial_storage );
  }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
