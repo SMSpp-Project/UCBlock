@@ -19,7 +19,7 @@ if (NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif ()
 
 # ----- Library ------------------------------------------------------------- #
-add_library(UCBlock )
+add_library(UCBlock)
 target_compile_features(UCBlock PUBLIC cxx_std_17)
 
 target_sources(UCBlock PRIVATE
@@ -109,7 +109,6 @@ endif ()
 # ----- Tools --------------------------------------------------------------- #
 add_subdirectory(tools)
 
-# ----- Unit testing -------------------------------------------------------- #
-#if (BUILD_TESTING)
-#    add_subdirectory(test)
-#endif()
+if (BUILD_TESTING)
+    # Just consuming BUILD_TESTING to avoid warnings
+endif ()
