@@ -714,12 +714,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   auto linear_function = new LinearFunction();
 
   linear_function->add_variable( & v_active_power[ t ] , 1.0 );
-  if( v_PrimaryRho[ t ] > 0 ) {
-   linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
-  }
-  if(v_SecondaryRho[ t ] > 0 ) {
-   linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
-  }
+  linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
+  linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
   linear_function->add_variable( & v_commitment[ t ] ,
                                  - get_operational_min_power( t ) );
 
@@ -737,12 +733,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   auto linear_function = new LinearFunction();
 
   linear_function->add_variable( & v_active_power[ t ] , -1.0 );
-  if( v_PrimaryRho[ t ] > 0 ) {
-   linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
-  }
-  if(v_SecondaryRho[ t ] > 0 ) {
-   linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
-  }
+  linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
+  linear_function->add_variable( & v_secondary_spinning_reserve[ t ] , -1.0 );
+
   linear_function->add_variable( & v_commitment[ t ] ,
                                  get_operational_max_power( t ) );
 
@@ -755,14 +748,19 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing primary rho fraction constraints
 
- if( v_PrimaryRho[ 0 ] > 0 ) {
   PrimaryRho_Constraints.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
 
-   linear_function->add_variable( & v_active_power[ t ] , v_PrimaryRho[ t ] );
+   if( !v_PrimaryRho.empty() ) {
+
+    linear_function->add_variable( &v_active_power[t], v_PrimaryRho[t] );
+   } else {
+    linear_function->add_variable( &v_active_power[t], 0.0);
+
+   }
    linear_function->add_variable( & v_primary_spinning_reserve[ t ] , -1.0 );
 
    PrimaryRho_Constraints[ t ].set_lhs( 0.0 );
@@ -771,16 +769,19 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( PrimaryRho_Constraints, "PrimaryRho_Constraints_Thermal" );
- }
+
  // Initializing secondary rho fraction constraints
 
- if( v_SecondaryRho[ 0 ] > 0  ) {
   SecondaryRho_Constraints.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( & v_active_power[ t ] , v_SecondaryRho[ t ] );
+   if( !v_SecondaryRho.empty()  ) {
+    linear_function->add_variable( &v_active_power[t], v_SecondaryRho[t] );
+   }else{
+    linear_function->add_variable( &v_active_power[t], 0.0);
+   }
    linear_function->add_variable( & v_secondary_spinning_reserve[ t ], -1.0 );
 
    SecondaryRho_Constraints[ t ].set_lhs( 0.0 );
@@ -789,7 +790,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( SecondaryRho_Constraints, "SecondaryRho_Constraints_Thermal" );
- }
+
 
  set_constraints_generated();
 } // end( ThermalUnitBlock::generate_abstract_constraints )
