@@ -569,7 +569,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
 
-     auto linear_function = new LinearFunction();
+     auto lf = new LinearFunction();
+
+     v_PrimaryDemand_Const[t][0].set_lhs
+             ( get_primary_demand()[0][t] );
+     v_PrimaryDemand_Const[t][0].set_rhs( Inf< double >());
 
      Index generator_id = 0;
      for( auto block : get_nested_Blocks()) {
@@ -580,20 +584,18 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-       auto ap = unit_block->get_active_power( generator );
-       auto active_power = &ap[t];
+       auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
+       auto primary_spinning_reserve = &primary_s_r[t];
 
-       linear_function->
-               add_variable( active_power, 1.0 );
+
+       lf->add_variable( primary_spinning_reserve, 1.0, eNoMod );
 
 
        generator_id++;
       }
      }
-     v_PrimaryDemand_Const[t][0].set_lhs
-             ( get_primary_demand()[0][t] );
-     v_PrimaryDemand_Const[t][0].set_rhs( Inf< double >());
-     v_PrimaryDemand_Const[t][0].set_function( linear_function );
+
+     v_PrimaryDemand_Const[t][0].set_function( lf );
     }
    } else {  //DCNetwork needs GeneratorNode
 
@@ -615,11 +617,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-         auto ap = unit_block->get_active_power( generator );
-         auto active_power = &ap[t];
+         auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
+         auto primary_spinning_reserve = &primary_s_r[t];
 
          linear_function->
-                 add_variable( active_power, 1.0 );
+                 add_variable( primary_spinning_reserve, 1.0 );
 
         }
         generator_id++;
@@ -657,11 +659,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-         auto ap = unit_block->get_active_power( generator );
-         auto active_power = &ap[t];
+         auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
+         auto primary_spinning_reserve = &primary_s_r[t];
 
          linear_function->
-                 add_variable( active_power, 1.0 );
+                 add_variable( primary_spinning_reserve, 1.0 );
 
          generator_id++;
         }
@@ -698,11 +700,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-           auto ap = unit_block->get_active_power( generator );
-           auto active_power = &ap[t];
+           auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
+           auto primary_spinning_reserve = &primary_s_r[t];
 
            linear_function->
-                   add_variable( active_power, 1.0 );
+                   add_variable( primary_spinning_reserve, 1.0 );
           }
          }
          generator_id++;
@@ -746,11 +748,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-       auto ap = unit_block->get_active_power( generator );
-       auto active_power = &ap[t];
+       auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
+       auto secondary_spinning_reserve = &secondary_s_r[t];
 
        linear_function->
-               add_variable( active_power, 1.0 );
+               add_variable( secondary_spinning_reserve, 1.0 );
 
 
        generator_id++;
@@ -782,11 +784,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-         auto ap = unit_block->get_active_power( generator );
-         auto active_power = &ap[t];
+         auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
+         auto secondary_spinning_reserve = &secondary_s_r[t];
 
          linear_function->
-                 add_variable( active_power, 1.0 );
+                 add_variable( secondary_spinning_reserve, 1.0 );
 
         }
         generator_id++;
@@ -822,11 +824,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-         auto ap = unit_block->get_active_power( generator );
-         auto active_power = &ap[t];
+         auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
+         auto secondary_spinning_reserve = &secondary_s_r[t];
 
          linear_function->
-                 add_variable( active_power, 1.0 );
+                 add_variable( secondary_spinning_reserve, 1.0 );
 
          generator_id++;
         }
@@ -864,11 +866,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
-           auto ap = unit_block->get_active_power( generator );
-           auto active_power = &ap[t];
+           auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
+           auto secondary_spinning_reserve = &secondary_s_r[t];
 
            linear_function->
-                   add_variable( active_power, 1.0 );
+                   add_variable( secondary_spinning_reserve, 1.0 );
           }
          }
          generator_id++;
