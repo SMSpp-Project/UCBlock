@@ -261,6 +261,21 @@ class HydroSystemUnitBlock : public UnitBlock {
   return number_generators;
  }
 
+ double * get_inertia_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_inertia_power( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
+ }
+
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/

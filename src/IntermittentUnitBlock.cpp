@@ -102,7 +102,7 @@ void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "MaxPower",v_maximum_power, true );
 
- ::deserialize( group, "InertiaPower", v_inertia_power, true, true );
+ ::deserialize( group, "InertiaPower", v_inertia_power, true );
 
  ::deserialize( group, "Gamma", &f_gamma );
 

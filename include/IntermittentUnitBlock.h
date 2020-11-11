@@ -315,7 +315,7 @@ class IntermittentUnitBlock : public UnitBlock {
 
  double * get_inertia_power( Index generator)
   override {
-  return( v_inertia_power.data() + generator * f_time_horizon );
+  return & ( v_inertia_power.front() );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -414,7 +414,7 @@ class IntermittentUnitBlock : public UnitBlock {
  double f_kappa = 0;
 
  /// the matrix of inertia power of generators
- boost::multi_array< double , 2 > v_inertia_power;
+ std::vector< double >  v_inertia_power;
 /*-----------------------------variables------------------------------------*/
  /// the active power variables
  std::vector< ColVariable > v_active_power;
