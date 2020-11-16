@@ -1,0 +1,20 @@
+/** @file
+ * Configuration header of the UCBlock library.
+ *
+ * \author Niccolò Iardella \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; Niccolò Iardella
+ */
+
+#ifndef __UCBLOCK_CONFIG_H
+#define __UCBLOCK_CONFIG_H
+
+#define UCBlock_VERSION       "@UCBlock_VERSION@"
+#define UCBlock_VERSION_MAJOR "@UCBlock_VERSION_MAJOR@"
+#define UCBlock_VERSION_MINOR "@UCBlock_VERSION_MINOR@"
+#define UCBlock_VERSION_PATCH "@UCBlock_VERSION_PATCH@"
+
+#endif
