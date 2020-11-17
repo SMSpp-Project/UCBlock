@@ -640,13 +640,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
+     auto linear_function = new LinearFunction();
 
      for( Index zone_id = 0; zone_id < number_primary_zones; ++zone_id ) {
 
-      auto linear_function = new LinearFunction();
-      v_PrimaryDemand_Const[t][zone_id].set_lhs
-              ( get_primary_demand()[zone_id][t] );
-      v_PrimaryDemand_Const[zone_id][t].set_rhs( Inf< double >());
       Index primary_zone = 0;
       if( zone_id == v_primary_zones[0] ) {
 
@@ -655,7 +652,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         auto unit_block = dynamic_cast<UnitBlock *>(block);
         if( unit_block == nullptr )
          continue;
-        unit_block->get_number_generators();
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
@@ -671,7 +667,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
       primary_zone++;
 
-
+      v_PrimaryDemand_Const[t][zone_id].set_lhs
+              ( get_primary_demand()[zone_id][t] );
+      v_PrimaryDemand_Const[t][zone_id].set_rhs( Inf< double >());
       v_PrimaryDemand_Const[t][zone_id].set_function( linear_function );
 
      }
@@ -807,10 +805,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
+     auto linear_function = new LinearFunction();
 
      for( Index zone_id = 0; zone_id < number_secondary_zones; ++zone_id ) {
-
-      auto linear_function = new LinearFunction();
 
       Index secondary_zone = 0;
       if( zone_id == v_secondary_zones[0] ) {
@@ -992,24 +989,18 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
+     auto linear_function = new LinearFunction();
 
      for( Index zone_id = 0; zone_id < number_inertia_zones; ++zone_id ) {
 
-      auto linear_function = new LinearFunction();
-
       Index inertia_zone = 0;
       if( zone_id == v_inertia_zones[0] ) {
-
-       v_InertiaDemand_Const[t][zone_id].set_lhs
-               ( get_inertia_demand()[zone_id][t] );
-       v_InertiaDemand_Const[t][zone_id].set_rhs( Inf< double >());
 
        Index generator_id = 0;
        for( auto block : get_nested_Blocks()) {
         auto unit_block = dynamic_cast<UnitBlock *>(block);
         if( unit_block == nullptr )
          continue;
-        unit_block->get_number_generators();
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
@@ -1034,7 +1025,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        }
       }
       inertia_zone++;
-
+      v_InertiaDemand_Const[t][zone_id].set_lhs
+              ( get_inertia_demand()[zone_id][t] );
+      v_InertiaDemand_Const[t][zone_id].set_rhs( Inf< double >());
       v_InertiaDemand_Const[t][zone_id].set_function( linear_function );
      }
     }
