@@ -185,6 +185,8 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  get_polyhedral_function_block()->get_PolyhedralFunction().
   set_variables( std::move( x ) );
 
+ get_polyhedral_function_block()->generate_abstract_variables();
+
  set_variables_generated();
 } // end( HydroSystemUnitBlock::generate_abstract_variables )
 
