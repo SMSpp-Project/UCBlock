@@ -161,8 +161,6 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- std::cout << "HydroSystemUnitBlock::generate_abstract_variables" << std::endl;
-
  UnitBlock::generate_abstract_variables( stvv );
 
  // Collect the active Variables of the PolyhedralFunction: these are the
