@@ -283,6 +283,8 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
  ::deserialize( group, "PrimaryDemand", v_primary_demand, true, false );
 
+ transpose( v_primary_demand );
+
 
  ::deserialize( group, "SecondaryZones", number_nodes,
                 v_secondary_zones, true, true );
@@ -290,11 +292,16 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group, "SecondaryDemand",
                 v_secondary_demand, true, false );
 
+ transpose( v_secondary_demand );
+
  ::deserialize( group, "InertiaZones", number_nodes,
                 v_inertia_zones, true, true );
 
  ::deserialize( group, "InertiaDemand",
                 v_inertia_demand, true, false );
+
+ transpose( v_inertia_demand );
+
 
  ::deserialize( group, "NumberPollutantZones", f_number_pollutants,
                 v_number_pollutant_zones, true, true );
