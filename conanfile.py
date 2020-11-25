@@ -16,7 +16,7 @@ class SmilpblockConan(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     requires = (
-        "smspp/0.3.0@smspp/testing"
+        "smspp/0.3.2@smspp/testing"
     )
 
     exports_sources = [
@@ -31,7 +31,7 @@ class SmilpblockConan(ConanFile):
         tools.replace_in_file(
             "CMakeLists.txt",
             '''project(UCBlock VERSION 0.4.1 LANGUAGES CXX)''',
-            '''project(UCBlock VERSION 0.4.1 LANGUAGES CXX)\n''' +
+            '''project(UCBlock VERSION 0.4.1 LANGUAGES C CXX)\n''' +
             '''include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)\n''' +
             '''conan_basic_setup()'''
         )
