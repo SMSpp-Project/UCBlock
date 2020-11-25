@@ -1083,7 +1083,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_availability( std::vector< double >::const_iterator values,
                         Subset && subset,
-                        bool ordered = false,
+                        const bool ordered = false,
                         c_ModParam issuePMod = eNoBlck,
                         c_ModParam issueAMod = eNoBlck );
 
@@ -1116,7 +1116,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -1127,7 +1127,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_initial_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -1138,7 +1138,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_init_updown_time( std::vector< int >::const_iterator values,
                             Subset && subset,
-                            bool ordered = false,
+                            const bool ordered = false,
                             c_ModParam issuePMod = eNoBlck,
                             c_ModParam issueAMod = eNoBlck );
 
@@ -1271,37 +1271,73 @@ class ThermalUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-                                       &ThermalUnitBlock::set_availability,
-                                       MS_dbl_sbst::args() );
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+  //                                      &ThermalUnitBlock::set_availability,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+  //                                      &ThermalUnitBlock::set_availability,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+  //                                      &ThermalUnitBlock::set_maximum_power,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+  //                                      &ThermalUnitBlock::set_maximum_power,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+  //                                      &ThermalUnitBlock::set_initial_power,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+  //                                      &ThermalUnitBlock::set_initial_power,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+  //                                      &ThermalUnitBlock::set_init_updown_time,
+  //                                      MS_int_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+  //                                      &ThermalUnitBlock::set_init_updown_time,
+  //                                      MS_int_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_availability",
+   &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-                                       &ThermalUnitBlock::set_availability,
-                                       MS_dbl_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_availability",
+   &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-                                       &ThermalUnitBlock::set_maximum_power,
-                                       MS_dbl_sbst::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_maximum_power",
+   &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-                                       &ThermalUnitBlock::set_maximum_power,
-                                       MS_dbl_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_maximum_power",
+   &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-                                       &ThermalUnitBlock::set_initial_power,
-                                       MS_dbl_sbst::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_initial_power",
+   &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-                                       &ThermalUnitBlock::set_initial_power,
-                                       MS_dbl_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_initial_power",
+   &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-                                       &ThermalUnitBlock::set_init_updown_time,
-                                       MS_int_sbst::args() );
+  register_method< ThermalUnitBlock, MF_int_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_init_updown_time",
+   &ThermalUnitBlock::set_init_updown_time );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-                                       &ThermalUnitBlock::set_init_updown_time,
-                                       MS_int_rngd::args() );
+  register_method< ThermalUnitBlock, MF_int_it, Range >(
+   "ThermalUnitBlock::set_init_updown_time",
+   &ThermalUnitBlock::set_init_updown_time );
  }
 
 /*--------------------------------------------------------------------------*/

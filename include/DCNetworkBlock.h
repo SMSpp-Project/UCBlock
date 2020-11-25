@@ -341,7 +341,7 @@ class DCNetworkBlock : public NetworkBlock {
 
   void set_active_demand( std::vector< double >::const_iterator values,
                           Subset && subset,
-                          bool ordered = false,
+                          const bool ordered = false,
                           c_ModParam issuePMod = eNoBlck,
                           c_ModParam issueAMod = eNoBlck ) final;
 
@@ -351,13 +351,26 @@ class DCNetworkBlock : public NetworkBlock {
                           c_ModParam issueAMod = eNoBlck ) final;
 
   static void static_initialization() {
-   register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-                                      &DCNetworkBlock::set_active_demand,
-                                      MS_dbl_sbst::args() );
+   /*!!
+    * Not all C++ compilers enjoy the template wizardry behing the three-args
+    * version of register_method<> with the compact MS_*_*::args(), so we just
+    * use the slightly less compact one with the explicit argument and be done
+    * with it. !!*/
+   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   //                                    &DCNetworkBlock::set_active_demand,
+   //                                    MS_dbl_sbst::args() );
+   //
+   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   //                                    &DCNetworkBlock::set_active_demand,
+   //                                    MS_dbl_rngd::args() );
 
-   register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-                                      &DCNetworkBlock::set_active_demand,
-                                      MS_dbl_rngd::args() );
+   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
+    "DCNetworkBlock::set_active_demand",
+    &DCNetworkBlock::set_active_demand );
+
+   register_method< DCNetworkBlock, MF_dbl_it, Range >(
+    "DCNetworkBlock::set_active_demand",
+    &DCNetworkBlock::set_active_demand );
   }
 
 /*--------------------------------------------------------------------------*/

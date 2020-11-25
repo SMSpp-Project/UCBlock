@@ -608,7 +608,7 @@ class NetworkBlock : public Block {
 
  virtual void set_active_demand( std::vector< double >::const_iterator values,
                                  Subset && subset,
-                                 bool ordered,
+                                 const bool ordered,
                                  c_ModParam issuePMod,
                                  c_ModParam issueAMod ) = 0;
 
