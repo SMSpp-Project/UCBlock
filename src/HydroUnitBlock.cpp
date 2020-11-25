@@ -87,16 +87,11 @@ void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] HydroUnitBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "TimeHorizon",
                                               "NumberIntervals",
                                               "NumberReservoirs",
                                               "NumberArcs"  };
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] HydroUnitBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "StartArc",
                                               "EndArc",
                                               "MinFlow",

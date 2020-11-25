@@ -198,8 +198,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = {"TimeHorizon",
                                              "NumberUnits",
                                              "NumberHeatBlocks",
@@ -208,9 +206,6 @@ void UCBlock::deserialize( netCDF::NcGroup & group ) {
                                              "NumberInertiaZones",
                                              "NumberPollutants"};
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] UCBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = {"ActivePowerDemand",
                                              "GeneratorNode",
                                              "HeatNode",

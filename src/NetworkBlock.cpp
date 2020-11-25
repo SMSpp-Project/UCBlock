@@ -61,14 +61,9 @@ NetworkBlock::NetworkData::NetworkData() {
 void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "NumberNodes",
                                               "NumberLines"};
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "StartLine",
                                               "EndLine",
                                               "MinPowerFlow",
@@ -103,13 +98,8 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = {"NumberNodes"};
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group, expected_vars, std::cerr );
 #endif

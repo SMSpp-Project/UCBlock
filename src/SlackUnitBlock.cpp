@@ -62,14 +62,9 @@ void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "TimeHorizon",
                                               "NumberIntervals" };
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] SlackUnitBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "MaxPower",
                                               "MaxPrimaryPower",
                                               "MaxSecondaryPower",

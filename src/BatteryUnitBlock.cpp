@@ -90,14 +90,9 @@ void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] BatteryUnitBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "TimeHorizon",
                                               "NumberIntervals" };
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] BatteryUnitBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "MinStorage",
                                               "MaxStorage",
                                               "MinPower",
