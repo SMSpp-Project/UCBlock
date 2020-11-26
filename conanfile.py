@@ -30,8 +30,8 @@ class SmilpblockConan(ConanFile):
     def source(self):
         tools.replace_in_file(
             "CMakeLists.txt",
-            '''project(UCBlock VERSION 0.4.1 LANGUAGES CXX)''',
-            '''project(UCBlock VERSION 0.4.1 LANGUAGES C CXX)\n''' +
+            '''LANGUAGES C CXX)''',
+            '''LANGUAGES C CXX)\n''' +
             '''include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)\n''' +
             '''conan_basic_setup()'''
         )

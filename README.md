@@ -13,6 +13,7 @@ These instructions will let you build UCBlock on your system.
 ### Build and install with CMake
 
 Configure and build the library with:
+
 ```sh
 mkdir build
 cd build
@@ -24,16 +25,31 @@ The library has the same configuration options of
 [SMS++](https://gitlab.com/smspp/smspp/wikis/custom).
 
 Optionally, install the library in the system with:
+
 ```sh
 sudo make install
 ```
 
 ### Usage with CMake
 
-After the module is built, you can use it in your CMake project with:
+After the library is built, you can use it in your CMake project with:
+
 ```cmake
 find_package(UCBlock)
 target_link_libraries(<my_target> SMS++::UCBlock)
+```
+
+## Tools
+
+We provide a simple tool that converts .dat and .mod files into netCDF files.
+TODO: Info on .dat and .mod format.
+
+You can run the tool from the `<build-dir>/tools` directory or install it
+with the library (see above).
+Run the tool without arguments for info on its usage:
+
+```sh
+nc4generator
 ```
 
 ## Contributing
@@ -65,7 +81,9 @@ This section is not ready yet.
 
 ## License
 
-This section is not ready yet. See SMS++ library for details.
+This code is provided free of charge under the [GNU Lesser General Public
+License version 3.0](https://opensource.org/licenses/lgpl-3.0.html) -
+see the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
