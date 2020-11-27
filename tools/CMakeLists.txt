@@ -21,5 +21,8 @@ add_executable(nc4generator nc4generator.cpp)
 target_link_libraries(nc4generator PRIVATE SMS++::UCBlock)
 
 # ----- Install instructions ------------------------------------------------ #
+include(GNUInstallDirs)
 install(TARGETS nc4generator
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# --------------------------------------------------------------------------- #
