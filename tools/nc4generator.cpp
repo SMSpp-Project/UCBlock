@@ -527,8 +527,8 @@ void serialize_hydrounit( netCDF::NcGroup & g, const HydroUnit & unit ) {
 /*--------------------------------------------------------------------------*/
 
 
-std::filesystem::path input_path{};       ///< Input file name
-std::string output_path{};       ///< Input file name
+std::string input_path{};     ///< Input file name
+std::string output_path{};    ///< Input file name
 bool verbose = false;         ///< If the tool should be verbose
 std::string exe{};            ///< Name of the executable file
 std::string docopt_desc{};    ///< Tool description
@@ -610,11 +610,11 @@ int main( int argc, char ** argv ) {
  exe = get_filename( argv[ 0 ] );
  process_args( argc, argv );
 
- // Check if input file exists
- if (!std::filesystem::exists(input_path)) {
-  std::cerr << exe << ": cannot open file " << input_path << std::endl;
-  exit( 1 );
- }
+ // // Check if input file exists
+ // if (!std::filesystem::exists(input_path)) {
+ //  std::cerr << exe << ": cannot open file " << input_path << std::endl;
+ //  exit( 1 );
+ // }
 
  // Check if input file can be opened
  std::ifstream input_file( input_path );
@@ -623,10 +623,29 @@ int main( int argc, char ** argv ) {
   exit( 1 );
  }
 
- // Check input file type
- if( input_path.extension() == ".dat" ) {
-  type = ftDat;
+ std::string ext = input_path.substr( input_path.size() - 4, 4 );
+ std::string dat( ".dat" );
+ std::string mod( ".mod" );
 
+ // Check input file type
+ if( std::equal( ext.begin(), ext.end(), dat.begin(),
+                 []( auto a, auto b ) {
+                  return ( std::tolower( a ) == std::tolower( b ) );
+                 } ) ) {
+  type = ftDat;
+ } else if( std::equal( ext.begin(), ext.end(), mod.begin(),
+                        []( auto a, auto b ) {
+                         return ( std::tolower( a ) == std::tolower( b ) );
+                        } ) ) {
+  type = ftMod;
+ } else {
+  std::cerr << "Error: Supported file formats are: dat, mod." << std::endl;
+  input_file.close();
+  return 1;
+ }
+
+ // Read input file
+ if( type == ftDat ) {
   // Read DAT file
   input_file >> dat_file;
   dat_file.generate_bc( b, c );
@@ -635,25 +654,20 @@ int main( int argc, char ** argv ) {
    std::cout << dat_file;
   }
 
- } else if( input_path.extension() == ".mod" ) {
-  type = ftMod;
-
+ } else { // type == ftMod
   // Read MOD file
   input_file >> mod_file;
 
   if (verbose) {
    std::cout << mod_file;
   }
-
- } else {
-  std::cerr << exe << ": supported file formats are dat, mod." << std::endl;
-  input_file.close();
-  exit( 1 );
  }
 
  // Generate output
  input_file.close();
- output_path = input_path.replace_extension(".nc4");
+ output_path = input_path;
+ output_path.erase( output_path.size() - 4, 4 );
+ output_path.append( ".nc4" );
 
  netCDF::NcFile f( output_path, netCDF::NcFile::replace );
  f.putAtt( "SMS++_file_type", netCDF::NcInt(), eBlockFile );

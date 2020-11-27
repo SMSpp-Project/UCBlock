@@ -18,6 +18,7 @@ endif ()
 
 # ----- nc4generator -------------------------------------------------------- #
 add_executable(nc4generator nc4generator.cpp)
+target_compile_features(nc4generator PRIVATE cxx_std_17)
 target_link_libraries(nc4generator PRIVATE SMS++::UCBlock)
 
 # ----- Install instructions ------------------------------------------------ #
