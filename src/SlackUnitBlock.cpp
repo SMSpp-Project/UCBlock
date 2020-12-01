@@ -121,7 +121,7 @@ void SlackUnitBlock::generate_abstract_variables
    int n = 0;
    for( auto & i : v_commitment ) {
     i.set_type( ColVariable::kBinary );
-    add_static_variable( i, "u_" + std::to_string( n++ ) );
+    add_static_variable( i, "u_inertia_" + std::to_string( n++ ) );
    }
   }
 
@@ -191,7 +191,11 @@ void SlackUnitBlock::generate_abstract_constraints
   linear_function->add_variable( &v_active_power[t], 1.0 );
 
   ActivePower_Bound_Constraints[t].set_lhs( 0.0 );
-  ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
+  if ( !v_MaxPower.empty() ){
+   ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
+  } else {
+   ActivePower_Bound_Constraints[t].set_rhs( 0.0 );
+  }
   ActivePower_Bound_Constraints[t].set_function( linear_function );
  }
 
@@ -213,7 +217,11 @@ void SlackUnitBlock::generate_abstract_constraints
   linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
 
   Primary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
-  Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+  if ( !v_MaxPrimaryPower.empty() ){
+   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+  } else {
+   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0);
+  }
   Primary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
  }
 
@@ -236,7 +244,11 @@ void SlackUnitBlock::generate_abstract_constraints
   linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
 
   Secondary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
-  Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+  if ( ! v_MaxSecondaryPower.empty() ){
+   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+  } else{
+   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0 );
+  }
   Secondary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
  }
 
@@ -282,19 +294,47 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  auto dquad_function = new DQuadFunction();
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_active_power[ t ],
-                                v_active_power_cost[ t ],
-                                0.0 );
-  dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
-                                v_primary_cost[ t ],
-                                0.0 );
 
-  dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                v_secondary_cost[ t ],
-                                0.0 );
-  dquad_function->add_variable( &v_commitment[ t ],
-                                v_inertia_cost[ t ] * v_MaxInertia[ t ],
-                                0.0 );
+  if ( ! v_active_power_cost.empty() ){
+   dquad_function->add_variable( &v_active_power[ t ],
+                                 v_active_power_cost[ t ],
+                                 0.0 );
+  } else {
+   dquad_function->add_variable( &v_active_power[ t ],
+                                 0.0,
+                                 0.0 );
+  }
+
+  if (! v_primary_cost.empty()) {
+
+   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
+                                 v_primary_cost[ t ],
+                                 0.0 );
+  } else{
+   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
+                                 0.0,
+                                 0.0 );
+  }
+  if (! v_secondary_cost.empty() ){
+   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
+                                 v_secondary_cost[ t ],
+                                 0.0 );
+  } else{
+   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
+                                 0.0,
+                                 0.0 );
+  }
+
+  if (! v_inertia_cost.empty() && ! v_MaxInertia.empty() ) {
+   dquad_function->add_variable( &v_commitment[ t ],
+                                 v_inertia_cost[ t ] * v_MaxInertia[ t ],
+                                 0.0 );
+  } else{
+   dquad_function->add_variable( &v_commitment[ t ],
+                                 0.0,
+                                 0.0 );
+  }
+
  }
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
