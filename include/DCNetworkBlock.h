@@ -284,7 +284,7 @@ class DCNetworkBlock : public NetworkBlock {
  *
  * @{ */
 
- /// returns the vector of power flow limit constraits
+ /// returns the vector of power flow limit constraints
  /** This function returns a const reference to the vector of power flow limit
   * constraints. The i-th element of this vector is a FRowConstraint for the
   * i-th line of the network. */
@@ -305,15 +305,11 @@ class DCNetworkBlock : public NetworkBlock {
  }
 
   const std::vector< BoxConstraint > &
-  get_power_flow_limit_HVDC_constraints( ) const {
+  get_power_flow_limit_HVDC_bounds( ) const {
    if( ! f_NetworkData )
-    throw( std::logic_error( "DCNetworkBlock:get_power_flow_limit_constraints:"
+    throw( std::logic_error("DCNetworkBlock:get_power_flow_limit_HVDC_bounds:"
                              " NetworkData has not been set." ) );
-
-   switch( f_NetworkData->get_lines_type() ) {
-    case( kHVDC ):
      return v_HVDC_power_flow_limit_constraints;
-   }
   }
 
 /**@} ----------------------------------------------------------------------*/
