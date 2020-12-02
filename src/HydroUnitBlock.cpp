@@ -34,6 +34,7 @@
 #include "LinearFunction.h"
 #include <map>
 #include "FRowConstraint.h"
+#include "OneVarConstraint.h"
 #include "UnitBlock.h"
 
 
@@ -74,9 +75,19 @@ HydroUnitBlock::~HydroUnitBlock() {
  clear_constraints( ActivePowerBounds_Const );
  clear_constraints( RampUp_Const );
  clear_constraints( RampDown_Const );
- clear_constraints( FlowRateBounds_Const );
  clear_constraints( FinalVolumeReservoir_Const );
- clear_constraints( VolumetricBounds_Const );
+
+ auto clear_boxconstraints =
+         []( boost::multi_array< BoxConstraint, 2 > & constraints ) {
+          auto constraint = constraints.data();
+          auto n = constraints.num_elements();
+          for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+           constraint->clear();
+         };
+
+ clear_boxconstraints( FlowRateBounds_Const );
+ clear_boxconstraints( VolumetricBounds_Const );
+
 }
 
 /*--------------------------------------------------------------------------*/
@@ -892,14 +903,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    assert( FlowRateBounds_Const.empty());
 
    FlowRateBounds_Const.resize
-    ( boost::multi_array< FRowConstraint, 2 >::
+    ( boost::multi_array< BoxConstraint, 2 >::
       extent_gen()[f_time_horizon][f_number_arcs] );
 
    for( Index t = 0; t < f_time_horizon; ++t ) {
     for( Index arc = 0; arc < f_number_arcs; ++arc ) {
-     auto linear_function = new LinearFunction();
      auto flow_rate = get_flow_rate( arc , t );
-     linear_function->add_variable( flow_rate, 1.0 );
      if(  ! v_minimum_flow.empty() ) {
       FlowRateBounds_Const[t][arc].set_lhs( v_minimum_flow[t][arc] );
      } else {
@@ -910,7 +919,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      } else {
       FlowRateBounds_Const[t][arc].set_rhs( 0.0 );
      }
-     FlowRateBounds_Const[t][arc].set_function( linear_function );
+     FlowRateBounds_Const[t][arc].set_variable(flow_rate);
     }
    }
 
@@ -1027,16 +1036,13 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   assert( VolumetricBounds_Const.empty());
 
   VolumetricBounds_Const.resize
-   ( boost::multi_array< FRowConstraint, 2 >::
+   ( boost::multi_array< BoxConstraint, 2 >::
      extent_gen()[f_number_reservoirs][f_time_horizon] );
 
   for( Index node = 0; node < f_number_reservoirs; ++node ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
-    auto linear_function = new LinearFunction();
-
     auto volumetric = get_volume( node , t );
-    linear_function->add_variable( volumetric, 1.0 );
 
     if( ! v_minimum_volumetric.empty() ) {
 
@@ -1050,7 +1056,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      VolumetricBounds_Const[node][t].set_rhs( 0.0 );
 
     }
-    VolumetricBounds_Const[node][t].set_function( linear_function );
+    VolumetricBounds_Const[node][t].set_variable( volumetric );
    }
   }
 

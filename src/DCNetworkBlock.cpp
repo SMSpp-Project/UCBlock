@@ -33,6 +33,7 @@
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "DCNetworkBlock.h"
+#include "OneVarConstraint.h"
 
 
 /*--------------------------------------------------------------------------*/
@@ -171,11 +172,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
         ++line_id ) {
 
-    auto linear_function = new LinearFunction();
-    linear_function->add_variable( &v_power_flow[line_id], 1.0 );
     v_HVDC_power_flow_limit_constraints[line_id].set_lhs(MinPowerFlow[line_id]);
     v_HVDC_power_flow_limit_constraints[line_id].set_rhs(MaxPowerFlow[line_id]);
-    v_HVDC_power_flow_limit_constraints[line_id].set_function(linear_function);
+    v_HVDC_power_flow_limit_constraints[line_id].set_variable(&v_power_flow[line_id]);
    }
 
    add_static_constraint( v_HVDC_power_flow_limit_constraints ,

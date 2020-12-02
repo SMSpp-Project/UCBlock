@@ -37,6 +37,7 @@
 
 #include "Block.h"
 #include "FRowConstraint.h"
+#include "OneVarConstraint.h"
 #include "NetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -297,13 +298,23 @@ class DCNetworkBlock : public NetworkBlock {
   switch( f_NetworkData->get_lines_type() ) {
    case( kAC ):
     return v_AC_power_flow_limit_constraints;
-   case( kHVDC ):
-    return v_HVDC_power_flow_limit_constraints;
    case( kAC_HVDC ):
    default:
     return v_AC_HVDC_power_flow_limit_constraints;
   }
  }
+
+  const std::vector< BoxConstraint > &
+  get_power_flow_limit_HVDC_constraints( ) const {
+   if( ! f_NetworkData )
+    throw( std::logic_error( "DCNetworkBlock:get_power_flow_limit_constraints:"
+                             " NetworkData has not been set." ) );
+
+   switch( f_NetworkData->get_lines_type() ) {
+    case( kHVDC ):
+     return v_HVDC_power_flow_limit_constraints;
+   }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE DCNetworkBlock -----------------*/
@@ -406,7 +417,7 @@ class DCNetworkBlock : public NetworkBlock {
  std::vector<FRowConstraint> v_AC_power_flow_limit_constraints;
 
  /// HVDC power flow limit constraints
- std::vector<FRowConstraint> v_HVDC_power_flow_limit_constraints;
+ std::vector<BoxConstraint> v_HVDC_power_flow_limit_constraints;
 
  /// AC_HVDC power flow limit constraints
  std::vector<FRowConstraint> v_AC_HVDC_power_flow_limit_constraints;

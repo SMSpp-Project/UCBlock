@@ -579,13 +579,13 @@ class SlackUnitBlock : public UnitBlock {
 /*----------------------------constraints-----------------------------------*/
 
  /// the active power bound constraints
- std::vector< FRowConstraint > ActivePower_Bound_Constraints;
+ std::vector< LB0Constraint > ActivePower_Bound_Constraints;
 
  /// the primary spinning reserve bound constraints
- std::vector< FRowConstraint > Primary_Spinning_Reserve_Bound_Constraints;
+ std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Constraints;
 
  /// the secondary spinning reserve bound constraints
- std::vector< FRowConstraint > Secondary_Spinning_Reserve_Bound_Constraints;
+ std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Constraints;
 
  /// the objective function
  FRealObjective objective;

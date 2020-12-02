@@ -237,13 +237,9 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  auto linear_function = new LinearFunction();
-
-  linear_function->add_variable( &v_active_power[t], 1.0 );
-
   active_power_bounds_Constraints[t].set_lhs( f_kappa * min_power[ t ]);
   active_power_bounds_Constraints[t].set_rhs( f_kappa * max_power[ t ] );
-  active_power_bounds_Constraints[t].set_function( linear_function );
+  active_power_bounds_Constraints[t].set_variable( &v_active_power[t] );
  }
 
  add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_Intermittent" );

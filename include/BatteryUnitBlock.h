@@ -1002,7 +1002,7 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > storage_intake_outtake_Constraints;
 
 /// the storage level bounds constraints
- std::vector< FRowConstraint > storage_level_bounds_Constraints;
+ std::vector< BoxConstraint > storage_level_bounds_Constraints;
 
 /// the intake and binary variable relation constraints
  std::vector< FRowConstraint > intake_binary_Constraints;
@@ -1014,10 +1014,10 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > demand_Constraints;
 
 /// primary upper bound constraints
- std::vector< FRowConstraint > primary_upper_bound_Constraints;
+ std::vector< BoxConstraint > primary_upper_bound_Constraints;
 
 /// secondary upper bound constraints
- std::vector< FRowConstraint > secondary_upper_bound_Constraints;
+ std::vector< BoxConstraint > secondary_upper_bound_Constraints;
 
  /// the objective function
  FRealObjective objective;

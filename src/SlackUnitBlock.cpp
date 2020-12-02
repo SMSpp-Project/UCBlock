@@ -186,17 +186,12 @@ void SlackUnitBlock::generate_abstract_constraints
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  auto linear_function = new LinearFunction();
-
-  linear_function->add_variable( &v_active_power[t], 1.0 );
-
-  ActivePower_Bound_Constraints[t].set_lhs( 0.0 );
   if ( !v_MaxPower.empty() ){
    ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
   } else {
    ActivePower_Bound_Constraints[t].set_rhs( 0.0 );
   }
-  ActivePower_Bound_Constraints[t].set_function( linear_function );
+  ActivePower_Bound_Constraints[t].set_variable(&v_active_power[t]);
  }
 
  add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_Slack" );
@@ -212,17 +207,12 @@ void SlackUnitBlock::generate_abstract_constraints
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  auto linear_function = new LinearFunction();
-
-  linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
-
-  Primary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
   if ( !v_MaxPrimaryPower.empty() ){
    Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
   } else {
    Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0);
   }
-  Primary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
+  Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
  }
 
  add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
@@ -239,17 +229,12 @@ void SlackUnitBlock::generate_abstract_constraints
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  auto linear_function = new LinearFunction();
-
-  linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
-
-  Secondary_Spinning_Reserve_Bound_Constraints[t].set_lhs( 0.0 );
   if ( ! v_MaxSecondaryPower.empty() ){
    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
   } else{
    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0 );
   }
-  Secondary_Spinning_Reserve_Bound_Constraints[t].set_function( linear_function );
+  Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t]);
  }
 
  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
