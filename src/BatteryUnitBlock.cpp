@@ -571,7 +571,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
    secondary_upper_bound_Constraints[t].set_lhs( 0.0);
-   if ( !v_secondary_spinning_reserve.empty() ) {
+   if ( !v_maximum_secondary_rho.empty() ) {
     secondary_upper_bound_Constraints[t].set_rhs( v_maximum_secondary_rho[t] );
    }else{
     secondary_upper_bound_Constraints[t].set_rhs( 0.0 );
