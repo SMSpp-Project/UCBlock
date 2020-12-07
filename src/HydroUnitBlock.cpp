@@ -264,10 +264,10 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
   }
  }
 
- add_static_variable ( v_flow_rate, "F" );
- add_static_variable ( v_active_power, "p" );
- add_static_variable ( v_primary_spinning_reserve, "pr" );
- add_static_variable ( v_secondary_spinning_reserve, "sr" );
+ add_static_variable ( v_flow_rate, "F_hydro" );
+ add_static_variable ( v_active_power, "p_hydro" );
+ add_static_variable ( v_primary_spinning_reserve, "pr_hydro" );
+ add_static_variable ( v_secondary_spinning_reserve, "sr_hydro" );
 
  set_variables_generated();
 } // end( HydroUnitBlock::generate_abstract_variables )

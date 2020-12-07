@@ -73,7 +73,6 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  clear_constraints( ramp_up_Constraints );
  clear_constraints( ramp_down_Constraints );
  clear_constraints( power_intake_outtake_Constraints );
- clear_constraints( intake_upper_bound_Constraints );
  clear_constraints( storage_intake_outtake_Constraints );
  clear_constraints( intake_binary_Constraints );
  clear_constraints( outtake_binary_Constraints );
@@ -84,7 +83,7 @@ BatteryUnitBlock::~BatteryUnitBlock() {
           for( auto & constraint : constraints )
            constraint.clear();
          };
-
+ clear_boxconstraints( intake_upper_bound_Constraints );
  clear_boxconstraints( storage_level_bounds_Constraints );
  clear_boxconstraints( primary_upper_bound_Constraints );
  clear_boxconstraints( secondary_upper_bound_Constraints );
@@ -162,89 +161,50 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
- auto var_size = f_time_horizon ;
+ v_storage_level.resize( f_time_horizon );
+ for( auto & var : v_storage_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_storage_level, "SL_battery" );
 
- if( var_size > 0 ) {
 
-  if( v_storage_level.size() != var_size ) {
-   assert( v_storage_level.empty()); // this should only happen once
-   v_storage_level.resize( var_size );
-   int n = 0;
-   for( auto & i : v_storage_level ) {
-    i.set_type( ColVariable::kNonNegative );
-   }
-   add_static_variable( v_storage_level, "SL" );
-  }
+ v_intake_level.resize( f_time_horizon );
+ for( auto & var : v_intake_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_intake_level, "IL_battery" );
 
-  if( v_intake_level.size() != var_size ) {
-   assert( v_intake_level.empty()); // this should only happen once
-   v_intake_level.resize( var_size );
-   int n = 0;
-   for( auto & i : v_intake_level ) {
-    i.set_type( ColVariable::kNonNegative );
-   }
-   add_static_variable( v_intake_level, "IL" );
-  }
 
-  if( v_outtake_level.size() != var_size ) {
-   assert( v_outtake_level.empty()); // this should only happen once
-   v_outtake_level.resize( var_size );
-   int n = 0;
-   for( auto & i : v_outtake_level ) {
-    i.set_type( ColVariable::kNonNegative );
-   }
-   add_static_variable( v_outtake_level, "OL" );
-  }
+ v_outtake_level.resize( f_time_horizon );
+ for( auto & var : v_outtake_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_outtake_level, "OL_battery" );
 
-  if( v_battery_binary.size() != var_size ) {
-   assert( v_battery_binary.empty()); // this should only happen once
-   v_battery_binary.resize( var_size );
-   int n = 0;
-   for( auto & i : v_battery_binary ) {
-    i.set_type( ColVariable::kBinary );
-   }
-   add_static_variable( v_battery_binary, "BB" );
 
-  }
+ v_battery_binary.resize( f_time_horizon );
+ for( auto & var : v_battery_binary )
+  var.set_type( ColVariable::kBinary );
+ add_static_variable( v_battery_binary, "BB_battery" );
 
   // Active Power Variable
 
-  if( v_active_power.size() != f_time_horizon ) {
-   assert( v_active_power.empty() ); // this should only happen once
-   v_active_power.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_active_power ) {
-    i.set_type( ColVariable::kContinuous );
-   }
-   add_static_variable( v_active_power, "p" );
-  }
+ v_active_power.resize( f_time_horizon );
+ for( auto & var : v_active_power )
+  var.set_type( ColVariable::kContinuous );
+ add_static_variable( v_active_power, "p_battery" );
 
   // Primary Spinning Reserve Variable
+ v_primary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_primary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_primary_spinning_reserve, "pr_battery" );
 
-  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-   assert( v_primary_spinning_reserve.empty() ); // this should only happen once
-   v_primary_spinning_reserve.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_primary_spinning_reserve ) {
-    i.set_type( ColVariable::kNonNegative );
-   }
-   add_static_variable( v_primary_spinning_reserve, "pr"  );
 
-  }
+ // Secondary Spinning Reserve Variable
 
-  // Secondary Spinning Reserve Variable
+ v_secondary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_secondary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_secondary_spinning_reserve, "sc_battery" );
 
-  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-   assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
-   v_secondary_spinning_reserve.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_secondary_spinning_reserve ) {
-    i.set_type( ColVariable::kNonNegative );
-   }
-   add_static_variable( v_secondary_spinning_reserve, "sr"  );
-
-  }
- }
 
  set_variables_generated();
 } // end( BatteryUnitBlock::generate_abstract_variables )
@@ -413,19 +373,16 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
 
-   auto linear_function = new LinearFunction();
-
-   linear_function->add_variable( &v_intake_level[t], 1.0 );
-
    intake_upper_bound_Constraints[t].set_lhs( 0.0);
    intake_upper_bound_Constraints[t].set_rhs( v_maximum_power[ t ]);
-   intake_upper_bound_Constraints[t].set_function( linear_function );
+   intake_upper_bound_Constraints[t].set_variable(&v_intake_level[t]);
 
   }
  add_static_constraint( intake_upper_bound_Constraints, "Intake_UpperBound_Constraints_Battery" );
 
  /*--------------------------------------------------------------------------*/
 // Initializing demand_Constraints
+
  {
   demand_Constraints.resize( f_time_horizon );
 
