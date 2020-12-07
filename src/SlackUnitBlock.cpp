@@ -111,57 +111,30 @@ void SlackUnitBlock::generate_abstract_variables
   return; // variables have already been generated
 
 /*--------------------------------------------------------------------------*/
- if ( f_time_horizon > 0 ){
-
   // Commitment Variable
+  v_commitment.resize( f_time_horizon );
+   for( auto & i : v_commitment )
+    i.set_type( ColVariable::kPosUnitary );
+    add_static_variable( v_commitment, "u_inertia_"  );
 
-  if( v_commitment.size() != f_time_horizon ) {
-   assert( v_commitment.empty() ); // this should only happen once
-   v_commitment.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_commitment ) {
-    i.set_type( ColVariable::kBinary );
-    add_static_variable( i, "u_inertia_" + std::to_string( n++ ) );
-   }
-  }
 
   // Active Power Variable
-
-  if( v_active_power.size() != f_time_horizon ) {
-   assert( v_active_power.empty() ); // this should only happen once
-   v_active_power.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_active_power ) {
-    i.set_type( ColVariable::kNonNegative );
-    add_static_variable( i, "p_" + std::to_string( n++ ) );
-   }
-  }
+  v_active_power.resize( f_time_horizon );
+  for( auto & var : v_active_power )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_active_power, "p_slack" );
 
   // Primary Spinning Reserve Variable
-
-  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-   assert( v_primary_spinning_reserve.empty() ); // this should only happen once
-   v_primary_spinning_reserve.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_primary_spinning_reserve ) {
-    i.set_type( ColVariable::kNonNegative );
-    add_static_variable( i, "pr_" + std::to_string( n++ ) );
-   }
-  }
+ v_primary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_primary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_primary_spinning_reserve, "pr_slack" );
 
   // Secondary Spinning Reserve Variable
-
-  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-   assert( v_secondary_spinning_reserve.empty() ); // this should only happen once
-   v_secondary_spinning_reserve.resize( f_time_horizon );
-   int n = 0;
-   for( auto & i : v_secondary_spinning_reserve ) {
-    i.set_type( ColVariable::kNonNegative );
-    add_static_variable( i, "sr_" + std::to_string( n++ ) );
-   }
-  }
-
- }
+ v_secondary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_secondary_spinning_reserve )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
 
  set_variables_generated();
 

@@ -996,7 +996,7 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > power_intake_outtake_Constraints;
 
 /// the intake upper bound constraints
- std::vector< FRowConstraint > intake_upper_bound_Constraints;
+ std::vector< BoxConstraint > intake_upper_bound_Constraints;
 
 /// the storage , intake and outtake level relation constraints
  std::vector< FRowConstraint > storage_intake_outtake_Constraints;
