@@ -31,6 +31,7 @@
 
 #ifndef __BatteryUnitBlock
 #define __BatteryUnitBlock
+#define BatteryUnitBlock_bin_ZOC 0
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -133,7 +134,6 @@ namespace SMSpp_di_unipi_it {
 
 class BatteryUnitBlock : public UnitBlock {
 
-#define BatteryUnitBlock_bin_ZOC 0
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/

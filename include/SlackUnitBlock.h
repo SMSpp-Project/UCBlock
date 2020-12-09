@@ -35,6 +35,7 @@
 
 #ifndef __SlackUnitBlock
 #define __SlackUnitBlock
+#define SlackUnitBlock_bin_ZOC 0
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -73,8 +74,6 @@ namespace SMSpp_di_unipi_it
  * that lack capacity/resources. */
 
 class SlackUnitBlock : public UnitBlock {
-
-#define SlackUnitBlock_bin_ZOC 0
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/

@@ -35,6 +35,8 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
+#define ThermalUnitBlock_bin_ZOC 0
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -79,8 +81,6 @@ namespace SMSpp_di_unipi_it
  * - active power relation with primary and secondary spinning reserves. */
 
 class ThermalUnitBlock : public UnitBlock {
-
-#define ThermalUnitBlock_bin_ZOC 0
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
