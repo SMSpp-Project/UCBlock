@@ -74,6 +74,8 @@ namespace SMSpp_di_unipi_it
 
 class SlackUnitBlock : public UnitBlock {
 
+#define SlackUnitBlock_bin_ZOC 0
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -586,6 +588,9 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve bound constraints
  std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Constraints;
+
+ /// the inertia variables bound constraints
+ std::vector< ZOConstraint > Inertia_Bound_Constraints;
 
  /// the objective function
  FRealObjective objective;

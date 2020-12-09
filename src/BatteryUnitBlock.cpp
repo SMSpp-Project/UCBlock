@@ -87,6 +87,13 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  clear_boxconstraints( storage_level_bounds_Constraints );
  clear_boxconstraints( primary_upper_bound_Constraints );
  clear_boxconstraints( secondary_upper_bound_Constraints );
+
+ auto clear_z0constraints =
+         []( std::vector< ZOConstraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_z0constraints(battery_binary_bound_Constraints);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -539,6 +546,16 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
   }
   add_static_constraint( secondary_upper_bound_Constraints, "Secondary_UpperBound_Constraints_Battery" );
 
+/*-------------------------------ZOConstraint-------------------------------*/
+#if !BatteryUnitBlock_bin_ZOC
+ // the battery binary bound constraints
+ battery_binary_bound_Constraints.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  battery_binary_bound_Constraints[ t ].set_variable(&v_battery_binary[t]);
+ }
+ add_static_constraint( battery_binary_bound_Constraints, "BB_bound_battery" );
+
+#endif
 
  set_constraints_generated();
 } // end( BatteryUnitBlock::generate_abstract_constraints )

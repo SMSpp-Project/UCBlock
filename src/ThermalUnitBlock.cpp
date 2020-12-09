@@ -83,6 +83,15 @@ ThermalUnitBlock::~ThermalUnitBlock() {
  clear_constraints( SecondaryRho_Constraints );
  clear_constraints( MinPower_Constraints );
  clear_constraints( MaxPower_Constraints );
+
+ auto clear_z0constraints =
+         []( std::vector< ZOConstraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_z0constraints(Commitment_bound_Constraints);
+ clear_z0constraints(StartUp_Binary_bound_Constraints);
+ clear_z0constraints(ShoutDown_Binary_bound_Constraints);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -185,7 +194,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  v_commitment.resize( f_time_horizon );
  for( auto & var : v_commitment )
   var.set_type( ColVariable::kBinary );
- add_static_variable( v_commitment, "u" );
+ add_static_variable( v_commitment, "u_thermal" );
 
  // Active Power Variable
 
@@ -786,8 +795,35 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( SecondaryRho_Constraints, "SecondaryRho_Constraints_Thermal" );
 
+/*-------------------------------ZOConstraint-------------------------------*/
+#if !ThermalUnitBlock_bin_ZOC
+
+ // the commitment bound constraints
+ Commitment_bound_Constraints.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  Commitment_bound_Constraints[ t ].set_variable(&v_commitment[t]);
+ }
+ add_static_constraint( Commitment_bound_Constraints, "Commitment_bound_Thermal" );
+
+ // the startup binary bound constraints
+ auto startup_shutdown_size = f_time_horizon - init_t;
+
+ StartUp_Binary_bound_Constraints.resize( startup_shutdown_size );
+ for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
+  StartUp_Binary_bound_Constraints[ t ].set_variable(&v_start_up[t]);
+ }
+ add_static_constraint( StartUp_Binary_bound_Constraints, "StartUp_binary_bound_Thermal" );
+ // the shout down binary bound constraints
+
+ ShoutDown_Binary_bound_Constraints.resize( startup_shutdown_size );
+ for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
+  ShoutDown_Binary_bound_Constraints[ t ].set_variable(&v_shut_down[t]);
+ }
+ add_static_constraint( ShoutDown_Binary_bound_Constraints, "ShoutDown_binary_bound_Thermal" );
+#endif
 
  set_constraints_generated();
+
 } // end( ThermalUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/

@@ -133,6 +133,7 @@ namespace SMSpp_di_unipi_it {
 
 class BatteryUnitBlock : public UnitBlock {
 
+#define BatteryUnitBlock_bin_ZOC 0
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1018,6 +1019,10 @@ class BatteryUnitBlock : public UnitBlock {
 
 /// secondary upper bound constraints
  std::vector< BoxConstraint > secondary_upper_bound_Constraints;
+
+ /// the vector of binary variables
+ std::vector< ZOConstraint > battery_binary_bound_Constraints;
+
 
  /// the objective function
  FRealObjective objective;

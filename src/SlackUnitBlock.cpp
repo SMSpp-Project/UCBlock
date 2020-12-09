@@ -36,7 +36,6 @@
 #include "SlackUnitBlock.h"
 #include "DQuadFunction.h"
 #include "FRealObjective.h"
-#include "LinearFunction.h"
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -114,8 +113,8 @@ void SlackUnitBlock::generate_abstract_variables
   // Commitment Variable
   v_commitment.resize( f_time_horizon );
    for( auto & i : v_commitment )
-    i.set_type( ColVariable::kPosUnitary );
-    add_static_variable( v_commitment, "u_inertia_"  );
+   // i.set_type( ColVariable::kPosUnitary );
+    add_static_variable( v_commitment, "u_inertia"  );
 
 
   // Active Power Variable
@@ -211,6 +210,16 @@ void SlackUnitBlock::generate_abstract_constraints
  }
 
  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
+
+ /*-------------------------------ZOConstraint-------------------------------*/
+#if !SlackUnitBlock_bin_ZOC
+ // the commitment bound constraints
+ Inertia_Bound_Constraints.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  Inertia_Bound_Constraints[ t ].set_variable(&v_commitment[t]);
+ }
+ add_static_constraint( Inertia_Bound_Constraints, "Inertia_bound_Thermal" );
+#endif
 
  set_constraints_generated();
 } // end( SlackUnitBlock::generate_abstract_constraints )
