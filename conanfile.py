@@ -1,7 +1,7 @@
 from conans import ConanFile, CMake, tools
 
 
-class SmilpblockConan(ConanFile):
+class UcblockConan(ConanFile):
     name = "ucblock"
     version = "0.4.1"
     description = "Unit Commitment Blocks for SMS++"
