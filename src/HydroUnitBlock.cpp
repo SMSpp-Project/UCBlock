@@ -1642,17 +1642,27 @@ void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
   return;
  }
  boost::multi_array< double, 2 > temp = a;
- a.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+ long rows = a.shape()[ 0 ];
+ long cols = a.shape()[ 1 ];
 
- if( a.shape()[ 0 ] == f_number_reservoirs ) {
-
+ if ( rows == 1 && cols < f_time_horizon ) {
+  a.resize( boost::extents[f_number_reservoirs][f_time_horizon] );
   for( Index n = 0; n < f_number_reservoirs; ++n ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    a[ n ][ t ] = temp[ 0 ][ n ];
+    a[n][t] = temp[0][n];
    }
   }
+ }
 
- } else if( a.shape()[ 1 ] < f_time_horizon ) {
+ if ( rows == f_number_reservoirs && cols == f_time_horizon) {
+  a.resize( boost::extents[f_number_reservoirs][f_time_horizon] );
+  for( Index n = 0; n < f_number_reservoirs; ++n ) {
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    a[n][t] = temp[n][t];
+   }
+  }
+ }
+ /*if( a.shape()[ 1 ] < f_time_horizon ) {//TODO CHECK IT FOR CHANGE INTERVAL
   for( Index n = 0; n < f_number_reservoirs; ++n ) {
    int j = 0;
    for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
@@ -1667,7 +1677,7 @@ void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
     }
    }
   }
- }
+ }*/
 }
 
 /*--------------------------------------------------------------------------*/
