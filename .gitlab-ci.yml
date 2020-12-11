@@ -8,7 +8,7 @@ cache:
 
 stages:
   - build
-  - test
+#  - test
 #  - deploy
 
 fetch_smspp:
@@ -32,12 +32,12 @@ build:
     paths:
       - build
 
-test:
-  stage: test
-  before_script:
-    - cmake --build smspp/build --target install
-  script:
-    - cmake --build build --target test
+#test:
+#  stage: test
+#  before_script:
+#    - cmake --build smspp/build --target install
+#  script:
+#    - cmake --build build --target test
 
 #deploy:
 #  stage: deploy
