@@ -79,21 +79,23 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  clear_constraints( demand_Constraints );
 
  auto clear_boxconstraints =
-         []( std::vector< BoxConstraint > & constraints ) {
-          for( auto & constraint : constraints )
-           constraint.clear();
-         };
+  []( std::vector< BoxConstraint > & constraints ) {
+   for( auto & constraint : constraints )
+    constraint.clear();
+  };
+
  clear_boxconstraints( intake_upper_bound_Constraints );
  clear_boxconstraints( storage_level_bounds_Constraints );
  clear_boxconstraints( primary_upper_bound_Constraints );
  clear_boxconstraints( secondary_upper_bound_Constraints );
 
- auto clear_z0constraints =
-         []( std::vector< ZOConstraint > & constraints ) {
-          for( auto & constraint : constraints )
-           constraint.clear();
-         };
- clear_z0constraints(battery_binary_bound_Constraints);
+ auto clear_ZOConstraints =
+  []( std::vector< ZOConstraint > & constraints ) {
+   for( auto & constraint : constraints )
+    constraint.clear();
+  };
+
+ clear_ZOConstraints( battery_binary_bound_Constraints );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -168,6 +170,15 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
+ int relax_binary = 0;
+ auto config = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+ if( ( ! config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_variables_Configuration )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+   ( f_BlockConfig->f_static_variables_Configuration );
+ if( config )
+  relax_binary = config->f_value;
+
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
   var.set_type( ColVariable::kNonNegative );
@@ -187,8 +198,12 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
 
  v_battery_binary.resize( f_time_horizon );
- for( auto & var : v_battery_binary )
-  var.set_type( ColVariable::kBinary );
+ for( auto & var : v_battery_binary ) {
+  if( relax_binary )
+   var.set_type( ColVariable::kPosUnitary );
+  else
+   var.set_type( ColVariable::kBinary );
+ }
  add_static_variable( v_battery_binary, "BB_battery" );
 
   // Active Power Variable
@@ -221,6 +236,15 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
  if( constraints_generated() )
   return; // constraints have already been generated
+
+ int generate_ZOConstraint = 0;
+ auto config = dynamic_cast<SimpleConfiguration<int> *>( stcc );
+ if( ( ! config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_constraints_Configuration )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+   ( f_BlockConfig->f_static_constraints_Configuration );
+ if( config )
+  generate_ZOConstraint = config->f_value;
 
  // Initial data check
    for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -544,18 +568,20 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    secondary_upper_bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[ t ] );
 
   }
-  add_static_constraint( secondary_upper_bound_Constraints, "Secondary_UpperBound_Constraints_Battery" );
+  add_static_constraint( secondary_upper_bound_Constraints ,
+                         "Secondary_UpperBound_Constraints_Battery" );
 
 /*-------------------------------ZOConstraint-------------------------------*/
-#if !BatteryUnitBlock_bin_ZOC
- // the battery binary bound constraints
- battery_binary_bound_Constraints.resize( f_time_horizon );
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  battery_binary_bound_Constraints[ t ].set_variable(&v_battery_binary[t]);
- }
- add_static_constraint( battery_binary_bound_Constraints, "BB_bound_battery" );
 
-#endif
+  if( generate_ZOConstraint ) {
+   // the battery binary bound constraints
+   battery_binary_bound_Constraints.resize( f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    battery_binary_bound_Constraints[ t ].set_variable( &v_battery_binary[t] );
+   }
+   add_static_constraint( battery_binary_bound_Constraints ,
+                          "BB_bound_battery" );
+  }
 
  set_constraints_generated();
 } // end( BatteryUnitBlock::generate_abstract_constraints )

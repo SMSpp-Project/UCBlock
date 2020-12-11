@@ -35,7 +35,7 @@
 
 #ifndef __SlackUnitBlock
 #define __SlackUnitBlock
-#define SlackUnitBlock_bin_ZOC 0
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

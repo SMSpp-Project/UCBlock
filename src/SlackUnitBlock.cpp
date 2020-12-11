@@ -148,6 +148,15 @@ void SlackUnitBlock::generate_abstract_constraints
  if( constraints_generated() )
   return; // constraints have already been generated
 
+ int generate_ZOConstraint = 0;
+ auto config = dynamic_cast<SimpleConfiguration<int> *>( stcc );
+ if( ( ! config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_constraints_Configuration )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+   ( f_BlockConfig->f_static_constraints_Configuration );
+ if( config )
+  generate_ZOConstraint = config->f_value;
+
  // Initializing active power bounds constraints
  if( ActivePower_Bound_Constraints.size() != f_time_horizon ) {
   // this should only happen once
@@ -212,14 +221,16 @@ void SlackUnitBlock::generate_abstract_constraints
  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
 
  /*-------------------------------ZOConstraint-------------------------------*/
-#if !SlackUnitBlock_bin_ZOC
- // the commitment bound constraints
- Inertia_Bound_Constraints.resize( f_time_horizon );
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  Inertia_Bound_Constraints[ t ].set_variable(&v_commitment[t]);
+
+ if( generate_ZOConstraint ) {
+
+  // the commitment bound constraints
+  Inertia_Bound_Constraints.resize( f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   Inertia_Bound_Constraints[ t ].set_variable( &v_commitment[ t ] );
+  }
+  add_static_constraint( Inertia_Bound_Constraints , "Inertia_bound_Thermal" );
  }
- add_static_constraint( Inertia_Bound_Constraints, "Inertia_bound_Thermal" );
-#endif
 
  set_constraints_generated();
 } // end( SlackUnitBlock::generate_abstract_constraints )

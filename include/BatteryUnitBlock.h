@@ -31,7 +31,7 @@
 
 #ifndef __BatteryUnitBlock
 #define __BatteryUnitBlock
-#define BatteryUnitBlock_bin_ZOC 0
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

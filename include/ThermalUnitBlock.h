@@ -35,7 +35,6 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
-#define ThermalUnitBlock_bin_ZOC 0
 
                       /* self-identification: #endif at the end of the file */
 
