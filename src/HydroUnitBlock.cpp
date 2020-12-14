@@ -266,8 +266,12 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
  add_static_variable ( v_flow_rate, "F_hydro" );
  add_static_variable ( v_active_power, "p_hydro" );
- add_static_variable ( v_primary_spinning_reserve, "pr_hydro" );
- add_static_variable ( v_secondary_spinning_reserve, "sr_hydro" );
+ if (!v_primary_rho.empty()) {
+  add_static_variable( v_primary_spinning_reserve, "pr_hydro" );
+ }
+ if (!v_secondary_rho.empty()) {
+  add_static_variable( v_secondary_spinning_reserve, "sr_hydro" );
+ }
 
  set_variables_generated();
 } // end( HydroUnitBlock::generate_abstract_variables )
@@ -453,8 +457,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
 
- if( ( ! v_primary_rho.empty() ) && ( ! v_secondary_rho.empty() ) ) {
-
  assert( MaxPowerPrimarySecondary_Const.empty());
 
  MaxPowerPrimarySecondary_Const.resize
@@ -471,8 +473,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    auto secondary_spinning_reserve = get_secondary_spinning_reserve( arc, t );
 
    linear_function->add_variable( active_power, 1.0 );
-   linear_function->add_variable( primary_spinning_reserve, 1.0 );
-   linear_function->add_variable( secondary_spinning_reserve, 1.0 );
+   if( ! v_primary_rho.empty() ) {
+    linear_function->add_variable( primary_spinning_reserve, 1.0 );
+   }
+   if( ! v_secondary_rho.empty()  ) {
+    linear_function->add_variable( secondary_spinning_reserve, 1.0 );
+   }
 
    MaxPowerPrimarySecondary_Const[t][arc].set_lhs( - Inf< double >() );
 
@@ -506,8 +512,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    auto secondary_spinning_reserve = get_secondary_spinning_reserve( arc, t );
 
    linear_function->add_variable( active_power, 1.0 );
-   linear_function->add_variable( primary_spinning_reserve, -1.0 );
-   linear_function->add_variable( secondary_spinning_reserve, -1.0 );
+   if( ! v_primary_rho.empty() ) {
+    linear_function->add_variable( primary_spinning_reserve, -1.0 );
+   }
+   if( ! v_secondary_rho.empty() ) {
+    linear_function->add_variable( secondary_spinning_reserve, -1.0 );
+   }
 
    if( !v_minimum_power.empty()) {
     MinPowerPrimarySecondary_Const[t][arc].set_lhs( v_minimum_power[t][arc] );
@@ -521,8 +531,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  add_static_constraint( MinPowerPrimarySecondary_Const,
                         "MinPowerPrimarySecondary_HydroUnit" );
- }
- else {
+
+ /*else {
 
   assert( ActivePowerBounds_Const.empty());
 
@@ -552,7 +562,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
   }
   add_static_constraint( ActivePowerBounds_Const, "ActivePowerBounds_HydroUnit" );
- }
+ }*/
  // power output relation with to primary reserves constraints
 
  if( !v_primary_rho.empty() ) {
@@ -629,7 +639,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  }
  add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary_HydroUnit" );
 
- }else {
+ }
+ /*else {
    assert( ActivePowerPrimary_Const.empty());
 
    ActivePowerPrimary_Const.resize
@@ -646,7 +657,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
    add_static_constraint( ActivePowerPrimary_Const, "ActivePowerPrimary_HydroUnit" );
-  }
+  }*/
 
  // power output relation with to secondary reserves constraints
   if( ! v_secondary_rho.empty() ) {
@@ -724,7 +735,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
   }
  }
   add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary_HydroUnit" );
-  }else {
+  }/*else {
    assert( ActivePowerSecondary_Const.empty());
 
    ActivePowerSecondary_Const.resize
@@ -743,7 +754,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     }
    }
    add_static_constraint( ActivePowerSecondary_Const, "ActivePowerSecondary_HydroUnit" );
-  }
+  }*/
 
   assert( FlowActivePower_Const.empty());
 
