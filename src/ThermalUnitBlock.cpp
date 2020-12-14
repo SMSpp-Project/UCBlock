@@ -92,6 +92,14 @@ ThermalUnitBlock::~ThermalUnitBlock() {
  clear_ZOconstraints( Commitment_bound_Constraints );
  clear_ZOconstraints( StartUp_Binary_bound_Constraints );
  clear_ZOconstraints( ShoutDown_Binary_bound_Constraints );
+
+ auto clear_Boxconstraints =
+         []( std::vector< BoxConstraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_Boxconstraints(Commitment_fixed_to_One_Constraints);
+
 }
 
 /*--------------------------------------------------------------------------*/
@@ -855,6 +863,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    add_static_constraint( ShoutDown_Binary_bound_Constraints,
                           "ShoutDown_binary_bound_Thermal" );
   }
+/*-------------------------------BoxConstraint-------------------------------*/
+ if( init_t > 0 && f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+
+  // the commitment fixed to one BoxConstraints
+  Commitment_fixed_to_One_Constraints.resize( f_time_horizon );
+  for( Index t = 0 ; t < init_t ; ++t ) {
+   Commitment_fixed_to_One_Constraints[ t ].set_lhs( 1);
+   Commitment_fixed_to_One_Constraints[ t ].set_rhs( 1);
+   Commitment_fixed_to_One_Constraints[ t ].set_variable(&v_commitment[t]);
+  }
+  add_static_constraint( Commitment_fixed_to_One_Constraints,
+                         "Commitment_fixed_to_one_Thermal" );
+ }
+
 
  set_constraints_generated();
 

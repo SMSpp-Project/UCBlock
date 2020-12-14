@@ -1270,6 +1270,9 @@ class ThermalUnitBlock : public UnitBlock {
  /// the commitment bound constraints
  std::vector< ZOConstraint > Commitment_bound_Constraints;
 
+ /// the commitment fixed to one BoxConstraints
+ std::vector< BoxConstraint > Commitment_fixed_to_One_Constraints;
+
  /// the startup binary bound constraints
  std::vector< ZOConstraint > StartUp_Binary_bound_Constraints;
 
