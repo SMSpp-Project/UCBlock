@@ -118,7 +118,7 @@ void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
                                               "DeltaRampUp",
                                               "DeltaRampDown",
                                               "StoringBatteryRho",
-                                              "ExtractingBatterRho",
+                                              "ExtractingBatteryRho",
                                               "InitialStorage",
                                               "Cost",
                                               "Demand" };
