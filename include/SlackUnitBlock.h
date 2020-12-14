@@ -244,7 +244,7 @@ class SlackUnitBlock : public UnitBlock {
 /// generate the abstract variables of the SlackUnitBlock
 /** The SlackUnitBlock class has several different variables which are:
  *
- *  - the binary commitment variables which takes the continues values between
+ *  - the commitment variables which takes the continues values between
  *    1 and zero.
  *
  *  - the primary spinning reserve variables;
@@ -445,7 +445,7 @@ class SlackUnitBlock : public UnitBlock {
 
  double * get_inertia_commitment( Index generator )
  override {
-  return & ( v_inertia_commitment.front() );
+  return & ( v_MaxInertia.front() );
  }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of inertia cost
@@ -560,9 +560,6 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
-
- /// the vector of inertia commitment of generator
- std::vector< double > v_inertia_commitment;
 
  /*-----------------------------variables------------------------------------*/
  /// the commitment variables
