@@ -47,6 +47,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "NetworkBlock.h"
+#include "OneVarConstraint.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -118,6 +120,16 @@ class BusNetworkBlock : public NetworkBlock {
 
  void generate_abstract_variables( Configuration * stvv ) override;
 
+
+/*--------------------------------------------------------------------------*/
+/// Generate the static constraint of the BusNetworkBlock
+/** This method generates the abstract constraints of the BusNetworkBlock.
+ * Since the node injection variable is fixed to the active demand value, it
+ * must be a BoxConstraint for that variable whose lower and upper bounds are
+ * equal to the active demand value.
+ */
+ void generate_abstract_constraints( Configuration *stcc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -171,7 +183,8 @@ class BusNetworkBlock : public NetworkBlock {
 /*-----------------------------variables------------------------------------*/
 
 /*----------------------------constraints-----------------------------------*/
-
+ /// the node injection bound constraints
+ std::vector< BoxConstraint > NodeInjection_bound_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
