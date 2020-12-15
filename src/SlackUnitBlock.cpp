@@ -127,13 +127,16 @@ void SlackUnitBlock::generate_abstract_variables
  v_primary_spinning_reserve.resize( f_time_horizon );
  for( auto & var : v_primary_spinning_reserve )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_primary_spinning_reserve, "pr_slack" );
-
+ if(!v_MaxPrimaryPower.empty()) {
+  add_static_variable( v_primary_spinning_reserve, "pr_slack" );
+ }
   // Secondary Spinning Reserve Variable
  v_secondary_spinning_reserve.resize( f_time_horizon );
  for( auto & var : v_secondary_spinning_reserve )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
+ if(!v_MaxSecondaryPower.empty()) {
+  add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
+ }
 
  set_variables_generated();
 
@@ -179,47 +182,42 @@ void SlackUnitBlock::generate_abstract_constraints
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
- if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
+ if(!v_MaxPrimaryPower.empty()) {
+  if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
 
-  Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
- }
-
- for( Index t = 0; t < f_time_horizon; ++t ) {
-
-  if ( !v_MaxPrimaryPower.empty() ){
-   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
-  } else {
-   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0);
+   Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
   }
-  Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+
+   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+
+   Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
+  }
+
+  add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
  }
-
- add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
-
 /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
- if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
+ if ( ! v_MaxSecondaryPower.empty() ) {
+  if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
 
-  Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
- }
-
- for( Index t = 0; t < f_time_horizon; ++t ) {
-
-  if ( ! v_MaxSecondaryPower.empty() ){
-   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
-  } else{
-   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0 );
+   Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
   }
-  Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t]);
+
+  for( Index t = 0; t < f_time_horizon; ++t ) {
+
+   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+   Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
+  }
+
+  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
  }
-
- add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
-
  /*-------------------------------ZOConstraint-------------------------------*/
 
  if( generate_ZOConstraint ) {
