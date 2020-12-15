@@ -1,0 +1,52 @@
+default:
+  image: registry.gitlab.com/smspp/smspp
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - smspp
+
+stages:
+  - build
+#  - test
+#  - deploy
+
+fetch_smspp:
+  stage: .pre
+  script:
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$SMSPP_DEPLOY_KEY")
+    - mkdir -p ~/.ssh && ssh-keyscan -H gitlab.com >> ~/.ssh/known_hosts
+    - if [ -d smspp ]; then (cd smspp && git pull); else git clone --branch develop git@gitlab.com:smspp/smspp.git; fi
+    - cmake -S smspp -B smspp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+    - cmake --build smspp/build
+
+build:
+  stage: build
+  before_script:
+    - cmake --build smspp/build --target install
+  script:
+    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build
+  artifacts:
+    paths:
+      - build
+
+#test:
+#  stage: test
+#  before_script:
+#    - cmake --build smspp/build --target install
+#  script:
+#    - cmake --build build --target test
+
+#deploy:
+#  stage: deploy
+#  script:
+#    - cd build && cpack -G "TGZ;ZIP;TBZ2"
+#  artifacts:
+#    paths:
+#      - build/*.tar.gz
+#      - build/*.tar.bz2
+#      - build/*.zip
+#  only:
+#    - tags
