@@ -490,7 +490,7 @@ class UCBlock : public Block {
  *   for time t. If NumberPollutants == 0 (it is not provided) then this
  *   variable need not be defined, since it's not loaded. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generates the static constraint of the UCBlock

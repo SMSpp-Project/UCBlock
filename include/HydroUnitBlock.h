@@ -508,7 +508,7 @@ class HydroUnitBlock : public UnitBlock {
  * are accurate enough for this setting. Yet, the case UpF[ l ] < 0 cannot
  * be disregarded. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the HydroUnitBlock

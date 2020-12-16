@@ -86,7 +86,7 @@ HeatBlock::~HeatBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
+void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {

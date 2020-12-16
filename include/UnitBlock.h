@@ -204,7 +204,7 @@ class UnitBlock : public Block {
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
  *   is not defined), or "NumberIntervals" >= "TimeHorizon".
  */
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
@@ -470,10 +470,10 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  /// deserializes the time horizon from a netCDF group
- void deserialize_time_horizon( netCDF::NcGroup & group );
+ void deserialize_time_horizon( const netCDF::NcGroup & group );
 
  /// deserializes the change intervals vector from a netCDF group
- void deserialize_change_intervals( netCDF::NcGroup & group );
+ void deserialize_change_intervals( const netCDF::NcGroup & group );
 
  /// states that the Variable of the UnitBlock have been generated
  void set_variables_generated() { AR |= HasVar; }

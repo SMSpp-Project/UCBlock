@@ -237,7 +237,7 @@ class SlackUnitBlock : public UnitBlock {
  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the SlackUnitBlock

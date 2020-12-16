@@ -83,7 +83,7 @@ HydroUnitBlock::~HydroUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG

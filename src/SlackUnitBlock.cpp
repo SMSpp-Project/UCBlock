@@ -57,7 +57,7 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 
