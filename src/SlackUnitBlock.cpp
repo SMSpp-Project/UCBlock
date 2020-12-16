@@ -56,7 +56,7 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void SlackUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 
@@ -114,8 +114,9 @@ void SlackUnitBlock::generate_abstract_variables
   v_commitment.resize( f_time_horizon );
    for( auto & i : v_commitment )
     i.set_type( ColVariable::kPosUnitary );
-    add_static_variable( v_commitment, "u_inertia"  );
-
+   if (!v_MaxInertia.empty()) {
+    add_static_variable( v_commitment, "u_inertia" );
+   }
 
   // Active Power Variable
   v_active_power.resize( f_time_horizon );

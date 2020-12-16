@@ -194,7 +194,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::deserialize( netCDF::NcGroup & group ) {
+void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG

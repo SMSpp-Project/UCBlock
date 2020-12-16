@@ -58,7 +58,7 @@ NetworkBlock::NetworkData::NetworkData() {
  f_number_nodes = 0;
 }
 
-void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
+void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "NumberNodes",
@@ -94,7 +94,7 @@ void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 }
 
 /*--------------------------------------------------------------------------*/
-void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
+void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG

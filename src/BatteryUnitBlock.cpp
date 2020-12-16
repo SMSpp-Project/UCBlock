@@ -101,7 +101,7 @@ BatteryUnitBlock::~BatteryUnitBlock() {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void BatteryUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG

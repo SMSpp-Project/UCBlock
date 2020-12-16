@@ -106,7 +106,7 @@ ThermalUnitBlock::~ThermalUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon",

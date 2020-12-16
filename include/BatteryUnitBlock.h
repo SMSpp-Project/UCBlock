@@ -384,7 +384,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   Demand[ t ] contains the demand value for each time instant t.
  * */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the BatteryUnitBlock

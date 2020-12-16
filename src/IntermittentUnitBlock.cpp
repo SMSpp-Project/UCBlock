@@ -71,7 +71,7 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG

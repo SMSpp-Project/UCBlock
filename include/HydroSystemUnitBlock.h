@@ -185,7 +185,7 @@ class HydroSystemUnitBlock : public UnitBlock {
  * above mapping. See PolyhedralFunction::deserialize() for details about
  * how the data must be stored in the PolyhedralFunctionBlock group. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 

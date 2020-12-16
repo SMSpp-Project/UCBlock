@@ -185,7 +185,7 @@ class IntermittentUnitBlock : public UnitBlock {
  *
  *   */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the IntermittentUnitBlock

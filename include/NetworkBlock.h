@@ -203,7 +203,7 @@ class NetworkBlock : public Block {
  *   lines only which is also known as the Net Transfer Capacity (NTC)
  *   model.*/
 
-  virtual void deserialize( netCDF::NcGroup & group );
+  virtual void deserialize( const netCDF::NcGroup & group );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -424,7 +424,7 @@ class NetworkBlock : public Block {
  *   describing the NetworkBlock to be optional [see the comments to
  *   UCBlock::deserialize()]. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of NetworkBlock

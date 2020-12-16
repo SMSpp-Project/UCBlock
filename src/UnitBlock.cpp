@@ -67,7 +67,7 @@ UnitBlock::UnitBlock( Block * father_block, UnitBlock::Index t )
  f_number_intervals = 0;
 }
 
-void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -100,7 +100,7 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
@@ -144,7 +144,7 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
  // deserialize_time_horizon( group );
  // deserialize_change_intervals( group );
 
