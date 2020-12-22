@@ -634,7 +634,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_PrimaryDemand_Const[t][0].set_lhs
              ( get_primary_demand()[0][t] );
      v_PrimaryDemand_Const[t][0].set_rhs( Inf< double >());
-     v_PrimaryDemand_Const[t][0].set_function( linear_function );    }
+     v_PrimaryDemand_Const[t][0].set_function( linear_function );
+    }
    }
   } else if( number_primary_zones > 1 ) {   // PrimaryZones is needed
 
@@ -739,6 +740,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     for( Index t = 0; t < f_time_horizon; ++t ) {
      auto linear_function = new LinearFunction();
 
+     v_SecondaryDemand_Const[t][0].set_lhs
+             ( get_secondary_demand()[0][t] );
+     v_SecondaryDemand_Const[t][0].set_rhs( Inf< double >());
+
      Index generator_id = 0;
      for( auto block : get_nested_Blocks()) {
       auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -752,15 +757,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        auto secondary_spinning_reserve = &secondary_s_r[t];
 
        linear_function->
-               add_variable( secondary_spinning_reserve, 1.0 );
+               add_variable( secondary_spinning_reserve, 1.0 ,eNoMod);
 
 
        generator_id++;
       }
      }
-     v_SecondaryDemand_Const[t][0].set_lhs
-             ( get_secondary_demand()[0][t] );
-     v_SecondaryDemand_Const[t][0].set_rhs( Inf< double >());
+
      v_SecondaryDemand_Const[t][0].set_function( linear_function );
     }
    } else {  //DCNetwork needs GeneratorNode
@@ -769,17 +772,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
      auto linear_function = new LinearFunction();
 
-
      for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
-      Index generator_id = 0;
-      for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
-       if( node_id == v_generator_node[elc_generator] ) {
+      Index elc_generator = 0;
+      for( Index unit_id = 0; unit_id < f_number_units; unit_id++ ) {
 
-        auto block = get_nested_Blocks()[generator_id];
-        auto unit_block = dynamic_cast<UnitBlock *>(block);
-        if( unit_block == nullptr )
-         continue;
+       auto block = get_nested_Blocks()[unit_id];
+       auto unit_block = dynamic_cast<UnitBlock *>(block);
+       if( unit_block == nullptr )
+        continue;
+       if( node_id == v_generator_node[elc_generator] ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
@@ -792,7 +794,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         }
 
        }
-       generator_id++;
+       elc_generator += unit_block->get_number_generators();
 
       }
      }
@@ -819,8 +821,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         auto unit_block = dynamic_cast<UnitBlock *>(block);
         if( unit_block == nullptr )
          continue;
-        unit_block->get_number_generators();
-
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
          auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
@@ -853,14 +853,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
        if( zone_id == v_secondary_zones[node_id] ) {
 
-        Index generator_id = 0;
-        for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
-         if( node_id == v_generator_node[ elc_generator ] ) {
+        Index elc_generator = 0;
+        for( Index unit_id = 0; unit_id < f_number_units; unit_id++) {
 
-          auto block = get_nested_Blocks()[generator_id];
+
+          auto block = get_nested_Blocks()[unit_id];
           auto unit_block = dynamic_cast<UnitBlock *>(block);
           if( unit_block == nullptr )
            continue;
+         if( node_id == v_generator_node[ elc_generator ] ) {
+
           unit_block->get_number_generators();
 
           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
@@ -872,7 +874,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
                    add_variable( secondary_spinning_reserve, 1.0 );
           }
          }
-         generator_id++;
+         elc_generator +=unit_block->get_number_generators();
         }
        }
        secondary_zone++;
@@ -945,20 +947,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
      auto linear_function = new LinearFunction();
 
-     v_InertiaDemand_Const[t][0].set_lhs
-             ( get_inertia_demand()[0][t] );
-     v_InertiaDemand_Const[t][0].set_rhs( Inf< double >());
-
      for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
-      Index generator_id = 0;
-      for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
-       if( node_id == v_generator_node[elc_generator] ) {
+      Index elc_generator = 0;
+      for( Index unit_id = 0; unit_id < f_number_units; unit_id++) {
 
-        auto block = get_nested_Blocks()[generator_id];
+        auto block = get_nested_Blocks()[unit_id];
         auto unit_block = dynamic_cast<UnitBlock *>(block);
         if( unit_block == nullptr )
          continue;
+       if( node_id == v_generator_node[elc_generator] ) {
 
         for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
 
@@ -980,9 +978,12 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          }
         }
        }
-       generator_id++;
+       elc_generator +=unit_block->get_number_generators();
       }
      }
+     v_InertiaDemand_Const[t][0].set_lhs
+             ( get_inertia_demand()[0][t] );
+     v_InertiaDemand_Const[t][0].set_rhs( Inf< double >());
      v_InertiaDemand_Const[t][0].set_function( linear_function );
     }
    }
@@ -1045,14 +1046,15 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
        if( zone_id == v_inertia_zones[node_id] ) {
 
-        Index generator_id = 0;
-        for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
-         if( node_id == v_generator_node[ elc_generator ] ) {
+        Index elc_generator = 0;
+        for( Index unit_id = 0; unit_id < f_number_units; unit_id++) {
 
-          auto block = get_nested_Blocks()[generator_id];
+          auto block = get_nested_Blocks()[unit_id];
           auto unit_block = dynamic_cast<UnitBlock *>(block);
           if( unit_block == nullptr )
            continue;
+         if( node_id == v_generator_node[ elc_generator ] ) {
+
           unit_block->get_number_generators();
 
           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
@@ -1075,7 +1077,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
            }
           }
          }
-         generator_id++;
+         elc_generator +=unit_block->get_number_generators();
         }
        }
        inertia_zone++;
