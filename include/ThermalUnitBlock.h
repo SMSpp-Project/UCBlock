@@ -35,6 +35,7 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -98,7 +99,6 @@ class ThermalUnitBlock : public UnitBlock {
 
  explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
   UnitBlock( f_block ) {}
-
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock
 
@@ -1266,6 +1266,18 @@ class ThermalUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > MinPower_Constraints;
 
  std::vector< FRowConstraint > MaxPower_Constraints;
+
+ /// the commitment bound constraints
+ std::vector< ZOConstraint > Commitment_bound_Constraints;
+
+ /// the commitment fixed to one BoxConstraints
+ std::vector< BoxConstraint > Commitment_fixed_to_One_Constraints;
+
+ /// the startup binary bound constraints
+ std::vector< ZOConstraint > StartUp_Binary_bound_Constraints;
+
+ /// the shout down binary bound constraints
+ std::vector< ZOConstraint > ShoutDown_Binary_bound_Constraints;
 
  /// the objective function
  FRealObjective objective;

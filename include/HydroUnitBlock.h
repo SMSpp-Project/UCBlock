@@ -38,6 +38,7 @@
 #include "FRowConstraint.h"
 #include "DQuadFunction.h"
 #include "UnitBlock.h"
+#include "OneVarConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -1580,13 +1581,13 @@ class HydroUnitBlock : public UnitBlock {
  boost::multi_array< FRowConstraint, 2 >  RampDown_Const;
 
  /// flow rate bounds constraints
- boost::multi_array< FRowConstraint, 2 >  FlowRateBounds_Const;
+ boost::multi_array< BoxConstraint, 2 >  FlowRateBounds_Const;
 
  /// final volumes fo each reservoir constraints
  boost::multi_array< FRowConstraint, 2 >  FinalVolumeReservoir_Const;
 
  /// volumetric bounds constraints
- boost::multi_array< FRowConstraint, 2 >  VolumetricBounds_Const;
+ boost::multi_array< BoxConstraint, 2 >  VolumetricBounds_Const;
 
  static void static_initialization() {
   /*!!

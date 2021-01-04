@@ -43,6 +43,8 @@
 #include <map>
 #include "NetworkBlock.h"
 #include "BusNetworkBlock.h"
+#include "LinearFunction.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -80,6 +82,23 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_node_injection[ 0 ], "S");
 
  set_variables_generated();
+}
+
+/*--------------------------------------------------------------------------*/
+void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc ) {
+
+ if( constraints_generated())
+  return; // constraints have already been generated
+
+ // the node injection bound constraints
+ NodeInjection_bound_Constraints.resize( 1 );
+ auto active_demand = get_active_demand()[ 0 ];
+ NodeInjection_bound_Constraints[ 0 ].set_lhs( active_demand );
+ NodeInjection_bound_Constraints[ 0 ].set_rhs( active_demand );
+ NodeInjection_bound_Constraints[ 0 ].set_variable(&v_node_injection[0]);
+
+ add_static_constraint( NodeInjection_bound_Constraints,
+                        "NodeInjection_bound_BusNetwork" );
 }
 
 /*--------------------------------------------------------------------------*/

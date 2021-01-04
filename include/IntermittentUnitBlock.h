@@ -432,7 +432,7 @@ class IntermittentUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > MaxPower_Constraints;
 
 /// the active power bounds constraints
- std::vector< FRowConstraint > active_power_bounds_Constraints;
+ std::vector< BoxConstraint > active_power_bounds_Constraints;
 
  static void static_initialization() {
   /*!!
