@@ -10,9 +10,9 @@
  * schedule of the production of electrical generators satisfying a (large)
  * set of technical constraints.
  *
- * \version 0.11
+ * \version 0.20
  *
- * \date 12 - 10 - 2020
+ * \date 31 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -42,15 +42,19 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UCBlock
-#define __UCBlock  /* self-identification: #endif at the end of the file */
+ #define __UCBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "NetworkBlock.h"
+
 #include "FRowConstraint.h"
+
+#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -58,8 +62,8 @@
 
 namespace SMSpp_di_unipi_it {
 
-class HeatBlock;     // forward declaration of HeatBlock
-class UnitBlock;     // forward declaration of UnitBlock
+//!! commented away until HeatBlock are properly managed
+//class HeatBlock;     // forward declaration of HeatBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -147,7 +151,12 @@ class UCBlock : public Block {
 
  /// Constructor of UCBlock, taking possibly a pointer of its father Block
 
- explicit UCBlock( Block * father = nullptr );
+ explicit UCBlock( Block * father = nullptr ) : Block( father ) ,
+  f_time_horizon( 0 ) , f_number_units( 0 ) , f_NetworkData( nullptr ) ,
+  //!! commented away until HeatBlock are properly managed
+  //f_number_heat_blocks( 0 ) ,
+  f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
+  f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) , AR( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of UCBlock
@@ -949,11 +958,13 @@ class UCBlock : public Block {
   * - otherwise, V.size() == NumberHeatGenerators (see the comments to
   *   deserialize()), and each element of V[ h ] tells which heat generator
   *   is also an electrical generator.
-  *   */
+  *
+  * !! commented away until HeatBlock are properly managed
 
  const std::vector< Index > & get_heat_set() const {
   return v_heat_set;
   }
+ */
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant rho
@@ -1008,21 +1019,35 @@ class UCBlock : public Block {
   *   - if the first dimension of the boost::multi_array<> M has full size
   *     then, each element of the matrix M[ t , p , i ] gives the conversion
   *     factor of pollutant p due to the generation of every heat-only unit i
-  *     in the given heat block h for time instant t. */
+  *     in the given heat block h for time instant t.
+  *
+  * !! commented away until HeatBlock are properly managed
 
  const boost::multi_array< double, 3 > & get_pollutant_heat_rho() const {
   return v_pollutant_heat_rho;
   }
+ */
 
 /*--------------------------------------------------------------------------*/
  /// Returns the i-th UnitBlock
 
- UnitBlock * get_unit_block( Index i ) const;
+ UnitBlock * get_unit_block( Index i ) const {
+  if( i >= f_number_units )
+   throw( std::invalid_argument( "invalid unit index" ) );
+  return( static_cast< UnitBlock * >( v_Block[ i ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkBlock at time instant t
 
- NetworkBlock * get_network_block( Index t ) const;
+ NetworkBlock * get_network_block( Index t ) const  {
+  if( v_network_blocks.empty() )
+   return( nullptr );
+  if( t >= f_time_horizon )
+   throw( std::invalid_argument( "invalid network (time) index" ) );
+
+  return( v_network_blocks[ t ] );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of (pointers to) HeatBlock elements.
@@ -1034,11 +1059,15 @@ class UCBlock : public Block {
   *   the problem;
   *
   * - otherwise the vector must have the size of the number of heat blocks,
-  *   and the h-th entry gives the corresponding heat block h. */
+  *   and the h-th entry gives the corresponding heat block h.
+  *
+  * !! commented away until HeatBlock are properly managed
 
  const std::vector< HeatBlock * > & get_heat_block() const {
   return v_heat_blocks;
   }
+
+ */
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of generator node
@@ -1068,11 +1097,14 @@ class UCBlock : public Block {
   *   the value of that element;
   *
   * - otherwise the vector must have the size of the number of units, and the
-  *   V[ i ] gives the power heat rho for each heat block h. */
+  *   V[ i ] gives the power heat rho for each heat block h.
+  *
+  * !! commented away until HeatBlock are properly managed
 
  const std::vector< double > & get_power_heat_rho() const {
   return v_power_heat_rho;
   }
+ */
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
@@ -1174,8 +1206,10 @@ class UCBlock : public Block {
  /// The number of electrical generators of the problem
  Index f_number_elc_generators;
 
+ /* !! commented away until HeatBlock are properly managed
  /// The number of heat generators of the problem
  Index f_number_heat_generators;
+ */
 
  /// The total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones;
@@ -1183,8 +1217,10 @@ class UCBlock : public Block {
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
+ /*!! commented away until HeatBlock are properly managed
  /// The number of heat block
  Index f_number_heat_blocks;
+ */
 
  /// The number of nodes in primary zones of the network
  Index f_number_primary_zones;
@@ -1198,8 +1234,10 @@ class UCBlock : public Block {
  /// The number of pollutants
  Index f_number_pollutants;
 
+ /** !! commented away until HeatBlock are properly managed
  /// The set of HeatBlock
  std::vector< HeatBlock * > v_heat_blocks;
+  */
 
  /// The number of pollutant zones of each pollutant
  std::vector< Index > v_number_pollutant_zones;
@@ -1213,6 +1251,10 @@ class UCBlock : public Block {
   *  position t in this vector refers to the network at the t-th time step.
   */
  std::vector< NetworkBlock * > v_network_blocks;
+
+ /// The matrix of ActivePowerDemand
+ /** Indexed over the dimensions NumberNodes and TimeHorizon. */
+ boost::multi_array< double , 2 > v_active_power_demand;
 
  /// The vector of PrimaryZones
  std::vector< Index > v_primary_zones;
@@ -1240,28 +1282,32 @@ class UCBlock : public Block {
  std::vector< std::vector< double >> v_pollutant_budget;
 
  /// The PollutantRho matrix
- /** Indexed over the dimensions
-  *  TimeHorizon, NumberPollutants, and NumberElcGenerators.
-  */
+ /** Indexed over TimeHorizon, NumberPollutants, and NumberElcGenerators. */
  boost::multi_array< double, 3 > v_pollutant_rho;
 
+ /*!! commented away until HeatBlock are properly managed
  /// The PollutantHeatRho matrix
- /** Indexed over the dimensions
-  *  TimeHorizon, NumberPollutants, and NumberHeatBlocks. */
+ /// Indexed over TimeHorizon, NumberPollutants, and NumberHeatBlocks.
  boost::multi_array< double, 3 > v_pollutant_heat_rho;
+ */
 
  /// v_generator_node[ g ] tells to which node generator g belongs
  std::vector< Index > v_generator_node;
 
+ /*!! commented away until HeatBlock are properly managed
  /// v_heat_node[ h ] tells to which node the heat block h belongs
  std::vector< Index > v_heat_node;
+ */
 
- /// The HeatSet vector
- /** Indexed over the dimensions NumberHeatGenerators */
+ /*!! commented away until HeatBlock are properly managed
+ /// The HeatSet vector, indexed over NumberHeatGenerators
  std::vector< Index > v_heat_set;
+ */
 
+ /*!! commented away until HeatBlock are properly managed
  /// Vector of heat rho
  std::vector< double > v_power_heat_rho;
+ */
 
  /// Node injection constraints for each time and node
  boost::multi_array< FRowConstraint, 2 > v_node_injection_constraints;
@@ -1275,8 +1321,10 @@ class UCBlock : public Block {
  /// Inertia demand constraints for each time and inertia zone
  boost::multi_array< FRowConstraint, 2 > v_InertiaDemand_Const;
 
+ /*!! commented away until HeatBlock are properly managed
  /// heat constraints for each time and index unit
  boost::multi_array< FRowConstraint, 2 > v_power_Heat_Rho_Const;
+ */
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint> > v_PollutantBudget_Const;
@@ -1313,7 +1361,7 @@ class UCBlock : public Block {
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
+ unsigned char AR; ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed
@@ -1328,17 +1376,13 @@ class UCBlock : public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Deserialize the sub-blocks of UCBlock
- void deserialize_sub_blocks( const netCDF::NcGroup & group );
-
  /// Deserialize the sub-blocks of UCBlock that have the given prefix name
- void deserialize_sub_blocks( const netCDF::NcGroup & group,
-                              const std::string & sub_group_name_prefix,
+ void deserialize_sub_blocks( const netCDF::NcGroup & group ,
+                              const std::string & prefix ,
                               int num_sub_blocks );
 
  /// Deserialize the Network Blocks of UCBlock
- void deserialize_network_blocks( const netCDF::NcGroup & group,
-                                  int num_sub_blocks );
+ void deserialize_network_blocks( const netCDF::NcGroup & group );
 
  /// Transposes a deserialized multiarray if needed.
  /**
