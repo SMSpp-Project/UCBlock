@@ -12,7 +12,7 @@
  *
  * \version 0.20
  *
- * \date 31 - 12 - 2020
+ * \date 17 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1192,6 +1192,35 @@ class UCBlock : public Block {
  }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_active_power_demand( std::vector< double >::const_iterator values ,
+                               Subset && subset = { 0 } ,
+                               const bool ordered = false ,
+                               c_ModParam issuePMod = eNoBlck ,
+                               c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_active_power_demand( std::vector< double >::const_iterator values ,
+                               Range rng = Range( 0 , 1 ) ,
+                               c_ModParam issuePMod = eNoBlck ,
+                               c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization() {
+  register_method< UCBlock , MF_dbl_it , Subset && , const bool >(
+   "UCBlock::set_active_power_demand",
+   &UCBlock::set_active_power_demand );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_active_power_demand",
+   &UCBlock::set_active_power_demand );
+ }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1381,8 +1410,12 @@ class UCBlock : public Block {
                               const std::string & prefix ,
                               int num_sub_blocks );
 
+/*--------------------------------------------------------------------------*/
+
  /// Deserialize the Network Blocks of UCBlock
  void deserialize_network_blocks( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
 
  /// Transposes a deserialized multiarray if needed.
  /**
@@ -1398,7 +1431,128 @@ class UCBlock : public Block {
  template< typename T >
  void transpose( boost::multi_array< T, 2 > & a );
 
+/*--------------------------------------------------------------------------*/
+
+ /// updates a node injection constraint for the given demand
+ /** This function updates the node injection constraint at the given \p time
+  * for the node whose index is \p node_index considering the given \p demand.
+  *
+  * @param time A time between 0 and get_time_horizon() - 1.
+  *
+  * @param node_index The index of a node.
+  *
+  * @param demand The demand at the given node at the given time.
+  */
+ void update_node_injection_constraints( Index time , Index node_index ,
+                                         double demand );
+
 };   // end( class( UCBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- CLASS UCBlockMod ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a UCBlock
+class UCBlockMod : public Modification {
+
+ public:
+
+ /// Public enum for the types of UCBlockMod
+ enum UCB_mod_type {
+  eSetActD = 0    ///< Set active power demand
+ };
+
+ /// constructor, takes the UCBlock and the type
+ UCBlockMod( UCBlock * const fblock , const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ /// destructor, does nothing
+ virtual ~UCBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the UCBlockMod
+ void print( std::ostream & output ) const override {
+  output << "UCBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active power demand";
+  }
+ }
+
+ UCBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( UCBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS UCBlockRngdMod ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from UCBlockMod for "ranged" modifications
+class UCBlockRngdMod : public UCBlockMod {
+
+ public:
+
+ /// constructor: takes the UCBlock, the type, and the range
+ UCBlockRngdMod( UCBlock * const fblock , const int type , Block::Range rng )
+  : UCBlockMod( fblock, type ), f_rng( rng ) {}
+
+ /// destructor, does nothing
+ virtual ~UCBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the UCBlockRngdMod
+ void print( std::ostream & output ) const override {
+  UCBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( UCBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- CLASS UCBlockSbstMod -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from UCBlockMod for "subset" modifications
+class UCBlockSbstMod : public UCBlockMod {
+
+ public:
+
+ /// constructor: takes the UCBlock, the type, and the subset
+ UCBlockSbstMod( UCBlock * const fblock , const int type ,
+                 Block::Subset && nms )
+  : UCBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ virtual ~UCBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the UCBlockSbstMod
+ void print( std::ostream &output ) const override {
+  UCBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( UCBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 

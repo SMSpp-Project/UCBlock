@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 31 - 12 - 2020
+ * \date 17 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1435,6 +1435,161 @@ void UCBlock::transpose( boost::multi_array< T, 2 > & a ) {
   a.reshape( dims );
  }
 }
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
+                                                 double demand ) {
+ auto rhs = demand;
+ for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
+  auto bi = static_cast< UnitBlock * >( v_Block[ i ] );
+  // for each electrical generator within the unit
+  for( Index g = 0 ; g < bi->get_number_generators() ; ++g ) {
+   if( auto fc = bi->get_fixed_consumption( g ) )
+    if( fc[ time ] )
+     if( auto u = bi->get_commitment( g ) ) {
+      // add the contribution of the corresponding committment variables
+      rhs -= fc[ time ]; // update the RHS
+     }
+  }  // end( for( g ) )
+ }  // end( for( i ) )
+
+ v_node_injection_constraints[ time ][ node_index ].set_both( rhs , eNoMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_active_power_demand
+( std::vector< double >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( ! v_network_blocks.empty() ) {
+  // Update the demand of the NetworkBlocks
+  // TODO Optimize
+  for( auto index : subset ) {
+   auto node_index = index / f_time_horizon;
+   auto time = index % f_time_horizon;
+   v_network_blocks[ time ]->set_active_demand
+    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+  }
+  return;
+ }
+
+ // Update the demand present in this UCBlock
+
+ assert( ! v_active_power_demand.empty() );
+
+ bool changed = false;
+
+ for( auto index : subset ) {
+  auto node_index = index / f_time_horizon;
+  auto time = index % f_time_horizon;
+  auto demand = *values;
+
+  if( v_active_power_demand[ node_index ][ time ] != demand ) {
+   changed = true;
+
+   if( not_dry_run( issuePMod ) ) {
+
+    // Change the physical representation
+    v_active_power_demand[ node_index ][ time ] = demand;
+
+    if( not_dry_run( issueAMod ) && constraints_generated() ) {
+     // Change the abstract representation
+     update_node_injection_constraints( time , node_index , demand );
+    }
+   }
+  }
+
+  ++values;
+ }
+
+ // If nothing changes, return
+ if( ! changed )
+  return;
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+
+  Block::add_Modification(
+   std::make_shared< UCBlockSbstMod >( this , UCBlockMod::eSetActD ,
+                                       std::move( subset ) ) ,
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_active_power_demand
+( std::vector< double >::const_iterator values , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+
+ rng.second = std::min( rng.second , number_nodes * f_time_horizon );
+
+ if( rng.first >= rng.second )
+  return;
+
+ if( ! v_network_blocks.empty() ) {
+  // Update the demand of the NetworkBlocks
+  // TODO Optimize
+  for( Index index = rng.first ; index < rng.second ; ++index ) {
+   auto node_index = index / f_time_horizon;
+   auto time = index % f_time_horizon;
+   v_network_blocks[ time ]->set_active_demand
+    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+  }
+  return;
+ }
+
+ // Update the demand present in this UCBlock
+
+ assert( ! v_active_power_demand.empty() );
+
+ bool changed = false;
+
+ for( Index index = rng.first ; index < rng.second ; ++index ) {
+  auto node_index = index / f_time_horizon;
+  auto time = index % f_time_horizon;
+  auto demand = *values;
+
+  if( v_active_power_demand[ node_index ][ time ] != demand ) {
+   changed = true;
+
+   if( not_dry_run( issuePMod ) ) {
+    // Change the physical representation
+    v_active_power_demand[ node_index ][ time ] = demand;
+
+    if( not_dry_run( issueAMod ) && constraints_generated() ) {
+     // Change the abstract representation
+     update_node_injection_constraints( time , node_index , demand );
+    }
+   }
+  }
+
+  ++values;
+ }
+
+ // If nothing changes, return
+ if( ! changed )
+  return;
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+
+  Block::add_Modification(
+   std::make_shared< UCBlockRngdMod >( this , UCBlockMod::eSetActD , rng ) ,
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/
