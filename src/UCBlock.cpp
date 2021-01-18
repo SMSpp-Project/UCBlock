@@ -176,8 +176,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "ActivePowerDemand" ,
 		v_active_power_demand , true , false );
- if( v_active_power_demand.num_elements() )
-  transpose( v_active_power_demand );
 
  // optional dimensions
  /* !! commented away until HeatBlock are properly managed
@@ -331,36 +329,36 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_Block.resize( f_number_units + f_time_horizon , nullptr );
    }
 
-  for( Index i = 0 ; i < f_time_horizon ; ++i ) {
-   auto nbi = v_network_blocks[ i ];
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   auto nbi = v_network_blocks[ t ];
    if( ! nbi ) {  // NetworkBlock i does not exist: create a DCNetworkBlock
     nbi = new DCNetworkBlock( this );
-    v_network_blocks[ i ] = nbi;
-    v_Block[ f_number_units + i ] = nbi;
+    v_network_blocks[ t ] = nbi;
+    v_Block[ f_number_units + t ] = nbi;
     }
 
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
-				   "missing in NetworkBlock " +
-				   std::to_string( i ) + " and in UCBlock" )
-	    );
+                                   "missing in NetworkBlock " +
+                                   std::to_string( t ) + " and in UCBlock" )
+           );
      nbi->set_NetworkData( f_NetworkData );
-     }
+    }
 
    if( nbi->get_active_demand().empty() ) {
     if( ! v_active_power_demand.num_elements() )
      throw( std::invalid_argument(
       "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
-      "NetworkBlock " + std::to_string( i ) ) );
+      "NetworkBlock " + std::to_string( t ) ) );
     typedef boost::multi_array_types::index_range range;
     auto ap_c = v_active_power_demand[
-		         boost::indices[ range( 0 , number_nodes ) ][ i ] ];
+                        boost::indices[ range( 0 , number_nodes ) ][ t ] ];
     std::vector< double > ap_v( number_nodes );
     std::copy( ap_c.begin() , ap_c.end() , ap_v.begin() );
     nbi->set_ActiveDemand( ap_v );
     }
-   }  // end( for( i ) )
+   }  // end( for( t ) )
 
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
@@ -1456,7 +1454,7 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
   }  // end( for( g ) )
  }  // end( for( i ) )
 
- v_node_injection_constraints[ time ][ node_index ].set_both( rhs , eNoMod );
+ v_node_injection_constraints[ time ][ node_index ].set_both( rhs );
 }
 
 /*--------------------------------------------------------------------------*/

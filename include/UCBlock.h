@@ -746,6 +746,17 @@ class UCBlock : public Block {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the matrix of active power demand
+ /** This method returns a two-dimensional boost::multi_array<> M such that,
+  * if it is not empty, M[ n , t ] gives the active power demand of node n at
+  * the time instant t. If it is empty, the active power demand can be found
+  * in each NetworkBlock of this UCBlock. */
+
+ const boost::multi_array< double, 2 > & get_active_power_demand() const {
+  return v_active_power_demand;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// Returns the vector of primary zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which primary zone node n belongs. There are three possible cases:
