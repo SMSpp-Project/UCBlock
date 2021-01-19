@@ -176,6 +176,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "ActivePowerDemand" ,
 		v_active_power_demand , true , false );
+ transpose( v_active_power_demand );
 
  // optional dimensions
  /* !! commented away until HeatBlock are properly managed
