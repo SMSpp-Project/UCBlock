@@ -261,6 +261,7 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::set_maximum_power(
  std::vector< double >::const_iterator values,
  Block::Subset && subset,
@@ -339,12 +340,14 @@ void IntermittentUnitBlock::set_maximum_power(
  }
 }
 
+/*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::set_maximum_power(
  std::vector< double >::const_iterator values,
  Block::Range rng,
  c_ModParam issuePMod,
  c_ModParam issueAMod ) {
- rng.second = std::min( rng.second, f_number_intervals );
+ rng.second = std::min( rng.second, f_time_horizon );
  if( rng.second <= rng.first ) {
   return;
  }
