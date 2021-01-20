@@ -907,6 +907,17 @@ class BatteryUnitBlock : public UnitBlock {
                            c_ModParam issuePMod = eNoBlck,
                            c_ModParam issueAMod = eNoBlck );
 
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         const bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1067,6 +1078,122 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// Resizes a vector to time_horizon by using change_intervals
  template< typename T > void decompress_vector( std::vector< T > & v );
+
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a BatteryUnitBlock
+ class BatteryUnitBlockMod : public Modification {
+
+  public:
+
+  /// Public enum for the types of BatteryUnitBlockMod
+  enum TUBB_mod_type {
+   eSetInitS = 0 ,   ///< Set initial storage values
+   eSetInitP    ,   ///< Set initial power values
+  };
+
+  /// Constructor, takes the BatteryUnitBlock and the type
+  BatteryUnitBlockMod( BatteryUnitBlock * const fblock, const int type )
+          : f_Block( fblock ), f_type( type ) {}
+
+  ///< Destructor, does nothing
+  virtual ~BatteryUnitBlockMod() override = default;
+
+  /// returns the Block to which the Modification refers
+  Block * get_Block() const override { return ( f_Block ); }
+
+  /// Accessor to the type of modification
+  int type() { return ( f_type ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockMod
+  void print( std::ostream & output ) const override {
+   output << "BatteryUnitBlockMod[" << this << "]: ";
+   switch( f_type ) {
+    case ( eSetInitS ):
+     output << "set initial storage values ";
+     break;
+    case ( eSetInitP ):
+     output << "set initial power values ";
+     break;
+   }
+  }
+
+  BatteryUnitBlock * f_Block{};
+  ///< pointer to the Block to which the Modification refers
+
+  int f_type; ///< type of modification
+ }; // end( class( BatteryUnitBlockMod ) )
+
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS BatteryUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from BatteryUnitBlockMod for "ranged" modifications
+ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod {
+
+  public:
+
+  /// constructor: takes the BatteryUnitBlock, the type, and the range
+  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock,
+                           const int type,
+                           Block::Range rng )
+          : BatteryUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+  /// destructor, does nothing
+  virtual ~BatteryUnitBlockRngdMod() override = default;
+
+  /// accessor to the range
+  Block::c_Range & rng() { return( f_rng ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockRngdMod
+  void print( std::ostream & output ) const override {
+   BatteryUnitBlockMod::print( output );
+   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+  }
+
+  Block::Range f_rng; ///< the range
+ };  // end( class( BatteryUnitBlockRngdMod ) )
+
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BatteryUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from BatteryUnitBlockMod for "subset" modifications
+ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod {
+
+  public:
+
+  /// constructor: takes the BatteryUnitBlock, the type, and the subset
+  BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock,
+                           const int type,
+                           Block::Subset && nms )
+          : BatteryUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+  /// destructor, does nothing
+  virtual ~BatteryUnitBlockSbstMod() override = default;
+
+  /// accessor to the subset
+  Block::c_Subset & nms() { return( f_nms ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockSbstMod
+  void print( std::ostream &output ) const override {
+   BatteryUnitBlockMod::print( output );
+   output << "(# " << f_nms.size() << ")" << std::endl;
+  }
+
+  Block::Subset f_nms; ///< the subset
+
+ };  // end( class( BatteryUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 
