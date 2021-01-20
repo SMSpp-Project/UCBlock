@@ -1604,6 +1604,151 @@ HydroUnitBlock::set_initial_volumetric(
 
 /*--------------------------------------------------------------------------*/
 
+void
+HydroUnitBlock::set_initial_flow_rate(
+        std::vector< double >::const_iterator values,
+        Block::Subset && subset,
+        const bool ordered,
+        c_ModParam issuePMod,
+        c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_initial_flow_rate.empty() ) {
+  if( std::all_of( values,
+                   values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  v_initial_flow_rate.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto temp_values = values;
+ for( auto i : subset ) {
+  if( i >= v_initial_flow_rate.size() ) {
+   throw ( std::invalid_argument( "invalid value in subset" ) );
+  }
+  if( v_initial_flow_rate[ i ] != *( temp_values++ ) ) {
+   identical = false;
+  }
+ }
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  temp_values = values;
+  for( auto i : subset ) {
+   v_initial_flow_rate[ i ] = *( temp_values++ );
+  }
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+   for( auto i : subset ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     RampUp_Const[t][r].set_rhs( v_delta_ramp_up[t][r] +
+                                   get_initial_flow_rate( r ), issueAMod );
+     RampDown_Const[t][r].set_lhs( get_initial_flow_rate( r ) -
+                                     v_delta_ramp_down[t][r], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+  Block::add_Modification(
+          std::make_shared< HydroUnitBlockSbstMod >( this,
+                                                     HydroUnitBlockMod::eSetInitF,
+                                                     std::move( subset ) ),
+          Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void
+HydroUnitBlock::set_initial_flow_rate(
+        std::vector< double >::const_iterator values,
+        Block::Range rng,
+        c_ModParam issuePMod,
+        c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_initial_flow_rate.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  Index max_index = rng.second;
+  v_initial_flow_rate.assign( max_index, 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_initial_flow_rate.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_initial_flow_rate.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+   for( Index i = rng.first; i < rng.second; ++i ) {
+    Index t = i % f_time_horizon;
+    Index r = i / f_time_horizon;
+
+    if( t == 0 ) {
+     RampUp_Const[t][r].set_rhs( v_delta_ramp_up[t][r] +
+                                 get_initial_flow_rate( r ), issueAMod );
+     RampDown_Const[t][r].set_lhs( get_initial_flow_rate( r ) -
+                                   v_delta_ramp_down[t][r], issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+          std::make_shared< HydroUnitBlockRngdMod >( this,
+                                                     HydroUnitBlockMod::eSetInitF,
+                                                     rng ),
+          Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 template< typename T >
 void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {
  long rows = a.shape()[ 0 ];

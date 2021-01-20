@@ -1442,7 +1442,16 @@ class HydroUnitBlock : public UnitBlock {
                               c_ModParam issuePMod = eNoBlck,
                               c_ModParam issueAMod = eNoBlck );
 
+ void set_initial_flow_rate( std::vector< double >::const_iterator values,
+                              Subset && subset,
+                              const bool ordered = false,
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
 
+ void set_initial_flow_rate( std::vector< double >::const_iterator values,
+                              Range rng = Range( 0, Inf< Index >() ),
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1696,6 +1705,7 @@ class HydroUnitBlockMod : public Modification {
  enum HUB_mod_type {
   eSetInf = 0 ,    ///< Set inflow values
   eSetInerP    ,   ///< Set inertia power values
+  eSetInitF    ,    ///< Set initial flow rate values
   eSetInitV        ///< Set initial volumetric values
  };
 
@@ -1724,6 +1734,9 @@ class HydroUnitBlockMod : public Modification {
     break;
    case ( eSetInerP ):
     output << "set inertia power values ";
+    break;
+   case ( eSetInitF ):
+    output << "set initial flow rate values ";
     break;
    default:
     output << "set initial volumetric values ";
