@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 21 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1604,146 +1604,147 @@ HydroUnitBlock::set_initial_volumetric(
 
 /*--------------------------------------------------------------------------*/
 
-void
-HydroUnitBlock::set_initial_flow_rate(
-        std::vector< double >::const_iterator values,
-        Block::Subset && subset,
-        const bool ordered,
-        c_ModParam issuePMod,
-        c_ModParam issueAMod ) {
+void HydroUnitBlock::update_initial_flow_rate_in_ramp_constraints
+( const Block::Subset & arcs ) {
+
+ if( ! constraints_generated() )
+  return;
+
+ // ramp-up constraints
+ if( ! v_delta_ramp_up.empty() ) {
+  for( auto arc : arcs )
+   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
+                                     v_delta_ramp_up[ 0 ][ arc ] );
+ }
+
+ // ramp-down constraints
+ if( ! v_delta_ramp_down.empty() ) {
+  for( auto arc : arcs )
+   RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
+                                       v_delta_ramp_down[ 0 ][ arc ] );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlock::update_initial_flow_rate_in_ramp_constraints
+( Block::Range arcs ) {
+
+ if( ! constraints_generated() )
+  return;
+
+ // ramp-up constraints
+ if( ! v_delta_ramp_up.empty() ) {
+  for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
+   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
+                                     v_delta_ramp_up[ 0 ][ arc ] );
+ }
+
+ // ramp-down constraints
+ if( ! v_delta_ramp_down.empty() ) {
+  for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
+   RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
+                                       v_delta_ramp_down[ 0 ][ arc ] );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlock::set_initial_flow_rate
+( std::vector< double >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  if( subset.empty() ) {
   return;
  }
 
  if( v_initial_flow_rate.empty() ) {
-  if( std::all_of( values,
-                   values + subset.size(),
-                   []( double cst ) {
-                    return ( cst == 0 );
-                   } ) ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
    return;
   }
 
-  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
-  v_initial_flow_rate.assign( max_index, 0 );
+  auto max_index = * max_element( std::begin( subset ) , std::end( subset ) );
+  v_initial_flow_rate.assign( max_index , 0 );
  }
 
- // If nothing changes, return
  bool identical = true;
- auto temp_values = values;
  for( auto i : subset ) {
-  if( i >= v_initial_flow_rate.size() ) {
-   throw ( std::invalid_argument( "invalid value in subset" ) );
-  }
-  if( v_initial_flow_rate[ i ] != *( temp_values++ ) ) {
+  if( i >= v_initial_flow_rate.size() )
+   throw ( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
+                                  "invalid value in subset" ) );
+  auto flow_rate = *( values++ );
+  if( v_initial_flow_rate[ i ] != flow_rate ) {
    identical = false;
+   if( not_dry_run( issuePMod ) )
+    // Change the physical representation
+    v_initial_flow_rate[ i ] = flow_rate;
   }
  }
- if( identical ) {
-  return;
- }
+ if( identical )
+  return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) ) {
-  // Change the physical representation
-
-  temp_values = values;
-  for( auto i : subset ) {
-   v_initial_flow_rate[ i ] = *( temp_values++ );
-  }
-
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   // Change the abstract representation
-   for( auto i : subset ) {
-    Index t = i % f_time_horizon;
-    Index r = i / f_time_horizon;
-
-    if( t == 0 ) {
-     RampUp_Const[t][r].set_rhs( v_delta_ramp_up[t][r] +
-                                   get_initial_flow_rate( r ), issueAMod );
-     RampDown_Const[t][r].set_lhs( get_initial_flow_rate( r ) -
-                                     v_delta_ramp_down[t][r], issueAMod );
-    }
-   }
-  }
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
+  // Change the abstract representation
+  update_initial_flow_rate_in_ramp_constraints( subset );
  }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  if( !ordered ) {
-   std::sort( subset.begin(), subset.end() );
+  if( ! ordered ) {
+   std::sort( subset.begin() , subset.end() );
   }
-  Block::add_Modification(
-          std::make_shared< HydroUnitBlockSbstMod >( this,
-                                                     HydroUnitBlockMod::eSetInitF,
-                                                     std::move( subset ) ),
-          Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >
+                           ( this , HydroUnitBlockMod::eSetInitF ,
+                             std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }
 
 /*--------------------------------------------------------------------------*/
 
-void
-HydroUnitBlock::set_initial_flow_rate(
-        std::vector< double >::const_iterator values,
-        Block::Range rng,
-        c_ModParam issuePMod,
-        c_ModParam issueAMod ) {
+void HydroUnitBlock::set_initial_flow_rate
+( std::vector< double >::const_iterator values , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_time_horizon );
+ rng.second = std::min( rng.second , get_number_generators() );
  if( rng.second <= rng.first ) {
   return;
  }
 
  if( v_initial_flow_rate.empty() ) {
-  if( std::all_of( values,
-                   values + ( rng.second - rng.first ),
-                   []( double cst ) {
-                    return ( cst == 0 );
-                   } ) ) {
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
    return;
   }
 
   Index max_index = rng.second;
-  v_initial_flow_rate.assign( max_index, 0 );
+  v_initial_flow_rate.assign( max_index , 0 );
  }
 
  // If nothing changes, return
- if( std::equal( values,
-                 values + ( rng.second - rng.first ),
-                 v_initial_flow_rate.begin() + rng.first ) ) {
+ else if( std::equal( values , values + ( rng.second - rng.first ) ,
+                      v_initial_flow_rate.begin() + rng.first ) ) {
   return;
  }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
-  std::copy( values,
-             values + ( rng.second - rng.first ),
+  std::copy( values , values + ( rng.second - rng.first ) ,
              v_initial_flow_rate.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
-   for( Index i = rng.first; i < rng.second; ++i ) {
-    Index t = i % f_time_horizon;
-    Index r = i / f_time_horizon;
-
-    if( t == 0 ) {
-     RampUp_Const[t][r].set_rhs( v_delta_ramp_up[t][r] +
-                                 get_initial_flow_rate( r ), issueAMod );
-     RampDown_Const[t][r].set_lhs( get_initial_flow_rate( r ) -
-                                   v_delta_ramp_down[t][r], issueAMod );
-    }
-   }
+   update_initial_flow_rate_in_ramp_constraints( rng );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification(
-          std::make_shared< HydroUnitBlockRngdMod >( this,
-                                                     HydroUnitBlockMod::eSetInitF,
-                                                     rng ),
-          Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >
+                           ( this , HydroUnitBlockMod::eSetInitF , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }
 

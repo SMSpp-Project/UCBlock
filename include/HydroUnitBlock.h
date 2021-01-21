@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 21 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1687,6 +1687,32 @@ class HydroUnitBlock : public UnitBlock {
 
  /// Decompress a max/min volumetric multi_array using the change intervals
  void decompress_vol( boost::multi_array< double, 2 > & a );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the ramp constraints for the given arcs at time 0
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints associated with the given
+  * \p arcs at time 0 (which are the ramp constraints that depend on the
+  * initial flow rate).
+  *
+  * @param arcs The indices of the arcs whose constraints must be updated.
+  */
+ void update_initial_flow_rate_in_ramp_constraints( Range arcs );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the ramp constraints for the given arcs at time 0
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints associated with the given
+  * \p arcs at time 0 (which are the ramp constraints that depend on the
+  * initial flow rate).
+  *
+  * @param arcs The indices of the arcs whose associated constraints must
+  *        be updated.
+  */
+ void update_initial_flow_rate_in_ramp_constraints
+ ( const Block::Subset & arcs );
 
 /*--------------------------------------------------------------------------*/
 
