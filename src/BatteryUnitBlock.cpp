@@ -756,7 +756,7 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
                                     issueAMod );
  else
   demand_Constraints[ 0 ].set_both( f_initial_storage , issueAMod );
-}
+}  // end( BatteryUnitBlock::update_initial_storage_in_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -790,12 +790,11 @@ void BatteryUnitBlock::set_initial_storage
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< BatteryUnitBlockSbstMod >
-                           ( this , BatteryUnitBlockMod::eSetInitS ,
-                             std::move( subset ) ) ,
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( BatteryUnitBlock::set_initial_storage )
 
 /*--------------------------------------------------------------------------*/
 
@@ -823,11 +822,11 @@ void BatteryUnitBlock::set_initial_storage
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification( std::make_shared< BatteryUnitBlockRngdMod >
-                           ( this , BatteryUnitBlockMod::eSetInitS , rng ) ,
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( BatteryUnitBlock::set_initial_storage )
 
 /*--------------------------------------------------------------------------*/
 
@@ -840,7 +839,7 @@ void BatteryUnitBlock::update_initial_power_in_constraints
  if( ! ( ramp_down_Constraints.empty() || v_delta_ramp_down.empty() ) )
   ramp_down_Constraints[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] +
                                       f_initial_power , issueAMod );
-}
+}  // end( BatteryUnitBlock::update_initial_power_in_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -874,10 +873,9 @@ void BatteryUnitBlock::set_initial_power
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  Block::add_Modification
-   ( std::make_shared< BatteryUnitBlockSbstMod >
-     ( this , BatteryUnitBlockMod::eSetInitP , std::move( subset ) ) ,
-     Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 
 }  // end( BatteryUnitBlock::set_initial_power )
@@ -908,10 +906,9 @@ void BatteryUnitBlock::set_initial_power
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification
-   ( std::make_shared< BatteryUnitBlockRngdMod >
-     ( this , BatteryUnitBlockMod::eSetInitP , rng ),
-     Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_power )
 

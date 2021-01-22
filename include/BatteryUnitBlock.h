@@ -1126,14 +1126,14 @@ class BatteryUnitBlock : public UnitBlock {
   public:
 
   /// Public enum for the types of BatteryUnitBlockMod
-  enum TUBB_mod_type {
-   eSetInitS = 0 ,   ///< Set initial storage values
+  enum BUB_mod_type {
+   eSetInitS = 0 ,  ///< Set initial storage values
    eSetInitP    ,   ///< Set initial power values
   };
 
   /// Constructor, takes the BatteryUnitBlock and the type
   BatteryUnitBlockMod( BatteryUnitBlock * const fblock, const int type )
-          : f_Block( fblock ), f_type( type ) {}
+   : f_Block( fblock ), f_type( type ) {}
 
   ///< Destructor, does nothing
   virtual ~BatteryUnitBlockMod() override = default;
@@ -1178,7 +1178,7 @@ class BatteryUnitBlock : public UnitBlock {
   BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock,
                            const int type,
                            Block::Range rng )
-          : BatteryUnitBlockMod( fblock, type ), f_rng( rng ) {}
+   : BatteryUnitBlockMod( fblock, type ), f_rng( rng ) {}
 
   /// destructor, does nothing
   virtual ~BatteryUnitBlockRngdMod() override = default;
@@ -1211,7 +1211,7 @@ class BatteryUnitBlock : public UnitBlock {
   BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock,
                            const int type,
                            Block::Subset && nms )
-          : BatteryUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+   : BatteryUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
 
   /// destructor, does nothing
   virtual ~BatteryUnitBlockSbstMod() override = default;
