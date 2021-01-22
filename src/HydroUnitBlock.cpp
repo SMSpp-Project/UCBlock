@@ -29,14 +29,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <random>
 #include "HydroUnitBlock.h"
 #include "LinearFunction.h"
-#include <map>
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -1484,7 +1481,8 @@ HydroUnitBlock::set_initial_volumetric(
    return;
   }
 
-  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  Index max_index = * std::max_element( std::begin( subset ),
+                                        std::end( subset ) );
   v_initial_volumetric.assign( max_index, 0 );
  }
 
@@ -1604,47 +1602,49 @@ HydroUnitBlock::set_initial_volumetric(
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_ramp_constraints
-( const Block::Subset & arcs ) {
+void HydroUnitBlock::update_initial_flow_rate_in_constraints
+( const Block::Subset & arcs , c_ModParam issueAMod ) {
 
  if( ! constraints_generated() )
   return;
 
  // ramp-up constraints
- if( ! v_delta_ramp_up.empty() ) {
+ if( ! ( RampUp_Const.empty() || v_delta_ramp_up.empty() ) ) {
   for( auto arc : arcs )
-   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_delta_ramp_up[ 0 ][ arc ] );
+   RampUp_Const[ 0 ][ arc ].set_rhs
+    ( get_initial_flow_rate( arc ) + v_delta_ramp_up[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints
- if( ! v_delta_ramp_down.empty() ) {
+ if( ! ( RampDown_Const.empty() || v_delta_ramp_down.empty() ) ) {
   for( auto arc : arcs )
-   RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
-                                       v_delta_ramp_down[ 0 ][ arc ] );
+   RampDown_Const[ 0 ][ arc ].set_lhs
+    ( get_initial_flow_rate( arc ) - v_delta_ramp_down[ 0 ][ arc ] ,
+      issueAMod );
  }
 }
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_ramp_constraints
-( Block::Range arcs ) {
+void HydroUnitBlock::update_initial_flow_rate_in_constraints
+( Block::Range arcs , c_ModParam issueAMod ) {
 
  if( ! constraints_generated() )
   return;
 
  // ramp-up constraints
- if( ! v_delta_ramp_up.empty() ) {
+ if( ! ( RampUp_Const.empty() || v_delta_ramp_up.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
-   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_delta_ramp_up[ 0 ][ arc ] );
+   RampUp_Const[ 0 ][ arc ].set_rhs
+    ( get_initial_flow_rate( arc ) + v_delta_ramp_up[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints
- if( ! v_delta_ramp_down.empty() ) {
+ if( ! ( RampDown_Const.empty() || v_delta_ramp_down.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
-   RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
-                                       v_delta_ramp_down[ 0 ][ arc ] );
+   RampDown_Const[ 0 ][ arc ].set_lhs
+    ( get_initial_flow_rate( arc ) - v_delta_ramp_down[ 0 ][ arc ] ,
+      issueAMod );
  }
 }
 
@@ -1664,7 +1664,8 @@ void HydroUnitBlock::set_initial_flow_rate
    return;
   }
 
-  auto max_index = * max_element( std::begin( subset ) , std::end( subset ) );
+  auto max_index = * std::max_element( std::begin( subset ) ,
+                                       std::end( subset ) );
   v_initial_flow_rate.assign( max_index , 0 );
  }
 
@@ -1687,7 +1688,7 @@ void HydroUnitBlock::set_initial_flow_rate
  if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
      constraints_generated() ) {
   // Change the abstract representation
-  update_initial_flow_rate_in_ramp_constraints( subset );
+  update_initial_flow_rate_in_constraints( subset , issueAMod );
  }
 
  if( issue_pmod( issuePMod ) ) {
@@ -1737,7 +1738,7 @@ void HydroUnitBlock::set_initial_flow_rate
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
-   update_initial_flow_rate_in_ramp_constraints( rng );
+   update_initial_flow_rate_in_constraints( rng , issueAMod );
   }
  }
 

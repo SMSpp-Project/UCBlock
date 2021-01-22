@@ -1690,7 +1690,7 @@ class HydroUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- /// updates the ramp constraints for the given arcs at time 0
+ /// updates the constraints for the given arcs at time 0
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints associated with the given
   * \p arcs at time 0 (which are the ramp constraints that depend on the
@@ -1698,11 +1698,12 @@ class HydroUnitBlock : public UnitBlock {
   *
   * @param arcs The indices of the arcs whose constraints must be updated.
   */
- void update_initial_flow_rate_in_ramp_constraints( Range arcs );
+ void update_initial_flow_rate_in_constraints
+ ( Range arcs , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- /// updates the ramp constraints for the given arcs at time 0
+ /// updates the constraints for the given arcs at time 0
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints associated with the given
   * \p arcs at time 0 (which are the ramp constraints that depend on the
@@ -1711,8 +1712,8 @@ class HydroUnitBlock : public UnitBlock {
   * @param arcs The indices of the arcs whose associated constraints must
   *        be updated.
   */
- void update_initial_flow_rate_in_ramp_constraints
- ( const Block::Subset & arcs );
+ void update_initial_flow_rate_in_constraints
+ ( const Block::Subset & arcs , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
