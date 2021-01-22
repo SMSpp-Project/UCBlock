@@ -1101,6 +1101,14 @@ class BatteryUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
+ /// updates the constraints for the current initial storage
+ /** This function updates both sides of the demand constraint at time 0
+  * (which is the constraint that depends on the initial storage).
+  */
+ void update_initial_storage_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  /// updates the constraints for the current initial power
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
