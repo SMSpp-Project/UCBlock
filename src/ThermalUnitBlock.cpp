@@ -1540,72 +1540,75 @@ void ThermalUnitBlock::set_initial_power
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_init_updown_time(
- std::vector< int >::const_iterator values,
- Block::Subset && subset,
- const bool ordered,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void ThermalUnitBlock::set_init_updown_time
+( std::vector< int >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- if( subset.size() != 1 ) {
+ if( subset.empty() )
   return;
- }
 
- if( f_InitUpDownTime == *values ) {
-  return;
- }
+ // Find the last index 0
+ auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
+
+ if( index_it == subset.rend() )
+  return; // 0 is not in subset; return
+
+ std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
+
+ if( f_InitUpDownTime == *values )
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_InitUpDownTime = *values;
 
   if( not_dry_run( issueAMod ) && variables_generated() ) {
-   // TODO Nuclear option
+   // TODO
+   throw( std::logic_error( "ThermalUnitBlock::set_init_updown_time: it is "
+                            "currently not possible to update the abstract "
+                            "representation." ) );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  Block::add_Modification(
-   std::make_shared< ThermalUnitBlockSbstMod >( this,
-                                                ThermalUnitBlockMod::eSetInitUD,
-                                                std::move( subset ) ),
-   Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >
+                           ( this , ThermalUnitBlockMod::eSetInitUD ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }  // end( ThermalUnitBlock::set_init_updown_time )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_init_updown_time(
- std::vector< int >::const_iterator values,
- Block::Range rng,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void ThermalUnitBlock::set_init_updown_time
+( std::vector< int >::const_iterator values , Block::Range rng ,
+ c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_time_horizon );
- if( rng.second != rng.first ) {
-  return;
- }
+ rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
+ if( ! ( rng.first <= 0 && 0 < rng.second ) )
+  return; // 0 does not belong to the range; return
 
- if( f_InitUpDownTime == *values ) {
-  return;
- }
+ std::advance( values , - rng.first );
+
+ if( f_InitUpDownTime == *values )
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_InitUpDownTime = *values;
 
   if( not_dry_run( issueAMod ) && variables_generated() ) {
-   // TODO Nuclear option
+   // TODO
+   throw( std::logic_error( "ThermalUnitBlock::set_init_updown_time: it is "
+                            "currently not possible to update the abstract "
+                            "representation." ) );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification(
-   std::make_shared< ThermalUnitBlockRngdMod >( this,
-                                                ThermalUnitBlockMod::eSetInitP,
-                                                rng ),
-   Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >
+                           ( this , ThermalUnitBlockMod::eSetInitP ),
+                           Observer::par2chnl( issuePMod ) );
  }
 }  // end( ThermalUnitBlock::set_init_updown_time )
 
