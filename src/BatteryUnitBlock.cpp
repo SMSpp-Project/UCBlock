@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 22 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -824,76 +824,91 @@ BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator it,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power(
-        std::vector< double >::const_iterator it,
-        Block::Subset && subset,
-        const bool ordered,
-        c_ModParam issuePMod,
-        c_ModParam issueAMod ) {
+void BatteryUnitBlock::update_initial_power_in_constraints
+( c_ModParam issueAMod ) {
+ if( ! ( ramp_up_Constraints.empty() || v_delta_ramp_up.empty() ) )
+  ramp_up_Constraints[ 0 ].set_rhs( v_delta_ramp_up[ 0 ] + f_initial_power ,
+                                    issueAMod );
 
- if( subset.size() != 1 ) {
-  return;
- }
+ if( ! ( ramp_down_Constraints.empty() || v_delta_ramp_down.empty() ) )
+  ramp_down_Constraints[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] +
+                                      f_initial_power , issueAMod );
+}
 
- if( f_initial_power == *it ) {
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::set_initial_power
+( std::vector< double >::const_iterator it , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
   return;
- }
+
+ // Find the last index 0
+ auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
+
+ if( index_it == subset.rend() )
+  return; // 0 is not in subset; return
+
+ std::advance( it , std::distance( index_it , subset.rend() ) - 1 );
+
+ if( f_initial_power == *it )
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_initial_power = *it;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   ramp_up_Constraints[0].set_rhs( v_delta_ramp_up[0] + f_initial_power, issueAMod );
-   ramp_down_Constraints[ 0 ].set_lhs ( -v_delta_ramp_down[ 0 ] + f_initial_power, issueAMod  );
+   // Change the abstract representation
+   update_initial_power_in_constraints();
   }
  }
+
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  Block::add_Modification(
-          std::make_shared< BatteryUnitBlockSbstMod >( this,
-                                                       BatteryUnitBlockMod::eSetInitP,
-                                                       std::move( subset ) ),
-          Observer::par2chnl( issuePMod ) );
+  Block::add_Modification
+   ( std::make_shared< BatteryUnitBlockSbstMod >
+     ( this , BatteryUnitBlockMod::eSetInitP , std::move( subset ) ) ,
+     Observer::par2chnl( issuePMod ) );
  }
 
 }  // end( BatteryUnitBlock::set_initial_power )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power(
-        std::vector< double >::const_iterator it,
-        Block::Range rng,
-        c_ModParam issuePMod,
-        c_ModParam issueAMod ) {
+void BatteryUnitBlock::set_initial_power
+( std::vector< double >::const_iterator it , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_time_horizon );
- if( rng.second != rng.first ) {
-  return;
- }
+ rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
+ if( ! ( rng.first <= 0 && 0 < rng.second ) )
+  return; // 0 does not belong to the range; return
+
+ std::advance( it , - rng.first );
 
  if( f_initial_power == *it ) {
-  return;
+  return; // nothing changes; return
  }
+
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_initial_power = *it;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   ramp_up_Constraints[0].set_rhs( v_delta_ramp_up[0] + f_initial_power, issueAMod );
-   ramp_down_Constraints[ 0 ].set_lhs ( -v_delta_ramp_down[ 0 ] + f_initial_power, issueAMod  );
+   // Change the abstract representation
+   update_initial_power_in_constraints();
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification(
-          std::make_shared< BatteryUnitBlockRngdMod >( this,
-                                                       BatteryUnitBlockMod::eSetInitP,
-                                                       rng ),
-          Observer::par2chnl( issuePMod ) );
+  Block::add_Modification
+   ( std::make_shared< BatteryUnitBlockRngdMod >
+     ( this , BatteryUnitBlockMod::eSetInitP , rng ),
+     Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_power )
 
 /*--------------------------------------------------------------------------*/
-/*------------- End File BatteryUnitBlock.cpp -----------------------*/
+/*----------------- End File BatteryUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/
