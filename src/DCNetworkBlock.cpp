@@ -305,7 +305,8 @@ NetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    return;
   }
 
-  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  Index max_index = * std::max_element( std::begin( subset ),
+                                        std::end( subset ) );
   v_active_demand.assign( max_index, 0 );
  }
 
@@ -361,7 +362,8 @@ DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values,
    return;
   }
 
-  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  Index max_index = * std::max_element( std::begin( subset ),
+                                        std::end( subset ) );
   v_active_demand.assign( max_index, 0 );
  }
 

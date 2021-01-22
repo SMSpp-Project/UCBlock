@@ -281,7 +281,8 @@ void IntermittentUnitBlock::set_maximum_power(
    return;
   }
 
-  Index max_index = *max_element( std::begin( subset ), std::end( subset ) );
+  Index max_index = * std::max_element( std::begin( subset ),
+                                        std::end( subset ) );
   v_maximum_power.assign( max_index, 0 );
  }
 
