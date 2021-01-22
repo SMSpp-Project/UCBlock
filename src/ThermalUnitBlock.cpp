@@ -1453,80 +1453,88 @@ void ThermalUnitBlock::set_maximum_power
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_initial_power(
- std::vector< double >::const_iterator values,
- Block::Subset && subset,
- const bool ordered,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void ThermalUnitBlock::update_initial_power_in_constraints
+( c_ModParam issueAMod ) {
 
- if( subset.size() != 1 ) {
-  return;
+ if( ! ( RampUp_Constraints.empty() || v_DeltaRampUp.empty() ) ) {
+  if( f_InitUpDownTime > 0 )
+   RampUp_Constraints[ 0 ].set_rhs( v_DeltaRampUp[ 0 ] + f_initial_power ,
+                                    issueAMod );
  }
 
- if( f_initial_power == *values ) {
+ if( ! RampDown_Constraints.empty() )
+  if( f_InitUpDownTime > 0 )
+   RampDown_Constraints[ 0 ].set_lhs( f_initial_power , issueAMod );
+
+}  // end( ThermalUnitBlock::update_initial_power_in_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_initial_power
+( std::vector< double >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
   return;
- }
+
+ // Find the last index 0
+ auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
+
+ if( index_it == subset.rend() )
+  return; // 0 is not in subset; return
+
+ std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
+
+ if( f_initial_power == *values )
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_initial_power = *values;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
-   RampUp_Constraints[ 0 ].set_rhs(
-    v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
-    issueAMod );
-   RampDown_Constraints[ 0 ].set_lhs( f_initial_power, issueAMod );
+   // Change the abstract representation
+   update_initial_power_in_constraints( issueAMod );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  Block::add_Modification(
-   std::make_shared< ThermalUnitBlockSbstMod >( this,
-                                                ThermalUnitBlockMod::eSetInitP,
-                                                std::move( subset ) ),
-   Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >
+                           ( this , ThermalUnitBlockMod::eSetInitP ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }  // end( ThermalUnitBlock::set_initial_power )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_initial_power(
- std::vector< double >::const_iterator values,
- Block::Range rng,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void ThermalUnitBlock::set_initial_power
+( std::vector< double >::const_iterator values , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_time_horizon );
- if( rng.second != rng.first ) {
-  return;
- }
+ rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
+ if( ! ( rng.first <= 0 && 0 < rng.second ) )
+  return; // 0 does not belong to the range; return
 
- if( f_initial_power == *values ) {
-  return;
- }
+ std::advance( values , - rng.first );
+
+ if( f_initial_power == *values )
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   f_initial_power = *values;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   auto initial_commitment = f_InitUpDownTime > 0 ? 1.0 : 0.0;
-   RampUp_Constraints[ 0 ].set_rhs(
-    v_DeltaRampUp[ 0 ] * initial_commitment + f_initial_power,
-    issueAMod );
-   RampDown_Constraints[ 0 ].set_lhs( f_initial_power, issueAMod );
+   // Change the abstract representation
+   update_initial_power_in_constraints( issueAMod );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification(
-   std::make_shared< ThermalUnitBlockRngdMod >( this,
-                                                ThermalUnitBlockMod::eSetInitP,
-                                                rng ),
-   Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >
+                           ( this , ThermalUnitBlockMod::eSetInitP ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }  // end( ThermalUnitBlock::set_initial_power )
 

@@ -1120,27 +1120,52 @@ class ThermalUnitBlock : public UnitBlock {
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
+ /*--------------------------------------------------------------------------*/
+
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given \p subset contains the 0 index, this function sets the
+  * initial power. If the given \p subset does not contain the index 0, this
+  * function does nothing. Since \p subset can have multiple zeros, only the
+  * last one is considered, which means that the value for the initial power
+  * will be that in the vector pointed by \p it associated with this last
+  * zero.
+  */
+ void set_initial_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , const bool ordered = false ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given Range \p rng contains 0, this function sets the initial
+  * power. In this case, if the first element of \p rng is 0, the initial
+  * power will be set to the value pointed by the given iterator. In general,
+  * the initial power will be the one found at position -rng.first in the
+  * vector pointed by \p it if this Range contains the 0 index. If the given
+  * Range \p rng does not contain the 0 index, this function does nothing.
+  */
+ void set_initial_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0, Inf< Index >() ) ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values,
                             Subset && subset,
                             const bool ordered = false,
                             c_ModParam issuePMod = eNoBlck,
                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values,
                             Range rng = Range( 0, Inf< Index >() ),
@@ -1381,6 +1406,15 @@ private:
   *
   * @param issueAMod controls how abstract Modification are issued. */
  void update_availability_dependents( Index t , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current initial power
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints at time 0 (which are the
+  * constraints that depend on the initial power).
+  */
+ void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
