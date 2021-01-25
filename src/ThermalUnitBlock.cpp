@@ -454,16 +454,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    l_function->add_variable( & v_start_up[ 0 ]        , -1.0 );
    l_function->add_variable( & v_shut_down[ 0 ]       ,  1.0 );
 
-   if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
+   if( f_InitUpDownTime <= 0 ) { // -f_InitUpDownTime < f_MinDownTime
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( 0.0 );
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
    }
-   else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+   else { // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( 1.0 );
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
-   }
-   else {
-    // TODO What happens here?
    }
 
    for( Index t = init_t + 1 , constraint_index = 1 ; t < f_time_horizon ;
@@ -629,7 +626,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Constraints[t].set_function( lf );
    }
 
-   if( f_InitUpDownTime < 0 && -f_InitUpDownTime < f_MinDownTime ) {
+   if( f_InitUpDownTime <= 0 ) { // -f_InitUpDownTime < f_MinDownTime
 
     auto LFunction = new LinearFunction();
     LFunction->add_variable( &v_active_power[init_t], 1.0 );
@@ -640,7 +637,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Constraints[init_t].set_rhs( 0.0 );
     RampUp_Constraints[init_t].set_function( LFunction );
 
-   } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+   } else { // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
 
     auto LFunction = new LinearFunction();
     LFunction->add_variable( &v_active_power[init_t], 1.0 );
@@ -652,10 +649,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Constraints[init_t].set_rhs( v_DeltaRampUp[init_t] );
     RampUp_Constraints[init_t].set_function( LFunction );
    }
-   else {
-    // TODO What happens here?
-   }
-
    for( Index t = init_t + 1; t < f_time_horizon; ++t ) {
 
     auto lf = new LinearFunction();
