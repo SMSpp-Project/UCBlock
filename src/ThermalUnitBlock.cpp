@@ -462,6 +462,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_both( 1.0 );
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
    }
+   else {
+    // TODO What happens here?
+   }
 
    for( Index t = init_t + 1 , constraint_index = 1 ; t < f_time_horizon ;
         ++t , ++constraint_index ) {
@@ -648,6 +651,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Constraints[init_t].set_lhs( -Inf< double >());
     RampUp_Constraints[init_t].set_rhs( v_DeltaRampUp[init_t] );
     RampUp_Constraints[init_t].set_function( LFunction );
+   }
+   else {
+    // TODO What happens here?
    }
 
    for( Index t = init_t + 1; t < f_time_horizon; ++t ) {
