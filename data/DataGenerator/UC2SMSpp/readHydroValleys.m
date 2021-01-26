@@ -1,10 +1,10 @@
 %%%%%%
-% 
+%
 % script to read the data from APOGEE related to Hydro generation
 %
 function [vallees, usines, reservoirs] = readHydroValleys( pathName ),
 
-ficRESERVES = [pathName '/RESERVES'];
+        ficRESERVES = [pathName '/RESERVES'];
 ficUSINE    = [pathName '/USINES'];
 ficVALLEES  = [pathName '/VALLEES'];
 
@@ -16,7 +16,7 @@ arcs = struct('amont',{},'aval',{},'updelay',{},'dndelay',{},'usiIdx',{});
 vallees = struct('name',{},'reservoirs',{},'flow',{},'arc',{});
 
 % read information from the reservoirs into the data structures
-reservoirs = readRESERVES( ficRESERVES, reservoirs );
+        reservoirs = readRESERVES( ficRESERVES, reservoirs );
 
 %
 usines = readUSINES( ficUSINE, usines );
