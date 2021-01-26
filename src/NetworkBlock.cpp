@@ -38,6 +38,9 @@
 #include <map>
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
+#include "RowConstraintSolution.h"
+#include "ColRowSolution.h"
+#include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -113,6 +116,37 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  Block::deserialize( group );
 }
 
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * NetworkBlock::get_Solution( Configuration * csolc, bool emptys )
+{
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast<SimpleConfiguration< int > *>(
+          f_BlockConfig->f_solution_Configuration );
+
+ auto solution_type = config ? config->f_value : 0;
+
+ Solution * sol = nullptr;
+ switch( solution_type ) {
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+}
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

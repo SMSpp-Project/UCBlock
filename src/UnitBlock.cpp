@@ -42,6 +42,9 @@
 
 #include "UCBlock.h"
 #include "UnitBlock.h"
+#include "RowConstraintSolution.h"
+#include "ColRowSolution.h"
+#include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -154,6 +157,38 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * UnitBlock::get_Solution( Configuration * csolc, bool emptys )
+{
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast<SimpleConfiguration< int > *>(
+          f_BlockConfig->f_solution_Configuration );
+
+ auto solution_type = config ? config->f_value : 0;
+
+ Solution * sol = nullptr;
+ switch( solution_type ) {
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/

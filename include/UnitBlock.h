@@ -391,6 +391,40 @@ class UnitBlock : public Block {
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
  }
+/**@} ----------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ *  @{ */
+ /// returns a Solution representing the current solution of this UnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this UnitBlock. The base
+  * UnitBlock class defaults to ColVariableSolution, RowConstraintSolution,
+  * and ColRowSolution, but :UnitBlock may make different choices.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value. If this value is
+  *
+  * - 1, then a RowConstraintSolution is returned;
+  *
+  * - 2, then a ColRowSolution is returned;
+  *
+  * - any other value, then a ColVariable Solution is returned.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
