@@ -35,6 +35,7 @@
 #include <random>
 #include "IntermittentUnitBlock.h"
 #include "LinearFunction.h"
+#include "FRealObjective.h"
 #include <map>
 #include "UnitBlock.h"
 
@@ -234,6 +235,24 @@ void IntermittentUnitBlock::generate_abstract_constraints
  set_constraints_generated();
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
 
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+ objective.set_function( linear_function );
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( IntermittentUnitBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/

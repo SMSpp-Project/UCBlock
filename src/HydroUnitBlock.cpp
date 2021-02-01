@@ -32,6 +32,7 @@
 #include "HydroUnitBlock.h"
 #include "LinearFunction.h"
 #include "FRowConstraint.h"
+#include "FRealObjective.h"
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
 
@@ -1074,7 +1075,25 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
  set_constraints_generated();
 } // end( HydroUnitBlock::generate_abstract_constraints )
 
+/*--------------------------------------------------------------------------*/
 
+void HydroUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+ objective.set_function( linear_function );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( HydroUnitBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/
 /*--------------------------------------------------------------------------*/

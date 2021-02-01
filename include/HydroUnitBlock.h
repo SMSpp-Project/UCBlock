@@ -39,6 +39,8 @@
 #include "DQuadFunction.h"
 #include "UnitBlock.h"
 #include "OneVarConstraint.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -749,6 +751,17 @@ class HydroUnitBlock : public UnitBlock {
  *
  */
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the HydroUnitBlock
+/** Method that generates the objective of the HydroUnitBlock.
+ *
+ * - Objective function: the objective function of the HydroUnitBlock is
+ *   "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -1597,6 +1610,9 @@ class HydroUnitBlock : public UnitBlock {
 
  /// volumetric bounds constraints
  boost::multi_array< BoxConstraint, 2 >  VolumetricBounds_Const;
+
+ /// the objective function
+ FRealObjective objective;
 
  static void static_initialization() {
   /*!!

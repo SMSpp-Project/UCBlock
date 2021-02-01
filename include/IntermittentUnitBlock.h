@@ -39,6 +39,8 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -242,6 +244,16 @@ class IntermittentUnitBlock : public UnitBlock {
  *   */
  void generate_abstract_constraints( Configuration *stcc ) override;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the IntermittentUnitBlock
+/** Method that generates the objective of the IntermittentUnitBlock.
+ *
+ * - Objective function: the objective function of the IntermittentUnitBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -433,6 +445,9 @@ class IntermittentUnitBlock : public UnitBlock {
 
 /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Constraints;
+
+ /// the objective function
+ FRealObjective objective;
 
  static void static_initialization() {
   /*!!

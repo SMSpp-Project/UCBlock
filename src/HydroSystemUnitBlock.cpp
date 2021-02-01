@@ -31,6 +31,8 @@
 
 #include "UCBlock.h"
 #include "HydroSystemUnitBlock.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -185,6 +187,24 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  set_variables_generated();
 } // end( HydroSystemUnitBlock::generate_abstract_variables )
 
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+ objective.set_function( linear_function );
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( HydroSystemUnitBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/

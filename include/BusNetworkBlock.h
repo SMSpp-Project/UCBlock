@@ -48,6 +48,7 @@
 
 #include "NetworkBlock.h"
 #include "OneVarConstraint.h"
+#include "FRealObjective.h"
 
 
 /*--------------------------------------------------------------------------*/
@@ -130,6 +131,16 @@ class BusNetworkBlock : public NetworkBlock {
  */
  void generate_abstract_constraints( Configuration *stcc ) override;
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the BusNetworkBlock
+/** Method that generates the objective of the BusNetworkBlock.
+ *
+ * - Objective function: the objective function of the BusNetworkBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -179,7 +190,8 @@ class BusNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
-
+ /// the objective function
+ FRealObjective objective;
 /*-----------------------------variables------------------------------------*/
 
 /*----------------------------constraints-----------------------------------*/

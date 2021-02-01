@@ -34,6 +34,7 @@
 #include "NetworkBlock.h"
 #include "DCNetworkBlock.h"
 #include "OneVarConstraint.h"
+#include "FRealObjective.h"
 
 
 /*--------------------------------------------------------------------------*/
@@ -281,7 +282,25 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
  set_constraints_generated();
 }
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+
+ objective.set_function( linear_function );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( DCNetworkBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/

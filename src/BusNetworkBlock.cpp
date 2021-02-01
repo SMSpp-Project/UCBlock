@@ -44,7 +44,7 @@
 #include "NetworkBlock.h"
 #include "BusNetworkBlock.h"
 #include "LinearFunction.h"
-
+#include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -101,6 +101,25 @@ void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc ) {
                         "NodeInjection_bound_BusNetwork" );
 }
 
+/*--------------------------------------------------------------------------*/
+void BusNetworkBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+
+ objective.set_function( linear_function );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( BusNetworkBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/

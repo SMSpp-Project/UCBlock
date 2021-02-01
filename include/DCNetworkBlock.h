@@ -39,6 +39,7 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "NetworkBlock.h"
+#include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -228,6 +229,16 @@ class DCNetworkBlock : public NetworkBlock {
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
+
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the DCNetworkBlock
+/** Method that generates the objective of the DCNetworkBlock.
+ *
+ * - Objective function: the objective function of the DCNetworkBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
@@ -423,6 +434,9 @@ class DCNetworkBlock : public NetworkBlock {
 
  /// AC_HVDC power flow constraints
  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
+
+  /// the objective function
+  FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

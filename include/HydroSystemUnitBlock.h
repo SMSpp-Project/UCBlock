@@ -39,6 +39,8 @@
 #include "Block.h"
 #include "PolyhedralFunctionBlock.h"
 #include "HydroUnitBlock.h"
+#include "FRealObjective.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -191,6 +193,16 @@ class HydroSystemUnitBlock : public UnitBlock {
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the HydroSystemUnitBlock
+/** Method that generates the objective of the HydroSystemUnitBlock.
+ *
+ * - Objective function: the objective function of the HydroSystemUnitBlock is
+ *   "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -334,6 +346,9 @@ class HydroSystemUnitBlock : public UnitBlock {
 /*--------------------------------data--------------------------------------*/
  /// The number of hydro units of the problem
  Index f_number_hydro_units;
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
