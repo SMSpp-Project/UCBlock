@@ -43,9 +43,11 @@ if (NOT googletest_POPULATED)
 endif ()
 
 # ----- tests_ThermalUnitBlock ---------------------------------------------- #
-add_executable(tests_ThermalUnitBlock tests_ThermalUnitBlock.cpp)
-target_link_libraries(tests_ThermalUnitBlock PRIVATE SMS++::UCBlock gtest)
+add_executable(ThermalUnitBlock_test tests_ThermalUnitBlock.cpp)
+target_link_libraries(ThermalUnitBlock_test PRIVATE SMS++::UCBlock gtest)
 
-add_test(NAME tests_ThermalUnitBlock
-         COMMAND tests_ThermalUnitBlock
-         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME ThermalUnitBlock_test
+         COMMAND ThermalUnitBlock_test
+         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+# --------------------------------------------------------------------------- #

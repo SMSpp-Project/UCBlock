@@ -39,6 +39,16 @@ find_package(UCBlock)
 target_link_libraries(<my_target> SMS++::UCBlock)
 ```
 
+### Running the tests with CMake
+
+Some unit tests will be built with the library.
+Launch `ctest` from the build directory to run them.
+To disable them, set the option `BUILD_TESTING` to `OFF`.
+
+> **Note:**
+> Some tests use [Google Test](https://github.com/google/googletest).
+> CMake will fetch and build it automatically.
+
 ## Tools
 
 We provide a simple tool that converts .dat and .mod files into netCDF files.
