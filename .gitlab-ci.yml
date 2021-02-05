@@ -8,8 +8,8 @@ cache:
 
 stages:
   - build
-#  - test
-#  - deploy
+  - test
+  - deploy
 
 fetch_smspp:
   stage: .pre
@@ -31,22 +31,46 @@ build:
   artifacts:
     paths:
       - build
+  only:
+    refs:
+      - master
+      - develop
+      - tags
+    changes:
+      - cmake/*
+      - include/*
+      - src/*
+      - test/*
+      - tools/*
+      - CMakeLists.txt
 
-#test:
-#  stage: test
-#  before_script:
-#    - cmake --build smspp/build --target install
-#  script:
-#    - cmake --build build --target test
+test:
+  stage: test
+  before_script:
+    - cmake --build smspp/build --target install
+  script:
+    - cmake --build build --target test
+  only:
+    refs:
+      - master
+      - develop
+      - tags
+    changes:
+      - cmake/*
+      - include/*
+      - src/*
+      - test/*
+      - tools/*
+      - CMakeLists.txt
 
-#deploy:
-#  stage: deploy
-#  script:
-#    - cd build && cpack -G "TGZ;ZIP;TBZ2"
-#  artifacts:
-#    paths:
-#      - build/*.tar.gz
-#      - build/*.tar.bz2
-#      - build/*.zip
-#  only:
-#    - tags
+deploy:
+  stage: deploy
+  script:
+    - cd build && cpack -G "TGZ;ZIP;TBZ2"
+  artifacts:
+    paths:
+      - build/*.tar.gz
+      - build/*.tar.bz2
+      - build/*.zip
+  only:
+    - tags
