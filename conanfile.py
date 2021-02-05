@@ -3,7 +3,7 @@ from conans import ConanFile, CMake, tools
 
 class UcblockConan(ConanFile):
     name = "ucblock"
-    version = "0.4.1"
+    version = "0.5.0"
     description = "Unit Commitment Blocks for SMS++"
     topics = ("conan", "smspp", "ucblock")
     url = "https://gitlab.com/smspp/ucblock"
@@ -16,7 +16,7 @@ class UcblockConan(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     requires = (
-        "smspp/0.3.2@smspp/testing"
+        "smspp/0.4.0@smspp/testing"
     )
 
     exports_sources = [

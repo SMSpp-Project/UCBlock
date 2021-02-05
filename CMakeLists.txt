@@ -21,7 +21,7 @@
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.11)
 project(UCBlock
-        VERSION 0.4.1
+        VERSION 0.5.0
         DESCRIPTION "SMS++ UCBlock module"
         HOMEPAGE_URL https://gitlab.com/smspp/ucblock
         LANGUAGES C CXX)
