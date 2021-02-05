@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 22 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -31,6 +31,7 @@
 
 #ifndef __BatteryUnitBlock
 #define __BatteryUnitBlock
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -383,7 +384,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   Demand[ t ] contains the demand value for each time instant t.
  * */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the BatteryUnitBlock
@@ -897,7 +898,7 @@ class BatteryUnitBlock : public UnitBlock {
 
  void set_initial_storage( std::vector< double >::const_iterator it,
                            Subset && subset,
-                           bool ordered = false,
+                           const bool ordered = false,
                            c_ModParam issuePMod = eNoBlck,
                            c_ModParam issueAMod = eNoBlck );
 
@@ -905,6 +906,37 @@ class BatteryUnitBlock : public UnitBlock {
                            Range rng = Range( 0, Inf< Index >() ),
                            c_ModParam issuePMod = eNoBlck,
                            c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given \p subset contains the 0 index, this function sets the
+  * initial power. If the given \p subset does not contain the index 0, this
+  * function does nothing. Since \p subset can have multiple zeros, only the
+  * last one is considered, which means that the value for the initial power
+  * will be that in the vector pointed by \p it associated with this last
+  * zero.
+  */
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Subset && subset,
+                         const bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given Range \p rng contains 0, this function sets the initial
+  * power. In this case, if the first element of \p rng is 0, the initial
+  * power will be set to the value pointed by the given iterator. In general,
+  * the initial power will be the one found at position -rng.first in the
+  * vector pointed by \p it if this Range contains the 0 index. If the given
+  * Range \p rng does not contain the 0 index, this function does nothing.
+  */
+ void set_initial_power( std::vector< double >::const_iterator it,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -996,13 +1028,13 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > power_intake_outtake_Constraints;
 
 /// the intake upper bound constraints
- std::vector< FRowConstraint > intake_upper_bound_Constraints;
+ std::vector< BoxConstraint > intake_upper_bound_Constraints;
 
 /// the storage , intake and outtake level relation constraints
  std::vector< FRowConstraint > storage_intake_outtake_Constraints;
 
 /// the storage level bounds constraints
- std::vector< FRowConstraint > storage_level_bounds_Constraints;
+ std::vector< BoxConstraint > storage_level_bounds_Constraints;
 
 /// the intake and binary variable relation constraints
  std::vector< FRowConstraint > intake_binary_Constraints;
@@ -1014,24 +1046,41 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > demand_Constraints;
 
 /// primary upper bound constraints
- std::vector< FRowConstraint > primary_upper_bound_Constraints;
+ std::vector< BoxConstraint > primary_upper_bound_Constraints;
 
 /// secondary upper bound constraints
- std::vector< FRowConstraint > secondary_upper_bound_Constraints;
+ std::vector< BoxConstraint > secondary_upper_bound_Constraints;
+
+ /// the vector of binary variables
+ std::vector< ZOConstraint > battery_binary_bound_Constraints;
+
 
  /// the objective function
  FRealObjective objective;
 
  static void static_initialization() {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+  //                                      &BatteryUnitBlock::set_initial_storage,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+  //                                      &BatteryUnitBlock::set_initial_storage,
+  //                                      MS_dbl_rngd::args() );
 
-  register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-                                       &BatteryUnitBlock::set_initial_storage,
-                                       MS_dbl_sbst::args() );
+  register_method< BatteryUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "BatteryUnitBlock::set_initial_storage",
+   &BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-                                       &BatteryUnitBlock::set_initial_storage,
-                                       MS_dbl_rngd::args() );
+  register_method< BatteryUnitBlock, MF_dbl_it, Range >(
+   "BatteryUnitBlock::set_initial_storage",
+   &BatteryUnitBlock::set_initial_storage );
  }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1049,6 +1098,138 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// Resizes a vector to time_horizon by using change_intervals
  template< typename T > void decompress_vector( std::vector< T > & v );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current initial storage
+ /** This function updates both sides of the demand constraint at time 0
+  * (which is the constraint that depends on the initial storage).
+  */
+ void update_initial_storage_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current initial power
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints at time 0 (which are the
+  * constraints that depend on the initial power).
+  */
+ void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a BatteryUnitBlock
+ class BatteryUnitBlockMod : public Modification {
+
+  public:
+
+  /// Public enum for the types of BatteryUnitBlockMod
+  enum BUB_mod_type {
+   eSetInitS = 0 ,  ///< Set initial storage values
+   eSetInitP    ,   ///< Set initial power values
+  };
+
+  /// Constructor, takes the BatteryUnitBlock and the type
+  BatteryUnitBlockMod( BatteryUnitBlock * const fblock, const int type )
+   : f_Block( fblock ), f_type( type ) {}
+
+  ///< Destructor, does nothing
+  virtual ~BatteryUnitBlockMod() override = default;
+
+  /// returns the Block to which the Modification refers
+  Block * get_Block() const override { return ( f_Block ); }
+
+  /// Accessor to the type of modification
+  int type() { return ( f_type ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockMod
+  void print( std::ostream & output ) const override {
+   output << "BatteryUnitBlockMod[" << this << "]: ";
+   switch( f_type ) {
+    case ( eSetInitS ):
+     output << "set initial storage values ";
+     break;
+    case ( eSetInitP ):
+     output << "set initial power values ";
+     break;
+   }
+  }
+
+  BatteryUnitBlock * f_Block{};
+  ///< pointer to the Block to which the Modification refers
+
+  int f_type; ///< type of modification
+ }; // end( class( BatteryUnitBlockMod ) )
+
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS BatteryUnitBlockRngdMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from BatteryUnitBlockMod for "ranged" modifications
+ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod {
+
+  public:
+
+  /// constructor: takes the BatteryUnitBlock, the type, and the range
+  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock,
+                           const int type,
+                           Block::Range rng )
+   : BatteryUnitBlockMod( fblock, type ), f_rng( rng ) {}
+
+  /// destructor, does nothing
+  virtual ~BatteryUnitBlockRngdMod() override = default;
+
+  /// accessor to the range
+  Block::c_Range & rng() { return( f_rng ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockRngdMod
+  void print( std::ostream & output ) const override {
+   BatteryUnitBlockMod::print( output );
+   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+  }
+
+  Block::Range f_rng; ///< the range
+ };  // end( class( BatteryUnitBlockRngdMod ) )
+
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BatteryUnitBlockSbstMod ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from BatteryUnitBlockMod for "subset" modifications
+ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod {
+
+  public:
+
+  /// constructor: takes the BatteryUnitBlock, the type, and the subset
+  BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock,
+                           const int type,
+                           Block::Subset && nms )
+   : BatteryUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+
+  /// destructor, does nothing
+  virtual ~BatteryUnitBlockSbstMod() override = default;
+
+  /// accessor to the subset
+  Block::c_Subset & nms() { return( f_nms ); }
+
+  protected:
+
+  /// prints the BatteryUnitBlockSbstMod
+  void print( std::ostream &output ) const override {
+   BatteryUnitBlockMod::print( output );
+   output << "(# " << f_nms.size() << ")" << std::endl;
+  }
+
+  Block::Subset f_nms; ///< the subset
+
+ };  // end( class( BatteryUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 

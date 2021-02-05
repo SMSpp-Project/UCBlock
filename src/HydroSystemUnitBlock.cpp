@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 26 - 05 - 2020
+ * \date 19 - 11 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -31,6 +31,8 @@
 
 #include "UCBlock.h"
 #include "HydroSystemUnitBlock.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -56,16 +58,13 @@ HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize( netCDF::NcGroup & group ) {
+void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] HydroSystemUnitBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "TimeHorizon",
                                               "NumberIntervals",
                                               "NumberHydroUnits"};
  check_dimensions( group, expected_dims, std::cerr );
-
 #endif
 
 
@@ -127,31 +126,6 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
             sub_group_name + " must be either 'PolyhedralFunctionBlock' or "
             "the name of a class derived from PolyhedralFunctionBlock." ) );
 
- // Collect the active Variables of the PolyhedralFunction: these are the
- // variables representing the final volume of each reservoir.
-
- std::vector< ColVariable * > x;
- x.reserve( get_total_number_reservoirs() );
-
- for( auto sub_block : get_nested_Blocks() )
-  if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-   auto number_reservoirs = hydro_unit_block->get_number_reservoirs();
-
-   // TODO We need the Variables of the HydroUnitBlocks. However, it is not
-   // appropriate to generate the abstract variables here, as it is
-   // responsibility of BlockConfig. Since Variables cannot be generated more
-   // than once, later calls to generate_abstract_variables() will be ignored
-   // and a possible Configuration being passed will have no effect.
-   hydro_unit_block->generate_abstract_variables();
-
-   for( Index i = 0 ; i < number_reservoirs ; ++i )
-    x.push_back( hydro_unit_block->get_volume( i , f_time_horizon - 1 ) );
-  }
-
- // Set the active Variable of the PolyhedralFunction
- polyhedral_function_block->get_PolyhedralFunction().
-  set_variables( std::move( x ) );
-
  // Deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
 
@@ -179,6 +153,58 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
  }
 }
 
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
+
+ if( variables_generated() )
+  return; // variables have already been generated
+
+ UnitBlock::generate_abstract_variables( stvv );
+
+ // Collect the active Variables of the PolyhedralFunction: these are the
+ // variables representing the final volume of each reservoir.
+
+ std::vector< ColVariable * > x;
+ x.reserve( get_total_number_reservoirs() );
+
+ for( Index h = 0 ; h < get_number_hydro_units() ; ++h ) {
+
+  auto hydro_unit_block = get_hydro_unit_block( h );
+  hydro_unit_block->generate_abstract_variables();
+
+  const auto number_reservoirs = hydro_unit_block->get_number_reservoirs();
+  for( Index r = 0 ; r < number_reservoirs ; ++r )
+   x.push_back( hydro_unit_block->get_volume( r , f_time_horizon - 1 ) );
+ }
+
+ // Set the active Variable of the PolyhedralFunction
+ get_polyhedral_function_block()->get_PolyhedralFunction().
+  set_variables( std::move( x ) );
+
+ get_polyhedral_function_block()->generate_abstract_variables();
+
+ set_variables_generated();
+} // end( HydroSystemUnitBlock::generate_abstract_variables )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+ objective.set_function( linear_function );
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( HydroSystemUnitBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/

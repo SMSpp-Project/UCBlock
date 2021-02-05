@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 21 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -38,6 +38,9 @@
 #include "FRowConstraint.h"
 #include "DQuadFunction.h"
 #include "UnitBlock.h"
+#include "OneVarConstraint.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -508,7 +511,7 @@ class HydroUnitBlock : public UnitBlock {
  * are accurate enough for this setting. Yet, the case UpF[ l ] < 0 cannot
  * be disregarded. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the HydroUnitBlock
@@ -748,6 +751,17 @@ class HydroUnitBlock : public UnitBlock {
  *
  */
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the HydroUnitBlock
+/** Method that generates the objective of the HydroUnitBlock.
+ *
+ * - Objective function: the objective function of the HydroUnitBlock is
+ *   "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -1410,7 +1424,7 @@ class HydroUnitBlock : public UnitBlock {
 
  void set_inflow( std::vector< double >::const_iterator values,
                   Subset && subset,
-                  bool ordered = false,
+                  const bool ordered = false,
                   c_ModParam issuePMod = eNoBlck,
                   c_ModParam issueAMod = eNoBlck );
 
@@ -1421,7 +1435,7 @@ class HydroUnitBlock : public UnitBlock {
 
  void set_inertia_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -1432,7 +1446,7 @@ class HydroUnitBlock : public UnitBlock {
 
  void set_initial_volumetric( std::vector< double >::const_iterator values,
                               Subset && subset,
-                              bool ordered = false,
+                              const bool ordered = false,
                               c_ModParam issuePMod = eNoBlck,
                               c_ModParam issueAMod = eNoBlck );
 
@@ -1441,7 +1455,16 @@ class HydroUnitBlock : public UnitBlock {
                               c_ModParam issuePMod = eNoBlck,
                               c_ModParam issueAMod = eNoBlck );
 
+ void set_initial_flow_rate( std::vector< double >::const_iterator values,
+                              Subset && subset,
+                              const bool ordered = false,
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
 
+ void set_initial_flow_rate( std::vector< double >::const_iterator values,
+                              Range rng = Range( 0, Inf< Index >() ),
+                              c_ModParam issuePMod = eNoBlck,
+                              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1580,38 +1603,69 @@ class HydroUnitBlock : public UnitBlock {
  boost::multi_array< FRowConstraint, 2 >  RampDown_Const;
 
  /// flow rate bounds constraints
- boost::multi_array< FRowConstraint, 2 >  FlowRateBounds_Const;
+ boost::multi_array< BoxConstraint, 2 >  FlowRateBounds_Const;
 
  /// final volumes fo each reservoir constraints
  boost::multi_array< FRowConstraint, 2 >  FinalVolumeReservoir_Const;
 
  /// volumetric bounds constraints
- boost::multi_array< FRowConstraint, 2 >  VolumetricBounds_Const;
+ boost::multi_array< BoxConstraint, 2 >  VolumetricBounds_Const;
+
+ /// the objective function
+ FRealObjective objective;
 
  static void static_initialization() {
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-                                     &HydroUnitBlock::set_inflow,
-                                     MS_dbl_sbst::args() );
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+  //                                    &HydroUnitBlock::set_inflow,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+  //                                    &HydroUnitBlock::set_inflow,
+  //                                    MS_dbl_rngd::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+  //                                    &HydroUnitBlock::set_inertia_power,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+  //                                    &HydroUnitBlock::set_inertia_power,
+  //                                    MS_dbl_rngd::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+  //                                    &HydroUnitBlock::set_initial_volumetric,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
+  //                                    &HydroUnitBlock::set_initial_volumetric,
+  //                                    MS_dbl_rngd::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "HydroUnitBlock::set_inflow",
+   &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-                                     &HydroUnitBlock::set_inflow,
-                                     MS_dbl_rngd::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Range >(
+   "HydroUnitBlock::set_inflow",
+   &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-                                     &HydroUnitBlock::set_inertia_power,
-                                     MS_dbl_sbst::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "HydroUnitBlock::set_inertia_power",
+   &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-                                     &HydroUnitBlock::set_inertia_power,
-                                     MS_dbl_rngd::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Range >(
+   "HydroUnitBlock::set_inertia_power",
+   &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-                                     &HydroUnitBlock::set_initial_volumetric,
-                                     MS_dbl_sbst::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "HydroUnitBlock::set_initial_volumetric",
+   &HydroUnitBlock::set_initial_volumetric );
 
-  register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-                                     &HydroUnitBlock::set_initial_volumetric,
-                                     MS_dbl_rngd::args() );
+  register_method< HydroUnitBlock, MF_dbl_it, Range >(
+   "HydroUnitBlock::set_initial_volumetric",
+   &HydroUnitBlock::set_initial_volumetric );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1652,6 +1706,33 @@ class HydroUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
+ /// updates the constraints for the given arcs at time 0
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints associated with the given
+  * \p arcs at time 0 (which are the ramp constraints that depend on the
+  * initial flow rate).
+  *
+  * @param arcs The indices of the arcs whose constraints must be updated.
+  */
+ void update_initial_flow_rate_in_constraints
+ ( Range arcs , c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the given arcs at time 0
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints associated with the given
+  * \p arcs at time 0 (which are the ramp constraints that depend on the
+  * initial flow rate).
+  *
+  * @param arcs The indices of the arcs whose associated constraints must
+  *        be updated.
+  */
+ void update_initial_flow_rate_in_constraints
+ ( const Block::Subset & arcs , c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
 };  // end( class( HydroUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1667,6 +1748,7 @@ class HydroUnitBlockMod : public Modification {
  enum HUB_mod_type {
   eSetInf = 0 ,    ///< Set inflow values
   eSetInerP    ,   ///< Set inertia power values
+  eSetInitF    ,    ///< Set initial flow rate values
   eSetInitV        ///< Set initial volumetric values
  };
 
@@ -1695,6 +1777,9 @@ class HydroUnitBlockMod : public Modification {
     break;
    case ( eSetInerP ):
     output << "set inertia power values ";
+    break;
+   case ( eSetInitF ):
+    output << "set initial flow rate values ";
     break;
    default:
     output << "set initial volumetric values ";

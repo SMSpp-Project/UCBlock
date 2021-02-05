@@ -21,7 +21,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -204,7 +204,7 @@ class UnitBlock : public Block {
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
  *   is not defined), or "NumberIntervals" >= "TimeHorizon".
  */
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
@@ -243,7 +243,7 @@ class UnitBlock : public Block {
   *  constraints) will have to handle this number by their-self. */
 
  virtual Index get_number_generators( void ) const { return( 1 ); }
- 
+
 /*--------------------------------------------------------------------------*/
  /// returns the fixed consumption of the given generator
  /** This method returns a pointer to the array containing the fixed
@@ -391,6 +391,40 @@ class UnitBlock : public Block {
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
  }
+/**@} ----------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ *  @{ */
+ /// returns a Solution representing the current solution of this UnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this UnitBlock. The base
+  * UnitBlock class defaults to ColVariableSolution, RowConstraintSolution,
+  * and ColRowSolution, but :UnitBlock may make different choices.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value. If this value is
+  *
+  * - 1, then a RowConstraintSolution is returned;
+  *
+  * - 2, then a ColRowSolution is returned;
+  *
+  * - any other value, then a ColVariable Solution is returned.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
@@ -470,10 +504,28 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  /// deserializes the time horizon from a netCDF group
- void deserialize_time_horizon( netCDF::NcGroup & group );
+ void deserialize_time_horizon( const netCDF::NcGroup & group );
 
  /// deserializes the change intervals vector from a netCDF group
- void deserialize_change_intervals( netCDF::NcGroup & group );
+ void deserialize_change_intervals( const netCDF::NcGroup & group );
+
+ /// states that the Variable of the UnitBlock have been generated
+ void set_variables_generated() { AR |= HasVar; }
+
+ /// states that the Constraint of the UnitBlock have been generated
+ void set_constraints_generated() { AR |= HasCst; }
+
+ /// states that the Objective of the UnitBlock has been generated
+ void set_objective_generated() { AR |= HasObj; }
+
+ /// indicates whether the Variable of the UnitBlock have been generated
+ bool variables_generated() const { return( AR & HasVar ); }
+
+ /// indicates whether the Constraint of the UnitBlock have been generated
+ bool constraints_generated() const { return( AR & HasCst ); }
+
+ /// indicates whether the Objective of the UnitBlock has been generated
+ bool objective_generated() const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -488,15 +540,6 @@ class UnitBlock : public Block {
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
-
- static constexpr unsigned char HasVar = 1;
- ///< first bit of AR == 1 if the Variables have been constructed
- static constexpr unsigned char HasCst = 2;
- ///< third bit of AR == 1 if the Constraints have been constructed
- static constexpr unsigned char HasObj = 4;
- ///< second bit of AR == 1 if the Objective has been constructed
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -506,6 +549,15 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
+
+ static constexpr unsigned char HasVar = 1;
+ ///< first bit of AR == 1 if the Variables have been constructed
+ static constexpr unsigned char HasCst = 2;
+ ///< second bit of AR == 1 if the Constraints have been constructed
+ static constexpr unsigned char HasObj = 4;
+ ///< third bit of AR == 1 if the Objective has been constructed
 
  SMSpp_insert_in_factory_h;
 

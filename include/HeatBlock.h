@@ -291,7 +291,7 @@ class HeatBlock : public Block {
  *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
  *   KeepingHeatRho == 1. If there is no heat storage (say, MaxHeatStorage is
  *   not defined) then this variable is not read, because it is not used. */
-  void deserialize( netCDF::NcGroup & group ) override;
+  void deserialize( const netCDF::NcGroup & group ) override;
 /*--------------------------------------------------------------------------*/
 /// Generate the static variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.

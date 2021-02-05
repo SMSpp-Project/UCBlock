@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 03 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -35,6 +35,7 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -98,7 +99,6 @@ class ThermalUnitBlock : public UnitBlock {
 
  explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
   UnitBlock( f_block ) {}
-
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock
 
@@ -123,10 +123,10 @@ class ThermalUnitBlock : public UnitBlock {
  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
  *   provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector MnP[ t ] that, for
- *   each time instant t, contains the minimum active power output value of
- *   the unit for the corresponding time step.  If "MinPower" has length 1
- *   then MnP[ t ] contains the same value for all t. Otherwise, MinPower[ i ]
- *   is the fixed value of MnP[ t ] for all t in the interval [
+ *   each time instant t, contains the nominal minimum active power output
+ *   value of the unit for the corresponding time step. If "MinPower" has
+ *   length 1 then MnP[ t ] contains the same value for all t. Otherwise,
+ *   MinPower[ i ] is the fixed value of MnP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MnP[ t ] >= 0 for
  *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
@@ -137,15 +137,40 @@ class ThermalUnitBlock : public UnitBlock {
  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
  *   provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
- *   each time instant t, contains the maximum active power output value of
- *   the unit for the corresponding time step.  If "MaxPower" has length 1
- *   then MxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i ]
- *   is the fixed value of MxP[ t ] for all t in the interval [
+ *   each time instant t, contains the nominal maximum active power output
+ *   value of the unit for the corresponding time step.  If "MaxPower" has
+ *   length 1 then MxP[ t ] contains the same value for all t. Otherwise,
+ *   MaxPower[ i ] is the fixed value of MxP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MxP[ t ] >= MnP[ t
  *   ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
  *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
  *   which in fact is not loaded.
+ *
+ * - The variable "Availability", of type netCDF::NcDouble and either of size
+ *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+ *   is not provided, then this variable can also be indexed over
+ *   "TimeHorizon"). This is meant to represent the vector Av[ t ] that, for
+ *   each time instant t, contains the availability of the unit for the
+ *   corresponding time step. If "Availability" has length 1 then Av[ t ] is
+ *   equal to the single given value in "Availability" for all t. Otherwise,
+ *   Availability[ i ] is the fixed value of Av[ t ] for all t in the interval
+ *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+ *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
+ *   "ChangeIntervals", which in fact is not loaded.
+ *
+ *   The availability of the unit is given by a number between 0 and 1. Let t
+ *   be a time instant in {0, ..., TimeHorizon - 1}. The operational
+ *   (effective) maximum active power output of the unit at time t is given by
+ *   Av[ t ] * MxP[ t ] (see the variable "MaxPower" for the definition of
+ *   MxP). The operational minimum active power output of the unit at time t
+ *   is zero if Av[ t ] == 0 and it is MnP[ t ] if Av[ t ] > 0 (see the
+ *   variable "MinPower" for the definition of MnP).
+ *
+ *   This variable is optional. If it is not provided, then the unit is fully
+ *   operational at all time instants, i.e., we assume that Av[ t ] = 1 for
+ *   all t in {0, ..., TimeHorizon - 1}.
  *
  * - The variable "DeltaRampUp", of type double and either of size 1 or
  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
@@ -258,7 +283,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
  *   the mapping clearly does not require "ChangeIntervals", which in fact is
  *   not loaded.
- *   
+ *
  * - The variable "ConstTerm", of type double and to be either of size 1 or
  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
  *   provided, then this variable can also be indexed over
@@ -324,8 +349,8 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - The variable "InertiaCommitment", of type double and either indexed over
  *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
- *   then this variable can also be indexed over "TimeHorizon") or has size
- *   1. This is meant to represent the vector IC[ t ] which, for each time
+ *   then this variable can also be indexed over "TimeHorizon") or has size 1.
+ *   This is meant to represent the vector IC[ t ] which, for each time
  *   instant t, contains the contribution that the unit can give to the
  *   inertia constraint for the sole fact that is is on (basically, the
  *   constant to be multiplied to the commitment variable) at time t. The
@@ -336,7 +361,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the ThermalUnitBlock
@@ -693,66 +718,157 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * @{ */
 
- /// Returns the initial power value
+ /// returns the initial power value
  double get_initial_power() const { return f_initial_power; }
 
- /// Returns the init up and down time value
+ /// returns the init up and down time value
  Index get_init_up_down_time() const { return f_InitUpDownTime; }
 
- /// Returns the minimum allowed up time value
+ /// returns the minimum allowed up time value
  Index get_min_up_time() const { return f_MinUpTime; }
 
- /// Returns the minimum allowed down time value
+ /// returns the minimum allowed down time value
  Index get_min_down_time() const { return f_MinDownTime; }
 
- /// Returns the vector of minimum power
- /**
-  * The returned vector contains the minimum power for each time.
-  * The size of the vector is always get_time_horizon().
-  */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of nominal minimum active power output
+ /** This method returns (a const reference to) the vector containing the
+  * nominal minimum active power output of the unit for all time steps. When
+  * the unit is available, get_min_power()[ t ] gives the minimum active power
+  * output of the unit at time t, for each t in {0, ..., get_time_hotizon() -
+  * 1}.  */
  const std::vector< double > & get_min_power() const {
   return v_MinPower;
  }
 
- /// Returns the vector of maximum power
- /**
-  * The returned vector contains the maximum power for each time.
-  * The size of the vector is always get_time_horizon().
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational minimum active power output at the given time \t
+ /** This method returns the operational minimum active power output of the
+  * unit at the given time \t. See get_availability() for the definition of
+  * operational minimum power.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @return The operational minimum active power output of the unit at the
+  *         given time \t.
   */
+ double get_operational_min_power( Index t ) const {
+  assert( t < get_time_horizon() );
+  return compute_operational_min_power( v_MinPower[ t ] ,
+                                        get_availability( t ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of nominal maximum active power output
+ /** This method returns (a const reference to) the vector containing the
+  * nominal maximum active power output of the unit for all time steps. When
+  * the unit is fully available, get_min_power()[ t ] gives the maximum active
+  * power output of the unit at time t, for each t in {0, ...,
+  * get_time_hotizon() - 1}. See get_availability() to understand the
+  * difference between nominal and operational maximum active power.  */
  const std::vector< double > & get_max_power() const {
   return v_MaxPower;
  }
 
- /// Returns the vector of primary rho
- /**
-  * The returned vector contains the primary rho at each time.
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational maximum active power output at the given time \t
+ /** This method returns the operational maximum active power output of the
+  * unit at the given time \t. See get_availability() for the definition of
+  * operational maximum power.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @return The operational maximum active power output of the unit at the
+  *         given time \t.
+  */
+ double get_operational_max_power( Index t ) const {
+  assert( t < get_time_horizon() );
+  return compute_operational_max_power( v_MaxPower[ t ] ,
+                                        get_availability( t ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the availability of the unit at all time instants
+ /** This method returns (a const reference to) the vector containing the
+  * availability of the unit at all time instants. For each t in {0, ...,
+  * get_time_horizon() - 1}, get_availability()[ t ] is the availability of
+  * the unit at time t, which is a number between 0 and 1. When the
+  * availability of the unit is zero, the unit is not under operation (for
+  * instance, due to an outage or maintenance). When the availability of the
+  * unit is 1, it is fully available and operating at maximum capacity.
+  *
+  * The availability of the unit determines its operational minimum and
+  * maximum active power output, i.e., the effective bounds on the active
+  * power output under which the unit operates. For each t in {0, ...,
+  * get_time_horizon() - 1}, let MinPower[ t ] and MaxPower[ t ] be the
+  * nominal minimum and maximum active power output of the unit (given by
+  * get_min_power() and get_max_power(), respectively) and let AvMinPower[ t ]
+  * and AvMaxPower[ t ] be the operational minimum and maximum active power
+  * output of the unit, which depends on its availability. Then,
+  *
+  *   AvMaxPower[ t ] = Availability[ t ] * MaxPower[ t ]
+  *
+  * and
+  *
+  *   AvMinPower[ t ] = MinPower[ t ] if Availability[ t ] > 0, and
+  *
+  *   AvMinPower[ t ] = 0 if Availability[ t ] = 0,
+  *
+  * where Availability[ t ] denotes the availability of the unit at time t. */
+
+ const std::vector< double > & get_availability() const {
+  return v_Availability;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the availability of the unit at the given time \t
+ double get_availability( Index t ) const {
+  if( v_Availability.empty() )
+   return 1.0;
+  assert( t < get_time_horizon() );
+  return v_Availability[ t ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of primary rho
+ /** The returned vector contains the primary rho at each time.
   * The size of the vector is always get_time_horizon().
   */
  const std::vector< double > & get_primary_rho() const {
   return v_PrimaryRho;
  }
 
- /// Returns the vector of secondary rho
- /**
-  * The returned vector contains the secondary rho at each time.
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of secondary rho
+ /** The returned vector contains the secondary rho at each time.
   * The size of the vector is always get_time_horizon().
   */
  const std::vector< double > & get_secondary_rho() const {
   return v_SecondaryRho;
  }
 
- /// Returns the vector of delta ramp-up
- /**
-  * The returned vector contains the delta ramp-up at each time.
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of delta ramp-up
+ /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon().
   */
  const std::vector< double > & get_delta_ramp_up() const {
   return v_DeltaRampUp;
  }
 
- /// Returns the vector of delta ramp-down
- /**
-  * The returned vector contains the delta ramp-up at each time.
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of delta ramp-down
+ /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon().
   */
  const std::vector< double > & get_delta_ramp_down() const {
@@ -760,7 +876,7 @@ class ThermalUnitBlock : public UnitBlock {
  }
 
 /*--------------------------------------------------------------------------*/
-/// Returns the vector of quadratic term
+/// returns the vector of quadratic term
 /** The returned vector contains to quadratic term at time t. There are three
  * possible cases:
  *
@@ -947,33 +1063,109 @@ class ThermalUnitBlock : public UnitBlock {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ // update the availability of the unit
+ /** This method updates the availability of the unit. The \p subset parameter
+  * contains a list of time instants and \p values contains the availability
+  * of the unit at those time instants. The availability of the unit at time
+  * subset[ i ] is given by std::next( values , i ) for each i in {0, ...,
+  * subset.size() - 1}.
+  *
+  * Let AvMinPower[ t ] and AvMaxPower[ t ] denote the operational minimum and
+  * maximum active power of the unit at time t. Then, the following condition
+  * must be satisfied:
+  *
+  *   AvMinPower[ t ] <= AvMaxPower[ t ]
+  *
+  * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
+  * the definition of operational maximum and minimum active power). If the
+  * given availability in \p values is such that this condition does not hold,
+  * an exception is thrown.  */
+
+ void set_availability( std::vector< double >::const_iterator values,
+                        Subset && subset,
+                        const bool ordered = false,
+                        c_ModParam issuePMod = eNoBlck,
+                        c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ // update the availability of the unit
+ /** This method updates the availability of the unit. The \p rng parameter
+  * contains a range of time instants and \p values contains the availability
+  * of the unit at those time instants. The availability of the unit at time
+  * rng.first + i is given by std::next( values , i ) for each i in {0, ...,
+  * ( std::min( rng.second, get_time_horizon() ) - rng.first - 1 )}.
+  *
+  * Let AvMinPower[ t ] and AvMaxPower[ t ] denote the operational minimum and
+  * maximum active power of the unit at time t. Then, the following condition
+  * must be satisfied:
+  *
+  *   AvMinPower[ t ] <= AvMaxPower[ t ]
+  *
+  * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
+  * the definition of operational maximum and minimum active power). If the
+  * given availability in \p values is such that this condition does not hold,
+  * an exception is thrown.  */
+
+ void set_availability( std::vector< double >::const_iterator values,
+                        Range rng = Range( 0, Inf< Index >() ),
+                        c_ModParam issuePMod = eNoBlck,
+                        c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Range rng = Range( 0, Inf< Index >() ),
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given \p subset contains the 0 index, this function sets the
+  * initial power. If the given \p subset does not contain the index 0, this
+  * function does nothing. Since \p subset can have multiple zeros, only the
+  * last one is considered, which means that the value for the initial power
+  * will be that in the vector pointed by \p it associated with this last
+  * zero.
+  */
+ void set_initial_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , const bool ordered = false ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
+/*--------------------------------------------------------------------------*/
+
+ /// sets the initial power
+ /** If the given Range \p rng contains 0, this function sets the initial
+  * power. In this case, if the first element of \p rng is 0, the initial
+  * power will be set to the value pointed by the given iterator. In general,
+  * the initial power will be the one found at position -rng.first in the
+  * vector pointed by \p it if this Range contains the 0 index. If the given
+  * Range \p rng does not contain the 0 index, this function does nothing.
+  */
+ void set_initial_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0, Inf< Index >() ) ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values,
                             Subset && subset,
-                            bool ordered = false,
+                            const bool ordered = false,
                             c_ModParam issuePMod = eNoBlck,
                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values,
                             Range rng = Range( 0, Inf< Index >() ),
@@ -993,31 +1185,34 @@ class ThermalUnitBlock : public UnitBlock {
 /*--------------------------------data--------------------------------------*/
 
  /// the vector of MinPower
- std::vector< double >  v_MinPower;
+ std::vector< double > v_MinPower;
 
  /// the vector of MaxPower
- std::vector< double >  v_MaxPower;
+ std::vector< double > v_MaxPower;
+
+ /// the vector of Availability
+ std::vector< double > v_Availability;
 
  /// the vector of PrimaryRho
- std::vector< double >  v_PrimaryRho;
+ std::vector< double > v_PrimaryRho;
 
  /// the vector of SecondaryRho
- std::vector< double >  v_SecondaryRho;
+ std::vector< double > v_SecondaryRho;
 
  /// the vector of RampUp
- std::vector< double >  v_DeltaRampUp;
+ std::vector< double > v_DeltaRampUp;
 
  /// the vector of RampDown
- std::vector< double >  v_DeltaRampDown;
+ std::vector< double > v_DeltaRampDown;
 
  /// the vector of QuadTerm
- std::vector< double >  v_QuadTerm;
+ std::vector< double > v_QuadTerm;
 
  /// the vector of LinearTerm
- std::vector< double >  v_LinearTerm;
+ std::vector< double > v_LinearTerm;
 
  /// the vector of ConstTerm
- std::vector< double >  v_ConstTerm;
+ std::vector< double > v_ConstTerm;
 
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
@@ -1097,38 +1292,95 @@ class ThermalUnitBlock : public UnitBlock {
 
  std::vector< FRowConstraint > MaxPower_Constraints;
 
+ /// the commitment bound constraints
+ std::vector< ZOConstraint > Commitment_bound_Constraints;
+
+ /// the commitment fixed to one BoxConstraints
+ std::vector< BoxConstraint > Commitment_fixed_to_One_Constraints;
+
+ /// the startup binary bound constraints
+ std::vector< ZOConstraint > StartUp_Binary_bound_Constraints;
+
+ /// the shout down binary bound constraints
+ std::vector< ZOConstraint > ShoutDown_Binary_bound_Constraints;
+
  /// the objective function
  FRealObjective objective;
 
  static void static_initialization() {
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-                                       &ThermalUnitBlock::set_maximum_power,
-                                       MS_dbl_sbst::args() );
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+  //                                      &ThermalUnitBlock::set_availability,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+  //                                      &ThermalUnitBlock::set_availability,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+  //                                      &ThermalUnitBlock::set_maximum_power,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
+  //                                      &ThermalUnitBlock::set_maximum_power,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+  //                                      &ThermalUnitBlock::set_initial_power,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
+  //                                      &ThermalUnitBlock::set_initial_power,
+  //                                      MS_dbl_rngd::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+  //                                      &ThermalUnitBlock::set_init_updown_time,
+  //                                      MS_int_sbst::args() );
+  //
+  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
+  //                                      &ThermalUnitBlock::set_init_updown_time,
+  //                                      MS_int_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_availability",
+   &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-                                       &ThermalUnitBlock::set_maximum_power,
-                                       MS_dbl_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_availability",
+   &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-                                       &ThermalUnitBlock::set_initial_power,
-                                       MS_dbl_sbst::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_maximum_power",
+   &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-                                       &ThermalUnitBlock::set_initial_power,
-                                       MS_dbl_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_maximum_power",
+   &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-                                       &ThermalUnitBlock::set_init_updown_time,
-                                       MS_int_sbst::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_initial_power",
+   &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-                                       &ThermalUnitBlock::set_init_updown_time,
-                                       MS_int_rngd::args() );
+  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
+   "ThermalUnitBlock::set_initial_power",
+   &ThermalUnitBlock::set_initial_power );
+
+  register_method< ThermalUnitBlock, MF_int_it, Subset &&, const bool >(
+   "ThermalUnitBlock::set_init_updown_time",
+   &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock, MF_int_it, Range >(
+   "ThermalUnitBlock::set_init_updown_time",
+   &ThermalUnitBlock::set_init_updown_time );
  }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
 private:
 
 /*--------------------------------------------------------------------------*/
@@ -1146,6 +1398,81 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// updates the abstract representation dependent on the availability
+ /** This method updates any part of the abstract representation that may
+  * depend on the availability of the unit at the given time \p t.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_availability_dependents( Index t , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current initial power
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints at time 0 (which are the
+  * constraints that depend on the initial power).
+  */
+ void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if and only if the given availability is consistent
+ /** This method checks whether the given \p availability is consistent at
+  * time \p t. An availability is consistent at a given time instant if the
+  * resulting operational minimum active power output is less than or equal to
+  * the resulting operational maximum active power at that time.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return true if and only if the given \p availability is consistent at
+  *         time \p t. */
+ bool availability_is_consistent( Index t , double availability ) const {
+  assert( t < get_time_horizon() );
+  const auto min_power = compute_operational_min_power
+   ( v_MinPower[ t ] , availability );
+  const auto max_power = compute_operational_max_power
+   ( v_MaxPower[ t ] , availability );
+  return( min_power <= max_power );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational minimum power
+ /** This method computes the operational minimum power for the given nominal
+  * minimum power and availability.
+  *
+  * @param min_power The nominal minimum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational minimum power. */
+ double compute_operational_min_power( double nominal_min_power ,
+                                       double availability ) const {
+  if( availability > 0.0 )
+   return nominal_min_power;
+  return 0.0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the operational maximum power
+ /** This method computes the operational maximum power for the given nominal
+  * maximum power and availability.
+  *
+  * @param min_power The nominal maximum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational maximum power. */
+ double compute_operational_max_power( double nominal_max_power ,
+                                       double availability ) const {
+  return nominal_max_power * availability;
+ }
+
 };  // end( class( ThermalUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1161,12 +1488,12 @@ class ThermalUnitBlockMod : public Modification {
  enum TUBB_mod_type {
   eSetMaxP = 0 ,   ///< Set max power values
   eSetInitP    ,   ///< Set initial power values
-  eSetInitUD       ///< Set initial up/down times
+  eSetInitUD   ,   ///< Set initial up/down times
+  eSetAv           ///< Set availability
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock,
-                      const int type )
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing

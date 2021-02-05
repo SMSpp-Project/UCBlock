@@ -39,6 +39,8 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -185,7 +187,7 @@ class IntermittentUnitBlock : public UnitBlock {
  *
  *   */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the IntermittentUnitBlock
@@ -241,6 +243,16 @@ class IntermittentUnitBlock : public UnitBlock {
  *   \f]
  *   */
  void generate_abstract_constraints( Configuration *stcc ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the IntermittentUnitBlock
+/** Method that generates the objective of the IntermittentUnitBlock.
+ *
+ * - Objective function: the objective function of the IntermittentUnitBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
@@ -315,7 +327,7 @@ class IntermittentUnitBlock : public UnitBlock {
 
  double * get_inertia_power( Index generator)
   override {
-  return( v_inertia_power.data() + generator * f_time_horizon );
+  return & ( v_inertia_power.front() );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -381,7 +393,7 @@ class IntermittentUnitBlock : public UnitBlock {
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -414,7 +426,7 @@ class IntermittentUnitBlock : public UnitBlock {
  double f_kappa = 0;
 
  /// the matrix of inertia power of generators
- boost::multi_array< double , 2 > v_inertia_power;
+ std::vector< double >  v_inertia_power;
 /*-----------------------------variables------------------------------------*/
  /// the active power variables
  std::vector< ColVariable > v_active_power;
@@ -432,16 +444,31 @@ class IntermittentUnitBlock : public UnitBlock {
  std::vector< FRowConstraint > MaxPower_Constraints;
 
 /// the active power bounds constraints
- std::vector< FRowConstraint > active_power_bounds_Constraints;
+ std::vector< BoxConstraint > active_power_bounds_Constraints;
+
+ /// the objective function
+ FRealObjective objective;
 
  static void static_initialization() {
-  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-                                            &IntermittentUnitBlock::set_maximum_power,
-                                            MS_dbl_sbst::args() );
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+  //                                           &IntermittentUnitBlock::set_maximum_power,
+  //                                           MS_dbl_sbst::args() );
+  //
+  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+  //                                           &IntermittentUnitBlock::set_maximum_power,
+  //                                           MS_dbl_rngd::args() );
+  register_method< IntermittentUnitBlock, MF_dbl_it, Subset &&, const bool >(
+   "IntermittentUnitBlock::set_maximum_power",
+   &IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-                                            &IntermittentUnitBlock::set_maximum_power,
-                                            MS_dbl_rngd::args() );
+  register_method< IntermittentUnitBlock, MF_dbl_it, Range >(
+   "IntermittentUnitBlock::set_maximum_power",
+   &IntermittentUnitBlock::set_maximum_power );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -93,11 +93,21 @@ class NetworkBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * NetworkBlock defines a main public type:
+ * NetworkBlock defines two main public types:
+ *
+ * - line_type, an enum defining the types of lines present in the network.
  *
  * - NetworkData, a small auxiliary class to bunch together the basic data
  *   (topology and electrical characteristics) of the transmission network.
  *  @{ */
+
+ /// public enum for defining the types of lines of the network
+ enum line_type {
+  kNone = 0 ,  ///< no line
+  kAC ,        ///< AC lines
+  kHVDC ,      ///< HVDC lines
+  kAC_HVDC     ///< AC and HVDC lines
+  };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
@@ -188,12 +198,12 @@ class NetworkBlock : public Block {
  *   corresponding line i. Note that this variable is optional, for each line
  *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
  *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
- *   model with AC liens, and when for each line l, it's not defined or S[ l ]
+ *   model with AC lines, and when for each line l, it's not defined or S[ l ]
  *   == 0, then it corresponds to a single connected grid composed of HVDC
  *   lines only which is also known as the Net Transfer Capacity (NTC)
  *   model.*/
-  
-  virtual void deserialize( netCDF::NcGroup & group );
+
+  virtual void deserialize( const netCDF::NcGroup & group );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -213,7 +223,7 @@ class NetworkBlock : public Block {
  * node). */
 
   Index get_number_lines() const { return( f_number_lines ); }
- 
+
 /*--------------------------------------------------------------------------*/
 /// returns the vector of start lines
 /** Method for returning the vector of starting point of each line. This
@@ -292,10 +302,30 @@ class NetworkBlock : public Block {
  *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
  *    element of the vectors gives the Susceptance value for each line in the
  *    network. */
-  
+
   const std::vector< double > & get_susceptance() const {
    return v_susceptance;
    }
+
+/*--------------------------------------------------------------------------*/
+/// returns the types of lines in the network
+/** This method returns the types of lines present in the network. */
+
+  line_type get_lines_type() const {
+
+   if( get_number_lines() == 0 )
+    return kNone;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s == 0.0; } ) )
+    return kHVDC;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s != 0.0; } ) )
+    return kAC;
+
+   return kAC_HVDC;
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -394,7 +424,7 @@ class NetworkBlock : public Block {
  *   describing the NetworkBlock to be optional [see the comments to
  *   UCBlock::deserialize()]. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the static variables of NetworkBlock
@@ -402,7 +432,7 @@ class NetworkBlock : public Block {
  * base NetworkBlock class has just the node injection variables, which are
  * mandatory as that's how the NetworkBlock is linked to the rest of the UC
  * model. The size of this variable is the number of nodes, which can be
- * read 
+ * read
  *
  * - if NetworkData object is not provided (basically, "NumberNodes" is not
  *   provided or it is == 1) then the transmission network is taken to have
@@ -560,6 +590,41 @@ class NetworkBlock : public Block {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ *  @{ */
+ /// returns a Solution representing the current solution of this NetworkBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this NetworkBlock. The base
+  * NetworkBlock class defaults to ColVariableSolution, RowConstraintSolution,
+  * and ColRowSolution, but :NetworkBlock may make different choices.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value. If this value is
+  *
+  * - 1, then a RowConstraintSolution is returned;
+  *
+  * - 2, then a ColRowSolution is returned;
+  *
+  * - any other value, then a ColVariable Solution is returned.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkBlock
@@ -578,7 +643,7 @@ class NetworkBlock : public Block {
 
  virtual void set_active_demand( std::vector< double >::const_iterator values,
                                  Subset && subset,
-                                 bool ordered,
+                                 const bool ordered,
                                  c_ModParam issuePMod,
                                  c_ModParam issueAMod ) = 0;
 
@@ -587,7 +652,33 @@ class NetworkBlock : public Block {
                                  c_ModParam issuePMod,
                                  c_ModParam issueAMod ) = 0;
 
+/*--------------------------------------------------------------------------*/
+/*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// states that the Variable of the NetworkBlock have been generated
+ void set_variables_generated() { AR |= HasVar; }
+
+ /// states that the Constraint of the NetworkBlock have been generated
+ void set_constraints_generated() { AR |= HasCst; }
+
+ /// states that the Objective of the NetworkBlock has been generated
+ void set_objective_generated() { AR |= HasObj; }
+
+ /// indicates whether the Variable of the NetworkBlock have been generated
+ bool variables_generated() const { return( AR & HasVar ); }
+
+ /// indicates whether the Constraint of the NetworkBlock have been generated
+ bool constraints_generated() const { return( AR & HasCst ); }
+
+ /// indicates whether the Objective of the NetworkBlock has been generated
+ bool objective_generated() const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -599,12 +690,24 @@ class NetworkBlock : public Block {
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
 
+/*--------------------------------------------------------------------------*/
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PRIVATE FIELDS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
  unsigned char AR{}; ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed
  static constexpr unsigned char HasCst = 2;
- ///< third bit of AR == 1 if the Constraints have been constructed
+ ///< second bit of AR == 1 if the Constraints have been constructed
+ static constexpr unsigned char HasObj = 4;
+ ///< third bit of AR == 1 if the Objective has been constructed
 
 /*--------------------------------------------------------------------------*/
 

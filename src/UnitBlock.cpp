@@ -42,6 +42,9 @@
 
 #include "UCBlock.h"
 #include "UnitBlock.h"
+#include "RowConstraintSolution.h"
+#include "ColRowSolution.h"
+#include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -67,7 +70,7 @@ UnitBlock::UnitBlock( Block * father_block, UnitBlock::Index t )
  f_number_intervals = 0;
 }
 
-void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -100,7 +103,7 @@ void UnitBlock::deserialize_time_horizon( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
@@ -144,7 +147,7 @@ void UnitBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( netCDF::NcGroup & group ) {
+void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
  // deserialize_time_horizon( group );
  // deserialize_change_intervals( group );
 
@@ -154,6 +157,38 @@ void UnitBlock::deserialize( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * UnitBlock::get_Solution( Configuration * csolc, bool emptys )
+{
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast<SimpleConfiguration< int > *>(
+          f_BlockConfig->f_solution_Configuration );
+
+ auto solution_type = config ? config->f_value : 0;
+
+ Solution * sol = nullptr;
+ switch( solution_type ) {
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/

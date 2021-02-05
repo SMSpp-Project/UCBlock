@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 11 - 10 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -37,7 +37,9 @@
 
 #include "Block.h"
 #include "FRowConstraint.h"
+#include "OneVarConstraint.h"
 #include "NetworkBlock.h"
+#include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -228,6 +230,16 @@ class DCNetworkBlock : public NetworkBlock {
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
 
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the DCNetworkBlock
+/** Method that generates the objective of the DCNetworkBlock.
+ *
+ * - Objective function: the objective function of the DCNetworkBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+  void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
 /*--------------------------------------------------------------------------*/
@@ -261,19 +273,54 @@ class DCNetworkBlock : public NetworkBlock {
  *
  * @{ */
 
-/// returns the vector of power flow variables
-/** The returned std::vector< ColVariable >, say F, contains the power flow
- * variables and is indexed over the dimension number of lines. There are two
- * possible cases:
- *
- * - if F is empty(), then this variable is not defined;
- *
- * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
- *   variable for line l.
- *   */
+ /// returns the vector of power flow variables
+ /** The returned std::vector< ColVariable >, say F, contains the power flow
+  * variables and is indexed over the dimension number of lines. There are two
+  * possible cases:
+  *
+  * - if F is empty(), then this variable is not defined;
+  *
+  * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
+  *   variable for line l.
+  *   */
 
-  const std::vector< ColVariable > & get_power_flow( ) const {
-   return v_power_flow;
+ const std::vector< ColVariable > & get_power_flow( ) const {
+  return v_power_flow;
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Constraint of the DCNetworkBlock
+ *
+ * @{ */
+
+ /// returns the vector of power flow limit constraints
+ /** This function returns a const reference to the vector of power flow limit
+  * constraints. The i-th element of this vector is a FRowConstraint for the
+  * i-th line of the network. */
+
+ const std::vector< FRowConstraint > &
+ get_power_flow_limit_constraints( ) const {
+  if( ! f_NetworkData )
+   throw( std::logic_error( "DCNetworkBlock:get_power_flow_limit_constraints:"
+                            " NetworkData has not been set." ) );
+
+  switch( f_NetworkData->get_lines_type() ) {
+   case( kAC ):
+    return v_AC_power_flow_limit_constraints;
+   case( kAC_HVDC ):
+   default:
+    return v_AC_HVDC_power_flow_limit_constraints;
+  }
+ }
+
+  const std::vector< BoxConstraint > &
+  get_power_flow_limit_HVDC_bounds( ) const {
+   if( ! f_NetworkData )
+    throw( std::logic_error("DCNetworkBlock:get_power_flow_limit_HVDC_bounds:"
+                             " NetworkData has not been set." ) );
+     return v_HVDC_power_flow_limit_constraints;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -312,7 +359,7 @@ class DCNetworkBlock : public NetworkBlock {
 
   void set_active_demand( std::vector< double >::const_iterator values,
                           Subset && subset,
-                          bool ordered = false,
+                          const bool ordered = false,
                           c_ModParam issuePMod = eNoBlck,
                           c_ModParam issueAMod = eNoBlck ) final;
 
@@ -322,13 +369,26 @@ class DCNetworkBlock : public NetworkBlock {
                           c_ModParam issueAMod = eNoBlck ) final;
 
   static void static_initialization() {
-   register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-                                      &DCNetworkBlock::set_active_demand,
-                                      MS_dbl_sbst::args() );
+   /*!!
+    * Not all C++ compilers enjoy the template wizardry behing the three-args
+    * version of register_method<> with the compact MS_*_*::args(), so we just
+    * use the slightly less compact one with the explicit argument and be done
+    * with it. !!*/
+   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   //                                    &DCNetworkBlock::set_active_demand,
+   //                                    MS_dbl_sbst::args() );
+   //
+   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   //                                    &DCNetworkBlock::set_active_demand,
+   //                                    MS_dbl_rngd::args() );
 
-   register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-                                      &DCNetworkBlock::set_active_demand,
-                                      MS_dbl_rngd::args() );
+   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
+    "DCNetworkBlock::set_active_demand",
+    &DCNetworkBlock::set_active_demand );
+
+   register_method< DCNetworkBlock, MF_dbl_it, Range >(
+    "DCNetworkBlock::set_active_demand",
+    &DCNetworkBlock::set_active_demand );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -346,28 +406,37 @@ class DCNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
-  /// the NetworkData object
-  NetworkBlock::NetworkData * f_NetworkData;
 
-  /// true if the NetworkData object has not been passed from outside
-  bool f_local_NetworkData;
+ /// the NetworkData object
+ NetworkBlock::NetworkData * f_NetworkData;
+
+ /// true if the NetworkData object has not been passed from outside
+ bool f_local_NetworkData;
 
 /*-----------------------------variables------------------------------------*/
+
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;
 
 /*----------------------------constraints-----------------------------------*/
-  /// AC power flow limit constraints
-  std::vector<FRowConstraint> v_AC_power_flow_limit_constraints;
 
-  /// HVDC power flow limit constraints
-  std::vector<FRowConstraint> v_HVDC_power_flow_limit_constraints;
+ /// AC power flow limit constraints
+ std::vector<FRowConstraint> v_AC_power_flow_limit_constraints;
 
-  /// HVDC power flow and node injection constraints
-  std::vector<FRowConstraint> v_power_flow_injection_constraints;
+ /// HVDC power flow limit constraints
+ std::vector<BoxConstraint> v_HVDC_power_flow_limit_constraints;
 
-  /// AC_HVDC power flow constraints
-  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
+ /// AC_HVDC power flow limit constraints
+ std::vector<FRowConstraint> v_AC_HVDC_power_flow_limit_constraints;
+
+ /// HVDC power flow and node injection constraints
+ std::vector<FRowConstraint> v_power_flow_injection_constraints;
+
+ /// AC_HVDC power flow constraints
+ std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
+
+  /// the objective function
+  FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

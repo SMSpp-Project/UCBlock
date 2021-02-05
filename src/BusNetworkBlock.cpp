@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 01 - 07 - 2019
+ * \date 30 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,6 +43,8 @@
 #include <map>
 #include "NetworkBlock.h"
 #include "BusNetworkBlock.h"
+#include "LinearFunction.h"
+#include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -69,7 +71,7 @@ SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( AR & HasVar )
+ if( variables_generated() )
   return; // variables have already been generated
 
  // In BusNetworkBlock, number_nodes = 1
@@ -79,9 +81,45 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  v_node_injection[ 0 ].set_type( ColVariable::kContinuous );
  add_static_variable( v_node_injection[ 0 ], "S");
 
- AR |= HasVar;
+ set_variables_generated();
 }
 
+/*--------------------------------------------------------------------------*/
+void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc ) {
+
+ if( constraints_generated())
+  return; // constraints have already been generated
+
+ // the node injection bound constraints
+ NodeInjection_bound_Constraints.resize( 1 );
+ auto active_demand = get_active_demand()[ 0 ];
+ NodeInjection_bound_Constraints[ 0 ].set_lhs( active_demand );
+ NodeInjection_bound_Constraints[ 0 ].set_rhs( active_demand );
+ NodeInjection_bound_Constraints[ 0 ].set_variable(&v_node_injection[0]);
+
+ add_static_constraint( NodeInjection_bound_Constraints,
+                        "NodeInjection_bound_BusNetwork" );
+}
+
+/*--------------------------------------------------------------------------*/
+void BusNetworkBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+
+ objective.set_function( linear_function );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( BusNetworkBlock::generate_objective )
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -124,7 +162,7 @@ void BusNetworkBlock::set_active_demand(
 
   v_active_demand[ 0 ] = *values ;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // Change the abstract representation
 
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
@@ -171,7 +209,7 @@ void BusNetworkBlock::set_active_demand(
 
   v_active_demand[ 0 ] = *values ;
 
-  if( not_dry_run( issueAMod ) && AR & HasVar ) {
+  if( not_dry_run( issueAMod ) && variables_generated() ) {
    // Change the abstract representation
 
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );

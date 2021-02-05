@@ -47,6 +47,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "NetworkBlock.h"
+#include "OneVarConstraint.h"
+#include "FRealObjective.h"
+
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -118,13 +121,33 @@ class BusNetworkBlock : public NetworkBlock {
 
  void generate_abstract_variables( Configuration * stvv ) override;
 
+
+/*--------------------------------------------------------------------------*/
+/// Generate the static constraint of the BusNetworkBlock
+/** This method generates the abstract constraints of the BusNetworkBlock.
+ * Since the node injection variable is fixed to the active demand value, it
+ * must be a BoxConstraint for that variable whose lower and upper bounds are
+ * equal to the active demand value.
+ */
+ void generate_abstract_constraints( Configuration *stcc ) override;
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the BusNetworkBlock
+/** Method that generates the objective of the BusNetworkBlock.
+ *
+ * - Objective function: the objective function of the BusNetworkBlock
+ *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
  void set_active_demand( std::vector< double >::const_iterator values,
                          Subset && subset = { 0 },
-                         bool ordered = false,
+                         const bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck ) final;
 
@@ -134,13 +157,26 @@ class BusNetworkBlock : public NetworkBlock {
                          c_ModParam issueAMod = eNoBlck ) final;
 
  static void static_initialization() {
-  register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-                                      &BusNetworkBlock::set_active_demand,
-                                      MS_dbl_sbst::args() );
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+  //                                     &BusNetworkBlock::set_active_demand,
+  //                                     MS_dbl_sbst::args() );
+  //
+  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+  //                                     &BusNetworkBlock::set_active_demand,
+  //                                     MS_dbl_rngd::args() );
 
-  register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-                                      &BusNetworkBlock::set_active_demand,
-                                      MS_dbl_rngd::args() );
+  register_method< BusNetworkBlock, MF_dbl_it, Subset &&, const bool >(
+   "BusNetworkBlock::set_active_demand",
+   &BusNetworkBlock::set_active_demand );
+
+  register_method< BusNetworkBlock, MF_dbl_it, Range >(
+   "BusNetworkBlock::set_active_demand",
+   &BusNetworkBlock::set_active_demand );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -154,11 +190,13 @@ class BusNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
-
+ /// the objective function
+ FRealObjective objective;
 /*-----------------------------variables------------------------------------*/
 
 /*----------------------------constraints-----------------------------------*/
-
+ /// the node injection bound constraints
+ std::vector< BoxConstraint > NodeInjection_bound_Constraints;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

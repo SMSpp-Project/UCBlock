@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <vector>
 #include <getopt.h>
+#include <filesystem>
 
 #include <netcdf>
 #include <ncByte.h>
@@ -514,6 +515,7 @@ void serialize_thermalunit( netCDF::NcGroup & g, const ThermalUnit & unit ) {
 void serialize_hydrounit( netCDF::NcGroup & g, const HydroUnit & unit ) {
  serialize( g, "LinearTerm", netCDF::NcDouble(), unit.volumeToPower );
  serialize( g, "MaxFlow", netCDF::NcDouble(), unit.maxSpillage );
+ serialize( g, "MaxPower", netCDF::NcDouble(), (unit.maxUsage * unit.volumeToPower) );
  serialize( g, "InitialVolumetric", netCDF::NcDouble(), unit.initialFlood );
  serialize( g, "MinVolumetric", netCDF::NcDouble(), unit.minFlood );
  serialize( g, "MaxVolumetric", netCDF::NcDouble(), unit.maxFlood );
@@ -524,32 +526,46 @@ void serialize_hydrounit( netCDF::NcGroup & g, const HydroUnit & unit ) {
 
 /*--------------------------------------------------------------------------*/
 
-/// Prints usage information
-void print_help() {
- // http://docopt.org
- std::cout << "Usage: nc4generator <file>" << std::endl;
+
+std::string input_path{};     ///< Input file name
+std::string output_path{};    ///< Input file name
+bool verbose = false;         ///< If the tool should be verbose
+std::string exe{};            ///< Name of the executable file
+std::string docopt_desc{};    ///< Tool description
+
+/*--------------------------------------------------------------------------*/
+
+/// Gets the name of the executable from its full path
+std::string get_filename( const std::string & fullpath ) {
+ std::size_t found = fullpath.find_last_of( "/\\" );
+ return fullpath.substr( found + 1 );
 }
 
 /*--------------------------------------------------------------------------*/
 
-/// Input file name
-std::string filename{};
+/// Prints the tool description and usage
+void docopt() {
+ // http://docopt.org
+ std::cout << docopt_desc << std::endl;
+ std::cout << "Usage:\n"
+           << "  " << exe << " [-v] <input>\n"
+           << "  " << exe << " -h | --help\n"
+           << std::endl
+           << "Options:\n"
+           << "  -v, --verbose  Make the tool verbose.\n"
+           << "  -h, --help     Print this help.\n";
+}
 
 /*--------------------------------------------------------------------------*/
 
 /// Processes command line arguments
 void process_args( int argc, char ** argv ) {
- // It doesn't do much, but it's extendable
 
- if( argc < 2 ) {
-  print_help();
-  exit( 1 );
- }
-
- const char * const short_opts = "h";
+ const char * const short_opts = "vh";
  const option long_opts[] = {
-  { "help",  no_argument, nullptr, 'h' },
-  { nullptr, no_argument, nullptr, 0 }
+  { "verbose", no_argument, nullptr, 'v' },
+  { "help",    no_argument, nullptr, 'h' },
+  { nullptr,   no_argument, nullptr, 0 }
  };
 
  // Options
@@ -559,23 +575,26 @@ void process_args( int argc, char ** argv ) {
   if( -1 == opt ) {
    break;
   }
-
   switch( opt ) {
-   case 'h': // -h or --help
-    print_help();
+   case 'v':
+    verbose = true;
+    break;
+   case 'h':
+    docopt();
     exit( 0 );
-   case '?': // Unrecognized option
+   case '?':
    default:
-    print_help();
+    std::cout << "Try " << exe << "' --help' for more information.\n";
     exit( 1 );
   }
  }
 
  // Last argument
  if( optind < argc ) {
-  filename = std::string( argv[ optind ] );
+  input_path = std::string( argv[ optind ] );
  } else {
-  print_help();
+  std::cout << exe << ": no input file\n"
+            << "Try " << exe << "' --help' for more information.\n";
   exit( 1 );
  }
 }
@@ -586,24 +605,29 @@ void process_args( int argc, char ** argv ) {
 
 int main( int argc, char ** argv ) {
 
+ // Manage options and help
+ docopt_desc = "NC4 Thermal Unit generator.\n";
+ exe = get_filename( argv[ 0 ] );
  process_args( argc, argv );
 
- std::ifstream inputFile( filename );
- if( !inputFile.is_open() ) {
-  std::cerr << "Error: cannot open file " << filename << std::endl;
-  return 1;
+ // // Check if input file exists
+ // if (!std::filesystem::exists(input_path)) {
+ //  std::cerr << exe << ": cannot open file " << input_path << std::endl;
+ //  exit( 1 );
+ // }
+
+ // Check if input file can be opened
+ std::ifstream input_file( input_path );
+ if( !input_file.is_open() ) {
+  std::cerr << exe << ": cannot open file " << input_path << std::endl;
+  exit( 1 );
  }
 
- if( filename.size() < 5 ) {
-  std::cerr << "Error: File name is too short" << std::endl;
-  inputFile.close();
-  return 1;
- }
-
- std::string ext = filename.substr( filename.size() - 4, 4 );
+ std::string ext = input_path.substr( input_path.size() - 4, 4 );
  std::string dat( ".dat" );
  std::string mod( ".mod" );
 
+ // Check input file type
  if( std::equal( ext.begin(), ext.end(), dat.begin(),
                  []( auto a, auto b ) {
                   return ( std::tolower( a ) == std::tolower( b ) );
@@ -616,24 +640,36 @@ int main( int argc, char ** argv ) {
   type = ftMod;
  } else {
   std::cerr << "Error: Supported file formats are: dat, mod." << std::endl;
-  inputFile.close();
+  input_file.close();
   return 1;
  }
 
- filename.erase( filename.size() - 4, 4 );
- filename.append( ".nc4" );
-
+ // Read input file
  if( type == ftDat ) {
-  inputFile >> dat_file;
+  // Read DAT file
+  input_file >> dat_file;
   dat_file.generate_bc( b, c );
-  std::cout << dat_file;
- } else { // type == ftMod
-  inputFile >> mod_file;
-  std::cout << mod_file;
- }
- inputFile.close();
 
- netCDF::NcFile f( filename, netCDF::NcFile::replace );
+  if (verbose) {
+   std::cout << dat_file;
+  }
+
+ } else { // type == ftMod
+  // Read MOD file
+  input_file >> mod_file;
+
+  if (verbose) {
+   std::cout << mod_file;
+  }
+ }
+
+ // Generate output
+ input_file.close();
+ output_path = input_path;
+ output_path.erase( output_path.size() - 4, 4 );
+ output_path.append( ".nc4" );
+
+ netCDF::NcFile f( output_path, netCDF::NcFile::replace );
  f.putAtt( "SMS++_file_type", netCDF::NcInt(), eBlockFile );
 
  if( type == ftDat ) {
@@ -677,7 +713,8 @@ int main( int argc, char ** argv ) {
    ug.putAtt( "type", "HydroUnitBlock" );
    serialize_hydrounit( ug, mod_file.hydro_units[ i ] );
   }
-
  }
+
+ std::cout << "Output written on " << output_path << std::endl;
  return 0;
 }

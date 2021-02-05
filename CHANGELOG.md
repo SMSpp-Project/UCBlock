@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2020-05-02
+
+### Fixed
+
+- Too many fixes to list.
+
 ## [0.4.1] - 2020-09-16
 
 ### Fixed
@@ -54,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.5.0...develop
+[0.5.0]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...0.5.0
 [0.4.1]: https://gitlab.com/smspp/ucblock/-/compare/0.4.0...0.4.1
 [0.4.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.1...0.4.0
 [0.3.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.0...0.3.1

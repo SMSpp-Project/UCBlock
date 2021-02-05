@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 19 - 11 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -39,6 +39,8 @@
 #include "Block.h"
 #include "PolyhedralFunctionBlock.h"
 #include "HydroUnitBlock.h"
+#include "FRealObjective.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -185,7 +187,21 @@ class HydroSystemUnitBlock : public UnitBlock {
  * above mapping. See PolyhedralFunction::deserialize() for details about
  * how the data must be stored in the PolyhedralFunctionBlock group. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// generate the objective of the HydroSystemUnitBlock
+/** Method that generates the objective of the HydroSystemUnitBlock.
+ *
+ * - Objective function: the objective function of the HydroSystemUnitBlock is
+ *   "empty" (a FRealObjective with a LinearFunction inside with no active
+ *   variables) */
+
+ void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
@@ -203,7 +219,15 @@ class HydroSystemUnitBlock : public UnitBlock {
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of active_power variables of each HydroUnitBlock
+
+ /// Returns the PolyhedralFunctionBlock
+ PolyhedralFunctionBlock * get_polyhedral_function_block() const {
+  assert( ! v_Block.empty() );
+  return static_cast< PolyhedralFunctionBlock * >( v_Block.back() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of active power variables of each HydroUnitBlock
 
  ColVariable * get_active_power( Index generator ) override {
   auto temp = generator;
@@ -218,6 +242,41 @@ class HydroSystemUnitBlock : public UnitBlock {
   }
   return nullptr;
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
+
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_primary_spinning_reserve( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary spinning reserve variables of each HydroUnitBlock
+
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_secondary_spinning_reserve( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
+ }
+
 /*--------------------------------------------------------------------------*/
 
  virtual Index get_number_generators( void ) const override {
@@ -227,6 +286,22 @@ class HydroSystemUnitBlock : public UnitBlock {
     number_generators += unit_block->get_number_generators();
   }
   return number_generators;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ double * get_inertia_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks()) {
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block )) {
+    if( temp < unit_block->get_number_generators()) {
+     return unit_block->get_inertia_power( temp );
+    } else {
+     temp = temp - unit_block->get_number_generators();
+    }
+   }
+  }
+  return nullptr;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -271,6 +346,9 @@ class HydroSystemUnitBlock : public UnitBlock {
 /*--------------------------------data--------------------------------------*/
  /// The number of hydro units of the problem
  Index f_number_hydro_units;
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

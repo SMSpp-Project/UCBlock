@@ -38,6 +38,9 @@
 #include <map>
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
+#include "RowConstraintSolution.h"
+#include "ColRowSolution.h"
+#include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -58,17 +61,12 @@ NetworkBlock::NetworkData::NetworkData() {
  f_number_nodes = 0;
 }
 
-void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
+void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = { "NumberNodes",
                                               "NumberLines"};
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] NetworkData::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "StartLine",
                                               "EndLine",
                                               "MinPowerFlow",
@@ -99,17 +97,12 @@ void NetworkBlock::NetworkData::deserialize( netCDF::NcGroup & group ) {
 }
 
 /*--------------------------------------------------------------------------*/
-void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
+void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 
 #ifndef NDEBUG
- std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Dims"
-           << std::endl;
  std::vector< std::string > expected_dims = {"NumberNodes"};
  check_dimensions( group, expected_dims, std::cerr );
-
- std::cerr << "[DEBUG] NetworkBlock::deserialize() - Checking Vars"
-           << std::endl;
  std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group, expected_vars, std::cerr );
 #endif
@@ -123,6 +116,37 @@ void NetworkBlock::deserialize( netCDF::NcGroup & group ) {
  Block::deserialize( group );
 }
 
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * NetworkBlock::get_Solution( Configuration * csolc, bool emptys )
+{
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast<SimpleConfiguration< int > *>(
+          f_BlockConfig->f_solution_Configuration );
+
+ auto solution_type = config ? config->f_value : 0;
+
+ Solution * sol = nullptr;
+ switch( solution_type ) {
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+}
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

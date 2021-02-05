@@ -35,6 +35,7 @@
 
 #ifndef __SlackUnitBlock
 #define __SlackUnitBlock
+
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -44,6 +45,7 @@
 #include "OneVarConstraint.h"
 #include "UnitBlock.h"
 #include "FRealObjective.h"
+#include "FRowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
@@ -236,13 +238,13 @@ class SlackUnitBlock : public UnitBlock {
  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
  *   require "ChangeIntervals", which in fact is not loaded. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the SlackUnitBlock
 /** The SlackUnitBlock class has several different variables which are:
  *
- *  - the binary commitment variables which takes the continues values between
+ *  - the commitment variables which takes the continues values between
  *    1 and zero.
  *
  *  - the primary spinning reserve variables;
@@ -443,7 +445,7 @@ class SlackUnitBlock : public UnitBlock {
 
  double * get_inertia_commitment( Index generator )
  override {
-  return & ( v_inertia_commitment.front() );
+  return & ( v_MaxInertia.front() );
  }
 /*--------------------------------------------------------------------------*/
 /// returns the vector of inertia cost
@@ -559,9 +561,6 @@ class SlackUnitBlock : public UnitBlock {
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
 
- /// the vector of inertia commitment of generator
- std::vector< double > v_inertia_commitment;
-
  /*-----------------------------variables------------------------------------*/
  /// the commitment variables
  std::vector< ColVariable > v_commitment;
@@ -574,6 +573,20 @@ class SlackUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
+/*----------------------------constraints-----------------------------------*/
+
+ /// the active power bound constraints
+ std::vector< LB0Constraint > ActivePower_Bound_Constraints;
+
+ /// the primary spinning reserve bound constraints
+ std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Constraints;
+
+ /// the secondary spinning reserve bound constraints
+ std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Constraints;
+
+ /// the inertia variables bound constraints
+ std::vector< ZOConstraint > Inertia_Bound_Constraints;
 
  /// the objective function
  FRealObjective objective;
