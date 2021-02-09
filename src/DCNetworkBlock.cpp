@@ -235,13 +235,16 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_power_flow_auxiliary_variable_one_constraints.resize
              ( f_NetworkData->get_number_lines());
     }
-    auto linear_function = new LinearFunction();
 
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
          ++line_id ) {
+     auto linear_function = new LinearFunction();
+
      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
      linear_function->add_variable( &v_auxiliary_variable[line_id], 1.0 );
      v_power_flow_auxiliary_variable_one_constraints[line_id].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_one_constraints[line_id].set_rhs( Inf< double >() );
+
      v_power_flow_auxiliary_variable_one_constraints[line_id].set_function( linear_function );
     }
 
@@ -256,13 +259,16 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_power_flow_auxiliary_variable_two_constraints.resize
              ( f_NetworkData->get_number_lines());
     }
-    auto linear_f = new LinearFunction();
 
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
          ++line_id ) {
-     linear_function->add_variable( &v_power_flow[line_id], 1.0 );
-     linear_function->add_variable( &v_auxiliary_variable[line_id], 1.0 );
+
+     auto linear_f = new LinearFunction();
+
+     linear_f->add_variable( &v_power_flow[line_id], 1.0 );
+     linear_f->add_variable( &v_auxiliary_variable[line_id], 1.0 );
      v_power_flow_auxiliary_variable_two_constraints[line_id].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_two_constraints[line_id].set_rhs( Inf< double >() );
      v_power_flow_auxiliary_variable_two_constraints[line_id].set_function( linear_f );
     }
 
@@ -358,21 +364,21 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   if( get_objective() != nullptr )  // an objective is there already
    return;                         // cowardly (and silently) return
 
-  if( !f_NetworkData->get_network_cost().empty() ) { // empty objective function
-
-   auto linear_function = new LinearFunction();
-   objective.set_function( linear_function );
-  } else {
+  if( !f_NetworkData->get_network_cost().empty() ) {
 
    auto linear_function = new LinearFunction();
    for( Index l = 0; l < f_NetworkData->get_number_lines(); ++l ) {
     linear_function->add_variable( &v_auxiliary_variable[ l ] ,
-                                  f_NetworkData->get_network_cost()[l] ,
-                                  0.0 );
+                                   f_NetworkData->get_network_cost()[l] ,
+                                   0.0 );
     objective.set_function( linear_function );
     objective.set_sense( Objective::eMin );
 
    }
+
+  } else { // empty objective function
+   auto linear_function = new LinearFunction();
+   objective.set_function( linear_function );
   }
   // Set Block objective
   this->set_objective( &objective );
