@@ -71,7 +71,8 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
                                               "EndLine",
                                               "MinPowerFlow",
                                               "MaxPowerFlow",
-                                              "Susceptance" };
+                                              "Susceptance",
+                                              "NetworkCost"};
  check_variables( group, expected_vars, std::cerr );
 #endif
 
@@ -92,6 +93,9 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
   ::deserialize( group, "MaxPowerFlow", f_number_lines, v_max_power_flow, true, true );
 
   ::deserialize( group, "Susceptance", f_number_lines, v_susceptance, true, true );
+
+  ::deserialize( group, "NetworkCost", f_number_lines, v_network_cost, true, true );
+
  }
 
 }
@@ -174,6 +178,9 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 
   ::serialize( group, "Susceptance", netCDF::NcDouble(),
                { dim_number_lines }, v_susceptance );
+
+  ::serialize( group, "NetworkCost", netCDF::NcDouble(),
+               { dim_number_lines }, v_network_cost );
  }
 
 }

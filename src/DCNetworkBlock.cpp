@@ -74,6 +74,12 @@ DCNetworkBlock::~DCNetworkBlock() {
 
  for( auto & constraint : v_AC_HVDC_power_flow_constraints )
   constraint.clear();
+
+ for( auto & constraint : v_power_flow_auxiliary_variable_one_constraints)
+  constraint.clear();
+
+ for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints)
+  constraint.clear();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -102,9 +108,16 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
   v_power_flow.resize( number_lines );
   for( auto & var : v_power_flow )
    var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_power_flow, "f" );
- }
+  add_static_variable( v_power_flow, "F_power_flow" );
 
+  if( !f_NetworkData->get_network_cost().empty() ) {
+   // the auxiliary Variable
+   v_auxiliary_variable.resize( number_lines );
+   for( auto & var : v_auxiliary_variable )
+    var.set_type( ColVariable::kContinuous );
+   add_static_variable( v_auxiliary_variable, "V_auxiliary" );
+  }
+ }
  set_variables_generated();
 
 }
@@ -211,6 +224,52 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    add_static_constraint( v_power_flow_injection_constraints ,
                           "HVDC_power_flow_injection" );
+
+/*--------------------------------------------------------------------------*/
+   if( !f_NetworkData->get_network_cost().empty() ) {
+
+    if( v_power_flow_auxiliary_variable_one_constraints.size() !=
+        f_NetworkData->get_number_lines()) {
+
+     assert( v_power_flow_auxiliary_variable_one_constraints.empty());
+     v_power_flow_auxiliary_variable_one_constraints.resize
+             ( f_NetworkData->get_number_lines());
+    }
+    auto linear_function = new LinearFunction();
+
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+         ++line_id ) {
+     linear_function->add_variable( &v_power_flow[line_id], -1.0 );
+     linear_function->add_variable( &v_auxiliary_variable[line_id], 1.0 );
+     v_power_flow_auxiliary_variable_one_constraints[line_id].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_one_constraints[line_id].set_function( linear_function );
+    }
+
+    add_static_constraint( v_power_flow_auxiliary_variable_one_constraints,
+                           "power_flow_auxiliary_variable_one" );
+
+/*--------------------------------------------------------------------------*/
+    if( v_power_flow_auxiliary_variable_two_constraints.size() !=
+        f_NetworkData->get_number_lines()) {
+
+     assert( v_power_flow_auxiliary_variable_two_constraints.empty());
+     v_power_flow_auxiliary_variable_two_constraints.resize
+             ( f_NetworkData->get_number_lines());
+    }
+    auto linear_f = new LinearFunction();
+
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+         ++line_id ) {
+     linear_function->add_variable( &v_power_flow[line_id], 1.0 );
+     linear_function->add_variable( &v_auxiliary_variable[line_id], 1.0 );
+     v_power_flow_auxiliary_variable_two_constraints[line_id].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_two_constraints[line_id].set_function( linear_f );
+    }
+
+    add_static_constraint( v_power_flow_auxiliary_variable_two_constraints,
+                           "power_flow_auxiliary_variable_two" );
+
+   }
   } // end HVDC_Lines constraints
 /*--------------------------------------------------------------------------*/
 // TODO implementation of AC and AC-HVDC lines is not ready
@@ -285,18 +344,53 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
- if( objective_generated() )
-  return; // Objective has already been generated
+// Initial check on network
 
- if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
+ auto lines_type = f_NetworkData->get_lines_type();
 
- auto linear_function = new LinearFunction();
+/*--------------------------------------------------------------------------*/
 
- objective.set_function( linear_function );
+ if( lines_type == kHVDC ) {   // HVDC power flow limit
 
- // Set Block objective
- this->set_objective( &objective );
+  if( objective_generated())
+   return; // Objective has already been generated
+
+  if( get_objective() != nullptr )  // an objective is there already
+   return;                         // cowardly (and silently) return
+
+  if( !f_NetworkData->get_network_cost().empty() ) { // empty objective function
+
+   auto linear_function = new LinearFunction();
+   objective.set_function( linear_function );
+  } else {
+
+   auto linear_function = new LinearFunction();
+   for( Index l = 0; l < f_NetworkData->get_number_lines(); ++l ) {
+    linear_function->add_variable( &v_auxiliary_variable[ l ] ,
+                                  f_NetworkData->get_network_cost()[l] ,
+                                  0.0 );
+    objective.set_function( linear_function );
+    objective.set_sense( Objective::eMin );
+
+   }
+  }
+  // Set Block objective
+  this->set_objective( &objective );
+ }
+// TODO The implementation of objective function for AC and AC-HVDC lines is
+//  not ready
+
+ if( lines_type == kAC ) {    // AC power flow limit
+
+  //TODO
+ }
+
+ if( lines_type == kAC_HVDC ) { // AC-HVDC power flow limit
+
+  //TODO
+
+ }
+
 
  set_objective_generated();
 
