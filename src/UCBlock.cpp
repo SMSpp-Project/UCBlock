@@ -145,13 +145,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  #ifndef NDEBUG
   static std::vector< std::string > expected_dims = { "TimeHorizon" ,
    "NumberUnits" , "NumberHeatBlocks" , "NumberPrimaryZones" ,
-   "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" };
+   "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
+   "NumberNodes" , "NumberLines" , "NumberElectricalGenerators" };
   check_dimensions( group , expected_dims , std::cerr );
   static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
    "GeneratorNode" , "HeatNode" , "HeatSet", "PowerHeatRho" , "PrimaryZones" ,
    "PrimaryDemand" , "SecondaryZones" , "SecondaryDemand" , "InertiaZones" ,
    "InertiaDemand" , "NumberPollutantZones" , "PollutantZones" ,
-   "PollutantBudget" , "PollutantRho" };
+   "PollutantBudget" , "PollutantRho" , "StartLine" , "EndLine" ,
+   "MinPowerFlow" , "MaxPowerFlow" , "Susceptance" , "NetworkCost" };
   check_variables( group, expected_vars, std::cerr );
  #endif
 
