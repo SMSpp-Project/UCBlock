@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 15 - 02 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -485,6 +485,27 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current maximum power
+ /** This function updates the right-hand side of the "maximum power" and the
+  * "active power bounds" constraints associated with the time instants given
+  * in \p time. */
+
+ void update_max_power_in_constraints( const Block::Subset & time ,
+                                       c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current maximum power
+ /** This function updates the right-hand side of the "maximum power" and the
+  * "active power bounds" constraints associated with the time instants given
+  * in \p time. */
+
+ void update_max_power_in_constraints( const Block::Range & time ,
+                                       c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
  /// Resize a vector to time_horizon by using change_intervals
  template< typename T > void decompress_vector( std::vector< T > & v );
 
