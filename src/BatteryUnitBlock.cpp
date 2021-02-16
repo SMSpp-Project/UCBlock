@@ -96,6 +96,8 @@ BatteryUnitBlock::~BatteryUnitBlock() {
   };
 
  clear_ZOConstraints( battery_binary_bound_Constraints );
+
+ objective.clear();
 }
 
 /*--------------------------------------------------------------------------*/

@@ -80,6 +80,10 @@ DCNetworkBlock::~DCNetworkBlock() {
 
  for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints)
   constraint.clear();
+
+
+  objective.clear();
+
 }
 
 /*--------------------------------------------------------------------------*/
