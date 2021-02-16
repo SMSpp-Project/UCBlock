@@ -86,6 +86,9 @@ HydroUnitBlock::~HydroUnitBlock() {
  clear_boxconstraints( FlowRateBounds_Const );
  clear_boxconstraints( VolumetricBounds_Const );
 
+
+ objective.clear();
+
 }
 
 /*--------------------------------------------------------------------------*/

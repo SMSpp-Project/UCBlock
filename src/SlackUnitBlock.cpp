@@ -54,6 +54,28 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
+SlackUnitBlock::~SlackUnitBlock() {
+ auto clear_LB0Constraints =
+         []( std::vector< LB0Constraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_LB0Constraints( Secondary_Spinning_Reserve_Bound_Constraints );
+ clear_LB0Constraints( Primary_Spinning_Reserve_Bound_Constraints );
+ clear_LB0Constraints( ActivePower_Bound_Constraints );
+
+ auto clear_ZOConstraints =
+         []( std::vector< ZOConstraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_ZOConstraints( Inertia_Bound_Constraints );
+
+ objective.clear();
+
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {

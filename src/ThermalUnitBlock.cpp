@@ -100,6 +100,9 @@ ThermalUnitBlock::~ThermalUnitBlock() {
          };
  clear_Boxconstraints(Commitment_fixed_to_One_Constraints);
 
+
+ objective.clear();
+
 }
 
 /*--------------------------------------------------------------------------*/

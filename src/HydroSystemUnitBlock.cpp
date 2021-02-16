@@ -49,15 +49,26 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
+/*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
+HydroSystemUnitBlock::~HydroSystemUnitBlock()  {
 
+ for( auto block : v_Block )
+  delete block;
+ v_Block.clear();
+
+ objective.clear();
+}
+
+
+/*--------------------------------------------------------------------------*/
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
  return dynamic_cast<HydroUnitBlock *>( v_Block[ i ] );
 }
 
 /*--------------------------------------------------------------------------*/
-
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
 void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG

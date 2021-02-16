@@ -97,7 +97,7 @@ class SlackUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock, it is empty
 
- virtual ~SlackUnitBlock() override = default;
+ virtual ~SlackUnitBlock() override ;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

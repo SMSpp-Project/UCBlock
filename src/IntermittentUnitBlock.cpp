@@ -66,6 +66,8 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
   constraint.clear();
  for( auto & constraint : active_power_bounds_Constraints )
   constraint.clear();
+
+ objective.clear();
 }
 
 /*--------------------------------------------------------------------------*/

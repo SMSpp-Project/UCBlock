@@ -105,11 +105,7 @@ class HydroSystemUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
  /// Destructor of HydroSystemUnitBlock
 
- virtual ~HydroSystemUnitBlock() override {
-  for( auto block : v_Block )
-   delete block;
-  v_Block.clear();
- }
+ virtual ~HydroSystemUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
