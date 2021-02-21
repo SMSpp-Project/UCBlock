@@ -34,7 +34,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SlackUnitBlock.h"
-#include "DQuadFunction.h"
+#include "LinearFunction.h"
 #include "FRealObjective.h"
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -290,52 +290,52 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  }
 
 
- auto dquad_function = new DQuadFunction();
+ auto linear_function = new LinearFunction();
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
   if ( ! v_active_power_cost.empty() ){
-   dquad_function->add_variable( &v_active_power[ t ],
+   linear_function->add_variable( &v_active_power[ t ],
                                  v_active_power_cost[ t ],
                                  0.0 );
   } else {
-   dquad_function->add_variable( &v_active_power[ t ],
+   linear_function->add_variable( &v_active_power[ t ],
                                  0.0,
                                  0.0 );
   }
 
   if (! v_primary_cost.empty()) {
 
-   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
+   linear_function->add_variable( &v_primary_spinning_reserve[ t ],
                                  v_primary_cost[ t ],
                                  0.0 );
   } else{
-   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
+   linear_function->add_variable( &v_primary_spinning_reserve[ t ],
                                  0.0,
                                  0.0 );
   }
   if (! v_secondary_cost.empty() ){
-   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
+   linear_function->add_variable( &v_secondary_spinning_reserve[ t ],
                                  v_secondary_cost[ t ],
                                  0.0 );
   } else{
-   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
+   linear_function->add_variable( &v_secondary_spinning_reserve[ t ],
                                  0.0,
                                  0.0 );
   }
 
   if (! v_inertia_cost.empty() && ! v_MaxInertia.empty() ) {
-   dquad_function->add_variable( &v_commitment[ t ],
+   linear_function->add_variable( &v_commitment[ t ],
                                  v_inertia_cost[ t ] * v_MaxInertia[ t ],
                                  0.0 );
   } else{
-   dquad_function->add_variable( &v_commitment[ t ],
+   linear_function->add_variable( &v_commitment[ t ],
                                  0.0,
                                  0.0 );
   }
 
  }
- objective.set_function( dquad_function );
+ objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
