@@ -35,7 +35,6 @@
 #include <random>
 #include <map>
 
-#include "DQuadFunction.h"
 #include "FRealObjective.h"
 #include "LinearFunction.h"
 #include "BatteryUnitBlock.h"
@@ -644,19 +643,19 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
           ( "BatteryUnitBlock::generate_objective: v_outtake_level must have "
             "size equal to the time horizon." ));
  }
-  auto dquad_function = new DQuadFunction();
+  auto linear_function = new LinearFunction();
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
-   dquad_function->add_variable( &v_intake_level[ t ],
+   linear_function->add_variable( &v_intake_level[ t ],
                                  cost[ t  ],
                                  0.0 );
 
-   dquad_function->add_variable( &v_outtake_level[ t ],
+   linear_function->add_variable( &v_outtake_level[ t ],
                                  cost[ t  ],
                                  0.0 );
   }
 
- objective.set_function( dquad_function );
+ objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
