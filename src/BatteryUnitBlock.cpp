@@ -165,6 +165,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
+ auto battery_type = get_battery_type();
 
  if( variables_generated() )
   return; // variables have already been generated
@@ -205,7 +206,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
   else
    var.set_type( ColVariable::kBinary );
  }
- if (!v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty()) {
+ if ( battery_type == Binary_Variables_Constraints ) {
+
   add_static_variable( v_battery_binary, "BB_battery" );
  }
   // Active Power Variable
@@ -237,6 +239,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
+ auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
@@ -500,7 +503,7 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
  // Initializing intake_binary_Constraints
 
-  if (!v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty()){
+ if ( battery_type == Binary_Variables_Constraints ) {
 
   intake_binary_Constraints.resize( f_time_horizon );
 
@@ -517,14 +520,12 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    intake_binary_Constraints[t].set_function( linear_function );
 
   }
- }
+
  add_static_constraint( intake_binary_Constraints, "Intake_Binary_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
  // Initializing outtake_binary_Constraints
-
- if (!v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty()){
   outtake_binary_Constraints.resize( f_time_horizon );
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
@@ -540,8 +541,8 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    outtake_binary_Constraints[t].set_function( linear_function );
 
   }
+  add_static_constraint( outtake_binary_Constraints, "Outtake_Binary_Constraints_Battery" );
  }
- add_static_constraint( outtake_binary_Constraints, "Outtake_Binary_Constraints_Battery" );
 /*--------------------------------------------------------------------------*/
 
   // Initializing primary_upper_bound_Constraints
@@ -584,17 +585,18 @@ if (!v_maximum_secondary_rho.empty()) {
 }
 
 /*-------------------------------ZOConstraint-------------------------------*/
+ if ( battery_type == Binary_Variables_Constraints ) {
 
   if( generate_ZOConstraint ) {
    // the battery binary bound constraints
    battery_binary_bound_Constraints.resize( f_time_horizon );
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    battery_binary_bound_Constraints[ t ].set_variable( &v_battery_binary[t] );
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    battery_binary_bound_Constraints[t].set_variable( &v_battery_binary[t] );
    }
-   add_static_constraint( battery_binary_bound_Constraints ,
+   add_static_constraint( battery_binary_bound_Constraints,
                           "BB_bound_battery" );
   }
-
+ }
  set_constraints_generated();
 } // end( BatteryUnitBlock::generate_abstract_constraints )
 

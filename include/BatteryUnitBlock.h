@@ -143,7 +143,14 @@ class BatteryUnitBlock : public UnitBlock {
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-
+ enum battery_type {
+  ///< when ExtractingBatteryRho >= 1 and StoringBatteryRho <=1
+  ASSUME_POSITIVE_PRICES,
+  ///< when ExtractingBatteryRho and StoringBatteryRho not defined(both == 1)
+  NO_Binary_Variables_Constraints,
+  ///< otherwise binary variables with related constraints are needed
+  Binary_Variables_Constraints
+ };
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -867,6 +874,29 @@ class BatteryUnitBlock : public UnitBlock {
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   return &( v_secondary_spinning_reserve.front() );
  }
+/*--------------------------------------------------------------------------*/
+/// returns the types of battery unit
+/** This method returns the types of battery unit. */
+
+ battery_type get_battery_type() const {
+
+  if( std::all_of( v_storing_battery_rho.cbegin() , v_storing_battery_rho.cend() ,
+                   []( double s ) { return s <= 1.0; } ) &&
+          std::all_of( v_extracting_battery_rho.cbegin() , v_extracting_battery_rho.cend() ,
+                       []( double s ) { return s >= 1.0; } ) )
+
+    return ASSUME_POSITIVE_PRICES;
+
+  if (!v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty())
+
+   return NO_Binary_Variables_Constraints;
+
+  else
+
+   return Binary_Variables_Constraints;
+
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
