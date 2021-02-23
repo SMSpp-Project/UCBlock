@@ -232,18 +232,20 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_active_power, "p_thermal" );
 
  // Primary Spinning Reserve Variable
- v_primary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_primary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if (!v_PrimaryRho.empty()) {
+ if( reserve_vars & 1u ) {
+  v_primary_spinning_reserve.resize( f_time_horizon );
+  for( auto & var : v_primary_spinning_reserve ) {
+   var.set_type( ColVariable::kNonNegative );
+  }
   add_static_variable( v_primary_spinning_reserve, "pr_thermal" );
  }
 
  // Secondary Spinning Reserve Variable
- v_secondary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_secondary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if (!v_SecondaryRho.empty()) {
+ if( reserve_vars & 2u ) {
+  v_secondary_spinning_reserve.resize( f_time_horizon );
+  for( auto & var : v_secondary_spinning_reserve ) {
+   var.set_type( ColVariable::kNonNegative );
+  }
   add_static_variable( v_secondary_spinning_reserve, "sc_thermal" );
  }
 /*--------------------------------------------------------------------------*/

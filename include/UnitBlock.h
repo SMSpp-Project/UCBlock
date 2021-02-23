@@ -483,6 +483,10 @@ class UnitBlock : public Block {
 
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
+ void set_reserve_vars(unsigned char what) {
+  reserve_vars = what;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -539,6 +543,9 @@ class UnitBlock : public Block {
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
+
+ unsigned char reserve_vars{};
+ ///< bit-wise coded: which reserve variables generate
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

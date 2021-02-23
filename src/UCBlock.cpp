@@ -294,6 +294,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // load all UnitBlock
  deserialize_sub_blocks( group , "UnitBlock_" , f_number_units );
 
+ // Generate UnitBlock auxiliary variables
+ if( f_number_primary_zones > 0 ) {
+  for( auto * b: v_Block ) {
+   if( auto ub = dynamic_cast<UnitBlock *>(b) ) {
+    ub->set_reserve_vars(1);
+   }
+  }
+ }
+
  // load all NetworkBlock, if any
  deserialize_network_blocks( group );
 
