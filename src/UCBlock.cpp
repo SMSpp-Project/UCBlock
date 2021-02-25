@@ -294,11 +294,26 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // load all UnitBlock
  deserialize_sub_blocks( group , "UnitBlock_" , f_number_units );
 
- // Generate UnitBlock auxiliary variables
+ // Generate UnitBlock primary spinning reserve variables
+ unsigned int what = 0;
  if( f_number_primary_zones > 0 ) {
+  what += 1;
+ }
+
+ // Generate UnitBlock secondary spinning reserve variables
+ if( f_number_secondary_zones > 0 ) {
+  what += 2;
+ }
+
+ // Generate UnitBlock inertia reserve variables
+ if( f_number_inertia_zones > 0 ) {
+ what += 4;
+ }
+
+ if (what > 0) {
   for( auto * b: v_Block ) {
    if( auto ub = dynamic_cast<UnitBlock *>(b) ) {
-    ub->set_reserve_vars(1);
+    ub->set_reserve_vars(what);
    }
   }
  }

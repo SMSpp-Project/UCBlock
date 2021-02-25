@@ -133,10 +133,11 @@ void SlackUnitBlock::generate_abstract_variables
 
 /*--------------------------------------------------------------------------*/
   // Commitment Variable
+ if( reserve_vars & 4u ) {
   v_commitment.resize( f_time_horizon );
-   for( auto & i : v_commitment )
+   for( auto & i : v_commitment ) {
     i.set_type( ColVariable::kPosUnitary );
-   if (!v_MaxInertia.empty()) {
+   }
     add_static_variable( v_commitment, "u_inertia" );
    }
 
@@ -147,17 +148,19 @@ void SlackUnitBlock::generate_abstract_variables
   add_static_variable( v_active_power, "p_slack" );
 
   // Primary Spinning Reserve Variable
- v_primary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_primary_spinning_reserve )
+ if( reserve_vars & 1u ) {
+  v_primary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_primary_spinning_reserve ) {
   var.set_type( ColVariable::kNonNegative );
- if(!v_MaxPrimaryPower.empty()) {
+ }
   add_static_variable( v_primary_spinning_reserve, "pr_slack" );
  }
   // Secondary Spinning Reserve Variable
- v_secondary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_secondary_spinning_reserve )
+ if( reserve_vars & 2u ) {
+  v_secondary_spinning_reserve.resize( f_time_horizon );
+ for( auto & var : v_secondary_spinning_reserve ) {
   var.set_type( ColVariable::kNonNegative );
- if(!v_MaxSecondaryPower.empty()) {
+ }
   add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
  }
 
@@ -205,7 +208,7 @@ void SlackUnitBlock::generate_abstract_constraints
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
- if(!v_MaxPrimaryPower.empty()) {
+ if( reserve_vars & 1u ) {
   if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
    // this should only happen once
    assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
@@ -214,8 +217,12 @@ void SlackUnitBlock::generate_abstract_constraints
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
+   if(!v_MaxPrimaryPower.empty()) {
+    Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+   } else {
+    Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0 );
 
-   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
+   }
 
    Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
   }
@@ -225,7 +232,7 @@ void SlackUnitBlock::generate_abstract_constraints
 /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
- if ( ! v_MaxSecondaryPower.empty() ) {
+ if( reserve_vars & 2u ) {
   if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
    // this should only happen once
    assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
@@ -234,8 +241,12 @@ void SlackUnitBlock::generate_abstract_constraints
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
+   if ( ! v_MaxSecondaryPower.empty() ) {
+    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+   } else {
+    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( 0.0 );
 
-   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+   }
    Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
   }
 
@@ -246,11 +257,13 @@ void SlackUnitBlock::generate_abstract_constraints
  if( generate_ZOConstraint ) {
 
   // the commitment bound constraints
-  Inertia_Bound_Constraints.resize( f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   Inertia_Bound_Constraints[ t ].set_variable( &v_commitment[ t ] );
+  if( reserve_vars & 4u ) {
+   Inertia_Bound_Constraints.resize( f_time_horizon );
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    Inertia_Bound_Constraints[t].set_variable( &v_commitment[t] );
+   }
+   add_static_constraint( Inertia_Bound_Constraints, "Inertia_bound_Slack" );
   }
-  add_static_constraint( Inertia_Bound_Constraints , "Inertia_bound_Thermal" );
  }
 
  set_constraints_generated();
@@ -265,75 +278,80 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
   return;                        // cowardly (and silently) return
 
  // Initialize objective function
-
- if( v_commitment.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_commitment must have "
-            "size equal to the time horizon." ) );
+ if( reserve_vars & 4u ) {
+  if( v_commitment.size() != f_time_horizon ) {
+   throw ( std::logic_error
+           ( "SlackUnitBlock::generate_objective: v_commitment must have "
+             "size equal to the time horizon." ));
+  }
  }
  if( v_active_power.size() != f_time_horizon ) {
   throw ( std::logic_error
           ( "SlackUnitBlock::generate_objective: v_active_power must have "
             "size equal to the time horizon." ) );
  }
-
- if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
-            "must have size equal to the time horizon." ) );
+ if( reserve_vars & 1u ) {
+  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+   throw ( std::logic_error
+           ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
+             "must have size equal to the time horizon." ));
+  }
  }
-
- if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
-            "must have size equal to the time horizon." ) );
+ if( reserve_vars & 2u ) {
+  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+   throw ( std::logic_error
+           ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
+             "must have size equal to the time horizon." ));
+  }
  }
-
 
  auto linear_function = new LinearFunction();
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  if ( ! v_active_power_cost.empty() ){
-   linear_function->add_variable( &v_active_power[ t ],
-                                 v_active_power_cost[ t ],
-                                 0.0 );
+  if( !v_active_power_cost.empty()) {
+   linear_function->add_variable( &v_active_power[t],
+                                  v_active_power_cost[t],
+                                  0.0 );
   } else {
-   linear_function->add_variable( &v_active_power[ t ],
-                                 0.0,
-                                 0.0 );
+   linear_function->add_variable( &v_active_power[t],
+                                  0.0,
+                                  0.0 );
+  }
+  if( reserve_vars & 1u ) {
+   if( !v_primary_cost.empty()) {
+    linear_function->add_variable( &v_primary_spinning_reserve[t],
+                                   v_primary_cost[t],
+                                   0.0 );
+   } else {
+    linear_function->add_variable( &v_primary_spinning_reserve[t],
+                                   0.0,
+                                   0.0 );
+   }
+  }
+  if( reserve_vars & 2u ) {
+   if( !v_secondary_cost.empty()) {
+    linear_function->add_variable( &v_secondary_spinning_reserve[t],
+                                   v_secondary_cost[t],
+                                   0.0 );
+   } else {
+    linear_function->add_variable( &v_secondary_spinning_reserve[t],
+                                   0.0,
+                                   0.0 );
+   }
   }
 
-  if (! v_primary_cost.empty()) {
-
-   linear_function->add_variable( &v_primary_spinning_reserve[ t ],
-                                 v_primary_cost[ t ],
-                                 0.0 );
-  } else{
-   linear_function->add_variable( &v_primary_spinning_reserve[ t ],
-                                 0.0,
-                                 0.0 );
+  if( reserve_vars & 4u ) {
+   if( !v_inertia_cost.empty() && !v_MaxInertia.empty()) {
+    linear_function->add_variable( &v_commitment[t],
+                                   v_inertia_cost[t] * v_MaxInertia[t],
+                                   0.0 );
+   } else {
+    linear_function->add_variable( &v_commitment[t],
+                                   0.0,
+                                   0.0 );
+   }
   }
-  if (! v_secondary_cost.empty() ){
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                 v_secondary_cost[ t ],
-                                 0.0 );
-  } else{
-   linear_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                 0.0,
-                                 0.0 );
-  }
-
-  if (! v_inertia_cost.empty() && ! v_MaxInertia.empty() ) {
-   linear_function->add_variable( &v_commitment[ t ],
-                                 v_inertia_cost[ t ] * v_MaxInertia[ t ],
-                                 0.0 );
-  } else{
-   linear_function->add_variable( &v_commitment[ t ],
-                                 0.0,
-                                 0.0 );
-  }
-
  }
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );

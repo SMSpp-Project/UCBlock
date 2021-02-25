@@ -483,8 +483,16 @@ class UnitBlock : public Block {
 
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
- void set_reserve_vars(unsigned char what) {
+/*--------------------------------------------------------------------------*/
+
+ void set_reserve_vars(unsigned char what, bool recursive = true ) {
   reserve_vars = what;
+  if ( recursive )
+   for( auto * b: v_Block ) {
+    if( auto ub = dynamic_cast<UnitBlock *>(b) ) {
+     ub->set_reserve_vars(what);
+    }
+   }
  }
 
 /**@} ----------------------------------------------------------------------*/
