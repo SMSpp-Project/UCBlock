@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 01 - 2021
+ * \date 03 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -853,7 +853,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      }
 
      if( v_maximum_flow[t][arc] > 0 ) { //Turbines
-      for( ; piece <= end; ++piece ) {
+      for( ; piece < end; ++piece ) {
 
        auto linear_function_turbine = new LinearFunction();
        auto active_power = get_active_power( arc , t );
