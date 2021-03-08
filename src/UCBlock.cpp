@@ -574,10 +574,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
        auto primary_spinning_reserve = &primary_s_r[t];
 
-
-       lf->add_variable( primary_spinning_reserve, 1.0, eNoMod );
-
-
+       if( primary_s_r != nullptr ) {
+        lf->add_variable( primary_spinning_reserve, 1.0, eNoMod );
+       }
        generator_id++;
       }
      }
@@ -605,9 +604,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
          auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
          auto primary_spinning_reserve = &primary_s_r[t];
-
-         linear_function->
-                 add_variable( primary_spinning_reserve, 1.0 );
+         if( primary_s_r != nullptr ) {
+          linear_function->
+                  add_variable( primary_spinning_reserve, 1.0 );
+         }
 
         }
 
@@ -644,8 +644,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
          auto primary_spinning_reserve = &primary_s_r[t];
 
-         linear_function->
-                 add_variable( primary_spinning_reserve, 1.0 );
+         if( primary_s_r != nullptr ) {
+          linear_function->
+                  add_variable( primary_spinning_reserve, 1.0 );
+         }
 
          generator_id++;
         }
@@ -688,8 +690,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
            auto primary_s_r = unit_block->get_primary_spinning_reserve( generator );
            auto primary_spinning_reserve = &primary_s_r[t];
 
-           linear_function->
-                   add_variable( primary_spinning_reserve, 1.0 );
+           if( primary_s_r != nullptr ) {
+            linear_function->
+                    add_variable( primary_spinning_reserve, 1.0 );
+           }
           }
          }
          elc_generator +=unit_block->get_number_generators();
@@ -736,8 +740,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
        auto secondary_spinning_reserve = &secondary_s_r[t];
 
-       linear_function->
-               add_variable( secondary_spinning_reserve, 1.0 );
+       if( secondary_s_r != nullptr ) {
+        linear_function->
+                add_variable( secondary_spinning_reserve, 1.0 );
+       }
 
 
        generator_id++;
@@ -771,8 +777,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
          auto secondary_spinning_reserve = &secondary_s_r[t];
 
-         linear_function->
-                 add_variable( secondary_spinning_reserve, 1.0 );
+         if( secondary_s_r != nullptr ) {
+          linear_function->
+                  add_variable( secondary_spinning_reserve, 1.0 );
+         }
 
         }
 
@@ -811,8 +819,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
          auto secondary_spinning_reserve = &secondary_s_r[t];
 
-         linear_function->
-                 add_variable( secondary_spinning_reserve, 1.0 );
+         if( secondary_s_r != nullptr ) {
+          linear_function->
+                  add_variable( secondary_spinning_reserve, 1.0 );
+         }
 
          generator_id++;
         }
@@ -852,8 +862,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
            auto secondary_s_r = unit_block->get_secondary_spinning_reserve( generator );
            auto secondary_spinning_reserve = &secondary_s_r[t];
 
-           linear_function->
-                   add_variable( secondary_spinning_reserve, 1.0 );
+           if( secondary_s_r != nullptr ) {
+            linear_function->
+                    add_variable( secondary_spinning_reserve, 1.0 );
+           }
           }
          }
          elc_generator += unit_block->get_number_generators();

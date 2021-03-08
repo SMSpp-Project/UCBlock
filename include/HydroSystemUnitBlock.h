@@ -314,6 +314,34 @@ class HydroSystemUnitBlock : public UnitBlock {
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
+/*----------- METHODS FOR MODIFYING THE HydroSystemUnitBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+ /** @name Methods for modifying the HydroSystemUnitBlock
+  *   @{ */
+
+ /// sets reserve vars method
+ /** This method can be called *after* that deserialize() and before
+  * generate_abstract_variables() and generate_abstract_constraints(). This is
+  * called to provide the UCBlock with the reserve variables if it's needed.
+  * The input parameter is a bitwise value that allows to specify which unit
+  * could have the reserve variables:
+  *
+  * - 1 the unit could have primary spinning reserve variables
+  * - 2 the unit could have secondary spinning reserve variables
+  *
+  * Note: this method is only to "destroy" the (primary, secondary and inertia)
+  * reserve variables; it cannot create them if they are not there.*/
+
+ void set_reserve_vars(unsigned char what) override {
+  reserve_vars = what;
+   for( auto * b: v_Block ) {
+    if( auto ub = dynamic_cast<HydroUnitBlock *>(b) ) {
+     ub->set_reserve_vars(what);
+    }
+   }
+ }
+
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
  /** @name Handling the data of the HydroSystemUnitBlock

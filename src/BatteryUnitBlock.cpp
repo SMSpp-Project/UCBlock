@@ -218,21 +218,25 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
  add_static_variable( v_active_power, "p_battery" );
 
   // Primary Spinning Reserve Variable
- if( reserve_vars & 1u ) {
-  v_primary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_primary_spinning_reserve ) {
-  var.set_type( ColVariable::kNonNegative );
- }
-  add_static_variable( v_primary_spinning_reserve, "pr_battery" );
+ if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+  if (!v_maximum_primary_rho.empty() ) { // if unit produces any primary reserve
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_primary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_primary_spinning_reserve, "pr_battery" );
+  }
  }
 
  // Secondary Spinning Reserve Variable
- if( reserve_vars & 2u ) {
- v_secondary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_secondary_spinning_reserve ) {
-  var.set_type( ColVariable::kNonNegative );
- }
-  add_static_variable( v_secondary_spinning_reserve, "sc_battery" );
+ if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
+  if (!v_maximum_secondary_rho.empty() ) { // if unit produces any secondary reserve
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_secondary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_secondary_spinning_reserve, "sc_battery" );
+  }
  }
 
  set_variables_generated();
@@ -298,11 +302,15 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_active_power[t], 1.0 );
-   if( reserve_vars & 1u ) {
-    linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+    if( !v_maximum_primary_rho.empty()) { // if unit produces any primary reserve
+     linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+    }
    }
-   if( reserve_vars & 2u ) {
-    linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+   if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
+    if( !v_maximum_secondary_rho.empty()) { // if unit produces any secondary reserve
+     linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+    }
    }
     active_power_lower_bound_Constraints[t].set_lhs( v_minimum_power[t] );
     active_power_lower_bound_Constraints[t].set_rhs( Inf< double >());
@@ -320,11 +328,15 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
     auto linear_function = new LinearFunction();
 
     linear_function->add_variable( &v_active_power[t], 1.0 );
-    if( reserve_vars & 1u ) {
-     linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
+    if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+     if( !v_maximum_primary_rho.empty()) { // if unit produces any primary reserve
+      linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
+     }
     }
-    if( reserve_vars & 2u ) {
-     linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
+    if( reserve_vars & 2u ) { // if UCBlock has secondary demand variable
+     if( !v_maximum_secondary_rho.empty()) { // if unit produces any secondary reserve
+      linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
+     }
     }
     active_power_upper_bound_Constraints[t].set_lhs( -Inf< double >());
     active_power_upper_bound_Constraints[t].set_rhs( v_maximum_power[t] );
@@ -547,43 +559,36 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
   // Initializing primary_upper_bound_Constraints
-   if( reserve_vars & 1u ) {
-    primary_upper_bound_Constraints.resize( f_time_horizon );
+ if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+  if( !v_maximum_primary_rho.empty()) { // if unit produces any primary reserve
+   primary_upper_bound_Constraints.resize( f_time_horizon );
 
    for( Index t = 0; t < f_time_horizon; ++t ) {
 
     primary_upper_bound_Constraints[t].set_lhs( 0.0 );
-    if( !v_maximum_primary_rho.empty()) {
-     primary_upper_bound_Constraints[t].set_rhs( v_maximum_primary_rho[t] );
-    } else {
-     primary_upper_bound_Constraints[t].set_rhs( 0.0 );
-    }
+    primary_upper_bound_Constraints[t].set_rhs( v_maximum_primary_rho[t] );
     primary_upper_bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
 
    }
    add_static_constraint( primary_upper_bound_Constraints, "Primary_UpperBound_Constraints_Battery" );
   }
-
-  // Initializing secondary_upper_bound_Constraints
- if( reserve_vars & 2u ) {
- secondary_upper_bound_Constraints.resize( f_time_horizon );
-
- for( Index t = 0; t < f_time_horizon; ++t ) {
-
-  secondary_upper_bound_Constraints[t].set_lhs( 0.0 );
-  if( !v_maximum_secondary_rho.empty()) {
-   secondary_upper_bound_Constraints[t].set_rhs( v_maximum_secondary_rho[t] );
-  } else {
-   secondary_upper_bound_Constraints[t].set_rhs( 0.0 );
-
-  }
-  secondary_upper_bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
-
  }
- add_static_constraint( secondary_upper_bound_Constraints,
-                        "Secondary_UpperBound_Constraints_Battery" );
-}
+  // Initializing secondary_upper_bound_Constraints
+ if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
+  if( !v_maximum_secondary_rho.empty()) { // if unit produces any secondary reserve
+   secondary_upper_bound_Constraints.resize( f_time_horizon );
 
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+
+    secondary_upper_bound_Constraints[t].set_lhs( 0.0 );
+    secondary_upper_bound_Constraints[t].set_rhs( v_maximum_secondary_rho[t] );
+    secondary_upper_bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
+
+   }
+   add_static_constraint( secondary_upper_bound_Constraints,
+                          "Secondary_UpperBound_Constraints_Battery" );
+  }
+ }
 /*-------------------------------ZOConstraint-------------------------------*/
  if ( battery_type == Binary_Variables_Constraints ) {
 
