@@ -131,21 +131,25 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration *stvv ) {
  add_static_variable( v_active_power, "p_intermittent" );
 
   // Primary Spinning Reserve Variable
-
- v_primary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_primary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if ( f_gamma != 0 ) {
-  add_static_variable( v_primary_spinning_reserve, "pr_intermittent" );
+ if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+  if ( f_gamma != 0 ) { // if unit produces any reserve
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_primary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_primary_spinning_reserve, "pr_intermittent" );
+  }
  }
 
  // Secondary Spinning Reserve Variable
-
- v_secondary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_secondary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if ( f_gamma != 0 ) {
-  add_static_variable( v_secondary_spinning_reserve, "sr_intermittent" );
+ if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
+  if ( f_gamma != 0 ) { // if unit produces any reserve
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_secondary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_secondary_spinning_reserve, "sr_intermittent" );
+  }
  }
 
 
@@ -166,7 +170,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
 /*--------------------------------------------------------------------------*/
  // Initializing maximum power constraints
 
- if ( f_gamma != 0 ) {
+ if ( f_gamma != 0 ) { // if unit produces any reserve
 
   if( MaxPower_Constraints.size() != f_time_horizon ) {
    // this should only happen once
@@ -179,9 +183,12 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
    auto linear_function = new LinearFunction();
    linear_function->add_variable( &v_active_power[t], f_gamma );
-   linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
-
+   if( reserve_vars & 1u ) {
+    linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
+   }
+   if( reserve_vars & 2u ) {
+    linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
+   }
    MaxPower_Constraints[t].set_lhs( -Inf< double >());
    MaxPower_Constraints[t].set_rhs(( f_gamma * f_kappa * ( max_power[t] )));
    MaxPower_Constraints[t].set_function( linear_function );
@@ -189,7 +196,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
 
   add_static_constraint( MaxPower_Constraints, "MaxPower_Intermittent" );
 
-
+ }
   // Initializing minimum power constraints
 
   if( MinPower_Constraints.size() != f_time_horizon ) {
@@ -204,8 +211,16 @@ void IntermittentUnitBlock::generate_abstract_constraints
    auto linear_function = new LinearFunction();
 
    linear_function->add_variable( &v_active_power[t], 1.0 );
-   linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
-   linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+   if( reserve_vars & 1u ) {
+    if ( f_gamma != 0 ) { // if unit produces any reserve
+     linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
+    }
+   }
+   if( reserve_vars & 2u ) {
+    if ( f_gamma != 0 ) { // if unit produces any reserve
+     linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
+    }
+   }
 
    MinPower_Constraints[t].set_lhs( f_kappa * min_power[t] );
    MinPower_Constraints[t].set_rhs( Inf< double >());
@@ -213,7 +228,7 @@ void IntermittentUnitBlock::generate_abstract_constraints
   }
 
   add_static_constraint( MinPower_Constraints, "MinPower_Intermittent" );
- }
+
  // Initializing active power bounds constraints
  if( active_power_bounds_Constraints.size() != f_time_horizon ) {
   // this should only happen once
