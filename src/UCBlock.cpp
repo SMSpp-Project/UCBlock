@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 17 - 01 - 2021
+ * \date 24 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -511,18 +511,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
         auto ap = unit_block->get_active_power( generator );
         auto active_power = &ap[t];
 
-        auto c = unit_block->get_commitment( generator );
-        auto commitment = &c[t];
-
         linear_function->add_variable( active_power, 1.0, eNoMod );
-        if( c != nullptr ) {
-         if( fixed_consumption != nullptr ) {
+        if( auto c = unit_block->get_commitment( generator ) ) {
+         auto commitment = &c[t];
+         if( fixed_consumption ) {
           linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
          } else {
           linear_function->add_variable( commitment, 0.0, eNoMod );
          }
         }
-        if( fixed_consumption != nullptr ) {
+        if( fixed_consumption ) {
          v_node_injection_constraints[t][node_id].set_both
                  ( v_node_injection_constraints[t][node_id].get_rhs()
                    - fixed_consumption[t] );
