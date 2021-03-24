@@ -1500,18 +1500,26 @@ void UCBlock::set_active_power_demand
 ( std::vector< double >::const_iterator values , Block::Subset && subset ,
   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- if( subset.empty() ) {
+ if( subset.empty() )
   return;
- }
+
+ const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  if( ! v_network_blocks.empty() ) {
   // Update the demand of the NetworkBlocks
   // TODO Optimize
   for( auto index : subset ) {
-   auto node_index = index / f_time_horizon;
-   auto time = index % f_time_horizon;
+   const auto node_index = index / f_time_horizon;
+   const auto time = index % f_time_horizon;
+   const auto demand = *values;
    v_network_blocks[ time ]->set_active_demand
     ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+
+   if( number_nodes == 1 ) {
+    assert( node_index == 0 );
+    v_active_power_demand[ node_index ][ time ] = demand;
+    update_node_injection_constraints( time , node_index , demand );
+   }
   }
   return;
  }
@@ -1523,9 +1531,9 @@ void UCBlock::set_active_power_demand
  bool changed = false;
 
  for( auto index : subset ) {
-  auto node_index = index / f_time_horizon;
-  auto time = index % f_time_horizon;
-  auto demand = *values;
+  const auto node_index = index / f_time_horizon;
+  const auto time = index % f_time_horizon;
+  const auto demand = *( values++ );
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -1541,8 +1549,6 @@ void UCBlock::set_active_power_demand
     }
    }
   }
-
-  ++values;
  }
 
  // If nothing changes, return
@@ -1565,7 +1571,7 @@ void UCBlock::set_active_power_demand
 ( std::vector< double >::const_iterator values , Block::Range rng ,
   c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  rng.second = std::min( rng.second , number_nodes * f_time_horizon );
 
@@ -1576,10 +1582,17 @@ void UCBlock::set_active_power_demand
   // Update the demand of the NetworkBlocks
   // TODO Optimize
   for( Index index = rng.first ; index < rng.second ; ++index ) {
-   auto node_index = index / f_time_horizon;
-   auto time = index % f_time_horizon;
+   const auto node_index = index / f_time_horizon;
+   const auto time = index % f_time_horizon;
+   const auto demand = *values;
    v_network_blocks[ time ]->set_active_demand
     ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+
+   if( number_nodes == 1 ) {
+    assert( node_index == 0 );
+    v_active_power_demand[ node_index ][ time ] = demand;
+    update_node_injection_constraints( time , node_index , demand );
+   }
   }
   return;
  }
@@ -1591,9 +1604,9 @@ void UCBlock::set_active_power_demand
  bool changed = false;
 
  for( Index index = rng.first ; index < rng.second ; ++index ) {
-  auto node_index = index / f_time_horizon;
-  auto time = index % f_time_horizon;
-  auto demand = *values;
+  const auto node_index = index / f_time_horizon;
+  const auto time = index % f_time_horizon;
+  const auto demand = *( values++ );
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -1608,8 +1621,6 @@ void UCBlock::set_active_power_demand
     }
    }
   }
-
-  ++values;
  }
 
  // If nothing changes, return
