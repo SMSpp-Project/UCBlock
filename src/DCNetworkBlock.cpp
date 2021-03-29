@@ -462,6 +462,7 @@ void DCNetworkBlock::set_active_demand
    case( kAC_HVDC ):
     // TODO
     break;
+   default: break;
   }
  }
 
@@ -524,6 +525,7 @@ void DCNetworkBlock::set_active_demand
     case( kAC_HVDC ):
      // TODO
      break;
+    default: break;
    }
   }
  }
