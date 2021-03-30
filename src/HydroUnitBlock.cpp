@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 03 - 2021
+ * \date 30 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -18,7 +18,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
+ * Lobato
  */
 
 /*--------------------------------------------------------------------------*/
@@ -293,92 +299,54 @@ void HydroUnitBlock::generate_abstract_variables( Configuration *stvv )
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
- if( constraints_generated())
+ if( constraints_generated() )
   return; // constraints have already been generated
 
- // final volumes fo each reservoir constraints
+ // final volume constraints for each reservoir
 
- assert( FinalVolumeReservoir_Const.empty());
+ assert( FinalVolumeReservoir_Const.empty() );
  FinalVolumeReservoir_Const.resize
-         ( boost::multi_array< FRowConstraint, 2 >::
-           extent_gen()[f_time_horizon][f_number_reservoirs] );
+  ( boost::multi_array< FRowConstraint , 2 >::
+    extent_gen()[ f_time_horizon ][ f_number_reservoirs ] );
 
- for( Index n = 0; n < f_number_reservoirs; ++n ) {
+ for( Index n = 0 ; n < f_number_reservoirs ; ++n ) {
 
-  auto l_f = new LinearFunction();
-
-  for( Index l = 0; l < f_number_arcs; ++l ) {
-
-   if( !v_start_arc.empty() && !v_end_arc.empty()) {
-    if( v_start_arc[l] == n && v_end_arc[l] <= f_number_reservoirs ) {
-     if( !v_uphill_delay.empty()) {
-      if( v_uphill_delay[l] == 0 ) {
-       l_f->add_variable( get_flow_rate( l, 0 ), 1.0 );
-      }
-     } else {
-      l_f->add_variable( get_flow_rate( l, 0 ), 1.0 );
-     }
-    }
-    if( !v_downhill_delay.empty()) {
-     if( v_downhill_delay[l] == 0 && v_end_arc[l] == n ) {
-      l_f->add_variable( get_flow_rate( l, 0 ), -1.0 );
-     }
-    }
-   } else {
-    l_f->add_variable( get_flow_rate( l, 0 ), 1.0 );
-   }
-  }
-
-  auto volumetric0 = get_volume( n , 0 );
-
-  l_f->add_variable( volumetric0, 1.0 );
-
-  if ( ! v_inflows.empty() ) {
-   FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] +
-                                              v_inflows[n][0] );
-  } else {
-   FinalVolumeReservoir_Const[0][n].set_both( v_initial_volumetric[n] );
-  }
-  FinalVolumeReservoir_Const[0][n].set_function( l_f );
-
-  for( Index t = 1, constraint_index = 1; t < f_time_horizon;
-    ++t, ++constraint_index  ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
 
-   for( Index l = 0; l < f_number_arcs; ++l ) {
-    if( !v_start_arc.empty() && !v_end_arc.empty() ) {
+   for( Index l = 0 ; l < f_number_arcs ; ++l ) {
 
-     if( !v_uphill_delay.empty() ) {
+    if( ! v_start_arc.empty() && ! v_end_arc.empty() ) {
 
-      if( t - v_uphill_delay[l] >= 0 &&
-          v_start_arc[l] == n &&
-          v_end_arc[l] <= f_number_reservoirs ) {
-       auto flow_rate = get_flow_rate( l , t - v_uphill_delay[l] );
+     if( ! v_uphill_delay.empty() ) {
+      if( t - v_uphill_delay[ l ] >= 0 && v_start_arc[ l ] == n &&
+          v_end_arc[ l ] <= f_number_reservoirs ) {
+       auto flow_rate = get_flow_rate( l , t - v_uphill_delay[ l ] );
        linear_function->add_variable( flow_rate , 1.0 );
       }
      }
      else {
-      if( v_start_arc[l] == n && v_end_arc[l] <= f_number_reservoirs ) {
+      if( v_start_arc[ l ] == n && v_end_arc[ l ] <= f_number_reservoirs ) {
        auto flow_rate = get_flow_rate( l , t );
        linear_function->add_variable( flow_rate, 1.0 );
       }
      }
-     if ( !v_downhill_delay.empty() ) {
-      if( t - v_downhill_delay[l] >= 0 &&
-          t - v_downhill_delay[l] <= f_time_horizon &&
-          v_end_arc[l] == n ) {
 
-       auto flow_rate = get_flow_rate( l , t - v_downhill_delay[l] );
+     if ( ! v_downhill_delay.empty() ) {
+      if( t - v_downhill_delay[ l ] >= 0 &&
+          t - v_downhill_delay[ l ] <= f_time_horizon && v_end_arc[ l ] == n ) {
+       auto flow_rate = get_flow_rate( l , t - v_downhill_delay[ l ] );
        linear_function->add_variable( flow_rate , -1.0 );
       }
      }
      else {
-      if( v_end_arc[l] == n ) {
+      if( v_end_arc[ l ] == n ) {
        auto flow_rate = get_flow_rate( l , t );
        linear_function->add_variable( flow_rate , -1.0 );
       }
      }
+
     }
     else {
      auto flow_rate = get_flow_rate( l , t );
@@ -387,23 +355,29 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
 
    auto volumetric_t = get_volume( n , t );
-   auto volumetric_t_1 = get_volume( n , t-1 );
-
    linear_function->add_variable( volumetric_t, 1.0 );
-   linear_function->add_variable( volumetric_t_1, -1.0 );
 
-   if ( ! v_inflows.empty() ) {
-    FinalVolumeReservoir_Const[constraint_index][n].
-            set_both( v_inflows[n][constraint_index] );
-   } else{
-    FinalVolumeReservoir_Const[constraint_index][n].
-            set_both( 0.0 );
+   if( t > 0 ) {
+    auto volumetric_t_1 = get_volume( n , t - 1 );
+    linear_function->add_variable( volumetric_t_1 , -1.0 );
    }
-   FinalVolumeReservoir_Const[constraint_index][n].
-    set_function( linear_function );
+
+   double initial_volume = 0.0;
+   if( t == 0 )
+    initial_volume = v_initial_volumetric[ n ];
+
+   if ( ! v_inflows.empty() )
+    FinalVolumeReservoir_Const[ t ][ n ].set_both
+     ( initial_volume + v_inflows[ n ][ t ] );
+   else
+    FinalVolumeReservoir_Const[ t ][ n ].set_both( initial_volume );
+
+   FinalVolumeReservoir_Const[ t ][ n ].set_function( linear_function );
   }
  }
- add_static_constraint( FinalVolumeReservoir_Const, "FinalVolumeReservoir_HydroUnit" );
+
+ add_static_constraint( FinalVolumeReservoir_Const ,
+                        "FinalVolumeReservoir_HydroUnit" );
 
  // maximum power output according to primary-secondary reserves constraints
 
