@@ -319,33 +319,20 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
     if( ! v_start_arc.empty() && ! v_end_arc.empty() ) {
 
-     if( ! v_uphill_delay.empty() ) {
-      if( t >= v_uphill_delay[ l ] && v_start_arc[ l ] == n &&
-          v_end_arc[ l ] <= f_number_reservoirs ) {
-       auto flow_rate = get_flow_rate( l , t - v_uphill_delay[ l ] );
-       linear_function->add_variable( flow_rate , 1.0 );
-      }
-     }
-     else {
-      if( v_start_arc[ l ] == n && v_end_arc[ l ] <= f_number_reservoirs ) {
-       auto flow_rate = get_flow_rate( l , t );
-       linear_function->add_variable( flow_rate, 1.0 );
-      }
+     const auto uphill_delay = get_uphill_delay( l );
+
+     if( ( t >= uphill_delay ) && ( t - uphill_delay < f_time_horizon ) &&
+         ( v_start_arc[ l ] == n ) ) {
+      auto flow_rate = get_flow_rate( l , t - uphill_delay );
+      linear_function->add_variable( flow_rate , 1.0 );
      }
 
-     if ( ! v_downhill_delay.empty() ) {
-      if( t >= v_downhill_delay[ l ] && v_end_arc[ l ] == n ) {
-       auto flow_rate = get_flow_rate( l , t - v_downhill_delay[ l ] );
-       linear_function->add_variable( flow_rate , -1.0 );
-      }
-     }
-     else {
-      if( v_end_arc[ l ] == n ) {
-       auto flow_rate = get_flow_rate( l , t );
-       linear_function->add_variable( flow_rate , -1.0 );
-      }
-     }
+     const auto downhill_delay = get_downhill_delay( l );
 
+     if( ( t >= downhill_delay ) && ( v_end_arc[ l ] == n ) ) {
+      auto flow_rate = get_flow_rate( l , t - downhill_delay );
+      linear_function->add_variable( flow_rate , -1.0 );
+     }
     }
     else {
      auto flow_rate = get_flow_rate( l , t );
@@ -354,7 +341,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
    }
 
    auto volumetric_t = get_volume( n , t );
-   linear_function->add_variable( volumetric_t, 1.0 );
+   linear_function->add_variable( volumetric_t , 1.0 );
 
    if( t > 0 ) {
     auto volumetric_t_1 = get_volume( n , t - 1 );
