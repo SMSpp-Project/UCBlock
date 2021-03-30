@@ -320,7 +320,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     if( ! v_start_arc.empty() && ! v_end_arc.empty() ) {
 
      if( ! v_uphill_delay.empty() ) {
-      if( t - v_uphill_delay[ l ] >= 0 && v_start_arc[ l ] == n &&
+      if( t >= v_uphill_delay[ l ] && v_start_arc[ l ] == n &&
           v_end_arc[ l ] <= f_number_reservoirs ) {
        auto flow_rate = get_flow_rate( l , t - v_uphill_delay[ l ] );
        linear_function->add_variable( flow_rate , 1.0 );
@@ -334,8 +334,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
      }
 
      if ( ! v_downhill_delay.empty() ) {
-      if( t - v_downhill_delay[ l ] >= 0 &&
-          t - v_downhill_delay[ l ] <= f_time_horizon && v_end_arc[ l ] == n ) {
+      if( t >= v_downhill_delay[ l ] && v_end_arc[ l ] == n ) {
        auto flow_rate = get_flow_rate( l , t - v_downhill_delay[ l ] );
        linear_function->add_variable( flow_rate , -1.0 );
       }
