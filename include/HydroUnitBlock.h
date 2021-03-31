@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 01 - 2021
+ * \date 30 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -20,7 +20,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
+ * Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -1119,9 +1125,24 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the uphill delay for each unit i. */
- const std::vector< Index > & get_uphill_delay() const {
-  return ( v_uphill_delay);
+ const std::vector< int > & get_uphill_delay() const {
+  return ( v_uphill_delay );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the uphill delay for the given \p arc
+ /** This function returns the uphill delay for the given \p arc.
+  *
+  * @return The uphill delay for the given \p arc. */
+
+ int get_uphill_delay( Index arc ) const {
+  if( v_uphill_delay.empty() )
+   return 0;
+  assert( arc < v_uphill_delay.size() );
+  return( v_uphill_delay[ arc ] );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of downhill delay
 /** The returned vector contains the downhill delay for each unit (arc) i.
@@ -1137,6 +1158,21 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< Index > & get_downhill_delay() const {
   return ( v_downhill_delay);
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the downhill delay for the given \p arc
+ /** This function returns the downhill delay for the given \p arc.
+  *
+  * @return The downhill delay for the given \p arc. */
+
+ Index get_downhill_delay( Index arc ) const {
+  if( v_downhill_delay.empty() )
+   return 0;
+  assert( arc < v_downhill_delay.size() );
+  return( v_downhill_delay[ arc ] );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of initial volumetric
 /** The returned vector contains the initial volumetric for each reservoir n.
@@ -1488,7 +1524,7 @@ class HydroUnitBlock : public UnitBlock {
  Index f_total_number_pieces;
 
  /// The vector of UphillDelay
- std::vector< Index > v_uphill_delay;
+ std::vector< int > v_uphill_delay;
 
  /// The vector of DownhillDelay
  std::vector< Index > v_downhill_delay;
