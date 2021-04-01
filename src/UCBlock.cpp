@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 24 - 03 - 2021
+ * \date 01 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1093,44 +1093,46 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( f_number_pollutants > 0 ) {
 
-  v_PollutantBudget_Const.resize( v_number_pollutant_zones[f_total_number_pollutant_zones] );
+  v_PollutantBudget_Const.resize
+   ( v_number_pollutant_zones[f_total_number_pollutant_zones] );
 
-   if ( number_nodes == 1 ) {
+  if ( number_nodes == 1 ) {
 
-     for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
+   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
 
-      for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
-           ++zone ) {
+    for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
+         ++zone ) {
 
-      for( Index t = 0; t < f_time_horizon; ++t ) {
+     for( Index t = 0; t < f_time_horizon; ++t ) {
 
-       // Terms associated with active power
-       auto linear_function = new LinearFunction();
+      // Terms associated with active power
+      auto linear_function = new LinearFunction();
 
-       Index generator_id = 0;
-       for( auto block : get_nested_Blocks()) {
-        auto unit_block = dynamic_cast<UnitBlock *>(block);
-        if( unit_block == nullptr )
-         continue;
-        unit_block->get_number_generators();
+      Index generator_id = 0;
+      for( auto block : get_nested_Blocks()) {
 
-        for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
+       auto unit_block = dynamic_cast<UnitBlock *>(block);
+       if( ! unit_block )
+        continue;
 
-         auto ap = unit_block->get_active_power( generator );
+       for( Index generator = 0;
+            generator < unit_block->get_number_generators(); ++generator ) {
+
+        auto node_id = get_generator_node()[generator];
+        auto zone_id = get_pollutant_zone()[pollutant][node_id];
+
+        if( zone_id >= v_number_pollutant_zones[pollutant] )
+         continue; // this unit does not belong to any zone
+
+        if( auto ap = unit_block->get_active_power( generator ) ) {
          auto active_power = &ap[t];
-
-         auto node_id = get_generator_node()[generator];
-         auto zone_id = get_pollutant_zone()[pollutant][node_id];
-
-         if( zone_id >= v_number_pollutant_zones[pollutant] )
-          continue; // this unit does not belong to any zone
-
          auto rho = get_pollutant_rho()[t][pollutant][generator];
          linear_function->add_variable( active_power, rho );
-
-         generator_id++;
         }
+
+        generator_id++;
        }
+      }
 
        // Terms associated with heat-only generation units
        /*!! commented away until HeatBlock are properly managed
@@ -1160,60 +1162,63 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        }
        */
 
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-               ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
-      }
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
+       ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
      }
     }
+   }
 
-   } else { //DCNetwork
+  }
+  else { //DCNetwork
 
-    for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
+   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
 
-     for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
-          ++zone ) {
+    for( Index zone = 0; zone < v_number_pollutant_zones[pollutant]; ++zone ) {
 
-      for( Index t = 0; t < f_time_horizon; ++t ) {
+     for( Index t = 0; t < f_time_horizon; ++t ) {
 
-       // Terms associated with active power
-       auto linear_function = new LinearFunction();
+      // Terms associated with active power
+      auto linear_function = new LinearFunction();
 
-       Index pollutant_zone = 0;
-       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-        if( zone == v_pollutant_zones[pollutant][node_id] ) {
+      Index pollutant_zone = 0;
+      for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
 
+       if( zone == v_pollutant_zones[pollutant][node_id] ) {
 
-       Index generator_id = 0;
-         for( Index elc_generator = 0; elc_generator < f_number_elc_generators; ++elc_generator ) {
-          if( node_id == v_generator_node[elc_generator] ) {
+        Index generator_id = 0;
+        for( Index elc_generator = 0; elc_generator < f_number_elc_generators;
+             ++elc_generator ) {
 
-           auto block = get_nested_Blocks()[generator_id];
-           auto unit_block = dynamic_cast<UnitBlock *>(block);
-           if( unit_block == nullptr )
-            continue;
-           unit_block->get_number_generators();
-           for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
+         if( node_id == v_generator_node[elc_generator] ) {
 
-            auto ap = unit_block->get_active_power( generator );
+          auto block = get_nested_Blocks()[generator_id];
+          auto unit_block = dynamic_cast<UnitBlock *>(block);
+          if( ! unit_block )
+           continue;
+
+          for( Index generator = 0;
+               generator < unit_block->get_number_generators(); ++generator ) {
+
+           auto node_id = get_generator_node()[generator];
+           auto zone_id = get_pollutant_zone()[pollutant][node_id];
+
+           if( zone_id >= v_number_pollutant_zones[pollutant] )
+            continue; // this unit does not belong to any zone
+
+           if( auto ap = unit_block->get_active_power( generator ) ) {
             auto active_power = &ap[t];
-
-            auto node_id = get_generator_node()[generator];
-            auto zone_id = get_pollutant_zone()[pollutant][node_id];
-
-            if( zone_id >= v_number_pollutant_zones[pollutant] )
-             continue; // this unit does not belong to any zone
-
             auto rho = get_pollutant_rho()[t][pollutant][generator];
             linear_function->add_variable( active_power, rho );
            }
           }
+         }
          generator_id++;
         }
        }
-        pollutant_zone++;
-       }
+       pollutant_zone++;
+      }
 
        // Terms associated with heat-only generation units
        /*!! commented away until HeatBlock are properly managed
@@ -1243,15 +1248,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        }
        */
 
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-               ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
-      }
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
+       ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
      }
     }
    }
-  add_static_constraint( v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
+  }
+  add_static_constraint
+   ( v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
 
  /*!! commented away until HeatBlock are properly managed
