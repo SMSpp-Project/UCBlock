@@ -499,39 +499,46 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
      Index elc_generator = 0;
      for( Index unit_id = 0; unit_id < f_number_units; unit_id++) {
 
-       auto block = get_nested_Blocks()[unit_id];
-       auto unit_block = dynamic_cast<UnitBlock *>(block);
-       if( unit_block == nullptr )
-        continue;
+      auto block = get_nested_Blocks()[unit_id];
+      auto unit_block = dynamic_cast<UnitBlock *>(block);
+
+      if( ! unit_block )
+       continue;
+
       if( node_id == v_generator_node[elc_generator] ) {
-       for( Index generator = 0; generator < unit_block->get_number_generators(); ++generator ) {
+
+       for( Index generator = 0 ;
+            generator < unit_block->get_number_generators() ; ++generator ) {
+
+        if( auto ap = unit_block->get_active_power( generator ) ) {
+         auto active_power = &ap[t];
+         linear_function->add_variable( active_power, 1.0, eNoMod );
+        }
 
         auto fixed_consumption = unit_block->get_fixed_consumption( generator );
 
-        auto ap = unit_block->get_active_power( generator );
-        auto active_power = &ap[t];
-
-        linear_function->add_variable( active_power, 1.0, eNoMod );
         if( auto c = unit_block->get_commitment( generator ) ) {
          auto commitment = &c[t];
          if( fixed_consumption ) {
-          linear_function->add_variable( commitment, -fixed_consumption[t], eNoMod );
+          linear_function->add_variable
+           ( commitment, -fixed_consumption[t], eNoMod );
          } else {
           linear_function->add_variable( commitment, 0.0, eNoMod );
          }
         }
+
         if( fixed_consumption ) {
          v_node_injection_constraints[t][node_id].set_both
-                 ( v_node_injection_constraints[t][node_id].get_rhs()
-                   - fixed_consumption[t] );
+          ( v_node_injection_constraints[t][node_id].get_rhs()
+            - fixed_consumption[t] );
         } else {
          v_node_injection_constraints[t][node_id].set_both
-                 ( v_node_injection_constraints[t][node_id].get_rhs()
-                   - 0.0 );
+          ( v_node_injection_constraints[t][node_id].get_rhs()
+            - 0.0 );
         }
        }
       }
-      elc_generator +=unit_block->get_number_generators();
+      elc_generator += unit_block->get_number_generators();
      }
      v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
