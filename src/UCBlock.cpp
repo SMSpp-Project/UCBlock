@@ -985,9 +985,10 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
    if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
 
     for( Index t = 0; t < f_time_horizon; ++t ) {
-     auto linear_function = new LinearFunction();
 
      for( Index zone_id = 0; zone_id < f_number_inertia_zones; ++zone_id ) {
+
+      auto linear_function = new LinearFunction();
 
       if( zone_id == v_inertia_zones[0] ) {
 
