@@ -989,7 +989,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
      for( Index zone_id = 0; zone_id < f_number_inertia_zones; ++zone_id ) {
 
-      Index inertia_zone = 0;
       if( zone_id == v_inertia_zones[0] ) {
 
        Index generator_id = 0;
@@ -1020,7 +1019,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
         }
        }
       }
-      inertia_zone++;
       v_InertiaDemand_Const[t][zone_id].set_lhs
               ( get_inertia_demand()[zone_id][t] );
       v_InertiaDemand_Const[t][zone_id].set_rhs( Inf< double >());
@@ -1035,7 +1033,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
       auto linear_function = new LinearFunction();
 
-      Index inertia_zone = 0;
       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
        if( zone_id == v_inertia_zones[node_id] ) {
 
@@ -1071,7 +1068,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          elc_generator +=unit_block->get_number_generators();
         }
        }
-       inertia_zone++;
       }
       v_InertiaDemand_Const[t][zone_id].set_lhs
               ( get_inertia_demand()[zone_id][t] );
