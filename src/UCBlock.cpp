@@ -505,40 +505,40 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
       if( ! unit_block )
        continue;
 
-       for( Index generator = 0 ;
-            generator < unit_block->get_number_generators() ;
-            ++generator , ++elc_generator ) {
+      for( Index generator = 0 ;
+           generator < unit_block->get_number_generators() ;
+           ++generator , ++elc_generator ) {
 
-        if( node_id != v_generator_node[ elc_generator ] )
-         continue;
+       if( node_id != v_generator_node[ elc_generator ] )
+        continue;
 
-        if( auto ap = unit_block->get_active_power( generator ) ) {
-         auto active_power = &ap[t];
-         linear_function->add_variable( active_power, 1.0, eNoMod );
-        }
+       if( auto ap = unit_block->get_active_power( generator ) ) {
+        auto active_power = &ap[t];
+        linear_function->add_variable( active_power, 1.0, eNoMod );
+       }
 
-        auto fixed_consumption = unit_block->get_fixed_consumption( generator );
+       auto fixed_consumption = unit_block->get_fixed_consumption( generator );
 
-        if( auto c = unit_block->get_commitment( generator ) ) {
-         auto commitment = &c[t];
-         if( fixed_consumption ) {
-          linear_function->add_variable
-           ( commitment, -fixed_consumption[t], eNoMod );
-         } else {
-          linear_function->add_variable( commitment, 0.0, eNoMod );
-         }
-        }
-
+       if( auto c = unit_block->get_commitment( generator ) ) {
+        auto commitment = &c[t];
         if( fixed_consumption ) {
-         v_node_injection_constraints[t][node_id].set_both
-          ( v_node_injection_constraints[t][node_id].get_rhs()
-            - fixed_consumption[t] );
+         linear_function->add_variable
+          ( commitment, -fixed_consumption[t], eNoMod );
         } else {
-         v_node_injection_constraints[t][node_id].set_both
-          ( v_node_injection_constraints[t][node_id].get_rhs()
-            - 0.0 );
+         linear_function->add_variable( commitment, 0.0, eNoMod );
         }
        }
+
+       if( fixed_consumption ) {
+        v_node_injection_constraints[t][node_id].set_both
+         ( v_node_injection_constraints[t][node_id].get_rhs()
+           - fixed_consumption[t] );
+       } else {
+        v_node_injection_constraints[t][node_id].set_both
+         ( v_node_injection_constraints[t][node_id].get_rhs()
+           - 0.0 );
+       }
+      }
      }
      v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
@@ -603,19 +603,19 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        if( ! unit_block )
         continue;
 
-        for( Index generator = 0;
-             generator < unit_block->get_number_generators();
-             ++generator , ++elc_generator ) {
+       for( Index generator = 0;
+            generator < unit_block->get_number_generators();
+            ++generator , ++elc_generator ) {
 
-         if( node_id != v_generator_node[ elc_generator ] )
-          continue;
+        if( node_id != v_generator_node[ elc_generator ] )
+         continue;
 
-         if( auto primary_s_r =
-             unit_block->get_primary_spinning_reserve( generator ) ) {
-          auto primary_spinning_reserve = &primary_s_r[t];
-          linear_function->add_variable( primary_spinning_reserve, 1.0 );
-         }
+        if( auto primary_s_r =
+            unit_block->get_primary_spinning_reserve( generator ) ) {
+         auto primary_spinning_reserve = &primary_s_r[t];
+         linear_function->add_variable( primary_spinning_reserve, 1.0 );
         }
+       }
       }
      }
      v_PrimaryDemand_Const[t][0].set_lhs( get_primary_demand()[0][t] );
@@ -686,19 +686,19 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          if( ! unit_block )
           continue;
 
-          for( Index generator = 0;
-               generator < unit_block->get_number_generators();
-               ++generator , ++elc_generator ) {
+         for( Index generator = 0;
+              generator < unit_block->get_number_generators();
+              ++generator , ++elc_generator ) {
 
-           if( node_id != v_generator_node[ elc_generator ] )
-            continue;
+          if( node_id != v_generator_node[ elc_generator ] )
+           continue;
 
-           if( auto primary_s_r =
-               unit_block->get_primary_spinning_reserve( generator ) ) {
-            auto primary_spinning_reserve = &primary_s_r[t];
-            linear_function->add_variable( primary_spinning_reserve, 1.0 );
-           }
+          if( auto primary_s_r =
+              unit_block->get_primary_spinning_reserve( generator ) ) {
+           auto primary_spinning_reserve = &primary_s_r[t];
+           linear_function->add_variable( primary_spinning_reserve, 1.0 );
           }
+         }
         }
        }
        primary_zone++;
@@ -770,19 +770,19 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        if( ! unit_block )
         continue;
 
-        for( Index generator = 0;
-             generator < unit_block->get_number_generators();
-             ++generator , ++elc_generator ) {
+       for( Index generator = 0;
+            generator < unit_block->get_number_generators();
+            ++generator , ++elc_generator ) {
 
-         if( node_id != v_generator_node[ elc_generator ] )
-          continue;
+        if( node_id != v_generator_node[ elc_generator ] )
+         continue;
 
-         if( auto secondary_s_r =
-             unit_block->get_secondary_spinning_reserve( generator ) ) {
-          auto secondary_spinning_reserve = &secondary_s_r[t];
-          linear_function->add_variable( secondary_spinning_reserve, 1.0 );
-         }
+        if( auto secondary_s_r =
+            unit_block->get_secondary_spinning_reserve( generator ) ) {
+         auto secondary_spinning_reserve = &secondary_s_r[t];
+         linear_function->add_variable( secondary_spinning_reserve, 1.0 );
         }
+       }
       }
      }
      v_SecondaryDemand_Const[t][0].set_lhs( get_secondary_demand()[0][t] );
@@ -852,20 +852,20 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          if( ! unit_block )
           continue;
 
-          for( Index generator = 0;
-               generator < unit_block->get_number_generators();
-               ++generator , ++elc_generator ) {
+         for( Index generator = 0;
+              generator < unit_block->get_number_generators();
+              ++generator , ++elc_generator ) {
 
-           if( node_id != v_generator_node[ elc_generator ] )
-            continue;
+          if( node_id != v_generator_node[ elc_generator ] )
+           continue;
 
-           if( auto secondary_s_r =
-               unit_block->get_secondary_spinning_reserve( generator ) ) {
+          if( auto secondary_s_r =
+              unit_block->get_secondary_spinning_reserve( generator ) ) {
 
-            auto secondary_spinning_reserve = &secondary_s_r[t];
-            linear_function->add_variable( secondary_spinning_reserve, 1.0 );
-           }
+           auto secondary_spinning_reserve = &secondary_s_r[t];
+           linear_function->add_variable( secondary_spinning_reserve, 1.0 );
           }
+         }
         }
        }
        secondary_zone++;
@@ -952,29 +952,29 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
        if( ! unit_block )
         continue;
 
-        for( Index generator = 0;
-             generator < unit_block->get_number_generators();
-             ++generator , ++elc_generator ) {
+       for( Index generator = 0;
+            generator < unit_block->get_number_generators();
+            ++generator , ++elc_generator ) {
 
-         if( node_id != v_generator_node[ elc_generator ] )
-          continue;
+        if( node_id != v_generator_node[ elc_generator ] )
+         continue;
 
-         auto c = unit_block->get_commitment( generator );
-         auto inertia_commitment =
-          unit_block->get_inertia_commitment( generator );
+        auto c = unit_block->get_commitment( generator );
+        auto inertia_commitment =
+         unit_block->get_inertia_commitment( generator );
 
-         if( c && inertia_commitment ) {
-          auto commitment = &c[t];
-          linear_function->add_variable( commitment, inertia_commitment[t] );
-         }
-
-         auto ap = unit_block->get_active_power( generator );
-         auto inertia_power = unit_block->get_inertia_power( generator );
-         if( ap && inertia_power ) {
-          auto active_power = &ap[t];
-          linear_function->add_variable( active_power, inertia_power[t] );
-         }
+        if( c && inertia_commitment ) {
+         auto commitment = &c[t];
+         linear_function->add_variable( commitment, inertia_commitment[t] );
         }
+
+        auto ap = unit_block->get_active_power( generator );
+        auto inertia_power = unit_block->get_inertia_power( generator );
+        if( ap && inertia_power ) {
+         auto active_power = &ap[t];
+         linear_function->add_variable( active_power, inertia_power[t] );
+        }
+       }
       }
      }
      v_InertiaDemand_Const[t][0].set_function( linear_function );
@@ -1049,30 +1049,30 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
          if( ! unit_block )
           continue;
 
-          for( Index generator = 0;
-               generator < unit_block->get_number_generators();
-               ++generator , ++elc_generator ) {
+         for( Index generator = 0;
+              generator < unit_block->get_number_generators();
+              ++generator , ++elc_generator ) {
 
-           if( node_id != v_generator_node[ elc_generator ] )
-            continue;
+          if( node_id != v_generator_node[ elc_generator ] )
+           continue;
 
-           auto c = unit_block->get_commitment( generator );
-           auto inertia_commitment =
-            unit_block->get_inertia_commitment( generator );
+          auto c = unit_block->get_commitment( generator );
+          auto inertia_commitment =
+           unit_block->get_inertia_commitment( generator );
 
-           if( c && inertia_commitment ) {
-            auto commitment = &c[t];
-            linear_function->add_variable( commitment, inertia_commitment[t] );
-           }
-
-           auto ap = unit_block->get_active_power( generator );
-           auto inertia_power = unit_block->get_inertia_power( generator );
-
-           if( ap && inertia_power ) {
-            auto active_power = &ap[t];
-            linear_function->add_variable( active_power, inertia_power[t] );
-           }
+          if( c && inertia_commitment ) {
+           auto commitment = &c[t];
+           linear_function->add_variable( commitment, inertia_commitment[t] );
           }
+
+          auto ap = unit_block->get_active_power( generator );
+          auto inertia_power = unit_block->get_inertia_power( generator );
+
+          if( ap && inertia_power ) {
+           auto active_power = &ap[t];
+           linear_function->add_variable( active_power, inertia_power[t] );
+          }
+         }
         }
        }
       }
