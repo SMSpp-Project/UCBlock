@@ -1127,6 +1127,66 @@ class ThermalUnitBlock : public UnitBlock {
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
+ /*--------------------------------------------------------------------------*/
+
+ void set_startup_costs( std::vector< double >::const_iterator values,
+                         Subset && subset,
+                         const bool ordered = false,
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_startup_costs( std::vector< double >::const_iterator values,
+                         Range rng = Range( 0, Inf< Index >() ),
+                         c_ModParam issuePMod = eNoBlck,
+                         c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_const_term( std::vector< double >::const_iterator values,
+                      Subset && subset,
+                      const bool ordered = false,
+                      c_ModParam issuePMod = eNoBlck,
+                      c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_const_term( std::vector< double >::const_iterator values,
+                      Range rng = Range( 0, Inf< Index >() ),
+                      c_ModParam issuePMod = eNoBlck,
+                      c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_linear_term( std::vector< double >::const_iterator values,
+                       Subset && subset,
+                       const bool ordered = false,
+                       c_ModParam issuePMod = eNoBlck,
+                       c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_linear_term( std::vector< double >::const_iterator values,
+                       Range rng = Range( 0, Inf< Index >() ),
+                       c_ModParam issuePMod = eNoBlck,
+                       c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_quad_term( std::vector< double >::const_iterator values,
+                     Subset && subset,
+                     const bool ordered = false,
+                     c_ModParam issuePMod = eNoBlck,
+                     c_ModParam issueAMod = eNoBlck );
+
+ /*--------------------------------------------------------------------------*/
+
+ void set_quad_term( std::vector< double >::const_iterator values,
+                     Range rng = Range( 0, Inf< Index >() ),
+                     c_ModParam issuePMod = eNoBlck,
+                     c_ModParam issueAMod = eNoBlck );
+
 /*--------------------------------------------------------------------------*/
 
  /// sets the initial power
@@ -1489,7 +1549,11 @@ class ThermalUnitBlockMod : public Modification {
   eSetMaxP = 0 ,   ///< Set max power values
   eSetInitP    ,   ///< Set initial power values
   eSetInitUD   ,   ///< Set initial up/down times
-  eSetAv           ///< Set availability
+  eSetAv       ,   ///< Set availability
+  eSetSUC      ,   ///< Set startup costs
+  eSetLinT     ,   ///< Set linear term
+  eSetQuadT    ,   ///< Set quad term
+  eSetConstT       ///< Set constant term
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type

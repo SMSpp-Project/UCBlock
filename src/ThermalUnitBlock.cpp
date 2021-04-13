@@ -1557,6 +1557,629 @@ void ThermalUnitBlock::set_initial_power
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::set_startup_costs(
+ std::vector< double >::const_iterator values,
+ Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_StartUpCost.empty() ) {
+  if( std::all_of( values, values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_StartUpCost.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto startup_cost = values;
+
+ for( auto t : subset ) {
+  if( t >= v_StartUpCost.size() ) {
+   throw std::invalid_argument
+    ( "ThermalUnitBlock::set_startup_costs: invalid index in subset: "
+      + std::to_string( t ) );
+  }
+
+  if( v_StartUpCost[ t ] != *( startup_cost++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  startup_cost = values;
+  for( auto t : subset ) {
+   v_StartUpCost[ t ] = *( startup_cost++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( auto t : subset ) {
+
+    auto var_index = qf->is_active( &v_start_up[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_start_up_cost()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >(
+    this,
+    ThermalUnitBlockMod::eSetSUC,
+    std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_startup_costs(
+ std::vector< double >::const_iterator values,
+ Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_StartUpCost.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_StartUpCost.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_StartUpCost.size() ) {
+  throw std::invalid_argument
+   ( "ThermalUnitBlock::set_startup_costs: invalid first endpoint of "
+     "range: " + std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_StartUpCost.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_StartUpCost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( Index t = rng.first; t < rng.second; ++t ) {
+
+    auto var_index = qf->is_active( &v_start_up[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_start_up_cost()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >(
+    this,
+    ThermalUnitBlockMod::eSetSUC,
+    rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_const_term(
+ std::vector< double >::const_iterator values,
+ Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_ConstTerm.empty() ) {
+  if( std::all_of( values, values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_ConstTerm.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto const_term = values;
+
+ for( auto t : subset ) {
+  if( t >= v_ConstTerm.size() ) {
+   throw std::invalid_argument
+    ( "ThermalUnitBlock::set_const_term: invalid index in subset: "
+      + std::to_string( t ) );
+  }
+
+  if( v_ConstTerm[ t ] != *( const_term++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  const_term = values;
+  for( auto t : subset ) {
+   v_ConstTerm[ t ] = *( const_term++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( auto t : subset ) {
+
+    auto var_index = qf->is_active( &v_commitment[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_const_term()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >(
+    this,
+    ThermalUnitBlockMod::eSetConstT,
+    std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_const_term(
+ std::vector< double >::const_iterator values,
+ Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_ConstTerm.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_ConstTerm.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_ConstTerm.size() ) {
+  throw std::invalid_argument
+   ( "ThermalUnitBlock::set_const_term: invalid first endpoint of "
+     "range: " + std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_ConstTerm.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_ConstTerm.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( Index t = rng.first; t < rng.second; ++t ) {
+
+    auto var_index = qf->is_active( &v_commitment[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_const_term()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >(
+    this,
+    ThermalUnitBlockMod::eSetSUC,
+    rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_linear_term(
+ std::vector< double >::const_iterator values,
+ Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_LinearTerm.empty() ) {
+  if( std::all_of( values, values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_LinearTerm.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto linear_term = values;
+
+ for( auto t : subset ) {
+  if( t >= v_LinearTerm.size() ) {
+   throw std::invalid_argument
+    ( "ThermalUnitBlock::set_linear_term: invalid index in subset: "
+      + std::to_string( t ) );
+  }
+
+  if( v_LinearTerm[ t ] != *( linear_term++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  linear_term = values;
+  for( auto t : subset ) {
+   v_LinearTerm[ t ] = *( linear_term++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( auto t : subset ) {
+
+    auto var_index = qf->is_active( &v_active_power[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_linear_term()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >(
+    this,
+    ThermalUnitBlockMod::eSetLinT,
+    std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_linear_term(
+ std::vector< double >::const_iterator values,
+ Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_LinearTerm.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_LinearTerm.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_LinearTerm.size() ) {
+  throw std::invalid_argument
+   ( "ThermalUnitBlock::set_const_term: invalid first endpoint of "
+     "range: " + std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_LinearTerm.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_LinearTerm.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( Index t = rng.first; t < rng.second; ++t ) {
+
+    auto var_index = qf->is_active( &v_active_power[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient( var_index,
+                                   get_linear_term()[ t ],
+                                   issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >(
+    this,
+    ThermalUnitBlockMod::eSetLinT,
+    rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_quad_term(
+ std::vector< double >::const_iterator values,
+ Subset && subset,
+ const bool ordered,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() ) {
+  return;
+ }
+
+ if( v_QuadTerm.empty() ) {
+  if( std::all_of( values, values + subset.size(),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_QuadTerm.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto quad_term = values;
+
+ for( auto t : subset ) {
+  if( t >= v_QuadTerm.size() ) {
+   throw std::invalid_argument
+    ( "ThermalUnitBlock::set_quad_term: invalid index in subset: "
+      + std::to_string( t ) );
+  }
+
+  if( v_QuadTerm[ t ] != *( quad_term++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  quad_term = values;
+  for( auto t : subset ) {
+   v_QuadTerm[ t ] = *( quad_term++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( auto t : subset ) {
+
+    auto var_index = qf->is_active( &v_active_power[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_term( var_index,
+                     get_linear_term()[ t ],
+                     get_quad_term()[ t ],
+                     issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockSbstMod >(
+    this,
+    ThermalUnitBlockMod::eSetQuadT,
+    std::move( subset ) ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_quad_term(
+ std::vector< double >::const_iterator values,
+ Range rng,
+ c_ModParam issuePMod,
+ c_ModParam issueAMod ) {
+
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_QuadTerm.empty() ) {
+  if( std::all_of( values,
+                   values + ( rng.second - rng.first ),
+                   []( double cst ) {
+                    return ( cst == 0 );
+                   } ) ) {
+   return;
+  }
+
+  v_QuadTerm.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_QuadTerm.size() ) {
+  throw std::invalid_argument
+   ( "ThermalUnitBlock::set_quad_term: invalid first endpoint of "
+     "range: " + std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values,
+                 values + ( rng.second - rng.first ),
+                 v_QuadTerm.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values,
+             values + ( rng.second - rng.first ),
+             v_QuadTerm.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>(objective.get_function());
+
+   for( Index t = rng.first; t < rng.second; ++t ) {
+
+    auto var_index = qf->is_active( &v_active_power[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_term( var_index,
+                     get_linear_term()[ t ],
+                     get_quad_term()[ t ],
+                     issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification(
+   std::make_shared< ThermalUnitBlockRngdMod >(
+    this,
+    ThermalUnitBlockMod::eSetQuadT,
+    rng ),
+   Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::set_init_updown_time
 ( std::vector< int >::const_iterator values , Block::Subset && subset ,
   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
