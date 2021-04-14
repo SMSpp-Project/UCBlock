@@ -763,6 +763,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
     for( Index arc = 0; arc < f_number_arcs; ++arc ) {
      if( ! v_number_pieces.empty() ) {
       end += v_number_pieces[arc];
+     } else{
+      end = 1;
      }
 
      if( v_maximum_flow[t][arc] > 0 ) { //Turbines
