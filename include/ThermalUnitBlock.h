@@ -1025,9 +1025,12 @@ class ThermalUnitBlock : public UnitBlock {
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start_up variables
- const std::vector< ColVariable > & get_start_up() const {
-  return v_start_up;
-  }
+ // const std::vector< ColVariable > & get_start_up() const {
+ //  return v_start_up;
+ //  }
+ ColVariable * get_start_up() {
+  return &( v_start_up.front() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of shut_down variables
