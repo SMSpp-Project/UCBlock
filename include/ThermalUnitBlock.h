@@ -722,7 +722,7 @@ class ThermalUnitBlock : public UnitBlock {
  double get_initial_power() const { return f_initial_power; }
 
  /// returns the init up and down time value
- Index get_init_up_down_time() const { return f_InitUpDownTime; }
+ int get_init_up_down_time() const { return f_InitUpDownTime; }
 
  /// returns the minimum allowed up time value
  Index get_min_up_time() const { return f_MinUpTime; }
