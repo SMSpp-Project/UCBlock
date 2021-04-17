@@ -1109,6 +1109,131 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
+
+ auto guts = [this]( p_Mod mod , ChnlName chnl ) {
+
+  // VariableMod
+  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
+   // FIXME: Only fix/unfix is supported for now
+   auto v = dynamic_cast<ColVariable * const>( tmod->variable() );
+
+   if( v->is_fixed() ) {
+    // TODO: Do something to the physical representation
+
+   } else {
+    // TODO: Do something to the physical representation
+   }
+
+   return;
+  }
+
+  // BlockMod - Generic modification
+  // Note: at the moment it's used only for changing the OF
+  if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
+   // TODO: BlockMod - obj changed
+
+   return;
+  }
+
+  // C05FunctionModLinRngd - change in the linear part of a Function
+  if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) ) {
+
+   auto f = tmod->function();
+   if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
+    // C05FunctionModLinRngd on Objective
+
+    if( const auto * lf = dynamic_cast<const LinearFunction *> (f) ) {
+     // TODO: This doesn't happen (for now) because OF is always DQuadFunction
+     //       Revise when also LinearFunction OFs are considered
+     return;
+    }
+
+    if( const auto * qf = dynamic_cast<const DQuadFunction *> (f) ) {
+     // TODO: Take indices of modified variables and
+     //       update, if necessary startup_costs, Lin/Quad/Const term
+
+     if( !objective_generated() ) {
+      throw std::invalid_argument( "Objective was not generated" );
+     }
+
+     // TODO: This code is not optimized to use the ranges.
+     //       It should split the tmod->range() in subranges and use
+     //       the ranged physical modifications.
+     for( Index i = tmod->range().first; i < tmod->range().second; ++i ) {
+      if( i < get_time_horizon() - init_t ) {
+       // It's a startup variable
+
+       std::vector< double > new_value( 1, qf->get_linear_coefficient( i ) );
+       Block::Subset idx( 1, i );
+       set_startup_costs( new_value.begin(),
+                          std::move( idx ),
+                          true,
+                          make_par( eNoBlck, chnl ),
+                          eDryRun );
+
+      } else if( i < 2 * get_time_horizon() - init_t ) {
+       // It's an active power variable
+
+       std::vector< double > new_lt( 1, qf->get_linear_coefficient( i ) );
+       Block::Subset idx1( 1, i - ( get_time_horizon() - init_t ) );
+       set_linear_term( new_lt.begin(),
+                        std::move( idx1 ),
+                        true,
+                        make_par( eNoBlck, chnl ),
+                        eDryRun );
+
+       std::vector< double > new_qt( 1, qf->get_quadratic_coefficient( i ) );
+       Block::Subset idx2( 1, i - ( get_time_horizon() - init_t ) );
+       set_quad_term( new_qt.begin(),
+                      std::move( idx2 ),
+                      true,
+                      make_par( eNoBlck, chnl ),
+                      eDryRun );
+
+      } else if( i < 3 * get_time_horizon() - init_t ) {
+       // It's a unit committment variable
+
+       std::vector< double > new_value( 1, qf->get_linear_coefficient( i ) );
+       Block::Subset idx( 1, i - ( 2 * get_time_horizon() - init_t ) );
+       set_const_term( new_value.begin(),
+                       std::move( idx ),
+                       true,
+                       make_par( eNoBlck, chnl ),
+                       eDryRun );
+
+      } else {
+       throw std::invalid_argument( "Variable index is not valid" );
+      }
+     }
+
+     return;
+    }
+
+
+    // This should never happen
+    throw std::invalid_argument( "Unknown type of Objective Function" );
+   } else {
+    // C05FunctionModLinRngd on Constraint
+    // TODO
+   }
+
+   return;
+  }
+
+  throw std::invalid_argument( "unsupported Modification to ThermalUnitBlock" );
+ };
+
+ if( mod->concerns_Block() ) {
+  mod->concerns_Block( false );
+  guts( mod.get(), chnl );
+ }
+
+ Block::add_Modification( mod, chnl );
+}
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::update_availability_dependents
 ( Index t , c_ModParam issueAMod ) {
 

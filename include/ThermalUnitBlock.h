@@ -1065,6 +1065,15 @@ class ThermalUnitBlock : public UnitBlock {
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+ /** Method for handling Modification.
+  *
+  * This method has to intercept any "abstract Modification" that
+  * modifies the "abstract representation" of the ThermalUnitBlock, and
+  * "translate" them into both changes of the actual data structures and
+  * corresponding "physical Modification". These Modification are those
+  * for which Modification::concerns_Block() is true.
+  */
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
