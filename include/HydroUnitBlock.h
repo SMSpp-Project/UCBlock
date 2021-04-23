@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2021
+ * \date 23 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1261,7 +1261,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reservoir. */
 
  ColVariable * get_volumetric( Index reservoir ) {
-  return ( v_volumetric.data() + reservoir * f_time_horizon );
+  if( reservoir < get_number_reservoirs() ) {
+   const auto offset = reservoir * f_time_horizon;
+   if( offset < v_volumetric.num_elements() )
+    return ( v_volumetric.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1280,7 +1285,12 @@ class HydroUnitBlock : public UnitBlock {
   *         \p reservoir at the given \p time. */
 
  ColVariable * get_volume( Index reservoir , Index time ) {
-  return ( v_volumetric.data() + reservoir * f_time_horizon + time );
+  if( reservoir < get_number_reservoirs() && time < f_time_horizon ) {
+   const auto offset = reservoir * f_time_horizon + time;
+   if( offset < v_volumetric.num_elements() )
+    return ( v_volumetric.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1297,7 +1307,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p generator. */
 
  ColVariable * get_active_power( Index generator ) override {
-  return ( v_active_power.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_active_power.num_elements() )
+    return ( v_active_power.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1316,7 +1331,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p generator at the given \p time. */
 
  ColVariable * get_active_power( Index generator , Index time ) {
-  return ( v_active_power.data() + generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_active_power.num_elements() )
+    return ( v_active_power.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1333,7 +1353,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p arc. */
 
  ColVariable * get_flow_rate( Index arc ) {
-  return ( v_flow_rate.data() + arc * f_time_horizon );
+  if( arc < get_number_generators() ) {
+   const auto offset = arc * f_time_horizon;
+   if( offset < v_flow_rate.num_elements() )
+    return ( v_flow_rate.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1352,7 +1377,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p arc at the given \p time. */
 
  ColVariable * get_flow_rate( Index arc , Index time ) {
-  return ( v_flow_rate.data() + arc * f_time_horizon + time );
+  if( arc < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = arc * f_time_horizon + time;
+   if( offset < v_flow_rate.num_elements() )
+    return ( v_flow_rate.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1369,7 +1399,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator. */
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
-  return ( v_primary_spinning_reserve.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_primary_spinning_reserve.num_elements() )
+    return ( v_primary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1388,8 +1423,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator at the given \p time. */
 
  ColVariable * get_primary_spinning_reserve( Index generator , Index time ) {
-  return ( v_primary_spinning_reserve.data() +
-           generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_primary_spinning_reserve.num_elements() )
+    return ( v_primary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1406,7 +1445,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator. */
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
-  return ( v_secondary_spinning_reserve.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_secondary_spinning_reserve.num_elements() )
+    return ( v_secondary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1426,8 +1470,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator at the given \p time. */
 
  ColVariable * get_secondary_spinning_reserve( Index generator , Index time ) {
-  return ( v_secondary_spinning_reserve.data() +
-           generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_secondary_spinning_reserve.num_elements() )
+    return ( v_secondary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /**@} ----------------------------------------------------------------------*/

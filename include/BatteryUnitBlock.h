@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 22 - 01 - 2021
+ * \date 23 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -861,17 +861,23 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
+  if( v_active_power.empty() )
+   return nullptr;
   return &( v_active_power.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator) override {
+  if( v_primary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_primary_spinning_reserve.front() );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  if( v_secondary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_secondary_spinning_reserve.front() );
  }
 /*--------------------------------------------------------------------------*/

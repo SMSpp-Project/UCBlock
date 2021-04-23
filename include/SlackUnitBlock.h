@@ -15,7 +15,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 03 - 2020
+ * \date 23 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -482,26 +482,34 @@ class SlackUnitBlock : public UnitBlock {
  *
  * @{ */
  /// returns the vector of commitment variables
- ColVariable * get_commitment( Index generator  ) override {
+ ColVariable * get_commitment( Index generator ) override {
+  if( v_commitment.empty() )
+   return nullptr;
   return &( v_commitment.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
- ColVariable * get_active_power( Index generator )
- override {
+ ColVariable * get_active_power( Index generator ) override {
+  if( v_active_power.empty() )
+   return nullptr;
   return &( v_active_power.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  if( v_primary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_primary_spinning_reserve.front() );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  if( v_secondary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_secondary_spinning_reserve.front() );
  }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
