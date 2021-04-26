@@ -5,25 +5,10 @@
 # This is needed for setting the runtime path when installing.
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-# Since we are using the block factory, objects from linked libraries
-# may wrongly appear unused, and by default the linker does not include them,
-# so we have to force the linking.
-if (BUILD_SHARED_LIBS)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_link_options("-Wl,--no-as-needed")
-    endif ()
-else ()
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-        add_link_options("-Wl,-all_load")
-    else ()
-        add_link_options("-Wl,--whole-archive,--allow-multiple-definition")
-    endif ()
-endif ()
-
 # ----- nc4generator -------------------------------------------------------- #
 add_executable(nc4generator nc4generator.cpp)
 target_compile_features(nc4generator PRIVATE cxx_std_17)
-target_link_libraries(nc4generator PRIVATE SMS++::UCBlock)
+target_link_libraries(nc4generator PRIVATE SMS++::SMSpp)
 
 # ----- Install instructions ------------------------------------------------ #
 include(GNUInstallDirs)
