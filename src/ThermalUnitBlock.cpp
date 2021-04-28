@@ -1986,7 +1986,7 @@ void ThermalUnitBlock::set_const_term(
   Block::add_Modification(
    std::make_shared< ThermalUnitBlockRngdMod >(
     this,
-    ThermalUnitBlockMod::eSetSUC,
+    ThermalUnitBlockMod::eSetConstT,
     rng ),
    Observer::par2chnl( issuePMod ) );
  }
@@ -2374,7 +2374,7 @@ void ThermalUnitBlock::set_init_updown_time
 
  if( issue_pmod( issuePMod ) ) {
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >
-                           ( this , ThermalUnitBlockMod::eSetInitP ),
+                           ( this , ThermalUnitBlockMod::eSetInitUD ),
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( ThermalUnitBlock::set_init_updown_time )

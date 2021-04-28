@@ -1596,14 +1596,31 @@ class ThermalUnitBlockMod : public Modification {
  void print( std::ostream & output ) const override {
   output << "ThermalUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case ( eSetMaxP ):
-    output << "set max power values ";
+   case eSetMaxP:
+    output << "set max power values";
     break;
-   case ( eSetInitP ):
-    output << "set initial power values ";
+   case eSetInitP:
+    output << "set initial power values";
     break;
-   default:
-    output << "set initial up/down times ";
+   case eSetInitUD:
+    output << "Set initial up/down times";
+    break;
+   case eSetAv:
+    output << "Set availability";
+    break;
+   case eSetSUC:
+    output << "Set startup costs";
+    break;
+   case eSetLinT:
+    output << "Set linear term";
+    break;
+   case eSetQuadT:
+    output << "Set quad term";
+    break;
+   case eSetConstT:
+    output << "Set constant term";
+    break;
+   default:;
   }
  }
 
