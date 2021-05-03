@@ -42,12 +42,14 @@
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/BusNetworkBlock.o \
 	$(UCBckDIR)obj/DCNetworkBlock.o \
+	$(UCBckDIR)obj/EDPSolver.o \
 	$(UCBckDIR)obj/HydroSystemUnitBlock.o \
 	$(UCBckDIR)obj/HydroUnitBlock.o \
 	$(UCBckDIR)obj/IntermittentUnitBlock.o \
 	$(UCBckDIR)obj/NetworkBlock.o \
 	$(UCBckDIR)obj/SlackUnitBlock.o \
 	$(UCBckDIR)obj/ThermalUnitBlock.o \
+	$(UCBckDIR)obj/ThermalUnitDPSolver.o \
 	$(UCBckDIR)obj/UCBlock.o \
 	$(UCBckDIR)obj/UnitBlock.o
 #	$(UCBckDIR)obj/HeatBlock.o
@@ -57,12 +59,14 @@ UCBckINC = -I$(UCBckDIR)include/
 UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
 	$(UCBckDIR)include/BusNetworkBlock.h \
 	$(UCBckDIR)include/DCNetworkBlock.h \
+	$(UCBckDIR)include/EDPSolver.h \
 	$(UCBckDIR)include/HydroSystemUnitBlock.h \
 	$(UCBckDIR)include/HydroUnitBlock.h \
 	$(UCBckDIR)include/IntermittentUnitBlock.h \
 	$(UCBckDIR)include/NetworkBlock.h \
 	$(UCBckDIR)include/SlackUnitBlock.h \
 	$(UCBckDIR)include/ThermalUnitBlock.h \
+	$(UCBckDIR)include/ThermalUnitDPSolver.h \
 	$(UCBckDIR)include/UCBlock.h \
 	$(UCBckDIR)include/UnitBlock.h
 #	$(UCBckDIR)include/HeatBlock.h
@@ -90,6 +94,11 @@ $(UCBckDIR)obj/DCNetworkBlock.o: $(UCBckDIR)src/DCNetworkBlock.cpp \
 	$(UCBckDIR)include/DCNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
 	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
+	$(UCBckINC) $(SW)
+
+$(UCBckDIR)obj/EDPSolver.o: $(UCBckDIR)src/EDPSolver.cpp \
+	$(UCBckDIR)include/EDPSolver.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)src/EDPSolver.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
 #$(UCBckDIR)obj/HeatBlock.o: $(UCBckDIR)src/HeatBlock.cpp \
@@ -133,6 +142,12 @@ $(UCBckDIR)obj/ThermalUnitBlock.o: $(UCBckDIR)src/ThermalUnitBlock.cpp \
         $(UCBckDIR)include/ThermalUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
 	$(SMS++OBJ) 
 	$(CC) -c $(UCBckDIR)src/ThermalUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
+
+$(UCBckDIR)obj/ThermalUnitDPSolver.o: $(UCBckDIR)src/ThermalUnitDPSolver.cpp \
+        $(UCBckDIR)include/ThermalUnitDPSolver.h \
+	$(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)src/ThermalUnitDPSolver.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckDIR)obj/UCBlock.o: $(UCBckDIR)src/UCBlock.cpp \
