@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 10 - 2020
+ * \date 18 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -262,6 +262,45 @@ class DCNetworkBlock : public NetworkBlock {
  *   variable */
 
   void generate_objective( Configuration *objc ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- Methods for checking the DCNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the DCNetworkBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this DCNetworkBlock is approximately
+  * feasible within the given tolerance. The tolerance can be provided by
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration. If \p
+  * fsbc is a pointer to a SimpleConfiguration< double >, then the tolerance
+  * is the value present in that SimpleConfiguration. If \p fsbc is not a
+  * pointer to a SimpleConfiguration< double > but
+  * #f_BlockConfig->f_is_feasible_Congifuration is, then the tolerance is the
+  * value present in #f_BlockConfig->f_is_feasible_Congifuration. Otherwise,
+  * the tolerance is considered 1e-8 by default.
+  *
+  * This function currently considers only the abstract constraints to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. Moreover, if no abstract Constraint has been generated,
+  * then this method returns true.
+  *
+  * Each Constraint of this DCNetworkBlock is a RowConstraint and a solution
+  * is considered feasible if and only if the relative violation of each
+  * RowConstraint of this DCNetworkBlock is not greater than the
+  * tolerance. See RowConstraint::rel_viol() for details about the relative
+  * violation.
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
