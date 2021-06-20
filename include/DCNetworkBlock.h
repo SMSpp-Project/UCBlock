@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 06 - 2021
+ * \date 20 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -288,16 +288,18 @@ class DCNetworkBlock : public NetworkBlock {
   *
   *   - Otherwise, the tolerance is considered to be 1e-8 by default.
   *
-  * This function currently considers only the abstract constraints to
-  * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. Moreover, if no abstract Constraint has been generated,
-  * then this method returns true.
-  *
   * Each Constraint of this DCNetworkBlock is a RowConstraint and a solution
   * is considered feasible if and only if the relative violation of each
   * RowConstraint of this DCNetworkBlock is not greater than the
   * tolerance. See RowConstraint::rel_viol() for details about the relative
   * violation.
+  *
+  * This function currently considers only the abstract constraints to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. Moreover, if no abstract Constraint has been generated,
+  * then this method returns true. Notice also that, before checking if the
+  * solution satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *

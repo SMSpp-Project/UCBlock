@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 18 - 06 - 2021
+ * \date 20 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -365,8 +365,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 template<class C>
 static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
-is_feasible( const std::vector< C > & constraints , double tolerance ) {
- for( const auto & constraint : constraints ) {
+is_feasible( std::vector< C > & constraints , double tolerance ) {
+ for( auto & constraint : constraints ) {
+  constraint.compute();
   if( constraint.rel_viol() > tolerance )
    return false;
  }

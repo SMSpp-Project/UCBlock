@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 06 - 2021
+ * \date 20 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -305,7 +305,9 @@ class IntermittentUnitBlock : public UnitBlock {
   * currently ignored. If no abstract Variable has been generated, this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
-  * set of Constraint.
+  * set of Constraint. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
