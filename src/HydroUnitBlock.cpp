@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 03 - 2021
+ * \date 20 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -992,6 +992,105 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  set_constraints_generated();
 } // end( HydroUnitBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+/// verifies whether the current solution is feasible for the given constraints
+/** This function checks whether the relative violation of each RowConstraint
+ * in the given group of RowConstraint is not greater than the provided
+ * tolerance.
+ *
+ * @return This function returns true if and only if the relative violation of
+ *         each RowConstraint in the given group is not greater than the given
+ *         tolerance. */
+
+template<class C , auto D>
+static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
+is_feasible( boost::multi_array< C , D > & constraints , double tolerance ) {
+
+ const auto num_elements = constraints.num_elements();
+
+ if( num_elements == 0 )
+  // If there is no Constraint, then the solution is considered to be feasible
+  return true;
+
+ auto constraint = constraints.data();
+ for( Block::Index i = 0 ; i < num_elements ; ++i , ++constraint ) {
+  if( constraint->is_relaxed() )
+   continue;
+  constraint->compute();
+  if( constraint->rel_viol() > tolerance )
+   return false;
+ }
+ return true;
+}
+
+/*--------------------------------------------------------------------------*/
+
+/// verifies whether the given ColVariable are feasible
+/** This function returns true if and only if each given ColVariable is
+ * feasible with respect to the given tolerance (see
+ * ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+template<class V , auto D>
+static std::enable_if_t< std::is_base_of_v< ColVariable , V > , bool >
+is_feasible( const boost::multi_array< V , D > & variables ,
+             double tolerance ) {
+
+ const auto num_elements = variables.num_elements();
+
+ if( num_elements == 0 )
+  // If there is no Variable, then the solution is considered to be feasible
+  return true;
+
+ auto variable = variables.data();
+ for( Block::Index i = 0 ; i < num_elements ; ++i , ++variable ) {
+  if( ! variable->is_feasible( tolerance ) )
+   return false;
+ }
+ return true;
+}
+
+/*--------------------------------------------------------------------------*/
+
+bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance.
+
+ auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast< SimpleConfiguration< double > * >
+   ( f_BlockConfig->f_is_feasible_Configuration );
+
+ // If a tolerance has not been provided, use the default tolerance.
+ const auto tolerance = config ? config->f_value : 1.0e-8;
+
+ // Notice that there is no check for the flow rate and active power
+ // variables, since they are continuous and have no bounds.
+
+ return
+  UnitBlock::is_feasible( useabstract )
+  // Constraints
+  && ::is_feasible( MaxPowerPrimarySecondary_Const , tolerance )
+  && ::is_feasible( MinPowerPrimarySecondary_Const , tolerance )
+  && ::is_feasible( ActivePowerPrimary_Const , tolerance )
+  && ::is_feasible( ActivePowerSecondary_Const , tolerance )
+  && ::is_feasible( FlowActivePower_Const , tolerance )
+  && ::is_feasible( ActivePowerBounds_Const , tolerance )
+  && ::is_feasible( RampUp_Const , tolerance )
+  && ::is_feasible( RampDown_Const , tolerance )
+  && ::is_feasible( FlowRateBounds_Const , tolerance )
+  && ::is_feasible( FinalVolumeReservoir_Const , tolerance )
+  && ::is_feasible( VolumetricBounds_Const , tolerance )
+  // Variables
+  && ::is_feasible( v_volumetric , tolerance )
+  && ::is_feasible( v_primary_spinning_reserve , tolerance )
+  && ::is_feasible( v_secondary_spinning_reserve , tolerance );
+} // end( HydroUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 
