@@ -367,6 +367,8 @@ template<class C>
 static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
 is_feasible( std::vector< C > & constraints , double tolerance ) {
  for( auto & constraint : constraints ) {
+  if( constraint.is_relaxed() )
+   continue;
   constraint.compute();
   if( constraint.rel_viol() > tolerance )
    return false;

@@ -268,6 +268,8 @@ template<class C>
 static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
 is_feasible( std::vector< C > & constraints , double tolerance ) {
  for( auto & constraint : constraints ) {
+  if( constraint.is_relaxed() )
+   continue;
   constraint.compute();
   if( constraint.rel_viol() > tolerance )
    return false;
@@ -277,7 +279,7 @@ is_feasible( std::vector< C > & constraints , double tolerance ) {
 
 /*--------------------------------------------------------------------------*/
 
-/// verifies whether the values of the given Variable are nonnegative
+/// verifies whether the given ColVariable are feasible
 /** This function returns true if and only if each given ColVariable is
  * feasible with respect to the given tolerance (see
  * ColVariable::is_feasible()).
