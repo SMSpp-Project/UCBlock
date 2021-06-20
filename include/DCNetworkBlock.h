@@ -274,13 +274,19 @@ class DCNetworkBlock : public NetworkBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
   * feasible within the given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration. If \p
-  * fsbc is a pointer to a SimpleConfiguration< double >, then the tolerance
-  * is the value present in that SimpleConfiguration. If \p fsbc is not a
-  * pointer to a SimpleConfiguration< double > but
-  * #f_BlockConfig->f_is_feasible_Congifuration is, then the tolerance is the
-  * value present in #f_BlockConfig->f_is_feasible_Congifuration. Otherwise,
-  * the tolerance is considered 1e-8 by default.
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * determined as follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
   *
   * This function currently considers only the abstract constraints to
   * determine if the solution is feasible. So, the parameter \p useabstract is
