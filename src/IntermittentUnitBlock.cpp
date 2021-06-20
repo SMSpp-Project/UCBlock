@@ -278,22 +278,18 @@ is_feasible( std::vector< C > & constraints , double tolerance ) {
 /*--------------------------------------------------------------------------*/
 
 /// verifies whether the values of the given Variable are nonnegative
-/** This function returns true if and only if the value of each Variable is
- * within the bounds on that Variable. All Variable of the
- * IntermittentUnitBlock are nonnegative, so that this function simply checks
- * whether the values of the Variable are nonnegative considering the given
- * nonnegative tolerance (i.e., if the values are greater than or equal to the
- * negative value of tolerance).
+/** This function returns true if and only if each given ColVariable is
+ * feasible with respect to the given tolerance (see
+ * ColVariable::is_feasible()).
  *
- * @return This function returns true if and only if the value of each
- *         ColVariable in the given vector is nonnegative, considering the
- *         given tolerance. */
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
 
 template<class V>
 static std::enable_if_t< std::is_base_of_v< ColVariable , V > , bool >
 is_feasible( const std::vector< V > & variables , double tolerance ) {
  for( const auto & variable : variables ) {
-  if( variable.get_value() < - tolerance )
+  if( ! variable.is_feasible( tolerance ) )
    return false;
  }
  return true;
