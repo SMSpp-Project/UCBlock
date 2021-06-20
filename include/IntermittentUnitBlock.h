@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 04 - 2021
+ * \date 19 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -20,8 +20,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
+ * Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -253,6 +258,63 @@ class IntermittentUnitBlock : public UnitBlock {
  *   variables) */
 
  void generate_objective( Configuration *objc ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*------------- Methods for checking the IntermittentUnitBlock -------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the
+ *  IntermittentUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this IntermittentUnitBlock is
+  * approximately feasible considering a given tolerance. The tolerance can be
+  * provided by either \p fsbc or by
+  * #f_BlockConfig->f_is_feasible_Congifuration and it is determined as
+  * follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *
+  * Each Constraint of this IntermittentUnitBlock is a RowConstraint and a
+  * solution is considered feasible if and only if
+  *
+  *   -# the relative violation of each RowConstraint of this
+  *      IntermittentUnitBlock is not greater than the tolerance; and
+  *
+  *   -# the bounds on each ColVariable are satisfied considering the given
+  *      tolerance. Since every ColVariable of this IntermittentUnitBlock is
+  *      nonnegative, this means that the value of each ColVariable must be
+  *      greater than or equal to the negative value of the tolerance.
+  *
+  * See RowConstraint::rel_viol() for details about the relative violation of
+  * the RowConstraint.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Constraint.
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
