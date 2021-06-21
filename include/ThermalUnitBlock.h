@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 21 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1265,6 +1265,19 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
+ void set_primary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Subset && subset ,
+   const bool ordered , c_ModParam issuePMod = eNoBlck ,
+   c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_primary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Range rng ,
+   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this
@@ -1352,6 +1365,9 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
+
+ /// the vector of primary spinning reserve linear costs
+ std::vector< double > v_primary_spinning_reserve_cost;
 
  /// the InitialPower value
  double f_initial_power{};
@@ -1622,14 +1638,18 @@ class ThermalUnitBlockMod : public Modification {
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type {
-  eSetMaxP = 0 ,   ///< Set max power values
-  eSetInitP    ,   ///< Set initial power values
-  eSetInitUD   ,   ///< Set initial up/down times
-  eSetAv       ,   ///< Set availability
-  eSetSUC      ,   ///< Set startup costs
-  eSetLinT     ,   ///< Set linear term
-  eSetQuadT    ,   ///< Set quad term
-  eSetConstT       ///< Set constant term
+  eSetMaxP = 0      , ///< Set max power values
+  eSetInitP         , ///< Set initial power values
+  eSetInitUD        , ///< Set initial up/down times
+  eSetAv            , ///< Set availability
+  eSetSUC           , ///< Set startup costs
+  eSetLinT          , ///< Set linear term
+  eSetQuadT         , ///< Set quad term
+  eSetConstT        , ///< Set constant term
+  eSetPrSpResCost   , ///< Set primary spinning reserve (linear) costs
+  eTUBBModLastParam   ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of ThermalUnitBlockMod. */
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type

@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 21 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1126,6 +1126,18 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    ( & v_commitment[ t ] , const_term[ t ] , 0.0 );
  }
 
+ if( ! v_primary_spinning_reserve.empty() ) {
+
+  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+   throw ( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
+                             "spinning_reserve must have size equal to the "
+                             "time horizon." ) );
+  }
+
+  for( Index t = 0; t < f_time_horizon; ++t )
+   dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
+ }
+
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
 
@@ -1290,6 +1302,14 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
                        make_par( eNoBlck, chnl ),
                        eDryRun );
 
+      } else if( i < 4 * get_time_horizon() - init_t ) {
+       // It's a primary spinning reserve variable
+
+       std::vector< double > new_value( 1 , qf->get_linear_coefficient( i ) );
+       Block::Subset idx( 1 , i - ( 3 * get_time_horizon() - init_t ) );
+       set_primary_spinning_reserve_cost( new_value.begin() , std::move( idx ) ,
+                                          true , make_par( eNoBlck , chnl ) ,
+                                          eDryRun );
       } else {
        throw std::invalid_argument( "Variable index is not valid" );
       }
@@ -2392,6 +2412,142 @@ void ThermalUnitBlock::set_quad_term(
    Observer::par2chnl( issuePMod ) );
  }
 }
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_primary_spinning_reserve_cost
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return;
+
+ if( v_primary_spinning_reserve_cost.empty() ) {
+  // The primary spinning reserve costs are currently all zero.
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   return; // The given values are zero. Nothing to do.
+  }
+
+  v_primary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto cost_coefficient = values;
+
+ for( auto t : subset ) {
+  if( t >= v_primary_spinning_reserve_cost.size() ) {
+   throw std::invalid_argument( "ThermalUnitBlock::set_primary_spinning_"
+                                "reserve_cost: invalid index in subset: "
+                                + std::to_string( t ) );
+  }
+
+  if( v_primary_spinning_reserve_cost[ t ] != *( cost_coefficient++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
+  return; // The given coefficients are equal to the ones already
+          // here. So, there is nothing to be changed.
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  cost_coefficient = values;
+  for( auto t : subset ) {
+   v_primary_spinning_reserve_cost[ t ] = *( cost_coefficient++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>( objective.get_function() );
+
+   for( auto t : subset ) {
+    auto var_index = qf->is_active( &v_primary_spinning_reserve[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient
+     ( var_index , v_primary_spinning_reserve_cost[ t ] , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >
+                           ( this , ThermalUnitBlockMod::eSetPrSpResCost ,
+                             std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+} // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_primary_spinning_reserve_cost
+( std::vector< double >::const_iterator values , Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return; // Empty range. Return.
+ }
+
+ if( v_primary_spinning_reserve_cost.empty() ) {
+  // The primary spinning reserve costs are currently all zero.
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   return; // The given values are zero. So, there is nothing to be changed.
+  }
+
+  v_primary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_primary_spinning_reserve_cost.size() ) {
+  throw std::invalid_argument( "ThermalUnitBlock::set_primary_spinning_reserve"
+                               "_cost: invalid first endpoint of range: " +
+                               std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values , values + ( rng.second - rng.first ) ,
+                 v_primary_spinning_reserve_cost.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values , values + ( rng.second - rng.first ) ,
+             v_primary_spinning_reserve_cost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>( objective.get_function() );
+
+   for( Index t = rng.first ; t < rng.second ; ++t ) {
+
+    auto var_index = qf->is_active( &v_commitment[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient
+     ( var_index , v_primary_spinning_reserve_cost[ t ] , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >
+                           ( this, ThermalUnitBlockMod::eSetPrSpResCost , rng ),
+                           Observer::par2chnl( issuePMod ) );
+ }
+} // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
 
 /*--------------------------------------------------------------------------*/
 
