@@ -138,7 +138,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
- if( ! ::deserialize_dim( group, "NumberReservoirs", f_number_reservoirs, true ) )
+ if( ! ::deserialize_dim( group, "NumberReservoirs",
+                          f_number_reservoirs, true ) )
   f_number_reservoirs = 1;
 
  if( ! ::deserialize_dim( group, "NumberArcs", f_number_arcs, true ) )
@@ -147,7 +148,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group, "NumberPieces", f_number_arcs,
                 v_number_pieces, true, true );
 
- if( ! ::deserialize_dim( group, "TotalNumberPieces", f_total_number_pieces, true ) ) {
+ if( ! ::deserialize_dim( group, "TotalNumberPieces",
+                          f_total_number_pieces, true ) ) {
   f_total_number_pieces = 0;
   for( const auto & n : v_number_pieces ) {
    f_total_number_pieces += n;
@@ -160,7 +162,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group, "EndArc", f_number_arcs, v_end_arc );
 
  ::deserialize( group, "Inflows", v_inflows, true, false );
- transpose( v_inflows );
 
  ::deserialize( group, "MinFlow", v_minimum_flow, true, true );
  transpose( v_minimum_flow );
@@ -208,10 +209,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                 v_downhill_delay, true, true );
 
  ::deserialize( group, "MinVolumetric", v_minimum_volumetric, true, true );
- transpose( v_minimum_volumetric );
 
  ::deserialize( group, "MaxVolumetric", v_maximum_volumetric, true, true );
- transpose( v_maximum_volumetric );
 
  decompress_array( v_minimum_flow );
  decompress_array( v_maximum_flow );
@@ -1791,10 +1790,12 @@ template< typename T >
 void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {
  long rows = a.shape()[ 0 ];
  long cols = a.shape()[ 1 ];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
+
+ if( rows > 1 && cols == 1 && f_number_arcs > 1 ) {
+  // The given array has dimensions ( number of arcs x 1 ). Therefore, the
+  // array must be transposed.
   boost::array< typename boost::multi_array< T, 2 >::index, 2 >
-   dims = { { 1, rows } };
+   dims = { { 1 , rows } };
   a.reshape( dims );
  }
 }
