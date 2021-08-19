@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 19 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1836,48 +1836,62 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::decompress_vol( boost::multi_array< double, 2 > & a ) {
+void HydroUnitBlock::decompress_vol
+( boost::multi_array< double , 2 > & array ) {
 
- if (a.empty()) {
+ if( array.empty() )
   return;
- }
- boost::multi_array< double, 2 > temp = a;
- long rows = a.shape()[ 0 ];
- long cols = a.shape()[ 1 ];
 
- if ( rows == 1 && cols < f_time_horizon ) {
-  a.resize( boost::extents[f_number_reservoirs][f_time_horizon] );
-   for( Index n = 0; n < f_number_reservoirs; ++n ) {
-    for( Index t = 0; t < f_time_horizon; ++t ) {
-     a[n][t] = temp[0][n];
+ auto num_columns = array.shape()[ 1 ];
+
+ if( num_columns == 1 ) {
+  // The maximum or minimum volume is the same for every time instant. For
+  // reservatory r, the maximum or minimum volume at time t is equal to
+  // given_array[ r ][ 0 ] for each t in {0, ..., time_horizon - 1}. We resize
+  // the array so that its dimensions becomes f_number_reservoirs x
+  // f_time_horizon and copy the given data.
+  boost::multi_array< double , 2 > given_array = array;
+  array.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+  for( Index r = 0 ; r < f_number_reservoirs ; ++r )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    array[ r ][ t ] = given_array[ r ][ 0 ];
+ }
+ else if( num_columns < f_time_horizon ) {
+  // Since the number of columns is greater than 1 and less than the time
+  // horizon, it must be equal to the number of change intervals.
+  if( num_columns != v_change_intervals.size() ) {
+   throw ( std::logic_error
+           ( "HydroUnitBlock::decompress_vol: invalid number of columns (" +
+             std::to_string( num_columns ) + ") for the maximum or minimum volu"
+             "me variable. It is different from the number of change intervals "
+             "(" + std::to_string( v_change_intervals.size() ) + ")" ) );
+  }
+
+  // For each reservatory r and time instant t, the maximum or minimum volume
+  // of reservatory r at time t is equal to given_array[ r ][ k ], where k is
+  // such that t belongs to the closed interval [i_{k-1} + 1, i_k] and i_k is
+  // the k-th element of v_change_intervals (starting from k = 0) and i_{-1} =
+  // -1 by definition. We resize the array so that its dimensions becomes
+  // f_number_reservoirs x f_time_horizon and copy the given data.
+
+  boost::multi_array< double , 2 > given_array = array;
+  array.resize( boost::extents[ f_number_reservoirs ][ f_time_horizon ] );
+  for( Index r = 0 ; r < f_number_reservoirs ; ++r ) {
+   Index t = 0;
+   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+    auto upper_endpoint = v_change_intervals[ k ];
+    if( k == v_change_intervals.size() - 1 )
+     // The upper endpoint of the last interval must be time_horizon -
+     // 1. Since it may not be provided in v_change_intervals (the value for
+     // the last element of v_change_intervals is not required), we manually
+     // set it here.
+     upper_endpoint = f_time_horizon - 1;
+    for( ; t <= upper_endpoint ; ++t ) {
+     array[ r ][ t ] = given_array[ r ][ k ];
     }
-   }
- }
-
- if ( rows == f_number_reservoirs && cols == f_time_horizon) {
-  a.resize( boost::extents[f_number_reservoirs][f_time_horizon] );
-  for( Index n = 0; n < f_number_reservoirs; ++n ) {
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    a[n][t] = temp[n][t];
    }
   }
  }
- /*if( a.shape()[ 1 ] < f_time_horizon ) {//TODO CHECK IT FOR CHANGE INTERVAL
-  for( Index n = 0; n < f_number_reservoirs; ++n ) {
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[ i ];
-    }
-    for( ; j < sup; ++j ) {
-     a[ n ][ j ] = temp[ n ][ i ];
-    }
-   }
-  }
- }*/
 }
 
 /*--------------------------------------------------------------------------*/
