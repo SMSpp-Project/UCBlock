@@ -178,7 +178,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "ActivePowerDemand" ,
 		v_active_power_demand , true , false );
- transpose( v_active_power_demand );
 
  // optional dimensions
  /* !! commented away until HeatBlock are properly managed
@@ -214,21 +213,18 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ::deserialize( group , "PrimaryDemand" ,
 		    v_primary_demand , true , false ) )
-  transpose( v_primary_demand );
 
  ::deserialize( group , "SecondaryZones" , number_nodes ,
                 v_secondary_zones , true , true );
 
  if( ::deserialize( group , "SecondaryDemand" ,
 		    v_secondary_demand , true , false ) )
-  transpose( v_secondary_demand );
 
  ::deserialize( group , "InertiaZones" , number_nodes ,
                 v_inertia_zones , true , true );
 
  if( ::deserialize( group , "InertiaDemand" ,
 		    v_inertia_demand , true , false ) )
-  transpose( v_inertia_demand );
 
  ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                 v_number_pollutant_zones , true , true );
@@ -1467,17 +1463,6 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  */
 
  }  // end( UCBlock::serialize )
-
-template< typename T >
-void UCBlock::transpose( boost::multi_array< T, 2 > & a ) {
- long rows = a.shape()[0];
- long cols = a.shape()[1];
- if( rows > 1 && cols == 1 ) {
-  // The vector must be transposed
-  boost::array< typename boost::multi_array< T, 2 >::index, 2 > dims = {{1, rows}};
-  a.reshape( dims );
- }
-}
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

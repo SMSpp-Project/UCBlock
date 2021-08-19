@@ -1822,9 +1822,8 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// FIXME this is also defined in UCBlock so let's put it in a common file
  /// Transposes a deserialized multiarray if needed.
- /** We deal with two-dimensional arrays that has dimensions ( time horizon x
+ /** We deal with two-dimensional arrays that have dimensions ( time horizon x
   * number of arcs ). When provided by a netCDF variable, the size of the
   * dimension associated with the time horizon is allowed to be 1 (even if the
   * time horizon is greater than 1). This means that the given data does not
@@ -1837,7 +1836,7 @@ class HydroUnitBlock : public UnitBlock {
   * dimension becomes the number of arcs (and therefore compatible with our
   * data structure).
   *
-  * @param T The type of the boost::multi_array.
+  * @tparam T The type of the boost::multi_array.
   *
   * @param a A boost::multi_array that has been just deserialized.
   */
