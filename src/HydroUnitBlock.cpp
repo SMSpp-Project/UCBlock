@@ -1801,33 +1801,61 @@ void HydroUnitBlock::transpose( boost::multi_array< T, 2 > & a ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
+void HydroUnitBlock::decompress_array
+( boost::multi_array< double, 2 > & array ) {
 
- if (a.empty()) {
+ // This function receives an array whose dimensions are N x f_number_arcs,
+ // where N can be 1, time horizon, or the number of change intervals. The
+ // array can also be empty, in which case nothing is done.
+
+ if( array.empty() )
   return;
- }
- boost::multi_array< double, 2 > temp = a;
- a.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
 
- if( a.shape()[ 1 ] == f_number_arcs ) {
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   for( Index g = 0; g < f_number_arcs; ++g ) {
-    a[ t ][ g ] = temp[ 0 ][ g ];
-   }
+ const auto num_rows = array.shape()[ 0 ];
+
+ if( num_rows == 1 ) {
+  // For each arc, the data is the same for every time instant. For arc r, the
+  // data at time t is equal to given_array[ 0 ][ r ] for each t in {0, ...,
+  // time_horizon - 1}. We resize the array so that its dimensions becomes
+  // f_time_horizon x f_number_arcs and copy the given data.
+  boost::multi_array< double , 2 > given_array = array;
+  array.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index r = 0 ; r < f_number_arcs ; ++r )
+    array[ t ][ r ] = given_array[ 0 ][ r ];
+ }
+ else if( num_rows < f_time_horizon ) {
+  // Since the number of rows is greater than 1 and less than the time
+  // horizon, it must be equal to the number of change intervals.
+  if( num_rows != v_change_intervals.size() ) {
+   throw ( std::logic_error
+           ( "HydroUnitBlock::decompress_array: invalid number of rows (" +
+             std::to_string( num_rows ) + ") for some variable. It should "
+             "be equal to the number of change intervals (" +
+             std::to_string( v_change_intervals.size() ) + ")" ) );
   }
 
- } else if( a.shape()[ 0 ] < f_time_horizon ) {
-  for( Index g = 0; g < f_number_arcs; ++g ) {
-   int j = 0;
-   for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-    Index sup;
-    if( i == v_change_intervals.size() - 1 ) {
-     sup = f_time_horizon;
-    } else {
-     sup = v_change_intervals[ i ];
-    }
-    for( ; j < sup; ++j ) {
-     a[ j ][ g ] = temp[ i ][ g ];
+  // For time instant t and arc r, the value for arc r at time t is equal to
+  // given_array[ k ][ r ], where k is such that t belongs to the closed
+  // interval [i_{k-1} + 1, i_k] and i_k is the k-th element of
+  // v_change_intervals (starting from k = 0) and i_{-1} = -1 by
+  // definition. We resize the array so that its dimensions becomes
+  // f_time_horizon x f_number_arcs and copy the given data.
+
+  boost::multi_array< double , 2 > given_array = array;
+  array.resize( boost::extents[ f_time_horizon ][ f_number_arcs ] );
+  for( Index r = 0 ; r < f_number_arcs ; ++r ) {
+   Index t = 0;
+   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+    auto upper_endpoint = v_change_intervals[ k ];
+    if( k == v_change_intervals.size() - 1 )
+     // The upper endpoint of the last interval must be time_horizon -
+     // 1. Since it may not be provided in v_change_intervals (the value for
+     // the last element of v_change_intervals is not required), we manually
+     // set it here.
+     upper_endpoint = f_time_horizon - 1;
+    for( ; t <= upper_endpoint ; ++t ) {
+     array[ t ][ r ] = given_array[ k ][ r ];
     }
    }
   }
@@ -1839,10 +1867,14 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double, 2 > & a ) {
 void HydroUnitBlock::decompress_vol
 ( boost::multi_array< double , 2 > & array ) {
 
+ // This function receives an array whose dimensions are f_number_reservoirs x
+ // N, where N can be 1, time horizon, or the number of change intervals. The
+ // array can also be empty, in which case nothing is done.
+
  if( array.empty() )
   return;
 
- auto num_columns = array.shape()[ 1 ];
+ const auto num_columns = array.shape()[ 1 ];
 
  if( num_columns == 1 ) {
   // The maximum or minimum volume is the same for every time instant. For
@@ -1863,8 +1895,8 @@ void HydroUnitBlock::decompress_vol
    throw ( std::logic_error
            ( "HydroUnitBlock::decompress_vol: invalid number of columns (" +
              std::to_string( num_columns ) + ") for the maximum or minimum volu"
-             "me variable. It is different from the number of change intervals "
-             "(" + std::to_string( v_change_intervals.size() ) + ")" ) );
+             "me variable. It should be equal to the number of change intervals"
+             " (" + std::to_string( v_change_intervals.size() ) + ")" ) );
   }
 
   // For each reservatory r and time instant t, the maximum or minimum volume
