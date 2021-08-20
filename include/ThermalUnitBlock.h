@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 06 - 2021
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1003,16 +1003,18 @@ class ThermalUnitBlock : public UnitBlock {
  *  commitment variables returned by get_commitment()) of all the generators
  *  at all time instants. There are three possible cases:
  *
- * - if the vector is empty, then the fixed consumption is always 0;
+ * - if the vector is empty, then the fixed consumption is always 0 and this
+ *   function returns nullptr;
  *
  * - if the vector only has one element, then the fixed consumption for the
- *   fixed consumption of the unit for all t
+ *   fixed consumption of the unit for all t;
  *
  * - otherwise, the vector must have size get_time_horizon(), and each element
  *   of vector represents the fixed consumption at time t. */
 
- double * get_fixed_consumption( Index generator )
-  override {
+ double * get_fixed_consumption( Index generator ) override {
+  if( v_fixed_consumption.empty() )
+   return nullptr;
   return & ( v_fixed_consumption.front() );
   }
 
@@ -1023,16 +1025,18 @@ class ThermalUnitBlock : public UnitBlock {
  *  variables returned by get_commitment()) of all the generators at all time
  *  instants. There are three possible cases:
  *
- * - if the vector is empty, then the inertia commitment is always 0;
+ * - if the vector is empty, then the inertia commitment is always 0 and this
+ *   functions returns nullptr;
  *
  * - if the vector only has one element, then the inertia commitment for the
- *   fixed consumption of the unit for all t
+ *   fixed consumption of the unit for all t;
  *
  * - otherwise, the vector must have size get_time_horizon(), and each element
  *   of vector represents the inertia commitment at time t. */
 
- double * get_inertia_commitment( Index generator )
-  override {
+ double * get_inertia_commitment( Index generator ) override {
+  if( v_inertia_commitment.empty() )
+   return nullptr;
   return & ( v_inertia_commitment.front() );
   }
 
