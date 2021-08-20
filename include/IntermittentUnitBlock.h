@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -373,7 +373,8 @@ class IntermittentUnitBlock : public UnitBlock {
  *  variables returned by get_active_power()) of all the generators at all
  *  time instants. There are four possible cases:
  *
- * - if the matrix is empty, then the inertia power is always 0;
+ * - if the matrix is empty, then the inertia power is always 0 and this
+ *   function returns nullptr;
  *
  * - if the matrix only has one row (i.e., the first dimension has size 1),
  *   then the inertia power for each generator g is U[ 0 , g ] for all t
@@ -389,8 +390,9 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the inertia power for the problem at time t for each electrical generator
  *   g. */
 
- double * get_inertia_power( Index generator)
-  override {
+ double * get_inertia_power( Index generator) override {
+  if( v_inertia_power.empty() )
+   return nullptr;
   return & ( v_inertia_power.front() );
  }
 

@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 08 - 2021
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -881,7 +881,8 @@ class HydroUnitBlock : public UnitBlock {
  *  variables returned by get_active_power()) of eac arcs (generators) at each
  *  time instants. There are three possible cases
  *
- * - if the matrix is empty, then the inertia power is 0;
+ * - if the matrix is empty, then the inertia power is 0 and this function
+ *   returns a nullptr;
  *
  * - if the matrix only has one row (i.e., the first dimension has size 1),
  *   then the inertia power for arc (generator) l is U[ 0 , l ] for all t
@@ -891,8 +892,11 @@ class HydroUnitBlock : public UnitBlock {
  *   get_number_arcs(), and U[ t , l ] contains the contribution to
  *   inertia power of arc(generator) l at time instant t. */
  double * get_inertia_power( Index generator )  override {
+  if( v_inertia_power.empty() )
+   return nullptr;
   return ( v_inertia_power.data() + generator * f_time_horizon );
  }
+
 /*--------------------------------------------------------------------------*/
 /// returns the matrix of minimum volumetric
 /** The method returned a two-dimensional boost::multi_array<> M such that
