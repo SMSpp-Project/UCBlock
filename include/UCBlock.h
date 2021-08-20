@@ -1428,22 +1428,6 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
- /// Transposes a deserialized multiarray if needed.
- /**
-  * Checks if the multiarray has one column and more than one rows. If so,
-  * it transposes it.
-  * This procedure is needed because some 2D matrices have the first dimension
-  * optional, and the ::deserialize() method doesn't know that the only
-  * dimension that is given is actually the second one.
-  *
-  * @tparam T The type of the boost::multi_array
-  * @param a  A boost::multi_array that has been just deserialized
-  */
- template< typename T >
- void transpose( boost::multi_array< T, 2 > & a );
-
-/*--------------------------------------------------------------------------*/
-
  /// updates a node injection constraint for the given demand
  /** This function updates the node injection constraint at the given \p time
   * for the node whose index is \p node_index considering the given \p demand.

@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 19 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1822,17 +1822,23 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// FIXME this is also defined in UCBlock so let's put it in a common file
  /// Transposes a deserialized multiarray if needed.
- /**
-  * Checks if the multiarray has one column and more than one rows. If so,
-  * it transposes it.
-  * This procedure is needed because some 2D matrices have the first dimension
-  * optional, and the ::deserialize() method doesn't know that the only
-  * dimension that is given is actually the second one.
+ /** We deal with two-dimensional arrays that have dimensions ( time horizon x
+  * number of arcs ). When provided by a netCDF variable, the size of the
+  * dimension associated with the time horizon is allowed to be 1 (even if the
+  * time horizon is greater than 1). This means that the given data does not
+  * change over time. Therefore, the dimensions of a given array could be ( 1
+  * x number of arcs ). This can be viewed as a "row vector". This being a
+  * vector, the user may decide to provide a one-dimensional array whose size
+  * is the number of arcs. This, however, is translated into a two-dimensional
+  * array whose dimensions are ( number of arcs x 1 ), i.e., a "column
+  * vector". In this case, the array must be transposed, so that its second
+  * dimension becomes the number of arcs (and therefore compatible with our
+  * data structure).
   *
-  * @tparam T The type of the boost::multi_array
-  * @param a  A boost::multi_array that has been just deserialized
+  * @tparam T The type of the boost::multi_array.
+  *
+  * @param a A boost::multi_array that has been just deserialized.
   */
  template< typename T >
  void transpose( boost::multi_array< T, 2 > & a );
