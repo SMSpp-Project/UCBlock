@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 08 - 2021
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -216,7 +216,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_array( v_maximum_flow );
  decompress_vol( v_minimum_volumetric );
  decompress_vol( v_maximum_volumetric );
- //decompress_vol( v_inflows );
+ decompress_vol( v_inflows );
 
  decompress_array( v_minimum_power );
  decompress_array( v_maximum_power );

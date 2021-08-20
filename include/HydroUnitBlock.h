@@ -253,7 +253,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "MaxVolumetric", of type netCDF::NcDouble and indexed over
  *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
- *   dimension is always has size "NumberReservoirs" (if it is provided at
+ *   dimension always has size "NumberReservoirs" (if it is provided at
  *   all), whereas the second one may have size one or size "NumberIntervals"
  *   (if "NumberIntervals" is not provided, then the size can also be
  *   "TimeHorizon"). This is meant to represent the matrix MaxV[ r , t ]
