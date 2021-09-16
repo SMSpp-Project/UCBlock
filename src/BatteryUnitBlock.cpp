@@ -269,11 +269,11 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  if( v_minimum_storage[t] >= v_maximum_storage[t] ||
+  if( v_minimum_storage[t] > v_maximum_storage[t] ||
           v_minimum_storage[t] < 0  || v_maximum_storage[t] < 0 ) {
    throw ( std::logic_error
            ( "BatteryUnitBlock::maximum and minimum storage output constraints: "
-             "it must be that v_maximum_storage > v_minimum_storage >= 0." ));
+             "it must be that v_maximum_storage >= v_minimum_storage >= 0." ));
   }
  }
 
