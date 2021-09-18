@@ -260,10 +260,10 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
  // Initial data check
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( v_minimum_power[t] >= v_maximum_power[t] ) {
+    if( v_minimum_power[t] > v_maximum_power[t] ) {
      throw ( std::logic_error
              ( "BatteryUnitBlock::maximum and minimum power output constraints: "
-               "it must be that v_maximum_power > v_minimum_power." ));
+               "it must be that v_maximum_power >= v_minimum_power." ));
     }
    }
 
