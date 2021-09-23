@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 08 - 2021
+ * \date 23 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -431,6 +431,7 @@ void SlackUnitBlock::decompress_vector( std::vector< T > & v ) {
   // so that its size becomes f_time_horizon and copy the given data.
 
   std::vector< T > given_vector = v;
+  v.resize( f_time_horizon );
   Index t = 0;
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    auto upper_endpoint = v_change_intervals[ k ];
