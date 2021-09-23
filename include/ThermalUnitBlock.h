@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 08 - 2021
+ * \date 23 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -412,19 +412,19 @@ class ThermalUnitBlock : public UnitBlock {
 /** This method generates the abstract constraints of the ThermalUnitBlock.
  *
  * The operations of the thermal generating unit are described on a discrete
- * time horizon as dictated by the UnitBlock interface. In this description
- * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
+ * time horizon as dictated by the UnitBlock interface. In this description we
+ * indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
  * Considering three parameters: InitUpDownTime \f$ \tau_0 \f$ which can be a
- * positive or negative(or 0 )integer number and tells for how many time steps
- * before time step 0 the unit was ON(when\f$ \tau_0 > 0 \f$) or OFF (when
- * \f$ \tau_0 < 0 \f$), MaxUpTime \f$ \tau_+ \f$ which is a positive
- * integer number and indicates for how many time steps after time step
- * 0, the unit can remain ON, and MinDownTime \f$ \tau_- \f$ that is also a
- * positive integer number and indicates for how many time steps after time
- * step 0, the unit can remain off). Therefor, the starting-up (shutting-down)
- * of generating of each unit depends on these three parameters. Then, the
- * firs time instant may not be always equal to zero. For this matter the
- * concept of first time instant which is called "init_t" is defined as below:
+ * positive or negative (or 0) integer number and tells for how many time
+ * steps before time step 0 the unit was ON (when \f$ \tau_0 > 0 \f$) or OFF
+ * (when \f$ \tau_0 < 0 \f$), MaxUpTime \f$ \tau_+ \f$ which is a positive
+ * integer number and indicates for how many time steps after time step 0 the
+ * unit can remain ON, and MinDownTime \f$ \tau_- \f$ that is also a positive
+ * integer number and indicates for how many time steps after time step 0 the
+ * unit can remain off. Therefore, the starting-up (shutting-down) of
+ * generating of each unit depends on these three parameters. Then, the first
+ * time instant may not be always equal to zero. For this matter the concept
+ * of first time instant which is called "init_t" is defined as below:
  *
  * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
  *   \f$ \tau_0 \f$ time stamps prior to time stamp 0 (the beginning of the
@@ -946,6 +946,30 @@ class ThermalUnitBlock : public UnitBlock {
  const std::vector< double > & get_quad_term() const { return( v_QuadTerm ); }
 
 /*--------------------------------------------------------------------------*/
+/// returns the coefficient of the quadratic term of the power cost function
+/** This function returns the coefficient of the quadratic term of the
+ * quadratic function that represents the cost of the power produced by the
+ * unit at the given time instant.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The coefficient of the quadratic term of the quadratic function
+ *         that represents the cost of the power produced by the unit at the
+ *         given time instant. */
+
+ double get_quad_term( Index t ) const {
+  if( v_QuadTerm.empty() )
+   return 0;
+  if( v_QuadTerm.size() == 1 )
+   return( v_QuadTerm.front() );
+  assert( v_QuadTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_QuadTerm[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
 /// returns the vector of linear term
 /** The returned vector contains to linear term at time t. There are three
  * possible cases:
@@ -960,6 +984,30 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_linear_term() const {
   return( v_LinearTerm );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the coefficient of the linear term of the power cost function
+/** This function returns the coefficient of the linear term of the quadratic
+ * function that represents the cost of the power produced by the unit at the
+ * given time instant.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The coefficient of the linear term of the quadratic function that
+ *         represents the cost of the power produced by the unit at the given
+ *         time instant. */
+
+ double get_linear_term( Index t ) const {
+  if( v_LinearTerm.empty() )
+   return 0;
+  if( v_LinearTerm.size() == 1 )
+   return( v_LinearTerm.front() );
+  assert( v_LinearTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_LinearTerm[ t ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -980,6 +1028,29 @@ class ThermalUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
+/// returns the constant term of the power cost function
+/** This function returns the constant term of the function that represents
+ * the cost of the power produced by the unit at the given time instant. This
+ * is the fixed cost incurred when the unit is committed at time instant \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The fixed cost when the unit is committed at the given time
+ *         instant. */
+
+ double get_const_term( Index t ) const {
+  if( v_ConstTerm.empty() )
+   return 0;
+  if( v_ConstTerm.size() == 1 )
+   return( v_ConstTerm.front() );
+  assert( v_ConstTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_ConstTerm[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
 /// returns the vector of startup cost
 /** The returned vector contains to startup cost at time t.  There are three
  * possible cases:
@@ -994,6 +1065,27 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_start_up_cost() const {
   return( v_StartUpCost );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the start up cost for the given time instant.
+/** This function returns the start up cost of the unit for the given time
+ * instant.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The start up cost of the unit for the given time instant. */
+
+ double get_start_up_cost( Index t ) const {
+  if( v_StartUpCost.empty() )
+   return 0;
+  if( v_StartUpCost.size() == 1 )
+   return( v_StartUpCost.front() );
+  assert( v_StartUpCost.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_StartUpCost[ t ] );
   }
 
 /*--------------------------------------------------------------------------*/

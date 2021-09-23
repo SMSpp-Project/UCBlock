@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 08 - 2021
+ * \date 23 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1009,85 +1009,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  if( objective_generated() )
   return; // Objective has already been generated
 
- // Initial condition of each vector
- std::vector<double> start_up_cost = this->v_StartUpCost;
- if( start_up_cost.size() == 1 ) {
-  start_up_cost.resize( f_time_horizon - init_t, start_up_cost[ 0 ] );
- }else if (start_up_cost.size() < f_time_horizon - init_t) {
-  start_up_cost.resize(f_time_horizon - init_t);
-  int j = 0;
-  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
-   Index sup;
-   if (i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[i];
-   }
-   for (; j < sup; ++j) {
-    start_up_cost[j] = v_StartUpCost[i];
-   }
-  }
- }
-
-
- std::vector<double> linear_term = this->v_LinearTerm;
- if( linear_term.size() == 1 ) {
-  linear_term.resize( f_time_horizon, linear_term[ 0 ] );
- }else if (linear_term.size() < f_time_horizon) {
-  linear_term.resize(f_time_horizon);
-  int j = 0;
-  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
-   Index sup;
-   if (i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[i];
-   }
-   for (; j < sup; ++j) {
-    linear_term[j] = v_LinearTerm[i];
-   }
-  }
- }
-
- std::vector<double> quad_term = this->v_QuadTerm;
- if( quad_term.size() == 1 ) {
-  quad_term.resize( f_time_horizon, quad_term[ 0 ] );
- }else if (quad_term.size() < f_time_horizon) {
-  quad_term.resize(f_time_horizon);
-  int j = 0;
-  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
-   Index sup;
-   if (i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[i];
-   }
-   for (; j < sup; ++j) {
-    quad_term[j] = v_QuadTerm[i];
-   }
-  }
- }
-
- std::vector<double> const_term = this->v_ConstTerm;
- if( const_term.size() == 1 ) {
-  const_term.resize( f_time_horizon, const_term[ 0 ] );
- }else if (const_term.size() < f_time_horizon) {
-  const_term.resize(f_time_horizon);
-  int j = 0;
-  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
-   Index sup;
-   if (i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[i];
-   }
-   for (; j < sup; ++j) {
-    const_term[j] = v_ConstTerm[i];
-   }
-  }
- }
-/*--------------------------------------------------------------------------*/
-
  // Initialize objective function
 
  if( v_commitment.size() != f_time_horizon ) {
@@ -1107,30 +1028,26 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
             "size equal to the time horizon - init_t." ) );
  }
 
-
  auto dquad_function = new DQuadFunction();
 
- for( Index t = init_t; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable( &v_start_up[ t - init_t ] ,
-                                start_up_cost[ t - init_t ] ,
-                                0.0 );
+ for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+  dquad_function->add_variable( & v_start_up[ t - init_t ] ,
+                                get_start_up_cost( t ) , 0.0 );
  }
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable
-   ( & v_active_power[ t ] , linear_term[ t ] , quad_term[ t ] );
- }
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  dquad_function->add_variable( & v_active_power[ t ] ,
+                                get_linear_term( t ) , get_quad_term( t ) );
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
-  dquad_function->add_variable
-   ( & v_commitment[ t ] , const_term[ t ] , 0.0 );
+  dquad_function->add_variable( & v_commitment[ t ] ,
+                                get_const_term( t ) , 0.0 );
  }
 
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( & objective );
 
  set_objective_generated();
 }  // end( ThermalUnitBlock::generate_objective )
@@ -1833,7 +1750,7 @@ void ThermalUnitBlock::set_startup_costs(
     auto var_index = qf->is_active( &v_start_up[ t ] );
     assert( var_index < qf->get_num_active_var() );
     qf->modify_linear_coefficient( var_index,
-                                   get_start_up_cost()[ t ],
+                                   get_start_up_cost( t ),
                                    issueAMod );
    }
   }
@@ -1909,7 +1826,7 @@ void ThermalUnitBlock::set_startup_costs(
     auto var_index = qf->is_active( &v_start_up[ t ] );
     assert( var_index < qf->get_num_active_var() );
     qf->modify_linear_coefficient( var_index,
-                                   get_start_up_cost()[ t ],
+                                   get_start_up_cost( t ),
                                    issueAMod );
    }
   }
@@ -2471,7 +2388,7 @@ void ThermalUnitBlock::set_init_updown_time
 
 template< typename T >
 void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
- if ( v.empty() )
+ if( v.empty() )
   return;
 
  if( v.size() == 1 ) {
@@ -2484,7 +2401,7 @@ void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
   // horizon, it must be equal to the number of change intervals.
   if( v.size() != v_change_intervals.size() ) {
    throw ( std::logic_error
-           ( "BatteryUnitBlock::decompress_vector: invalid number of elements"
+           ( "ThermalUnitBlock::decompress_vector: invalid number of elements"
              " (" + std::to_string( v.size() ) + ") for some variable. It "
              "should be equal to the number of change intervals (" +
              std::to_string( v_change_intervals.size() ) + ")" ) );
@@ -2497,6 +2414,7 @@ void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
   // so that its size becomes f_time_horizon and copy the given data.
 
   std::vector< T > given_vector = v;
+  v.resize( f_time_horizon );
   Index t = 0;
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    auto upper_endpoint = v_change_intervals[ k ];
