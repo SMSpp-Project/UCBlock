@@ -21,7 +21,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 25 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -195,14 +195,15 @@ class UnitBlock : public Block {
  *
  * - The variable "ChangeIntervals", of type integer and indexed over the
  *   dimension "NumberIntervals". The time horizon is subdivided into
- *   NumberIntervals = k of the form [ 0 , i_1 ], [ i_1 + 1 , i_2 ], ...
- *   [ i_{k-1} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to
- *   contain [ i_1 , i_2 , ... i_{k-1} ]. Note that, therefore,
- *   "ChangeIntervals" has one significant value less than
- *   "NumberIntervals", which means that
- *   ChangeIntervals[ NumberIntervals - 1 ] is ignored. Anyway, the whole
- *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
- *   is not defined), or "NumberIntervals" >= "TimeHorizon".
+ *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ...  [
+ *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
+ *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
+ *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
+ *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
+ *   NumberIntervals - 1 ], is ignored and does not need to be set (although
+ *   the variable has actually "NumberIntervals" elements). Anyway, the whole
+ *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
+ *   not defined), or "NumberIntervals" >= "TimeHorizon".
  */
  void deserialize( const netCDF::NcGroup & group ) override;
 
