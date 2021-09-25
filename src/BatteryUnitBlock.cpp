@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 08 - 2021
+ * \date 23 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -260,20 +260,20 @@ void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
  // Initial data check
    for( Index t = 0; t < f_time_horizon; ++t ) {
-    if( v_minimum_power[t] >= v_maximum_power[t] ) {
+    if( v_minimum_power[t] > v_maximum_power[t] ) {
      throw ( std::logic_error
              ( "BatteryUnitBlock::maximum and minimum power output constraints: "
-               "it must be that v_maximum_power > v_minimum_power." ));
+               "it must be that v_maximum_power >= v_minimum_power." ));
     }
    }
 
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
-  if( v_minimum_storage[t] >= v_maximum_storage[t] ||
+  if( v_minimum_storage[t] > v_maximum_storage[t] ||
           v_minimum_storage[t] < 0  || v_maximum_storage[t] < 0 ) {
    throw ( std::logic_error
            ( "BatteryUnitBlock::maximum and minimum storage output constraints: "
-             "it must be that v_maximum_storage > v_minimum_storage >= 0." ));
+             "it must be that v_maximum_storage >= v_minimum_storage >= 0." ));
   }
  }
 
@@ -754,6 +754,7 @@ void BatteryUnitBlock::decompress_vector( std::vector< T > & v ) {
   // so that its size becomes f_time_horizon and copy the given data.
 
   std::vector< T > given_vector = v;
+  v.resize( f_time_horizon );
   Index t = 0;
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    auto upper_endpoint = v_change_intervals[ k ];
