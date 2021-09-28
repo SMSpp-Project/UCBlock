@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 08 - 2021
+ * \date 27 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1274,7 +1274,6 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values,
    Index t = i % f_time_horizon;
    Index r = i / f_time_horizon;
    v_inflows[ r ][ t ] = *( values++ );
-   // *( v_inflows.data() + i ) = *( values++ );
   }
 
   if( constraints_generated() ) {
@@ -1495,112 +1494,91 @@ HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values,
 
 /*--------------------------------------------------------------------------*/
 
-void
-HydroUnitBlock::set_initial_volumetric(
- std::vector< double >::const_iterator values,
- Block::Subset && subset,
- const bool ordered,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void HydroUnitBlock::set_initial_volume
+( std::vector< double >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- if( subset.empty() ) {
+ if( subset.empty() )
   return;
- }
 
  if( v_initial_volumetric.empty() ) {
-  if( std::all_of( values,
-                   values + subset.size(),
-                   []( double cst ) {
-                    return ( cst == 0 );
-                   } ) ) {
+  // The initial volumes are currently zero.
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   // The initial volumes are still zero. There is nothing to be updated.
    return;
   }
 
-  Index max_index = * std::max_element( std::begin( subset ),
-                                        std::end( subset ) );
-  v_initial_volumetric.assign( max_index, 0 );
+  v_initial_volumetric.assign( get_number_reservoirs() , 0 );
  }
 
- // If nothing changes, return
  bool identical = true;
- auto temp_values = values;
- for( auto i : subset ) {
-  if( i >= v_initial_volumetric.size() ) {
-   throw ( std::invalid_argument( "invalid value in subset" ) );
+ for( auto r : subset ) {
+  if( r >= v_initial_volumetric.size() ) {
+   throw( "HydroUnitBlock::set_initial_volume: invalid index in subset: "
+          + std::to_string( r ) );
   }
-  if( v_initial_volumetric[ i ] != *( temp_values++ ) ) {
+  const auto volume = *( values++ );
+  if( v_initial_volumetric[ r ] != volume ) {
    identical = false;
+
+   if( not_dry_run( issuePMod ) ) {
+    // Change the physical representation
+    v_initial_volumetric[ r ] = volume;
+   }
   }
  }
+
  if( identical ) {
+  // Nothing has changed.
   return;
  }
 
- if( not_dry_run( issuePMod ) ) {
-  // Change the physical representation
-
-  temp_values = values;
-  for( auto i : subset ) {
-   v_initial_volumetric[ i ] = *( temp_values++ );
-  }
-
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   // Change the abstract representation
-   for( auto i : subset ) {
-    Index t = i % f_time_horizon;
-    Index r = i / f_time_horizon;
-
-    if( t == 0 ) {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
-    }
-   }
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
+  // Change the abstract representation
+  for( auto r : subset ) {
+   FinalVolumeReservoir_Const[ 0 ][ r ].set_both
+    ( v_initial_volumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  if( !ordered ) {
+  if( ! ordered ) {
    std::sort( subset.begin(), subset.end() );
   }
-  Block::add_Modification(
-   std::make_shared< HydroUnitBlockSbstMod >( this,
-                                              HydroUnitBlockMod::eSetInitV,
-                                              std::move( subset ) ),
-   Observer::par2chnl( issuePMod ) );
+
+  Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >
+                           ( this , HydroUnitBlockMod::eSetInitV ,
+                             std::move( subset ) ),
+                           Observer::par2chnl( issuePMod ) );
  }
 }
 
 /*--------------------------------------------------------------------------*/
 
-void
-HydroUnitBlock::set_initial_volumetric(
- std::vector< double >::const_iterator values,
- Block::Range rng,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+void HydroUnitBlock::set_initial_volume
+( std::vector< double >::const_iterator values , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- rng.second = std::min( rng.second, f_time_horizon );
- if( rng.second <= rng.first ) {
+ rng.second = std::min( rng.second , get_number_reservoirs() );
+ if( rng.second <= rng.first )
   return;
- }
 
  if( v_initial_volumetric.empty() ) {
-  if( std::all_of( values,
-                   values + ( rng.second - rng.first ),
-                   []( double cst ) {
-                    return ( cst == 0 );
-                   } ) ) {
+  // The initial volumes are currently zero.
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   // The initial volumes are still zero. There is nothing to be updated.
    return;
   }
 
-  Index max_index = rng.second;
-  v_initial_volumetric.assign( max_index, 0 );
+  v_initial_volumetric.assign( get_number_reservoirs() , 0 );
  }
 
- // If nothing changes, return
- if( std::equal( values,
-                 values + ( rng.second - rng.first ),
+ // If nothing changes, return.
+ if( std::equal( values , values + ( rng.second - rng.first ) ,
                  v_initial_volumetric.begin() + rng.first ) ) {
   return;
  }
@@ -1608,30 +1586,22 @@ HydroUnitBlock::set_initial_volumetric(
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
-  std::copy( values,
-             values + ( rng.second - rng.first ),
+  std::copy( values , values + ( rng.second - rng.first ) ,
              v_initial_volumetric.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
-   for( Index i = rng.first; i < rng.second; ++i ) {
-    Index t = i % f_time_horizon;
-    Index r = i / f_time_horizon;
-
-    if( t == 0 ) {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_initial_volumetric[ r ] + v_inflows[ r ][ t ], issueAMod );
-    }
+   for( Index r = rng.first; r < rng.second; ++r ) {
+    FinalVolumeReservoir_Const[ 0 ][ r ].set_both
+     ( v_initial_volumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
    }
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification(
-   std::make_shared< HydroUnitBlockRngdMod >( this,
-                                              HydroUnitBlockMod::eSetInitV,
-                                              rng ),
-   Observer::par2chnl( issuePMod ) );
+  Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >
+                           ( this , HydroUnitBlockMod::eSetInitV , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
  }
 }
 

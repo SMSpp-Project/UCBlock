@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 08 - 2021
+ * \date 27 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1587,16 +1587,16 @@ class HydroUnitBlock : public UnitBlock {
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator values,
-                              Subset && subset,
-                              const bool ordered = false,
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values,
+                          Subset && subset,
+                          const bool ordered = false,
+                          c_ModParam issuePMod = eNoBlck,
+                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator values,
-                              Range rng = Range( 0, Inf< Index >() ),
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values,
+                          Range rng = Range( 0, Inf< Index >() ),
+                          c_ModParam issuePMod = eNoBlck,
+                          c_ModParam issueAMod = eNoBlck );
 
  void set_initial_flow_rate( std::vector< double >::const_iterator values,
                               Subset && subset,
@@ -1779,12 +1779,12 @@ class HydroUnitBlock : public UnitBlock {
   //                                    &HydroUnitBlock::set_inertia_power,
   //                                    MS_dbl_rngd::args() );
   //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-  //                                    &HydroUnitBlock::set_initial_volumetric,
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
   //                                    MS_dbl_sbst::args() );
   //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-  //                                    &HydroUnitBlock::set_initial_volumetric,
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
   //                                    MS_dbl_rngd::args() );
   register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
    "HydroUnitBlock::set_inflow",
@@ -1803,12 +1803,12 @@ class HydroUnitBlock : public UnitBlock {
    &HydroUnitBlock::set_inertia_power );
 
   register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_initial_volumetric",
-   &HydroUnitBlock::set_initial_volumetric );
+   "HydroUnitBlock::set_initial_volume",
+   &HydroUnitBlock::set_initial_volume );
 
   register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_initial_volumetric",
-   &HydroUnitBlock::set_initial_volumetric );
+   "HydroUnitBlock::set_initial_volume",
+   &HydroUnitBlock::set_initial_volume );
  }
 
 /*--------------------------------------------------------------------------*/
