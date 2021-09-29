@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 09 - 2021
+ * \date 28 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -163,18 +163,10 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
  decompress_vector( v_Availability );
- if( ! v_DeltaRampUp.empty() ) {
-  decompress_vector( v_DeltaRampUp );
- }
- if( ! v_DeltaRampDown.empty() ) {
-  decompress_vector( v_DeltaRampDown );
- }
- if(!v_PrimaryRho.empty()) {
-  decompress_vector( v_PrimaryRho );
- }
- if (!v_SecondaryRho.empty()) {
-  decompress_vector( v_SecondaryRho );
- }
+ decompress_vector( v_DeltaRampUp );
+ decompress_vector( v_DeltaRampDown );
+ decompress_vector( v_PrimaryRho );
+ decompress_vector( v_SecondaryRho );
  decompress_vector( v_LinearTerm );
  decompress_vector( v_QuadTerm );
  decompress_vector( v_ConstTerm );
@@ -771,7 +763,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
    }
   }
-  if( reserve_vars & 2u ) { // if UCBlock has primary demand variables
+  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
    if( !v_SecondaryRho.empty()) { // if unit produces any secondary reserve
     linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
    }
@@ -1046,13 +1038,25 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  if( ! v_primary_spinning_reserve.empty() ) {
 
   if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-   throw ( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
-                             "spinning_reserve must have size equal to the "
-                             "time horizon." ) );
+   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
+                            "spinning_reserve must have size equal to the "
+                            "time horizon." ) );
   }
 
-  for( Index t = 0; t < f_time_horizon; ++t )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
    dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
+ }
+
+ if( ! v_secondary_spinning_reserve.empty() ) {
+
+  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
+                            "_spinning_reserve must have size equal to the "
+                            "time horizon." ) );
+  }
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] , 0 , 0 );
  }
 
  objective.set_function( dquad_function );
@@ -1171,7 +1175,8 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
      //       update, if necessary startup_costs, Lin/Quad/Const term
 
      if( !objective_generated() ) {
-      throw std::invalid_argument( "Objective was not generated" );
+      throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+                                   "Objective was not generated" );
      }
 
      // TODO: This code is not optimized to use the ranges.
@@ -1227,8 +1232,18 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
        set_primary_spinning_reserve_cost( new_value.begin() , std::move( idx ) ,
                                           true , make_par( eNoBlck , chnl ) ,
                                           eDryRun );
+      } else if( i < 5 * get_time_horizon() - init_t ) {
+       // It's a secondary spinning reserve variable
+
+       std::vector< double > new_value( 1 , qf->get_linear_coefficient( i ) );
+       Block::Subset idx( 1 , i - ( 4 * get_time_horizon() - init_t ) );
+       set_secondary_spinning_reserve_cost
+        ( new_value.begin() , std::move( idx ) , true ,
+          make_par( eNoBlck , chnl ) , eDryRun );
       } else {
-       throw std::invalid_argument( "Variable index is not valid" );
+       throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+                                    "Variable index is not valid: " +
+                                    std::to_string( i ) );
       }
      }
 
@@ -1237,7 +1252,8 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
 
 
     // This should never happen
-    throw std::invalid_argument( "Unknown type of Objective Function" );
+    throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+                                 "Unknown type of Objective Function" );
    } else {
     // C05FunctionModLinRngd on Constraint
     // TODO
@@ -1246,7 +1262,8 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
    return;
   }
 
-  throw std::invalid_argument( "unsupported Modification to ThermalUnitBlock" );
+  throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+                               "unsupported Modification" );
  };
 
  if( mod->concerns_Block() ) {
@@ -2465,6 +2482,142 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost
                            Observer::par2chnl( issuePMod ) );
  }
 } // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_secondary_spinning_reserve_cost
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return;
+
+ if( v_secondary_spinning_reserve_cost.empty() ) {
+  // The secondary spinning reserve costs are currently all zero.
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   return; // The given values are zero. Nothing to do.
+  }
+
+  v_secondary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
+ }
+
+ // If nothing changes, return
+ bool identical = true;
+ auto cost_coefficient = values;
+
+ for( auto t : subset ) {
+  if( t >= v_secondary_spinning_reserve_cost.size() ) {
+   throw std::invalid_argument( "ThermalUnitBlock::set_secondary_spinning_"
+                                "reserve_cost: invalid index in subset: "
+                                + std::to_string( t ) );
+  }
+
+  if( v_secondary_spinning_reserve_cost[ t ] != *( cost_coefficient++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
+  return; // The given coefficients are equal to the ones already
+          // here. So, there is nothing to be changed.
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  cost_coefficient = values;
+  for( auto t : subset ) {
+   v_secondary_spinning_reserve_cost[ t ] = *( cost_coefficient++ );
+  }
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>( objective.get_function() );
+
+   for( auto t : subset ) {
+    auto var_index = qf->is_active( &v_secondary_spinning_reserve[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient
+     ( var_index , v_secondary_spinning_reserve_cost[ t ] , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered ) {
+   std::sort( subset.begin(), subset.end() );
+  }
+
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >
+                           ( this , ThermalUnitBlockMod::eSetSecSpResCost ,
+                             std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+} // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_secondary_spinning_reserve_cost
+( std::vector< double >::const_iterator values , Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second, f_time_horizon );
+ if( rng.second <= rng.first ) {
+  return; // Empty range. Return.
+ }
+
+ if( v_secondary_spinning_reserve_cost.empty() ) {
+  // The secondary spinning reserve costs are currently all zero.
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   return; // The given values are zero. So, there is nothing to be changed.
+  }
+
+  v_secondary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
+ }
+
+ if( rng.first >= v_secondary_spinning_reserve_cost.size() ) {
+  throw std::invalid_argument( "ThermalUnitBlock::set_secondary_spinning_"
+                               "reserve_cost: invalid first endpoint of "
+                               "range: " + std::to_string( rng.first ) );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values , values + ( rng.second - rng.first ) ,
+                 v_secondary_spinning_reserve_cost.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values , values + ( rng.second - rng.first ) ,
+             v_secondary_spinning_reserve_cost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // Change the abstract representation
+
+   auto qf = dynamic_cast<DQuadFunction *>( objective.get_function() );
+
+   for( Index t = rng.first ; t < rng.second ; ++t ) {
+
+    auto var_index = qf->is_active( &v_commitment[ t ] );
+    assert( var_index < qf->get_num_active_var() );
+    qf->modify_linear_coefficient
+     ( var_index , v_secondary_spinning_reserve_cost[ t ] , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >
+                           ( this , ThermalUnitBlockMod::eSetSecSpResCost ,
+                             rng ) , Observer::par2chnl( issuePMod ) );
+ }
+} // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
 
 /*--------------------------------------------------------------------------*/
 
