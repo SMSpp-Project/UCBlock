@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 09 - 2021
+ * \date 29 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -395,8 +395,8 @@ class ThermalUnitBlock : public UnitBlock {
  *  generate_abstract_constraints()).
  *
  *  All of these variables are optional, and it is also possible to restrict
- *  which of the subsets are generated with the parameter stvv. If stvv is not
- *  nullptr and it is a SimpleConfiguration<int>, or if
+ *  which of the subsets are generated with the parameter \p stvv. If \p stvv
+ *  is not nullptr and it is a SimpleConfiguration<int>, or if
  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
  *  of the optional variables should be created. If the Configuration is not
@@ -680,27 +680,61 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
-/** Method that generates the objective of the ThermalUnitBlock.
+/** Method that generates the objective of the ThermalUnitBlock. The objective
+ *  function of the ThermalUnitBlock representing the total power production
+ *  cost to be minimized has the form:
  *
- * - Objective function: the objective function of the ThermalUnitBlock
- *   representing the total power production cost to be minimized has the
- *   form:
+ *  \f[
+ *    \sum_{ t \in  [t_0 , \mathcal{|T|} - 1]  } s_t v_t +
+ *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t)
+ *  \f]
+ *
+ *  where \f$ v_t \f$ indicates that the unit is starting up at time t, u_t
+ *  indicates that the unit is committed at time t, p_t is the active power
+ *  produced at time t, \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t
+ *  \f$ is the start-up cost of the unit, which we assume to be
+ *  time-independent
+ *
+ *  Note: time-independent means here start-up cost is "independent from how
+ *        long the unit has been off", and it is not meaning "always should
+ *        be equal at each time instant"
+ *
+ *  and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
+ *  quadratic, linear, and constant terms of the power cost function of the
+ *  unit at time period \f$ t \in \mathcal{T} \f$.
+ *
+ *  If the primary and/or the secondary spinning reserve variables have been
+ *  generated, it is also possible to consider them in linear form in the
+ *  objective function. This can be instructed by using either the parameter
+ *  \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
+ *  nullptr and it is a SimpleConfiguration<int>, or if
+ *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
+ *  SimpleConfiguration<int>, then the f_value of this SimpleConfiguration (an
+ *  int) indicates whether the primary and/or the secondary reserve variables
+ *  should be included in the objective function. If the Configuration is not
+ *  available, the default value is taken to be 0. If the first bit of this
+ *  int value is 1, then the primary spinning reserve variables are added to
+ *  the objective function with zero coefficients, i.e., the following term is
+ *  added to the objective function described above:
  *
  *   \f[
- *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } s_t v_t +
- *            \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *     \sum_{ t \in \mathcal{T}  } 0 p_t^{pr}.
  *   \f]
  *
- *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
- *   start-up cost of the unit, which we assume to be time-independent
+ *  If the second bit of this int value is 1, then the secondary spinning
+ *  reserve variables are added to the objective function with zero
+ *  coefficients, i.e., the following term is added to the objective function
+ *  described above:
  *
- *   Note: time-independent means here start-up cost is "independent from how
- *         long the unit has been off", and it is not meaning "always should
- *         be equal at each time instant"
+ *   \f[
+ *     \sum_{ t \in \mathcal{T}  } 0 p_t^{sc}.
+ *   \f]
  *
- *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
- *   quadratic, linear, and constant terms of the power cost function of the
- *   unit at time period \f$ t \in \mathcal{T} \f$. */
+ *  If the primary and/or secondary spinning reserve variables are included in
+ *  the objective function, their coefficients can be set by the
+ *  set_primary_spinning_reserve_cost() and
+ *  set_secondary_spinning_reserve_cost() methods.
+ */
 
  void generate_objective( Configuration *objc ) override;
 

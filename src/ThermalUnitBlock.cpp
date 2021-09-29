@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 28 - 09 - 2021
+ * \date 29 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1035,7 +1035,21 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
                                 get_const_term( t ) , 0.0 );
  }
 
- if( ! v_primary_spinning_reserve.empty() ) {
+ // Possibly add the primary and secondary spinning reserve variables
+
+ bool add_primary_reserve = false;
+ bool add_secondary_reserve = false;
+ auto config = dynamic_cast<SimpleConfiguration<int> *>( objc );
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+   ( f_BlockConfig->f_objective_Configuration );
+ if( config ) {
+  add_primary_reserve = config->f_value & 1u;
+  add_secondary_reserve = config->f_value & 2u;
+ }
+
+ if( ( ! v_primary_spinning_reserve.empty() ) && add_primary_reserve ) {
+  // Add the primary spinning reserve variables with zero coefficients
 
   if( v_primary_spinning_reserve.size() != f_time_horizon ) {
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
@@ -1047,7 +1061,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
  }
 
- if( ! v_secondary_spinning_reserve.empty() ) {
+ if( ( ! v_secondary_spinning_reserve.empty() ) && add_secondary_reserve ) {
+  // Add the secondary spinning reserve variables with zero coefficients
 
   if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
@@ -1178,6 +1193,13 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
       throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
                                    "Objective was not generated" );
      }
+
+     if( tmod->range().first < tmod->range().second &&
+         tmod->range().second > qf->get_num_active_var() )
+      throw std::invalid_argument
+       ( "ThermalUnitBlock::add_Modification: Range of Variable indices is "
+         "not valid: [" + std::to_string( tmod->range().first ) + ", " +
+         std::to_string( tmod->range().second ) + ")." );
 
      // TODO: This code is not optimized to use the ranges.
      //       It should split the tmod->range() in subranges and use
