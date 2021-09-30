@@ -1049,7 +1049,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  }
 
  if( ( ! v_primary_spinning_reserve.empty() ) && add_primary_reserve ) {
-  // Add the primary spinning reserve variables with zero coefficients
+  // Add the primary spinning reserve variables
 
   if( v_primary_spinning_reserve.size() != f_time_horizon ) {
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
@@ -1057,12 +1057,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
                             "time horizon." ) );
   }
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
+  if( v_primary_spinning_reserve_cost.empty() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
+  else
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    dquad_function->add_variable( & v_primary_spinning_reserve[ t ] ,
+                                  v_primary_spinning_reserve_cost[ t ] , 0 );
  }
 
  if( ( ! v_secondary_spinning_reserve.empty() ) && add_secondary_reserve ) {
-  // Add the secondary spinning reserve variables with zero coefficients
+  // Add the secondary spinning reserve variables
 
   if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
@@ -1070,8 +1075,13 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
                             "time horizon." ) );
   }
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] , 0 , 0 );
+  if( v_secondary_spinning_reserve_cost.empty() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] , 0 , 0 );
+  else
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] ,
+                                  v_secondary_spinning_reserve_cost[ t ] , 0 );
  }
 
  objective.set_function( dquad_function );

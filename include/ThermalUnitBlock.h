@@ -714,26 +714,25 @@ class ThermalUnitBlock : public UnitBlock {
  *  should be included in the objective function. If the Configuration is not
  *  available, the default value is taken to be 0. If the first bit of this
  *  int value is 1, then the primary spinning reserve variables are added to
- *  the objective function with zero coefficients, i.e., the following term is
- *  added to the objective function described above:
+ *  the objective function, i.e., the following term is added to the objective
+ *  function described above:
  *
  *   \f[
- *     \sum_{ t \in \mathcal{T}  } 0 p_t^{pr}.
+ *     \sum_{ t \in \mathcal{T}  } c_t^{pr} p_t^{pr}.
  *   \f]
  *
  *  If the second bit of this int value is 1, then the secondary spinning
- *  reserve variables are added to the objective function with zero
- *  coefficients, i.e., the following term is added to the objective function
- *  described above:
+ *  reserve variables are added to the objective function, i.e., the following
+ *  term is added to the objective function described above:
  *
  *   \f[
- *     \sum_{ t \in \mathcal{T}  } 0 p_t^{sc}.
+ *     \sum_{ t \in \mathcal{T}  } c_t^{sc} p_t^{sc}.
  *   \f]
  *
  *  If the primary and/or secondary spinning reserve variables are included in
  *  the objective function, their coefficients can be set by the
  *  set_primary_spinning_reserve_cost() and
- *  set_secondary_spinning_reserve_cost() methods.
+ *  set_secondary_spinning_reserve_cost() methods, respectively.
  */
 
  void generate_objective( Configuration *objc ) override;
