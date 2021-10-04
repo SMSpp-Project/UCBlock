@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - ThermalUnitDPSolver.
+- Option to add spinning reserve variables to the Objective of ThermalUnitBlock.
+- is_feasible() to UnitBlocks.
+
+### Fixed
+
+- Bugs in deserealization.
+- Bug in the Objective of ThermalUnitBlock.
+- Bugs in methods that are used to retrieve data.
 
 ## [0.5.0] - 2021-05-02
 
