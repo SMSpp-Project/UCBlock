@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 09 - 2021
+ * \date 29 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -395,8 +395,8 @@ class ThermalUnitBlock : public UnitBlock {
  *  generate_abstract_constraints()).
  *
  *  All of these variables are optional, and it is also possible to restrict
- *  which of the subsets are generated with the parameter stvv. If stvv is not
- *  nullptr and it is a SimpleConfiguration<int>, or if
+ *  which of the subsets are generated with the parameter \p stvv. If \p stvv
+ *  is not nullptr and it is a SimpleConfiguration<int>, or if
  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
  *  of the optional variables should be created. If the Configuration is not
@@ -680,27 +680,60 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
-/** Method that generates the objective of the ThermalUnitBlock.
+/** Method that generates the objective of the ThermalUnitBlock. The objective
+ *  function of the ThermalUnitBlock representing the total power production
+ *  cost to be minimized has the form:
  *
- * - Objective function: the objective function of the ThermalUnitBlock
- *   representing the total power production cost to be minimized has the
- *   form:
+ *  \f[
+ *    \sum_{ t \in  [t_0 , \mathcal{|T|} - 1]  } s_t v_t +
+ *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t)
+ *  \f]
+ *
+ *  where \f$ v_t \f$ indicates that the unit is starting up at time t, u_t
+ *  indicates that the unit is committed at time t, p_t is the active power
+ *  produced at time t, \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t
+ *  \f$ is the start-up cost of the unit, which we assume to be
+ *  time-independent
+ *
+ *  Note: time-independent means here start-up cost is "independent from how
+ *        long the unit has been off", and it is not meaning "always should
+ *        be equal at each time instant"
+ *
+ *  and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
+ *  quadratic, linear, and constant terms of the power cost function of the
+ *  unit at time period \f$ t \in \mathcal{T} \f$.
+ *
+ *  If the primary and/or the secondary spinning reserve variables have been
+ *  generated, it is also possible to consider them in linear form in the
+ *  objective function. This can be instructed by using either the parameter
+ *  \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
+ *  nullptr and it is a SimpleConfiguration<int>, or if
+ *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
+ *  SimpleConfiguration<int>, then the f_value of this SimpleConfiguration (an
+ *  int) indicates whether the primary and/or the secondary reserve variables
+ *  should be included in the objective function. If the Configuration is not
+ *  available, the default value is taken to be 0. If the first bit of this
+ *  int value is 1, then the primary spinning reserve variables are added to
+ *  the objective function, i.e., the following term is added to the objective
+ *  function described above:
  *
  *   \f[
- *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } s_t v_t +
- *            \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+ *     \sum_{ t \in \mathcal{T}  } c_t^{pr} p_t^{pr}.
  *   \f]
  *
- *   where \f$ \sum_{ t \in \mathcal{T} } s_t  v_t \f$ is the
- *   start-up cost of the unit, which we assume to be time-independent
+ *  If the second bit of this int value is 1, then the secondary spinning
+ *  reserve variables are added to the objective function, i.e., the following
+ *  term is added to the objective function described above:
  *
- *   Note: time-independent means here start-up cost is "independent from how
- *         long the unit has been off", and it is not meaning "always should
- *         be equal at each time instant"
+ *   \f[
+ *     \sum_{ t \in \mathcal{T}  } c_t^{sc} p_t^{sc}.
+ *   \f]
  *
- *   and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
- *   quadratic, linear, and constant terms of the power cost function of the
- *   unit at time period \f$ t \in \mathcal{T} \f$. */
+ *  If the primary and/or secondary spinning reserve variables are included in
+ *  the objective function, their coefficients can be set by the
+ *  set_primary_spinning_reserve_cost() and
+ *  set_secondary_spinning_reserve_cost() methods, respectively.
+ */
 
  void generate_objective( Configuration *objc ) override;
 
@@ -908,6 +941,34 @@ class ThermalUnitBlock : public UnitBlock {
   */
  const std::vector< double > & get_secondary_rho() const {
   return v_SecondaryRho;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of primary spinning reserve costs
+ /** This function returns the vector of primary spinning reserve costs. If it
+  * is empty, then the costs are all zero. Otherwise, it has size
+  * get_time_horizon() and its t-th element is the linear cost of the primary
+  * spinning reserve variable at time t.
+  *
+  * @return The vector containing the primary spinning reserve costs.
+  */
+ const std::vector< double > & get_primary_spinning_reserve_cost() const {
+  return v_primary_spinning_reserve_cost;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of secondary spinning reserve costs
+ /** This function returns the vector of secondary spinning reserve costs. If
+  * it is empty, then the costs are all zero. Otherwise, it has size
+  * get_time_horizon() and its t-th element is the linear cost of the
+  * secondary spinning reserve variable at time t.
+  *
+  * @return The vector containing the secondary spinning reserve costs.
+  */
+ const std::vector< double > & get_secondary_spinning_reserve_cost() const {
+  return v_secondary_spinning_reserve_cost;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1361,6 +1422,32 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
+ void set_primary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Subset && subset ,
+   const bool ordered , c_ModParam issuePMod = eNoBlck ,
+   c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_primary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Range rng ,
+   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_secondary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Subset && subset ,
+   const bool ordered , c_ModParam issuePMod = eNoBlck ,
+   c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_secondary_spinning_reserve_cost
+ ( std::vector< double >::const_iterator values , Range rng ,
+   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this
@@ -1448,6 +1535,12 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
+
+ /// the vector of primary spinning reserve linear costs
+ std::vector< double > v_primary_spinning_reserve_cost;
+
+ /// the vector of secondary spinning reserve linear costs
+ std::vector< double > v_secondary_spinning_reserve_cost;
 
  /// the InitialPower value
  double f_initial_power{};
@@ -1718,14 +1811,19 @@ class ThermalUnitBlockMod : public Modification {
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type {
-  eSetMaxP = 0 ,   ///< Set max power values
-  eSetInitP    ,   ///< Set initial power values
-  eSetInitUD   ,   ///< Set initial up/down times
-  eSetAv       ,   ///< Set availability
-  eSetSUC      ,   ///< Set startup costs
-  eSetLinT     ,   ///< Set linear term
-  eSetQuadT    ,   ///< Set quad term
-  eSetConstT       ///< Set constant term
+  eSetMaxP = 0      , ///< Set max power values
+  eSetInitP         , ///< Set initial power values
+  eSetInitUD        , ///< Set initial up/down times
+  eSetAv            , ///< Set availability
+  eSetSUC           , ///< Set startup costs
+  eSetLinT          , ///< Set linear term
+  eSetQuadT         , ///< Set quad term
+  eSetConstT        , ///< Set constant term
+  eSetPrSpResCost   , ///< Set primary spinning reserve (linear) costs
+  eSetSecSpResCost  , ///< Set secondary spinning reserve (linear) costs
+  eTUBBModLastParam   ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of ThermalUnitBlockMod. */
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
