@@ -543,12 +543,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   if( f_InitUpDownTime > 0 ) {
    for( Index t = 0; t < f_time_horizon; ++t ) {
     if( f_initial_power + v_DeltaRampUp[0] < get_operational_min_power( 0 ) ||
-        f_initial_power - v_DeltaRampDown[0] > get_operational_max_power( 0 )) {
-     throw ( std::logic_error
-             ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
-               "it must be that"
-               "f_initial_power + v_DeltaRampUp[ 0 ] >= get_operational_min_power( 0 )"
-               "f_initial_power - v_DeltaRampDown[ 0 ] <= get_operational_max_power( 0 ) " ));
+        f_initial_power - v_DeltaRampDown[0] > get_operational_max_power( 0 ) ) {
+     throw( std::logic_error
+            ( "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
+              " it must be that f_initial_power + v_DeltaRampUp[ 0 ] >= "
+              "get_operational_min_power( 0 ) and f_initial_power - "
+              "v_DeltaRampDown[ 0 ] <= get_operational_max_power( 0 ) " ) );
     }
    }
   }
