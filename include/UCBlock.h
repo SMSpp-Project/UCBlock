@@ -211,10 +211,10 @@ class UCBlock : public Block {
  *     electrical generator 0 = first generator of UnitBlock_0
  *     electrical generator 1 = second generator of UnitBlock_0
  *     ...
- *     electrical generator k = k-th generator of UnitBlock_0 
- *                          k = UnitBlock_0->get_number_generators()
- *     electrical generator k + 1 = first generator of UnitBlock_1
- *     electrical generator k + 2 = second generator of UnitBlock_1
+ *     electrical generator k - 1 = k-th generator of UnitBlock_0
+ *                          k     = UnitBlock_0->get_number_generators()
+ *     electrical generator k     = first generator of UnitBlock_1
+ *     electrical generator k + 1 = second generator of UnitBlock_1
  *     ...
  *   which of course boils down to "g = i" when each UnitBlock has exactly one
  *   electrical generator.
