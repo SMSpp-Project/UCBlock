@@ -108,7 +108,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  std::vector< std::string > expected_dims = { "TimeHorizon",
                                               "NumberIntervals",
                                               "NumberReservoirs",
-                                              "NumberArcs"  };
+                                              "NumberArcs",
+                                              "TotalNumberPieces" };
  check_dimensions( group, expected_dims, std::cerr );
  std::vector< std::string > expected_vars = { "StartArc",
                                               "EndArc",
