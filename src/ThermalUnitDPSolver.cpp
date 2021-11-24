@@ -4,36 +4,29 @@
 /** @file
  * Implementation of the EDPSolver class.
  *
+ * \author Claudio Gentile \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Niccolò Iardella \n
+ * \author Niccolo' Iardella \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \copyright &copy; Antonio Frangioni, Niccolò Iardella, Kostas Tavlaridis-Gyparakis
+ * \copyright &copy; Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
  */
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "ThermalUnitDPSolver.h"
+
 #include "ThermalUnitBlock.h"
-
-#define USE_OLD_GRAPH
-
-// Otherwise I keep forgetting what is what
-#define ON( X ) X
-#define OFF( X ) X + time_horizon
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -44,377 +37,89 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_0( ThermalUnitDPSolver );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- SOLVER INTERFACE -----------------------------*/
+/*--------------------------- Solver INTERFACE -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::set_Block( Block * block ) {
- if( block == f_Block ) {
+void ThermalUnitDPSolver::set_Block( Block * block )
+{
+ if( block == f_Block )
   return;
- }
 
  Solver::set_Block( block );
 
  if( block ) {
-  if( dynamic_cast< ThermalUnitBlock * >(f_Block) == nullptr ) {
-   throw std::runtime_error( "Solver supports only ThermalUnitBlocks" );
-  }
+  if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
+   throw( std::runtime_error(
+		  "ThermalUnitDPSolver only supports  ThermalUnitBlocks" ) );
 
   load_parameters();
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
-int ThermalUnitDPSolver::compute( bool changedvars ) {
+int ThermalUnitDPSolver::compute( bool changedvars )
+{
  process_modifications();
 
  switch( stage ) {
-  case start:
-   build_graph();
-  case graph_OK:
-   compute_EDPs();
-  case edps_OK:
-   min_path();
-  case path_OK:
-   compute_solutions();
-  default:;
- }
+  case start:    build_graph();
+  case graph_OK: compute_EDPs();
+  case edps_OK:  min_path();
+  case path_OK:  compute_solutions();
+  }
 
  assert( stage == sol_OK );
- return kOK;
-}
+ return( kOK );
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::get_var_solution( Configuration * solc ) {
-
- // Lock the block
+void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
+{
+ // lock the block
  bool owned = f_Block->is_owned_by( f_id );
- if( !owned && !f_Block->lock( f_id ) ) {
-  throw std::runtime_error( "Unable to lock the Block" );
- }
+ if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
+  throw( std::runtime_error( "Unable to lock the Block" ) );
 
- auto b = dynamic_cast< ThermalUnitBlock * >(f_Block);
- if( b == nullptr ) {
-  if( !owned ) {
-   f_Block->unlock( f_id );
-  }
-  throw std::runtime_error( "LegacyDPSolver supports only ThermalUnitBlocks" );
- }
 
- // Generate abstract representation if necessary
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+
+ // generate abstract representation if necessary
  b->generate_abstract_variables( nullptr );
- b->generate_objective( nullptr );
+ // b->generate_objective( nullptr );
 
- // Set active power and unit commitment variables
+ // set active power and unit commitment variables
  auto pow_it = b->get_active_power( 0 );
  auto com_it = b->get_commitment( 0 );
 
- for( int i = 0; i < time_horizon; ++i ) {
+ for( int i = 0 ; i < time_horizon ; ++i ) {
   pow_it->set_value( P[ i ] );
   com_it->set_value( U[ i ] );
   pow_it++;
   com_it++;
- }
+  }
 
- // Set startup variables
+ /*!! set startup variables -- I'd frankly avoid it
  auto sup_it = b->get_start_up();
- for( int i = 0; i < time_horizon - init_t; ++i ) {
+ for( int i = 0 ; i < time_horizon - init_t ; ++i ) {
   sup_it->set_value( startup[ i ] );
   sup_it++;
- }
+  }
+ */
 
- // Unlock the block
- if( !owned ) {
+ // unlock the block
+ if( ! owned )
   f_Block->unlock( f_id );
- }
-}
 
-/*--------------------------------------------------------------------------*/
-
-Solver::OFValue ThermalUnitDPSolver::get_lb() {
- return total_cost;
-}
-
-/*--------------------------------------------------------------------------*/
-
-Solver::OFValue ThermalUnitDPSolver::get_ub() {
- return total_cost;
-}
-
-/*--------------------------------------------------------------------------*/
-
-Solver::OFValue ThermalUnitDPSolver::get_var_value() {
- return total_cost;
-}
+ }  // end( ThermalUnitDPSolver::get_var_solution( )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ BUILDING AND SOLVING THE DP PROBLEM -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::build_graph() {
-
-#ifdef USE_OLD_GRAPH
- v_nodes.resize( time_horizon * time_horizon );
- for( auto & n: v_nodes ) {
-  n.v_arcs.resize( 1 );
- }
-
- /** Se la centrale era accesa durante gli istanti precedenti al
-     "nostro" istante iniziale bisogna distinguere due casi. Se la
-     centrale era stata accesa per un periodo minore al periodo
-     minimo di accensone, allora deve rimanere accesa nel l'istante
-     successivo per un periodo complessivo pari almeno al tempo
-     minimo di accensone. Altrimenti se la centrale era stata
-     accesa per un periodo pari almeno al tempo minimo di
-     accensone, allora nell'istante successivo potra' essere accesa
-     anche per un solo periodo
- */
-
- /* Se la centale era accesa negli istanti precedenti al "nostro"
-    istante iniziale */
-
- if( init_up_down_time > 0 ) {
-
-  /** Se la centrale era stata accesa per un periodo minore al
-periodo minimo di accensone */
-
-  hMin = 0;
-  kMin = 0;
-
-  /*
-   * Compute kMin, the first time step the unit can be turned OFF
-   */
-
-  if( initial_power >= bound_down[ 0 ] + eps ) {
-   double tmp = initial_power;
-   tmp -= delta_ramp_down[ kMin ];
-   kMin++;
-   while( tmp >= bound_down[ kMin ] + eps ) {
-    tmp -= delta_ramp_down[ kMin ];
-    kMin++;
-   }
-   kMin--;
-  }
-
-  if( kMin >= time_horizon ) {
-   kMin = time_horizon - 1;
-  }
-
-  if( init_up_down_time < min_up_time ) {
-
-   /*
-    * Compute the time steps the unit must stay ON due to min_up_time (k)
-    * and ramp constraints (kMin from before)
-    */
-   int h = hMin;
-   int k = min_up_time - init_up_down_time - 1;
-   if( kMin < k ) {
-    kMin = k;
-   } else {
-    k = kMin;
-   }
-
-   /** costruisco tutti i possibili nodi collegati direttamente
-       alla sorgente, della seguente forma: (0,k),..., (0,n-1). 
-       Inizializzo quindi i campi che compongono la
-       struttura dei nodi */
-
-   {
-    double c_i = 0;
-    for( int t = h; t < k; ++t ) {
-     c_i += const_term[ t ];
-    }
-
-    for( ; k < time_horizon; k++ ) {
-     int i = h * time_horizon + k; // prelevo l'indice della posizione del nodo
-
-     v_nodes[ i ].v_arcs[ 0 ].h = h;
-     v_nodes[ i ].v_arcs[ 0 ].k = k;
-     c_i += const_term[ k ];
-     v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-     v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-     v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-    }
-   }
-   /* costruzione degli altri nodi */
-
-   //... nodi completi
-   for( h = min_up_time - init_up_down_time + min_down_time;
-        h < time_horizon - min_up_time + 1; h++ ) {
-    k = h + min_up_time - 1;
-
-    double c_i = 0;
-    for( int t = h; t < k; ++t ) {
-     c_i += const_term[ t ];
-    }
-
-    for( ; k < time_horizon; k++ ) {
-     int i = h * time_horizon + k;
-     v_nodes[ i ].v_arcs[ 0 ].h = h;
-     v_nodes[ i ].v_arcs[ 0 ].k = k;
-     c_i += const_term[ k ];
-     v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-     v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-     v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-    }
-   }
-   //... nodi interrotti che proseguono nel prossimo periodo di pianificazione
-   for( ; h < time_horizon; h++ ) {
-    k = time_horizon - 1;
-    double c_i = 0;
-    for( int t = h; t <= k; ++t ) {
-     c_i += const_term[ t ];
-    }
-
-    int i = h * time_horizon + k;
-    v_nodes[ i ].v_arcs[ 0 ].h = h;
-    v_nodes[ i ].v_arcs[ 0 ].k = k;
-    v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-    v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-   }
-
-  } else {  // init_up_down_time >= min_up_time
-
-
-   /** se la centrale era stata accesa per un periodo pari almeno al
-tempo minimo di accensone, allora nell'istante successivo
-potra' essere accesa anche per un solo periodo
-   */
-
-   /// costruzione dei nodi del tipo (0,kMin),(0,kMin+1),...,(0,n-1)
-
-   int h = hMin;
-   int k = kMin;
-
-   {
-    double c_i = 0;
-    for( int t = 0; t < k; ++t ) {
-     c_i += const_term[ t ];
-    }
-    for( ; k < time_horizon; k++ ) {
-     int i = h * time_horizon + k;
-     v_nodes[ i ].v_arcs[ 0 ].h = h;
-     v_nodes[ i ].v_arcs[ 0 ].k = k;
-     c_i += const_term[ k ];
-     v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-     v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-     v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-    }
-   }
-
-   /* costruzione degli altri nodi del tipo (h,k) */
-
-   // nodi completi ...
-   for( h = min_down_time; h < time_horizon - min_up_time + 1; h++ ) {
-    k = h + min_up_time - 1;
-
-    double c_i = 0;
-    for( int t = h; t < k; t++ ) {
-     c_i += const_term[ t ];
-    }
-
-    for( ; k < time_horizon; k++ ) {
-     int i = h * time_horizon + k;
-     v_nodes[ i ].v_arcs[ 0 ].h = h;
-     v_nodes[ i ].v_arcs[ 0 ].k = k;
-     c_i += const_term[ k ];
-     v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-     v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-     v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-    }
-   }
-   // nodi che terminano nel prossimo periodo di pianiificazione ...
-   for( ; h < time_horizon; h++ ) {
-    k = time_horizon - 1;
-    double c_i = 0;
-    for( int t = h; t <= k; t++ ) {
-     c_i += const_term[ t ];
-    }
-
-    int i = h * time_horizon + k;
-    v_nodes[ i ].v_arcs[ 0 ].h = h;
-    v_nodes[ i ].v_arcs[ 0 ].k = k;
-    v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-    v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-   }
-  }
-
- } else {
-  /** se la centrale era spenta si possono verificare due casi. 1- la
-    centrale era spenta da meno di min_down_time istanti: la prossima
-    accensione avverra` dopo min_down_time istanti. 2- la centrale
-    era spenta da almeno min_down_time istanti: all'istante 0 la
-    centrale potra` essere accesa
-*/
-
-
-  if( init_up_down_time < 0 ) {
-   /** compute the minimum time hMin such that the unit can be switchend on 
-       
-       primo caso:   se era spenta da meno di min_down_time istanti, allora 
-                     prossimo estremo sinistro del nodo da costruire ...
-       secondo caso: se era spenta da almeno min_down_time istanti di tempo, allora si parte da 0 
-   */
-
-   int h = -init_up_down_time < min_down_time ?
-           min_down_time + init_up_down_time :
-           0;
-
-   hMin = h;
-   kMin = hMin + min_up_time - 1;
-   if( kMin >= time_horizon ) {
-    kMin = time_horizon - 1;
-   }
-
-   /// costruzione di tutti i nodi
-
-   // nodi completi ...
-   for( ; h < time_horizon - min_up_time + 1; h++ ) {
-    int k = h + min_up_time - 1;
-
-    double c_i = 0;
-    for( int t = h; t < k; t++ ) {
-     c_i += const_term[ t ];
-    }
-
-    for( ; k < time_horizon; k++ ) {
-     int i = h * time_horizon + k;
-     v_nodes[ i ].v_arcs[ 0 ].h = h;
-     v_nodes[ i ].v_arcs[ 0 ].k = k;
-     c_i += const_term[ k ];
-     v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-     v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-     v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-    }
-   }
-   // nodi che terminano nel prossimo periodo di pianiificazione ...
-   for( ; h < time_horizon; h++ ) {
-    int k = time_horizon - 1;
-    double c_i = 0;
-    for( int t = h; t <= k; t++ ) {
-     c_i += const_term[ t ];
-    }
-
-    int i = h * time_horizon + k;
-    v_nodes[ i ].v_arcs[ 0 ].h = h;
-    v_nodes[ i ].v_arcs[ 0 ].k = k;
-    v_nodes[ i ].v_arcs[ 0 ].cost1 = c_i;
-    v_nodes[ i ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ i ].v_arcs[ 0 ].valid = 1;
-   }
-  } else {
-   /** se init_up_down_time vale zero allora termina programma perche'
-e' impossibile visto che l'unita', prima dell'istante iniziale
-da noi considerato poteva essere accesa o spenta */
-   assert( 0 );
-  }
- }
-
-#else
-
+void ThermalUnitDPSolver::build_graph( void )
+{
  v_nodes.resize( time_horizon * 2 );
 
  /*
@@ -881,7 +586,6 @@ da noi considerato poteva essere accesa o spenta */
  } else {
   assert( 0 );
  }
-#endif
 
  // Update stage
  stage = graph_OK;
@@ -889,37 +593,26 @@ da noi considerato poteva essere accesa o spenta */
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::compute_EDPs() {
-
- if( stage < graph_OK ) {
-  throw std::logic_error( "compute_EDPs(): graph not ready" );
- }
+void ThermalUnitDPSolver::compute_EDPs( void )
+{
+ if( stage < graph_OK )
+  throw( std::logic_error( "compute_EDPs(): graph not ready" ) );
 
  std::vector< double > v_cost( time_horizon );
  v_EDP.resize( time_horizon - hMin );
 
  for( int i = hMin; i < time_horizon; ++i ) {
+  if( v_nodes[ i ].v_arcs.empty() )
+   continue;
+
   v_EDP[ i - hMin ].initialize( i, this );
   v_EDP[ i - hMin ].compute_costs( v_cost );
-
-#ifdef USE_OLD_GRAPH
-  for( int j = i; j < time_horizon; ++j ) {
-   int l = i * time_horizon + j;
-   if( v_nodes[ l ].v_arcs[ 0 ].valid ) {
-    v_nodes[ l ].v_arcs[ 0 ].cost2 = v_cost[ j ];
-   }
-  }
-#else
-  if( v_nodes[ i ].v_arcs.empty() ) {
-   continue;
-  }
 
   for( auto & v_arc : v_nodes[ i ].v_arcs ) {
    if( v_arc.valid == -1 || v_arc.valid == 2 ) {
     v_arc.cost2 = v_cost[ v_arc.k ];
    }
   }
-#endif
  }
 
  // Update stage
@@ -951,14 +644,8 @@ void ThermalUnitDPSolver::min_path() {
    for( int k = kMin; k < time_horizon; ++k ) {
     v_route[ k ].h = h;
     v_route[ k ].pred = -1;
-#ifdef USE_OLD_GRAPH
-    const int i = h * time_horizon + k;
-    v_route[ k ].lab = v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                       v_nodes[ i ].v_arcs[ 0 ].cost2;
-#else
     v_route[ k ].lab = v_nodes[ h ].v_arcs[ k - kMin ].cost1 +
                        v_nodes[ h ].v_arcs[ k - kMin ].cost2;
-#endif
    }
 
    // The target node can not be directly connected to the source node
@@ -1000,19 +687,6 @@ void ThermalUnitDPSolver::min_path() {
       */
      const double currentstartupcost = compute_startup_costs( h );
 
-#ifdef USE_OLD_GRAPH
-     for( int k = h + min_up_time - 1; k < time_horizon; ++k ) {
-      const int i = h * time_horizon + k;
-      const double label = currentstartupcost +
-                           v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                           v_nodes[ i ].v_arcs[ 0 ].cost2;
-      if( label < v_route[ k ].lab ) {
-       v_route[ k ].h = h;
-       v_route[ k ].lab = label;
-       v_route[ k ].pred = -1;
-      }
-     }
-#else
      int i = 0;
      for( int k = h + min_up_time - 1; k < time_horizon; ++k, ++i ) {
       const double label = currentstartupcost +
@@ -1025,23 +699,8 @@ void ThermalUnitDPSolver::min_path() {
        v_route[ k ].pred = -1;
       }
      }
-#endif
     }
 
-#ifdef USE_OLD_GRAPH
-    for( ; h < time_horizon; h++ ) {
-     const int k = time_horizon - 1;
-     const int i = h * time_horizon + k;
-     const double label = compute_startup_costs( h ) +
-                          v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                          v_nodes[ i ].v_arcs[ 0 ].cost2;
-     if( label < v_route[ k ].lab ) {
-      v_route[ k ].h = h;
-      v_route[ k ].lab = label;
-      v_route[ k ].pred = -1;
-     }
-    }
-#else
     for( int i = 0; h < time_horizon; ++h, ++i ) {
 
      /*
@@ -1060,7 +719,6 @@ void ThermalUnitDPSolver::min_path() {
       v_route[ k ].pred = -1;
      }
     }
-#endif
 
     /*
      * Check the case where the unit remains on at the beginning,
@@ -1068,14 +726,8 @@ void ThermalUnitDPSolver::min_path() {
      */
 
     for( int k = kMin; k < time_horizon; ++k ) {
-#ifdef USE_OLD_GRAPH
-     const int i = k;
-     const double label = v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                          v_nodes[ i ].v_arcs[ 0 ].cost2;
-#else
      const double label = v_nodes[ 0 ].v_arcs[ k - kMin ].cost1 +
                           v_nodes[ 0 ].v_arcs[ k - kMin ].cost2;
-#endif
      if( label < v_route[ k ].lab ) {
       v_route[ k ].h = 0;
       v_route[ k ].lab = label;
@@ -1099,14 +751,8 @@ void ThermalUnitDPSolver::min_path() {
     for( int k = kMin; k < time_horizon; ++k ) {
      v_route[ k ].h = h;
      v_route[ k ].pred = -1;
-#ifdef USE_OLD_GRAPH
-     const int i = h * time_horizon + k;
-     v_route[ k ].lab = v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                        v_nodes[ i ].v_arcs[ 0 ].cost2;
-#else
      v_route[ k ].lab = v_nodes[ 0 ].v_arcs[ k - kMin ].cost1 +
                         v_nodes[ 0 ].v_arcs[ k - kMin ].cost2;
-#endif
     }
    }
   }
@@ -1130,16 +776,9 @@ void ThermalUnitDPSolver::min_path() {
    const double currentstartupcost = compute_startup_costs( idxcs );
 
    for( int k = kMin; k < time_horizon; ++k ) {
-#ifdef USE_OLD_GRAPH
-    const int i = h * time_horizon + k;
-    const double label = currentstartupcost +
-                         v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                         v_nodes[ i ].v_arcs[ 0 ].cost2;
-#else
     const double label = currentstartupcost +
                          v_nodes[ h ].v_arcs[ k - kMin ].cost1 +
                          v_nodes[ h ].v_arcs[ k - kMin ].cost2;
-#endif
     v_route[ k ].h = h;
     v_route[ k ].lab = label;
     v_route[ k ].pred = -1;
@@ -1152,39 +791,7 @@ void ThermalUnitDPSolver::min_path() {
   /*
    * Initialize all the other feasible pairs.
    */
-#ifdef USE_OLD_GRAPH
-  // nodi completi ....
-  for( ; h < time_horizon - min_up_time + 1; h++, idxcs++ ) {
-   const double currentstartupcost = compute_startup_costs( idxcs );
 
-   for( int k = h + min_up_time - 1; k < time_horizon; ++k ) {
-    const int i = h * time_horizon + k;
-    const double label = currentstartupcost +
-                         v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                         v_nodes[ i ].v_arcs[ 0 ].cost2;
-    if( label < v_route[ k ].lab ) {
-     v_route[ k ].h = h;
-     v_route[ k ].lab = label;
-     v_route[ k ].pred = -1;
-    }
-   }
-  }
-
-  // nodi che terminano dopo la fine dell'intervallo di definizione ...
-  for( ; h < time_horizon; h++ ) {
-   const int k = time_horizon - 1;
-   const int i = h * time_horizon + k;
-   const double label = compute_startup_costs( idxcs ) +
-                        v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                        v_nodes[ i ].v_arcs[ 0 ].cost2;
-   if( label < v_route[ k ].lab ) {
-    v_route[ k ].h = h;
-    v_route[ k ].lab = label;
-    v_route[ k ].pred = -1;
-   }
-  }
-
-#else
   for( ; h < time_horizon - min_up_time + 1; ++h, ++idxcs ) {
    const double currentstartupcost = compute_startup_costs( idxcs );
 
@@ -1215,7 +822,6 @@ void ThermalUnitDPSolver::min_path() {
     }
    }
   }
-#endif
 
   // Initialize the pair (s, d)
   v_route[ time_horizon ].lab = 0;
@@ -1245,19 +851,6 @@ void ThermalUnitDPSolver::min_path() {
    const double costbeforenode = v_route[ k ].lab +
                                  compute_startup_costs( r - 1 - k );
 
-#ifdef USE_OLD_GRAPH
-   for( int q = r + min_up_time - 1; q < time_horizon; ++q ) {
-    const int i = r * time_horizon + q;
-    const double label = costbeforenode +
-                         v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                         v_nodes[ i ].v_arcs[ 0 ].cost2;
-    if( v_route[ q ].lab > label ) {
-     v_route[ q ].h = r;
-     v_route[ q ].lab = label;
-     v_route[ q ].pred = k;
-    }
-   }
-#else
    int i = 0;
    for( int q = r + min_up_time - 1; q < time_horizon; ++q ) {
     const double label = costbeforenode +
@@ -1271,24 +864,15 @@ void ThermalUnitDPSolver::min_path() {
      v_route[ q ].pred = k;
     }
    }
-#endif
   }
 
 
   for( ; r < time_horizon; ++r ) {
    const int q = time_horizon - 1;
-#ifdef USE_OLD_GRAPH
-   const int i = r * time_horizon + q;
-   const double label = v_route[ k ].lab +
-                        compute_startup_costs( r - 1 - k ) +
-                        v_nodes[ i ].v_arcs[ 0 ].cost1 +
-                        v_nodes[ i ].v_arcs[ 0 ].cost2;
-#else
    const double label = v_route[ k ].lab +
                         compute_startup_costs( r - 1 - k ) +
                         v_nodes[ r ].v_arcs[ 0 ].cost1 +
                         v_nodes[ r ].v_arcs[ 0 ].cost2;
-#endif
    if( v_route[ q ].lab > label ) {
     v_route[ q ].h = r;
     v_route[ q ].lab = label;
@@ -1312,15 +896,15 @@ void ThermalUnitDPSolver::min_path() {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::compute_solutions() {
+void ThermalUnitDPSolver::compute_solutions( void )
+{
+ if( stage < edps_OK )
+  throw( std::logic_error( "compute_solutions(): graph and/or path not ready"
+			   ) );
 
- if( stage < edps_OK ) {
-  throw std::logic_error( "compute_solutions(): graph and/or path not ready" );
- }
-
- std::fill( P.begin(), P.end(), 0 );
- std::fill( U.begin(), U.end(), 0 );
- std::fill( startup.begin(), startup.end(), 0 );
+ std::fill( P.begin() , P.end() , 0 );
+ std::fill( U.begin() , U.end() , 0 );
+ std::fill( startup.begin() , startup.end() , 0 );
 
  int k = v_route[ time_horizon ].pred;
  while( k != -1 ) {
@@ -1353,16 +937,15 @@ void ThermalUnitDPSolver::compute_solutions() {
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::load_parameters() {
-
+void ThermalUnitDPSolver::load_parameters( void )
+{
  // Locking the Block
  bool owned = f_Block->is_owned_by( f_id );
- if( !owned && !f_Block->read_lock() ) {
-  throw std::runtime_error( "Unable to lock the Block" );
- }
+ if( ( ! owned ) && ( ! f_Block->read_lock() ) )
+  throw( std::runtime_error( "Unable to lock the Block" ) );
 
  // Casting should have be checked in set_Block() already
- auto b = static_cast< ThermalUnitBlock * >(f_Block);
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
  // Scalar values
  time_horizon = ( int ) b->get_time_horizon();
@@ -1414,8 +997,8 @@ void ThermalUnitDPSolver::load_parameters() {
 
 /*--------------------------------------------------------------------------*/
 
-double ThermalUnitDPSolver::compute_startup_costs( int t ) {
-
+double ThermalUnitDPSolver::compute_startup_costs( int t )
+{
  return t > min_down_time ?
         startup_costs[ min_down_time ] :
         startup_costs[ t - min_down_time ];
@@ -1434,12 +1017,12 @@ double ThermalUnitDPSolver::compute_startup_costs( int t ) {
 
  // t -= min_down_time;
  // return ( startup_costs[ t ] );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::process_modifications() {
-
+void ThermalUnitDPSolver::process_modifications( void )
+{
  bool reload = false;
 
  // A function like this is needed to be called
@@ -1548,10 +1131,9 @@ void ThermalUnitDPSolver::process_modifications() {
   }
  }
 
- if( reload ) {
+ if( reload )
   load_parameters();
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
@@ -1574,4 +1156,410 @@ ThermalUnitDPSolver::retrieve_term( std::vector< double > & out,
  out = in;
 }
 
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void EDPSolver::initialize( int k , ThermalUnitDPSolver * s )
+{
+ solver = s;
+ auto & time_horizon = solver->time_horizon;
+
+ h = k;
+ kMax = time_horizon;
+
+ int coeffsize = time_horizon * time_horizon + h * h - 2 * h * time_horizon;
+ if( coeffsize != coeffs.size() ) {
+  coeffs.resize( coeffsize );
+
+  int msize = coeffsize + time_horizon - h;
+  m.resize( msize );
+
+  v.resize( time_horizon );
+  pos.resize( time_horizon );
+  unc_p.resize( time_horizon );
+  con_p.resize( time_horizon );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void EDPSolver::compute_costs( std::vector< double > & costs )
+{
+ // Scalar values
+ auto & time_horizon = solver->time_horizon;
+ auto & init_up_down_time = solver->init_up_down_time;
+ auto & initial_power = solver->initial_power;
+
+ // Power vectors
+ auto & min_power = solver->min_power;
+ auto & max_power = solver->max_power;
+ auto & delta_ramp_up = solver->delta_ramp_up;
+ auto & delta_ramp_down = solver->delta_ramp_down;
+ auto & bound_on = solver->bound_on;
+ auto & bound_down = solver->bound_down;
+
+ // Coefficients of the objective function
+ auto & quad_term = solver->quad_term;
+ auto & linear_term = solver->linear_term;
+
+ int k = h;
+
+ coeffs[ 0 ].alfa = quad_term[ k ];
+ coeffs[ 0 ].beta = linear_term[ k ];
+ coeffs[ 0 ].gamma = 0;
+ int coeffcnt = 1; // Next free position in coeffs[]
+ v[ k ] = 0;       // Because for k = h the number of pieces is 1
+
+ /* Initialize the vector m containing the endpoints of the pieces.
+  * At first, it contains the two endpoints of the individual piece.
+  * At startup, power can't exceed the bound-on value \barl_k.
+  * However, if the unit is on at the beginning of the time horizon with
+  * the given initial value initial_power, then the interval is restricted
+  * to take it into account. */
+
+ if( ( h == 0 ) && ( init_up_down_time > 0 ) ) {
+  m[ 0 ] = std::max( min_power[ k ] , initial_power - delta_ramp_down[ k ] );
+  m[ 1 ] = std::min( max_power[ k ] , initial_power + delta_ramp_up[ k ] );
+  }
+ else {
+  m[ 0 ] = min_power[ k ];
+  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k;
+  }
+
+ int mcnt = 2; // Next free position in m[]
+
+ /*
+  * Initialize the vector pos containing the initial indices of the pieces.
+  */
+
+ pos[ k ].begm = 0;
+ pos[ k ].begt = 0;
+
+ /*
+  * Initialize the vector of unconstrained power values.
+  * Unconstrained means that power values are not constrained by bound_down[k].
+  */
+ if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
+  if( coeffs[ 0 ].beta <= 0 )
+   unc_p[ k ] = m[ 1 ];
+  else
+   unc_p[ k ] = m[ 0 ];
+ else {
+  // tmp is p^{*}_{hk}
+  double tmp = -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa );
+  if( tmp < m[ 0 ] ) {
+   unc_p[ k ] = m[ 0 ];
+  } else if( tmp > m[ 1 ] ) {
+   unc_p[ k ] = m[ 1 ];
+  } else {
+   unc_p[ k ] = tmp;
+  }
+ }
+
+ /* Initialize the vector of constrained power values, that will be
+  * computed at each iteration.
+  * Constrained means that they must be <= bound_down[ k ]. */
+
+ if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
+  con_p[ k ] = bound_down[ k + 1 ];
+ else
+  con_p[ k ] = unc_p[ k ];
+
+ costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
+              coeffs[ 0 ].beta * con_p[ k ];
+
+ // Outermost loop
+ for( k = h + 1; k < kMax; ++k ) {
+
+  /*
+   * Building pieces: \bar{m}_0 is the first endpoint of the first piece of
+   * the z_{hk}(\bar{p}) objective function. Such endpoint will be saved in
+   * the m vector.
+   */
+
+  pos[ k ].begm = mcnt;
+  pos[ k ].begt = coeffcnt;
+
+
+  if( min_power[ k ] > m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] ) {
+   m[ mcnt ] = min_power[ k ];
+  } else {
+   m[ mcnt ] = m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ];
+  }
+
+  double p_bar = m[ mcnt ]; // \bar{m}_0
+  int v_bar = 0;            // After the case 3 will contain v[k]
+
+  /*
+   * Compute q, the index of the piece where p^*(\bar{p}) belongs.
+   */
+
+  double pstar; // p^*(\bar{p})
+
+  if( p_bar < unc_p[ k - 1 ] ) {
+   pstar = p_bar + delta_ramp_down[ k - 1 ];
+   if( pstar > unc_p[ k - 1 ] ) {
+    pstar = unc_p[ k - 1 ];
+   }
+  } else {
+   pstar = p_bar - delta_ramp_up[ k - 1 ];
+   if( pstar < unc_p[ k - 1 ] ) {
+    pstar = unc_p[ k - 1 ];
+   }
+  }
+
+  int qm = pos[ k - 1 ].begm;
+  while( pstar >= m[ qm + 1 ] && qm < pos[ k ].begm - 2 ) {
+   ++qm;
+  }
+
+  int q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;
+
+  /*
+   * Compute the last endpoint of the piece, \bar{u}.
+   */
+
+  double u_bar = std::min( max_power[ k ],
+                           m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
+  // if( max_power[ k ] < m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] ) {
+  //  u_bar = max_power[ k ];
+  // } else {
+  //  u_bar = m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ];
+  // }
+  ++mcnt;
+
+
+  bool firstTime = true;
+
+  // CASE 1
+  while( unc_p[ k - 1 ] > p_bar + delta_ramp_down[ k - 1 ] + eps ) {
+
+   /*
+    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
+    */
+
+   coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].beta =
+    linear_term[ k ] +
+    coeffs[ q ].beta +
+    2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].gamma =
+    coeffs[ q ].gamma +
+    coeffs[ q ].alfa * delta_ramp_down[ k - 1 ] * delta_ramp_down[ k - 1 ] +
+    coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
+
+   /*
+    * Compute the maximum value for \bar{p} such that:
+    *  - p^*_k(\bar{p}) stays in the q-th interval;
+    *  - unc_p stays out of the admissible range;
+    *  - \bar{p} stays admissible.
+    */
+
+   if( m[ qm + 1 ] - delta_ramp_down[ k - 1 ] <
+       unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ] - eps ) {
+    p_bar = m[ qm + 1 ] - delta_ramp_down[ k - 1 ];
+    ++q;
+    ++qm;
+   } else {
+    p_bar = unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ];
+   }
+   if( p_bar > u_bar ) {
+    p_bar = u_bar;
+   }
+   ++v_bar;
+   m[ mcnt++ ] = p_bar;
+
+   /*
+    * Compute unc_p, unconstrained optimal value for z_{hk}.
+    */
+
+   if( firstTime &&
+       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+    if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
+     if( coeffs[ coeffcnt ].beta >= 0 )
+      unc_p[ k ] = m[ mcnt - 2 ];
+     // else do nothing, the function is still decreasing in the next interval
+     }
+    else {
+     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
+     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+      unc_p[ k ] = m[ mcnt - 2 ];
+      }
+     }
+    firstTime = false;
+   }
+
+   ++coeffcnt;
+  }
+
+  // CASE 2
+  if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k - 1 ] ) {
+
+   /*
+    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
+    */
+
+   coeffs[ coeffcnt ].alfa = quad_term[ k ];
+   coeffs[ coeffcnt ].beta = linear_term[ k ];
+   coeffs[ coeffcnt ].gamma =
+    coeffs[ q ].alfa * unc_p[ k - 1 ] * unc_p[ k - 1 ] +
+    coeffs[ q ].beta * unc_p[ k - 1 ] +
+    coeffs[ q ].gamma;
+
+   /*
+    * Compute the maximum value for \bar{p} such that:
+    *  - unc_p stays out of the admissible range;
+    *  - \bar{p} stays admissible.
+    */
+
+   if( ( unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] ) < u_bar ) {
+    p_bar = unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ];
+   } else {
+    p_bar = u_bar;
+   }
+   ++v_bar;
+   m[ mcnt++ ] = p_bar;
+
+   if( firstTime &&
+       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+    if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
+     if( coeffs[ coeffcnt ].beta >= 0 )
+      unc_p[ k ] = m[ mcnt - 2 ];
+     // else do nothing, the function is still decreasing in the next interval
+     }
+    else {
+     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
+     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+      unc_p[ k ] = m[ mcnt - 2 ];
+      }
+     }
+    firstTime = false;
+   }
+
+   ++coeffcnt;
+  }
+
+
+  // CASE 3
+  while( p_bar < u_bar ) {
+
+   /*
+    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
+    */
+
+   coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].beta =
+    linear_term[ k ] + coeffs[ q ].beta -
+    2 * delta_ramp_up[ k - 1 ] * coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].gamma =
+    coeffs[ q ].gamma +
+    coeffs[ q ].alfa * delta_ramp_up[ k - 1 ] * delta_ramp_up[ k - 1 ] -
+    coeffs[ q ].beta * delta_ramp_up[ k - 1 ];
+
+   /*
+    * Compute the maximum value for \bar{p} such that:
+    *  - p^*_k(\bar{p}) stays in the q-th interval;
+    *  - \bar{p} stays admissible.
+    */
+
+   if( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] < u_bar ) {
+    p_bar = m[ qm + 1 ] + delta_ramp_up[ k - 1 ];
+   } else {
+    p_bar = u_bar;
+   }
+   ++v_bar;
+   m[ mcnt++ ] = p_bar;
+   ++q;
+   ++qm;
+
+   if( firstTime &&
+       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+    if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
+     if( coeffs[ coeffcnt ].beta >= 0 )
+      unc_p[ k ] = m[ mcnt - 2 ];
+     // else do nothing, the function is still decreasing in the next interval
+     }
+    else {
+     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
+     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+      unc_p[ k ] = m[ mcnt - 2 ];
+      }
+     }
+    firstTime = false;
+    }
+
+   ++coeffcnt;
+   }
+
+  // End of the tree cases
+
+  v[ k ] = v_bar - 1;
+
+
+  if( firstTime )  // Function is strictly decreasing
+   unc_p[ k ] = u_bar;
+
+  /* Compute con_p[k], constrained optimal value for the entire function.
+   */
+
+  if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
+   con_p[ k ] = bound_down[ k + 1 ];
+  else
+   con_p[ k ] = unc_p[ k ];
+ 
+  /*
+   * Compute the cost for the node (h,k) in costs[].
+   */
+
+  qm = pos[ k ].begm;
+  while( con_p[ k ] > m[ qm + 1 ] && m[ qm + 1 ] != 0 ) {
+   ++qm;
+  }
+  q = qm - pos[ k ].begm + pos[ k ].begt;
+
+  costs[ k ] =
+   coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
+   coeffs[ q ].beta * con_p[ k ] +
+   coeffs[ q ].gamma;
+
+  }  // end( for( k ) )
+ }  // end( compute_costs )
+
+/*--------------------------------------------------------------------------*/
+
+void EDPSolver::compute_power_variables( int k , std::vector< double > & p )
+{
+ auto & delta_ramp_up = solver->delta_ramp_up;
+ auto & delta_ramp_down = solver->delta_ramp_down;
+
+ p[ k ] = con_p[ k ];
+ for( int t = k - 1 ; t >= h ; --t ) {
+  /* Project unconstrained optimal value unc_p[t] on the interval:
+   * [ p[t+1] - delta_ramp_up[t], p[t+1] + delta_ramp_down[t] ]
+   *
+   * If the unconstrained optimal value is on the left of the interval,
+   * then the optimal power value is the left endpoint of the function.
+   *
+   * If the unconstrained optimal value is inside the interval,
+   * then the optimal power value is exactly the unconstrained optimal value.
+   *
+   * If the unconstrained optimal value is on the right of the interval,
+   * then the optimal power value is the right endpoint of the function.
+   */
+
+  if( unc_p[ t ] < p[ t + 1 ] - delta_ramp_up[ t ] )
+   p[ t ] = p[ t + 1 ] - delta_ramp_up[ t ];
+  else
+   if( unc_p[ t ] <= p[ t + 1 ] + delta_ramp_down[ t ] )
+    p[ t ] = unc_p[ t ];
+   else
+    p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/*----------------- End File ThermalUnitDPSolver.cpp -----------------------*/
 /*--------------------------------------------------------------------------*/
