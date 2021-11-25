@@ -27,11 +27,7 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               12 - 02 - 2019                               #
-#                                                                            #
 #                              Antonio Frangioni                             #
-#                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
@@ -42,7 +38,6 @@
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/BusNetworkBlock.o \
 	$(UCBckDIR)obj/DCNetworkBlock.o \
-	$(UCBckDIR)obj/EDPSolver.o \
 	$(UCBckDIR)obj/HydroSystemUnitBlock.o \
 	$(UCBckDIR)obj/HydroUnitBlock.o \
 	$(UCBckDIR)obj/IntermittentUnitBlock.o \
@@ -59,7 +54,6 @@ UCBckINC = -I$(UCBckDIR)include/
 UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
 	$(UCBckDIR)include/BusNetworkBlock.h \
 	$(UCBckDIR)include/DCNetworkBlock.h \
-	$(UCBckDIR)include/EDPSolver.h \
 	$(UCBckDIR)include/HydroSystemUnitBlock.h \
 	$(UCBckDIR)include/HydroUnitBlock.h \
 	$(UCBckDIR)include/IntermittentUnitBlock.h \
@@ -96,11 +90,6 @@ $(UCBckDIR)obj/DCNetworkBlock.o: $(UCBckDIR)src/DCNetworkBlock.cpp \
 	$(CC) -c $(UCBckDIR)src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/EDPSolver.o: $(UCBckDIR)src/EDPSolver.cpp \
-	$(UCBckDIR)include/EDPSolver.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/EDPSolver.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
-
 #$(UCBckDIR)obj/HeatBlock.o: $(UCBckDIR)src/HeatBlock.cpp \
 #	$(UCBckDIR)include/HeatBlock.h $(UCBckDIR)include/UnitBlock.h \
 #	$(SMS++OBJ) 
@@ -120,9 +109,10 @@ $(UCBckDIR)obj/HydroUnitBlock.o: $(UCBckDIR)src/HydroUnitBlock.cpp \
 	$(CC) -c $(UCBckDIR)src/HydroUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/IntermittentUnitBlock.o: $(UCBckDIR)src/IntermittentUnitBlock.cpp \
-	$(UCBckDIR)include/IntermittentUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
-	$(SMS++OBJ) 
+$(UCBckDIR)obj/IntermittentUnitBlock.o: \
+	$(UCBckDIR)src/IntermittentUnitBlock.cpp \
+	$(UCBckDIR)include/IntermittentUnitBlock.h \
+	$(UCBckDIR)include/UnitBlock.h $(SMS++OBJ) 
 	$(CC) -c $(UCBckDIR)src/IntermittentUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
@@ -145,8 +135,7 @@ $(UCBckDIR)obj/ThermalUnitBlock.o: $(UCBckDIR)src/ThermalUnitBlock.cpp \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckDIR)obj/ThermalUnitDPSolver.o: $(UCBckDIR)src/ThermalUnitDPSolver.cpp \
-        $(UCBckDIR)include/ThermalUnitDPSolver.h \
-	$(SMS++OBJ)
+        $(UCBckDIR)include/ThermalUnitDPSolver.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/ThermalUnitDPSolver.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 

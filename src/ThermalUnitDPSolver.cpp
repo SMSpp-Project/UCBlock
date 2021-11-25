@@ -49,9 +49,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
  if( block ) {
   if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
-   throw( std::runtime_error(
-		  "ThermalUnitDPSolver only supports  ThermalUnitBlocks" ) );
-
+   throw( std::runtime_error( "ThermalUnitDPSolver requires ThermalUnitBlock"
+			      ) );
   load_parameters();
   }
  }
@@ -63,14 +62,14 @@ int ThermalUnitDPSolver::compute( bool changedvars )
  process_modifications();
 
  switch( stage ) {
-  case start:    build_graph();
-  case graph_OK: compute_EDPs();
-  case edps_OK:  min_path();
-  case path_OK:  compute_solutions();
+  case( start ):    build_graph();
+  case( graph_OK ): compute_EDPs();
+  case( edps_OK ):  min_path();
+  case( path_OK ):  compute_solutions();
   }
 
  assert( stage == sol_OK );
- return( kOK );
+ return( f_end.lab == TUDPINF ? kUnfeasible : kOK );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -82,7 +81,6 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
   throw( std::runtime_error( "Unable to lock the Block" ) );
 
-
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
  // generate abstract representation if necessary
@@ -93,11 +91,9 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  auto pow_it = b->get_active_power( 0 );
  auto com_it = b->get_commitment( 0 );
 
- for( int i = 0 ; i < time_horizon ; ++i ) {
+ for( Index i = 0 ; i < time_horizon ; ++i , ++pow_it , ++com_it ) {
   pow_it->set_value( P[ i ] );
   com_it->set_value( U[ i ] );
-  pow_it++;
-  com_it++;
   }
 
  /*!! set startup variables -- I'd frankly avoid it
@@ -120,476 +116,219 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
 void ThermalUnitDPSolver::build_graph( void )
 {
- v_nodes.resize( time_horizon * 2 );
+ // first reset any existing graph; note that node labels will be set to 0,
+ // which we use as a way to indicate that the node has not been proved
+ // reachable from s yet
 
- /*
-  * We identify three cases:
-  *
-  * 1) The unit is already ON and needs to stay ON for some time steps due
-  *    to ramp and/or min_up_time constraints;
-  * 2) The unit is already OFF and needs to stay OFF for some time steps due
-  *    to min_down_time constraints;
-  * 3  The unit, regardless its initial state, is not subjected to any
-  *    constraint and can be freely change its status from the beginning.
-  */
+ delete f_start.DPS;
+ 
+ v_on_nodes.clear();  // this deletes all EDSolver
+ v_on_nodes.resize( time_horizon );
+ v_off_nodes.resize( time_horizon );
 
- /*
-  * Compute kMin, the first time step the unit can be turned OFF
-  */
+ // now rebuild the graph: start from s- - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+ if( init_up_down_time > 0 ) {
+  // the unit is already on- - - - - - - - - - - - - - - - - - - - - - - - -
 
- kMin = 0;
+  // s therefore works as an ON-node: construct the EDSolver
+  f_start.DPS = new DPEDSolver( 0 , this );
 
- if( initial_power >= bound_down[ 0 ] + eps ) {
-  double tmp = initial_power;
-  tmp -= delta_ramp_down[ kMin ];
-  kMin++;
-  while( tmp >= bound_down[ kMin ] + eps ) {
-   tmp -= delta_ramp_down[ kMin ];
-   kMin++;
+  // compute kMin, the first time step the unit can be turned OFF due to
+  // the need to reach power bound_down[ i ] from the initial power
+  // initial_power respecting the ramp-down constraints
+
+  Index kMin = 0;
+  for( auto tmp = initial_power ;
+       ( kMin < time_horizon ) && ( tmp >= bound_down[ kMin ] + eps ) ; )
+   tmp -= delta_ramp_down[ kMin++ ];
+
+  if( kMin < init_t )  // the ramp-down time is less than the time required
+   kMin = init_t;      // by the min up-time constraints: use the latter
+
+  if( kMin > time_horizon )  // weird case: the unit must remain on for
+   kMin = time_horizon;      // more than the time horizon, i.e., for all
+                             // (and only) the time horizon
+ 
+  // allocate the set of arcs: these are
+  //
+  //       time_horizon - kMin + 1
+  //
+  // in particular they are ( s , kMin ) (meaning: the unit remains on
+  // at 0, 1, 2, ..., kMin - 1 and is off at kMin, and these are kMin
+  // instants), ( s , kMin + 1 ), ..., ( s , time_horizon - 1 ),
+  // plus there is the final arc ( s , d ).
+  //
+  // for illustration, consider time_horizon == 6, kMin == 3: the nodes
+  // (all OFF ones, so we don't write) are 0, 1, 2, 3, 4, 5, d. the arcs
+  // are ( s , 3 ), ( s, 4 ), ( s, 5 ), ( s, d ) These are 6 - 3 + 1 = 4.
+  //
+  // note the weird case where kMin == 0, i.e., ( s , 0 ) exists, i.e.,
+  // the unit is on but it is immediately turned off: this "oddball"
+  // arc corresponds to an empty ED and always has 0 cost
+
+  double fc = 0;    // compute the fixed-cost component of the cost
+  Index j = 0;             // this surely comprises the fixed costs 
+  while( j < kMin )        // between 0 (included) and kMin (excluded)
+   fc += const_term[ j ];  // since the unit is on in that period
+
+  f_start.v_arc.resize( time_horizon - kMin + 1 );
+  auto ai = f_start.v_arc.begin();
+
+  // construct the "normal" arcs up to ( s , time_horizon - 1 )
+  for( ; j < time_horizon ; ++j , ++ai ) {
+   ai->cost1 = fc;
+   ai->cost2 = 0;
+   ai->tail = & v_off_nodes[ j ];
+   ai->tail->lab = 1;      // mark the tail node as reachable
+   fc += const_term[ j ];  // the next fixed cost will comprise that at j
+   }
+
+  // now construct the special last arc ( s , d ); note that the fixed
+  // cost from 0 to n - 1 (included) has been computed already
+  ai->cost1 = fc;
+  ai->cost2 = 0;
+  ai->tail = & f_end;
   }
-  kMin--;
- }
+ else {  // init_up_down_time <= 0, the unit was off- - - - - - - - - - - -
 
- if( kMin >= time_horizon ) {
-  kMin = time_horizon - 1;
- }
+  // s therefore works as an OFF-node: f_start.DPS must be nullptr
+  f_start.DPS = nullptr;
 
- /*
-  * FIRST CASE: The unit is already ON and needs to stay ON for some
-  * time steps due to ramp and/or min_up_time constraints.
-  */
- if( init_up_down_time > 0 &&
-     ( init_up_down_time < min_up_time || kMin > 0 ) ) {
+  if( init_t > time_horizon )  // weird case: the unit must remain off for
+   init_t = time_horizon;      // more than the time horizon, i.e., for all
+                               // (and only) the time horizon
 
-  /*
-   * Compute the time steps the unit must stay ON due to min_up_time (k)
-   * and ramp constraints (kMin from before)
-   */
-  int h = hMin = 0;
-  int k = min_up_time - init_up_down_time - 1;
-  if( kMin < k ) {
-   kMin = k;
-  } else {
-   k = kMin;
-  }
+  // allocate the set of arcs: these are
+  //
+  //       time_horizon - init_t + 1
+  //
+  // where note that init_t == 0 is now possible meaning that
+  // init_up_down_time == min_down_time == 0; this implies that the first
+  // arc is ( s , 0 ), i.e., "the unit was off at the beginning but it
+  // starts up immediately". Apart from this the structure of the arcs is
+  // analogous as in the init_up_down_time > 0 case, except of course they
+  // go to the ON nodes
 
-  /*
-   * We start from the node (0, ON) and we build arc connections:
-   * - To all nodes (kMin, OFF), (kMin+1, OFF), ..., (th -1, OFF),
-   *   since kMin is the first time step the unit can be turned OFF;
-   * - The node (t, ON) that denotes the case in which the unit stays ON
-   *   throughout the whole period. FIXME: This doesn't exist
-   */
+  f_start.v_arc.resize( time_horizon - init_t + 1 );
+  auto ai = f_start.v_arc.begin();
 
-  {
-   double c_i = 0;
-   for( int t = h; t < k; ++t ) {
-    c_i += const_term[ t ]; // TODO: Check if correct
+  // construct the "normal" arcs up to ( i , time_horizon - 1 )
+  for( Index j = init_t ; j < time_horizon ; ++j , ++ai ) {
+   ai->cost1 = const_term[ i ];  // in all cases startup is at i
+   ai->cost2 = 0;
+   ai->tail = & v_on_nodes[ j ];
+   ai->tail->lab = 1;            // mark the tail node as reachable
    }
 
-   v_nodes[ ON( 0 ) ].v_arcs.resize( time_horizon - k );
-   int i = 0;
+  // now construct the special last arc ( s , d ); note that the fixed
+  // cost is 0 because no startup ever happens during the time horizon
+  ai->cost1 = 0;
+  ai->cost2 = 0;
+  ai->tail = & f_end;
 
-   // Arcs to connect node (0, ON) with
-   // nodes (k, OFF), (k+1, OFF), ..., (time_horizon - 1, OFF)
-   for( ; k < time_horizon; ++k ) {
-    v_nodes[ ON( 0 ) ].v_arcs[ i ].h = h;
-    v_nodes[ ON( 0 ) ].v_arcs[ i ].k = k;
-    c_i += const_term[ k ]; // TODO: Check if correct
-    v_nodes[ ON( 0 ) ].v_arcs[ i ].cost1 = c_i;
-    v_nodes[ ON( 0 ) ].v_arcs[ i ].cost2 = 0;
-    v_nodes[ ON( 0 ) ].v_arcs[ i ].valid = -1; // ON -> OFF
-    i++;
-   }
+  }  // end( else( the unit was off ) )
 
-   // FIXME: Why the arc to connect node (0, ON) with node (t, ON) wasn't here?
-  }
+ // now build the ON and OFF nodes - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // we do this in the order i = 0, 1, ..., n - 1: since the graph is
+ // acyclic, if the lab of the node is still 0 when we process it then the
+ // node is unreachable from d and we need not construct any arc
 
-  /*
-   * Build the arcs for the OFF nodes
-   * (kMin, OFF), (kMin + 1, OFF), ..., (th - 1, OFF),
-   * since the unit couldn't be turned OFF before k. For each node,
-   * we identify two cases:
-   */
-  for( h = kMin; h < time_horizon; ++h ) {
+ const Index mut = std::max( min_up_time , 1 );  // the value 0 is not good
+ const Index mdt = std::max( min_down_time , 1 );  // the value 0 is not good
 
-   if( h > time_horizon - 1 - min_down_time ) {
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  // process ON node ( i , 1 ) - - - - - - - - - - - - - - - - - - - - - - -
+  if( v_on_nodes[ i ].lab ) {  // ... but only if it is reachable
 
-    /*
-     * 1) For time steps equal/greater than t - min_down_time, the unit cannot
-     *    be turned ON without breaking the min_down_time constraint.
-     *    So the only connection is to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    v_nodes[ OFF( h ) ].v_arcs.resize( 1 );
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].valid = -2; // OFF -> OFF
+   // allocate and initialise the EDSolver of the node
+   v_on_nodes[ i ].DPS = new DPEDSolver( i , this );
 
-   } else {
+   // allocate the set of arcs: these are
+   //
+   //       time_horizon - ( i + min_up_time ) + 1
+   //
+   // considering that min_up_time >= 1
+   //
+   // in particular they are ( i , i + min_up_time ) (meaning: the unit
+   // remains on i, i + 1, ..., i + min_up_time - 1 and is off at
+   // i + min_up_time, and these are min_up_time instants),
+   // ( i , i + min_up_time + 1 ), ..., ( i , time_horizon - 1 ),
+   // plus there is the final arc ( i , d ).
+   //
+   // for illustration, consider time_horizon == 6, i = 1, min_up_time = 2
+   // the nodes (all OFF ones, so we don't write) are 0, 1, 2, 3, 4, 5, d.
+   // the arcs are ( 1 , 4 ), ( 1, 5 ), ( 1, d ). These are
+   // 6 - ( 1 + 3 ) + 1 = 2.
 
-    /*
-     * 2) For time steps smaller than t - min_down_time, each node (j, OFF)
-     *    is connected to all the nodes (j + min_down_time, ON), ..., (t, ON)
-     *    since they respect the min_down_time constraint.
-     *    Also, they are connected to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    k = h + min_down_time - 1;
-    v_nodes[ OFF( h ) ].v_arcs.resize( time_horizon - k + 1 );
+   double fc = 0;    // compute the fixed-cost component of the cost
+   Index j = i;             // this surely comprises the fixed costs 
+   while( j < i + mut )     // between i (included) and i + mut (excluded)
+    fc += const_term[ j ];  // since the unit is on in that period
 
-    int i = 0;
-    for( ; k < time_horizon; ++k ) {
-     v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].k = k;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0; // Startup cost
-     v_nodes[ OFF( h ) ].v_arcs[ i ].valid = 1; // OFF -> ON
-     i++;
+   v_on_nodes[ i ].v_arc.resize( time_horizon - ( i + mut ) + 1 );
+   auto ai = v_on_nodes[ i ].v_arc.begin();
+
+   // construct the "normal" arcs up to ( i , time_horizon - 1 )
+   for( ; j < time_horizon ; ++j , ++ai ) {
+    ai->cost1 = fc;
+    ai->cost2 = 0;
+    ai->tail = & v_off_nodes[ j ];
+    ai->tail->lab = 1;      // mark the tail node as reachable
+    fc += const_term[ j ];  // the next fixed cost will comprise that at j
     }
 
-    v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].valid = -2; // OFF -> OFF
-   }
-  }
+   // now construct the special last arc ( i , d ); note that the fixed
+   // cost from i to n - 1 (included) has been computed already
+   ai->cost1 = fc;
+   ai->cost2 = 0;
+   ai->tail = & f_end;
 
-  /*
-   * Build the arcs for the ON nodes
-   * (k + mindowntime, ON), (k + mindowntime + 1, ON), ..., (t, ON),
-   * since the unit couldn't be turned ON again before k + mindowntime.
-   * For each node, we identify two cases:
-   */
+   }  // end( if( reached )
 
-  for( h = kMin + min_down_time - 1; h < time_horizon; ++h ) {
+  // process OFF node ( i , 0 )- - - - - - - - - - - - - - - - - - - - - - -
+  if( v_off_nodes[ i ].lab ) {  // ... but only if it is reachable
+   // v_on_nodes[ i ].DPS is and will always remain nullptr here
 
-   if( h > time_horizon - 1 - min_up_time ) {
+   // allocate the set of arcs: these are
+   //
+   //       time_horizon - ( i + min_down_time ) + 1
+   //
+   // considering that min_down_time >= 1; note that min_down_time == 0
+   // is in fact possible, but we know that shutting down a unit only to
+   // powering it up again immediately is never a good idea, so we force
+   // down-time periods to be at least of lenght one. Thus, the structure
+   // of the arcs is analogous as in the ON nodes, except of course they
+   // go to the ON nodes themselves
 
-    /*
-     * 1) For time steps equal/greater than t - min_up_time, the unit cannot
-     *    be turned OFF without breaking the min_up_time constraint.
-     *    So the only connection is to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    v_nodes[ ON( h ) ].v_arcs.resize( 1 );
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost1 =
-     const_term[ h ] * ( time_horizon - h ); // TODO: Check Niccolò
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].valid = 2; // ON -> ON
+   v_off_nodes[ i ].v_arc.resize( time_horizon - ( i + mdt ) + 1 );
+   auto ai = v_off_nodes[ i ].v_arc.begin();
 
-   } else {
-
-    /*
-     * 2) For time steps smaller than t - min_up_time, each node (j, ON)
-     *    is connected to all the nodes (j + min_up_time, OFF), ..., (t, OFF)
-     *    since they respect the min_up_time constraint.
-     *    Also, they are connected to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    k = h + min_up_time - 1;
-    double c_i = 0;
-    for( int t = h; t < k; ++t ) {
-     c_i += const_term[ t ]; // TODO: Check Niccolò
+   // construct the "normal" arcs up to ( i , time_horizon - 1 )
+   for( Index j = i + mdt ; j < time_horizon ; ++j , ++ai ) {
+    ai->cost1 = const_term[ i ];  // in all cases startup is at i
+    ai->cost2 = 0;
+    ai->tail = & v_on_nodes[ j ];
+    ai->tail->lab = 1;            // mark the tail node as reachable
     }
 
-    int i = 0;
-    v_nodes[ ON( h ) ].v_arcs.resize( time_horizon - k );
-    for( ; k < time_horizon; ++k ) {
-     v_nodes[ ON( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ ON( h ) ].v_arcs[ i ].k = k;
-     c_i += const_term[ k ]; // TODO: Check Niccolò
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost1 = c_i;
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost2 = 0;  // Startup cost
-     v_nodes[ ON( h ) ].v_arcs[ i ].valid = -1; // ON -> OFF
-     i++;
-    }
+   // now construct the special last arc ( i , d ); note that the fixed
+   // cost is 0 because no startup ever happens during the time horizon
+   ai->cost1 = 0;
+   ai->cost2 = 0;
+   ai->tail = & f_end;
 
-    // FIXME: Why the arc to (t, ON) is missing?
-   }
-  }
- }
+   }  // end( if( reached )
+  }  // end( for( i ) )
 
-  /*
-   * SECOND CASE: The unit is already ON and needs to stay OFF for some
-   * time steps due to ramp and/or min_down_time constraints.
-   */
- else if( init_up_down_time < 0 &&
-          -init_up_down_time < min_down_time ) {
+ // the graph is now constructed- - - - - - - - - - - - - - - - - - - - - - -
+ // nothing needs be done for the destination d
 
-  /*
-   * Compute the time steps the unit must stay OFF due to min_down_time
-   */
-  int k = min_down_time + init_up_down_time;
-  hMin = k;
-  kMin = hMin + min_up_time - 1;
+ stage = graph_OK;  // update stage
 
-  /*
-   * We start from the node (0, OFF) and we build arc connections:
-   * - To all nodes (hMin, ON), (hMin+1, ON), ..., (th-1, ON),
-   *   since hMin is the first time step the unit can be turned ON;
-   * - The node (t, OFF) that denotes the case in which the unit stays OFF
-   *   throughout the whole period.
-   *   // FIXME: It's actually connected to (th-1, OFF). Why?
-   */
-  {
-   v_nodes[ OFF( 0 ) ].v_arcs.resize( time_horizon - k + 1 );
-
-   int i = 0;
-   for( ; k < time_horizon; ++k ) {
-    v_nodes[ OFF( 0 ) ].v_arcs[ i ].h = 0;
-    v_nodes[ OFF( 0 ) ].v_arcs[ i ].k = k;
-    v_nodes[ OFF( 0 ) ].v_arcs[ i ].cost1 = 0;
-    v_nodes[ OFF( 0 ) ].v_arcs[ i ].cost2 = 0; // Startup cost
-    v_nodes[ OFF( 0 ) ].v_arcs[ i ].valid = 1; // OFF -> ON
-    i++;
-   }
-
-   v_nodes[ OFF( 0 ) ].v_arcs[ i ].h = 0;
-   v_nodes[ OFF( 0 ) ].v_arcs[ i ].k = time_horizon - 1;
-   v_nodes[ OFF( 0 ) ].v_arcs[ i ].cost1 = 0;
-   v_nodes[ OFF( 0 ) ].v_arcs[ i ].cost2 = 0;
-   v_nodes[ OFF( 0 ) ].v_arcs[ i ].valid = -2; // OFF -> OFF
-  }
-
-  /*
-   * Build the arcs for the ON nodes
-   * (hMin, ON), (hMin + 1, ON), ..., (th - 1, ON),
-   * since the unit couldn't be turned ON before h.
-   * For each node, we identify two cases:
-   */
-
-  for( int h = hMin; h < time_horizon; ++h ) {
-
-   if( h > time_horizon - 1 - min_up_time ) {
-
-    /*
-     * 1) For time steps equal/greater than t - min_up_time, the unit cannot
-     *    be turned OFF without breaking the min_up_time constraint.
-     *    So the only connection is to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    v_nodes[ ON( h ) ].v_arcs.resize( 1 );
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost1 =
-     const_term[ h ] * ( time_horizon - h ); // TODO: Check Niccolò
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].valid = 2; // ON -> ON
-
-   } else {
-
-    /*
-     * 2) For time steps smaller than t - min_up_time, each node (j, ON)
-     *    is connected to all the nodes (j + min_up_time, OFF), ..., (t, OFF)
-     *    since they respect the min_up_time constraint.
-     *    Also, they are connected to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    k = h + min_up_time - 1;
-    double c_i = 0;
-    for( int t = h; t < k; ++t ) {
-     c_i += const_term[ t ]; // TODO: Check Niccolò
-    }
-
-    int i = 0;
-    v_nodes[ ON( h ) ].v_arcs.resize( time_horizon - k );
-    for( ; k < time_horizon; ++k ) {
-     v_nodes[ ON( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ ON( h ) ].v_arcs[ i ].k = k;
-     c_i += const_term[ k ]; // TODO: Check Niccolò
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost1 = c_i;
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost2 = 0;  // Startup cost
-     v_nodes[ ON( h ) ].v_arcs[ i ].valid = -1; // ON -> OFF
-     i++;
-    }
-
-    // FIXME: Why the arc to (t, ON) is missing?
-   }
-  }
-
-  /*
-   * Build the arcs for the OFF nodes
-   * (k + minuptime, OFF), (k + minuptime + 1, OFF), ..., (t, OFF),
-   * since the unit couldn't be turned OFF again before k + minuptime.
-   * For each node, we identify two cases:
-   */
-
-  for( int h = hMin + min_up_time - 1; h < time_horizon - 1; ++h ) {
-
-   if( h > time_horizon - 1 - min_down_time ) {
-
-    /*
-     * 1) For time steps equal/greater than t - min_down_time, the unit cannot
-     *    be turned ON without breaking the min_up_time min_down_time.
-     *    So the only connection is to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    v_nodes[ OFF( h ) ].v_arcs.resize( 1 );
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].valid = -2; // OFF -> OFF
-
-   } else {
-
-    /*
-     * 2) For time steps smaller than t - min_down_time, each node (j, OFF)
-     *    is connected to all the nodes (j + min_down_time, ON), ..., (t, ON)
-     *    since they respect the min_down_time constraint.
-     *    Also, they are connected to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    k = h + min_down_time - 1;
-    v_nodes[ OFF( h ) ].v_arcs.resize( time_horizon - k + 1 );
-
-    int i = 0;
-    for( ; k < time_horizon; ++k ) {
-     v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].k = k;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0; // Startup cost
-     v_nodes[ OFF( h ) ].v_arcs[ i ].valid = 1; // OFF -> ON
-     i++;
-    }
-
-    v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].valid = -2; // OFF -> OFF
-   }
-  }
- }
-
-  /*
-   * THIRD CASE: The unit, regardless its initial state, is not subjected to any
-   * constraint and can be freely change its status from the beginning.
-   * In this case, we build all the arc connections for all the time steps.
-   */
- else if( init_up_down_time != 0 ) {
-
-  hMin = 0;
-
-  for( int h = 0; h < time_horizon; ++h ) {
-
-   if( h > 0 && init_up_down_time > 0 && h < min_down_time ) {
-    continue;
-   }
-
-   /*
-    * For the OFF nodes, we have two cases:
-    */
-   if( h > time_horizon - 1 - min_down_time ) {
-
-    /*
-     * 1) For time steps equal/greater than t - min_down_time, the unit cannot
-     *    be turned ON without breaking the min_down_time constraint.
-     *    So the only connection is to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    v_nodes[ OFF( h ) ].v_arcs.resize( 1 );
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ 0 ].valid = -2; // OFF -> OFF
-
-   } else {
-
-    /*
-     * 2) For time steps smaller than t - min_down_time, each node (j, OFF)
-     *    is connected to all the nodes (j + min_down_time, ON), ..., (t, ON)
-     *    since they respect the min_down_time constraint.
-     *    Also, they are connected to (t, OFF), that is the unit staying OFF.
-     *    // FIXME: It's actually connected to (th-1, OFF). Why?
-     */
-    int k = 0;
-    if( h != 0 ) {
-     k = h + min_down_time - 1;
-    }
-
-    v_nodes[ OFF( h ) ].v_arcs.resize( time_horizon - k + 1 );
-    int i = 0;
-    for( ; k < time_horizon; k++ ) {
-     v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].k = k;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-     v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0; // Startup cost
-     v_nodes[ OFF( h ) ].v_arcs[ i ].valid = 1; // OFF -> ON
-     i++;
-    }
-
-    v_nodes[ OFF( h ) ].v_arcs[ i ].h = h;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].k = time_horizon - 1;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost1 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].cost2 = 0;
-    v_nodes[ OFF( h ) ].v_arcs[ i ].valid = -2; // OFF -> OFF
-   }
-
-   /*
-    * For the ON nodes, we have two cases:
-    */
-   if( h > time_horizon - 1 - min_up_time ) {
-
-    /*
-     * 1) For time steps equal/greater than t - min_up_time, the unit cannot
-     *    be turned OFF without breaking the min_up_time constraint.
-     *    So the only connection is to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    v_nodes[ ON( h ) ].v_arcs.resize( 1 );
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].h = h;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].k = time_horizon - 1;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost1 =
-     const_term[ h ] * ( time_horizon - h ); // TODO: Check Niccolò
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].cost2 = 0;
-    v_nodes[ ON( h ) ].v_arcs[ 0 ].valid = 2; // ON -> ON
-
-   } else {
-
-    /*
-     * 2) For time steps smaller than t - min_up_time, each node (j, ON)
-     *    is connected to all the nodes (j + min_up_time, OFF), ..., (t, OFF)
-     *    since they respect the min_up_time constraint.
-     *    Also, they are connected to (t, ON), that is the unit staying ON.
-     *    // FIXME: It's actually connected to (th-1, ON). Why?
-     */
-    int k = 0;
-    if( h != 0 ) {
-     k = h + min_up_time - 1;
-    }
-    double c_i = 0;
-    for( int t = h; t < k; ++t ) {
-     c_i += const_term[ t ]; // TODO: Check Niccolò
-    }
-
-    int i = 0;
-    v_nodes[ ON( h ) ].v_arcs.resize( time_horizon - k );
-    for( ; k < time_horizon; k++ ) {
-     v_nodes[ ON( h ) ].v_arcs[ i ].h = h;
-     v_nodes[ ON( h ) ].v_arcs[ i ].k = k;
-     c_i += const_term[ k ]; // TODO: Check Niccolò
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost1 = c_i;
-     v_nodes[ ON( h ) ].v_arcs[ i ].cost2 = 0;  // Startup cost
-     v_nodes[ ON( h ) ].v_arcs[ i ].valid = -1; // ON -> OFF
-     i++;
-    }
-   }
-  }
- } else {
-  assert( 0 );
- }
-
- // Update stage
- stage = graph_OK;
-}
+ }  // end( build_graph )
 
 /*--------------------------------------------------------------------------*/
 
@@ -598,425 +337,192 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  if( stage < graph_OK )
   throw( std::logic_error( "compute_EDPs(): graph not ready" ) );
 
- std::vector< double > v_cost( time_horizon );
- v_EDP.resize( time_horizon - hMin );
+ std::vector< double > cost( time_horizon );
 
- for( int i = hMin; i < time_horizon; ++i ) {
-  if( v_nodes[ i ].v_arcs.empty() )
-   continue;
+ // update variable costs in the arcs outgoing from s
+ if( f_start.EDP ) {                    // f_start is a ON node
+  f_start.EDP->initialize( 0 , this );  // solve EDP
+  f_start.EDP->compute_costs( cost );   // retrieve optimal costs
 
-  v_EDP[ i - hMin ].initialize( i, this );
-  v_EDP[ i - hMin ].compute_costs( v_cost );
+  // index of first tail node (note: one arc surely exists)
+  Index h = h_of_node( f_start.v_arcs.begin().tail );
 
-  for( auto & v_arc : v_nodes[ i ].v_arcs ) {
-   if( v_arc.valid == -1 || v_arc.valid == 2 ) {
-    v_arc.cost2 = v_cost[ v_arc.k ];
-   }
+  // the cost of ( s , h ) is found in cost[ h - 1 ]: however, one must
+  // be careful of the weird case where ( s , 0 ) is present, i.e.,
+  // the unit is on but it immediately shuts down. this arc has cost 0
+  // as "nothing happens there". this is how the arc cost is initialized
+  // and it is never changed, so one just need to skip it
+  auto ai = f_start.v_arcs.begin();
+  if( h )
+   --h;
+  else
+   ++ai;
+
+  // set the variable costs in the arcs
+  for( ; ai != f_start.v_arcs.end() ; ++ai )
+   ai->cost2 = cost[ h++ ];
   }
- }
 
- // Update stage
- stage = edps_OK;
-}
+ // update variable costs in the arcs outgoing from every ON( i )
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  if( v_on_nodes[ i ].v_arcs.empty() )  // unless it is unreachable
+   continue;                            // in which case it is skipped
+
+  v_on_nodes[ i ].EDP->initialize( i , this );  // solve EDP
+  v_on_nodes[ i ].EDP->compute_costs( cost );   // retrieve optimal costs
+
+  // index of first tail node
+  Index h = h_of_node( v_on_nodes[ i ].v_arcs.begin().tail );
+
+  // the cost of ( i , h ) is found in cost[ h - 1 ]; note that h > i,
+  // and therefore h > 0, and therefore h - 1 is well defined
+  --h;
+
+  // set the variable costs in the arcs
+  for( auto & a : v_on_nodes[ i ].v_arcs )
+   a.cost2 = cost[ h++ ];
+  }
+
+ stage = edps_OK;  // update stage
+
+ }  // end( compute_EDPs )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitDPSolver::min_path() {
+void ThermalUnitDPSolver::min_path( void )
+{
+ if( stage < edps_OK )
+  throw( std::logic_error( "min_path: graph and/or EDPs not ready" ) );
 
- if( stage < edps_OK ) {
-  throw std::logic_error( "min_path(): graph and/or EDPs not ready" );
- }
+ // reset labels and predecessors for all nodes (except f_start, that will
+ // always have lab == 0 and predecessor == nullptr)
 
- v_route.resize( time_horizon + 1 );
+ for( auto & nde : v_on_nodes )
+  init_node( nde );
+ for( auto & nde : v_off_nodes )
+  init_node( nde );
 
- /*
-  * FIRST CASE: Unit is initially ON, start up costs are zero.
-  */
- if( init_up_down_time > 0 ) {
-  if( init_up_down_time < min_up_time ) {
+ init_node( f_end );
 
-   /*
-    * Unit is already ON for less than min_up_time.
-    */
-   const int h = 0;
+ // now run the shortest path, exploiting the fact that the graph is
+ // acyclic and therefore the order s, i = 0, 1, ..., n - 1 for both
+ // ON and OFF node is correct
 
-   // Initialize all nodes that can be connected with the source
-   for( int k = kMin; k < time_horizon; ++k ) {
-    v_route[ k ].h = h;
-    v_route[ k ].pred = -1;
-    v_route[ k ].lab = v_nodes[ h ].v_arcs[ k - kMin ].cost1 +
-                       v_nodes[ h ].v_arcs[ k - kMin ].cost2;
-   }
+ process_node( f_start );
 
-   // The target node can not be directly connected to the source node
-   v_route[ time_horizon ].lab = Inf<double>();
-  } else {
-
-   /*
-    * Unit is already ON for more than min_up_time.
-    * We take into account the ramp constraint as well.
-    */
-
-   if( initial_power < bound_down[ 0 ] + eps ) {
-
-    /*
-     * The ramp constraint is not violated,
-     * we create the connection between source and target node.
-     */
-
-    v_route[ time_horizon ].h = -1;
-    v_route[ time_horizon ].lab = 0;
-    v_route[ time_horizon ].pred = -1;
-
-    // Initialize the other connections to inf
-    for( int k = 0; k < time_horizon; ++k ) {
-     v_route[ k ].lab = Inf<double>();
-    }
-
-    /*
-     * Initialize the possible connections from the case where
-     * the unit is being turned off at the beginning.
-     */
-
-    int h = min_down_time;
-    for( ; h < time_horizon - min_up_time + 1; ++h ) {
-
-     /*
-      * Check all the possible starts that allow the unit
-      * to be turned off again in the period.
-      */
-     const double currentstartupcost = compute_startup_costs( h );
-
-     int i = 0;
-     for( int k = h + min_up_time - 1; k < time_horizon; ++k, ++i ) {
-      const double label = currentstartupcost +
-                           v_nodes[ h ].v_arcs[ i ].cost1 +
-                           v_nodes[ h ].v_arcs[ i ].cost2;
-
-      if( label < v_route[ k ].lab ) {
-       v_route[ k ].h = h;
-       v_route[ k ].lab = label;
-       v_route[ k ].pred = -1;
-      }
-     }
-    }
-
-    for( int i = 0; h < time_horizon; ++h, ++i ) {
-
-     /*
-      * Check the possible starts for which the unit has to remain
-      * on until the end of the period.
-      */
-     const int k = time_horizon - 1;
-
-     const double label = compute_startup_costs( h ) +
-                          v_nodes[ h ].v_arcs[ i ].cost1 +
-                          v_nodes[ h ].v_arcs[ i ].cost2;
-
-     if( label < v_route[ k ].lab ) {
-      v_route[ k ].h = h;
-      v_route[ k ].lab = label;
-      v_route[ k ].pred = -1;
-     }
-    }
-
-    /*
-     * Check the case where the unit remains on at the beginning,
-     * creating pairs of (0, kMin), (0, kMin + 1), ..., (0, n-1).
-     */
-
-    for( int k = kMin; k < time_horizon; ++k ) {
-     const double label = v_nodes[ 0 ].v_arcs[ k - kMin ].cost1 +
-                          v_nodes[ 0 ].v_arcs[ k - kMin ].cost2;
-     if( label < v_route[ k ].lab ) {
-      v_route[ k ].h = 0;
-      v_route[ k ].lab = label;
-      v_route[ k ].pred = -1;
-     }
-    }
-   } else {
-    // The unit cannot be turned off immediately due to ramp constraints
-
-    // No direct connection between source and target nodes
-    v_route[ time_horizon ].h = -1;
-    v_route[ time_horizon ].lab = Inf<double>();
-    v_route[ time_horizon ].pred = -1;
-
-    /*
-     * Initialize all the possible pairs, starting with the first time
-     * the unit can be turned off: (0, kMin), (0, kMin + 1), ..., (0, n-1).
-     */
-
-    const int h = 0;
-    for( int k = kMin; k < time_horizon; ++k ) {
-     v_route[ k ].h = h;
-     v_route[ k ].pred = -1;
-     v_route[ k ].lab = v_nodes[ 0 ].v_arcs[ k - kMin ].cost1 +
-                        v_nodes[ 0 ].v_arcs[ k - kMin ].cost2;
-    }
-   }
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  process_node( v_on_nodes[ i ] );
+  process_node( v_off_nodes[ i ] );
   }
 
- } else {
-  /*
-   * SECOND CASE: Unit is initially OFF.
-   */
+ stage = path_OK;  // all done: update stage
 
-  int idxcs = -init_up_down_time < min_down_time ?
-              min_down_time :
-              -init_up_down_time;
-  //calculating the time-steps that the unit was off
-  int h = hMin;
-
-  /*
-   * Initialize all the pairs that start from the first time the
-   * unit can be turned on and are connected with source node.
-   */
-  {
-   const double currentstartupcost = compute_startup_costs( idxcs );
-
-   for( int k = kMin; k < time_horizon; ++k ) {
-    const double label = currentstartupcost +
-                         v_nodes[ h ].v_arcs[ k - kMin ].cost1 +
-                         v_nodes[ h ].v_arcs[ k - kMin ].cost2;
-    v_route[ k ].h = h;
-    v_route[ k ].lab = label;
-    v_route[ k ].pred = -1;
-   }
-  }
-
-  ++h;
-  ++idxcs;
-
-  /*
-   * Initialize all the other feasible pairs.
-   */
-
-  for( ; h < time_horizon - min_up_time + 1; ++h, ++idxcs ) {
-   const double currentstartupcost = compute_startup_costs( idxcs );
-
-   int i = 0;
-   for( int k = h + min_up_time - 1; k < time_horizon - 1; ++k ) {
-    const double label = currentstartupcost +
-                         v_nodes[ h ].v_arcs[ i ].cost1 +
-                         v_nodes[ h ].v_arcs[ i ].cost2;
-    i++;
-    if( label < v_route[ k ].lab ) {
-     v_route[ k ].h = h;
-     v_route[ k ].lab = label;
-     v_route[ k ].pred = -1;
-    }
-   }
-
-   // Nodes that terminate after the end of the interval of definition
-   {
-    const int k = time_horizon - 1;
-    const double label = compute_startup_costs( idxcs ) +
-                         v_nodes[ h ].v_arcs[ i ].cost1 +
-                         v_nodes[ h ].v_arcs[ i ].cost2;
-
-    if( label < v_route[ k ].lab ) {
-     v_route[ k ].h = h;
-     v_route[ k ].lab = label;
-     v_route[ k ].pred = -1;
-    }
-   }
-  }
-
-  // Initialize the pair (s, d)
-  v_route[ time_horizon ].lab = 0;
-  v_route[ time_horizon ].pred = -1;
- }
-
-
- /*
-  * All other arcs
-  *
-  * 1) for (k = Kmin; k <time_horizon - get_min_down_time() - min_up_time; k++)
-  *
-  * 2) for (; k <time_horizon - get_min_down_time() - 1; k++)
-  *
-  * 3) for (; k <time_horizon; k++)
-  *
-  * In case 2) the first of two cycles of r currently present is always skipped.
-  * The division of the cycle eliminates so min_up_time-1 test operations.
-  * In case 3) the first two cycles could be removed (thus leaving only
-  * If the bow ((h, k), d)) thus saving '2 * (get_min_down_time() + 1) test operations.
-  */
-
- for( int k = kMin; k < time_horizon; ++k ) {
-
-  int r = k + min_down_time + 1;
-  for( ; r < time_horizon - min_up_time + 1; ++r ) {
-   const double costbeforenode = v_route[ k ].lab +
-                                 compute_startup_costs( r - 1 - k );
-
-   int i = 0;
-   for( int q = r + min_up_time - 1; q < time_horizon; ++q ) {
-    const double label = costbeforenode +
-                         v_nodes[ r ].v_arcs[ i ].cost1 +
-                         v_nodes[ r ].v_arcs[ i ].cost2;
-    i++;
-
-    if( v_route[ q ].lab > label ) {
-     v_route[ q ].h = r;
-     v_route[ q ].lab = label;
-     v_route[ q ].pred = k;
-    }
-   }
-  }
-
-
-  for( ; r < time_horizon; ++r ) {
-   const int q = time_horizon - 1;
-   const double label = v_route[ k ].lab +
-                        compute_startup_costs( r - 1 - k ) +
-                        v_nodes[ r ].v_arcs[ 0 ].cost1 +
-                        v_nodes[ r ].v_arcs[ 0 ].cost2;
-   if( v_route[ q ].lab > label ) {
-    v_route[ q ].h = r;
-    v_route[ q ].lab = label;
-    v_route[ q ].pred = k;
-   }
-  }
-
-  // Arc ((h,k), d)
-  {
-   const double label = v_route[ k ].lab;
-   if( label < v_route[ time_horizon ].lab ) {
-    v_route[ time_horizon ].lab = label;
-    v_route[ time_horizon ].pred = k;
-   }
-  }
- }
-
- // Update stage
- stage = path_OK;
-}
+ }  // end( min_path )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::compute_solutions( void )
 {
  if( stage < edps_OK )
-  throw( std::logic_error( "compute_solutions(): graph and/or path not ready"
+  throw( std::logic_error( "compute_solutions: graph and/or path not ready"
 			   ) );
 
  std::fill( P.begin() , P.end() , 0 );
  std::fill( U.begin() , U.end() , 0 );
- std::fill( startup.begin() , startup.end() , 0 );
+ //!! std::fill( startup.begin() , startup.end() , 0 );
 
- int k = v_route[ time_horizon ].pred;
- while( k != -1 ) {
-  int h = v_route[ k ].h;
+ Index k = time_horizon;
+ auto h = f_end.pred;
 
-  // Compute active power values
-  v_EDP[ h - hMin ].compute_power_variables( k, P );
+ if( ! h )
+  throw( std::logic_error(
+     "compute_solutions: called when has_var_solution() == false" ) );
 
-  // Fill startup variable values
-  if( h != 0 || init_up_down_time <= 0 ) {
-   startup[ h ] = 1;
-  }
+ // compute the solution by visiting the optimal path backward from f_end
 
-  // Fill commitment variable values
-  for( int t = h; t <= k; ++t ) {
-   U[ t ] = 1;
-  }
+ do {
+  Index nk = h_of_node( h );
+  if( h->DPS ) {  // h is an ON-node
+   // get optimal values of power variables our of the EDSolver
+   h->DPS->compute_power_variables( k , P );
+   for( Index i = nk ; i < k ; )  // set all commitment variables to 1
+    U[ i++ ] = 1;
+   //!! startup[ h ] = 1;
+   }
 
-  k = v_route[ k ].pred;
+  k = nk;        // the previous beginning will be the end
+  h = h->pred;   // back one arc
+
+  } while( h );  // ... until we hit f_start that has pred == nullptr
+
+ stage = sol_OK;  // all done: update stage
  }
 
- // Get total cost
- total_cost = v_route[ time_horizon ].lab;
-
- // Update stage
- stage = sol_OK;
-}
-
 /*--------------------------------------------------------------------------*/
-/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+/*-------------------- PRIVATE METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::load_parameters( void )
 {
- // Locking the Block
+ // locking the Block
  bool owned = f_Block->is_owned_by( f_id );
  if( ( ! owned ) && ( ! f_Block->read_lock() ) )
   throw( std::runtime_error( "Unable to lock the Block" ) );
 
- // Casting should have be checked in set_Block() already
+ // casting has been checked in set_Block() already
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // Scalar values
- time_horizon = ( int ) b->get_time_horizon();
+ // scalar values
+ time_horizon = b->get_time_horizon();
  init_up_down_time = b->get_init_up_down_time();
- min_up_time = ( int ) b->get_min_up_time();
- min_down_time = ( int ) b->get_min_down_time();
+ min_up_time = b->get_min_up_time() );
+ min_down_time = b->get_min_down_time();
  initial_power = b->get_initial_power();
 
- // Init_t (useful for startup variables)
- if( init_up_down_time > 0 ) {
-  init_t = init_up_down_time >= min_up_time ?
-           0 : min_up_time - init_up_down_time;
- } else {
-  init_t = -init_up_down_time >= min_down_time ?
-           0 : min_down_time + init_up_down_time;
- }
+ // init_t (useful for startup variables)
+ if( init_up_down_time > 0 )
+  init_t = std::max( 0 , min_up_time - init_up_down_time );
+ else
+  init_t = std::max( 0 , min_down_time + init_up_down_time );
 
- // Power vectors
+ // power vectors
  startup_costs = b->get_start_up_cost();
  min_power = b->get_min_power();
  max_power = b->get_max_power();
 
- if( b->get_delta_ramp_up().empty() ) {
+ if( b->get_delta_ramp_up().empty() )
   delta_ramp_up = max_power;
- } else {
+ else
   delta_ramp_up = b->get_delta_ramp_up();
- }
 
- if( b->get_delta_ramp_down().empty() ) {
+ if( b->get_delta_ramp_down().empty() )
   delta_ramp_down = max_power;
- } else {
+ else
   delta_ramp_down = b->get_delta_ramp_down();
- }
 
  retrieve_term( quad_term, b->get_quad_term() );
  retrieve_term( linear_term, b->get_linear_term() );
  retrieve_term( const_term, b->get_const_term() );
 
- // Unlock the Block
- if( !owned ) {
+ // unlock the Block
+ if( ! owned )
   f_Block->read_unlock();
- }
 
+ v_on_nodes.resize( time_horizon );
+ v_off_nodes.resize( time_horizon );
  P.resize( time_horizon );
  U.resize( time_horizon );
- startup.resize( time_horizon );
+ //!! startup.resize( time_horizon );
  stage = start;
-}
+
+ }  // end( ThermalUnitDPSolver::load_parameters )
 
 /*--------------------------------------------------------------------------*/
 
-double ThermalUnitDPSolver::compute_startup_costs( int t )
+double ThermalUnitDPSolver::compute_startup_costs( int h , int k )
 {
- return t > min_down_time ?
-        startup_costs[ min_down_time ] :
-        startup_costs[ t - min_down_time ];
-
- /** se l'unita' e' spenta da piu' di fMaxStartupLevel istanti allora
- i costi di start-up sono costanti */
-
- // if( t > min_down_time ) {
- //  t = min_down_time;
- // }
-
- /** altrimenti restituisci il costo corrispondente al numero di ore
- di spegnimento, perche' il primo valore di t nella tabella
- coincide con get_min_down_time, che e' proprio il minimo numero di
- istanti per cui l'unita' puo' essere spenta */
-
- // t -= min_down_time;
- // return ( startup_costs[ t ] );
+ // one day a time-dependent SUC formula may be easily implemented here
+ return( startup_costs[ k ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1025,175 +531,163 @@ void ThermalUnitDPSolver::process_modifications( void )
 {
  bool reload = false;
 
- // A function like this is needed to be called
- // recursively with GroupModifications
- // -------------------------------------------
- std::function< void( sp_Mod ) > f;
+ // note: since processing the Modification is fast, we don't bother with
+ // being nice to other processes and do it all with v_mod under lock
+  // try to acquire lock, spin on failure
+ while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+  ;
 
- f = [ this, &f, &reload ]( const sp_Mod & mod ) {
-
-  // Group modification
-  if( const auto gm = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
-   for( const auto & submod : gm->sub_Modifications() ) {
-    f( submod );
+ // process all the Modifications
+ for( auto mod : v_mod )
+  if( guts_of_process_modifications( mod.get() ) ) {
+   // if a reset is done, all the remaining Modifications can be ignored
+   v_mod.clear();
+   break;
    }
-   return;
+
+ f_mod_lock.clear( std::memory_order_release );  // release lock
+
+ if( reload )
+  load_parameters();
+
+ }  // end( process_modifications )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
+{
+ // NBModification
+ if( dynamic_cast< NBModification * >( mod ) )
+  return( true );
+
+ // GroupModification
+ if( const auto gm = dynamic_cast< GroupModification * >( mod ) ) {
+  bool reload = false; 
+  for( const auto & submod : gm->sub_Modifications() )
+   if( guts_of_process_modifications( submod.get() ) )
+    reload = true;
+
+  return( reload );
   }
 
-  // ThermalUnitBlockMod
-  if( const auto tubm = std::dynamic_pointer_cast< ThermalUnitBlockMod >( mod ) ) {
-   auto b = static_cast< ThermalUnitBlock * >(f_Block);
+ // ThermalUnitBlockMod
+ if( const auto tubm = dynamic_cast< ThermalUnitBlockMod * >( mod ) ) {
+   auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
    switch( tubm->type() ) {
     case ThermalUnitBlockMod::eSetMaxP:
      max_power = b->get_max_power();
-     if( stage > graph_OK ) {
+     if( stage > graph_OK )
       stage = graph_OK;
-     }
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetInitP:
      initial_power = b->get_initial_power();
      stage = start;
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetInitUD:
      init_up_down_time = b->get_init_up_down_time();
      min_up_time = ( int ) b->get_min_up_time();
      min_down_time = ( int ) b->get_min_down_time();
-     if( init_up_down_time > 0 ) {
-      init_t = init_up_down_time >= min_up_time ?
-               0 : min_up_time - init_up_down_time;
-     } else {
-      init_t = -init_up_down_time >= min_down_time ?
-               0 : min_down_time + init_up_down_time;
-     }
+     if( init_up_down_time > 0 )
+      init_t = std::max( 0 , min_up_time - init_up_down_time );
+     else
+      init_t = std::max( 0 , min_down_time + init_up_down_time );
      stage = start;
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetAv:
-     // TODO
-     reload = true;
-     break;
+     return( true );  // TODO
 
     case ThermalUnitBlockMod::eSetSUC:
      startup_costs = b->get_start_up_cost();
-     if( stage > edps_OK ) {
+     if( stage > edps_OK )
       stage = edps_OK;
-     }
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetLinT:
      retrieve_term( linear_term, b->get_linear_term() );
-     if( stage > graph_OK ) {
+     if( stage > graph_OK )
       stage = graph_OK;
-     }
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetQuadT:
      retrieve_term( quad_term, b->get_quad_term() );
-     if( stage > graph_OK ) {
+     if( stage > graph_OK )
       stage = graph_OK;
-     }
-     break;
+     return( false );
 
     case ThermalUnitBlockMod::eSetConstT:
      retrieve_term( const_term, b->get_const_term() );
      stage = start;
-     break;
+     return( false );
 
-    default:
-     reload = true;
-   }
+    }  // end( switch )
 
-   return;
-  }
+  return( true );
 
-  // ThermalUnitBlockMod
-  if( std::dynamic_pointer_cast< NBModification >( mod ) ) {
-   reload = true;
-   return;
-  }
- };
- // -------------------------------------------
+  }  // end( ThermalUnitBlockMod )
 
- // Process the Modifications
- for( auto mod = front(); mod; mod = front() ) {
-  f( mod );
-  pop_front();
+ return( false );  // any other Modification: I assume it's harmless
 
-  if( std::dynamic_pointer_cast< NBModification >( mod ) ) {
-   // An NBModification has just been handled.
-   // All the remaining Modifications must be ignored.
-   while( front() )
-    pop_front();
-   break;
-  }
- }
-
- if( reload )
-  load_parameters();
- }
+ }  // end( ThermalUnitDPSolver::guts_of_process_modifications )
 
 /*--------------------------------------------------------------------------*/
 
-void
-ThermalUnitDPSolver::retrieve_term( std::vector< double > & out,
-                                         const std::vector< double > & in ) const {
+void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
+                                         const std::vector< double > & in )
+ const
+{
  if( in.empty() ) {
   out.resize( time_horizon );
-  std::fill( out.begin(), out.end(), 0 );
+  std::fill( out.begin() , out.end() , 0 );
   return;
- }
+  }
 
  if( in.size() == 1 ) {
   out.resize( time_horizon );
-  std::fill( out.begin(), out.end(), in[ 0 ] );
+  std::fill( out.begin() , out.end() , in[ 0 ] );
   return;
+  }
+
+ out = in;
  }
 
- assert( in.size() == time_horizon );
- out = in;
-}
-
+/*--------------------------------------------------------------------------*/
+/*----------- METHODS OF ThermalUnitDPSolver::DPEDSolver -------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void EDPSolver::initialize( int k , ThermalUnitDPSolver * s )
+void ThermalUnitDPSolver::DPEDSolver::initialize( Index h ,
+						  ThermalUnitDPSolver * s )
 {
- solver = s;
+ EDSolver::initialize( h , s );
+
  auto & time_horizon = solver->time_horizon;
 
- h = k;
- kMax = time_horizon;
-
- int coeffsize = time_horizon * time_horizon + h * h - 2 * h * time_horizon;
+ Index coeffsize = time_horizon * time_horizon + f_h * f_h -
+                   2 * f_h * time_horizon;
  if( coeffsize != coeffs.size() ) {
   coeffs.resize( coeffsize );
-
-  int msize = coeffsize + time_horizon - h;
-  m.resize( msize );
-
+  m.resize( coeffsize + time_horizon - f_h );
   v.resize( time_horizon );
   pos.resize( time_horizon );
   unc_p.resize( time_horizon );
   con_p.resize( time_horizon );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
-void EDPSolver::compute_costs( std::vector< double > & costs )
+void ThermalUnitDPSolver::DPEDSolver::compute_costs(
+					      std::vector< double > & costs )
 {
- // Scalar values
+ // scalar values
  auto & time_horizon = solver->time_horizon;
  auto & init_up_down_time = solver->init_up_down_time;
  auto & initial_power = solver->initial_power;
 
- // Power vectors
+ // power vectors
  auto & min_power = solver->min_power;
  auto & max_power = solver->max_power;
  auto & delta_ramp_up = solver->delta_ramp_up;
@@ -1201,17 +695,17 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
  auto & bound_on = solver->bound_on;
  auto & bound_down = solver->bound_down;
 
- // Coefficients of the objective function
+ // coefficients of the objective function
  auto & quad_term = solver->quad_term;
  auto & linear_term = solver->linear_term;
 
- int k = h;
+ Index k = f_h;
 
  coeffs[ 0 ].alfa = quad_term[ k ];
  coeffs[ 0 ].beta = linear_term[ k ];
  coeffs[ 0 ].gamma = 0;
- int coeffcnt = 1; // Next free position in coeffs[]
- v[ k ] = 0;       // Because for k = h the number of pieces is 1
+ Index coeffcnt = 1;  // next free position in coeffs[]
+ v[ k ] = 0;          // because for k = h the number of pieces is 1
 
  /* Initialize the vector m containing the endpoints of the pieces.
   * At first, it contains the two endpoints of the individual piece.
@@ -1220,7 +714,7 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
   * the given initial value initial_power, then the interval is restricted
   * to take it into account. */
 
- if( ( h == 0 ) && ( init_up_down_time > 0 ) ) {
+ if( ( k == 0 ) && ( init_up_down_time > 0 ) ) {
   m[ 0 ] = std::max( min_power[ k ] , initial_power - delta_ramp_down[ k ] );
   m[ 1 ] = std::min( max_power[ k ] , initial_power + delta_ramp_up[ k ] );
   }
@@ -1229,39 +723,34 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
   m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k;
   }
 
- int mcnt = 2; // Next free position in m[]
+ Index mcnt = 2; // Next free position in m[]
 
- /*
-  * Initialize the vector pos containing the initial indices of the pieces.
-  */
-
+ // initialize the vector pos containing the initial indices of the pieces.
  pos[ k ].begm = 0;
  pos[ k ].begt = 0;
 
- /*
-  * Initialize the vector of unconstrained power values.
-  * Unconstrained means that power values are not constrained by bound_down[k].
-  */
+ // initialize the vector of unconstrained power values, i.e., 
+ // power values are not constrained by bound_down[ k ]
  if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
   if( coeffs[ 0 ].beta <= 0 )
    unc_p[ k ] = m[ 1 ];
   else
    unc_p[ k ] = m[ 0 ];
  else {
-  // tmp is p^{*}_{hk}
+  // tmp is p^*_{hk}
   double tmp = -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa );
-  if( tmp < m[ 0 ] ) {
+  if( tmp < m[ 0 ] )
    unc_p[ k ] = m[ 0 ];
-  } else if( tmp > m[ 1 ] ) {
-   unc_p[ k ] = m[ 1 ];
-  } else {
-   unc_p[ k ] = tmp;
+  else
+   if( tmp > m[ 1 ] )
+    unc_p[ k ] = m[ 1 ];
+   else
+    unc_p[ k ] = tmp;
   }
- }
 
  /* Initialize the vector of constrained power values, that will be
   * computed at each iteration.
-  * Constrained means that they must be <= bound_down[ k ]. */
+  * Constrained means that they must be <= bound_down[ k ] */
 
  if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
   con_p[ k ] = bound_down[ k + 1 ];
@@ -1271,110 +760,85 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
  costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
               coeffs[ 0 ].beta * con_p[ k ];
 
- // Outermost loop
- for( k = h + 1; k < kMax; ++k ) {
-
-  /*
-   * Building pieces: \bar{m}_0 is the first endpoint of the first piece of
+ // outermost loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ for( ; ++k < time_horizon ; ) {
+  /* Building pieces: \bar{m}_0 is the first endpoint of the first piece of
    * the z_{hk}(\bar{p}) objective function. Such endpoint will be saved in
-   * the m vector.
-   */
+   * the m vector. */
 
   pos[ k ].begm = mcnt;
   pos[ k ].begt = coeffcnt;
 
-
-  if( min_power[ k ] > m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] ) {
+  if( min_power[ k ] > m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] )
    m[ mcnt ] = min_power[ k ];
-  } else {
+  else
    m[ mcnt ] = m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ];
-  }
 
   double p_bar = m[ mcnt ]; // \bar{m}_0
-  int v_bar = 0;            // After the case 3 will contain v[k]
+  int v_bar = 0;            // After the case 3 will contain v[ k ]
 
-  /*
-   * Compute q, the index of the piece where p^*(\bar{p}) belongs.
-   */
+  // compute q, the index of the piece where p^*(\bar{p}) belongs.
 
-  double pstar; // p^*(\bar{p})
+  double pstar;  // p^*(\bar{p})
 
   if( p_bar < unc_p[ k - 1 ] ) {
    pstar = p_bar + delta_ramp_down[ k - 1 ];
-   if( pstar > unc_p[ k - 1 ] ) {
+   if( pstar > unc_p[ k - 1 ] )
     pstar = unc_p[ k - 1 ];
    }
-  } else {
+  else {
    pstar = p_bar - delta_ramp_up[ k - 1 ];
-   if( pstar < unc_p[ k - 1 ] ) {
+   if( pstar < unc_p[ k - 1 ] )
     pstar = unc_p[ k - 1 ];
    }
-  }
 
   int qm = pos[ k - 1 ].begm;
-  while( pstar >= m[ qm + 1 ] && qm < pos[ k ].begm - 2 ) {
+  while( ( pstar >= m[ qm + 1 ] ) && ( qm < pos[ k ].begm - 2 ) )
    ++qm;
-  }
 
   int q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;
 
-  /*
-   * Compute the last endpoint of the piece, \bar{u}.
-   */
-
-  double u_bar = std::min( max_power[ k ],
+  // compute the last endpoint of the piece, \bar{u}
+  double u_bar = std::min( max_power[ k ] ,
                            m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
-  // if( max_power[ k ] < m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] ) {
-  //  u_bar = max_power[ k ];
-  // } else {
-  //  u_bar = m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ];
-  // }
   ++mcnt;
-
 
   bool firstTime = true;
 
-  // CASE 1
+  // CASE 1- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   while( unc_p[ k - 1 ] > p_bar + delta_ramp_down[ k - 1 ] + eps ) {
 
-   /*
-    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
-    */
+   // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
-   coeffs[ coeffcnt ].beta =
-    linear_term[ k ] +
-    coeffs[ q ].beta +
-    2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
-   coeffs[ coeffcnt ].gamma =
-    coeffs[ q ].gamma +
+   coeffs[ coeffcnt ].beta = linear_term[ k ] +  coeffs[ q ].beta +
+                          2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].gamma = coeffs[ q ].gamma +
     coeffs[ q ].alfa * delta_ramp_down[ k - 1 ] * delta_ramp_down[ k - 1 ] +
     coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
 
-   /*
-    * Compute the maximum value for \bar{p} such that:
+   /* Compute the maximum value for \bar{p} such that:
     *  - p^*_k(\bar{p}) stays in the q-th interval;
     *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible.
-    */
+    *  - \bar{p} stays admissible. */
 
    if( m[ qm + 1 ] - delta_ramp_down[ k - 1 ] <
        unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ] - eps ) {
     p_bar = m[ qm + 1 ] - delta_ramp_down[ k - 1 ];
     ++q;
     ++qm;
-   } else {
+    }
+   else
     p_bar = unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ];
-   }
-   if( p_bar > u_bar ) {
+
+   if( p_bar > u_bar )
     p_bar = u_bar;
-   }
+
    ++v_bar;
    m[ mcnt++ ] = p_bar;
 
-   /*
-    * Compute unc_p, unconstrained optimal value for z_{hk}.
-    */
+   // compute unc_p, unconstrained optimal value for z_{hk}
 
    if( firstTime &&
        2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
@@ -1390,36 +854,28 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
       }
      }
     firstTime = false;
-   }
+    }
 
    ++coeffcnt;
-  }
+   }
 
-  // CASE 2
+  // CASE 2- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k - 1 ] ) {
 
-   /*
-    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
-    */
+   // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ];
    coeffs[ coeffcnt ].beta = linear_term[ k ];
    coeffs[ coeffcnt ].gamma =
     coeffs[ q ].alfa * unc_p[ k - 1 ] * unc_p[ k - 1 ] +
-    coeffs[ q ].beta * unc_p[ k - 1 ] +
-    coeffs[ q ].gamma;
+    coeffs[ q ].beta * unc_p[ k - 1 ] + coeffs[ q ].gamma;
 
-   /*
-    * Compute the maximum value for \bar{p} such that:
+   /* compute the maximum value for \bar{p} such that:
     *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible.
-    */
+    *  - \bar{p} stays admissible. */
 
-   if( ( unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] ) < u_bar ) {
-    p_bar = unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ];
-   } else {
-    p_bar = u_bar;
-   }
+   p_bar = std::min( u_bar , unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] );
+
    ++v_bar;
    m[ mcnt++ ] = p_bar;
 
@@ -1437,39 +893,28 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
       }
      }
     firstTime = false;
-   }
+    }
 
    ++coeffcnt;
-  }
+   }
 
-
-  // CASE 3
+  // CASE 3- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   while( p_bar < u_bar ) {
-
-   /*
-    * Set coeffs fields to compute \bar{z}^{\bar{v}}(p).
-    */
+   // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
-   coeffs[ coeffcnt ].beta =
-    linear_term[ k ] + coeffs[ q ].beta -
-    2 * delta_ramp_up[ k - 1 ] * coeffs[ q ].alfa;
-   coeffs[ coeffcnt ].gamma =
-    coeffs[ q ].gamma +
+   coeffs[ coeffcnt ].beta = linear_term[ k ] + coeffs[ q ].beta -
+                              2 * delta_ramp_up[ k - 1 ] * coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].gamma = coeffs[ q ].gamma +
     coeffs[ q ].alfa * delta_ramp_up[ k - 1 ] * delta_ramp_up[ k - 1 ] -
     coeffs[ q ].beta * delta_ramp_up[ k - 1 ];
 
-   /*
-    * Compute the maximum value for \bar{p} such that:
+   /* Compute the maximum value for \bar{p} such that:
     *  - p^*_k(\bar{p}) stays in the q-th interval;
-    *  - \bar{p} stays admissible.
-    */
+    *  - \bar{p} stays admissible. */
 
-   if( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] < u_bar ) {
-    p_bar = m[ qm + 1 ] + delta_ramp_up[ k - 1 ];
-   } else {
-    p_bar = u_bar;
-   }
+   p_bar = std::min( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] , u_bar );
+
    ++v_bar;
    m[ mcnt++ ] = p_bar;
    ++q;
@@ -1494,51 +939,53 @@ void EDPSolver::compute_costs( std::vector< double > & costs )
    ++coeffcnt;
    }
 
-  // End of the tree cases
+  // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
 
   v[ k ] = v_bar - 1;
 
-
-  if( firstTime )  // Function is strictly decreasing
+  if( firstTime )  // function is strictly decreasing
    unc_p[ k ] = u_bar;
 
-  /* Compute con_p[k], constrained optimal value for the entire function.
-   */
+  // compute con_p[ k ], constrained optimal value for the entire function.
+  // important note: the case where k == time_horizon - 1 is dealt with
+  // in a special way, i.e., by not requiring the power to be at the level
+  // that would be required for the unit to stop. this means that a less
+  // constrained problem is solved, resulting in a smaller value. this is
+  // because there is no point in forcing the unit to shut down at the end
+  // of the time instant, since what happens after that is irrelevant to
+  // the problem we are solving
 
   if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
    con_p[ k ] = bound_down[ k + 1 ];
   else
    con_p[ k ] = unc_p[ k ];
  
-  /*
-   * Compute the cost for the node (h,k) in costs[].
-   */
+  // compute the cost for the node (h,k) in costs[]
 
   qm = pos[ k ].begm;
-  while( con_p[ k ] > m[ qm + 1 ] && m[ qm + 1 ] != 0 ) {
+  while( ( con_p[ k ] > m[ qm + 1 ] ) && ( m[ qm + 1 ] != 0 ) )
    ++qm;
-  }
+
   q = qm - pos[ k ].begm + pos[ k ].begt;
 
-  costs[ k ] =
-   coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
-   coeffs[ q ].beta * con_p[ k ] +
-   coeffs[ q ].gamma;
+  costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
+               coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
 
   }  // end( for( k ) )
  }  // end( compute_costs )
 
 /*--------------------------------------------------------------------------*/
 
-void EDPSolver::compute_power_variables( int k , std::vector< double > & p )
+void ThermalUnitDPSolver::DPEDSolver::::compute_power_variables( Index k ,
+						 std::vector< double > & p )
 {
  auto & delta_ramp_up = solver->delta_ramp_up;
  auto & delta_ramp_down = solver->delta_ramp_down;
 
  p[ k ] = con_p[ k ];
- for( int t = k - 1 ; t >= h ; --t ) {
-  /* Project unconstrained optimal value unc_p[t] on the interval:
-   * [ p[t+1] - delta_ramp_up[t], p[t+1] + delta_ramp_down[t] ]
+ for( Index t = k - 1 ; t >= f_h ; --t ) {
+  /* Project unconstrained optimal value unc_p[ t ] on the interval:
+   * [ p[ t + 1 ] - delta_ramp_up[ t ] , p[ t + 1 ] + delta_ramp_down[ t ] ]
    *
    * If the unconstrained optimal value is on the left of the interval,
    * then the optimal power value is the left endpoint of the function.
@@ -1558,7 +1005,7 @@ void EDPSolver::compute_power_variables( int k , std::vector< double > & p )
    else
     p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
   }
- }
+ }  // end( compute_power_variables )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File ThermalUnitDPSolver.cpp -----------------------*/
