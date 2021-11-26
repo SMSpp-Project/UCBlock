@@ -405,7 +405,7 @@ class ThermalUnitBlock : public UnitBlock {
  * Note that there may be other formulations (like the DP one), which will
  * possibly be implemented in the future. */
 
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the ThermalUnitBlock

@@ -2,7 +2,9 @@
 /*----------------------- File ThermalUnitDPSolver.h -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the ThermalUnitDPSolver class.
+ * Header file for the ThermalUnitDPSolver class, that solves the
+ * ThermalUnitBlock (without primary and secondary reserve variables, so far)
+ * using a Dynamic Programming algorithm.
  *
  * \author Claudio Gentile \n
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
@@ -35,6 +37,8 @@
 //#include <SMSTypedefs.h>
 
 #include <Solver.h>
+
+#include <ThermalUnitBlock.h>
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -226,7 +230,9 @@ namespace SMSpp_di_unipi_it {
 /*------------------------------ PUBLIC TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  static constexpr TUDPINF = Inf< double >();  ///< the INF value
+  static constexpr auto TUDPINF = Inf< double >();  ///< the INF value
+
+  using Index = Block::Index;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -234,7 +240,7 @@ namespace SMSpp_di_unipi_it {
 /** @name Constructor and destructor
  *  @{ */
 
- ThermalUnitDPSolver() : Solver() {};
+ ThermalUnitDPSolver( void ) : Solver() {};
 
  ~ThermalUnitDPSolver() override = default;
 
@@ -251,7 +257,7 @@ namespace SMSpp_di_unipi_it {
  int compute( bool changedvars = true ) override;
 
  /// tells whether a solution is available
- bool has_var_solution( void ) { return( f_end.pred ); }
+ bool has_var_solution( void ) override { return( f_end.pred ); }
 
  /// writes the current solution in the Block
  void get_var_solution( Configuration * solc ) override;
@@ -297,7 +303,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 
  /// Stage of the computation
- enum stage {
+ enum stage_value {
   start    = 0 ,
   graph_OK = 1 ,
   edps_OK  = 2 ,
@@ -317,7 +323,7 @@ namespace SMSpp_di_unipi_it {
  * solver does. However, it being virtual other implementations may be
  * considered. */
 
-class EDPSolver {
+class EDSolver {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -325,20 +331,12 @@ class EDPSolver {
 
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 
- EDPSolver( void ) : f_k( 0 ) , f_solver( nullptr ) {}
+ EDSolver( Index h , ThermalUnitDPSolver * s ) : f_h( h ) , f_solver( s ) {}
 
- virtual ~EDPSolver() = default;
+ virtual ~EDSolver() = default;
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// initializes the ED: h is the starting time, which is fixed
-
- virtual void initialize( Index h , ThermalUnitDPSolver * s ) {
-  f_h = h;
-  f_solver = s;
-  }
-
-/*--------------------------------------------------------------------------*/
  /// compute the cost vector z_h[ h ], ..., z_h[ n - 1 ], z_h[ d ]
  /** Compute the costs of the arcs ( h , h ), ( h , h + 1 ), ...
   * ( h , n - 1 ), ( h , d ), where t is the end of the horizon and d is the
@@ -397,7 +395,7 @@ class EDPSolver {
  protected:
 
  /// the ThermalUnitDPSolver using this EDSolver
- ThermalUnitDPSolver * solver;
+ ThermalUnitDPSolver * f_solver;
 
  Index f_h;  ///< the initial time instant for this EDSolver
 
@@ -409,10 +407,10 @@ class EDPSolver {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class solving the Economic Dispatch problem via Dynamic Programming
-/** DPEDSolver derives from EDPSolver and solves the Economic Dispatch
+/** DPEDSolver derives from EDSolver and solves the Economic Dispatch
  * problem by means of a Dynamic Programming approach. */
 
-class DPEDSolver {
+class DPEDSolver : public EDSolver {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -420,13 +418,11 @@ class DPEDSolver {
 
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 
- DPEDSolver( void ) : EDSolver() = default;
+ DPEDSolver( Index h , ThermalUnitDPSolver * s );
 
  virtual ~DPEDSolver() = default;
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
-
- void initialize( Index h , ThermalUnitDPSolver * s ) override;
 
  void compute_costs( std::vector< double > & costs ) override;
 
@@ -465,7 +461,7 @@ class DPEDSolver {
  std::vector< double > m;
  std::vector< int > v;
 
- }  // end( class( DPEDSolver ) );
+ };  // end( class( DPEDSolver ) );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -478,15 +474,15 @@ class DPEDSolver {
  class arc {
   public:
 
-  arc( void ) : cost1( 0 ) , cost2( 0 ) , tail( nullptr ) , DPS( nullptr ) {}
+  arc( void ) : cost1( 0 ) , cost2( 0 ) , tail( nullptr ) {}
 
-  ~arc() { delete DPS; }
+  ~arc() = default;
  
-  double cost1;
-  double cost2;
-  node * tail;
+  double cost1;  ///< the now-power-dependent part of the cost (fixed, SUC)
+  double cost2;  ///< the power-dependent part of the cost
+  node * tail;   ///< (pointer to) the tail node
 
-  }  // end( class( arc ) )
+  };  // end( class( arc ) )
 
 /*--------------------------------------------------------------------------*/
  /// a node
@@ -494,30 +490,30 @@ class DPEDSolver {
  class node {
   public:
 
-  node( void ) : lab( 0 ) , pred( nullptr ) {}
+  node( void ) : lab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
 
-  ~node() = default;
-  
-  double lab;                 /// the label of the node
-  node * pred;                /// the predecessor of the node in the path
-  std::vector< arc > v_arcs;  /// the Forward Star of the node
-  DPEDSolver * DPS;           /// the Economic Dispatch solver of the node
+  ~node() { delete DPS; }
 
-  }  // end( class( node ) )
+  double lab;                 ///< the label of the node
+  node * pred;                ///< the predecessor of the node in the path
+  EDSolver * DPS;             ///< the Economic Dispatch solver of the node
+  std::vector< arc > v_arcs;  ///< the Forward Star of the node
+
+  };  // end( class( node ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
  Index h_of_node( node * n ) {
-  if( n == f_start )  // the source
+  if( n == & f_start )  // the source
    return( 0 );
-  if( n == f_end )    // the destination
+  if( n == & f_end )    // the destination
    return( time_horizon );
-  if( n->DPS )        // an ON-node
-   return( std::distance( n , &( v_on_nodes.begin() ) ) );
+  if( n->DPS )          // an ON-node
+   return( std::distance( n , v_on_nodes.data() ) );
   // else it must be an OFF-node, this is never called on the destination
-  return( std::distance( n , &( v_off_nodes.begin() ) ) );	   
+  return( std::distance( n , v_off_nodes.data() ) );	   
   }
 
 /*--------------------------------------------------------------------------*/
@@ -531,12 +527,12 @@ class DPEDSolver {
 /*--------------------------------------------------------------------------*/
  // do the scanning of the forward star of a node
 
- static void process_node( const node & nde ) {
+ static void process_node( node & nde ) {
   for( auto a : nde.v_arcs ) {
    const auto nl = nde.lab + a.cost1 + a.cost2;
    if( ( a.tail )->lab > nl ) {
     ( a.tail )->lab = nl;
-    ( a.tail )->pred > & nde;
+    ( a.tail )->pred = & nde;
     }
    }
   }
@@ -559,7 +555,7 @@ class DPEDSolver {
 
 /*--------------------------------------------------------------------------*/
 
- double compute_startup_costs( int t );
+ double compute_startup_costs( Index h , Index k );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE FIELDS OF THE CLASS ----------------------*/
@@ -586,20 +582,19 @@ class DPEDSolver {
  std::vector< double > linear_term;
  std::vector< double > const_term;
 
- double eps{ 1e-10 };  ///< tolerance
+ double eps{ 1e-10 };              ///< tolerance
 
- node f_start;         ///< starting node
- node f_end;           ///< ending node
+ char stage;                       ///< what has been computed
+
+ node f_start;                     ///< starting node
+ node f_end;                       ///< ending node
 
  std::vector< node > v_on_nodes;   ///< vector of ON nodes
  std::vector< node > v_off_nodes;  ///< vector of OFF nodes
  
- std::vector< double > P;    ///< Power values
- std::vector< int > U;       ///< Commitment values
- std::vector< int > startup; ///< Startup values
-
- // int hMin{}; ///< First time step the unit can be turned ON
- // int kMin{}; ///< First time step the unit can be turned OFF
+ std::vector< double > P;          ///< power values
+ std::vector< bool > U;            ///< commitment values
+ //!! std::vector< bool > startup;      ///< startup values
 
 /*--------------------------------------------------------------------------*/
 
