@@ -909,87 +909,79 @@ class ThermalUnitBlock : public UnitBlock {
   *
   * where Availability[ t ] denotes the availability of the unit at time t. */
 
- const std::vector< double > & get_availability() const {
-  return v_Availability;
- }
+ const std::vector< double > & get_availability( void ) const {
+  return( v_Availability );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the availability of the unit at the given time \t
+
  double get_availability( Index t ) const {
   if( v_Availability.empty() )
-   return 1.0;
+   return( 1.0 );
   assert( t < get_time_horizon() );
-  return v_Availability[ t ];
- }
+  return( v_Availability[ t ] );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary rho
  /** The returned vector contains the primary rho at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_primary_rho() const {
-  return v_PrimaryRho;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_primary_rho( void ) const {
+  return( v_PrimaryRho );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary rho
  /** The returned vector contains the secondary rho at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_secondary_rho() const {
-  return v_SecondaryRho;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_secondary_rho( void ) const {
+  return( v_SecondaryRho );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary spinning reserve costs
  /** This function returns the vector of primary spinning reserve costs. If it
   * is empty, then the costs are all zero. Otherwise, it has size
   * get_time_horizon() and its t-th element is the linear cost of the primary
   * spinning reserve variable at time t.
   *
-  * @return The vector containing the primary spinning reserve costs.
-  */
- const std::vector< double > & get_primary_spinning_reserve_cost() const {
-  return v_primary_spinning_reserve_cost;
- }
+  * @return The vector containing the primary spinning reserve costs. */
+ 
+ const std::vector< double > & get_primary_spinning_reserve_cost( void )
+  const { return( v_primary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary spinning reserve costs
  /** This function returns the vector of secondary spinning reserve costs. If
   * it is empty, then the costs are all zero. Otherwise, it has size
   * get_time_horizon() and its t-th element is the linear cost of the
   * secondary spinning reserve variable at time t.
   *
-  * @return The vector containing the secondary spinning reserve costs.
-  */
- const std::vector< double > & get_secondary_spinning_reserve_cost() const {
-  return v_secondary_spinning_reserve_cost;
- }
+  * @return The vector containing the secondary spinning reserve costs. */
+
+ const std::vector< double > & get_secondary_spinning_reserve_cost( void )
+  const { return( v_secondary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_delta_ramp_up() const {
-  return v_DeltaRampUp;
- }
+  * The size of the vector is always get_time_horizon(). */
+ 
+ const std::vector< double > & get_delta_ramp_up( void ) const {
+  return( v_DeltaRampUp );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_delta_ramp_down() const {
-  return v_DeltaRampDown;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_delta_ramp_down( void ) const {
+  return( v_DeltaRampDown );
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the vector of quadratic term
@@ -1004,7 +996,9 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of quadratic term at time t.  */
 
- const std::vector< double > & get_quad_term() const { return( v_QuadTerm ); }
+ const std::vector< double > & get_quad_term( void ) const {
+  return( v_QuadTerm );
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the coefficient of the quadratic term of the power cost function
@@ -1020,7 +1014,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_quad_term( Index t ) const {
   if( v_QuadTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_QuadTerm.size() == 1 )
    return( v_QuadTerm.front() );
   assert( v_QuadTerm.size() == f_time_horizon );
@@ -1043,7 +1037,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of linear term at time t.  */
 
- const std::vector< double > & get_linear_term() const {
+ const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
   }
 
@@ -1061,7 +1055,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_linear_term( Index t ) const {
   if( v_LinearTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_LinearTerm.size() == 1 )
    return( v_LinearTerm.front() );
   assert( v_LinearTerm.size() == f_time_horizon );
@@ -1084,7 +1078,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of constant term at time t.  */
 
- const std::vector< double > & get_const_term() const {
+ const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
   }
 
@@ -1101,7 +1095,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_const_term( Index t ) const {
   if( v_ConstTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_ConstTerm.size() == 1 )
    return( v_ConstTerm.front() );
   assert( v_ConstTerm.size() == f_time_horizon );
@@ -1124,7 +1118,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the start up cost value at time t.  */
 
- const std::vector< double > & get_start_up_cost() const {
+ const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
   }
 
@@ -1139,7 +1133,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_start_up_cost( Index t ) const {
   if( v_StartUpCost.empty() )
-   return 0;
+   return( 0 );
   if( v_StartUpCost.size() == 1 )
    return( v_StartUpCost.front() );
   assert( v_StartUpCost.size() == f_time_horizon );
@@ -1167,8 +1161,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  double * get_fixed_consumption( Index generator ) override {
   if( v_fixed_consumption.empty() )
-   return nullptr;
-  return & ( v_fixed_consumption.front() );
+   return( nullptr );
+  return( & ( v_fixed_consumption.front() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1189,8 +1183,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  double * get_inertia_commitment( Index generator ) override {
   if( v_inertia_commitment.empty() )
-   return nullptr;
-  return & ( v_inertia_commitment.front() );
+   return( nullptr );
+  return( & ( v_inertia_commitment.front() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1349,7 +1343,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         const bool ordered = false,
+			 bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -1379,7 +1373,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_const_term( std::vector< double >::const_iterator values,
                       Subset && subset,
-                      const bool ordered = false,
+		      bool ordered = false,
                       c_ModParam issuePMod = eNoBlck,
                       c_ModParam issueAMod = eNoBlck );
 
@@ -1394,7 +1388,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_linear_term( std::vector< double >::const_iterator values,
                        Subset && subset,
-                       const bool ordered = false,
+		       bool ordered = false,
                        c_ModParam issuePMod = eNoBlck,
                        c_ModParam issueAMod = eNoBlck );
 
@@ -1409,7 +1403,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_quad_term( std::vector< double >::const_iterator values,
                      Subset && subset,
-                     const bool ordered = false,
+		     bool ordered = false,
                      c_ModParam issuePMod = eNoBlck,
                      c_ModParam issueAMod = eNoBlck );
 
@@ -1422,55 +1416,55 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Subset && subset ,
-   const bool ordered , c_ModParam issuePMod = eNoBlck ,
-   c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost(
+	                       std::vector< double >::const_iterator values ,
+			       Subset && subset , bool ordered ,
+			       c_ModParam issuePMod = eNoBlck ,
+			       c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Range rng ,
-   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost(
+	   std::vector< double >::const_iterator values , Range rng ,
+           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Subset && subset ,
-   const bool ordered , c_ModParam issuePMod = eNoBlck ,
-   c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost(
+			       std::vector< double >::const_iterator values ,
+			       Subset && subset , bool ordered ,
+			       c_ModParam issuePMod = eNoBlck ,
+			       c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Range rng ,
-   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost(
+	   std::vector< double >::const_iterator values , Range rng ,
+           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
   * will be that in the vector pointed by \p it associated with this last
-  * zero.
-  */
+  * zero. */
+
  void set_initial_power( std::vector< double >::const_iterator values ,
-                         Subset && subset , const bool ordered = false ,
+                         Subset && subset , bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
   * power. In this case, if the first element of \p rng is 0, the initial
   * power will be set to the value pointed by the given iterator. In general,
   * the initial power will be the one found at position -rng.first in the
   * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing.
-  */
+  * Range \p rng does not contain the 0 index, this function does nothing. */
+
  void set_initial_power( std::vector< double >::const_iterator values ,
                          Range rng = Range( 0, Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1478,17 +1472,16 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values,
-                            Subset && subset,
-                            const bool ordered = false,
-                            c_ModParam issuePMod = eNoBlck,
+ void set_init_updown_time( std::vector< int >::const_iterator values ,
+                            Subset && subset , bool ordered = false ,
+                            c_ModParam issuePMod = eNoBlck ,
                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values,
-                            Range rng = Range( 0, Inf< Index >() ),
-                            c_ModParam issuePMod = eNoBlck,
+ void set_init_updown_time( std::vector< int >::const_iterator values ,
+                            Range rng = Range( 0, Inf< Index >() ) ,
+                            c_ModParam issuePMod = eNoBlck ,
                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/

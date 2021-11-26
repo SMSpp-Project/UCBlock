@@ -48,16 +48,15 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-/// Class for solving a Single Unit Commitment problem with a DP approach.
-/** The ThermalUnitDPSolver is a Solver for tackling the Single Unit
+/// class for solving a Single Unit Commitment problem with a DP approach
+/** The ThermalUnitDPSolver is a Solver for tackling the single-Unit
  * Commitment problem with ramp-up and ramp-down (as well as minimum up-
  * and down-time) constraints and convex quadratic separable objective.
  * The solver uses a Dynamic Programming approach, recasting the problem as
  * a shortest path one on a graph with the following structure
  *
  *       (0,1)  (1,1)  (2,1)  (3,1)  (4,1)  (5,1)  ...  (n-1,1)
- *  (s)                                                           (t)
+ *  (s)                                                           (d)
  *       (0,0)  (1,0)  (2,0)  (3,0)  (4,0)  (5,0)  ...  (n-1,0)
  *
  * n being the length of the time horizon.
@@ -66,14 +65,14 @@ namespace SMSpp_di_unipi_it {
  * solving Economic Dispatch problems that find the min-cost energy production
  * of the unit if it is on for a continuous time interval. In particular we
  * denote by ED( h , k ) the total power cost (but not the fixed and start-up
- * ones, that are computed separately of the unit if started up exactly at
+ * ones, that are computed separately) of the unit if started up exactly at
  * the beginning of time h >= 0 and shut down exactly at the end of time
- * k >= h, i.e., being online for all the time instants h, h + 1, ..., k
- * (note that h = k is possible). Similarly, we denote bu SUC( h , k ) the
- * cost of having the unit off from the beginning of h to the end of k; this
- * is typically easy to compute.
+ * h <= k <= n - 1, i.e., being online for all the time instants h, h + 1,
+ * ..., k (note that h = k is possible). Similarly, we denote bu SUC( h , k )
+ * the cost of having the unit off from the beginning of h to the end of k
+ * and then starting up at k + 1: this is typically easy to compute.
  *
- * The problem is therefore reduced to a Shortest Path between (s) and (t)
+ * The problem is therefore reduced to a Shortest Path between (s) and (d)
  * on the acyclic graph constructed as follows:
  *
  * - Each arc from an ON node ( i , 1 ) to an OFF node ( j , 0 ), for
@@ -211,8 +210,9 @@ namespace SMSpp_di_unipi_it {
  *     the current problem; hence, this arc has *zero cost*.
  *
  * ThermalUnitDPSolver first builds the graph, then uses one EDSolver for
- * each node to solve EDs to compute the arc costs, then uses a( acyclic)
- * min-path algorithmto solve the commitment problem for the unit. */
+ * each ON node (comprised s if the unit is on at the beginning, and therefore
+ * is it equivalent to a ON node) to solve EDs to compute the arc costs, then 
+ * uses a( acyclic) min-path algorithm to solve the problem. */
 
  class ThermalUnitDPSolver : public Solver {
 
