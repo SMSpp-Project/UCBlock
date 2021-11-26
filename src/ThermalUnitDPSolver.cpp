@@ -155,6 +155,7 @@ void ThermalUnitDPSolver::build_graph( void )
   //
   //       time_horizon - kMin + 1
   //
+  // (note that kMin <= time_horizon, so at least one arc is there)
   // in particular they are ( s , kMin ) (meaning: the unit remains on
   // at 0, 1, 2, ..., kMin - 1 and is off at kMin, and these are kMin
   // instants), ( s , kMin + 1 ), ..., ( s , time_horizon - 1 ),
@@ -168,10 +169,10 @@ void ThermalUnitDPSolver::build_graph( void )
   // the unit is on but it is immediately turned off: this "oddball"
   // arc corresponds to an empty ED and always has 0 cost
 
-  double fc = 0;    // compute the fixed-cost component of the cost
-  Index j = 0;             // this surely comprises the fixed costs 
-  while( j < kMin )        // between 0 (included) and kMin (excluded)
-   fc += const_term[ j ];  // since the unit is on in that period
+  double fc = 0;             // compute the fixed-cost component of the cost
+  Index j = 0;               // this surely comprises the fixed costs 
+  while( j < kMin )          // between 0 (included) and kMin (excluded)
+   fc += const_term[ j++ ];  // since the unit is on in that period
 
   f_start.v_arcs.resize( time_horizon - kMin + 1 );
   auto ai = f_start.v_arcs.begin();
@@ -204,6 +205,7 @@ void ThermalUnitDPSolver::build_graph( void )
   //
   //       time_horizon - init_t + 1
   //
+  // (note that init_t <= time_horizon, so at least one arc is there)
   // where note that init_t == 0 is now possible meaning that
   // init_up_down_time == min_down_time == 0; this implies that the first
   // arc is ( s , 0 ), i.e., "the unit was off at the beginning but it
@@ -249,29 +251,41 @@ void ThermalUnitDPSolver::build_graph( void )
    // allocate and initialise the EDSolver of the node
    v_on_nodes[ i ].DPS = new DPEDSolver( i , this );
 
-   // allocate the set of arcs: these are
+   // allocate the set of arcs, which are:
+   //
+   // - if i + min_up_time < time_horizon, then
    //
    //       time_horizon - ( i + min_up_time ) + 1
    //
-   // considering that min_up_time >= 1
+   //   considering that min_up_time >= 1
    //
-   // in particular they are ( i , i + min_up_time ) (meaning: the unit
-   // remains on i, i + 1, ..., i + min_up_time - 1 and is off at
-   // i + min_up_time, and these are min_up_time instants),
-   // ( i , i + min_up_time + 1 ), ..., ( i , time_horizon - 1 ),
-   // plus there is the final arc ( i , d ).
+   //    in particular they are ( i , i + min_up_time ) (meaning: the unit
+   //    remains on i, i + 1, ..., i + min_up_time - 1 and is off at
+   //    i + min_up_time, and these are min_up_time instants),
+   //    ( i , i + min_up_time + 1 ), ..., ( i , time_horizon - 1 ),
+   //    plus there is the final arc ( i , d ).
    //
-   // for illustration, consider time_horizon == 6, i = 1, min_up_time = 2
-   // the nodes (all OFF ones, so we don't write) are 0, 1, 2, 3, 4, 5, d.
-   // the arcs are ( 1 , 4 ), ( 1, 5 ), ( 1, d ). These are
-   // 6 - ( 1 + 3 ) + 1 = 2.
+   //    for illustration, consider time_horizon == 6, i = 1, min_up_time = 2
+   //    the nodes (all OFF ones, so we don't write) are 0, 1, 2, 3, 4, 5, d.
+   //    the arcs are ( 1 , 4 ), ( 1, 5 ), ( 1, d ). These are
+   //    6 - ( 1 + 3 ) + 1 = 2.
+   //
+   // - if, instead, i + min_up_time >= time_horizon, then there only is the
+   //   single arc ( i , d ) corresponding to "the unit remains on from i to
+   //   the end of the horizon, and it will have to remain on after (but this
+   //   is not our concern)
+   //
+   // the fixed-cost component of the cost of all these arcs surely comprises
+   // the fixed costs between i (included) and i + mut (excluded), since the
+   // unit is on in that period, save of course if i + mut > time_horizon,
+   // in which case it is only the sum up to time_horizon - 1
+   double fc = 0;
+   Index j = i;
+   Index endi = std::min( time_horizon , i + mut );
+   while( j < endi )
+    fc += const_term[ j++ ];  // since the
 
-   double fc = 0;    // compute the fixed-cost component of the cost
-   Index j = i;             // this surely comprises the fixed costs 
-   while( j < i + mut )     // between i (included) and i + mut (excluded)
-    fc += const_term[ j ];  // since the unit is on in that period
-
-   v_on_nodes[ i ].v_arcs.resize( time_horizon - ( i + mut ) + 1 );
+   v_on_nodes[ i ].v_arcs.resize( time_horizon - endi + 1 );
    auto ai = v_on_nodes[ i ].v_arcs.begin();
 
    // construct the "normal" arcs up to ( i , time_horizon - 1 )
@@ -295,18 +309,26 @@ void ThermalUnitDPSolver::build_graph( void )
   if( v_off_nodes[ i ].lab ) {  // ... but only if it is reachable
    // v_on_nodes[ i ].DPS is and will always remain nullptr here
 
-   // allocate the set of arcs: these are
+   // allocate the set of arcs, which are:
+   //
+   // - if i + min_down_time < time_horizon, then
    //
    //       time_horizon - ( i + min_down_time ) + 1
    //
-   // considering that min_down_time >= 1; note that min_down_time == 0
-   // is in fact possible, but we know that shutting down a unit only to
-   // powering it up again immediately is never a good idea, so we force
-   // down-time periods to be at least of lenght one. Thus, the structure
-   // of the arcs is analogous as in the ON nodes, except of course they
-   // go to the ON nodes themselves
+   //   considering that min_down_time >= 1; note that min_down_time == 0
+   //   is in fact possible, but we know that shutting down a unit only to
+   //   powering it up again immediately is never a good idea, so we force
+   //   down-time periods to be at least of lenght one. Thus, the structure
+   //   of the arcs is analogous as in the ON nodes, except of course they
+   //   go to the ON nodes themselves
+   //
+   // - if, instead, i + min_down_time >= time_horizon, then there only is
+   //   the single arc ( i , d ) corresponding to "the unit remains off
+   //   from i to the end of the horizon, and it will have to remain off
+   //   after (but this is not our concern)
 
-   v_off_nodes[ i ].v_arcs.resize( time_horizon - ( i + mdt ) + 1 );
+   Index endi = std::min( time_horizon , i + mdt );
+   v_off_nodes[ i ].v_arcs.resize( time_horizon - endi + 1 );
    auto ai = v_off_nodes[ i ].v_arcs.begin();
 
    // construct the "normal" arcs up to ( i , time_horizon - 1 )
@@ -1017,6 +1039,11 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
     p[ t ] = unc_p[ t ];
    else
     p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
+
+  // cater for the special case where f_h == 0, i.e., this is an outgoing
+  // arc from s that works as the on-node: --t would not be nice
+  if( ! t )
+   break;
   }
  }  // end( compute_power_variables )
 

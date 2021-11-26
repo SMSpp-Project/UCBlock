@@ -511,9 +511,9 @@ class DPEDSolver : public EDSolver {
   if( n == & f_end )    // the destination
    return( time_horizon );
   if( n->DPS )          // an ON-node
-   return( std::distance( n , v_on_nodes.data() ) );
+   return( n - v_on_nodes.data() );
   // else it must be an OFF-node, this is never called on the destination
-  return( std::distance( n , v_off_nodes.data() ) );	   
+  return( n - v_off_nodes.data() );
   }
 
 /*--------------------------------------------------------------------------*/
