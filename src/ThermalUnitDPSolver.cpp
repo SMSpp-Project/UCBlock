@@ -96,14 +96,6 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
   com_it->set_value( U[ i ] ? 1 : 0 );
   }
 
- /*!! set startup variables -- I'd frankly avoid it
- auto sup_it = b->get_start_up();
- for( int i = 0 ; i < time_horizon - init_t ; ++i ) {
-  sup_it->set_value( startup[ i ] );
-  sup_it++;
-  }
- */
-
  // unlock the block
  if( ! owned )
   f_Block->unlock( f_id );
@@ -453,35 +445,39 @@ void ThermalUnitDPSolver::compute_solutions( void )
 
  std::fill( P.begin() , P.end() , 0 );
  std::fill( U.begin() , U.end() , false );
- //!! std::fill( startup.begin() , startup.end() , false );
 
  Index k = time_horizon;
- auto h = f_end.pred;
+ auto n = f_end.pred;
 
- if( ! h )
+ if( ! n )
   throw( std::logic_error(
      "compute_solutions: called when has_var_solution() == false" ) );
 
  // compute the solution by visiting the optimal path backward from f_end
 
  do {
-  Index nk = h_of_node( h );
-  if( h->DPS ) {  // h is an ON-node
-   // get optimal values of power variables our of the EDSolver
-   h->DPS->compute_power_variables( k , P );
-   for( Index i = nk ; i < k ; ) {  // set all commitment variables to 1
+  Index h = h_of_node( n );   // the current arc is ( h , k )
+  if( n->DPS ) {              // n is ON( h ), or the source (if h == 0)
+                              // that works as an ON node
+   // get optimal values of power variables out of the EDSolver: note
+   // that these go from P[ h ] to P[ k - 1 ]
+   n->DPS->compute_power_variables( k - 1 , P );
+   // set all commitment variables U[ h ] to U[ k - 1 ] to true
+   for( Index i = h ; i < k ; )
     U[ i++ ] = true;
-    //!! startup[ h ] = true;
-    }
    }
+  // else n is OFF( h ), or the source (if h == 0) that works as an OFF
+  // node: P[ i ] = U[ i ] = 0 for i = h, ..., k - 1, but these already
+  // have those values
 
-  k = nk;        // the previous beginning will be the end
-  h = h->pred;   // back one arc
+  k = h;         // the previous beginning will be the end
+  n = n->pred;   // back one arc
 
-  } while( h );  // ... until we hit f_start that has pred == nullptr
+  } while( n );  // ... until we hit f_start that has pred == nullptr
 
  stage = sol_OK;  // all done: update stage
- }
+
+ }  // end( compute_solutions )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE METHODS OF THE CLASS ------------------------*/
@@ -513,12 +509,13 @@ void ThermalUnitDPSolver::load_parameters( void )
  min_down_time = b->get_min_down_time();
  initial_power = b->get_initial_power();
 
- // init_t (useful for startup variables)
+ // init_t: first instant in which a decision can be made, as all the
+ //         instants before are "blocked" by the initial conditions
  if( init_up_down_time > 0 )
   init_t = std::max( Index( 0 ) , Index( min_up_time - init_up_down_time ) );
  else
-  init_t = std::max( Index( 0 ) , Index( min_down_time + init_up_down_time ) );
-
+  init_t = std::max( Index( 0 ) ,
+		     Index( min_down_time + init_up_down_time ) );
  // power vectors
  startup_costs = b->get_start_up_cost();
  min_power = b->get_min_power();
@@ -546,7 +543,6 @@ void ThermalUnitDPSolver::load_parameters( void )
  v_off_nodes.resize( time_horizon );
  P.resize( time_horizon );
  U.resize( time_horizon );
- //!! startup.resize( time_horizon );
  stage = start;
 
  }  // end( ThermalUnitDPSolver::load_parameters )

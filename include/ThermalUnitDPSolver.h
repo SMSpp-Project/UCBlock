@@ -594,7 +594,9 @@ class DPEDSolver : public EDSolver {
  
  std::vector< double > P;          ///< power values
  std::vector< bool > U;            ///< commitment values
- //!! std::vector< bool > startup;      ///< startup values
+ // note: there is no point in having explicit vectors for the startup and
+ //       shutdown variables, these can be computed trivially out of the
+ //       commitment vector U
 
 /*--------------------------------------------------------------------------*/
 
