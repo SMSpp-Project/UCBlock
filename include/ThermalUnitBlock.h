@@ -7,27 +7,20 @@
  * of a Unit Commitment Problem. A ThermalUnitBlock corresponds to a single
  * electrical generator.
  *
- * \version 0.11
- *
- * \date 29 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                    Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -35,7 +28,6 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
-
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -1287,9 +1279,15 @@ class ThermalUnitBlock : public UnitBlock {
   * "translate" them into both changes of the actual data structures and
   * corresponding "physical Modification". These Modification are those
   * for which Modification::concerns_Block() is true.
+  *
+  *     THE IMPLEMENTATION OF THIS METHOD IS BOTH PARTIAL AND HORRIBLE,
+  *     ONE SINGLE ABSTRACT MODIFICATION CAN GIVE RISE TO MANY MANY MANY
+  *     PHYSICAL ONES, IT SHOULD BE COMPLETELY OVERHAULED!!!
   */
+
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
@@ -1710,12 +1708,11 @@ private:
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
  /// Resizes a vector to time_horizon by using change_intervals
+
  template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
-
  /// updates the abstract representation dependent on the availability
  /** This method updates any part of the abstract representation that may
   * depend on the availability of the unit at the given time \p t.
@@ -1723,19 +1720,18 @@ private:
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @param issueAMod controls how abstract Modification are issued. */
+
  void update_availability_dependents( Index t , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
-
  /// updates the constraints for the current initial power
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
-  * constraints that depend on the initial power).
-  */
+  * constraints that depend on the initial power). */
+
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if and only if the given availability is consistent
  /** This method checks whether the given \p availability is consistent at
   * time \p t. An availability is consistent at a given time instant if the
@@ -1748,17 +1744,17 @@ private:
   *
   * @return true if and only if the given \p availability is consistent at
   *         time \p t. */
+
  bool availability_is_consistent( Index t , double availability ) const {
   assert( t < get_time_horizon() );
-  const auto min_power = compute_operational_min_power
-   ( v_MinPower[ t ] , availability );
-  const auto max_power = compute_operational_max_power
-   ( v_MaxPower[ t ] , availability );
+  const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
+							availability );
+  const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
+							availability );
   return( min_power <= max_power );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the operational minimum power
  /** This method computes the operational minimum power for the given nominal
   * minimum power and availability.
@@ -1768,15 +1764,13 @@ private:
   * @param availability A number between 0 and 1.
   *
   * @return The operational minimum power. */
+
  double compute_operational_min_power( double nominal_min_power ,
                                        double availability ) const {
-  if( availability > 0.0 )
-   return nominal_min_power;
-  return 0.0;
- }
+  return(  availability > 0.0 ? nominal_min_power : 0.0 );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the operational maximum power
  /** This method computes the operational maximum power for the given nominal
   * maximum power and availability.
@@ -1786,10 +1780,21 @@ private:
   * @param availability A number between 0 and 1.
   *
   * @return The operational maximum power. */
+
  double compute_operational_max_power( double nominal_max_power ,
                                        double availability ) const {
-  return nominal_max_power * availability;
- }
+  return( nominal_max_power * availability );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+ void handle_single_objective_change( Index i , ChnlName chnl ,
+				      const DQuadFunction * qf );
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( ThermalUnitBlock ) )
 
