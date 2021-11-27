@@ -189,10 +189,6 @@ void ThermalUnitDPSolver::build_graph( void )
   // s therefore works as an OFF-node: f_start.DPS must be nullptr
   f_start.DPS = nullptr;
 
-  if( init_t > time_horizon )  // weird case: the unit must remain off for
-   init_t = time_horizon;      // more than the time horizon, i.e., for all
-                               // (and only) the time horizon
-
   // allocate the set of arcs: these are
   //
   //       time_horizon - init_t + 1
@@ -457,13 +453,16 @@ void ThermalUnitDPSolver::compute_solutions( void )
 
  do {
   Index h = h_of_node( n );   // the current arc is ( h , k )
-  if( n->DPS ) {              // n is ON( h ), or the source (if h == 0)
-                              // that works as an ON node
-   // get optimal values of power variables out of the EDSolver: note
-   // that these go from P[ h ] to P[ k - 1 ]
+  if( n->DPS && k ) {
+   // n is ON( h ), or the source (if h == 0) that works as an ON node
+   // the power and committment variables of this arc are these with index
+   // h, ..., k - 1, comprised if n == f_start (this is why h_of_node()
+   // returns 0 for it); however, one has to explicitly avoid the special
+   // case of the "empty" arc ( s , 0 ) that has no power and committment
+   // variables
+   // get optimal values of power variables out of the EDSolver
    n->DPS->compute_power_variables( k - 1 , P );
-   // set all commitment variables U[ h ] to U[ k - 1 ] to true
-   for( Index i = h ; i < k ; )
+   for( Index i = h ; i < k ; )   // set all commitment variables to true
     U[ i++ ] = true;
    }
   // else n is OFF( h ), or the source (if h == 0) that works as an OFF
@@ -512,10 +511,16 @@ void ThermalUnitDPSolver::load_parameters( void )
  // init_t: first instant in which a decision can be made, as all the
  //         instants before are "blocked" by the initial conditions
  if( init_up_down_time > 0 )
-  init_t = std::max( Index( 0 ) , Index( min_up_time - init_up_down_time ) );
+  if( min_up_time > init_up_down_time )
+   init_t = std::min( time_horizon , min_up_time - init_up_down_time );
+  else
+   init_t = 0;
  else
-  init_t = std::max( Index( 0 ) ,
-		     Index( min_down_time + init_up_down_time ) );
+  if( min_down_time > - init_up_down_time )
+   init_t = std::min( time_horizon , min_down_time + init_up_down_time );
+  else
+   init_t = 0;
+
  // power vectors
  startup_costs = b->get_start_up_cost();
  min_power = b->get_min_power();
@@ -618,14 +623,18 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 
     case ThermalUnitBlockMod::eSetInitUD:
      init_up_down_time = b->get_init_up_down_time();
-     min_up_time = ( int ) b->get_min_up_time();
-     min_down_time = ( int ) b->get_min_down_time();
+     min_up_time = b->get_min_up_time();
+     min_down_time = b->get_min_down_time();
      if( init_up_down_time > 0 )
-      init_t = std::max( Index( 0 ) ,
-			 Index( min_up_time - init_up_down_time ) );
+      if( min_up_time > init_up_down_time )
+       init_t = std::min( time_horizon , min_up_time - init_up_down_time );
+      else
+       init_t = 0;
      else
-      init_t = std::max( Index( 0  ) ,
-			 Index( min_down_time + init_up_down_time ) );
+      if( min_down_time > - init_up_down_time )
+       init_t = std::min( time_horizon , min_down_time + init_up_down_time );
+      else
+       init_t = 0;
      stage = start;
      return( false );
 
@@ -1014,7 +1023,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
  auto & delta_ramp_down = f_solver->delta_ramp_down;
 
  p[ k ] = con_p[ k ];
- for( Index t = k - 1 ; t >= f_h ; --t ) {
+
+ for( Index t = k ; t-- > f_h ; ) {
   /* Project unconstrained optimal value unc_p[ t ] on the interval:
    * [ p[ t + 1 ] - delta_ramp_up[ t ] , p[ t + 1 ] + delta_ramp_down[ t ] ]
    *
@@ -1035,11 +1045,6 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
     p[ t ] = unc_p[ t ];
    else
     p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
-
-  // cater for the special case where f_h == 0, i.e., this is an outgoing
-  // arc from s that works as the on-node: --t would not be nice
-  if( ! t )
-   break;
   }
  }  // end( compute_power_variables )
 

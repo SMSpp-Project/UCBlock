@@ -506,7 +506,7 @@ class DPEDSolver : public EDSolver {
 /*--------------------------------------------------------------------------*/
 
  Index h_of_node( node * n ) {
-  if( n == & f_start )  // the source
+  if( n == & f_start )  // the source should be "-1", but we make it 0
    return( 0 );
   if( n == & f_end )    // the destination
    return( time_horizon );
