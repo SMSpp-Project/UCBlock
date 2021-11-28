@@ -727,13 +727,12 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 {
  auto & time_horizon = f_solver->time_horizon;
 
- Index coeffsize = time_horizon * time_horizon + f_h * f_h -
-                   2 * f_h * time_horizon;
+ Index coeffsize = 4 * ( time_horizon - f_h + 1 );
  if( coeffsize != coeffs.size() ) {
   coeffs.resize( coeffsize );
-  m.resize( coeffsize + time_horizon - f_h );
-  v.resize( time_horizon );
-  pos.resize( time_horizon );
+  m.resize( coeffsize + 2 );
+  v.resize( 2 );
+  pos.resize( 2 );
   unc_p.resize( time_horizon );
   con_p.resize( time_horizon );
   }
@@ -745,29 +744,27 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 					      std::vector< double > & costs )
 {
  // scalar values
- auto & time_horizon = f_solver->time_horizon;
- auto & init_up_down_time = f_solver->init_up_down_time;
- auto & initial_power = f_solver->initial_power;
+ auto time_horizon = f_solver->time_horizon;
+ auto init_up_down_time = f_solver->init_up_down_time;
+ auto initial_power = f_solver->initial_power;
 
  // power vectors
- auto & min_power = f_solver->min_power;
- auto & max_power = f_solver->max_power;
- auto & delta_ramp_up = f_solver->delta_ramp_up;
- auto & delta_ramp_down = f_solver->delta_ramp_down;
- auto & bound_on = f_solver->bound_on;
- auto & bound_down = f_solver->bound_down;
+ const auto & min_power = f_solver->min_power;
+ const auto & max_power = f_solver->max_power;
+ const auto & delta_ramp_up = f_solver->delta_ramp_up;
+ const auto & delta_ramp_down = f_solver->delta_ramp_down;
+ const auto & bound_on = f_solver->bound_on;
+ const auto & bound_down = f_solver->bound_down;
 
  // coefficients of the objective function
- auto & quad_term = f_solver->quad_term;
- auto & linear_term = f_solver->linear_term;
+ const auto & quad_term = f_solver->quad_term;
+ const auto & linear_term = f_solver->linear_term;
 
  Index k = f_h;
 
  coeffs[ 0 ].alfa = quad_term[ k ];
  coeffs[ 0 ].beta = linear_term[ k ];
  coeffs[ 0 ].gamma = 0;
- Index coeffcnt = 1;  // next free position in coeffs[]
- v[ k ] = 0;          // because for k = h the number of pieces is 1
 
  /* Initialize the vector m containing the endpoints of the pieces.
   * At first, it contains the two endpoints of the individual piece.
@@ -776,20 +773,27 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   * the given initial value initial_power, then the interval is restricted
   * to take it into account. */
 
- if( ( k == 0 ) && ( init_up_down_time > 0 ) ) {
+ if( ( f_h == 0 ) && ( init_up_down_time > 0 ) ) {
   m[ 0 ] = std::max( min_power[ k ] , initial_power - delta_ramp_down[ k ] );
   m[ 1 ] = std::min( max_power[ k ] , initial_power + delta_ramp_up[ k ] );
   }
  else {
   m[ 0 ] = min_power[ k ];
-  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k;
+  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k
   }
 
- Index mcnt = 2; // Next free position in m[]
+ Index coeffcnt = 2 * ( time_horizon - f_h );
+ // next free position in coeffs[]
+ Index mcnt = 2 * ( time_horizon - f_h ) + 1;
+ // next free position in m[]
+ Index nextk = 1;     // next free position in v[], pos[]
+ // since there are only two positions, nextk ping-pongs between 1 and 0
+
+ v[ 0 ] = 0;
 
  // initialize the vector pos containing the initial indices of the pieces.
- pos[ k ].begm = 0;
- pos[ k ].begt = 0;
+ pos[ 0 ].begm = 0;
+ pos[ 0 ].begt = 0;
 
  // initialize the vector of unconstrained power values, i.e., 
  // power values are not constrained by bound_down[ k ]
@@ -829,16 +833,16 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    * the z_{hk}(\bar{p}) objective function. Such endpoint will be saved in
    * the m vector. */
 
-  pos[ k ].begm = mcnt;
-  pos[ k ].begt = coeffcnt;
+  pos[ nextk ].begm = mcnt;
+  pos[ nextk ].begt = coeffcnt;
 
-  if( min_power[ k ] > m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] )
+  if( min_power[ k ] > m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ] )
    m[ mcnt ] = min_power[ k ];
   else
-   m[ mcnt ] = m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ];
+   m[ mcnt ] = m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ];
 
-  double p_bar = m[ mcnt ]; // \bar{m}_0
-  int v_bar = 0;            // After the case 3 will contain v[ k ]
+  double p_bar = m[ mcnt ];  // \bar{m}_0
+  Index v_bar = 0;           // after the case 3 will contain v[ k ]
 
   // compute q, the index of the piece where p^*(\bar{p}) belongs.
 
@@ -855,15 +859,18 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     pstar = unc_p[ k - 1 ];
    }
 
-  int qm = pos[ k - 1 ].begm;
-  while( ( pstar >= m[ qm + 1 ] ) && ( qm < pos[ k ].begm - 2 ) )
+  Index qm = pos[ 1 - nextk ].begm;
+  Index poslim = pos[ 1 - nextk ].begm + ( v[ 1 - nextk ] + 1 ) + 1 - 2;
+  
+  while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
    ++qm;
 
-  int q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;
+  Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;    
 
   // compute the last endpoint of the piece, \bar{u}
   double u_bar = std::min( max_power[ k ] ,
-                           m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
+			   m[ pos[ 1 - nextk ].begm + v[ 1 - nextk ] + 1 ]
+			   + delta_ramp_up[ k - 1 ] );
   ++mcnt;
 
   bool firstTime = true;
@@ -874,8 +881,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
-   coeffs[ coeffcnt ].beta = linear_term[ k ] +  coeffs[ q ].beta +
-                          2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
+   coeffs[ coeffcnt ].beta = linear_term[ k ] + coeffs[ q ].beta +
+                             2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
    coeffs[ coeffcnt ].gamma = coeffs[ q ].gamma +
     coeffs[ q ].alfa * delta_ramp_down[ k - 1 ] * delta_ramp_down[ k - 1 ] +
     coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
@@ -910,16 +917,16 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
      // else do nothing, the function is still decreasing in the next interval
      }
     else {
-     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+     unc_p[ k ] = - coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
+     if( unc_p[ k ] < m[ mcnt - 2 ] )
       unc_p[ k ] = m[ mcnt - 2 ];
-      }
      }
     firstTime = false;
     }
 
    ++coeffcnt;
-   }
+
+   }  // end( while( CASE 1 ) )
 
   // CASE 2- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k - 1 ] ) {
@@ -950,15 +957,15 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
      }
     else {
      unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+     if( unc_p[ k ] < m[ mcnt - 2 ] )
       unc_p[ k ] = m[ mcnt - 2 ];
-      }
      }
     firstTime = false;
     }
 
    ++coeffcnt;
-   }
+
+   }  // end( if( CASE 2 ) )
 
   // CASE 3- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   while( p_bar < u_bar ) {
@@ -990,20 +997,20 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
      // else do nothing, the function is still decreasing in the next interval
      }
     else {
-     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] ) {
+     unc_p[ k ] = - coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
+     if( unc_p[ k ] < m[ mcnt - 2 ] )
       unc_p[ k ] = m[ mcnt - 2 ];
-      }
      }
     firstTime = false;
     }
 
    ++coeffcnt;
-   }
+
+   }  // end( while( CASE 3 ) )
 
   // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  v[ k ] = v_bar - 1;
+  v[ nextk ] = v_bar - 1;
 
   if( firstTime )  // function is strictly decreasing
    unc_p[ k ] = u_bar;
@@ -1024,11 +1031,16 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
  
   // compute the cost for the node (h,k) in costs[]
 
-  qm = pos[ k ].begm;
-  while( ( con_p[ k ] > m[ qm + 1 ] ) && ( m[ qm + 1 ] != 0 ) )
+  qm = pos[ nextk ].begm;
+
+  //?? while( ( con_p[ k ] > m[ qm + 1 ] ) && ( m[ qm + 1 ] != 0 ) )
+  while( con_p[ k ] > m[ qm + 1 ] )
    ++qm;
 
-  q = qm - pos[ k ].begm + pos[ k ].begt;
+  q = qm - pos[ nextk ].begm + pos[ nextk ].begt;
+  nextk = 1 - nextk;
+  coeffcnt = nextk * ( 2 * time_horizon - f_h );
+  mcnt     = nextk * ( ( 2 * time_horizon - f_h ) + 1 );
 
   costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
                coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
