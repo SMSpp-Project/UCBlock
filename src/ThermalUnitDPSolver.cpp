@@ -76,7 +76,7 @@ int ThermalUnitDPSolver::compute( bool changedvars )
 
 void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 {
- // lock the block
+ // lock the Block
  bool owned = f_Block->is_owned_by( f_id );
  if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
   throw( std::runtime_error( "Unable to lock the Block" ) );
@@ -93,27 +93,32 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
   for( Index i = 0 ; i < time_horizon ; )
    (com_it++)->set_value( U[ i++ ] ? 1 : 0 );
 
- // set start_up variables, if any
+ // set start_up variables, if any, but note that start_up variables are
+ // only defined from t_init onwards, so skip all i <= t_init
  if( auto sup_it = b->get_start_up() ) {
   // startup at 0 iif the unit was off at the start and it is on at 0
-  (sup_it++)->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
+  if( ! t_init )
+   (sup_it++)->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
 
   // startup at i iff the unit was off at i - 1 and it is on at i
-  for( Index i = 1 ; i < time_horizon ; ++i )
+  for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
    (sup_it++)->set_value( U[ i ] && ( ~ U[ i - 1 ] ) ? 1 : 0 );
   }
 
- // set shut_down variables, if any
+ // set shut_down variables, if any, but note that start_up variables are
+ // only defined from t_init onwards, so skip all i <= t_init
  if( auto sdn_it = b->get_shut_down() ) {
   // shutdown at 0 iif the unit was on at the start and it is off at 0
-  (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ~ U[ 0 ]) ? 1 : 0 );
+  if( ! t_init )
+   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ~ U[ 0 ] )
+			  ? 1 : 0 );
 
   // shutdown at i iff the unit was on at i - 1 and it is off at i
-  for( Index i = 1 ; i < time_horizon ; ++i )
+  for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
    (sdn_it++)->set_value( ( ~ U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
   }
 
- // unlock the block
+ // unlock the Block
  if( ! owned )
   f_Block->unlock( f_id );
 
@@ -153,8 +158,8 @@ void ThermalUnitDPSolver::build_graph( void )
        ( kMin < time_horizon ) && ( tmp >= bound_down[ kMin ] + eps ) ; )
    tmp -= delta_ramp_down[ kMin++ ];
 
-  if( kMin < init_t )  // the ramp-down time is less than the time required
-   kMin = init_t;      // by the min up-time constraints: use the latter
+  if( kMin < t_init )  // the ramp-down time is less than the time required
+   kMin = t_init;      // by the min up-time constraints: use the latter
 
   if( kMin > time_horizon )  // weird case: the unit must remain on for
    kMin = time_horizon;      // more than the time horizon, i.e., for all
@@ -208,21 +213,21 @@ void ThermalUnitDPSolver::build_graph( void )
 
   // allocate the set of arcs: these are
   //
-  //       time_horizon - init_t + 1
+  //       time_horizon - t_init + 1
   //
-  // (note that init_t <= time_horizon, so at least one arc is there)
-  // where note that init_t == 0 is now possible meaning that
+  // (note that t_init <= time_horizon, so at least one arc is there)
+  // where note that t_init == 0 is now possible meaning that
   // init_up_down_time == min_down_time == 0; this implies that the first
   // arc is ( s , 0 ), i.e., "the unit was off at the beginning but it
   // starts up immediately". Apart from this the structure of the arcs is
   // analogous as in the init_up_down_time > 0 case, except of course they
   // go to the ON nodes
 
-  f_start.v_arcs.resize( time_horizon - init_t + 1 );
+  f_start.v_arcs.resize( time_horizon - t_init + 1 );
   auto ai = f_start.v_arcs.begin();
 
   // construct the "normal" arcs up to ( i , time_horizon - 1 )
-  for( Index j = init_t ; j < time_horizon ; ++j , ++ai ) {
+  for( Index j = t_init ; j < time_horizon ; ++j , ++ai ) {
    ai->cost1 = compute_startup_costs( 0 , j );
    ai->cost2 = 0;
    ai->tail = & v_on_nodes[ j ];
@@ -525,18 +530,18 @@ void ThermalUnitDPSolver::load_parameters( void )
  min_down_time = b->get_min_down_time();
  initial_power = b->get_initial_power();
 
- // init_t: first instant in which a decision can be made, as all the
+ // t_init: first instant in which a decision can be made, as all the
  //         instants before are "blocked" by the initial conditions
  if( init_up_down_time > 0 )
   if( min_up_time > init_up_down_time )
-   init_t = std::min( time_horizon , min_up_time - init_up_down_time );
+   t_init = std::min( time_horizon , min_up_time - init_up_down_time );
   else
-   init_t = 0;
+   t_init = 0;
  else
   if( min_down_time > - init_up_down_time )
-   init_t = std::min( time_horizon , min_down_time + init_up_down_time );
+   t_init = std::min( time_horizon , min_down_time + init_up_down_time );
   else
-   init_t = 0;
+   t_init = 0;
 
  // power vectors
  startup_costs = b->get_start_up_cost();
@@ -644,14 +649,14 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      min_down_time = b->get_min_down_time();
      if( init_up_down_time > 0 )
       if( min_up_time > init_up_down_time )
-       init_t = std::min( time_horizon , min_up_time - init_up_down_time );
+       t_init = std::min( time_horizon , min_up_time - init_up_down_time );
       else
-       init_t = 0;
+       t_init = 0;
      else
       if( min_down_time > - init_up_down_time )
-       init_t = std::min( time_horizon , min_down_time + init_up_down_time );
+       t_init = std::min( time_horizon , min_down_time + init_up_down_time );
       else
-       init_t = 0;
+       t_init = 0;
      stage = start;
      return( false );
 

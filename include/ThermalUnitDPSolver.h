@@ -566,7 +566,7 @@ class DPEDSolver : public EDSolver {
  Index min_up_time;        ///< minimum up time
  Index min_down_time;      ///< minimum down time
  double initial_power;     ///< initial power
- Index init_t;
+ Index t_init;             ///< the first instant in which commitment is free
 
  std::vector< double > startup_costs;
  std::vector< double > delta_ramp_up;

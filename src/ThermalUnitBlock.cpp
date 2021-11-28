@@ -2632,20 +2632,24 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   *
   * As an important consequence,
   *
-  *   THE STATE OF THE DATA STRUCTURE IN MCFBlock WHEN THIS METHOD IS
-  *   EXECUTED IS PRECISELY THE ONE IN WHICH THE Modification WAS ISSUED:
-  *   NO COMPLCATED OPERATIONS (Variable AND/OR Constraint BEING
+  *   THE STATE OF THE DATA STRUCTURE IN ThermalUnitBlock WHEN THIS METHOD
+  *   IS EXECUTED IS PRECISELY THE ONE IN WHICH THE Modification WAS
+  *   ISSUED: NO COMPLCATED OPERATIONS (Variable AND/OR Constraint BEING
   *   ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE MEANTIME
   *
   * This assumption drastically simplifies some of the logic here.*/
 
  // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
+  // changing the Variable is not supported, but the Modification is issued
+  // when they are first generated, in which case it must be ignored
+  if( ! variables_generated() )
+   return;
+
   throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported"
 			   ) );
-
-  // FIXME: Only fix/unfix is supported for now
-  auto v = dynamic_cast<ColVariable * const>( tmod->variable() );
+  /*
+  auto v = dynamic_cast< ColVariable * const >( tmod->variable() );
 
   if( v->is_fixed() ) {
    // TODO: Do something to the physical representation
@@ -2653,7 +2657,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
    } else {
    // TODO: Do something to the physical representation
    }
-
+  */
   return;
   }
 
