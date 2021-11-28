@@ -83,17 +83,34 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // generate abstract representation if necessary
- b->generate_abstract_variables( nullptr );
- // b->generate_objective( nullptr );
+ // set active power variables, if any
+ if( auto pow_it = b->get_active_power( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; )
+   (pow_it++)->set_value( P[ i++ ] );
 
- // set active power and unit commitment variables
- auto pow_it = b->get_active_power( 0 );
- auto com_it = b->get_commitment( 0 );
+ // set unit commitment variables, if any
+ if( auto com_it = b->get_commitment( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; )
+   (com_it++)->set_value( U[ i++ ] ? 1 : 0 );
 
- for( Index i = 0 ; i < time_horizon ; ++i , ++pow_it , ++com_it ) {
-  pow_it->set_value( P[ i ] );
-  com_it->set_value( U[ i ] ? 1 : 0 );
+ // set start_up variables, if any
+ if( auto sup_it = b->get_start_up() ) {
+  // startup at 0 iif the unit was off at the start and it is on at 0
+  (sup_it++)->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
+
+  // startup at i iff the unit was off at i - 1 and it is on at i
+  for( Index i = 1 ; i < time_horizon ; ++i )
+   (sup_it++)->set_value( U[ i ] && ( ~ U[ i - 1 ] ) ? 1 : 0 );
+  }
+
+ // set shut_down variables, if any
+ if( auto sdn_it = b->get_shut_down() ) {
+  // shutdown at 0 iif the unit was on at the start and it is off at 0
+  (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ~ U[ 0 ]) ? 1 : 0 );
+
+  // shutdown at i iff the unit was on at i - 1 and it is off at i
+  for( Index i = 1 ; i < time_horizon ; ++i )
+   (sdn_it++)->set_value( ( ~ U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
   }
 
  // unlock the block

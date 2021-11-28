@@ -450,7 +450,6 @@ class ThermalUnitBlock : public UnitBlock {
  * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
  *   time constraints and one possible representation of the constraints could
  *   be as below:
- *
  *   \f[
  *     u_t - u_{t-1} = v_t - w_t
  *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}             \quad (1)
@@ -606,15 +605,11 @@ class ThermalUnitBlock : public UnitBlock {
  *   (0, ..., (f_time_horizon) - 1) and ensures the maximum(or minimum) amount
  *   of energy that unit can produce(or use) when it is on(or off).
  *   \f[
- *
  *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (6)
- *
  *   \f]
  *
  *   \f[
- *
  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (7)
- *
  *   \f]
  *
  *   The same as inequalities(6)-(7), the inequalities(8)-(9) ensure that
@@ -1200,49 +1195,58 @@ class ThermalUnitBlock : public UnitBlock {
  * - shut_down variables;
  *
  * @{ */
+
  /// returns the vector of commitment variables
+
  ColVariable * get_commitment( Index generator  ) override {
   if( v_commitment.empty() )
-   return nullptr;
+   return( nullptr );
   return &( v_commitment.front() );
- }
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
-   return nullptr;
-  return &( v_active_power.front() );
- }
+   return( nullptr );
+  return( &( v_active_power.front() ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_primary_spinning_reserve.front() );
- }
+   return( nullptr );
+  return( &( v_primary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_secondary_spinning_reserve.front() );
- }
-/*--------------------------------------------------------------------------*/
- /// returns the vector of start_up variables
- // const std::vector< ColVariable > & get_start_up() const {
- //  return v_start_up;
- //  }
- ColVariable * get_start_up() {
-  if( v_start_up.empty() )
-   return nullptr;
-  return &( v_start_up.front() );
- }
+   return( nullptr );
+  return( &( v_secondary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of shut_down variables
- const std::vector< ColVariable > & get_shut_down() const {
-  return v_shut_down;
+ /// returns the vector of start_up variables, or nullptr if not defined
+
+ ColVariable * get_start_up( void ) {
+  if( v_start_up.empty() )
+   return( nullptr );
+  return( &( v_start_up.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of shut_down variables, or nullptr if not defined
+
+ ColVariable * get_shut_down( void ) {
+  if( v_shut_down.empty() )
+   return( nullptr );
+  return( &( v_shut_down.front() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
