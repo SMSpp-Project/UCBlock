@@ -727,7 +727,8 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 {
  auto & time_horizon = f_solver->time_horizon;
 
- Index coeffsize = 4 * ( time_horizon - f_h + 1 );
+ // Index coeffsize = 4 * ( time_horizon - f_h + 1 );
+ Index coeffsize = 4 * time_horizon;
  if( coeffsize != coeffs.size() ) {
   coeffs.resize( coeffsize );
   m.resize( coeffsize + 2 );
