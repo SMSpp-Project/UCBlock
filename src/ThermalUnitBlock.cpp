@@ -981,66 +981,79 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::generate_objective( Configuration * objc ) {
-
+void ThermalUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
-  return; // Objective has already been generated
+  return;  // Objective has already been generated
 
- // Initialize objective function
-
- if( v_commitment.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_commitment must have "
+ // initialize Bbjective
+ //
+ // the order of the variables in the DQuadFunction is:
+ //
+ // - first f_time_horizon - init_t start-up variables
+ //
+ // - then f_time_horizon active power variables (which may have the
+ //   nonzero quadratic cost coefficient, while the others do not)
+ //
+ // - then f_time_horizon commitment variables
+ //
+ // - then possibly f_time_horizon primary reserve variables
+ //
+ // - then possibly f_time_horizon secondary reserve variables
+ //
+ // this arrangement is exploited in add_Modification to easily map
+ // indices in the coefficients of the DQuadFunction back into indices
+ // of the original variables (and figure out the kind of variable)
+ 
+ if( v_commitment.size() != f_time_horizon )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_commitment must have "
             "size equal to the time horizon." ) );
- }
- if( v_active_power.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_active_power must have "
-            "size equal to the time horizon." ) );
- }
 
- if( v_start_up.size() != f_time_horizon - init_t ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_start_up must have "
+ if( v_active_power.size() != f_time_horizon )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_active_power must have "
+            "size equal to the time horizon." ) );
+
+ if( v_start_up.size() != f_time_horizon - init_t )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_start_up must have "
             "size equal to the time horizon - init_t." ) );
- }
 
  auto dquad_function = new DQuadFunction();
 
- for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+ for( Index t = init_t ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_start_up[ t - init_t ] ,
                                 get_start_up_cost( t ) , 0.0 );
- }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_active_power[ t ] ,
                                 get_linear_term( t ) , get_quad_term( t ) );
 
+ for( Index t = init_t ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_commitment[ t ] ,
                                 get_const_term( t ) , 0.0 );
- }
 
- // Possibly add the primary and secondary spinning reserve variables
+ // possibly add the primary and secondary spinning reserve variables
 
  bool add_primary_reserve = false;
  bool add_secondary_reserve = false;
  auto config = dynamic_cast<SimpleConfiguration<int> *>( objc );
  if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-   ( f_BlockConfig->f_objective_Configuration );
+  config = dynamic_cast< SimpleConfiguration< int > * >(
+				 f_BlockConfig->f_objective_Configuration );
  if( config ) {
   add_primary_reserve = config->f_value & 1u;
   add_secondary_reserve = config->f_value & 2u;
- }
+  }
 
  if( ( ! v_primary_spinning_reserve.empty() ) && add_primary_reserve ) {
   // Add the primary spinning reserve variables
 
-  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+  if( v_primary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
                             "spinning_reserve must have size equal to the "
                             "time horizon." ) );
-  }
 
   if( v_primary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1049,16 +1062,15 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable( & v_primary_spinning_reserve[ t ] ,
                                   v_primary_spinning_reserve_cost[ t ] , 0 );
- }
+  }
 
  if( ( ! v_secondary_spinning_reserve.empty() ) && add_secondary_reserve ) {
   // Add the secondary spinning reserve variables
 
-  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+  if( v_secondary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
                             "_spinning_reserve must have size equal to the "
                             "time horizon." ) );
-  }
 
   if( v_secondary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1067,16 +1079,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] ,
                                   v_secondary_spinning_reserve_cost[ t ] , 0 );
- }
+  }
 
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
 
- // Set Block objective
+ // set Block objective
  this->set_objective( & objective );
 
  set_objective_generated();
-}  // end( ThermalUnitBlock::generate_objective )
+
+ }  // end( ThermalUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/
