@@ -1030,7 +1030,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   dquad_function->add_variable( & v_active_power[ t ] ,
                                 get_linear_term( t ) , get_quad_term( t ) );
 
- for( Index t = init_t ; t < f_time_horizon ; ++t )
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_commitment[ t ] ,
                                 get_const_term( t ) , 0.0 );
 

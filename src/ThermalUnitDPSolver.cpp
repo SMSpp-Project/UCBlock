@@ -21,6 +21,16 @@
  * \copyright &copy; Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
  */
 /*--------------------------------------------------------------------------*/
+/*------------------------------- MACROS -----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#define COMPUTE_DUALS 0
+/* If COMPUTE_DUALS > 0, the ED solver allocates more memory and store more
+ * information about the solution process in such a way as to make it possible
+ * to reconstruct the optimal dual solution in the end. However, this is not
+ * implemented yet, so that currently the setting makes no sense. */
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -727,13 +737,25 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 {
  auto & time_horizon = f_solver->time_horizon;
 
- // Index coeffsize = 4 * ( time_horizon - f_h + 1 );
- Index coeffsize = 4 * time_horizon;
+ #if( COMPUTE_DUALS )
+  Index coeffsize = time_horizon * time_horizon +f_h * f_h -
+                    2 * f_h * time_horizon;  
+ #else
+  // Index coeffsize = 4 * ( time_horizon - f_h + 1 );
+  // the theory says it should work, but it does not
+  Index coeffsize = 4 * time_horizon;
+ #endif
  if( coeffsize != coeffs.size() ) {
   coeffs.resize( coeffsize );
-  m.resize( coeffsize + 2 );
-  v.resize( 2 );
-  pos.resize( 2 );
+  #if( COMPUTE_DUALS )
+   m.resize( coeffsize + time_horizon - f_h );
+   v.resize( time_horizon );
+   pos.resize( time_horizon );
+  #else
+   m.resize( coeffsize + 2 );
+   v.resize( 2 );
+   pos.resize( 2 );
+  #endif
   unc_p.resize( time_horizon );
   con_p.resize( time_horizon );
   }
@@ -783,37 +805,35 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k
   }
 
- Index coeffcnt = 2 * ( time_horizon - f_h );
- // next free position in coeffs[]
- Index mcnt = 2 * ( time_horizon - f_h ) + 1;
- // next free position in m[]
- Index nextk = 1;     // next free position in v[], pos[]
- // since there are only two positions, nextk ping-pongs between 1 and 0
+ #if ( COMPUTE_DUALS )
+  Index mcnt = 2;
+  Index coeffcnt = 1;
+  v[ k ] = 0;
+  pos[ k ].begm = 0;
+  pos[ k ].begt = 0;
+ #else
+  Index coeffcnt = 2 * ( time_horizon - f_h );
+  // next free position in coeffs[]
+  Index mcnt = 2 * ( time_horizon - f_h ) + 1;
+  // next free position in m[]
+  Index nextk = 1;     // next free position in v[], pos[]
+  // since there are only two positions, nextk ping-pongs between 1 and 0
 
- v[ 0 ] = 0;
-
- // initialize the vector pos containing the initial indices of the pieces.
- pos[ 0 ].begm = 0;
- pos[ 0 ].begt = 0;
+  v[ 0 ] = 0;
+  // initialize the vector pos containing the initial indices of the pieces.
+  pos[ 0 ].begm = 0;
+  pos[ 0 ].begt = 0;
+ #endif 
 
  // initialize the vector of unconstrained power values, i.e., 
  // power values are not constrained by bound_down[ k ]
  if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
-  if( coeffs[ 0 ].beta <= 0 )
-   unc_p[ k ] = m[ 1 ];
-  else
-   unc_p[ k ] = m[ 0 ];
- else {
-  // tmp is p^*_{hk}
-  double tmp = -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa );
-  if( tmp < m[ 0 ] )
-   unc_p[ k ] = m[ 0 ];
-  else
-   if( tmp > m[ 1 ] )
-    unc_p[ k ] = m[ 1 ];
-   else
-    unc_p[ k ] = tmp;
-  }
+  unc_p[ k ] = ( coeffs[ 0 ].beta <= 0 ? m[ 1 ] : m[ 0 ] );
+ else
+  unc_p[ k ] = std::min( m[ 1 ] ,
+			 std::max( m[ 0 ] ,
+				   -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa )
+				   ) );
 
  /* Initialize the vector of constrained power values, that will be
   * computed at each iteration.
@@ -834,13 +854,20 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    * the z_{hk}(\bar{p}) objective function. Such endpoint will be saved in
    * the m vector. */
 
-  pos[ nextk ].begm = mcnt;
-  pos[ nextk ].begt = coeffcnt;
+  #if( COMPUTE_DUALS )
+   pos[ k ].begm = mcnt;
+   pos[ k ].begt = coeffcnt;
 
-  if( min_power[ k ] > m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ] )
-   m[ mcnt ] = min_power[ k ];
-  else
-   m[ mcnt ] = m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ];
+   m[ mcnt ] = std::max( min_power[ k ] ,
+			 m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] );
+  #else
+   pos[ nextk ].begm = mcnt;
+   pos[ nextk ].begt = coeffcnt;
+
+   m[ mcnt ] = std::max( min_power[ k ] ,
+			 m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ]
+			 );
+  #endif
 
   double p_bar = m[ mcnt ];  // \bar{m}_0
   Index v_bar = 0;           // after the case 3 will contain v[ k ]
@@ -849,29 +876,36 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   double pstar;  // p^*(\bar{p})
 
-  if( p_bar < unc_p[ k - 1 ] ) {
-   pstar = p_bar + delta_ramp_down[ k - 1 ];
-   if( pstar > unc_p[ k - 1 ] )
-    pstar = unc_p[ k - 1 ];
-   }
-  else {
-   pstar = p_bar - delta_ramp_up[ k - 1 ];
-   if( pstar < unc_p[ k - 1 ] )
-    pstar = unc_p[ k - 1 ];
-   }
+  if( p_bar < unc_p[ k - 1 ] )
+   pstar = std::min( unc_p[ k - 1 ] , p_bar + delta_ramp_down[ k - 1 ] );
+  else
+   pstar = std::max( unc_p[ k - 1 ] , p_bar - delta_ramp_up[ k - 1 ] );
 
-  Index qm = pos[ 1 - nextk ].begm;
-  Index poslim = pos[ 1 - nextk ].begm + ( v[ 1 - nextk ] + 1 ) + 1 - 2;
+  #if( COMPUTE_DUALS )
+   Index qm = pos[ k - 1 ].begm;
   
-  while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
-   ++qm;
+   while( ( pstar >= m[ qm + 1 ] ) && ( qm < pos[ k ].begm - 2 ) )
+    ++qm;
 
-  Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;    
+   Index q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;    
 
-  // compute the last endpoint of the piece, \bar{u}
-  double u_bar = std::min( max_power[ k ] ,
-			   m[ pos[ 1 - nextk ].begm + v[ 1 - nextk ] + 1 ]
-			   + delta_ramp_up[ k - 1 ] );
+   // compute the last endpoint of the piece, \bar{u}
+   double u_bar = std::min( max_power[ k ] ,
+			    m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
+  #else
+   Index qm = pos[ 1 - nextk ].begm;
+   Index poslim = pos[ 1 - nextk ].begm + ( v[ 1 - nextk ] + 1 ) + 1 - 2;
+  
+   while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
+    ++qm;
+
+   Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;    
+
+   // compute the last endpoint of the piece, \bar{u}
+   double u_bar = std::min( max_power[ k ] ,
+			    m[ pos[ 1 - nextk ].begm + v[ 1 - nextk ] + 1 ]
+			    + delta_ramp_up[ k - 1 ] );
+  #endif
   ++mcnt;
 
   bool firstTime = true;
@@ -917,11 +951,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
       unc_p[ k ] = m[ mcnt - 2 ];
      // else do nothing, the function is still decreasing in the next interval
      }
-    else {
-     unc_p[ k ] = - coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] )
-      unc_p[ k ] = m[ mcnt - 2 ];
-     }
+    else
+     unc_p[ k ] = std::max( m[ mcnt - 2 ] ,
+	        - coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa ) );
     firstTime = false;
     }
 
@@ -956,11 +988,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
       unc_p[ k ] = m[ mcnt - 2 ];
      // else do nothing, the function is still decreasing in the next interval
      }
-    else {
-     unc_p[ k ] = -coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] )
-      unc_p[ k ] = m[ mcnt - 2 ];
-     }
+    else
+     unc_p[ k ] = std::max( m[ mcnt - 2 ] ,
+		- coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa ) );
     firstTime = false;
     }
 
@@ -997,11 +1027,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
       unc_p[ k ] = m[ mcnt - 2 ];
      // else do nothing, the function is still decreasing in the next interval
      }
-    else {
-     unc_p[ k ] = - coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa );
-     if( unc_p[ k ] < m[ mcnt - 2 ] )
-      unc_p[ k ] = m[ mcnt - 2 ];
-     }
+    else
+     unc_p[ k ] = std::max( m[ mcnt - 2 ] ,
+		- coeffs[ coeffcnt ].beta / ( 2 * coeffs[ coeffcnt ].alfa ) );
     firstTime = false;
     }
 
@@ -1011,7 +1039,11 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  v[ nextk ] = v_bar - 1;
+  #if( COMPUTE_DUALS )
+   v[ k ] = v_bar - 1;
+  #else
+   v[ nextk ] = v_bar - 1;
+  #endif
 
   if( firstTime )  // function is strictly decreasing
    unc_p[ k ] = u_bar;
@@ -1032,16 +1064,24 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
  
   // compute the cost for the node (h,k) in costs[]
 
-  qm = pos[ nextk ].begm;
+  #if( COMPUTE_DUALS ) 
+    qm = pos[ k ].begm;
+  #else
+    qm = pos[ nextk ].begm;
+  #endif
 
   //?? while( ( con_p[ k ] > m[ qm + 1 ] ) && ( m[ qm + 1 ] != 0 ) )
   while( con_p[ k ] > m[ qm + 1 ] )
    ++qm;
 
-  q = qm - pos[ nextk ].begm + pos[ nextk ].begt;
-  nextk = 1 - nextk;
-  coeffcnt = nextk * ( 2 * time_horizon - f_h );
-  mcnt     = nextk * ( ( 2 * time_horizon - f_h ) + 1 );
+  #if( COMPUTE_DUALS )
+   q = qm - pos[ k ].begm + pos[ k ].begt;
+  #else
+   q = qm - pos[ nextk ].begm + pos[ nextk ].begt;
+   nextk = 1 - nextk;
+   coeffcnt = nextk * ( 2 * time_horizon - f_h );
+   mcnt     = nextk * ( ( 2 * time_horizon - f_h ) + 1 );
+  #endif
 
   costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
                coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
