@@ -1794,8 +1794,7 @@ private:
 
  void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
- void handle_single_objective_change( Index i , ChnlName chnl ,
-				      const DQuadFunction * qf );
+ void handle_objective_change( FunctionMod * mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

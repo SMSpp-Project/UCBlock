@@ -606,11 +606,10 @@ void ThermalUnitDPSolver::process_modifications( void )
 
  // process all the Modifications
  for( auto mod : v_mod )
-  if( guts_of_process_modifications( mod.get() ) ) {
-   // if a reset is done, all the remaining Modifications can be ignored
-   v_mod.clear();
-   break;
-   }
+  if( guts_of_process_modifications( mod.get() ) )
+   break;  // if a reset is done, ignore all the remaining Modifications 
+
+ v_mod.clear();  // all Modifications tackled, clear the list
 
  f_mod_lock.clear( std::memory_order_release );  // release lock
 
