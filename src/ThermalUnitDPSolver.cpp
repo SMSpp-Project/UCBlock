@@ -24,7 +24,7 @@
 /*------------------------------- MACROS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define COMPUTE_DUALS 0
+#define COMPUTE_DUALS 1
 /* If COMPUTE_DUALS > 0, the ED solver allocates more memory and store more
  * information about the solution process in such a way as to make it possible
  * to reconstruct the optimal dual solution in the end. However, this is not
@@ -893,10 +893,20 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 			    m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
   #else
    Index qm = pos[ 1 - nextk ].begm;
+   /*!!
    Index poslim = pos[ 1 - nextk ].begm + ( v[ 1 - nextk ] + 1 ) + 1 - 2;
   
    while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
     ++qm;
+    !!*/
+
+   if( ( v[ 1 - nextk ] >= 0 ) ||
+       ( pos[ 1 - nextk ].begm > - v[ 1 - nextk ] ) ) {
+    Index poslim = pos[ 1 - nextk ].begm + v[ 1 - nextk ];
+
+    while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
+     ++qm;
+    }
 
    Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;    
 
