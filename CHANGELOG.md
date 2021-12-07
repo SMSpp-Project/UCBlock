@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Bugs in deserealization.
+- Bugs in deserialization.
 - Bug in the Objective of ThermalUnitBlock.
+- Bugs in Constraints.
 - Bugs in methods that are used to retrieve data.
+- Bugs in methods to change the physical representation.
 
 ## [0.5.0] - 2021-05-02
 
