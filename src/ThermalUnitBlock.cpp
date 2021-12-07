@@ -4,29 +4,21 @@
 /** @file
  * Implementation of the ThermalUnitBlock class.
  *
- * \version 0.11
- *
- * \date 29 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                    Rafael Durbano Lobato
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -35,15 +27,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <iostream>
-#include <random>
-#include <map>
-
-#include "DQuadFunction.h"
-#include "FRealObjective.h"
 #include "LinearFunction.h"
 #include "ThermalUnitBlock.h"
-#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -996,66 +981,79 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::generate_objective( Configuration * objc ) {
-
+void ThermalUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
-  return; // Objective has already been generated
+  return;  // Objective has already been generated
 
- // Initialize objective function
-
- if( v_commitment.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_commitment must have "
+ // initialize Bbjective
+ //
+ // the order of the variables in the DQuadFunction is:
+ //
+ // - first f_time_horizon - init_t start-up variables
+ //
+ // - then f_time_horizon active power variables (which may have the
+ //   nonzero quadratic cost coefficient, while the others do not)
+ //
+ // - then f_time_horizon commitment variables
+ //
+ // - then possibly f_time_horizon primary reserve variables
+ //
+ // - then possibly f_time_horizon secondary reserve variables
+ //
+ // this arrangement is exploited in add_Modification to easily map
+ // indices in the coefficients of the DQuadFunction back into indices
+ // of the original variables (and figure out the kind of variable)
+ 
+ if( v_commitment.size() != f_time_horizon )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_commitment must have "
             "size equal to the time horizon." ) );
- }
- if( v_active_power.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_active_power must have "
-            "size equal to the time horizon." ) );
- }
 
- if( v_start_up.size() != f_time_horizon - init_t ) {
-  throw ( std::logic_error
-          ( "ThermalUnitBlock::generate_objective: v_start_up must have "
+ if( v_active_power.size() != f_time_horizon )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_active_power must have "
+            "size equal to the time horizon." ) );
+
+ if( v_start_up.size() != f_time_horizon - init_t )
+  throw( std::logic_error(
+	    "ThermalUnitBlock::generate_objective: v_start_up must have "
             "size equal to the time horizon - init_t." ) );
- }
 
  auto dquad_function = new DQuadFunction();
 
- for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+ for( Index t = init_t ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_start_up[ t - init_t ] ,
                                 get_start_up_cost( t ) , 0.0 );
- }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_active_power[ t ] ,
                                 get_linear_term( t ) , get_quad_term( t ) );
 
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_commitment[ t ] ,
                                 get_const_term( t ) , 0.0 );
- }
 
- // Possibly add the primary and secondary spinning reserve variables
+ // possibly add the primary and secondary spinning reserve variables
 
  bool add_primary_reserve = false;
  bool add_secondary_reserve = false;
  auto config = dynamic_cast<SimpleConfiguration<int> *>( objc );
  if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-   ( f_BlockConfig->f_objective_Configuration );
+  config = dynamic_cast< SimpleConfiguration< int > * >(
+				 f_BlockConfig->f_objective_Configuration );
  if( config ) {
   add_primary_reserve = config->f_value & 1u;
   add_secondary_reserve = config->f_value & 2u;
- }
+  }
 
  if( ( ! v_primary_spinning_reserve.empty() ) && add_primary_reserve ) {
   // Add the primary spinning reserve variables
 
-  if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+  if( v_primary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
                             "spinning_reserve must have size equal to the "
                             "time horizon." ) );
-  }
 
   if( v_primary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1064,16 +1062,15 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable( & v_primary_spinning_reserve[ t ] ,
                                   v_primary_spinning_reserve_cost[ t ] , 0 );
- }
+  }
 
  if( ( ! v_secondary_spinning_reserve.empty() ) && add_secondary_reserve ) {
   // Add the secondary spinning reserve variables
 
-  if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+  if( v_secondary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
                             "_spinning_reserve must have size equal to the "
                             "time horizon." ) );
-  }
 
   if( v_secondary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1082,16 +1079,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] ,
                                   v_secondary_spinning_reserve_cost[ t ] , 0 );
- }
+  }
 
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
 
- // Set Block objective
+ // set Block objective
  this->set_objective( & objective );
 
  set_objective_generated();
-}  // end( ThermalUnitBlock::generate_objective )
+
+ }  // end( ThermalUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/
@@ -1155,162 +1153,21 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl ) {
-
- auto guts = [this]( p_Mod mod , ChnlName chnl ) {
-
-  // VariableMod
-  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
-   // FIXME: Only fix/unfix is supported for now
-   auto v = dynamic_cast<ColVariable * const>( tmod->variable() );
-
-   if( v->is_fixed() ) {
-    // TODO: Do something to the physical representation
-
-   } else {
-    // TODO: Do something to the physical representation
-   }
-
-   return;
-  }
-
-  // BlockMod - Generic modification
-  // Note: at the moment it's used only for changing the OF
-  if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
-   // TODO: BlockMod - obj changed
-
-   return;
-  }
-
-  // C05FunctionModLinRngd - change in the linear part of a Function
-  if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) ) {
-
-   auto f = tmod->function();
-   if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
-    // C05FunctionModLinRngd on Objective
-
-    if( const auto * lf = dynamic_cast<const LinearFunction *> (f) ) {
-     // TODO: This doesn't happen (for now) because OF is always DQuadFunction
-     //       Revise when also LinearFunction OFs are considered
-     return;
-    }
-
-    if( const auto * qf = dynamic_cast<const DQuadFunction *> (f) ) {
-     // TODO: Take indices of modified variables and
-     //       update, if necessary startup_costs, Lin/Quad/Const term
-
-     if( !objective_generated() ) {
-      throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
-                                   "Objective was not generated" );
-     }
-
-     if( tmod->range().first < tmod->range().second &&
-         tmod->range().second > qf->get_num_active_var() )
-      throw std::invalid_argument
-       ( "ThermalUnitBlock::add_Modification: Range of Variable indices is "
-         "not valid: [" + std::to_string( tmod->range().first ) + ", " +
-         std::to_string( tmod->range().second ) + ")." );
-
-     // TODO: This code is not optimized to use the ranges.
-     //       It should split the tmod->range() in subranges and use
-     //       the ranged physical modifications.
-     for( Index i = tmod->range().first; i < tmod->range().second; ++i ) {
-      if( i < get_time_horizon() - init_t ) {
-       // It's a startup variable
-
-       std::vector< double > new_value( 1, qf->get_linear_coefficient( i ) );
-       Block::Subset idx( 1, i );
-       set_startup_costs( new_value.begin(),
-                          std::move( idx ),
-                          true,
-                          make_par( eNoBlck, chnl ),
-                          eDryRun );
-
-      } else if( i < 2 * get_time_horizon() - init_t ) {
-       // It's an active power variable
-
-       std::vector< double > new_lt( 1, qf->get_linear_coefficient( i ) );
-       Block::Subset idx1( 1, i - ( get_time_horizon() - init_t ) );
-       set_linear_term( new_lt.begin(),
-                        std::move( idx1 ),
-                        true,
-                        make_par( eNoBlck, chnl ),
-                        eDryRun );
-
-       std::vector< double > new_qt( 1, qf->get_quadratic_coefficient( i ) );
-       Block::Subset idx2( 1, i - ( get_time_horizon() - init_t ) );
-       set_quad_term( new_qt.begin(),
-                      std::move( idx2 ),
-                      true,
-                      make_par( eNoBlck, chnl ),
-                      eDryRun );
-
-      } else if( i < 3 * get_time_horizon() - init_t ) {
-       // It's a unit committment variable
-
-       std::vector< double > new_value( 1, qf->get_linear_coefficient( i ) );
-       Block::Subset idx( 1, i - ( 2 * get_time_horizon() - init_t ) );
-       set_const_term( new_value.begin(),
-                       std::move( idx ),
-                       true,
-                       make_par( eNoBlck, chnl ),
-                       eDryRun );
-
-      } else if( i < 4 * get_time_horizon() - init_t ) {
-       // It's a primary spinning reserve variable
-
-       std::vector< double > new_value( 1 , qf->get_linear_coefficient( i ) );
-       Block::Subset idx( 1 , i - ( 3 * get_time_horizon() - init_t ) );
-       set_primary_spinning_reserve_cost( new_value.begin() , std::move( idx ) ,
-                                          true , make_par( eNoBlck , chnl ) ,
-                                          eDryRun );
-      } else if( i < 5 * get_time_horizon() - init_t ) {
-       // It's a secondary spinning reserve variable
-
-       std::vector< double > new_value( 1 , qf->get_linear_coefficient( i ) );
-       Block::Subset idx( 1 , i - ( 4 * get_time_horizon() - init_t ) );
-       set_secondary_spinning_reserve_cost
-        ( new_value.begin() , std::move( idx ) , true ,
-          make_par( eNoBlck , chnl ) , eDryRun );
-      } else {
-       throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
-                                    "Variable index is not valid: " +
-                                    std::to_string( i ) );
-      }
-     }
-
-     return;
-    }
-
-
-    // This should never happen
-    throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
-                                 "Unknown type of Objective Function" );
-   } else {
-    // C05FunctionModLinRngd on Constraint
-    // TODO
-   }
-
-   return;
-  }
-
-  throw std::invalid_argument( "ThermalUnitBlock::add_Modification: "
-                               "unsupported Modification" );
- };
-
+void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl )
+{
  if( mod->concerns_Block() ) {
   mod->concerns_Block( false );
-  guts( mod.get(), chnl );
- }
+  guts_of_add_Modification( mod.get() , chnl );
+  }
 
  Block::add_Modification( mod, chnl );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::update_availability_dependents
-( Index t , c_ModParam issueAMod ) {
-
+void ThermalUnitBlock::update_availability_dependents( Index t ,
+						       c_ModParam issueAMod )
+{
  if( ! constraints_generated() )
   return;
 
@@ -2693,10 +2550,10 @@ void ThermalUnitBlock::set_init_updown_time
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_init_updown_time
-( std::vector< int >::const_iterator values , Block::Range rng ,
- c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void ThermalUnitBlock::set_init_updown_time(
+	      std::vector< int >::const_iterator values , Block::Range rng ,
+	      c_ModParam issuePMod , c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
@@ -2728,7 +2585,8 @@ void ThermalUnitBlock::set_init_updown_time
 /*--------------------------------------------------------------------------*/
 
 template< typename T >
-void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
+void ThermalUnitBlock::decompress_vector( std::vector< T > & v )
+{
  if( v.empty() )
   return;
 
@@ -2771,6 +2629,318 @@ void ThermalUnitBlock::decompress_vector( std::vector< T > & v ) {
   }
  }
 } // end( ThermalUnitBlock::decompress_vector )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
+{
+ // process abstract Modification - - - - - - - - - - - - - - - - - - - - - -
+ /* This requires to patiently sift through the possible Modification types
+  * to find what this Modification exactly is and appropriately mirror the
+  * changes to the "abstract representation" to the "physical one".
+  *
+  * Note that since ThermalUnitBlock is a "leaf" Block (has no sub-Block),
+  * this method does not have to deal with GroupModification since these
+  * are produced by Block::add_Modification(), but this method is called
+  * *before* that one is.
+  *
+  * As an important consequence,
+  *
+  *   THE STATE OF THE DATA STRUCTURE IN ThermalUnitBlock WHEN THIS METHOD
+  *   IS EXECUTED IS PRECISELY THE ONE IN WHICH THE Modification WAS
+  *   ISSUED: NO COMPLCATED OPERATIONS (Variable AND/OR Constraint BEING
+  *   ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE MEANTIME
+  *
+  * This assumption drastically simplifies some of the logic here.*/
+
+ // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
+  // changing the Variable is not supported, but the Modification is issued
+  // when they are first generated, in which case it must be ignored
+  if( ! variables_generated() )
+   return;
+
+  throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported"
+			   ) );
+  /*
+  auto v = dynamic_cast< ColVariable * const >( tmod->variable() );
+
+  if( v->is_fixed() ) {
+   // TODO: Do something to the physical representation
+
+   } else {
+   // TODO: Do something to the physical representation
+   }
+  */
+  return;
+  }
+
+ // BlockMod - Generic modification - - - - - - - - - - - - - - - - - - - - -
+ if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
+  // changing the Objective is not supported, but the Modification is issued
+  // when it is first set, in which case it must be ignored
+  if( ! objective_generated() )
+   return;
+
+  throw( std::logic_error( "ThermalUnitBlock - BlockMod not supported" ) );
+
+  // TODO: BlockMod - obj changed
+  return;
+  }
+
+ // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( const auto tmod = dynamic_cast< FunctionMod * >( mod ) ) {
+  auto f = tmod->function();
+  if( f == static_cast< FRealObjective * >( get_objective() )->get_function()
+      ) {
+   handle_objective_change( tmod , chnl );
+   return;
+   }
+
+  std::ostringstream em;
+  em << *mod;
+  throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str()
+				) );
+  return;
+  }
+
+ // any other Modification is not supported - - - - - - - - - - - - - - - - -
+
+ std::ostringstream em;
+ em << *mod;
+ throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str()
+			       ) );
+
+ }  // end( ThermalUnitBlock::guts_of_add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
+						ChnlName chnl )
+{
+ const auto * qf = static_cast< const DQuadFunction * >( mod->function() );
+ auto par = make_par( eNoBlck , chnl );
+ Index th = get_time_horizon();
+
+ // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // split the C05FunctionModLinRngd in up to 5 physical Modification by
+ // calling the appropriate set_*() methods (ranged version) for those among
+ // startup, power, commitment, primary/secondary reserve variables whose
+ // coefficient change. this heavily relies on the fact that variables of
+ // the same type are consecutive (and ordered in the obvious way) when
+ // set as coefficients in the Objective
+
+ if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) ) {
+
+  Index l = tmod->range().first;
+  Index r = tmod->range().second;
+
+  if( tmod->range().second > qf->get_num_active_var() )
+   throw( std::invalid_argument(
+	 "ThermalUnitBlock: invalid Range [" + std::to_string( l ) + ", "
+	 + std::to_string( r ) + ") in C05FunctionModLinRngd" ) );
+
+  std::vector< double > nv( r - l + 1 );
+  Index gl = 0;
+  Index gr = th - init_t;
+
+  if( l < gr ) {  // startup variables
+   Index r2 = std::min( r , gr );
+   auto nvit = nv.begin();
+   for( Index i = l ; i < r2 ; )
+    *(nvit++) = qf->get_linear_coefficient( i++ );
+   set_startup_costs( nv.begin() , Range( l , r2 ) , par , eDryRun );
+   l = r2;
+   if( l == r )
+    return;
+   }
+
+  gl = gr;
+  gr = 2 * th - init_t;
+  
+  if( l < gr ) {  // active power variables
+   Index r2 = std::min( r , gr );
+   auto nvit = nv.begin();
+   for( Index i = l ; i < r2 ; )
+    *(nvit++) = qf->get_linear_coefficient( i++ );
+   set_linear_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+   l = r2;
+   if( l == r )
+    return;
+   }
+
+  gl = gr;
+  gr = 3 * th - init_t;
+
+  if( l < gr ) {  // committment variables
+   Index r2 = std::min( r , gr );
+   auto nvit = nv.begin();
+   for( Index i = l ; i < r2 ; )
+    *(nvit++) = qf->get_linear_coefficient( i++ );
+   set_const_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+   l = r2;
+   if( l == r )
+    return;
+   }
+
+  gl = gr;
+  gr = 4 * th - init_t;
+
+  if( l < gr ) {  // primary spinning reserve variables
+   Index r2 = std::min( r , gr );
+   auto nvit = nv.begin();
+   for( Index i = l ; i < r2 ; )
+    *(nvit++) = qf->get_linear_coefficient( i++ );
+   set_primary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
+				      par , eDryRun );
+   l = r2;
+   if( l == r )
+    return;
+   }
+
+  gl = gr;
+  gr = 5 * th - init_t;
+
+  if( l < gr ) {  // secondary spinning reserve variables
+   Index r2 = std::min( r , gr );
+   auto nvit = nv.begin();
+   for( Index i = l ; i < r2 ; )
+    *(nvit++) = qf->get_linear_coefficient( i++ );
+   set_secondary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
+					par , eDryRun );
+   if( r2 == r )
+    return;
+   }
+
+  throw( std::invalid_argument(
+           "ThermalUnitBlock: invalid variable in C05FunctionModLinRngd" ) );
+  return;
+
+  }  // end( C05FunctionModLinRngd )
+
+ // C05FunctionModLinSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // split the C05FunctionModLinSbst in up to 5 physical Modification by
+ // calling the appropriate set_*() methods (subset version) for those among
+ // startup, power, commitment, primary/secondary reserve variables whose
+ // coefficient change. this heavily relies on the fact that variables of
+ // the same type are consecutive (and ordered in the obvious way) when
+ // set as coefficients in the Objective
+
+ if( const auto tmod = dynamic_cast< C05FunctionModLinSbst * >( mod ) ) {
+
+  if( tmod->subset().back() > qf->get_num_active_var() )
+   throw( std::invalid_argument(
+	      "ThermalUnitBlock: invalid Subset in C05FunctionModLinSbst" ) );
+
+  std::vector< double > nv( tmod->subset().size() );
+  auto l = tmod->subset().begin();
+  Index gl = 0;
+  Index gr = th - init_t;
+
+  if( *l < gr ) {  // startup variables
+   auto r = l;
+   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+    ++r;
+   Subset nms( std::distance( l , r ) );
+   auto nvit = nv.begin();
+   auto nmsit = nms.begin();
+   while( l != r ) {
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++);
+    }
+   set_startup_costs( nv.begin() , std::move( nms ) , true , par , eDryRun );
+   if( r == tmod->subset().end() )
+    return;
+   }
+
+  gl = gr;
+  gr = 2 * th - init_t;
+
+  if( *l < gr ) {  // active power variables
+   auto r = l;
+   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+    ++r;
+   Subset nms( std::distance( l , r ) );
+   auto nvit = nv.begin();
+   auto nmsit = nms.begin();
+   while( l != r ) {
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
+    }
+   set_linear_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
+   if( r == tmod->subset().end() )
+    return;
+   }
+
+  gl = gr;
+  gr = 3 * th - init_t;
+
+  if( *l < gr ) {  // committment variables
+   auto r = l;
+   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+    ++r;
+   Subset nms( std::distance( l , r ) );
+   auto nvit = nv.begin();
+   auto nmsit = nms.begin();
+   while( l != r ) {
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
+    }
+   set_const_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
+   if( r == tmod->subset().end() )
+    return;
+   }
+
+  gl = gr;
+  gr = 4 * th - init_t;
+
+  if( *l < gr ) {  // primary spinning reserve variables
+   auto r = l;
+   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+    ++r;
+   Subset nms( std::distance( l , r ) );
+   auto nvit = nv.begin();
+   auto nmsit = nms.begin();
+   while( l != r ) {
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
+    }
+   set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
+				      true , par , eDryRun );
+   if( r == tmod->subset().end() )
+    return;
+   }
+
+  gl = gr;
+  gr = 5 * th - init_t;
+
+  if( *l < gr ) {  // secondary spinning reserve variables
+   auto r = l;
+   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+    ++r;
+   Subset nms( std::distance( l , r ) );
+   auto nvit = nv.begin();
+   auto nmsit = nms.begin();
+   while( l != r ) {
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
+    }
+   set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
+					true , par , eDryRun );
+   }
+
+  if( l != tmod->subset().end() )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: invalid variable in C05FunctionModLinSbst" ) );
+  return;
+
+  }  // end( C05FunctionModLinSbst )
+
+
+ throw( std::invalid_argument(
+	     "ThermalUnitBlock:: unsupported FunctionMod from Objective" ) );
+
+ }  // end( ThermalUnitBlock::handle_objective_change )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File ThermalUnitBlock.cpp ------------------------*/

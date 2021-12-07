@@ -7,27 +7,20 @@
  * of a Unit Commitment Problem. A ThermalUnitBlock corresponds to a single
  * electrical generator.
  *
- * \version 0.11
- *
- * \date 29 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                    Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -35,7 +28,6 @@
 
 #ifndef __ThermalUnitBlock
  #define __ThermalUnitBlock
-
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -405,7 +397,7 @@ class ThermalUnitBlock : public UnitBlock {
  * Note that there may be other formulations (like the DP one), which will
  * possibly be implemented in the future. */
 
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the ThermalUnitBlock
@@ -458,7 +450,6 @@ class ThermalUnitBlock : public UnitBlock {
  * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
  *   time constraints and one possible representation of the constraints could
  *   be as below:
- *
  *   \f[
  *     u_t - u_{t-1} = v_t - w_t
  *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}             \quad (1)
@@ -614,15 +605,11 @@ class ThermalUnitBlock : public UnitBlock {
  *   (0, ..., (f_time_horizon) - 1) and ensures the maximum(or minimum) amount
  *   of energy that unit can produce(or use) when it is on(or off).
  *   \f[
- *
  *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (6)
- *
  *   \f]
  *
  *   \f[
- *
  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (7)
- *
  *   \f]
  *
  *   The same as inequalities(6)-(7), the inequalities(8)-(9) ensure that
@@ -909,87 +896,79 @@ class ThermalUnitBlock : public UnitBlock {
   *
   * where Availability[ t ] denotes the availability of the unit at time t. */
 
- const std::vector< double > & get_availability() const {
-  return v_Availability;
- }
+ const std::vector< double > & get_availability( void ) const {
+  return( v_Availability );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the availability of the unit at the given time \t
+
  double get_availability( Index t ) const {
   if( v_Availability.empty() )
-   return 1.0;
+   return( 1.0 );
   assert( t < get_time_horizon() );
-  return v_Availability[ t ];
- }
+  return( v_Availability[ t ] );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary rho
  /** The returned vector contains the primary rho at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_primary_rho() const {
-  return v_PrimaryRho;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_primary_rho( void ) const {
+  return( v_PrimaryRho );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary rho
  /** The returned vector contains the secondary rho at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_secondary_rho() const {
-  return v_SecondaryRho;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_secondary_rho( void ) const {
+  return( v_SecondaryRho );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary spinning reserve costs
  /** This function returns the vector of primary spinning reserve costs. If it
   * is empty, then the costs are all zero. Otherwise, it has size
   * get_time_horizon() and its t-th element is the linear cost of the primary
   * spinning reserve variable at time t.
   *
-  * @return The vector containing the primary spinning reserve costs.
-  */
- const std::vector< double > & get_primary_spinning_reserve_cost() const {
-  return v_primary_spinning_reserve_cost;
- }
+  * @return The vector containing the primary spinning reserve costs. */
+
+ const std::vector< double > & get_primary_spinning_reserve_cost( void )
+  const { return( v_primary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary spinning reserve costs
  /** This function returns the vector of secondary spinning reserve costs. If
   * it is empty, then the costs are all zero. Otherwise, it has size
   * get_time_horizon() and its t-th element is the linear cost of the
   * secondary spinning reserve variable at time t.
   *
-  * @return The vector containing the secondary spinning reserve costs.
-  */
- const std::vector< double > & get_secondary_spinning_reserve_cost() const {
-  return v_secondary_spinning_reserve_cost;
- }
+  * @return The vector containing the secondary spinning reserve costs. */
+
+ const std::vector< double > & get_secondary_spinning_reserve_cost( void )
+  const { return( v_secondary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_delta_ramp_up() const {
-  return v_DeltaRampUp;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_delta_ramp_up( void ) const {
+  return( v_DeltaRampUp );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon().
-  */
- const std::vector< double > & get_delta_ramp_down() const {
-  return v_DeltaRampDown;
- }
+  * The size of the vector is always get_time_horizon(). */
+
+ const std::vector< double > & get_delta_ramp_down( void ) const {
+  return( v_DeltaRampDown );
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the vector of quadratic term
@@ -1004,7 +983,9 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of quadratic term at time t.  */
 
- const std::vector< double > & get_quad_term() const { return( v_QuadTerm ); }
+ const std::vector< double > & get_quad_term( void ) const {
+  return( v_QuadTerm );
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the coefficient of the quadratic term of the power cost function
@@ -1020,7 +1001,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_quad_term( Index t ) const {
   if( v_QuadTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_QuadTerm.size() == 1 )
    return( v_QuadTerm.front() );
   assert( v_QuadTerm.size() == f_time_horizon );
@@ -1043,7 +1024,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of linear term at time t.  */
 
- const std::vector< double > & get_linear_term() const {
+ const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
   }
 
@@ -1061,7 +1042,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_linear_term( Index t ) const {
   if( v_LinearTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_LinearTerm.size() == 1 )
    return( v_LinearTerm.front() );
   assert( v_LinearTerm.size() == f_time_horizon );
@@ -1084,7 +1065,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the amount of constant term at time t.  */
 
- const std::vector< double > & get_const_term() const {
+ const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
   }
 
@@ -1101,7 +1082,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_const_term( Index t ) const {
   if( v_ConstTerm.empty() )
-   return 0;
+   return( 0 );
   if( v_ConstTerm.size() == 1 )
    return( v_ConstTerm.front() );
   assert( v_ConstTerm.size() == f_time_horizon );
@@ -1124,7 +1105,7 @@ class ThermalUnitBlock : public UnitBlock {
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the start up cost value at time t.  */
 
- const std::vector< double > & get_start_up_cost() const {
+ const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
   }
 
@@ -1139,7 +1120,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  double get_start_up_cost( Index t ) const {
   if( v_StartUpCost.empty() )
-   return 0;
+   return( 0 );
   if( v_StartUpCost.size() == 1 )
    return( v_StartUpCost.front() );
   assert( v_StartUpCost.size() == f_time_horizon );
@@ -1167,8 +1148,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  double * get_fixed_consumption( Index generator ) override {
   if( v_fixed_consumption.empty() )
-   return nullptr;
-  return & ( v_fixed_consumption.front() );
+   return( nullptr );
+  return( & ( v_fixed_consumption.front() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1189,8 +1170,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  double * get_inertia_commitment( Index generator ) override {
   if( v_inertia_commitment.empty() )
-   return nullptr;
-  return & ( v_inertia_commitment.front() );
+   return( nullptr );
+  return( & ( v_inertia_commitment.front() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1214,49 +1195,67 @@ class ThermalUnitBlock : public UnitBlock {
  * - shut_down variables;
  *
  * @{ */
+
  /// returns the vector of commitment variables
+
  ColVariable * get_commitment( Index generator  ) override {
   if( v_commitment.empty() )
-   return nullptr;
+   return( nullptr );
   return &( v_commitment.front() );
- }
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
-   return nullptr;
-  return &( v_active_power.front() );
- }
+   return( nullptr );
+  return( &( v_active_power.front() ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_primary_spinning_reserve.front() );
- }
+   return( nullptr );
+  return( &( v_primary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_secondary_spinning_reserve.front() );
- }
-/*--------------------------------------------------------------------------*/
- /// returns the vector of start_up variables
- // const std::vector< ColVariable > & get_start_up() const {
- //  return v_start_up;
- //  }
- ColVariable * get_start_up() {
-  if( v_start_up.empty() )
-   return nullptr;
-  return &( v_start_up.front() );
- }
+   return( nullptr );
+  return( &( v_secondary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of shut_down variables
- const std::vector< ColVariable > & get_shut_down() const {
-  return v_shut_down;
+ /// returns the vector of start_up variables, or nullptr if not defined
+
+ ColVariable * get_start_up( void ) {
+  if( v_start_up.empty() )
+   return( nullptr );
+  return( &( v_start_up.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of shut_down variables, or nullptr if not defined
+
+ ColVariable * get_shut_down( void ) {
+  if( v_shut_down.empty() )
+   return( nullptr );
+  return( &( v_shut_down.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the shut_down variable for time t, or nullptr if not defined
+
+ ColVariable * get_shut_down( Index t ) {
+  if( v_shut_down.empty() || ( t < init_t ) )
+   return( nullptr );
+  return( &( v_shut_down[ t - init_t ] ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1293,9 +1292,15 @@ class ThermalUnitBlock : public UnitBlock {
   * "translate" them into both changes of the actual data structures and
   * corresponding "physical Modification". These Modification are those
   * for which Modification::concerns_Block() is true.
+  *
+  *     THE IMPLEMENTATION OF THIS METHOD IS BOTH PARTIAL AND HORRIBLE,
+  *     ONE SINGLE ABSTRACT MODIFICATION CAN GIVE RISE TO MANY MANY MANY
+  *     PHYSICAL ONES, IT SHOULD BE COMPLETELY OVERHAULED!!!
   */
+
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
@@ -1349,7 +1354,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_maximum_power( std::vector< double >::const_iterator values,
                          Subset && subset,
-                         const bool ordered = false,
+			 bool ordered = false,
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
@@ -1379,7 +1384,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_const_term( std::vector< double >::const_iterator values,
                       Subset && subset,
-                      const bool ordered = false,
+		      bool ordered = false,
                       c_ModParam issuePMod = eNoBlck,
                       c_ModParam issueAMod = eNoBlck );
 
@@ -1394,7 +1399,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_linear_term( std::vector< double >::const_iterator values,
                        Subset && subset,
-                       const bool ordered = false,
+		       bool ordered = false,
                        c_ModParam issuePMod = eNoBlck,
                        c_ModParam issueAMod = eNoBlck );
 
@@ -1409,7 +1414,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_quad_term( std::vector< double >::const_iterator values,
                      Subset && subset,
-                     const bool ordered = false,
+		     bool ordered = false,
                      c_ModParam issuePMod = eNoBlck,
                      c_ModParam issueAMod = eNoBlck );
 
@@ -1422,55 +1427,55 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Subset && subset ,
-   const bool ordered , c_ModParam issuePMod = eNoBlck ,
-   c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost(
+	                       std::vector< double >::const_iterator values ,
+			       Subset && subset , bool ordered ,
+			       c_ModParam issuePMod = eNoBlck ,
+			       c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Range rng ,
-   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost(
+	   std::vector< double >::const_iterator values , Range rng ,
+           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Subset && subset ,
-   const bool ordered , c_ModParam issuePMod = eNoBlck ,
-   c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost(
+			       std::vector< double >::const_iterator values ,
+			       Subset && subset , bool ordered ,
+			       c_ModParam issuePMod = eNoBlck ,
+			       c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost
- ( std::vector< double >::const_iterator values , Range rng ,
-   c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost(
+	   std::vector< double >::const_iterator values , Range rng ,
+           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
   * will be that in the vector pointed by \p it associated with this last
-  * zero.
-  */
+  * zero. */
+
  void set_initial_power( std::vector< double >::const_iterator values ,
-                         Subset && subset , const bool ordered = false ,
+                         Subset && subset , bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
   * power. In this case, if the first element of \p rng is 0, the initial
   * power will be set to the value pointed by the given iterator. In general,
   * the initial power will be the one found at position -rng.first in the
   * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing.
-  */
+  * Range \p rng does not contain the 0 index, this function does nothing. */
+
  void set_initial_power( std::vector< double >::const_iterator values ,
                          Range rng = Range( 0, Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1478,17 +1483,16 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values,
-                            Subset && subset,
-                            const bool ordered = false,
-                            c_ModParam issuePMod = eNoBlck,
+ void set_init_updown_time( std::vector< int >::const_iterator values ,
+                            Subset && subset , bool ordered = false ,
+                            c_ModParam issuePMod = eNoBlck ,
                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values,
-                            Range rng = Range( 0, Inf< Index >() ),
-                            c_ModParam issuePMod = eNoBlck,
+ void set_init_updown_time( std::vector< int >::const_iterator values ,
+                            Range rng = Range( 0, Inf< Index >() ) ,
+                            c_ModParam issuePMod = eNoBlck ,
                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1717,12 +1721,11 @@ private:
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
  /// Resizes a vector to time_horizon by using change_intervals
+
  template< typename T > void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
-
  /// updates the abstract representation dependent on the availability
  /** This method updates any part of the abstract representation that may
   * depend on the availability of the unit at the given time \p t.
@@ -1730,19 +1733,18 @@ private:
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @param issueAMod controls how abstract Modification are issued. */
+
  void update_availability_dependents( Index t , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
-
  /// updates the constraints for the current initial power
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
-  * constraints that depend on the initial power).
-  */
+  * constraints that depend on the initial power). */
+
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if and only if the given availability is consistent
  /** This method checks whether the given \p availability is consistent at
   * time \p t. An availability is consistent at a given time instant if the
@@ -1755,17 +1757,17 @@ private:
   *
   * @return true if and only if the given \p availability is consistent at
   *         time \p t. */
+
  bool availability_is_consistent( Index t , double availability ) const {
   assert( t < get_time_horizon() );
-  const auto min_power = compute_operational_min_power
-   ( v_MinPower[ t ] , availability );
-  const auto max_power = compute_operational_max_power
-   ( v_MaxPower[ t ] , availability );
+  const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
+							availability );
+  const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
+							availability );
   return( min_power <= max_power );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the operational minimum power
  /** This method computes the operational minimum power for the given nominal
   * minimum power and availability.
@@ -1775,15 +1777,13 @@ private:
   * @param availability A number between 0 and 1.
   *
   * @return The operational minimum power. */
+
  double compute_operational_min_power( double nominal_min_power ,
                                        double availability ) const {
-  if( availability > 0.0 )
-   return nominal_min_power;
-  return 0.0;
- }
+  return(  availability > 0.0 ? nominal_min_power : 0.0 );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the operational maximum power
  /** This method computes the operational maximum power for the given nominal
   * maximum power and availability.
@@ -1793,10 +1793,20 @@ private:
   * @param availability A number between 0 and 1.
   *
   * @return The operational maximum power. */
+
  double compute_operational_max_power( double nominal_max_power ,
                                        double availability ) const {
-  return nominal_max_power * availability;
- }
+  return( nominal_max_power * availability );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+ void handle_objective_change( FunctionMod * mod , ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( ThermalUnitBlock ) )
 
