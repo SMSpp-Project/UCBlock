@@ -936,7 +936,7 @@ class ThermalUnitBlock : public UnitBlock {
   * spinning reserve variable at time t.
   *
   * @return The vector containing the primary spinning reserve costs. */
- 
+
  const std::vector< double > & get_primary_spinning_reserve_cost( void )
   const { return( v_primary_spinning_reserve_cost ); }
 
@@ -956,7 +956,7 @@ class ThermalUnitBlock : public UnitBlock {
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
- 
+
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
   }
@@ -1247,6 +1247,15 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_shut_down.empty() )
    return( nullptr );
   return( &( v_shut_down.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the shut_down variable for time t, or nullptr if not defined
+
+ ColVariable * get_shut_down( Index t ) {
+  if( v_shut_down.empty() || ( t < init_t ) )
+   return( nullptr );
+  return( &( v_shut_down[ t - init_t ] ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
