@@ -211,10 +211,10 @@ class UCBlock : public Block {
  *     electrical generator 0 = first generator of UnitBlock_0
  *     electrical generator 1 = second generator of UnitBlock_0
  *     ...
- *     electrical generator k = k-th generator of UnitBlock_0 
- *                          k = UnitBlock_0->get_number_generators()
- *     electrical generator k + 1 = first generator of UnitBlock_1
- *     electrical generator k + 2 = second generator of UnitBlock_1
+ *     electrical generator k - 1 = k-th generator of UnitBlock_0
+ *                          k     = UnitBlock_0->get_number_generators()
+ *     electrical generator k     = first generator of UnitBlock_1
+ *     electrical generator k + 1 = second generator of UnitBlock_1
  *     ...
  *   which of course boils down to "g = i" when each UnitBlock has exactly one
  *   electrical generator.
@@ -1425,22 +1425,6 @@ class UCBlock : public Block {
 
  /// Deserialize the Network Blocks of UCBlock
  void deserialize_network_blocks( const netCDF::NcGroup & group );
-
-/*--------------------------------------------------------------------------*/
-
- /// Transposes a deserialized multiarray if needed.
- /**
-  * Checks if the multiarray has one column and more than one rows. If so,
-  * it transposes it.
-  * This procedure is needed because some 2D matrices have the first dimension
-  * optional, and the ::deserialize() method doesn't know that the only
-  * dimension that is given is actually the second one.
-  *
-  * @tparam T The type of the boost::multi_array
-  * @param a  A boost::multi_array that has been just deserialized
-  */
- template< typename T >
- void transpose( boost::multi_array< T, 2 > & a );
 
 /*--------------------------------------------------------------------------*/
 

@@ -27,11 +27,7 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               12 - 02 - 2019                               #
-#                                                                            #
 #                              Antonio Frangioni                             #
-#                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
@@ -48,6 +44,7 @@ UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/NetworkBlock.o \
 	$(UCBckDIR)obj/SlackUnitBlock.o \
 	$(UCBckDIR)obj/ThermalUnitBlock.o \
+	$(UCBckDIR)obj/ThermalUnitDPSolver.o \
 	$(UCBckDIR)obj/UCBlock.o \
 	$(UCBckDIR)obj/UnitBlock.o
 #	$(UCBckDIR)obj/HeatBlock.o
@@ -63,6 +60,7 @@ UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
 	$(UCBckDIR)include/NetworkBlock.h \
 	$(UCBckDIR)include/SlackUnitBlock.h \
 	$(UCBckDIR)include/ThermalUnitBlock.h \
+	$(UCBckDIR)include/ThermalUnitDPSolver.h \
 	$(UCBckDIR)include/UCBlock.h \
 	$(UCBckDIR)include/UnitBlock.h
 #	$(UCBckDIR)include/HeatBlock.h
@@ -111,9 +109,10 @@ $(UCBckDIR)obj/HydroUnitBlock.o: $(UCBckDIR)src/HydroUnitBlock.cpp \
 	$(CC) -c $(UCBckDIR)src/HydroUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/IntermittentUnitBlock.o: $(UCBckDIR)src/IntermittentUnitBlock.cpp \
-	$(UCBckDIR)include/IntermittentUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
-	$(SMS++OBJ) 
+$(UCBckDIR)obj/IntermittentUnitBlock.o: \
+	$(UCBckDIR)src/IntermittentUnitBlock.cpp \
+	$(UCBckDIR)include/IntermittentUnitBlock.h \
+	$(UCBckDIR)include/UnitBlock.h $(SMS++OBJ) 
 	$(CC) -c $(UCBckDIR)src/IntermittentUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
@@ -133,6 +132,11 @@ $(UCBckDIR)obj/ThermalUnitBlock.o: $(UCBckDIR)src/ThermalUnitBlock.cpp \
         $(UCBckDIR)include/ThermalUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
 	$(SMS++OBJ) 
 	$(CC) -c $(UCBckDIR)src/ThermalUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
+
+$(UCBckDIR)obj/ThermalUnitDPSolver.o: $(UCBckDIR)src/ThermalUnitDPSolver.cpp \
+        $(UCBckDIR)include/ThermalUnitDPSolver.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)src/ThermalUnitDPSolver.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckDIR)obj/UCBlock.o: $(UCBckDIR)src/UCBlock.cpp \

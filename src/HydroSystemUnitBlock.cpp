@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 11 - 2020
+ * \date 05 - 02 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -49,15 +49,26 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
+/*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
+HydroSystemUnitBlock::~HydroSystemUnitBlock()  {
 
+ for( auto block : v_Block )
+  delete block;
+ v_Block.clear();
+
+ objective.clear();
+}
+
+
+/*--------------------------------------------------------------------------*/
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
  return dynamic_cast<HydroUnitBlock *>( v_Block[ i ] );
 }
 
 /*--------------------------------------------------------------------------*/
-
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
 void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
@@ -160,7 +171,8 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- UnitBlock::generate_abstract_variables( stvv );
+ for( auto block : v_Block )
+  block->generate_abstract_variables();
 
  // Collect the active Variables of the PolyhedralFunction: these are the
  // variables representing the final volume of each reservoir.
@@ -182,8 +194,6 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  get_polyhedral_function_block()->get_PolyhedralFunction().
   set_variables( std::move( x ) );
 
- get_polyhedral_function_block()->generate_abstract_variables();
-
  set_variables_generated();
 } // end( HydroSystemUnitBlock::generate_abstract_variables )
 
@@ -193,6 +203,9 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 
  if( objective_generated() )
   return; // Objective has already been generated
+
+ for( auto block : v_Block )
+  block->generate_objective();
 
  if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return

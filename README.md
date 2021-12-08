@@ -22,7 +22,7 @@ make
 ```
 
 The library has the same configuration options of
-[SMS++](https://gitlab.com/smspp/smspp/wikis/custom).
+[SMS++](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration).
 
 Optionally, install the library in the system with:
 
@@ -82,8 +82,9 @@ conduct, and the process for submitting merge requests to us.
   Università di Pisa
 
 - **Rafael Durbano Lobato**  
-  Department of Applied Mathematics  
-  State University of Campinas, Brazil
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
 
 - **Alì Ghezelsoflu**  
   *Operations Research Group*  

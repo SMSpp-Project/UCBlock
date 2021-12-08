@@ -15,7 +15,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 03 - 2020
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -97,7 +97,7 @@ class SlackUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock, it is empty
 
- virtual ~SlackUnitBlock() override = default;
+ virtual ~SlackUnitBlock() override ;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -435,16 +435,18 @@ class SlackUnitBlock : public UnitBlock {
  *  variables returned by get_commitment()) of all the generators at all time
  *  instants. There are three possible cases:
  *
- * - if the vector is empty, then the inertia commitment is always 0;
+ * - if the vector is empty, then the inertia commitment is always 0 and this
+ *   function returns nullptr;
  *
  * - if the vector only has one element, then the inertia commitment for the
- *   fixed consumption of the unit for all t
+ *   fixed consumption of the unit for all t;
  *
  * - otherwise, the vector must have size get_time_horizon(), and each element
  *   of vector represents the inertia commitment at time t. */
 
- double * get_inertia_commitment( Index generator )
- override {
+ double * get_inertia_commitment( Index generator ) override {
+  if( v_MaxInertia.empty() )
+   return nullptr;
   return & ( v_MaxInertia.front() );
  }
 /*--------------------------------------------------------------------------*/
@@ -482,26 +484,34 @@ class SlackUnitBlock : public UnitBlock {
  *
  * @{ */
  /// returns the vector of commitment variables
- ColVariable * get_commitment( Index generator  ) override {
+ ColVariable * get_commitment( Index generator ) override {
+  if( v_commitment.empty() )
+   return nullptr;
   return &( v_commitment.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
- ColVariable * get_active_power( Index generator )
- override {
+ ColVariable * get_active_power( Index generator ) override {
+  if( v_active_power.empty() )
+   return nullptr;
   return &( v_active_power.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  if( v_primary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_primary_spinning_reserve.front() );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  if( v_secondary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_secondary_spinning_reserve.front() );
  }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/

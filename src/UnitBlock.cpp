@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 19 - 05 - 2020
+ * \date 19 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -121,26 +121,19 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
   ::deserialize( group, "ChangeIntervals", f_number_intervals,
                  v_change_intervals );
 
-  // Check that all numbers are between 1 and f_time_horizon, that
-  // the last number is == f_time_horizon, and that they are ordered
-  // in increasing sense
+  // Check that the numbers are ordered in increasing sense. Notice that the
+  // upper endpoint of the last interval must necessarily be f_time_horizon -
+  // 1. Since it is not required to be provided, we set it.
+  v_change_intervals.back() = f_time_horizon - 1;
 
-  if( v_change_intervals.back() != f_time_horizon ) {
-   throw ( std::invalid_argument
-    ( "UnitBlock::deserialize: invalid value in ChangeIntervals: "
-      "the last element must be TimeHorizon." ) );
-  }
-
-  Index previous_t = 0;
-
-  for( auto t : v_change_intervals ) {
-   if( !( t > previous_t && t < f_time_horizon - 1 ) )
+  for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+   const auto t = v_change_intervals[ k ];
+   if( ! ( ( t >= 0 ) && ( t < f_time_horizon ) &&
+           ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
     throw ( std::invalid_argument
-     ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
-       std::to_string( t ) + ". All values must be between 1 and "
-                             "TimeHorizon and in strictly increasing order." ) );
-
-   previous_t = t;
+            ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
+              std::to_string( t ) + ". All values must be between 0 and "
+              "TimeHorizon - 1 and in strictly increasing order." ) );
   }
  }
 }
@@ -148,8 +141,8 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
- // deserialize_time_horizon( group );
- // deserialize_change_intervals( group );
+  deserialize_time_horizon( group );
+  deserialize_change_intervals( group );
 
  Block::deserialize( group );
 }

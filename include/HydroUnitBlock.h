@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 21 - 01 - 2021
+ * \date 27 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -20,7 +20,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
+ * Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -247,7 +253,7 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - The variable "MaxVolumetric", of type netCDF::NcDouble and indexed over
  *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
- *   dimension is always has size "NumberReservoirs" (if it is provided at
+ *   dimension always has size "NumberReservoirs" (if it is provided at
  *   all), whereas the second one may have size one or size "NumberIntervals"
  *   (if "NumberIntervals" is not provided, then the size can also be
  *   "TimeHorizon"). This is meant to represent the matrix MaxV[ r , t ]
@@ -752,7 +758,7 @@ class HydroUnitBlock : public UnitBlock {
  */
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HydroUnitBlock
 /** Method that generates the objective of the HydroUnitBlock.
  *
@@ -761,6 +767,61 @@ class HydroUnitBlock : public UnitBlock {
  *   variables) */
 
  void generate_objective( Configuration *objc ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- Methods for checking the HydroUnitBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the HydroUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this HydroUnitBlock is approximately
+  * feasible considering a given tolerance. The tolerance can be provided by
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * determined as follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *
+  * Each Constraint of this HydroUnitBlock is a RowConstraint and a solution
+  * is considered feasible if and only if
+  *
+  *   -# the relative violation of each RowConstraint of this HydroUnitBlock
+  *      is not greater than the tolerance; and
+  *
+  *   -# each ColVariable is feasible.
+  *
+  * See RowConstraint::rel_viol() for details about the relative violation of
+  * the RowConstraint and see ColVariable::is_feasible() for details about the
+  * feasibility of ColVariable.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Constraint. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
@@ -820,7 +881,8 @@ class HydroUnitBlock : public UnitBlock {
  *  variables returned by get_active_power()) of eac arcs (generators) at each
  *  time instants. There are three possible cases
  *
- * - if the matrix is empty, then the inertia power is 0;
+ * - if the matrix is empty, then the inertia power is 0 and this function
+ *   returns a nullptr;
  *
  * - if the matrix only has one row (i.e., the first dimension has size 1),
  *   then the inertia power for arc (generator) l is U[ 0 , l ] for all t
@@ -830,8 +892,11 @@ class HydroUnitBlock : public UnitBlock {
  *   get_number_arcs(), and U[ t , l ] contains the contribution to
  *   inertia power of arc(generator) l at time instant t. */
  double * get_inertia_power( Index generator )  override {
+  if( v_inertia_power.empty() )
+   return nullptr;
   return ( v_inertia_power.data() + generator * f_time_horizon );
  }
+
 /*--------------------------------------------------------------------------*/
 /// returns the matrix of minimum volumetric
 /** The method returned a two-dimensional boost::multi_array<> M such that
@@ -1119,9 +1184,24 @@ class HydroUnitBlock : public UnitBlock {
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the uphill delay for each unit i. */
- const std::vector< Index > & get_uphill_delay() const {
-  return ( v_uphill_delay);
+ const std::vector< int > & get_uphill_delay() const {
+  return ( v_uphill_delay );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the uphill delay for the given \p arc
+ /** This function returns the uphill delay for the given \p arc.
+  *
+  * @return The uphill delay for the given \p arc. */
+
+ int get_uphill_delay( Index arc ) const {
+  if( v_uphill_delay.empty() )
+   return 0;
+  assert( arc < v_uphill_delay.size() );
+  return( v_uphill_delay[ arc ] );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of downhill delay
 /** The returned vector contains the downhill delay for each unit (arc) i.
@@ -1137,6 +1217,21 @@ class HydroUnitBlock : public UnitBlock {
  const std::vector< Index > & get_downhill_delay() const {
   return ( v_downhill_delay);
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the downhill delay for the given \p arc
+ /** This function returns the downhill delay for the given \p arc.
+  *
+  * @return The downhill delay for the given \p arc. */
+
+ Index get_downhill_delay( Index arc ) const {
+  if( v_downhill_delay.empty() )
+   return 0;
+  assert( arc < v_downhill_delay.size() );
+  return( v_downhill_delay[ arc ] );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of initial volumetric
 /** The returned vector contains the initial volumetric for each reservoir n.
@@ -1225,7 +1320,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reservoir. */
 
  ColVariable * get_volumetric( Index reservoir ) {
-  return ( v_volumetric.data() + reservoir * f_time_horizon );
+  if( reservoir < get_number_reservoirs() ) {
+   const auto offset = reservoir * f_time_horizon;
+   if( offset < v_volumetric.num_elements() )
+    return ( v_volumetric.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1244,7 +1344,12 @@ class HydroUnitBlock : public UnitBlock {
   *         \p reservoir at the given \p time. */
 
  ColVariable * get_volume( Index reservoir , Index time ) {
-  return ( v_volumetric.data() + reservoir * f_time_horizon + time );
+  if( reservoir < get_number_reservoirs() && time < f_time_horizon ) {
+   const auto offset = reservoir * f_time_horizon + time;
+   if( offset < v_volumetric.num_elements() )
+    return ( v_volumetric.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1261,7 +1366,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p generator. */
 
  ColVariable * get_active_power( Index generator ) override {
-  return ( v_active_power.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_active_power.num_elements() )
+    return ( v_active_power.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1280,7 +1390,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p generator at the given \p time. */
 
  ColVariable * get_active_power( Index generator , Index time ) {
-  return ( v_active_power.data() + generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_active_power.num_elements() )
+    return ( v_active_power.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1297,7 +1412,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p arc. */
 
  ColVariable * get_flow_rate( Index arc ) {
-  return ( v_flow_rate.data() + arc * f_time_horizon );
+  if( arc < get_number_generators() ) {
+   const auto offset = arc * f_time_horizon;
+   if( offset < v_flow_rate.num_elements() )
+    return ( v_flow_rate.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1316,7 +1436,12 @@ class HydroUnitBlock : public UnitBlock {
   *         given \p arc at the given \p time. */
 
  ColVariable * get_flow_rate( Index arc , Index time ) {
-  return ( v_flow_rate.data() + arc * f_time_horizon + time );
+  if( arc < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = arc * f_time_horizon + time;
+   if( offset < v_flow_rate.num_elements() )
+    return ( v_flow_rate.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1333,7 +1458,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator. */
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
-  return ( v_primary_spinning_reserve.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_primary_spinning_reserve.num_elements() )
+    return ( v_primary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1352,8 +1482,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator at the given \p time. */
 
  ColVariable * get_primary_spinning_reserve( Index generator , Index time ) {
-  return ( v_primary_spinning_reserve.data() +
-           generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_primary_spinning_reserve.num_elements() )
+    return ( v_primary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1370,7 +1504,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator. */
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
-  return ( v_secondary_spinning_reserve.data() + generator * f_time_horizon );
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_secondary_spinning_reserve.num_elements() )
+    return ( v_secondary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1390,8 +1529,12 @@ class HydroUnitBlock : public UnitBlock {
   *         reserve of the given \p generator at the given \p time. */
 
  ColVariable * get_secondary_spinning_reserve( Index generator , Index time ) {
-  return ( v_secondary_spinning_reserve.data() +
-           generator * f_time_horizon + time );
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_secondary_spinning_reserve.num_elements() )
+    return ( v_secondary_spinning_reserve.data() + offset );
+  }
+  return nullptr;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1444,16 +1587,16 @@ class HydroUnitBlock : public UnitBlock {
                          c_ModParam issuePMod = eNoBlck,
                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator values,
-                              Subset && subset,
-                              const bool ordered = false,
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values,
+                          Subset && subset,
+                          const bool ordered = false,
+                          c_ModParam issuePMod = eNoBlck,
+                          c_ModParam issueAMod = eNoBlck );
 
- void set_initial_volumetric( std::vector< double >::const_iterator values,
-                              Range rng = Range( 0, Inf< Index >() ),
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values,
+                          Range rng = Range( 0, Inf< Index >() ),
+                          c_ModParam issuePMod = eNoBlck,
+                          c_ModParam issueAMod = eNoBlck );
 
  void set_initial_flow_rate( std::vector< double >::const_iterator values,
                               Subset && subset,
@@ -1488,7 +1631,7 @@ class HydroUnitBlock : public UnitBlock {
  Index f_total_number_pieces;
 
  /// The vector of UphillDelay
- std::vector< Index > v_uphill_delay;
+ std::vector< int > v_uphill_delay;
 
  /// The vector of DownhillDelay
  std::vector< Index > v_downhill_delay;
@@ -1636,12 +1779,12 @@ class HydroUnitBlock : public UnitBlock {
   //                                    &HydroUnitBlock::set_inertia_power,
   //                                    MS_dbl_rngd::args() );
   //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-  //                                    &HydroUnitBlock::set_initial_volumetric,
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
   //                                    MS_dbl_sbst::args() );
   //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volumetric",
-  //                                    &HydroUnitBlock::set_initial_volumetric,
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
   //                                    MS_dbl_rngd::args() );
   register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
    "HydroUnitBlock::set_inflow",
@@ -1660,12 +1803,12 @@ class HydroUnitBlock : public UnitBlock {
    &HydroUnitBlock::set_inertia_power );
 
   register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_initial_volumetric",
-   &HydroUnitBlock::set_initial_volumetric );
+   "HydroUnitBlock::set_initial_volume",
+   &HydroUnitBlock::set_initial_volume );
 
   register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_initial_volumetric",
-   &HydroUnitBlock::set_initial_volumetric );
+   "HydroUnitBlock::set_initial_volume",
+   &HydroUnitBlock::set_initial_volume );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1683,17 +1826,23 @@ class HydroUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// FIXME this is also defined in UCBlock so let's put it in a common file
  /// Transposes a deserialized multiarray if needed.
- /**
-  * Checks if the multiarray has one column and more than one rows. If so,
-  * it transposes it.
-  * This procedure is needed because some 2D matrices have the first dimension
-  * optional, and the ::deserialize() method doesn't know that the only
-  * dimension that is given is actually the second one.
+ /** We deal with two-dimensional arrays that have dimensions ( time horizon x
+  * number of arcs ). When provided by a netCDF variable, the size of the
+  * dimension associated with the time horizon is allowed to be 1 (even if the
+  * time horizon is greater than 1). This means that the given data does not
+  * change over time. Therefore, the dimensions of a given array could be ( 1
+  * x number of arcs ). This can be viewed as a "row vector". This being a
+  * vector, the user may decide to provide a one-dimensional array whose size
+  * is the number of arcs. This, however, is translated into a two-dimensional
+  * array whose dimensions are ( number of arcs x 1 ), i.e., a "column
+  * vector". In this case, the array must be transposed, so that its second
+  * dimension becomes the number of arcs (and therefore compatible with our
+  * data structure).
   *
-  * @tparam T The type of the boost::multi_array
-  * @param a  A boost::multi_array that has been just deserialized
+  * @tparam T The type of the boost::multi_array.
+  *
+  * @param a A boost::multi_array that has been just deserialized.
   */
  template< typename T >
  void transpose( boost::multi_array< T, 2 > & a );

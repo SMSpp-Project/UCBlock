@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 11 - 10 - 2020
+ * \date 20 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -115,7 +115,11 @@ class DCNetworkBlock : public NetworkBlock {
  * and there is no needed to define the power flow variable for that line.
  * Therefor, in the case of pure AC line there is no needed to define power
  * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
- * variable must define just for HVDC lines.
+ * variable must define just for HVDC lines. Similarly, depending on the
+ * NetworkCost for each line of the network, the DCNetworkBlock class may have
+ * an auxiliary variable or not. In other word, if the NetworkCost is equal to
+ * zero(or not defined), the auxiliary variable and corresponding constraints
+ * will not be defined.
  *
  * Note that since in this class the configuration is ignored.*/
 
@@ -129,9 +133,10 @@ class DCNetworkBlock : public NetworkBlock {
  * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
  * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
  * at node \f$ n \in N \f$ in the network respectively. The node injection
- * variable of each node \f$ n \in N \f$ in and the power flows variable of
- * each line \f$ l \in L \f$  are defined as \f$S_{n}\f$ and \f$ F_l \f$
- * respectively.
+ * variable of each node \f$ n \in N \f$ and the power flows variable and an
+ * auxiliary variable(which is not be defined if there is no network cost), of
+ * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
+ * \f$ V_l \f$ respectively.
  *
  *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
  *    model:
@@ -155,6 +160,19 @@ class DCNetworkBlock : public NetworkBlock {
  *                                                   \quad n \in N   \quad (2)
  *    \f]
  *
+ *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
+ *    will have an objective function which is equal to multiplying NetworkCost
+ *    by absolut value of power flows variable. To relaxing the absolute value,
+ *    an auxiliary variable and constraints as below are needed:
+ *
+ *    \f[
+ *    F_l \leq V_l                                     \quad l \in L \quad (3)
+ *    \f]
+ *
+ *    \f[
+ *    -V_l \leq F_l                                    \quad l \in L \quad (4)
+ *    \f]
+ *
  *  - DCNetworkBlock with just AC lines model:
  *    By considering a \f$ |L| \times |N| \f$ matrix
  *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
@@ -167,7 +185,7 @@ class DCNetworkBlock : public NetworkBlock {
  *  \f[
  *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
  *   (S_n - D^{ac}_n) \leq  P^{mx}_l
- *                                                     \quad l \in L \quad (3)
+ *                                                     \quad l \in L \quad (5)
  *  \f]
  *
  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
@@ -199,7 +217,7 @@ class DCNetworkBlock : public NetworkBlock {
  *       \begin{array}{cc}
  *       B & -B(A^{dc})^T \\
  *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
- *       \end{array}\right]                                          \quad (4)
+ *       \end{array}\right]                                          \quad (6)
  *
  *     \f]
  *
@@ -216,7 +234,7 @@ class DCNetworkBlock : public NetworkBlock {
  *       a \\
  *       b
  *       \end{array}\right]
- *       \leq  P^{mx}                                                \quad (5)
+ *       \leq  P^{mx}                                                \quad (7)
  *
  *      \f]
  *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
@@ -235,10 +253,62 @@ class DCNetworkBlock : public NetworkBlock {
 /** Method that generates the objective of the DCNetworkBlock.
  *
  * - Objective function: the objective function of the DCNetworkBlock
- *   is "empty" (a FRealObjective with a LinearFunction inside with no active
- *   variables) */
+ *   is given as below:
+ *
+ *   \f[
+ *     \min ( \sum_{ l \in L } ( NC_l V_l )
+ *   \f]
+ *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
+ *   variable */
 
   void generate_objective( Configuration *objc ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- Methods for checking the DCNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the DCNetworkBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this DCNetworkBlock is approximately
+  * feasible within the given tolerance. The tolerance can be provided by
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * determined as follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *
+  * Each Constraint of this DCNetworkBlock is a RowConstraint and a solution
+  * is considered feasible if and only if the relative violation of each
+  * RowConstraint of this DCNetworkBlock is not greater than the
+  * tolerance. See RowConstraint::rel_viol() for details about the relative
+  * violation.
+  *
+  * This function currently considers only the abstract constraints to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. Moreover, if no abstract Constraint has been generated,
+  * then this method returns true. Notice also that, before checking if the
+  * solution satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
@@ -287,7 +357,21 @@ class DCNetworkBlock : public NetworkBlock {
  const std::vector< ColVariable > & get_power_flow( ) const {
   return v_power_flow;
  }
+/*--------------------------------------------------------------------------*/
+  /// returns the vector of auxiliary variables
+  /** The returned std::vector< ColVariable >, say V, contains the auxiliary
+   * variables and is indexed over the dimension number of lines. There are two
+   * possible cases:
+   *
+   * - if V is empty(), then this variable is not defined;
+   *
+   * - otherwise, V must have f_number_lines rows and V[ l ] is the auxiliary
+   *   variable for line l.
+   *   */
 
+  const std::vector< ColVariable > & get_auxiliary_variable( ) const {
+   return v_auxiliary_variable;
+  }
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
@@ -418,6 +502,9 @@ class DCNetworkBlock : public NetworkBlock {
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;
 
+  /// the auxiliary network cost variable
+  std::vector< ColVariable > v_auxiliary_variable;
+
 /*----------------------------constraints-----------------------------------*/
 
  /// AC power flow limit constraints
@@ -431,6 +518,12 @@ class DCNetworkBlock : public NetworkBlock {
 
  /// HVDC power flow and node injection constraints
  std::vector<FRowConstraint> v_power_flow_injection_constraints;
+
+  /// HVDC power flow auxiliary variable 1 constraints
+  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_one_constraints;
+
+  /// HVDC power flow auxiliary variable 2 constraints
+  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_two_constraints;
 
  /// AC_HVDC power flow constraints
  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;

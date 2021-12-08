@@ -201,7 +201,14 @@ class NetworkBlock : public Block {
  *   model with AC lines, and when for each line l, it's not defined or S[ l ]
  *   == 0, then it corresponds to a single connected grid composed of HVDC
  *   lines only which is also known as the Net Transfer Capacity (NTC)
- *   model.*/
+ *   model.
+ *
+ * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over the
+ *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
+ *   that, for each line l, contains the monetary cost to exchanges between
+ *   nodes or each network. This variable is optional; if it is not provided
+ *   then it's taken to be zero.
+ *   */
 
   virtual void deserialize( const netCDF::NcGroup & group );
 
@@ -307,6 +314,22 @@ class NetworkBlock : public Block {
    return v_susceptance;
    }
 
+  /*--------------------------------------------------------------------------*/
+/// returns vector of the network cost
+/** Method for returning the vector of network cost for each line. This vector
+ * may have empty size (bus network) or the size of number of lines, then
+ * there are two possible cases:
+ *
+ *  - if f_number_lines == 0, this vector has empty size which means there is
+ *    no line at network (bus network).
+ *
+ *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
+ *    element of the vectors gives the network cost value for each line in the
+ *    network. */
+
+  const std::vector< double > & get_network_cost() const {
+   return v_network_cost;
+  }
 /*--------------------------------------------------------------------------*/
 /// returns the types of lines in the network
 /** This method returns the types of lines present in the network. */
@@ -366,6 +389,9 @@ class NetworkBlock : public Block {
 
   /// Vector to store the maximum power flow at each line
   std::vector< double > v_max_power_flow;
+
+  /// Vector to store the network cost at each line
+  std::vector< double > v_network_cost;
 
 /*--------------------------------------------------------------------------*/
 

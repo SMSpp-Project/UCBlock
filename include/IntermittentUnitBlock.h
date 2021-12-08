@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 09 - 2020
+ * \date 20 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -20,8 +20,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
+ * Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -255,6 +260,65 @@ class IntermittentUnitBlock : public UnitBlock {
  void generate_objective( Configuration *objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
+/*------------- Methods for checking the IntermittentUnitBlock -------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the
+ *  IntermittentUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this IntermittentUnitBlock is
+  * approximately feasible considering a given tolerance. The tolerance can be
+  * provided by either \p fsbc or by
+  * #f_BlockConfig->f_is_feasible_Congifuration and it is determined as
+  * follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *
+  * Each Constraint of this IntermittentUnitBlock is a RowConstraint and a
+  * solution is considered feasible if and only if
+  *
+  *   -# the relative violation of each RowConstraint of this
+  *      IntermittentUnitBlock is not greater than the tolerance; and
+  *
+  *   -# the bounds on each ColVariable are satisfied considering the given
+  *      tolerance. Since every ColVariable of this IntermittentUnitBlock is
+  *      nonnegative, this means that the value of each ColVariable must be
+  *      greater than or equal to the negative value of the tolerance.
+  *
+  * See RowConstraint::rel_viol() for details about the relative violation of
+  * the RowConstraint.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Constraint. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the IntermittentUnitBlock
@@ -309,7 +373,8 @@ class IntermittentUnitBlock : public UnitBlock {
  *  variables returned by get_active_power()) of all the generators at all
  *  time instants. There are four possible cases:
  *
- * - if the matrix is empty, then the inertia power is always 0;
+ * - if the matrix is empty, then the inertia power is always 0 and this
+ *   function returns nullptr;
  *
  * - if the matrix only has one row (i.e., the first dimension has size 1),
  *   then the inertia power for each generator g is U[ 0 , g ] for all t
@@ -325,8 +390,9 @@ class IntermittentUnitBlock : public UnitBlock {
  *   the inertia power for the problem at time t for each electrical generator
  *   g. */
 
- double * get_inertia_power( Index generator)
-  override {
+ double * get_inertia_power( Index generator) override {
+  if( v_inertia_power.empty() )
+   return nullptr;
   return & ( v_inertia_power.front() );
  }
 
@@ -346,19 +412,24 @@ class IntermittentUnitBlock : public UnitBlock {
  *
  * @{ */
  /// returns the vector of active_power variables
- ColVariable * get_active_power( Index generator )
- override {
+ ColVariable * get_active_power( Index generator ) override {
+  if( v_active_power.empty() )
+   return nullptr;
   return &( v_active_power.front());
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
+  if( v_primary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_primary_spinning_reserve.front());
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
+  if( v_secondary_spinning_reserve.empty() )
+   return nullptr;
   return &( v_secondary_spinning_reserve.front());
  }
 /**@} ----------------------------------------------------------------------*/
@@ -485,6 +556,27 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current maximum power
+ /** This function updates the right-hand side of the "maximum power" and the
+  * "active power bounds" constraints associated with the time instants given
+  * in \p time. */
+
+ void update_max_power_in_constraints( const Block::Subset & time ,
+                                       c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current maximum power
+ /** This function updates the right-hand side of the "maximum power" and the
+  * "active power bounds" constraints associated with the time instants given
+  * in \p time. */
+
+ void update_max_power_in_constraints( const Block::Range & time ,
+                                       c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
  /// Resize a vector to time_horizon by using change_intervals
  template< typename T > void decompress_vector( std::vector< T > & v );
 

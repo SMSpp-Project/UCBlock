@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 30 - 09 - 2020
+ * \date 23 - 09 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -34,7 +34,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SlackUnitBlock.h"
-#include "DQuadFunction.h"
+#include "LinearFunction.h"
 #include "FRealObjective.h"
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -53,6 +53,28 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
+/*--------------------------------------------------------------------------*/
+SlackUnitBlock::~SlackUnitBlock() {
+ auto clear_LB0Constraints =
+         []( std::vector< LB0Constraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_LB0Constraints( Secondary_Spinning_Reserve_Bound_Constraints );
+ clear_LB0Constraints( Primary_Spinning_Reserve_Bound_Constraints );
+ clear_LB0Constraints( ActivePower_Bound_Constraints );
+
+ auto clear_ZOConstraints =
+         []( std::vector< ZOConstraint > & constraints ) {
+          for( auto & constraint : constraints )
+           constraint.clear();
+         };
+ clear_ZOConstraints( Inertia_Bound_Constraints );
+
+ objective.clear();
+
+}
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -111,13 +133,15 @@ void SlackUnitBlock::generate_abstract_variables
 
 /*--------------------------------------------------------------------------*/
   // Commitment Variable
-  v_commitment.resize( f_time_horizon );
-   for( auto & i : v_commitment )
+ if( reserve_vars & 4u ) { // if UCBlock has inertia demand variables
+  if( !v_MaxInertia.empty()) { // if unit produces any inertia reserve
+   v_commitment.resize( f_time_horizon );
+   for( auto & i : v_commitment ) {
     i.set_type( ColVariable::kPosUnitary );
-   if (!v_MaxInertia.empty()) {
-    add_static_variable( v_commitment, "u_inertia" );
    }
-
+   add_static_variable( v_commitment, "u_inertia_slack" );
+  }
+ }
   // Active Power Variable
   v_active_power.resize( f_time_horizon );
   for( auto & var : v_active_power )
@@ -125,20 +149,25 @@ void SlackUnitBlock::generate_abstract_variables
   add_static_variable( v_active_power, "p_slack" );
 
   // Primary Spinning Reserve Variable
- v_primary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_primary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if(!v_MaxPrimaryPower.empty()) {
-  add_static_variable( v_primary_spinning_reserve, "pr_slack" );
+ if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+  if( !v_MaxPrimaryPower.empty()) { // if unit produces any primary reserve
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_primary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_primary_spinning_reserve, "pr_slack" );
+  }
  }
   // Secondary Spinning Reserve Variable
- v_secondary_spinning_reserve.resize( f_time_horizon );
- for( auto & var : v_secondary_spinning_reserve )
-  var.set_type( ColVariable::kNonNegative );
- if(!v_MaxSecondaryPower.empty()) {
-  add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
+ if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
+  if( !v_MaxSecondaryPower.empty()) { // if unit produces any secondary reserve
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_secondary_spinning_reserve ) {
+    var.set_type( ColVariable::kNonNegative );
+   }
+   add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
+  }
  }
-
  set_variables_generated();
 
 } // end( SlackUnitBlock::generate_abstract_variables )
@@ -146,18 +175,17 @@ void SlackUnitBlock::generate_abstract_variables
 /*--------------------------------------------------------------------------*/
 
 void SlackUnitBlock::generate_abstract_constraints
-        ( Configuration *stcc )
-{
+        ( Configuration *stcc ) {
 
- if( constraints_generated() )
+ if( constraints_generated())
   return; // constraints have already been generated
 
  int generate_ZOConstraint = 0;
- auto config = dynamic_cast<SimpleConfiguration<int> *>( stcc );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_constraints_Configuration )
+ auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
+ if(( !config ) && f_BlockConfig &&
+    f_BlockConfig->f_static_constraints_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
-   ( f_BlockConfig->f_static_constraints_Configuration );
+  ( f_BlockConfig->f_static_constraints_Configuration );
  if( config )
   generate_ZOConstraint = config->f_value;
 
@@ -171,20 +199,22 @@ void SlackUnitBlock::generate_abstract_constraints
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  if ( !v_MaxPower.empty() ){
+  if( !v_MaxPower.empty()) {
    ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
   } else {
    ActivePower_Bound_Constraints[t].set_rhs( 0.0 );
   }
-  ActivePower_Bound_Constraints[t].set_variable(&v_active_power[t]);
+  ActivePower_Bound_Constraints[t].set_variable( &v_active_power[t] );
  }
 
  add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_Slack" );
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
- if(!v_MaxPrimaryPower.empty()) {
-  if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+ if( reserve_vars & 1u ) {
+  if(!v_MaxPrimaryPower.empty()) {
+
+   if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
    // this should only happen once
    assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
 
@@ -192,43 +222,45 @@ void SlackUnitBlock::generate_abstract_constraints
   }
 
   for( Index t = 0; t < f_time_horizon; ++t ) {
-
    Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
-
    Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
   }
 
   add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
  }
+}
 /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
- if ( ! v_MaxSecondaryPower.empty() ) {
-  if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
+ if( reserve_vars & 2u ) {
+  if( !v_MaxSecondaryPower.empty()) {
+   if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+    // this should only happen once
+    assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
 
-   Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+    Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+   }
+
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
+    Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
+   }
+
+   add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
   }
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-
-   Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
-   Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
-  }
-
-  add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
  }
  /*-------------------------------ZOConstraint-------------------------------*/
 
  if( generate_ZOConstraint ) {
 
   // the commitment bound constraints
-  Inertia_Bound_Constraints.resize( f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   Inertia_Bound_Constraints[ t ].set_variable( &v_commitment[ t ] );
+  if( reserve_vars & 4u ) {
+   Inertia_Bound_Constraints.resize( f_time_horizon );
+   for( Index t = 0; t < f_time_horizon; ++t ) {
+    Inertia_Bound_Constraints[t].set_variable( &v_commitment[t] );
+   }
+   add_static_constraint( Inertia_Bound_Constraints, "Inertia_bound_Slack" );
   }
-  add_static_constraint( Inertia_Bound_Constraints , "Inertia_bound_Thermal" );
  }
 
  set_constraints_generated();
@@ -243,77 +275,89 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
   return;                        // cowardly (and silently) return
 
  // Initialize objective function
-
- if( v_commitment.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_commitment must have "
-            "size equal to the time horizon." ) );
+ if( reserve_vars & 4u ) {
+  if( v_commitment.size() != f_time_horizon ) {
+   throw ( std::logic_error
+           ( "SlackUnitBlock::generate_objective: v_commitment must have "
+             "size equal to the time horizon." ));
+  }
  }
  if( v_active_power.size() != f_time_horizon ) {
   throw ( std::logic_error
           ( "SlackUnitBlock::generate_objective: v_active_power must have "
             "size equal to the time horizon." ) );
  }
-
- if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
-            "must have size equal to the time horizon." ) );
+ if( reserve_vars & 1u ) {
+  if( !v_MaxPrimaryPower.empty()) {
+   if( v_primary_spinning_reserve.size() != f_time_horizon ) {
+    throw ( std::logic_error
+            ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
+              "must have size equal to the time horizon." ));
+   }
+  }
  }
-
- if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-  throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
-            "must have size equal to the time horizon." ) );
+ if( reserve_vars & 2u ) {
+  if( !v_MaxSecondaryPower.empty()) {
+   if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
+    throw ( std::logic_error
+            ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
+              "must have size equal to the time horizon." ));
+   }
+  }
  }
-
-
- auto dquad_function = new DQuadFunction();
+ auto linear_function = new LinearFunction();
 
  for( Index t = 0; t < f_time_horizon; ++t ) {
 
-  if ( ! v_active_power_cost.empty() ){
-   dquad_function->add_variable( &v_active_power[ t ],
-                                 v_active_power_cost[ t ],
-                                 0.0 );
+  if( !v_active_power_cost.empty()) {
+   linear_function->add_variable( &v_active_power[t],
+                                  v_active_power_cost[t],
+                                  0.0 );
   } else {
-   dquad_function->add_variable( &v_active_power[ t ],
-                                 0.0,
-                                 0.0 );
+   linear_function->add_variable( &v_active_power[t],
+                                  0.0,
+                                  0.0 );
   }
-
-  if (! v_primary_cost.empty()) {
-
-   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
-                                 v_primary_cost[ t ],
-                                 0.0 );
-  } else{
-   dquad_function->add_variable( &v_primary_spinning_reserve[ t ],
-                                 0.0,
-                                 0.0 );
+  if( reserve_vars & 1u ) {
+   if( !v_MaxPrimaryPower.empty()) {
+    if( !v_primary_cost.empty()) {
+     linear_function->add_variable( &v_primary_spinning_reserve[t],
+                                    v_primary_cost[t],
+                                    0.0 );
+    } else {
+     linear_function->add_variable( &v_primary_spinning_reserve[t],
+                                    0.0,
+                                    0.0 );
+    }
+   }
   }
-  if (! v_secondary_cost.empty() ){
-   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                 v_secondary_cost[ t ],
-                                 0.0 );
-  } else{
-   dquad_function->add_variable( &v_secondary_spinning_reserve[ t ],
-                                 0.0,
-                                 0.0 );
-  }
+  if( reserve_vars & 2u ) {
+   if( !v_MaxSecondaryPower.empty()) {
 
-  if (! v_inertia_cost.empty() && ! v_MaxInertia.empty() ) {
-   dquad_function->add_variable( &v_commitment[ t ],
-                                 v_inertia_cost[ t ] * v_MaxInertia[ t ],
-                                 0.0 );
-  } else{
-   dquad_function->add_variable( &v_commitment[ t ],
-                                 0.0,
-                                 0.0 );
+    if( !v_secondary_cost.empty()) {
+     linear_function->add_variable( &v_secondary_spinning_reserve[t],
+                                    v_secondary_cost[t],
+                                    0.0 );
+    } else {
+     linear_function->add_variable( &v_secondary_spinning_reserve[t],
+                                    0.0,
+                                    0.0 );
+    }
+   }
   }
-
+  if( reserve_vars & 4u ) {
+   if( !v_inertia_cost.empty() && !v_MaxInertia.empty()) {
+    linear_function->add_variable( &v_commitment[t],
+                                   v_inertia_cost[t] * v_MaxInertia[t],
+                                   0.0 );
+   } else {
+    linear_function->add_variable( &v_commitment[t],
+                                   0.0,
+                                   0.0 );
+   }
+  }
  }
- objective.set_function( dquad_function );
+ objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
@@ -357,24 +401,48 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
               { NumberIntervals }, v_MaxInertia, true );
 }  // end( SlackUnitBlock::serialize )
 
+/*--------------------------------------------------------------------------*/
 
 template< typename T >
 void SlackUnitBlock::decompress_vector( std::vector< T > & v ) {
+ if ( v.empty() )
+  return;
+
  if( v.size() == 1 ) {
-  v.resize( f_time_horizon, v[ 0 ] );
- } else if( v.size() < f_time_horizon ) {
-  std::vector< T > temp = v;
+  // The given vector has a single element. Thus, for each time instant, the
+  // value is equal to that single given element.
+  v.resize( f_time_horizon , v[ 0 ] );
+ }
+ else if( v.size() < f_time_horizon ) {
+  // Since the number of elements is greater than 1 and less than the time
+  // horizon, it must be equal to the number of change intervals.
+  if( v.size() != v_change_intervals.size() ) {
+   throw ( std::logic_error
+           ( "BatteryUnitBlock::decompress_vector: invalid number of elements"
+             " (" + std::to_string( v.size() ) + ") for some variable. It "
+             "should be equal to the number of change intervals (" +
+             std::to_string( v_change_intervals.size() ) + ")" ) );
+  }
+
+  // For each time instant t, the value associated with time t is equal to
+  // given_vector[ k ], where k is such that t belongs to the closed interval
+  // [i_{k-1} + 1, i_k] and i_k is the k-th element of v_change_intervals
+  // (starting from k = 0) and i_{-1} = -1 by definition. We resize the vector
+  // so that its size becomes f_time_horizon and copy the given data.
+
+  std::vector< T > given_vector = v;
   v.resize( f_time_horizon );
-  int j = 0;
-  for( unsigned long i = 0; i < v_change_intervals.size(); ++i ) {
-   Index sup;
-   if( i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[ i ];
-   }
-   for( ; j < sup; ++j ) {
-    v[ j ] = temp[ i ];
+  Index t = 0;
+  for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+   auto upper_endpoint = v_change_intervals[ k ];
+   if( k == v_change_intervals.size() - 1 )
+    // The upper endpoint of the last interval must be time_horizon - 1. Since
+    // it may not be provided in v_change_intervals (the value for the last
+    // element of v_change_intervals is not required), we manually set it
+    // here.
+    upper_endpoint = f_time_horizon - 1;
+   for( ; t <= upper_endpoint ; ++t ) {
+    v[ t ] = given_vector[ k ];
    }
   }
  }

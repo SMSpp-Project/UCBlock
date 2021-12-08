@@ -25,12 +25,11 @@
 #include <iomanip>
 #include <vector>
 #include <getopt.h>
-#include <filesystem>
 
 #include <netcdf>
 #include <ncByte.h>
 
-#include <UCBlock.h>
+#include <SMSTypedefs.h>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- ThermalUnit ------------------------------*/
