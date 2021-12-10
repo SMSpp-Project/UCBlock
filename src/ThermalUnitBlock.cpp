@@ -1004,7 +1004,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  // this arrangement is exploited in add_Modification to easily map
  // indices in the coefficients of the DQuadFunction back into indices
  // of the original variables (and figure out the kind of variable)
- 
+
  if( v_commitment.size() != f_time_horizon )
   throw( std::logic_error(
 	    "ThermalUnitBlock::generate_objective: v_commitment must have "
@@ -1099,54 +1099,58 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- ::serialize( group, "InitialPower", netCDF::NcDouble(), f_initial_power );
- ::serialize( group, "MinUpTime", netCDF::NcUint(), f_MinUpTime );
- ::serialize( group, "MinDownTime", netCDF::NcUint(), f_MinDownTime );
- ::serialize( group, "InitUpDownTime", netCDF::NcInt(), f_InitUpDownTime );
+ // Serialize scalar variables.
 
+ ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_initial_power );
+ ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
+ ::serialize( group , "MinDownTime" , netCDF::NcUint() , f_MinDownTime );
+ ::serialize( group , "InitUpDownTime" , netCDF::NcInt() , f_InitUpDownTime );
+
+ // Serialize one-dimensional variables.
+
+ auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
- ::serialize( group, "MinPower", netCDF::NcDouble(),
-              NumberIntervals, v_MinPower, true );
+ /* This lambda identifies the appropriate dimension for the given variable
+  * (whose name is "var_name") and serializes the variable. The variable may
+  * have any of the following dimensions: TimeHorizon, NumberIntervals,
+  * 1. "allow_scalar_var" indicates whether the variable can be serialized as
+  * a scalar variable (in which case the variable must have dimension 1). */
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
+    const netCDF::NcType & ncType = netCDF::NcDouble() ,
+    bool allow_scalar_var = true ) {
+  if( data.empty() )
+   return;
+  netCDF::NcDim dimension;
+  if( data.size() == TimeHorizon.getSize() )
+   dimension = TimeHorizon;
+  else if( data.size() == NumberIntervals.getSize() )
+   dimension = NumberIntervals;
+  else if( data.size() != 1 ) {
+   throw( std::logic_error
+          ( "ThermalUnitBlock::serialize: invalid dimension for variable " +
+            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
+  }
 
- ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              NumberIntervals, v_MaxPower, true );
+  ::serialize( group , var_name , ncType , dimension , data ,
+               allow_scalar_var );
+ };
 
- ::serialize( group, "Availability", netCDF::NcDouble(),
-              NumberIntervals, v_Availability, true );
-
- ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-              NumberIntervals, v_DeltaRampUp, true );
-
- ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-              NumberIntervals, v_DeltaRampDown, true );
-
- if( !v_PrimaryRho.empty() ) {
-  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-               NumberIntervals, v_PrimaryRho, true );
- }
-
- if( !v_SecondaryRho.empty() ) {
-  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-               NumberIntervals, v_SecondaryRho, true );
- }
-
- ::serialize( group, "QuadTerm", netCDF::NcDouble(),
-              NumberIntervals, v_QuadTerm, true );
-
- ::serialize( group, "LinearTerm", netCDF::NcDouble(),
-              NumberIntervals, v_LinearTerm, true );
-
- ::serialize( group, "ConstTerm", netCDF::NcDouble(),
-              NumberIntervals, v_ConstTerm, true );
- ::serialize( group, "StartUpCost", netCDF::NcDouble(),
-              NumberIntervals, v_StartUpCost, true );
-
- ::serialize( group, "FixedConsumption", netCDF::NcDouble(),
-              { NumberIntervals }, v_fixed_consumption, true );
-
- ::serialize( group, "InertiaCommitment", netCDF::NcDouble(),
-              { NumberIntervals }, v_inertia_commitment, true );
+ serialize( "MinPower" , v_MinPower );
+ serialize( "MaxPower" , v_MaxPower );
+ serialize( "Availability" , v_Availability );
+ serialize( "DeltaRampUp" , v_DeltaRampUp );
+ serialize( "DeltaRampDown" , v_DeltaRampDown );
+ serialize( "PrimaryRho" , v_PrimaryRho );
+ serialize( "SecondaryRho" , v_SecondaryRho );
+ serialize( "QuadTerm" , v_QuadTerm );
+ serialize( "LinearTerm" , v_LinearTerm );
+ serialize( "ConstTerm" , v_ConstTerm );
+ serialize( "StartUpCost" , v_StartUpCost );
+ serialize( "FixedConsumption" , v_fixed_consumption );
+ serialize( "InertiaCommitment" , v_inertia_commitment );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2757,7 +2761,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   gl = gr;
   gr = 2 * th - init_t;
-  
+
   if( l < gr ) {  // active power variables
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
