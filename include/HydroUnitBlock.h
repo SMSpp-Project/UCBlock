@@ -455,7 +455,7 @@ class HydroUnitBlock : public UnitBlock {
  *   multiplied to the active power variable) at time t for arc l. The
  *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
  *   time instants t and arc l. If the first dimension has size 1 then the
- *   entry IP[ 0 , l ] is assumed to contain the the inertia power value for
+ *   entry IP[ 0 , l ] is assumed to contain the inertia power value for
  *   arc l and all time instants t.  Otherwise, InertiaPower[ i , l ] is the
  *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[

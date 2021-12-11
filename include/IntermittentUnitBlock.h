@@ -172,7 +172,7 @@ class IntermittentUnitBlock : public UnitBlock {
  *   currently generating (basically, the constant to be multiplied to the
  *   active power variable) at time t for this unit. The variable is optional;
  *   if it is not defined, IP[ t ] == 0 for each time instants t. If it has
- *   size 1 then the entry IP[ 0 ] is assumed to contain the the inertia power
+ *   size 1 then the entry IP[ 0 ] is assumed to contain the inertia power
  *   value for this unit and all time instants t.  Otherwise, InertiaPower[ i
  *   ] is the fixed value of IP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
