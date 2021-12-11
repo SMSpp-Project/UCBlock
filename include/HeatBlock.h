@@ -261,7 +261,7 @@ class HeatBlock : public Block {
  *   0.
  *
  * - The scalar variable "InitialHeatAvailable", of type double and not
- *   indexed over any dimension, which indicates the the amount of heat in
+ *   indexed over any dimension, which indicates the amount of heat in
  *   the storage at the beginning of the first time instant in this HB. It
  *   is assumed that MaxHS[ 0 ] >= InitialHeatAvailable >= MinHS[ 0 ]. This
  *   variable is optional, if it is not provided it is taken to be

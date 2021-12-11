@@ -419,7 +419,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
   Index h = h_of_node( v_on_nodes[ i ].v_arcs.front().tail );
 
   // the cost of ( i , h ) is found in cost[ h - 1 ]; note that h > i,
-  // and therefore h > 0, and therefore h - 1 is well defined
+  // and therefore h > 0, and therefore h - 1 is well-defined
   --h;
 
   // set the variable costs in the arcs
@@ -487,10 +487,10 @@ void ThermalUnitDPSolver::compute_solutions( void )
   Index h = h_of_node( n );   // the current arc is ( h , k )
   if( n->DPS && k ) {
    // n is ON( h ), or the source (if h == 0) that works as an ON node
-   // the power and committment variables of this arc are these with index
+   // the power and commitment variables of this arc are these with index
    // h, ..., k - 1, comprised if n == f_start (this is why h_of_node()
    // returns 0 for it); however, one has to explicitly avoid the special
-   // case of the "empty" arc ( s , 0 ) that has no power and committment
+   // case of the "empty" arc ( s , 0 ) that has no power and commitment
    // variables
    // get optimal values of power variables out of the EDSolver
    n->DPS->compute_power_variables( k - 1 , P );
