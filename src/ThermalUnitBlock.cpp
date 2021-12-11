@@ -2652,10 +2652,10 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   *
   *   THE STATE OF THE DATA STRUCTURE IN ThermalUnitBlock WHEN THIS METHOD
   *   IS EXECUTED IS PRECISELY THE ONE IN WHICH THE Modification WAS
-  *   ISSUED: NO COMPLCATED OPERATIONS (Variable AND/OR Constraint BEING
+  *   ISSUED: NO COMPLICATED OPERATIONS (Variable AND/OR Constraint BEING
   *   ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE MEANTIME
   *
-  * This assumption drastically simplifies some of the logic here.*/
+  * This assumption drastically simplifies some logic here.*/
 
  // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
@@ -2776,7 +2776,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   gl = gr;
   gr = 3 * th - init_t;
 
-  if( l < gr ) {  // committment variables
+  if( l < gr ) {  // commitment variables
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
@@ -2879,7 +2879,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   gl = gr;
   gr = 3 * th - init_t;
 
-  if( *l < gr ) {  // committment variables
+  if( *l < gr ) {  // commitment variables
    auto r = l;
    for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
     ++r;

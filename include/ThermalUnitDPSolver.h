@@ -97,7 +97,7 @@ namespace SMSpp_di_unipi_it {
  *   0 <= i < j <= n - 1, means that the unit is shut down at the beginning
  *   of time i and remains down up until the end of time j - 1, then it is
  *   started up at j. Hence, the cost of the arc is the (possibly,
- *   time-variable) start-up costs SUC( i , j - 1 ). This baiscally fixes
+ *   time-variable) start-up costs SUC( i , j - 1 ). This basically fixes
  *   p[ h ] = p[ h + 1 ] = p[ j - 1 ] = 0, but leaves p[ j ] free to be
  *   anything (it will be decided by the outgoing arcs of ( j , 1 )).
  *   Such an arc exists only if j - i = number of consecutive periods the
@@ -124,14 +124,14 @@ namespace SMSpp_di_unipi_it {
  *   corresponding to the arc ( i , 1 ) --> ( n - 1 , 0 ) does. The reason
  *   why ED( i , n - 1 ) is "special" is that, due to the ramp-down
  *   constraints, if the unit has to be down at time k, then it must enter
- *   in a "shutdown trajectory" in the previos time instants, so that the
+ *   in a "shutdown trajectory" in the previous time instants, so that the
  *   final power p[ k - 1 ] is the right one to stop. This constrains the ED,
  *   resulting in a higher cost. This means that forcing the shut down at the
  *   end of n - 1 is never economical: it is in principle better to allow the
  *   unit do what it wants (which may comprise autonomously entering in a
  *   shutdown trajectory if this is the optimal thing to do, as this is not
  *   prohibited). This is why the constraints of ED( h , n - 1 ) do not
- *   inclue the one forcing the power of the unit at the last time instant to
+ *   include the one forcing the power of the unit at the last time instant to
  *   be the shutdown one, unlike for all the other ED( h , k ).
  *
  * - From each OFF node ( i , 0 ) there always is one arc to the destination
@@ -318,7 +318,7 @@ namespace SMSpp_di_unipi_it {
 /** EDSolver is a base classe that defines a minimal interface between the
  * ThermalUnitDPSolver and the solvers of the individual Economic Dispatch
  * Problems that give the cost of the arc in the DP. This is geared towards
- * solvers that can cheapily compute all the costs of all the arcs
+ * solvers that can cheaply compute all the costs of all the arcs
  * ( h , h ), ( h , h + 1 ), ..., ( h , n ) in one blow, as the DP
  * solver does. However, it being virtual other implementations may be
  * considered. */
@@ -363,13 +363,13 @@ class EDSolver {
   *
   * More specifically, the point is that, due to the ramp-down constraints,
   * if the unit has to be down at time k, then it must enter in a "shutdown
-  * trajectory" in the previos time instants, so that the power at k - 1
+  * trajectory" in the previous time instants, so that the power at k - 1
   * is the right one to stop. This constrains the ED, resulting in a higher
   * cost. This means that forcing the shut down at the end of n - 1 is never
   * economical: it is in principle better to allow the unit do what it wants
   * (which may comprise autonomously entering in a shutdown trajectory if
   * this is the optimal thing to do, as this is not prohibited). This is
-  * why the constraints of the "special" ED( h , n - 1 ) do not inclue the
+  * why the constraints of the "special" ED( h , n - 1 ) do not include the
   * one forcing the power of the unit at the last time instant to be the
   * shutdown one, unlike for all the other ED( h , k ). */
 

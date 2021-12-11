@@ -274,7 +274,7 @@ class DCNetworkBlock : public NetworkBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
   * feasible within the given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
   * determined as follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -282,7 +282,7 @@ class DCNetworkBlock : public NetworkBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -454,7 +454,7 @@ class DCNetworkBlock : public NetworkBlock {
 
   static void static_initialization() {
    /*!!
-    * Not all C++ compilers enjoy the template wizardry behing the three-args
+    * Not all C++ compilers enjoy the template wizardry behind the three-args
     * version of register_method<> with the compact MS_*_*::args(), so we just
     * use the slightly less compact one with the explicit argument and be done
     * with it. !!*/
