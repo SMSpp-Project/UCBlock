@@ -338,7 +338,7 @@ void ThermalUnitDPSolver::build_graph( void )
    //   considering that min_down_time >= 1; note that min_down_time == 0
    //   is in fact possible, but we know that shutting down a unit only to
    //   powering it up again immediately is never a good idea, so we force
-   //   down-time periods to be at least of lenght one. Thus, the structure
+   //   down-time periods to be at least of length one. Thus, the structure
    //   of the arcs is analogous as in the ON nodes, except of course they
    //   go to the ON nodes themselves
    //
