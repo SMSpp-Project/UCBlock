@@ -735,7 +735,7 @@ class ThermalUnitBlock : public UnitBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this ThermalUnitBlock is approximately
   * feasible considering a given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
   * determined as follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -743,7 +743,7 @@ class ThermalUnitBlock : public UnitBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -811,7 +811,7 @@ class ThermalUnitBlock : public UnitBlock {
  /** This method returns (a const reference to) the vector containing the
   * nominal minimum active power output of the unit for all time steps. When
   * the unit is available, get_min_power()[ t ] gives the minimum active power
-  * output of the unit at time t, for each t in {0, ..., get_time_hotizon() -
+  * output of the unit at time t, for each t in {0, ..., get_time_horizon() -
   * 1}.  */
  const std::vector< double > & get_min_power() const {
   return v_MinPower;
@@ -842,7 +842,7 @@ class ThermalUnitBlock : public UnitBlock {
   * nominal maximum active power output of the unit for all time steps. When
   * the unit is fully available, get_min_power()[ t ] gives the maximum active
   * power output of the unit at time t, for each t in {0, ...,
-  * get_time_hotizon() - 1}. See get_availability() to understand the
+  * get_time_horizon() - 1}. See get_availability() to understand the
   * difference between nominal and operational maximum active power.  */
  const std::vector< double > & get_max_power() const {
   return v_MaxPower;
@@ -1638,7 +1638,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  static void static_initialization() {
   /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just
    * use the slightly less compact one with the explicit argument and be done
    * with it. !!*/
