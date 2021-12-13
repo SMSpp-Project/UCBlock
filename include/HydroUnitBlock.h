@@ -475,7 +475,7 @@ class HydroUnitBlock : public UnitBlock {
  *   volumes of water in reservoir r at time instant -1.
  *
  * - The negative or positive scalar variable "UphillFlow", of type
- *   netCDF::NcUint and indexed over the dimension "NumberArcs". Each entry
+ *   netCDF::NcInt and indexed over the dimension "NumberArcs". Each entry
  *   UpF[ l ] indicates the uphill flow delay for each unit (arc) l; the
  *   nontrivial concept is detailed below. This variable is optional, if it is
  *   not provided it is taken to be UpF[ l ] == 0.
