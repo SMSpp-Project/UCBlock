@@ -260,10 +260,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 		  boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
   v_pollutant_budget.clear();
   v_pollutant_rho.resize(
-	    boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
+	    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
   /*!! commented away until HeatBlock are properly managed
   v_pollutant_heat_rho.resize(
-	    boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
+	    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
   */
   }
 
