@@ -97,25 +97,14 @@ ThermalUnitBlock::~ThermalUnitBlock() {
 void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon",
-                                              "NumberIntervals" };
+ std::vector< std::string > expected_dims =
+  { "TimeHorizon" , "NumberIntervals" };
  check_dimensions( group, expected_dims, std::cerr );
- std::vector< std::string > expected_vars = { "MinPower",
-                                              "MaxPower",
-                                              "DeltaRampUp",
-                                              "DeltaRampDown",
-                                              "PrimaryRho",
-                                              "SecondaryRho",
-                                              "LinearTerm",
-                                              "QuadTerm",
-                                              "ConstTerm",
-                                              "StartUpCost",
-                                              "FixedConsumption",
-                                              "InertiaCommitment",
-                                              "InitialPower",
-                                              "MinUpTime",
-                                              "MinDownTime",
-                                              "InitUpDownTime" };
+ std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
+  "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
+  "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
+  "InertiaCommitment" , "InitialPower" , "MinUpTime" , "MinDownTime" ,
+  "InitUpDownTime" , "Availability" };
  check_variables( group, expected_vars, std::cerr );
 #endif
 
