@@ -1351,88 +1351,92 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  Block::serialize( group );
 
- auto dim_time_horizon = group.addDim( "TimeHorizon", f_time_horizon );
- auto dim_number_units = group.addDim( "NumberUnits", f_number_units );
- auto dim_number_elc_generators = group.addDim( "NumberElectricalGenerators",
-                                                f_number_elc_generators );
- /*!! commented away until HeatBlock are properly managed
- auto dim_number_heat_generators = group.addDim( "NumberHeatGenerators",
-                                                 f_number_heat_generators );
- */
- auto dim_total_number_pollutant_zone = group.addDim( "TotalNumberPollutantZones",
-                                                      f_total_number_pollutant_zones );
- auto dim_number_nodes = group.addDim( "NumberNodes",
-                                       f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
+ auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
+ auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
+ auto NumberElectricalGenerators = group.addDim( "NumberElectricalGenerators" ,
+                                                 f_number_elc_generators );
 
  /*!! commented away until HeatBlock are properly managed
- auto dim_number_heat_blocks =
+ auto NumberHeatGenerators = group.addDim( "NumberHeatGenerators" ,
+                                           f_number_heat_generators );
+ */
+
+ auto TotalNumberPollutantZones = group.addDim
+  ( "TotalNumberPollutantZones" , f_total_number_pollutant_zones );
+
+ auto NumberNodes = group.addDim( "NumberNodes" , f_NetworkData ?
+                                  f_NetworkData->get_number_nodes() : 1 );
+
+ /*!! commented away until HeatBlock are properly managed
+ auto NumberHeatBlocks =
          group.addDim( "NumberHeatBlocks", f_number_heat_blocks );
 	 !!*/
- auto dim_number_primary_zones =
-         group.addDim( "NumberPrimaryZones", f_number_primary_zones );
- auto dim_number_secondary_zones =
-         group.addDim( "NumberSecondaryZones", f_number_secondary_zones );
- auto dim_number_inertia_zones =
-         group.addDim( "NumberInertiaZones", f_number_inertia_zones );
- auto dim_number_pollutants =
-         group.addDim( "NumberPollutants", f_number_pollutants );
+
+ auto NumberPrimaryZones =
+  group.addDim( "NumberPrimaryZones" , f_number_primary_zones );
+ auto NumberSecondaryZones =
+  group.addDim( "NumberSecondaryZones" , f_number_secondary_zones );
+ auto NumberInertiaZones =
+  group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
+ auto NumberPollutants =
+  group.addDim( "NumberPollutants" , f_number_pollutants );
 
  /*!! commented away until HeatBlock are properly managed
  ::serialize( group, "HeatSet", netCDF::NcUint64(),
-              {dim_number_units, dim_number_heat_blocks}, v_heat_set );
+              {NumberUnits, NumberHeatBlocks}, v_heat_set );
  */
 
  ::serialize( group, "PrimaryZones", netCDF::NcUint64(),
-              {dim_number_nodes}, v_primary_zones, true );
+              {NumberNodes}, v_primary_zones, true );
 
  ::serialize( group, "PrimaryDemand", netCDF::NcDouble(),
-              {dim_number_primary_zones, dim_time_horizon},
+              {NumberPrimaryZones, TimeHorizon},
               v_primary_demand, false );
 
  ::serialize( group, "SecondaryZones", netCDF::NcUint64(),
-              {dim_number_nodes}, v_secondary_zones, true );
+              {NumberNodes}, v_secondary_zones, true );
 
  ::serialize( group, "SecondaryDemand", netCDF::NcDouble(),
-              {dim_number_secondary_zones, dim_time_horizon},
+              {NumberSecondaryZones, TimeHorizon},
               v_secondary_demand, false );
 
  ::serialize( group, "InertiaZones", netCDF::NcUint64(),
-              {dim_number_nodes}, v_inertia_zones, true );
+              {NumberNodes}, v_inertia_zones, true );
 
  ::serialize( group, "InertiaDemand", netCDF::NcDouble(),
-              {dim_number_inertia_zones, dim_time_horizon},
+              {NumberInertiaZones, TimeHorizon},
               v_inertia_demand, false );
 
  ::serialize( group, "NumberPollutantZones", netCDF::NcUint64(),
-              {dim_number_pollutants}, v_number_pollutant_zones, true );
+              {NumberPollutants}, v_number_pollutant_zones, true );
 
  ::serialize( group, "PollutantZones", netCDF::NcUint64(),
-              {dim_number_pollutants, dim_number_nodes},
+              {NumberPollutants, NumberNodes},
               v_pollutant_zones, true );
 
  ::serialize( group, "PollutantBudget", netCDF::NcDouble(),
-              {dim_total_number_pollutant_zone}, v_pollutant_budget, false );
+              {TotalNumberPollutantZones}, v_pollutant_budget, false );
 
  ::serialize( group, "PollutantRho", netCDF::NcDouble(),
-              {dim_time_horizon, dim_number_pollutants, dim_number_units},
+              {TimeHorizon, NumberPollutants, NumberUnits},
               v_pollutant_rho );
 
  /*!! commented away until HeatBlock are properly managed
  ::serialize( group, "PollutantHeatRho", netCDF::NcDouble(),
-              {dim_time_horizon, dim_number_pollutants,
-               dim_number_heat_blocks},
+              {TimeHorizon, NumberPollutants,
+               NumberHeatBlocks},
               v_pollutant_heat_rho );
 
  ::serialize( group, "PowerHeatRho", netCDF::NcDouble(),
-              {dim_number_units}, v_power_heat_rho );
+              {NumberUnits}, v_power_heat_rho );
  */
 
  ::serialize( group, "GeneratorNode", netCDF::NcUint64(),
-              {dim_number_elc_generators}, v_generator_node );
+              {NumberElectricalGenerators}, v_generator_node );
 
  /*!! commented away until HeatBlock are properly managed
  ::serialize( group, "HeatNode", netCDF::NcUint64(),
-              {dim_number_heat_blocks}, v_heat_node );
+              {NumberHeatBlocks}, v_heat_node );
  */
 
  // Serialize sub-blocks
