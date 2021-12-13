@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 09 - 2021
+ * \date 13 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -18,7 +18,6 @@
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
- *
  *
  * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
  */
@@ -679,47 +678,56 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- auto NumberIntervals = group.getDim( "NumberIntervals" );
+ // Serialize scalar variables.
+
+ ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_initial_power );
+ ::serialize( group , "InitialStorage" , netCDF::NcDouble() ,
+              f_initial_storage );
+
+ // Serialize one-dimensional variables.
+
  auto TimeHorizon = group.getDim( "TimeHorizon" );
+ auto NumberIntervals = group.getDim( "NumberIntervals" );
 
- ::serialize( group, "InitialPower", netCDF::NcDouble(), f_initial_power );
- ::serialize( group, "InitialStorage", netCDF::NcDouble(), f_initial_storage );
+ /* This lambda identifies the appropriate dimension for the given variable
+  * (whose name is "var_name") and serializes the variable. The variable may
+  * have any of the following dimensions: TimeHorizon, NumberIntervals,
+  * 1. "allow_scalar_var" indicates whether the variable can be serialized as
+  * a scalar variable (in which case the variable must have dimension 1). */
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
+    const netCDF::NcType & ncType = netCDF::NcDouble() ,
+    bool allow_scalar_var = true ) {
+  if( data.empty() )
+   return;
+  netCDF::NcDim dimension;
+  if( data.size() == TimeHorizon.getSize() )
+   dimension = TimeHorizon;
+  else if( data.size() == NumberIntervals.getSize() )
+   dimension = NumberIntervals;
+  else if( data.size() != 1 ) {
+   throw( std::logic_error
+          ( "BatteryUnitBlock::serialize: invalid dimension for variable " +
+            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
+  }
 
- ::serialize( group, "MinStorage", netCDF::NcDouble(),
-              NumberIntervals, v_minimum_storage, true );
+  ::serialize( group , var_name , ncType , dimension , data ,
+               allow_scalar_var );
+ };
 
- ::serialize( group, "MaxStorage", netCDF::NcDouble(),
-              NumberIntervals, v_maximum_storage, true );
-
- ::serialize( group, "MinPower", netCDF::NcDouble(),
-              NumberIntervals, v_minimum_power, true );
-
- ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              NumberIntervals, v_maximum_power, true );
-
- ::serialize( group, "MaxPrimaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_maximum_primary_rho, true );
-
- ::serialize( group, "MaxSecondaryRho", netCDF::NcDouble(),
-              NumberIntervals, v_maximum_secondary_rho, true );
-
- ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-              NumberIntervals, v_delta_ramp_up, true );
-
- ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-              NumberIntervals, v_delta_ramp_down, true );
-
- ::serialize( group, "StoringBatteryRho", netCDF::NcDouble(),
-              NumberIntervals, v_storing_battery_rho, true );
-
- ::serialize( group, "ExtractingBatteryRho", netCDF::NcDouble(),
-              NumberIntervals, v_extracting_battery_rho, true );
-
- ::serialize( group, "Cost", netCDF::NcDouble(),
-              NumberIntervals, v_cost, true );
-
- ::serialize( group, "Demand", netCDF::NcDouble(),
-              TimeHorizon, v_demand, true );
+ serialize( "MinStorage" , v_minimum_storage );
+ serialize( "MaxStorage" , v_maximum_storage );
+ serialize( "MinPower" , v_minimum_power );
+ serialize( "MaxPower" , v_maximum_power );
+ serialize( "MaxPrimaryRho" , v_maximum_primary_rho );
+ serialize( "MaxSecondaryRho" , v_maximum_secondary_rho );
+ serialize( "DeltaRampUp" , v_delta_ramp_up );
+ serialize( "DeltaRampDown" , v_delta_ramp_down );
+ serialize( "StoringBatteryRho" , v_storing_battery_rho );
+ serialize( "ExtractingBatteryRho" , v_extracting_battery_rho );
+ serialize( "Cost" , v_cost );
+ serialize( "Demand" , v_demand );
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
