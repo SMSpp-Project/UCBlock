@@ -146,7 +146,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   static std::vector< std::string > expected_dims = { "TimeHorizon" ,
    "NumberUnits" , "NumberHeatBlocks" , "NumberPrimaryZones" ,
    "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
-   "NumberNodes" , "NumberLines" , "NumberElectricalGenerators" };
+   "NumberNodes" , "NumberLines" , "NumberElectricalGenerators" ,
+   "TotalNumberPollutantZones" };
   check_dimensions( group , expected_dims , std::cerr );
   static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
    "GeneratorNode" , "HeatNode" , "HeatSet", "PowerHeatRho" , "PrimaryZones" ,
@@ -1351,6 +1352,16 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  Block::serialize( group );
 
+ netCDF::NcDim NumberNodes;
+
+ if( f_NetworkData ) {
+  f_NetworkData->serialize( group );
+  NumberNodes = group.getDim( "NumberNodes" );
+ }
+ else {
+  NumberNodes = group.addDim( "NumberNodes" , 1 );
+ }
+
  auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
  auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
  auto NumberElectricalGenerators = group.addDim( "NumberElectricalGenerators" ,
@@ -1358,9 +1369,6 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto TotalNumberPollutantZones = group.addDim
   ( "TotalNumberPollutantZones" , f_total_number_pollutant_zones );
-
- auto NumberNodes = group.addDim( "NumberNodes" , f_NetworkData ?
-                                  f_NetworkData->get_number_nodes() : 1 );
 
  /*!! commented away until HeatBlock are properly managed
  auto NumberHeatBlocks =
@@ -1378,6 +1386,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
   group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
  auto NumberPollutants =
   group.addDim( "NumberPollutants" , f_number_pollutants );
+
+ ::serialize( group , "ActivePowerDemand" , netCDF::NcDouble() ,
+              { NumberNodes , TimeHorizon } , v_active_power_demand );
 
  ::serialize( group , "PrimaryZones" , netCDF::NcUint() ,
               NumberNodes , v_primary_zones );
@@ -1430,11 +1441,6 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
               NumberElectricalGenerators , v_generator_node );
 
  // Serialize sub-blocks
-
- if( f_NetworkData ) {
-  auto sub_group = group.addGroup( "NetworkData" );
-  f_NetworkData->serialize( sub_group );
-  }
 
  for( Index i = 0; i < f_number_units; ++i ) {
   auto sub_block = get_unit_block( i );
