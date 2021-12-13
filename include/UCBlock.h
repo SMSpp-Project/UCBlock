@@ -12,7 +12,7 @@
  *
  * \version 0.20
  *
- * \date 17 - 01 - 2021
+ * \date 13 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -270,9 +270,9 @@ class UCBlock : public Block {
  *   the NetworkData inside the NetworkBlock overrules that inside the
  *   UCBlock, which is ignored by that NetworkBlock.
  *
- * - The variable "ActivePowerDemand", of type double, and indexed both over
- *   the dimensions "NumberNodes" and "TimeHorizon". This variable is
- *   optional if
+ * - The variable "ActivePowerDemand", of type netCDF::NcDouble(), and indexed
+ *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
+ *   is optional if
  *
  *   - a NetworkBlock is defined for each time instant (see below), and
  *
@@ -314,9 +314,9 @@ class UCBlock : public Block {
  *     ActivePowerDemand[ ... , t ] contains the active demand of each node
  *     at time instant t.
  *
- * - The variable "GeneratorNode", of type int and indexed over the set
- *   { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ] tells
- *   to which node of the transmission network, the specified electrical
+ * - The variable "GeneratorNode", of type netCDF::NcUint() and indexed over
+ *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
+ *   tells to which node of the transmission network, the specified electrical
  *   generator g belongs. Note that this means that different electrical
  *   generators in the same UnitBlock can belong to different nodes of the
  *   transmission network. This is justified e.g. by hydro cascade units where
@@ -324,14 +324,14 @@ class UCBlock : public Block {
  *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
  *   NumberUnits (all UnitBlock have exactly one electrical generator), then
  *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
- *   is not provided at all), then this variable need not be defined, since
- *   it is not loaded.
+ *   is not provided at all), then this variable need not be defined, since it
+ *   is not loaded.
  *
- * - The variable "HeatNode", of type int and indexed over the dimension
- *   "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node of the
- *   transmission network *all* the heat generators that are also electrical
- *   generators in the HeatBlock h belong. Note that this implies that,
- *   unlike electrical generators in a UnitBlock, heat generators in a
+ * - The variable "HeatNode", of type netCDF::NcUint() and indexed over the
+ *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node
+ *   of the transmission network *all* the heat generators that are also
+ *   electrical generators in the HeatBlock h belong. Note that this implies
+ *   that, unlike electrical generators in a UnitBlock, heat generators in a
  *   HeatBlock are always "geographically near to each other" so that they are
  *   necessarily attached to the same node of the transmission network (which
  *   is a reasonable assumption since heat, unlike say water, usually cannot
@@ -342,15 +342,15 @@ class UCBlock : public Block {
  *   generators (that are not also electricity generators) to the pollution
  *   constraints. This means that also if NumberPollutants == 0 (say, it is
  *   not provided at all) this variable is useless and therefore need not be
- *   defined, since it is not loaded. Finally, notice that for heat
- *   generators into a HeatBlock that also are electrical generators, this
- *   variable provides again an information that is already known, i.e., to
- *   which node they belong to (cf. "GeneratorNode" above). Of course *the
- *   two information must agree*, otherwise the input file is ill-defined and
+ *   defined, since it is not loaded. Finally, notice that for heat generators
+ *   into a HeatBlock that also are electrical generators, this variable
+ *   provides again an information that is already known, i.e., to which node
+ *   they belong to (cf. "GeneratorNode" above). Of course *the two
+ *   information must agree*, otherwise the input file is ill-defined and
  *   exception is thrown.
  *
- * - The variable "HeatSet", of type int and indexed over the set { 0 , ... ,
- *   NumberHeatGenerators - 1 }. If HeatSet[ h ] = k <
+ * - The variable "HeatSet", of type netCDF::NcUint() and indexed over the set
+ *   { 0 , ... , NumberHeatGenerators - 1 }. If HeatSet[ h ] = k <
  *   NumberElectricalGenerators, then k is the unique name of the electrical
  *   generator corresponding to the heat generator h; otherwise the heat
  *   generator h is not also an electrical generator. If NumberHeatBlocks == 0
@@ -361,53 +361,55 @@ class UCBlock : public Block {
  *   corresponds to a specific electrical generator, or to no electrical
  *   generator (it is an heat-only generator).
  *
- * - The variable "PowerHeatRho", of type double and indexed over the
- *   dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to contain
- *   the electrical-power-to-heat ratio for *all generators* within unit i
- *   (most likely, a single generator). This is only used in the constraints
- *   linking electrical units to heat units, hence if NumberHeatBlocks == 0
- *   (there are no HeatBlock) then this variable need not be defined, since it
- *   is not loaded.
+ * - The variable "PowerHeatRho", of type netCDF::NcDouble() and indexed over
+ *   the dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to
+ *   contain the electrical-power-to-heat ratio for *all generators* within
+ *   unit i (most likely, a single generator). This is only used in the
+ *   constraints linking electrical units to heat units, hence if
+ *   NumberHeatBlocks == 0 (there are no HeatBlock) then this variable need
+ *   not be defined, since it is not loaded.
  *
  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
  *   reserve zones" are there in the problem. The dimension is optional, if it
  *   is not provided then it is taken to be 0, which means that no primary
  *   reserve constraints are present in the problem.
  *
- * - The variable "PrimaryZones", of type int and indexed over the dimension
- *   "NumberNodes". The entry PrimaryZones[ i ] tells to which primary zone
- *   the node i belongs: if PrimaryZones[ i ] >= NumberPrimaryZones, this
- *   means that node i does not belong to any primary zone, and hence the
- *   corresponding electrical generators are not involved into the primary
- *   reserve constraints. If NumberPrimaryZones == 0 (say, it is not provided
- *   at all) then this variable need not be defined, since it is not loaded.
- *   If NumberPrimaryZones == 1 and this variable is not defined, then there
- *   is only one primary zone and all the nodes belong to it.
+ * - The variable "PrimaryZones", of type netCDF::NcUint() and indexed over
+ *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
+ *   primary zone the node i belongs: if PrimaryZones[ i ] >=
+ *   NumberPrimaryZones, this means that node i does not belong to any primary
+ *   zone, and hence the corresponding electrical generators are not involved
+ *   into the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
+ *   is not provided at all) then this variable need not be defined, since it
+ *   is not loaded.  If NumberPrimaryZones == 1 and this variable is not
+ *   defined, then there is only one primary zone and all the nodes belong to
+ *   it.
  *
- * - The variable "PrimaryDemand", of type double and indexed both over the
- *   dimensions "NumberPrimaryZones" and "TimeHorizon": entry
+ * - The variable "PrimaryDemand", of type netCDF::NcDouble() and indexed both
+ *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
  *   PrimaryDemand[ i , t ] is assumed to contain the primary reserves
- *   requirement which are specified on the primary reserve zone i in the
- *   time t. If NumberPrimaryZones == 0 (say, it is not provided at all),
- *   then this variable need not be defined, since it is not loaded.
+ *   requirement which are specified on the primary reserve zone i in the time
+ *   t. If NumberPrimaryZones == 0 (say, it is not provided at all), then this
+ *   variable need not be defined, since it is not loaded.
  *
  * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
  *   reserve zones" are there in the problem. The dimension is optional, if it
  *   is not provided then it is taken to be 0, which means that no secondary
  *   reserve constraints are present in the problem.
  *
- * - The variable "SecondaryZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry SecondaryZones[ i ] tells to which secondary
- *   zone the node i belongs. If SecondaryZones[ i ] >= NumberSecondaryZones,
- *   this means that node i does not belong to any secondary zone, and hence
- *   the corresponding units are not involved into the secondary reserve
- *   constraints. If NumberSecondaryZones == 0 (say, it is not provided at
- *   all) then this variable need not be defined, since it is not loaded. If
- *   NumberSecondaryZones == 1 and this variable is not defined, then there is
- *   only one secondary zone and all the nodes belong to it.
+ * - The variable "SecondaryZones", of type netCDF::NcUint() and indexed over
+ *   the dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to which
+ *   secondary zone the node i belongs. If SecondaryZones[ i ] >=
+ *   NumberSecondaryZones, this means that node i does not belong to any
+ *   secondary zone, and hence the corresponding units are not involved into
+ *   the secondary reserve constraints. If NumberSecondaryZones == 0 (say, it
+ *   is not provided at all) then this variable need not be defined, since it
+ *   is not loaded. If NumberSecondaryZones == 1 and this variable is not
+ *   defined, then there is only one secondary zone and all the nodes belong
+ *   to it.
  *
- * - The variable "SecondaryDemand", of type double and indexed both over the
- *   dimensions "NumberSecondaryZones" and "TimeHorizon": entry
+ * - The variable "SecondaryDemand", of type netCDF::NcDouble() and indexed
+ *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon": entry
  *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
  *   requirement which are specified on the secondary reserve zone i in the
  *   time t. If NumberSecondaryZones == 0 (say, it is not provided at all),
@@ -418,18 +420,18 @@ class UCBlock : public Block {
  *   provided then it is taken to be 0, which means that no inertia
  *   constraints are present in the problem.
  *
- * - The variable "InertiaZones", of type int and indexed over the dimension
- *   "NumberNodes"; the entry InertiaZones[ n ] tells to which inertia zone
- *   the node n belongs. If InertiaZones[ n ] >= NumberInertiaZones, this
- *   means that node n does not belong to any inertia zone, and hence the
- *   corresponding units are not involved into the inertia reserve
- *   constraints. If NumberInertiaZones == 0 (say, it is not provided at all)
- *   then this variable need not be defined, since it is not loaded. If
- *   NumberInertiaZones == 1 and this variable is not defined, then there is
- *   only one inertia zone and all the nodes belong to it.
+ * - The variable "InertiaZones", of type netCDF::NcUint() and indexed over
+ *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
+ *   inertia zone the node n belongs. If InertiaZones[ n ] >=
+ *   NumberInertiaZones, this means that node n does not belong to any inertia
+ *   zone, and hence the corresponding units are not involved into the inertia
+ *   reserve constraints. If NumberInertiaZones == 0 (say, it is not provided
+ *   at all) then this variable need not be defined, since it is not
+ *   loaded. If NumberInertiaZones == 1 and this variable is not defined, then
+ *   there is only one inertia zone and all the nodes belong to it.
  *
- * - The variable "InertiaDemand", of type double and indexed both over the
- *   dimensions "NumberInertiaZones" and "TimeHorizon": entry
+ * - The variable "InertiaDemand", of type netCDF::NcDouble() and indexed both
+ *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
  *   InertiaDemand[ i , t ] is assumed to contain the inertia reserves
  *   requirement which are specified on the inertia constraints zone i in the
  *   time t. If NumberInertiaZones == 0 (say, it is not provided at all), then
@@ -440,9 +442,9 @@ class UCBlock : public Block {
  *   taken to be 0, which means that no pollutants constraints are present in
  *   the problem.
  *
- * - The variable "NumberPollutantZones" of type int and indexed over the
- *   dimension "NumberPollutants": the entry NumberPollutantZones[ p ] is
- *   assumed to contain the number of pollutant zones associated with
+ * - The variable "NumberPollutantZones" of type netCDF::NcUint() and indexed
+ *   over the dimension "NumberPollutants": the entry NumberPollutantZones[ p
+ *   ] is assumed to contain the number of pollutant zones associated with
  *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then this
  *   variable need not be defined, since it is not loaded. The total number of
  *   pollutant zones is useful (cf. PollutantBudget); it will be referred to
@@ -450,23 +452,23 @@ class UCBlock : public Block {
  *   TotalNumberPollutantZones = NumberPollutantZone[ 0 ] + ... +
  *   NumberPollutantZone[ NumberPollutants - 1 ].
  *
- * - The variable "PollutantZones", of type int and indexed over the
- *   dimensions "NumberPollutants" and "NumberNodes": the entry
- *   PollutantZones[ p , n ] tells to which pollutant zone associated
- *   with pollutant p the node n belongs. If PollutantZones[ p , n ] >=
- *   NumberPollutantZones[ p ], this means that node n does not belong to
- *   any pollutant zone, and hence the corresponding units are not involved
- *   into the pollutant budget constraints associated with pollutant p. If
- *   NumberPollutants == 0 (say, it is not provided) then this variable
- *   need not be defined, since it is not loaded.
+ * - The variable "PollutantZones", of type netCDF::NcUint() and indexed over
+ *   the dimensions "NumberPollutants" and "NumberNodes": the entry
+ *   PollutantZones[ p , n ] tells to which pollutant zone associated with
+ *   pollutant p the node n belongs. If PollutantZones[ p , n ] >=
+ *   NumberPollutantZones[ p ], this means that node n does not belong to any
+ *   pollutant zone, and hence the corresponding units are not involved into
+ *   the pollutant budget constraints associated with pollutant p. If
+ *   NumberPollutants == 0 (say, it is not provided) then this variable need
+ *   not be defined, since it is not loaded.
  *
- * - The variable "PollutantBudget", of type double and indexed over the
- *   set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
+ * - The variable "PollutantBudget", of type netCDF::NcDouble() and indexed
+ *   over the set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
  *   PollutantBudget[ n ] for n == 0 , ..., TotalNumberPollutantZones - 1 is
  *   assumed to contain the pollutant budget (across all the time horizon) for
  *   the pair (zone of the pollutant , pollutant) corresponding to n. In
  *   another word, since the number of pollutant zones of each pollutant may
- *   not be equal with each other it is useful  (to avoid having to store
+ *   not be equal with each other it is useful (to avoid having to store
  *   PollutantBudget as an irregular matrix) to be able to assign a unique
  *   index n = 0, 1, ..., TotalNumberPollutantZones - 1 to each pollutant
  *   budget of each pollutant zone. A mapping must be defined between each
@@ -474,30 +476,25 @@ class UCBlock : public Block {
  *   the obvious one: UCBlock has a set of pollutants p = 0, 1, ...,
  *   NumberPollutants - 1, and each pollutant p may have several pollutant
  *   zones (see comments of variable "NumberPollutantZones" above). Thus, in
- *   general the mapping is:
- *     n = 0 corresponds to the zone 0 of pollutant 0
- *     n = 1 corresponds to the zone 1 of pollutant 0
- *     ...
- *     n = NumberPollutantZone[ 0 ] - 1 corresponds to the zone
- *     NumberPollutantZone[ 0 ] - 1 of pollutant 0
- *     n = NumberPollutantZone[ 0 ] corresponds to the zone 0 of pollutant 1
- *     n = NumberPollutantZone[ 0 ] + 1 corresponds to the zone 1 of
- *     pollutant 1
- *     ...
- *   If NumberPollutants == 0 (say, it is not provided) then this variable
- *   need not be defined, since it is not loaded.
+ *   general the mapping is: n = 0 corresponds to the zone 0 of pollutant 0 n
+ *   = 1 corresponds to the zone 1 of pollutant 0 ...  n =
+ *   NumberPollutantZone[ 0 ] - 1 corresponds to the zone NumberPollutantZone[
+ *   0 ] - 1 of pollutant 0 n = NumberPollutantZone[ 0 ] corresponds to the
+ *   zone 0 of pollutant 1 n = NumberPollutantZone[ 0 ] + 1 corresponds to the
+ *   zone 1 of pollutant 1 ...  If NumberPollutants == 0 (say, it is not
+ *   provided) then this variable need not be defined, since it is not loaded.
  *
- * - The variable "PollutantRho", of type double and indexed over three
- *   dimensions which are TimeHorizon and NumberPollutants and the set
- *   { 0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
- *   first dimension can have size either 1 or TimeHorizon. In the former
- *   case the entry PollutantRho[ 0 , p , g ] is assumed to contain the
- *   conversion factor of pollutant p due to the electrical generator g
- *   which is equal for all time instants t. Otherwise, the first dimension
- *   has full size TimeHorizon and the entry PollutantRho[ t , p , g ] gives
- *   the conversion factor of pollutant p due to the electrical generator g
- *   for time t. If NumberPollutants == 0 (it is not provided) then this
- *   variable need not be defined, since it's not loaded. */
+ * - The variable "PollutantRho", of type netCDF::NcDouble() and indexed over
+ *   three dimensions which are TimeHorizon and NumberPollutants and the set {
+ *   0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
+ *   first dimension can have size either 1 or TimeHorizon. In the former case
+ *   the entry PollutantRho[ 0 , p , g ] is assumed to contain the conversion
+ *   factor of pollutant p due to the electrical generator g which is equal
+ *   for all time instants t. Otherwise, the first dimension has full size
+ *   TimeHorizon and the entry PollutantRho[ t , p , g ] gives the conversion
+ *   factor of pollutant p due to the electrical generator g for time t. If
+ *   NumberPollutants == 0 (it is not provided) then this variable need not be
+ *   defined, since it's not loaded. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
