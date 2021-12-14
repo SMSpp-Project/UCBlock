@@ -325,7 +325,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // if number_nodes == 1, NetworkBlocks are useless and therefore removed
  if( number_nodes == 1 ) {
   if( ! v_active_power_demand.num_elements() ) {
-   // if active power demand is not defined, do it now and pre-load it with
+   // if active power demand is not defined, do it now and preload it with
    // zeros in case some NetworkBlock is not there
    v_active_power_demand.resize(
     boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
@@ -461,7 +461,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
       if( auto fc = bi->get_fixed_consumption( g ) )
        if( fc[ t ] )
 	if( auto u = bi->get_commitment( g ) ) {
-	 // add the contribution of the corresponding committment variables
+	 // add the contribution of the corresponding commitment variables
 	 *(vcit++) = std::pair( & u[ t ] , - fc[ t ] );
 	 rhs -= fc[ t ];	// update the RHS
          }
@@ -1478,7 +1478,7 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
    if( auto fc = bi->get_fixed_consumption( g ) )
     if( fc[ time ] )
      if( auto u = bi->get_commitment( g ) ) {
-      // add the contribution of the corresponding committment variables
+      // add the contribution of the corresponding commitment variables
       rhs -= fc[ time ]; // update the RHS
      }
   }  // end( for( g ) )

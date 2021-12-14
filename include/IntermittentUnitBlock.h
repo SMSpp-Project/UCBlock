@@ -172,7 +172,7 @@ class IntermittentUnitBlock : public UnitBlock {
  *   currently generating (basically, the constant to be multiplied to the
  *   active power variable) at time t for this unit. The variable is optional;
  *   if it is not defined, IP[ t ] == 0 for each time instants t. If it has
- *   size 1 then the entry IP[ 0 ] is assumed to contain the the inertia power
+ *   size 1 then the entry IP[ 0 ] is assumed to contain the inertia power
  *   value for this unit and all time instants t.  Otherwise, InertiaPower[ i
  *   ] is the fixed value of IP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -272,7 +272,7 @@ class IntermittentUnitBlock : public UnitBlock {
   * current value of the Variable of this IntermittentUnitBlock is
   * approximately feasible considering a given tolerance. The tolerance can be
   * provided by either \p fsbc or by
-  * #f_BlockConfig->f_is_feasible_Congifuration and it is determined as
+  * #f_BlockConfig->f_is_feasible_Configuration and it is determined as
   * follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -280,7 +280,7 @@ class IntermittentUnitBlock : public UnitBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -522,7 +522,7 @@ class IntermittentUnitBlock : public UnitBlock {
 
  static void static_initialization() {
   /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just
    * use the slightly less compact one with the explicit argument and be done
    * with it. !!*/
