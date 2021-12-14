@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 09 - 2021
+ * \date 13 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -374,31 +374,47 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
+ // Serialize one-dimensional variables.
+
+ auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
- ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              v_MaxPower );
+ /* This lambda identifies the appropriate dimension for the given variable
+  * (whose name is "var_name") and serializes the variable. The variable may
+  * have any of the following dimensions: TimeHorizon, NumberIntervals,
+  * 1. "allow_scalar_var" indicates whether the variable can be serialized as
+  * a scalar variable (in which case the variable must have dimension 1). */
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
+    const netCDF::NcType & ncType = netCDF::NcDouble() ,
+    bool allow_scalar_var = true ) {
+  if( data.empty() )
+   return;
+  netCDF::NcDim dimension;
+  if( data.size() == TimeHorizon.getSize() )
+   dimension = TimeHorizon;
+  else if( data.size() == NumberIntervals.getSize() )
+   dimension = NumberIntervals;
+  else if( data.size() != 1 ) {
+   throw( std::logic_error
+          ( "SlackUnitBlock::serialize: invalid dimension for variable " +
+            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
+  }
 
- ::serialize( group, "MaxPrimaryPower", netCDF::NcDouble(),
-               v_MaxPrimaryPower);
+  ::serialize( group , var_name , ncType , dimension , data ,
+               allow_scalar_var );
+ };
 
- ::serialize( group, "MaxSecondaryPower", netCDF::NcDouble(),
-              NumberIntervals, v_MaxSecondaryPower, true );
+ serialize( "MaxPower" , v_MaxPower );
+ serialize( "MaxPrimaryPower" , v_MaxPrimaryPower);
+ serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
+ serialize( "MaxInertia" , v_MaxInertia );
+ serialize( "ActivePowerCost" , v_active_power_cost );
+ serialize( "PrimaryCost" , v_primary_cost );
+ serialize( "SecondaryCost" , v_secondary_cost );
+ serialize( "InertiaCost" , v_inertia_cost );
 
- ::serialize( group, "ActivePowerCost", netCDF::NcDouble(),
-              NumberIntervals, v_active_power_cost, true );
-
- ::serialize( group, "PrimaryCost", netCDF::NcDouble(),
-              NumberIntervals, v_primary_cost, true );
-
- ::serialize( group, "SecondaryCost", netCDF::NcDouble(),
-              NumberIntervals, v_secondary_cost, true );
-
- ::serialize( group, "InertiaCost", netCDF::NcDouble(),
-              NumberIntervals, v_inertia_cost, true );
-
- ::serialize( group, "MaxInertia", netCDF::NcDouble(),
-              { NumberIntervals }, v_MaxInertia, true );
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
