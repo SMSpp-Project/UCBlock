@@ -555,7 +555,10 @@ class DPEDSolver : public EDSolver {
 
 /*--------------------------------------------------------------------------*/
 
- double compute_startup_costs( Index h , Index k );
+ double compute_startup_costs( Index h , Index k ) {
+  // one day a time-dependent SUC formula may be easily implemented here
+  return( startup_costs[ k ] );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE FIELDS OF THE CLASS ----------------------*/

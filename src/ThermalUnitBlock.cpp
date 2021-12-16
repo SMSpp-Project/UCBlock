@@ -94,8 +94,8 @@ ThermalUnitBlock::~ThermalUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
-
+void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 #ifndef NDEBUG
  std::vector< std::string > expected_dims =
   { "TimeHorizon" , "NumberIntervals" };
@@ -108,48 +108,86 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group, expected_vars, std::cerr );
 #endif
 
- UnitBlock::deserialize_time_horizon( group );
- UnitBlock::deserialize_change_intervals( group );
+ UnitBlock::deserialize( group );
 
  ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
  ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
- ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true, true );
- ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown, true, true );
+ ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true,
+		true );
+ ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown,
+		true, true );
  ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
- ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho, true, true );
+ ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho,
+		true, true );
  ::deserialize( group, "LinearTerm", f_time_horizon, v_LinearTerm, true, true );
  ::deserialize( group, "QuadTerm", f_time_horizon, v_QuadTerm, true, true );
  ::deserialize( group, "ConstTerm", f_time_horizon, v_ConstTerm, true, true );
- ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost, true, true );
- ::deserialize( group, "FixedConsumption", f_time_horizon, v_fixed_consumption, true, true );
- ::deserialize( group, "InertiaCommitment", f_time_horizon, v_inertia_commitment, true, true );
+ ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost,
+		true, true );
+ ::deserialize( group, "FixedConsumption", f_time_horizon,
+		v_fixed_consumption, true, true );
+ ::deserialize( group, "InertiaCommitment", f_time_horizon,
+		v_inertia_commitment, true, true );
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
  ::deserialize( group, "MinDownTime", &f_MinDownTime );
  ::deserialize( group, "InitUpDownTime", &f_InitUpDownTime );
 
- if( ! ::deserialize( group, "Availability", f_time_horizon,
-                      v_Availability, true, true ) ) {
+ if( ! ::deserialize( group, "Availability" , f_time_horizon ,
+                      v_Availability , true , true ) )
   v_Availability.resize( get_time_horizon() , 1.0 );
- }
 
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_MinPower[ t ] > v_MaxPower[ t ] )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: MinPower > MaxPower for t = " +
+	   std::to_string( t ) ) );
+ 
  decompress_vector( v_Availability );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: wrong Availability for t = " +
+	   std::to_string( t ) ) );
+ 
  decompress_vector( v_DeltaRampUp );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_DeltaRampUp[ t ] < 0 )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: wrong DeltaRampUp for t = " +
+	   std::to_string( t ) ) );
+
  decompress_vector( v_DeltaRampDown );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_DeltaRampDown[ t ] < 0 )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: wrong DeltaRampUp for t = " +
+	   std::to_string( t ) ) );
+ 
  decompress_vector( v_PrimaryRho );
  decompress_vector( v_SecondaryRho );
  decompress_vector( v_LinearTerm );
  decompress_vector( v_QuadTerm );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_QuadTerm[ t ] < 0 )
+   throw( std::invalid_argument(
+           "ThermalUnitBlock: wrong QuadTerm for t = " +
+	   std::to_string( t ) ) );
+
  decompress_vector( v_ConstTerm );
  decompress_vector( v_StartUpCost );
  decompress_vector( v_fixed_consumption );
  decompress_vector( v_inertia_commitment );
 
- UnitBlock::deserialize( group );
-}  // end( ThermalUnitBlock::deserialize )
+ }  // end( ThermalUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 

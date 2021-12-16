@@ -586,14 +586,6 @@ void ThermalUnitDPSolver::load_parameters( void )
 
 /*--------------------------------------------------------------------------*/
 
-double ThermalUnitDPSolver::compute_startup_costs( Index h , Index k )
-{
- // one day a time-dependent SUC formula may be easily implemented here
- return( startup_costs[ k ] );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitDPSolver::process_modifications( void )
 {
  bool reload = false;

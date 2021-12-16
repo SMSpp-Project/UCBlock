@@ -163,7 +163,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
+void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
+{
  auto battery_type = get_battery_type();
 
  if( variables_generated() )
@@ -242,11 +243,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 } // end( BatteryUnitBlock::generate_abstract_variables )
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_abstract_constraints ( Configuration * stcc ) {
+void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
+
+ if( ! variables_generated() )
+  throw( std::logic_error( "variables need be generated for constraints to be"
+			   ) );
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast<SimpleConfiguration<int> *>( stcc );
@@ -610,55 +616,38 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  if( objective_generated() )
   return; // Objective has already been generated
 
+ if( ! variables_generated() )
+  throw( std::logic_error( "variables need be generated for constraints to be"
+			   ) );
+
  // Initial condition of each vector
 
  std::vector<double> cost = v_cost;
- if (cost.size() == 1) {
-  cost.resize(f_time_horizon, cost[0]);
+ if( cost.size() == 1 )
+  cost.resize( f_time_horizon , cost[ 0 ] );
+ else
+  if( cost.size() < f_time_horizon ) {
+   cost.resize( f_time_horizon );
+   Index j = 0;
+   for( unsigned long i = 0 ; i < v_change_intervals.size() ; ++i ) {
+    Index sup = ( i == v_change_intervals.size() - 1 )
+              ? f_time_horizon : v_change_intervals[ i ];
+    for( ; j < sup ; ++j )
+     cost[ j ] = v_cost[ i ];
+    }
+   }
 
- } else if (cost.size() < f_time_horizon) {
-  cost.resize(f_time_horizon);
-  int j = 0;
-  for (unsigned long i = 0; i < v_change_intervals.size(); ++i) {
-   Index sup;
-   if (i == v_change_intervals.size() - 1 ) {
-    sup = f_time_horizon;
-   } else {
-    sup = v_change_intervals[i];
-   }
-   for (; j < sup; ++j) {
-    cost[j] = v_cost[i];
-   }
-  }
- }
  // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
 
  if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
-
- if( v_intake_level.size() != f_time_horizon  ) {
-  throw ( std::logic_error
-          ( "BatteryUnitBlock::generate_objective: v_intake_level must have "
-            "size equal to the time horizon." ));
- }
-
- if(  v_outtake_level.size() != f_time_horizon) {
-  throw ( std::logic_error
-          ( "BatteryUnitBlock::generate_objective: v_outtake_level must have "
-            "size equal to the time horizon." ));
- }
   auto linear_function = new LinearFunction();
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   linear_function->add_variable( &v_intake_level[ t ],
-                                 cost[ t  ],
-                                 0.0 );
-
-   linear_function->add_variable( &v_outtake_level[ t ],
-                                 cost[ t  ],
-                                 0.0 );
-  }
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   linear_function->add_variable( &v_intake_level[ t ] , cost[ t ] , 0.0 );
+   linear_function->add_variable( &v_outtake_level[ t ] , cost[ t ] , 0.0 );
+   }
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
@@ -668,7 +657,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  set_objective_generated();
 
-}  // end( BatteryUnitBlock::generate_objective )
+ }  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ---*/

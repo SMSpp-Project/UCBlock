@@ -128,7 +128,7 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    const auto t = v_change_intervals[ k ];
-   if( ! ( ( t >= 0 ) && ( t < f_time_horizon ) &&
+   if( ! ( ( t < f_time_horizon ) &&
            ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
     throw ( std::invalid_argument
             ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
