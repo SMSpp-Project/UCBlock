@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 12 - 2021
+ * \date 17 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -251,8 +251,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   return; // constraints have already been generated
 
  if( ! variables_generated() )
-  throw( std::logic_error( "variables need be generated for constraints to be"
-			   ) );
+  throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
+                           "variables need be generated for constraints "
+                           "to be." ) );
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast<SimpleConfiguration<int> *>( stcc );
@@ -321,7 +322,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     active_power_lower_bound_Constraints[t].set_function( linear_function );
 
   }
-  add_static_constraint( active_power_lower_bound_Constraints, "ActivePower_LowerBound_Constraints_Battery" );
+  add_static_constraint( active_power_lower_bound_Constraints ,
+                         "ActivePower_LowerBound_Constraints_Battery" );
 
   // Initializing maximum power constraints
 
@@ -347,7 +349,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     active_power_upper_bound_Constraints[t].set_function( linear_function );
    }
 
-  add_static_constraint( active_power_upper_bound_Constraints, "ActivePower_UpperBound_Constraints_Battery" );
+  add_static_constraint( active_power_upper_bound_Constraints ,
+                         "ActivePower_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
  // Initializing ramp-up constraints
@@ -424,7 +427,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   }
 
- add_static_constraint( power_intake_outtake_Constraints, "Power_Intake_Outtake_Constraints_Battery" );
+ add_static_constraint( power_intake_outtake_Constraints ,
+                        "Power_Intake_Outtake_Constraints_Battery" );
 
 
 // Initializing intake_upper_bound_Constraints
@@ -439,7 +443,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    intake_upper_bound_Constraints[t].set_variable(&v_intake_level[t]);
 
   }
- add_static_constraint( intake_upper_bound_Constraints, "Intake_UpperBound_Constraints_Battery" );
+ add_static_constraint( intake_upper_bound_Constraints ,
+                        "Intake_UpperBound_Constraints_Battery" );
 
  /*--------------------------------------------------------------------------*/
 // Initializing demand_Constraints
@@ -514,7 +519,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    storage_level_bounds_Constraints[t].set_variable(&v_storage_level[t]);
 
   }
- add_static_constraint( storage_level_bounds_Constraints, "StorageLevel_Bounds_Constraints_Battery" );
+ add_static_constraint( storage_level_bounds_Constraints ,
+                        "StorageLevel_Bounds_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -558,7 +564,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    outtake_binary_Constraints[t].set_function( linear_function );
 
   }
-  add_static_constraint( outtake_binary_Constraints, "Outtake_Binary_Constraints_Battery" );
+  add_static_constraint( outtake_binary_Constraints ,
+                         "Outtake_Binary_Constraints_Battery" );
  }
 /*--------------------------------------------------------------------------*/
 
@@ -574,7 +581,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     primary_upper_bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
 
    }
-   add_static_constraint( primary_upper_bound_Constraints, "Primary_UpperBound_Constraints_Battery" );
+   add_static_constraint( primary_upper_bound_Constraints ,
+                          "Primary_UpperBound_Constraints_Battery" );
   }
  }
   // Initializing secondary_upper_bound_Constraints
@@ -617,37 +625,44 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
   return; // Objective has already been generated
 
  if( ! variables_generated() )
-  throw( std::logic_error( "variables need be generated for constraints to be"
-			   ) );
+  throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
+                           "need be generated for constraints to be." ) );
 
- // Initial condition of each vector
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ // Construct the costs vector
 
  std::vector<double> cost = v_cost;
  if( cost.size() == 1 )
   cost.resize( f_time_horizon , cost[ 0 ] );
  else
   if( cost.size() < f_time_horizon ) {
-   cost.resize( f_time_horizon );
-   Index j = 0;
-   for( unsigned long i = 0 ; i < v_change_intervals.size() ; ++i ) {
-    Index sup = ( i == v_change_intervals.size() - 1 )
-              ? f_time_horizon : v_change_intervals[ i ];
-    for( ; j < sup ; ++j )
-     cost[ j ] = v_cost[ i ];
+   assert( cost.size() == v_change_intervals.size() );
+   cost.resize( f_time_horizon , 0 );
+   Index t = 0;
+   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+    auto upper_endpoint = v_change_intervals[ k ];
+    if( k == v_change_intervals.size() - 1 )
+     // The upper endpoint of the last interval must be time_horizon - 1. Since
+     // it may not be provided in v_change_intervals (the value for the last
+     // element of v_change_intervals is not required), we manually set it
+     // here.
+     upper_endpoint = f_time_horizon - 1;
+    for( ; t <= upper_endpoint ; ++t ) {
+     cost[ t ] = v_cost[ k ];
     }
    }
+  }
 
  // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
 
- if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
+ auto linear_function = new LinearFunction();
 
-  auto linear_function = new LinearFunction();
-
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   linear_function->add_variable( &v_intake_level[ t ] , cost[ t ] , 0.0 );
-   linear_function->add_variable( &v_outtake_level[ t ] , cost[ t ] , 0.0 );
-   }
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  linear_function->add_variable( &v_intake_level[ t ] , cost[ t ] , 0.0 );
+  linear_function->add_variable( &v_outtake_level[ t ] , cost[ t ] , 0.0 );
+  }
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
