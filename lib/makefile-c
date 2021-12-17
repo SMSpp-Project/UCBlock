@@ -25,7 +25,7 @@
 #                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
-#									     #
+#									                                         #
 ##############################################################################
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
@@ -33,7 +33,7 @@
 # corresponding include line
 # each module outputs some macros to be used here:
 # *INC are the -I<include directories>
-# *LIB are the external libreries + -L<libdirs>
+# *LIB are the external libraries + -L<libdirs>
 
 # define input macros for SMS++ complete makefile, then include it
 SMS++SDR = $(UCBckDIR)../SMS++/

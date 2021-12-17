@@ -10,7 +10,7 @@
 #           check for changes in the .h and rebuild the .o / .a. Also, the   #
 #           *OBJ is just the library                                         #
 #           $(UCBckINC) = the -I$(include directories) for UCBlock           #
-#           $(UCBckLIB) = external libreries + -L<libdirs> for UCBlock       #
+#           $(UCBckLIB) = external libraries + -L<libdirs> for UCBlock       #
 #           $(UCBckOBJ) = the libUCBck library itself                        #
 #                                                                            #
 #   Indeed, the makefile only calls makefile-c and strips away the *H and    #  
@@ -23,7 +23,7 @@
 #                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
-#									     #
+#									                                         #
 ##############################################################################
 
 # include the UCBck makefile internally defining all external modules - - - -

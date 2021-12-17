@@ -28,6 +28,7 @@
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
 #                              Antonio Frangioni                             #
+#                           Operations Research Group                        #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
