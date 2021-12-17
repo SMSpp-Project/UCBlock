@@ -140,54 +140,59 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_MinPower[ t ] > v_MaxPower[ t ] )
-   throw( std::invalid_argument(
-           "ThermalUnitBlock: MinPower > MaxPower for t = " +
-	   std::to_string( t ) ) );
- 
  decompress_vector( v_Availability );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
-   throw( std::invalid_argument(
-           "ThermalUnitBlock: wrong Availability for t = " +
-	   std::to_string( t ) ) );
- 
  decompress_vector( v_DeltaRampUp );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_DeltaRampUp[ t ] < 0 )
-   throw( std::invalid_argument(
-           "ThermalUnitBlock: wrong DeltaRampUp for t = " +
-	   std::to_string( t ) ) );
-
  decompress_vector( v_DeltaRampDown );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_DeltaRampDown[ t ] < 0 )
-   throw( std::invalid_argument(
-           "ThermalUnitBlock: wrong DeltaRampUp for t = " +
-	   std::to_string( t ) ) );
- 
  decompress_vector( v_PrimaryRho );
  decompress_vector( v_SecondaryRho );
  decompress_vector( v_LinearTerm );
  decompress_vector( v_QuadTerm );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_QuadTerm[ t ] < 0 )
-   throw( std::invalid_argument(
-           "ThermalUnitBlock: wrong QuadTerm for t = " +
-	   std::to_string( t ) ) );
-
  decompress_vector( v_ConstTerm );
  decompress_vector( v_StartUpCost );
  decompress_vector( v_fixed_consumption );
  decompress_vector( v_inertia_commitment );
 
  }  // end( ThermalUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::check_data_consistency() const {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_MinPower[ t ] > v_MaxPower[ t ] )
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock:: MinPower[" + std::to_string( t ) + "] = " +
+            std::to_string( v_MinPower[ t ] ) + " > " +
+            std::to_string( v_MaxPower[ t ] ) + " = MaxPower[" +
+            std::to_string( t ) + "]." ) );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock: wrong Availability for t = " +
+            std::to_string( t ) + ": " +
+            std::to_string( v_Availability[ t ] ) ) );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_DeltaRampUp[ t ] < 0 )
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock: wrong DeltaRampUp for t = " +
+            std::to_string( t ) + ": " +
+            std::to_string( v_DeltaRampUp[ t ] ) ) );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_DeltaRampDown[ t ] < 0 )
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock: wrong DeltaRampUp for t = " +
+            std::to_string( t ) + ": " +
+            std::to_string( v_DeltaRampDown[ t ] ) ) );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  if( v_QuadTerm[ t ] < 0 )
+   throw( std::invalid_argument
+          ( "ThermalUnitBlock: wrong QuadTerm for t = " +
+            std::to_string( t ) + ": " +
+            std::to_string( v_QuadTerm[ t ] ) ) );
+}
 
 /*--------------------------------------------------------------------------*/
 

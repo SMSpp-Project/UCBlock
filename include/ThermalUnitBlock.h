@@ -1801,6 +1801,25 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// verify whether the data in this ThermalUnitBlock is consistent
+ /** This function checks whether the data in this ThermalUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The minimum power is not greater than the maximum power.
+  *
+  * - The availability is between 0 and 1.
+  *
+  * - The delta ramp-up and ramp-down are nonnegative.
+  *
+  * - The quadratic term of the objective function is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
+
+/*--------------------------------------------------------------------------*/
+
  void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
  void handle_objective_change( FunctionMod * mod , ChnlName chnl );
