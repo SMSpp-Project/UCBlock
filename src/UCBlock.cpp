@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 13 - 12 - 2021
+ * \date 20 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -177,8 +177,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_number_heat_generators = 0;
  */
 
- ::deserialize( group , "ActivePowerDemand" ,
-                v_active_power_demand , true , false );
+ auto ActivePowerDemand = group.getVar( "ActivePowerDemand" );
+ if( ! ActivePowerDemand.isNull() ) {
+  // ActivePowerDemand has been provided.
+  using index = decltype( v_active_power_demand )::index;
+  std::vector< index > shape = { number_nodes , f_time_horizon };
+  v_active_power_demand.resize( shape );
+  ActivePowerDemand.getVar( v_active_power_demand.data() );
+  }
 
  // optional dimensions
  /* !! commented away until HeatBlock are properly managed
@@ -304,10 +310,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  // Generate UnitBlock inertia reserve variables
  if( f_number_inertia_zones > 0 ) {
- what += 4;
+  what += 4;
  }
 
- if (what > 0) {
+ if( what > 0 ) {
   for( auto * b: v_Block ) {
    if( auto ub = dynamic_cast<UnitBlock *>(b) ) {
     ub->set_reserve_vars(what);
