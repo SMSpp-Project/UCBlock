@@ -557,6 +557,8 @@ class DPEDSolver : public EDSolver {
 
  double compute_startup_costs( Index h , Index k ) {
   // one day a time-dependent SUC formula may be easily implemented here
+  if( startup_costs.empty() )
+   return 0;
   return( startup_costs[ k ] );
   }
 
