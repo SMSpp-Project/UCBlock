@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 04 - 2021
+ * \date 03 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -22,8 +22,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -1151,6 +1155,31 @@ class BatteryUnitBlock : public UnitBlock {
   * constraints that depend on the initial power).
   */
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this BatteryUnitBlock is consistent
+ /** This function checks whether the data in this BatteryUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The maximum power is greater than or equal to the minimum power.
+  *
+  * - The maximum storage level is greater than or equal to the minimum
+  *   storage level.
+  *
+  * - The minimum and maximum storage levels are nonnegative.
+  *
+  * - The inefficiency of storing energy is less than or equal to 1.
+  *
+  * - The inefficiency of extracting energy is greater than or equal to 1.
+  *
+  * - The inefficiency of extracting energy is greater than or equal to the
+  *   inefficiency of storing energy.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
