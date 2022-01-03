@@ -62,7 +62,7 @@
 
 namespace SMSpp_di_unipi_it {
 
-//!! commented away until HeatBlock are properly managed
+// TODO commented away until HeatBlock are properly managed
 //class HeatBlock;     // forward declaration of HeatBlock
 
 /*--------------------------------------------------------------------------*/
