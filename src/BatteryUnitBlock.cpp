@@ -128,10 +128,12 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxStorage" , f_time_horizon , v_maximum_storage ,
                 false , true );
  ::deserialize( group , "MinPower" , f_time_horizon , v_minimum_power ,
-                true , true );
+                false , true );
  ::deserialize( group , "MaxPower" , f_time_horizon , v_maximum_power ,
-                true , true );
- ::deserialize( group , "InitialPower" , &f_initial_power );
+                false , true );
+
+ if( ! ::deserialize( group , "InitialPower" , &f_initial_power ) )
+  f_initial_power = 0;
 
  ::deserialize( group , "MaxPrimaryPower" , f_time_horizon ,
                 v_maximum_primary_rho , true , true );
@@ -155,19 +157,19 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , "Demand" , f_time_horizon , v_demand , true , false );
 
- ::deserialize( group , "InitialStorage" , &f_initial_storage );
+ ::deserialize( group , "InitialStorage" , &f_initial_storage , false );
 
- decompress_vector(v_minimum_power);
- decompress_vector(v_maximum_power);
- decompress_vector(v_minimum_storage);
- decompress_vector(v_maximum_storage);
- decompress_vector(v_maximum_primary_rho);
- decompress_vector(v_maximum_secondary_rho);
- decompress_vector(v_delta_ramp_up);
- decompress_vector(v_delta_ramp_down);
- decompress_vector(v_storing_battery_rho);
- decompress_vector(v_extracting_battery_rho);
- decompress_vector(v_demand);
+ decompress_vector( v_minimum_power );
+ decompress_vector( v_maximum_power );
+ decompress_vector( v_minimum_storage );
+ decompress_vector( v_maximum_storage );
+ decompress_vector( v_maximum_primary_rho );
+ decompress_vector( v_maximum_secondary_rho );
+ decompress_vector( v_delta_ramp_up );
+ decompress_vector( v_delta_ramp_down );
+ decompress_vector( v_storing_battery_rho );
+ decompress_vector( v_extracting_battery_rho );
+ decompress_vector( v_demand );
 
  check_data_consistency();
 
