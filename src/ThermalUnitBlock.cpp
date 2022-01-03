@@ -113,21 +113,21 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
  ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
  ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true,
-		true );
+                true );
  ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown,
-		true, true );
+                true, true );
  ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
  ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho,
-		true, true );
+                true, true );
  ::deserialize( group, "LinearTerm", f_time_horizon, v_LinearTerm, true, true );
  ::deserialize( group, "QuadTerm", f_time_horizon, v_QuadTerm, true, true );
  ::deserialize( group, "ConstTerm", f_time_horizon, v_ConstTerm, true, true );
  ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost,
-		true, true );
+                true, true );
  ::deserialize( group, "FixedConsumption", f_time_horizon,
-		v_fixed_consumption, true, true );
+                v_fixed_consumption, true, true );
  ::deserialize( group, "InertiaCommitment", f_time_horizon,
-		v_inertia_commitment, true, true );
+                 v_inertia_commitment, true, true );
 
  ::deserialize( group, "InitialPower", &f_initial_power );
  ::deserialize( group, "MinUpTime", &f_MinUpTime );
@@ -152,46 +152,80 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  decompress_vector( v_fixed_consumption );
  decompress_vector( v_inertia_commitment );
 
+ check_data_consistency();
+
  }  // end( ThermalUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::check_data_consistency() const {
- for( Index t = 0 ; t < f_time_horizon ; ++t )
+
+ // Minimum and maximum power
+
+ assert( v_MinPower.size() == f_time_horizon );
+ assert( v_MaxPower.size() == f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_MinPower[ t ] > v_MaxPower[ t ] )
-   throw( std::invalid_argument
-          ( "ThermalUnitBlock:: MinPower[" + std::to_string( t ) + "] = " +
-            std::to_string( v_MinPower[ t ] ) + " > " +
-            std::to_string( v_MaxPower[ t ] ) + " = MaxPower[" +
-            std::to_string( t ) + "]." ) );
+   throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: Min"
+                                 "Power[" + std::to_string( t ) + "] = " +
+                                 std::to_string( v_MinPower[ t ] ) + " > " +
+                                 std::to_string( v_MaxPower[ t ] ) + " = Max"
+                                 "Power[" + std::to_string( t ) + "]." ) );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
-   throw( std::invalid_argument
-          ( "ThermalUnitBlock: wrong Availability for t = " +
-            std::to_string( t ) + ": " +
-            std::to_string( v_Availability[ t ] ) ) );
+  if( v_MinPower[ t ] < 0 )
+   throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
+                                 "minimum power for time step "
+                                 + std::to_string( t ) + " is negative." ) );
+ }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_DeltaRampUp[ t ] < 0 )
-   throw( std::invalid_argument
-          ( "ThermalUnitBlock: wrong DeltaRampUp for t = " +
-            std::to_string( t ) + ": " +
-            std::to_string( v_DeltaRampUp[ t ] ) ) );
+ // Availability
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_DeltaRampDown[ t ] < 0 )
-   throw( std::invalid_argument
-          ( "ThermalUnitBlock: wrong DeltaRampUp for t = " +
-            std::to_string( t ) + ": " +
-            std::to_string( v_DeltaRampDown[ t ] ) ) );
+ if( ! v_Availability.empty() ) {
+  assert( v_Availability.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
+    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
+                                  "wrong Availability for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_Availability[ t ] ) ) );
+ }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( v_QuadTerm[ t ] < 0 )
-   throw( std::invalid_argument
-          ( "ThermalUnitBlock: wrong QuadTerm for t = " +
-            std::to_string( t ) + ": " +
-            std::to_string( v_QuadTerm[ t ] ) ) );
+ // Delta ramp-up
+
+ if( ! v_DeltaRampUp.empty() ) {
+  assert( v_DeltaRampUp.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_DeltaRampUp[ t ] < 0 )
+    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
+                                  "wrong DeltaRampUp for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_DeltaRampUp[ t ] ) ) );
+ }
+
+ // Delta ramp-down
+
+ if( ! v_DeltaRampDown.empty() ) {
+  assert( v_DeltaRampDown.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_DeltaRampDown[ t ] < 0 )
+    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
+                                  "wrong DeltaRampUp for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_DeltaRampDown[ t ] ) ) );
+ }
+
+ // Quadratic term of the objective function
+
+ if( ! v_QuadTerm.empty() ) {
+  assert( v_QuadTerm.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_QuadTerm[ t ] < 0 )
+    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
+                                  "wrong QuadTerm for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_QuadTerm[ t ] ) ) );
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1039,17 +1073,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
 
  if( v_commitment.size() != f_time_horizon )
   throw( std::logic_error(
-	    "ThermalUnitBlock::generate_objective: v_commitment must have "
+            "ThermalUnitBlock::generate_objective: v_commitment must have "
             "size equal to the time horizon." ) );
 
  if( v_active_power.size() != f_time_horizon )
   throw( std::logic_error(
-	    "ThermalUnitBlock::generate_objective: v_active_power must have "
+            "ThermalUnitBlock::generate_objective: v_active_power must have "
             "size equal to the time horizon." ) );
 
  if( v_start_up.size() != f_time_horizon - init_t )
   throw( std::logic_error(
-	    "ThermalUnitBlock::generate_objective: v_start_up must have "
+            "ThermalUnitBlock::generate_objective: v_start_up must have "
             "size equal to the time horizon - init_t." ) );
 
  auto dquad_function = new DQuadFunction();
@@ -1073,7 +1107,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  auto config = dynamic_cast<SimpleConfiguration<int> *>( objc );
  if( ( ! config ) && f_BlockConfig )
   config = dynamic_cast< SimpleConfiguration< int > * >(
-				 f_BlockConfig->f_objective_Configuration );
+                                 f_BlockConfig->f_objective_Configuration );
  if( config ) {
   add_primary_reserve = config->f_value & 1u;
   add_secondary_reserve = config->f_value & 2u;
@@ -1202,7 +1236,7 @@ void ThermalUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_availability_dependents( Index t ,
-						       c_ModParam issueAMod )
+                                                       c_ModParam issueAMod )
 {
  if( ! constraints_generated() )
   return;
@@ -2587,8 +2621,8 @@ void ThermalUnitBlock::set_init_updown_time
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_init_updown_time(
-	      std::vector< int >::const_iterator values , Block::Range rng ,
-	      c_ModParam issuePMod , c_ModParam issueAMod )
+              std::vector< int >::const_iterator values , Block::Range rng ,
+              c_ModParam issuePMod , c_ModParam issueAMod )
 {
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
@@ -2697,7 +2731,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
    return;
 
   throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported"
-			   ) );
+                           ) );
   /*
   auto v = dynamic_cast< ColVariable * const >( tmod->variable() );
 
@@ -2736,7 +2770,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   std::ostringstream em;
   em << *mod;
   throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str()
-				) );
+                                ) );
   return;
   }
 
@@ -2745,14 +2779,14 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  std::ostringstream em;
  em << *mod;
  throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str()
-			       ) );
+                               ) );
 
  }  // end( ThermalUnitBlock::guts_of_add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
-						ChnlName chnl )
+                                                ChnlName chnl )
 {
  const auto * qf = static_cast< const DQuadFunction * >( mod->function() );
  auto par = make_par( eNoBlck , chnl );
@@ -2773,8 +2807,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   if( tmod->range().second > qf->get_num_active_var() )
    throw( std::invalid_argument(
-	 "ThermalUnitBlock: invalid Range [" + std::to_string( l ) + ", "
-	 + std::to_string( r ) + ") in C05FunctionModLinRngd" ) );
+         "ThermalUnitBlock: invalid Range [" + std::to_string( l ) + ", "
+         + std::to_string( r ) + ") in C05FunctionModLinRngd" ) );
 
   std::vector< double > nv( r - l + 1 );
   Index gl = 0;
@@ -2828,7 +2862,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    for( Index i = l ; i < r2 ; )
     *(nvit++) = qf->get_linear_coefficient( i++ );
    set_primary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
-				      par , eDryRun );
+                                      par , eDryRun );
    l = r2;
    if( l == r )
     return;
@@ -2843,7 +2877,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    for( Index i = l ; i < r2 ; )
     *(nvit++) = qf->get_linear_coefficient( i++ );
    set_secondary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
-					par , eDryRun );
+                                        par , eDryRun );
    if( r2 == r )
     return;
    }
@@ -2866,7 +2900,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   if( tmod->subset().back() > qf->get_num_active_var() )
    throw( std::invalid_argument(
-	      "ThermalUnitBlock: invalid Subset in C05FunctionModLinSbst" ) );
+              "ThermalUnitBlock: invalid Subset in C05FunctionModLinSbst" ) );
 
   std::vector< double > nv( tmod->subset().size() );
   auto l = tmod->subset().begin();
@@ -2942,7 +2976,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     *(nmsit++) = *(l++) - gl;
     }
    set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
-				      true , par , eDryRun );
+                                      true , par , eDryRun );
    if( r == tmod->subset().end() )
     return;
    }
@@ -2962,7 +2996,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     *(nmsit++) = *(l++) - gl;
     }
    set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
-					true , par , eDryRun );
+                                        true , par , eDryRun );
    }
 
   if( l != tmod->subset().end() )
@@ -2974,7 +3008,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
 
  throw( std::invalid_argument(
-	     "ThermalUnitBlock:: unsupported FunctionMod from Objective" ) );
+             "ThermalUnitBlock:: unsupported FunctionMod from Objective" ) );
 
  }  // end( ThermalUnitBlock::handle_objective_change )
 
