@@ -175,11 +175,18 @@ void BatteryUnitBlock::check_data_consistency() const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
-   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: v_mini"
-                            "mum_power[ " + std::to_string( t ) + " ] = " +
-                            std::to_string( v_minimum_power[ t ] ) + " > " +
-                            std::to_string( v_maximum_power[ t ] ) + " = v_"
-                            "maximum_power[ " + std::to_string( t ) + " ]." ) );
+   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
+                            "power for time " + std::to_string( t ) + " is " +
+                            std::to_string( v_minimum_power[ t ] ) + ", which "
+                            "greater than the maximum power, which is " +
+                            std::to_string( v_maximum_power[ t ] ) + "." ) );
+  }
+
+  if( v_minimum_power[ t ] < 0 ) {
+   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
+                            "power for time " + std::to_string( t ) + " is " +
+                            std::to_string( v_minimum_power[ t ] ) + ", but it "
+                            "must be nonnegative." ) );
   }
  }
 
@@ -190,7 +197,7 @@ void BatteryUnitBlock::check_data_consistency() const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( ( v_minimum_storage[ t ] > v_maximum_storage[ t ] ) ||
-      ( v_minimum_storage[ t ] < 0 )  || ( v_maximum_storage[ t ] < 0 ) ) {
+      ( v_minimum_storage[ t ] < 0 ) ) {
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: maximum "
                             "and minimum storage levels must be such that "
                             "maximum_storage >= minimum_storage >= 0." ) );
@@ -258,6 +265,64 @@ void BatteryUnitBlock::check_data_consistency() const {
                                   "wrong DeltaRampDown for time step " +
                                   std::to_string( t ) + ": " +
                                   std::to_string( v_delta_ramp_down[ t ] ) ) );
+ }
+
+ // Maximum active power that can be used as primary reserve
+
+ if( ! v_maximum_primary_rho.empty() ) {
+  assert( v_maximum_primary_rho.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_maximum_primary_rho[ t ] < 0 )
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "the maximum power that can be used as "
+                                  "primary reserve for time " +
+                                  std::to_string( t ) + " is " +
+                                  std::to_string( v_maximum_primary_rho[ t ] ) +
+                                  ", but it must be nonnegative." ) );
+ }
+
+ // Maximum active power that can be used as secondary reserve
+
+ if( ! v_maximum_secondary_rho.empty() ) {
+  assert( v_maximum_secondary_rho.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_maximum_secondary_rho[ t ] < 0 )
+    throw( std::invalid_argument
+           ( "BatteryUnitBlock::check_data_consistency: the maximum power that "
+             "can be used as secondary reserve for time " +
+             std::to_string( t ) + " is " +
+             std::to_string( v_maximum_secondary_rho[ t ] ) +
+             ", but it must be nonnegative." ) );
+ }
+
+ // Demand
+
+ if( ! v_demand.empty() ) {
+  assert( v_demand.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_demand[ t ] < 0 )
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "demand for time " + std::to_string( t ) +
+                                  " is " + std::to_string( v_demand[ t ] ) +
+                                  ", but is must be nonnegative." ) );
+ }
+
+ // Initial power
+
+ if( f_initial_power < 0 ) {
+  throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                "initial power is " +
+                                std::to_string( f_initial_power ) +
+                                ", but it must be nonnegative." ) );
+ }
+
+ // Initial storage
+
+ if( f_initial_storage < 0 ) {
+  throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                "initial storage is " +
+                                std::to_string( f_initial_storage ) +
+                                ", but it must be nonnegative." ) );
  }
 
 } // end( BatteryUnitBlock::check_data_consistency )
