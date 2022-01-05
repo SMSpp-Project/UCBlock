@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 13 - 12 - 2021
+ * \date 05 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -49,13 +49,11 @@
 
 using namespace SMSpp_di_unipi_it;
 
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 // register IntermittentUnitBlock to the Block factory
-
 
 SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
@@ -80,43 +78,47 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 
 void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
-
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon",
-                                              "NumberIntervals" };
- check_dimensions( group, expected_dims, std::cerr );
- std::vector< std::string > expected_vars = { "MinPower",
-                                              "MaxPower",
-                                              "InertiaPower",
-                                              "Gamma",
-                                              "Kappa" };
- check_variables( group, expected_vars, std::cerr );
+ std::vector< std::string > expected_dims =
+  { "TimeHorizon" , "NumberIntervals" };
+
+ check_dimensions( group , expected_dims , std::cerr );
+
+ std::vector< std::string > expected_vars =
+  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" };
+
+ check_variables( group , expected_vars , std::cerr );
 #endif
 
-
+ // Deserialize data that is needed for deserializing the variables
 
  UnitBlock::deserialize_time_horizon( group );
- UnitBlock::deserialize_change_intervals( group );
 
-  ::deserialize( group, "MinPower", f_time_horizon, v_minimum_power, true, true );
+ // Mandatory variables
 
-  ::deserialize( group, "MaxPower",f_time_horizon,v_maximum_power, true, true );
+ ::deserialize( group , "MinPower" , v_minimum_power , false );
+ ::deserialize( group , "MaxPower" , v_maximum_power , false );
+ ::deserialize( group , "Gamma" , & f_gamma , false );
 
- ::deserialize( group, "MaxPower",v_maximum_power, true );
+ // Optional variables
 
- ::deserialize( group, "InertiaPower", v_inertia_power, true );
+ if( ! ::deserialize( group , "InertiaPower" , v_inertia_power ) )
+  v_inertia_power.assign( f_time_horizon , 0 );
 
- ::deserialize( group, "Gamma", &f_gamma, false );
+ if( ! ::deserialize( group , "Kappa" , &f_kappa ) )
+  f_kappa = 1;
 
-if (! ::deserialize( group, "Kappa", &f_kappa, true )) {
- f_kappa = 1;
-}
+ // Deserialize data from the base class
+
+ UnitBlock::deserialize( group );
+
+ // Decompress vectors
 
  decompress_vector( v_minimum_power );
  decompress_vector( v_maximum_power );
+ decompress_vector( v_inertia_power );
 
- UnitBlock::deserialize( group );
-}// end( IntermittentUnitBlock::deserialize )
+} // end( IntermittentUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -127,14 +129,15 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration *stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
-  // Active Power Variable
+ // Active Power Variable
 
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_active_power, "p_intermittent" );
 
-  // Primary Spinning Reserve Variable
+ // Primary Spinning Reserve Variable
+
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
   if ( f_gamma != 0 ) { // if unit produces any reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
@@ -155,7 +158,6 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration *stvv ) {
    add_static_variable( v_secondary_spinning_reserve, "sr_intermittent" );
   }
  }
-
 
  set_variables_generated();
 } // end( IntermittentUnitBlock::generate_abstract_variables )

@@ -188,9 +188,7 @@ class IntermittentUnitBlock : public UnitBlock {
  * - The scalar variable "Kappa", of type double and not indexed over any
  *   dimension. This variable is used to multiply to the minimum and maximum
  *   power at each time instant t. This variable is optional, if it is not
- *   provided it is taken to be Kappa == 1.
- *
- *   */
+ *   provided it is taken to be Kappa == 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
