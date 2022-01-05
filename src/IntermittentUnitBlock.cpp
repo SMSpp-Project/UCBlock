@@ -118,7 +118,66 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_maximum_power );
  decompress_vector( v_inertia_power );
 
+ check_data_consistency();
+
 } // end( IntermittentUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::check_data_consistency() const {
+
+ // Minimum and maximum power
+
+ assert( v_minimum_power.size() == f_time_horizon );
+ assert( v_maximum_power.size() == f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
+   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                            "minimum power at time " + std::to_string( t ) +
+                            " is " + std::to_string( v_minimum_power[ t ] ) +
+                            ", which is greater than the maximum power, which "
+                            "is " + std::to_string( v_maximum_power[ t ] ) +
+                            "." ) );
+  }
+
+  if( v_minimum_power[ t ] < 0 ) {
+   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                            "minimum power at time " + std::to_string( t ) +
+                            " is " + std::to_string( v_minimum_power[ t ] ) +
+                            ", which is negative." ) );
+  }
+ }
+
+ // Gamma
+
+ if( ( f_gamma < 0 ) || ( f_gamma > 1 ) ) {
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "gamma must be between 0 and 1, but it is " +
+                           std::to_string( f_gamma ) + "." ) );
+ }
+
+ // Kappa
+
+ if( f_kappa < 0 ) {
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "kappa must be nonnegative, but it is" +
+                           std::to_string( f_kappa ) + "." ) );
+ }
+
+ if( ! v_inertia_power.empty() ) {
+  assert( v_inertia_power.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   if( v_inertia_power[ t ] < 0 ) {
+    throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                             "inertia power for time " + std::to_string( t ) +
+                             " must be nonnegative, but it is" +
+                             std::to_string( v_inertia_power[ t ] ) + "." ) );
+   }
+  }
+ }
+
+} // end( IntermittentUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 
