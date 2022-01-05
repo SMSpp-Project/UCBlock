@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 03 - 01 - 2022
+ * \date 05 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -120,44 +120,33 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group, expected_vars, std::cerr );
 #endif
 
- UnitBlock::deserialize_time_horizon( group );
- UnitBlock::deserialize_change_intervals( group );
+ // Mandatory variables
 
- ::deserialize( group , "MinStorage" , f_time_horizon , v_minimum_storage ,
-                false , true );
- ::deserialize( group , "MaxStorage" , f_time_horizon , v_maximum_storage ,
-                false , true );
- ::deserialize( group , "MinPower" , f_time_horizon , v_minimum_power ,
-                false , true );
- ::deserialize( group , "MaxPower" , f_time_horizon , v_maximum_power ,
-                false , true );
+ ::deserialize( group , "MinStorage" , v_minimum_storage , false );
+ ::deserialize( group , "MaxStorage" , v_maximum_storage , false );
+ ::deserialize( group , "MinPower" , v_minimum_power , false );
+ ::deserialize( group , "MaxPower" , v_maximum_power , false );
+ ::deserialize( group , "InitialStorage" , & f_initial_storage , false );
 
- if( ! ::deserialize( group , "InitialPower" , &f_initial_power ) )
+ // Optional variables
+
+ if( ! ::deserialize( group , "InitialPower" , & f_initial_power ) )
   f_initial_power = 0;
 
- ::deserialize( group , "MaxPrimaryPower" , f_time_horizon ,
-                v_maximum_primary_rho , true , true );
+ ::deserialize( group , "MaxPrimaryPower" , v_maximum_primary_rho );
+ ::deserialize( group , "MaxSecondaryPower" , v_maximum_secondary_rho );
+ ::deserialize( group , "DeltaRampUp" , v_delta_ramp_up );
+ ::deserialize( group , "DeltaRampDown" , v_delta_ramp_down );
+ ::deserialize( group , "Cost" , v_cost );
+ ::deserialize( group , "Demand" , v_demand );
+ ::deserialize( group , "StoringBatteryRho" , v_storing_battery_rho );
+ ::deserialize( group , "ExtractingBatteryRho" , v_extracting_battery_rho );
 
- ::deserialize( group , "MaxSecondaryPower" , f_time_horizon ,
-                v_maximum_secondary_rho , true , true );
+ // Deserialize data from the base class
 
- ::deserialize( group , "DeltaRampUp" , f_time_horizon , v_delta_ramp_up ,
-                true , true );
+ UnitBlock::deserialize( group );
 
- ::deserialize( group , "DeltaRampDown" , f_time_horizon , v_delta_ramp_down ,
-                true , true );
-
- ::deserialize( group , "StoringBatteryRho" , f_time_horizon ,
-                v_storing_battery_rho , true , true );
-
- ::deserialize( group , "ExtractingBatteryRho" , f_time_horizon ,
-                v_extracting_battery_rho , true , true );
-
- ::deserialize( group , "Cost" , f_time_horizon , v_cost , true , true );
-
- ::deserialize( group , "Demand" , f_time_horizon , v_demand , true , false );
-
- ::deserialize( group , "InitialStorage" , &f_initial_storage , false );
+ // Decompress vectors
 
  decompress_vector( v_minimum_power );
  decompress_vector( v_maximum_power );
@@ -172,8 +161,6 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_demand );
 
  check_data_consistency();
-
- UnitBlock::deserialize( group );
 
 } // end( BatteryUnitBlock::deserialize )
 
