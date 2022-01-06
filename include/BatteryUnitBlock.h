@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 01 - 2022
+ * \date 06 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1165,8 +1165,6 @@ class BatteryUnitBlock : public UnitBlock {
   *
   * - The maximum power is greater than or equal to the minimum power.
   *
-  * - The minimum power is nonnegative.
-  *
   * - The maximum storage level is greater than or equal to the minimum
   *   storage level.
   *
@@ -1183,8 +1181,6 @@ class BatteryUnitBlock : public UnitBlock {
   *
   * - The maximum active power that can be used as primary and secondary
   *   reserves are nonnegative.
-  *
-  * - The initial power is nonnegative.
   *
   * - The initial storage is nonnegative.
   *

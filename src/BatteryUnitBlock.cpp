@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 05 - 01 - 2022
+ * \date 06 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -181,13 +181,6 @@ void BatteryUnitBlock::check_data_consistency() const {
                             "greater than the maximum power, which is " +
                             std::to_string( v_maximum_power[ t ] ) + "." ) );
   }
-
-  if( v_minimum_power[ t ] < 0 ) {
-   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
-                            "power for time " + std::to_string( t ) + " is " +
-                            std::to_string( v_minimum_power[ t ] ) + ", but it "
-                            "must be nonnegative." ) );
-  }
  }
 
  // Minimum and maximum storage levels
@@ -305,15 +298,6 @@ void BatteryUnitBlock::check_data_consistency() const {
                                   "demand for time " + std::to_string( t ) +
                                   " is " + std::to_string( v_demand[ t ] ) +
                                   ", but is must be nonnegative." ) );
- }
-
- // Initial power
-
- if( f_initial_power < 0 ) {
-  throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                "initial power is " +
-                                std::to_string( f_initial_power ) +
-                                ", but it must be nonnegative." ) );
  }
 
  // Initial storage
