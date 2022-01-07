@@ -99,44 +99,58 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 #ifndef NDEBUG
  std::vector< std::string > expected_dims =
   { "TimeHorizon" , "NumberIntervals" };
+
  check_dimensions( group, expected_dims, std::cerr );
+
  std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
   "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
   "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
   "InertiaCommitment" , "InitialPower" , "MinUpTime" , "MinDownTime" ,
   "InitUpDownTime" , "Availability" };
- check_variables( group, expected_vars, std::cerr );
+
+ check_variables( group , expected_vars , std::cerr );
 #endif
 
  UnitBlock::deserialize( group );
 
- ::deserialize( group, "MinPower", f_time_horizon, v_MinPower, true, true );
- ::deserialize( group, "MaxPower", f_time_horizon, v_MaxPower, true, true );
- ::deserialize( group, "DeltaRampUp", f_time_horizon, v_DeltaRampUp, true,
-                true );
- ::deserialize( group, "DeltaRampDown", f_time_horizon, v_DeltaRampDown,
-                true, true );
- ::deserialize( group, "PrimaryRho", f_time_horizon, v_PrimaryRho, true, true );
- ::deserialize( group, "SecondaryRho", f_time_horizon, v_SecondaryRho,
-                true, true );
- ::deserialize( group, "LinearTerm", f_time_horizon, v_LinearTerm, true, true );
- ::deserialize( group, "QuadTerm", f_time_horizon, v_QuadTerm, true, true );
- ::deserialize( group, "ConstTerm", f_time_horizon, v_ConstTerm, true, true );
- ::deserialize( group, "StartUpCost", f_time_horizon, v_StartUpCost,
-                true, true );
- ::deserialize( group, "FixedConsumption", f_time_horizon,
-                v_fixed_consumption, true, true );
- ::deserialize( group, "InertiaCommitment", f_time_horizon,
-                 v_inertia_commitment, true, true );
+ // Mandatory variables
 
- ::deserialize( group, "InitialPower", &f_initial_power );
- ::deserialize( group, "MinUpTime", &f_MinUpTime );
- ::deserialize( group, "MinDownTime", &f_MinDownTime );
- ::deserialize( group, "InitUpDownTime", &f_InitUpDownTime );
+ ::deserialize( group , "MinPower" , v_MinPower , false );
+ ::deserialize( group , "MaxPower" , v_MaxPower , false );
 
- if( ! ::deserialize( group, "Availability" , f_time_horizon ,
-                      v_Availability , true , true ) )
+ // Optional variables
+
+ if( ! ::deserialize( group , "MinUpTime" , & f_MinUpTime ) )
+  f_MinUpTime = 0;
+
+ if( ! ::deserialize( group , "MinDownTime" , & f_MinDownTime ) )
+  f_MinDownTime = 0;
+
+ if( ! ::deserialize( group , "InitialPower" , & f_initial_power ) )
+  f_initial_power = 0;
+
+ if( ! ::deserialize( group , "InitUpDownTime" , & f_InitUpDownTime ) ) {
+  if( f_initial_power == 0 )
+   f_InitUpDownTime = - f_MinDownTime;
+  else
+   f_InitUpDownTime = f_MinUpTime;
+  }
+
+ if( ! ::deserialize( group , "Availability" , v_Availability ) )
   v_Availability.resize( get_time_horizon() , 1.0 );
+
+ ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
+ ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
+ ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
+ ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
+ ::deserialize( group , "LinearTerm" , v_LinearTerm );
+ ::deserialize( group , "QuadTerm" , v_QuadTerm );
+ ::deserialize( group , "ConstTerm" , v_ConstTerm );
+ ::deserialize( group , "StartUpCost" , v_StartUpCost );
+ ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
+ ::deserialize( group , "InertiaCommitment" , v_inertia_commitment );
+
+ // Decompress vectors
 
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
@@ -167,16 +181,18 @@ void ThermalUnitBlock::check_data_consistency() const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_MinPower[ t ] > v_MaxPower[ t ] )
-   throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: Min"
-                                 "Power[" + std::to_string( t ) + "] = " +
-                                 std::to_string( v_MinPower[ t ] ) + " > " +
-                                 std::to_string( v_MaxPower[ t ] ) + " = Max"
-                                 "Power[" + std::to_string( t ) + "]." ) );
+   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                            "minimum power at time " + std::to_string( t ) +
+                            " is " + std::to_string( v_MinPower[ t ] ) +
+                            ", which is greater than the maximum power, which "
+                            "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
 
   if( v_MinPower[ t ] < 0 )
-   throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
-                                 "minimum power for time step "
-                                 + std::to_string( t ) + " is negative." ) );
+   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                            "minimum power for time step "
+                            + std::to_string( t ) + " is " +
+                            std::to_string( v_MinPower[ t ] ) +
+                            ", but it must be nonnegative." ) );
  }
 
  // Availability
@@ -185,10 +201,11 @@ void ThermalUnitBlock::check_data_consistency() const {
   assert( v_Availability.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
-    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
-                                  "wrong Availability for time step " +
-                                  std::to_string( t ) + ": " +
-                                  std::to_string( v_Availability[ t ] ) ) );
+    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                             "availability for time step " +
+                             std::to_string( t ) + " is " +
+                             std::to_string( v_Availability[ t ] ) +
+                             ", but it must be between 0 and 1." ) );
  }
 
  // Delta ramp-up
@@ -197,10 +214,11 @@ void ThermalUnitBlock::check_data_consistency() const {
   assert( v_DeltaRampUp.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampUp[ t ] < 0 )
-    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
-                                  "wrong DeltaRampUp for time step " +
-                                  std::to_string( t ) + ": " +
-                                  std::to_string( v_DeltaRampUp[ t ] ) ) );
+    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                             "delta ram pup for time step " +
+                             std::to_string( t ) + " is " +
+                             std::to_string( v_DeltaRampUp[ t ] ) +
+                             ", but it must be nonnegative." ) );
  }
 
  // Delta ramp-down
@@ -209,10 +227,11 @@ void ThermalUnitBlock::check_data_consistency() const {
   assert( v_DeltaRampDown.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampDown[ t ] < 0 )
-    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
-                                  "wrong DeltaRampUp for time step " +
-                                  std::to_string( t ) + ": " +
-                                  std::to_string( v_DeltaRampDown[ t ] ) ) );
+    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                             "delta ramp down for time step " +
+                             std::to_string( t ) + " is " +
+                             std::to_string( v_DeltaRampDown[ t ] ) +
+                             ", but it must be nonnegative" ) );
  }
 
  // Quadratic term of the objective function
@@ -221,11 +240,36 @@ void ThermalUnitBlock::check_data_consistency() const {
   assert( v_QuadTerm.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_QuadTerm[ t ] < 0 )
-    throw( std::invalid_argument( "ThermalUnitBlock::check_data_consistency: "
-                                  "wrong QuadTerm for time step " +
-                                  std::to_string( t ) + ": " +
-                                  std::to_string( v_QuadTerm[ t ] ) ) );
+    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                             "quadratic term for time " +
+                             std::to_string( t ) + " is " +
+                             std::to_string( v_QuadTerm[ t ] ) +
+                             ", but it must be nonnegative." ) );
  }
+
+ // MinUpTime
+
+ if( f_MinUpTime < 0 )
+  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                           "minimum up time is "
+                           + std::to_string( f_MinUpTime ) +
+                           ", but it must be nonnegative." ) );
+
+ // MinDownTime
+
+ if( f_MinDownTime < 0 )
+  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                           "minimum down time is " +
+                           std::to_string( f_MinDownTime ) +
+                           ", but it must be nonnegative." ) );
+
+ // InitialPower
+
+ if( f_initial_power < 0 )
+  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
+                           "initial power is " +
+                           std::to_string( f_initial_power ) +
+                           ", but it must be nonnegative." ) );
 }
 
 /*--------------------------------------------------------------------------*/
