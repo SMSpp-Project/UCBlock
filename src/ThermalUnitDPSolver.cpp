@@ -598,8 +598,10 @@ void ThermalUnitDPSolver::process_modifications( void )
 
  // process all the Modifications
  for( auto mod : v_mod )
-  if( guts_of_process_modifications( mod.get() ) )
-   break;  // if a reset is done, ignore all the remaining Modifications 
+  if( guts_of_process_modifications( mod.get() ) ) {
+   reload = true;  // a reset must be done
+   break;          // ignore all the remaining Modifications
+   }
 
  v_mod.clear();  // all Modifications tackled, clear the list
 
