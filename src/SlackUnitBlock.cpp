@@ -11,7 +11,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 09 - 2021
+ * \date 06 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -23,7 +23,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -36,6 +37,7 @@
 #include "SlackUnitBlock.h"
 #include "LinearFunction.h"
 #include "FRealObjective.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -48,12 +50,12 @@ using namespace SMSpp_di_unipi_it;
 
 // register SlackUnitBlock to the Block factory
 
-
 SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
+
 SlackUnitBlock::~SlackUnitBlock() {
  auto clear_LB0Constraints =
          []( std::vector< LB0Constraint > & constraints ) {
@@ -78,49 +80,49 @@ SlackUnitBlock::~SlackUnitBlock() {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
-
-
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon",
-                                              "NumberIntervals" };
- check_dimensions( group, expected_dims, std::cerr );
- std::vector< std::string > expected_vars = { "MaxPower",
-                                              "MaxPrimaryPower",
-                                              "MaxSecondaryPower",
-                                              "ActivePowerCost",
-                                              "PrimaryCost",
-                                              "SecondaryCost",
-                                              "InertiaCost",
-                                              "MaxInertia"};
- check_variables( group, expected_vars, std::cerr );
+ std::vector< std::string > expected_dims =
+  { "TimeHorizon" , "NumberIntervals" };
+
+ check_dimensions( group , expected_dims , std::cerr );
+
+ std::vector< std::string > expected_vars =
+  { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+    "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"};
+
+ check_variables( group , expected_vars , std::cerr );
 #endif
 
+ // Optional variables
 
- UnitBlock::deserialize_time_horizon( group );
- UnitBlock::deserialize_change_intervals( group );
+ ::deserialize( group , "MaxPower" , v_MaxPower );
+ ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
+ ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
+ ::deserialize( group , "ActivePowerCost" , v_active_power_cost );
+ ::deserialize( group , "PrimaryCost"  , v_primary_cost );
+ ::deserialize( group , "SecondaryCost" , v_secondary_cost );
+ ::deserialize( group , "InertiaCost" , v_inertia_cost );
+ ::deserialize( group , "MaxInertia" , v_MaxInertia );
 
- ::deserialize( group, "MaxPower",f_time_horizon,v_MaxPower, true, true);
- ::deserialize( group, "MaxPrimaryPower",f_time_horizon,v_MaxPrimaryPower, true,true);
- ::deserialize( group, "MaxSecondaryPower",f_time_horizon,v_MaxSecondaryPower, true,true);
- ::deserialize( group, "ActivePowerCost",f_time_horizon,v_active_power_cost, true,true );
- ::deserialize( group, "PrimaryCost",f_time_horizon,v_primary_cost, true,true);
- ::deserialize( group, "SecondaryCost",f_time_horizon,v_secondary_cost, true,true );
- ::deserialize( group, "InertiaCost",f_time_horizon,v_inertia_cost, true,true);
- ::deserialize( group, "MaxInertia",f_time_horizon, v_MaxInertia, true,true );
-
- decompress_vector(v_MaxPower);
- decompress_vector(v_MaxPrimaryPower);
- decompress_vector(v_MaxSecondaryPower);
- decompress_vector(v_active_power_cost);
- decompress_vector(v_primary_cost);
- decompress_vector(v_secondary_cost);
- decompress_vector(v_inertia_cost);
- decompress_vector(v_MaxInertia);
+ // Deserialize data from the base class
 
  UnitBlock::deserialize( group );
-}// end( SlackUnitBlock::deserialize )
+
+ // Decompress vectors
+
+ decompress_vector( v_MaxPower );
+ decompress_vector( v_MaxPrimaryPower );
+ decompress_vector( v_MaxSecondaryPower );
+ decompress_vector( v_active_power_cost );
+ decompress_vector( v_primary_cost );
+ decompress_vector( v_secondary_cost );
+ decompress_vector( v_inertia_cost );
+ decompress_vector( v_MaxInertia );
+
+} // end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -374,31 +376,47 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
+ // Serialize one-dimensional variables.
+
+ auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
- ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              v_MaxPower );
+ /* This lambda identifies the appropriate dimension for the given variable
+  * (whose name is "var_name") and serializes the variable. The variable may
+  * have any of the following dimensions: TimeHorizon, NumberIntervals,
+  * 1. "allow_scalar_var" indicates whether the variable can be serialized as
+  * a scalar variable (in which case the variable must have dimension 1). */
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
+    const netCDF::NcType & ncType = netCDF::NcDouble() ,
+    bool allow_scalar_var = true ) {
+  if( data.empty() )
+   return;
+  netCDF::NcDim dimension;
+  if( data.size() == TimeHorizon.getSize() )
+   dimension = TimeHorizon;
+  else if( data.size() == NumberIntervals.getSize() )
+   dimension = NumberIntervals;
+  else if( data.size() != 1 ) {
+   throw( std::logic_error
+          ( "SlackUnitBlock::serialize: invalid dimension for variable " +
+            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
+  }
 
- ::serialize( group, "MaxPrimaryPower", netCDF::NcDouble(),
-               v_MaxPrimaryPower);
+  ::serialize( group , var_name , ncType , dimension , data ,
+               allow_scalar_var );
+ };
 
- ::serialize( group, "MaxSecondaryPower", netCDF::NcDouble(),
-              NumberIntervals, v_MaxSecondaryPower, true );
+ serialize( "MaxPower" , v_MaxPower );
+ serialize( "MaxPrimaryPower" , v_MaxPrimaryPower);
+ serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
+ serialize( "MaxInertia" , v_MaxInertia );
+ serialize( "ActivePowerCost" , v_active_power_cost );
+ serialize( "PrimaryCost" , v_primary_cost );
+ serialize( "SecondaryCost" , v_secondary_cost );
+ serialize( "InertiaCost" , v_inertia_cost );
 
- ::serialize( group, "ActivePowerCost", netCDF::NcDouble(),
-              NumberIntervals, v_active_power_cost, true );
-
- ::serialize( group, "PrimaryCost", netCDF::NcDouble(),
-              NumberIntervals, v_primary_cost, true );
-
- ::serialize( group, "SecondaryCost", netCDF::NcDouble(),
-              NumberIntervals, v_secondary_cost, true );
-
- ::serialize( group, "InertiaCost", netCDF::NcDouble(),
-              NumberIntervals, v_inertia_cost, true );
-
- ::serialize( group, "MaxInertia", netCDF::NcDouble(),
-              { NumberIntervals }, v_MaxInertia, true );
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

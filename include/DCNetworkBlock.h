@@ -9,7 +9,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 14 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -21,7 +21,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, and Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
+ * Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -429,13 +435,23 @@ class DCNetworkBlock : public NetworkBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/// loads the DCNetworkBlock instance from memory
-/** Like load( std::istream & ), if there is any Solver attached to this
- *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
- */
-  void load( std::istream & input ) override {
-   throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
-  }
+
+ /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
+ /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
+  * contain all the data necessary to describe a NetworkBlock (see
+  * NetworkBlock::deserialize()). */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ /// loads the DCNetworkBlock instance from memory
+ /** Like load( std::istream & ), if there is any Solver attached to this
+  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
+  */
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

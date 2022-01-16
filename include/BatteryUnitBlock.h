@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 23 - 04 - 2021
+ * \date 06 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -22,8 +22,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -112,25 +116,25 @@ namespace SMSpp_di_unipi_it {
  * constraints are mainly divided in several different categories as:
  *
  * - the maximum and minimum power output constraints according to primary and
- *   secondary spinning reserves(if any);
+ *   secondary spinning reserves (if any);
  *
  * - the ramp-up and ramp-down constraints;
  *
  * - the active power relation with storing and extracting energy levels
- *   constraints(if any);
+ *   constraints (if any);
  *
- * - the intake upper bound(if any);
+ * - the intake upper bound (if any);
  *
  * - the storage level constraints;
  *
- * - the binary variable relation with intake and outtake level constraints(if
- *   any);
+ * - the binary variable relation with intake and outtake level constraints
+ *   (if any);
  *
- * - the primary reserve upper bound(if any);
+ * - the primary reserve upper bound (if any);
  *
- * - the secondary reserve upper bound(if any);
+ * - the secondary reserve upper bound (if any);
  *
- * - the demand constraints(if any).*/
+ * - the demand constraints (if any). */
 
 class BatteryUnitBlock : public UnitBlock {
 
@@ -359,7 +363,7 @@ class BatteryUnitBlock : public UnitBlock {
  * rather than requiring two separate ones (unless primary and secondary
  * reserve are allowed and/or the cost is defined, since this also requires
  * using two), and the binary variables need not to be defined. For details,
- * see the comments to generate_abstract_variable() and
+ * see the comments to generate_abstract_variables() and
  * generate_abstract_constraints().
  *
  * - The scalar variable "InitialStorage", of type double and not indexed over
@@ -421,7 +425,7 @@ class BatteryUnitBlock : public UnitBlock {
  *  - the storage level variables;
  *
  *  - the intake and outtake levels variable; they are needed to split the
- *    active power variable(if it's needed);
+ *    active power variable (if it's needed);
  *
  *  - the binary variables; when "StoringBatteryRho" == "ExtractingBatterRho"
  *    == 1, then this binary variable and all constraints which are depended
@@ -498,7 +502,7 @@ class BatteryUnitBlock : public UnitBlock {
  *     p^+_t \leq  P^{mx}_{t}
  *         \quad t \in \mathcal{T}                               \quad (6)
  *   \f]
- * - storage level relation with intake and outtake levels(if any) constraints
+ * - storage level relation with intake and outtake levels (if any) constraints
  *   in Battery unit are presented in (7). That is a
  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon,
  *   where the entry t = 0,...,f_time_horizon - 1 being the storage level
@@ -511,7 +515,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   Note that if the equation (7) will change as
  *   below which is a std::vector<FRowConstraint>; with the dimension of
  *   f_time_horizon, where the entry t = 0,...,f_time_horizon - 1 being the
- *   storage level relation with battery demand(if any) at time t.
+ *   storage level relation with battery demand (if any) at time t.
  *   \f[
  *    v^{ba}_{t} = v^{ba}_{t-1} - p^{ac}_{t} - d^{ba}_t
  *               \quad t \in \mathcal{T}          \quad (8)
@@ -529,7 +533,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   \f$ V^{mx}_t\f$ are the minimum and maximum storage level for each time t
  *   of the time horizon \f$ \mathcal{T} \f$ respectively.
  *
- * - binary variable relation with storing and extracting energy level(if any)
+ * - binary variable relation with storing and extracting energy level (if any)
  *   constraints are presented in (10-11). Each of them is a
  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
  *   the entry t = 0,...,f_time_horizon - 1 being the binary variable relation
@@ -548,7 +552,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   \f$ u^+_t \f$ is not required and neither are the last two constraints
  *   (10-11).
  *
- * - primary and secondary reserve upper bounds(if any) are presented by the
+ * - primary and secondary reserve upper bounds (if any) are presented by the
  *   equations (12-13). Each of them is a std::vector<FRowConstraint>; with
  *   the dimension of f_time_horizon, where the entry
  *   t = 0,...,f_time_horizon - 1 being the primary and secondary reserve
@@ -1151,6 +1155,38 @@ class BatteryUnitBlock : public UnitBlock {
   * constraints that depend on the initial power).
   */
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this BatteryUnitBlock is consistent
+ /** This function checks whether the data in this BatteryUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The maximum power is greater than or equal to the minimum power.
+  *
+  * - The maximum storage level is greater than or equal to the minimum
+  *   storage level.
+  *
+  * - The minimum storage level is nonnegative.
+  *
+  * - The inefficiency of storing energy is less than or equal to 1.
+  *
+  * - The inefficiency of extracting energy is greater than or equal to 1.
+  *
+  * - The inefficiency of extracting energy is greater than or equal to the
+  *   inefficiency of storing energy.
+  *
+  * - The demand is nonnegative.
+  *
+  * - The maximum active power that can be used as primary and secondary
+  *   reserves are nonnegative.
+  *
+  * - The initial storage is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BatteryUnitBlockMod ------------------------*/

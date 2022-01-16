@@ -294,9 +294,10 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
- *   unit was producing at time instant -1, i.e., before the start of the
- *   time horizon; this is necessary to compute the ramp-up and ramp-down
- *   constraints. Clearly, it must be that MaxPower >= InitialPower >=
+ *   unit was producing at time instant -1, i.e., before the start of the time
+ *   horizon; this is necessary to compute the ramp-up and ramp-down
+ *   constraints. This variable is optional. If it is not provided, then it is
+ *   taken to be 0. Clearly, it must be that MaxPower >= InitialPower >=
  *   MinPower if the unit was "on" at time instant -1, and it would be ignored
  *   if the unit was "off" at time instant -1. The on/off status of the unit
  *   is also encoded by the scalar variable InitUpDownTime: in particular,
@@ -313,7 +314,9 @@ class ThermalUnitBlock : public UnitBlock {
  *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0; note
  *   that InitUpDownTime == 0 means that the unit has been just shut down at
- *   the end of time instant -1, i.e., the beginning of time instant 0.
+ *   the end of time instant -1, i.e., the beginning of time instant 0. This
+ *   variable is optional. If it is not provided, then it is taken to be
+ *   -MinDownTime if InitialPower == 0, and MinUpTime if InitialPower > 0.
  *
  * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
  *   indexed over any dimension, which indicates the minimum allowed up time
@@ -1798,6 +1801,25 @@ private:
                                        double availability ) const {
   return( nominal_max_power * availability );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this ThermalUnitBlock is consistent
+ /** This function checks whether the data in this ThermalUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The minimum power is not greater than the maximum power.
+  *
+  * - The availability is between 0 and 1.
+  *
+  * - The delta ramp-up and ramp-down are nonnegative.
+  *
+  * - The quadratic term of the objective function is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
 
 /*--------------------------------------------------------------------------*/
 

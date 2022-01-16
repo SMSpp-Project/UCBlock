@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 06 - 2021
+ * \date 14 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -18,7 +18,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, and Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
+ * Lobato
  */
 
 /*--------------------------------------------------------------------------*/
@@ -81,13 +87,34 @@ DCNetworkBlock::~DCNetworkBlock() {
  for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints)
   constraint.clear();
 
+ objective.clear();
 
-  objective.clear();
-
+ // Delete the NetworkData if it is local.
+ if( f_local_NetworkData )
+  delete f_NetworkData;
 }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
+
+ auto NumberNodes = group.getDim( "NumberNodes" );
+
+ if( ! NumberNodes.isNull() ) {
+  // Since the dimension "NumberNodes" has been provided, it means that a
+  // NetworkData has been provided. Thus, the NetworkData is deserialized and
+  // it is marked as being local.
+  delete f_NetworkData;
+  f_NetworkData = new NetworkData();
+  f_NetworkData->deserialize( group );
+  f_local_NetworkData = true;
+ }
+
+ NetworkBlock::deserialize( group );
+}
+
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {

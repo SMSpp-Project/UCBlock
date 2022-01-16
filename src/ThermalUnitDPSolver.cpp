@@ -112,7 +112,7 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
   // startup at i iff the unit was off at i - 1 and it is on at i
   for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sup_it++)->set_value( U[ i ] && ( ~ U[ i - 1 ] ) ? 1 : 0 );
+   (sup_it++)->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
   }
 
  // set shut_down variables, if any, but note that start_up variables are
@@ -120,12 +120,12 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( auto sdn_it = b->get_shut_down() ) {
   // shutdown at 0 iif the unit was on at the start and it is off at 0
   if( ! t_init )
-   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ~ U[ 0 ] )
+   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] )
 			  ? 1 : 0 );
 
   // shutdown at i iff the unit was on at i - 1 and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sdn_it++)->set_value( ( ~ U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
+   (sdn_it++)->set_value( ( ! U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
   }
 
  // unlock the Block
@@ -586,14 +586,6 @@ void ThermalUnitDPSolver::load_parameters( void )
 
 /*--------------------------------------------------------------------------*/
 
-double ThermalUnitDPSolver::compute_startup_costs( Index h , Index k )
-{
- // one day a time-dependent SUC formula may be easily implemented here
- return( startup_costs[ k ] );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitDPSolver::process_modifications( void )
 {
  bool reload = false;
@@ -606,8 +598,10 @@ void ThermalUnitDPSolver::process_modifications( void )
 
  // process all the Modifications
  for( auto mod : v_mod )
-  if( guts_of_process_modifications( mod.get() ) )
-   break;  // if a reset is done, ignore all the remaining Modifications 
+  if( guts_of_process_modifications( mod.get() ) ) {
+   reload = true;  // a reset must be done
+   break;          // ignore all the remaining Modifications
+   }
 
  v_mod.clear();  // all Modifications tackled, clear the list
 

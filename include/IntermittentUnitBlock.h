@@ -8,7 +8,7 @@
  *
  * \version 0.11
  *
- * \date 20 - 08 - 2021
+ * \date 05 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -188,9 +188,7 @@ class IntermittentUnitBlock : public UnitBlock {
  * - The scalar variable "Kappa", of type double and not indexed over any
  *   dimension. This variable is used to multiply to the minimum and maximum
  *   power at each time instant t. This variable is optional, if it is not
- *   provided it is taken to be Kappa == 1.
- *
- *   */
+ *   provided it is taken to be Kappa == 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -217,16 +215,19 @@ class IntermittentUnitBlock : public UnitBlock {
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the static constraint of the IntermittentUnitBlock
-/** Method that generates the static constraint of the IntermittentUnitBlock.
+/// generate the static constraints of the IntermittentUnitBlock
+/** Method that generates the static constraints of the IntermittentUnitBlock.
  * These are the:
+ *
  * - maximum and minimum power output constraints according to primary and
  *   secondary spinning reserves are presented in (1)-(2). Each of them is a
- *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
- *   the entry t = 0, ...,f_time_horizon - 1 being the maximum and minimum
- *   power output value according to the primary and the secondary spinning
- *   reserves at time t. these ensure the maximum(or minimum) amount of energy
- *   that unit can produce(or use) when it is on(or off).
+ *   std::vector<FRowConstraint>, with the dimension of get_time_horizon(),
+ *   where the entry t, for t in \f$ \mathcal{T} = \f$ {0, ...,
+ *   get_time_horizon() - 1}, being the maximum and minimum power output value
+ *   according to the primary and the secondary spinning reserves at time
+ *   t. These constraints ensure the maximum (or minimum) amount of energy
+ *   that unit can produce (or use) when it is on (or off).
+ *
  *   \f[
  *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
  *          \quad t \in \mathcal{T}                              \quad (1)
@@ -236,9 +237,10 @@ class IntermittentUnitBlock : public UnitBlock {
  *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
  *          \quad t \in \mathcal{T}                              \quad (2)
  *   \f]
+ *
  *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
- *   minimum power output parameters for each time t of the time horizon
- *   \f$ \mathcal{T} \f$ respectively.
+ *   minimum power output parameters for each time t in \f$ \mathcal{T} \f$,
+ *   respectively.
  *
  * - the active power bounds.
  *
@@ -579,6 +581,27 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// Resize a vector to time_horizon by using change_intervals
  template< typename T > void decompress_vector( std::vector< T > & v );
+
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this IntermittentUnitBlock is consistent
+ /** This function checks whether the data in this IntermittentUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The maximum power is greater than or equal to the minimum power.
+  *
+  * - The minimum power is nonnegative.
+  *
+  * - Gamma is between 0 and 1.
+  *
+  * - Kappa is nonnegative.
+  *
+  * - The inertia power is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
 
 /*--------------------------------------------------------------------------*/
 
