@@ -21,11 +21,13 @@
 #                                VERSION 1.00                                #
 #                               12 - 02 - 2019                               #
 #                                                                            #
-#                              Antonio Frangioni                             #
-#                          Operations Research Group                         #
-#                         Dipartimento di Informatica                        #
-#                             Universita' di Pisa                            #
-#									                                         #
+#                             Implementation by:                             #
+#                                                                            #
+#                             Antonio Frangioni                              #
+#                         Operations Research Group                          #
+#                        Dipartimento di Informatica                         #
+#                            Universita' di Pisa                             #
+#                                                                            #
 ##############################################################################
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
@@ -42,7 +44,7 @@ include $(SMS++SDR)lib/makefile-inc
 # include the UCBlock makefile requiring all external modules in input
 include $(UCBckDIR)lib/makefile
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # external libraries for UCBlock
 UCBckLIB = $(SMS++LIB)

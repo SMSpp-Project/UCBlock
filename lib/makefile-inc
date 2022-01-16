@@ -19,11 +19,13 @@
 #                                VERSION 1.00                                #
 #                               12 - 11 - 2018                               #
 #                                                                            #
-#                              Antonio Frangioni                             #
-#                          Operations Research Group                         #
-#                         Dipartimento di Informatica                        #
-#                             Universita' di Pisa                            #
-#									                                         #
+#                             Implementation by:                             #
+#                                                                            #
+#                             Antonio Frangioni                              #
+#                         Operations Research Group                          #
+#                        Dipartimento di Informatica                         #
+#                            Universita' di Pisa                             #
+#                                                                            #
 ##############################################################################
 
 # include the UCBck makefile internally defining all external modules - - - -

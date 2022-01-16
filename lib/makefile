@@ -9,7 +9,7 @@
 #   These are *not* copied into $(UCBckINC): adding those -I directives to   #
 #   the compile commands will have to done by whatever "main" makefile is    #
 #   using this. Analogously, any external library and the corresponding      #
-#   -L< libdirs > will have to be added to the final linking command by      #
+#   -L<libdirs> will have to be added to the final linking command by        #
 #   whatever "main" makefile is using this.                                  #
 #                                                                            #
 #   Note that, conversely, $(SMS++INC) is also assumed to include any        #
@@ -27,14 +27,16 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                              Antonio Frangioni                             #
-#                           Operations Research Group                        #
-#                         Dipartimento di Informatica                        #
-#                             Universita' di Pisa                            #
+#                             Implementation by:                             #
+#                                                                            #
+#                             Antonio Frangioni                              #
+#                         Operations Research Group                          #
+#                        Dipartimento di Informatica                         #
+#                            Universita' di Pisa                             #
 #                                                                            #
 ##############################################################################
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/BusNetworkBlock.o \
