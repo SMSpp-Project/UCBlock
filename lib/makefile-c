@@ -1,9 +1,9 @@
 ##############################################################################
 ################################ makefile-c ##################################
 ##############################################################################
-#									     #
+#									                                         #
 #   complete makefile of the core SMS++                                      #
-#									     #
+#									                                         #
 #   The makefile defines internally all external libraries required by       #
 #   the core SMS++ library. Accordingly, all necessary OBJ, H, -I            #
 #   directives, and external libraries + -L<libdirs> are added to the        #
