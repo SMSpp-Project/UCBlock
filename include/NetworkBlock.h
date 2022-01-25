@@ -182,7 +182,7 @@ class NetworkBlock : public Block {
  *   that node names here go from 0 to NNodes.getSize() - 1;
  *
  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
- *   the dimension "NumberLines". This is meant to represent the vector MnP[ l
+ *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
  *   ] that, for each line l, contains the minimum power flow at line l (note
  *   that this is typically a negative number as lines are bi-directional, see
  *   above).
