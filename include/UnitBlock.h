@@ -568,6 +568,9 @@ class UnitBlock : public Block {
   * has a default empty implementation. Derived classes that support scaling
   * must override this method.
   *
+  * If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
+  *
   * @param values An iterator to a vector containing the scale factor.
   *
   * @param subset If non-empty, the scale factor must be set to the value
@@ -590,7 +593,9 @@ class UnitBlock : public Block {
  /// sets the scale factor of this UnitBlock
  /** This method sets the scale factor of this UnitBlock. A default
   * implementation is provided which simply call the Subset version of this
-  * method. See UnitBlock::scale() for the semantics of scaling a UnitBlock.
+  * method. See UnitBlock::scale() for the semantics of scaling a
+  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
   *
   * @param values An iterator to a vector containing the scale factor.
   *
@@ -699,6 +704,58 @@ class UnitBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( UnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS UnitBlockMod ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a UnitBlock
+class UnitBlockMod : public Modification {
+
+public:
+
+ /// Public enum for the types of UnitBlockMod
+ enum UB_mod_type {
+  eScale = 0
+  ///< Set the scale factor
+  /**< This indicates that the scale factor of the UnitBlock has been
+   * modified. See UnitBlock::scale(). */
+ };
+
+ /// Constructor, takes the UnitBlock and the type
+ UnitBlockMod( UnitBlock * const fblock, const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ /// Destructor, default version
+ virtual ~UnitBlockMod() override = default;
+
+ /// Returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+protected:
+
+ /// prints the UnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "UnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case eScale:
+    output << "Set the scale factor";
+    break;
+   default:;
+  }
+ }
+
+ /// pointer to the Block to which the Modification refers
+ UnitBlock * f_Block{};
+
+ int f_type; ///< type of modification
+}; // end( class( UnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
