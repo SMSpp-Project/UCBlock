@@ -39,7 +39,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// !! commented away until HeatBlock are properly managed
+// TODO commented away until HeatBlock are properly managed
 // #include "HeatBlock.h"
 
 #include "LinearFunction.h"
@@ -73,7 +73,7 @@ UCBlock::~UCBlock()
  clear_constraints( v_PrimaryDemand_Const );
  clear_constraints( v_SecondaryDemand_Const );
  clear_constraints( v_InertiaDemand_Const );
-  /*!! commented away until HeatBlock are properly managed
+  /* TODO commented away until HeatBlock are properly managed
     clear_constraints( v_power_Heat_Rho_Const );
   */
 
@@ -171,7 +171,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_NetworkData->deserialize( group );
   }
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  if( ! ::deserialize_dim( group , "NumberHeatGenerators" ,
                           f_number_heat_generators , true ) )
   f_number_heat_generators = 0;
@@ -187,7 +187,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   }
 
  // optional dimensions
- /* !! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  f_number_heat_blocks = 0;
  ::deserialize_dim( group , "NumberHeatBlocks" ,
                     f_number_heat_blocks , true );
@@ -209,7 +209,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize_dim( group , "NumberPollutants" ,
                     f_number_pollutants , true );
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  ::deserialize( group , "HeatSet" ,
                 { f_number_units , f_number_heat_blocks } , v_heat_set ,
                 true , false );
@@ -257,7 +257,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "PollutantRho" ,
                 v_pollutant_rho , true , true );
 
-  /*!! commented away until HeatBlock are properly managed
+  /* TODO commented away until HeatBlock are properly managed
   ::deserialize( group , "PollutantHeatRho" ,
                  v_pollutant_heat_rho , true , true );
   */
@@ -268,13 +268,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   v_pollutant_budget.clear();
   v_pollutant_rho.resize(
             boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
-  /*!! commented away until HeatBlock are properly managed
+  /* TODO commented away until HeatBlock are properly managed
   v_pollutant_heat_rho.resize(
             boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
   */
   }
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  ::deserialize( group , "PowerHeatRho" , f_number_units ,
                 v_power_heat_rho , true , true );
 
@@ -396,7 +396,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
   }  // end( else( number_nodes > 1 ) )
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  if( f_number_heat_blocks )
   deserialize_sub_blocks( group , "HeatBlock_" , f_number_heat_blocks );
  */
@@ -1172,7 +1172,7 @@ void UCBlock::generate_pollutant_budget_constraints() {
       }
 
        // Terms associated with heat-only generation units
-       /*!! commented away until HeatBlock are properly managed
+       /* TODO commented away until HeatBlock are properly managed
        if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
 
         for( Index h = 0; h < f_number_heat_blocks; ++h ) {
@@ -1258,7 +1258,7 @@ void UCBlock::generate_pollutant_budget_constraints() {
       }
 
        // Terms associated with heat-only generation units
-       /*!! commented away until HeatBlock are properly managed
+       /* TODO commented away until HeatBlock are properly managed
        if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
 
         for( Index h = 0; h < f_number_heat_blocks; ++h ) {
@@ -1302,7 +1302,7 @@ void UCBlock::generate_pollutant_budget_constraints() {
 
 void UCBlock::generate_heat_constraints() {
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  // Heat constraints.
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1410,7 +1410,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  auto TotalNumberPollutantZones = group.addDim
   ( "TotalNumberPollutantZones" , f_total_number_pollutant_zones );
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  auto NumberHeatBlocks =
   group.addDim( "NumberHeatBlocks", f_number_heat_blocks );
 
@@ -1461,7 +1461,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
               { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
               v_pollutant_rho );
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  ::serialize( group, "HeatSet", netCDF::NcUint(),
               NumberHeatGenerators, v_heat_set );
 
@@ -1494,7 +1494,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
    sub_block->serialize( sub_group );
    }
 
- /*!! commented away until HeatBlock are properly managed
+ /* TODO commented away until HeatBlock are properly managed
  for( Index i = 0; i < f_number_heat_blocks; ++i ) {
   auto sub_block = get_heat_block( i );
   auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ));
