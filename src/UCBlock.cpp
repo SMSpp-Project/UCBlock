@@ -647,7 +647,6 @@ void UCBlock::generate_primary_demand_constraints() {
 
       auto linear_function = new LinearFunction();
 
-      Index primary_zone = 0;
       if( zone_id == v_primary_zones[ 0 ] ) {
 
        for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
@@ -666,7 +665,6 @@ void UCBlock::generate_primary_demand_constraints() {
         }
        }
       }
-      primary_zone++;
 
       v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
        ( get_primary_demand()[ zone_id ][ t ] );
@@ -683,7 +681,6 @@ void UCBlock::generate_primary_demand_constraints() {
 
       auto linear_function = new LinearFunction();
 
-      Index primary_zone = 0;
       for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
        if( zone_id == v_primary_zones[ node_id ] ) {
 
@@ -708,7 +705,6 @@ void UCBlock::generate_primary_demand_constraints() {
          }
         }
        }
-       primary_zone++;
       }
       v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
        ( get_primary_demand()[ zone_id ][ t ] );
