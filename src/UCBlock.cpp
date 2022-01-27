@@ -592,7 +592,6 @@ void UCBlock::generate_primary_demand_constraints() {
      v_PrimaryDemand_Const[t][0].set_lhs( get_primary_demand()[0][t] );
      v_PrimaryDemand_Const[t][0].set_rhs( Inf< double >());
 
-     Index generator_id = 0;
      for( auto block : get_nested_Blocks()) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -607,7 +606,6 @@ void UCBlock::generate_primary_demand_constraints() {
         auto primary_spinning_reserve = &primary_s_r[t];
         lf->add_variable( primary_spinning_reserve, 1.0, eNoMod );
        }
-       generator_id++;
       }
      }
      v_PrimaryDemand_Const[t][0].set_function( lf );
@@ -663,7 +661,6 @@ void UCBlock::generate_primary_demand_constraints() {
       Index primary_zone = 0;
       if( zone_id == v_primary_zones[0] ) {
 
-       Index generator_id = 0;
        for( auto block : get_nested_Blocks()) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -678,8 +675,6 @@ void UCBlock::generate_primary_demand_constraints() {
           auto primary_spinning_reserve = &primary_s_r[t];
           linear_function->add_variable( primary_spinning_reserve, 1.0 );
          }
-
-         generator_id++;
         }
        }
       }
@@ -760,7 +755,6 @@ void UCBlock::generate_secondary_demand_constraints() {
     for( Index t = 0; t < f_time_horizon; ++t ) {
      auto linear_function = new LinearFunction();
 
-     Index generator_id = 0;
      for( auto block : get_nested_Blocks()) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -775,8 +769,6 @@ void UCBlock::generate_secondary_demand_constraints() {
         auto secondary_spinning_reserve = &secondary_s_r[t];
         linear_function->add_variable( secondary_spinning_reserve, 1.0 );
        }
-
-       generator_id++;
       }
      }
      v_SecondaryDemand_Const[t][0].set_lhs( get_secondary_demand()[0][t] );
@@ -831,10 +823,8 @@ void UCBlock::generate_secondary_demand_constraints() {
 
       auto linear_function = new LinearFunction();
 
-      Index secondary_zone = 0;
       if( zone_id == v_secondary_zones[0] ) {
 
-       Index generator_id = 0;
        for( auto block : get_nested_Blocks()) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -849,11 +839,9 @@ void UCBlock::generate_secondary_demand_constraints() {
           auto secondary_spinning_reserve = &secondary_s_r[t];
           linear_function->add_variable( secondary_spinning_reserve, 1.0 );
          }
-         generator_id++;
         }
        }
       }
-      secondary_zone++;
 
       v_SecondaryDemand_Const[t][zone_id].set_lhs
        ( get_secondary_demand()[zone_id][t] );
@@ -870,7 +858,6 @@ void UCBlock::generate_secondary_demand_constraints() {
 
       auto linear_function = new LinearFunction();
 
-      Index secondary_zone = 0;
       for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
        if( zone_id == v_secondary_zones[node_id] ) {
 
@@ -898,7 +885,6 @@ void UCBlock::generate_secondary_demand_constraints() {
          }
         }
        }
-       secondary_zone++;
       }
       v_SecondaryDemand_Const[t][zone_id].set_lhs
        ( get_secondary_demand()[zone_id][t] );
@@ -935,7 +921,6 @@ void UCBlock::generate_inertia_demand_constraints() {
      v_InertiaDemand_Const[t][0].set_lhs( get_inertia_demand()[0][t] );
      v_InertiaDemand_Const[t][0].set_rhs( Inf< double >());
 
-     Index generator_id = 0;
      for( auto block : get_nested_Blocks()) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -961,7 +946,6 @@ void UCBlock::generate_inertia_demand_constraints() {
         auto active_power = &ap[t];
         linear_function->add_variable( active_power, inertia_power[t] );
        }
-       generator_id++;
       }
      }
      v_InertiaDemand_Const[t][0].set_function( linear_function );
@@ -1027,7 +1011,6 @@ void UCBlock::generate_inertia_demand_constraints() {
 
       if( zone_id == v_inertia_zones[0] ) {
 
-       Index generator_id = 0;
        for( auto block : get_nested_Blocks()) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -1053,7 +1036,6 @@ void UCBlock::generate_inertia_demand_constraints() {
           auto active_power = &ap[t];
           linear_function->add_variable( active_power, inertia_power[t] );
          }
-         generator_id++;
         }
        }
       }
@@ -1145,7 +1127,6 @@ void UCBlock::generate_pollutant_budget_constraints() {
       // Terms associated with active power
       auto linear_function = new LinearFunction();
 
-      Index generator_id = 0;
       for( auto block : get_nested_Blocks()) {
 
        auto unit_block = dynamic_cast<UnitBlock *>(block);
@@ -1166,8 +1147,6 @@ void UCBlock::generate_pollutant_budget_constraints() {
          auto rho = get_pollutant_rho()[t][pollutant][generator];
          linear_function->add_variable( active_power, rho );
         }
-
-        generator_id++;
        }
       }
 
