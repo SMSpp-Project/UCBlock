@@ -1758,34 +1758,16 @@ class HydroUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_rngd::args() );
+  /* Warning: Not all C++ compilers enjoy the template wizardry behing the
+   * three-args version of register_method<> with the compact MS_*_*::args()
+   *
+   * register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+   *                                    &HydroUnitBlock::set_inflow,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
   register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
    "HydroUnitBlock::set_inflow",
    &HydroUnitBlock::set_inflow );

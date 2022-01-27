@@ -582,8 +582,8 @@ class DPEDSolver : public EDSolver {
  // these two are identical to min_power but we keep them for readability
  std::vector< double > & bound_on = min_power;
  std::vector< double > & bound_down = min_power;
- //!! std::vector< double > & bound_on = max_power;
- //!! std::vector< double > & bound_down = max_power;
+ // TODO std::vector< double > & bound_on = max_power;
+ // TODO std::vector< double > & bound_down = max_power;
 
  std::vector< double > quad_term;
  std::vector< double > linear_term;

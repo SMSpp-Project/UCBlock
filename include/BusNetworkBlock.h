@@ -157,18 +157,15 @@ class BusNetworkBlock : public NetworkBlock {
                          c_ModParam issueAMod = eNoBlck ) final;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-  //                                     &BusNetworkBlock::set_active_demand,
-  //                                     MS_dbl_sbst::args() );
-  //
-  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-  //                                     &BusNetworkBlock::set_active_demand,
-  //                                     MS_dbl_rngd::args() );
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+   *                                     &BusNetworkBlock::set_active_demand,
+   *                                     MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
 
   register_method< BusNetworkBlock, MF_dbl_it, Subset &&, const bool >(
    "BusNetworkBlock::set_active_demand",

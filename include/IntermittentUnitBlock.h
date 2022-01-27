@@ -523,18 +523,17 @@ class IntermittentUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-  //                                           &IntermittentUnitBlock::set_maximum_power,
-  //                                           MS_dbl_sbst::args() );
-  //
-  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-  //                                           &IntermittentUnitBlock::set_maximum_power,
-  //                                           MS_dbl_rngd::args() );
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< IntermittentUnitBlock >
+   *                ( "IntermittentUnitBlock::set_maximum_power",
+   *                  &IntermittentUnitBlock::set_maximum_power,
+   *                  MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
   register_method< IntermittentUnitBlock, MF_dbl_it, Subset &&, const bool >(
    "IntermittentUnitBlock::set_maximum_power",
    &IntermittentUnitBlock::set_maximum_power );
