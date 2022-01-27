@@ -470,11 +470,14 @@ void UCBlock::generate_node_injection_constraints() {
     auto vcit = vc.begin();
 
     for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
-     auto bi = static_cast< UnitBlock * >( v_Block[ i ] );
-      // for each electrical generator within the unit
-     for( Index g = 0 ; g < bi->get_number_generators() ; ++g ) {
+     const auto unit_block = get_unit_block( i );
+     const auto scale = unit_block->get_scale();
+
+     // for each electrical generator within the unit
+     for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+
       // surely add the contribution of the corresponding active power
-      *(vcit++) = std::pair( & bi->get_active_power( g )[ t ] , 1.0 );
+      *(vcit++) = std::pair( & unit_block->get_active_power( g )[ t ] , scale );
 
       // if the generator also has nonzero fixed consumption at t
       // fixed consumption happens when the generator is off, and it
@@ -482,14 +485,14 @@ void UCBlock::generate_node_injection_constraints() {
       // RHS of the constraint also has to be decreased by fc[ t ]. note
       // that a unit with no commitment is always on, and therefore the
       // fixed consumption is always 0
-      if( auto fc = bi->get_fixed_consumption( g ) )
+      if( auto fc = unit_block->get_fixed_consumption( g ) )
        if( fc[ t ] )
-        if( auto u = bi->get_commitment( g ) ) {
+        if( auto u = unit_block->get_commitment( g ) ) {
+         const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
-         *(vcit++) = std::pair( & u[ t ] , - fc[ t ] );
-         rhs -= fc[ t ];        // update the RHS
+         *(vcit++) = std::pair( & u[ t ] , - fixed_consumption );
+         rhs -= fixed_consumption;    // update the RHS
          }
-
       }  // end( for( g ) )
      }  // end( for( i ) )
 
@@ -505,26 +508,23 @@ void UCBlock::generate_node_injection_constraints() {
   else {  // number_nodes > 1
    // DCNetwork needs GeneratorNode
 
-   for( Index t = 0; t < f_time_horizon; ++t ) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    auto & node_injection = v_network_blocks[t]->get_node_injection();
+    auto & node_injection = v_network_blocks[ t ]->get_node_injection();
 
-    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
+    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
      auto linear_function = new LinearFunction();
 
-     linear_function->add_variable( &node_injection[node_id], -1.0, eNoMod );
+     linear_function->add_variable( &node_injection[node_id] , -1.0 , eNoMod );
 
-     v_node_injection_constraints[t][node_id].set_both( 0.0 );
+     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
 
      Index elc_generator = 0;
-     for( Index unit_id = 0; unit_id < f_number_units; unit_id++) {
+     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
 
-      auto block = get_nested_Blocks()[unit_id];
-      auto unit_block = dynamic_cast<UnitBlock *>(block);
-
-      if( ! unit_block )
-       continue;
+      const auto unit_block = get_unit_block( unit_id );
+      const auto scale = unit_block->get_scale();
 
       for( Index generator = 0 ;
            generator < unit_block->get_number_generators() ;
@@ -534,38 +534,30 @@ void UCBlock::generate_node_injection_constraints() {
         continue;
 
        if( auto ap = unit_block->get_active_power( generator ) ) {
-        auto active_power = &ap[t];
-        linear_function->add_variable( active_power, 1.0, eNoMod );
+        auto active_power = &ap[ t ];
+        linear_function->add_variable( active_power , scale , eNoMod );
        }
 
-       auto fixed_consumption = unit_block->get_fixed_consumption( generator );
+       double fixed_consumption = 0.0;
+       if( auto fc = unit_block->get_fixed_consumption( generator ) )
+        fixed_consumption = fc[ t ] * scale;
 
        if( auto c = unit_block->get_commitment( generator ) ) {
-        auto commitment = &c[t];
-        if( fixed_consumption ) {
-         linear_function->add_variable
-          ( commitment, -fixed_consumption[t], eNoMod );
-        } else {
-         linear_function->add_variable( commitment, 0.0, eNoMod );
-        }
+        auto commitment = &c[ t ];
+        linear_function->add_variable( commitment , - fixed_consumption ,
+                                       eNoMod );
        }
 
-       if( fixed_consumption ) {
-        v_node_injection_constraints[t][node_id].set_both
-         ( v_node_injection_constraints[t][node_id].get_rhs()
-           - fixed_consumption[t] );
-       } else {
-        v_node_injection_constraints[t][node_id].set_both
-         ( v_node_injection_constraints[t][node_id].get_rhs()
-           - 0.0 );
-       }
+       v_node_injection_constraints[ t ][ node_id ].set_both
+        ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+          - fixed_consumption );
       }
      }
      v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
    }
   }
-  add_static_constraint( v_node_injection_constraints, "node_injection_c" );
+  add_static_constraint( v_node_injection_constraints , "node_injection_c" );
  }
 }  // end( UCBlock::generate_node_injection_constraints )
 
