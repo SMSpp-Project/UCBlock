@@ -1261,6 +1261,11 @@ class ThermalUnitBlock : public UnitBlock {
   return( &( v_shut_down[ t - init_t ] ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the scale factor of this ThermalUnitBlock
+ double get_scale() const override { return f_scale; }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -1499,6 +1504,28 @@ class ThermalUnitBlock : public UnitBlock {
                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this ThermalUnitBlock
+ /** This method sets the scale factor of this ThermalUnitBlock.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor is set to the value
+  *        pointed by \p values. If empty, no operation is performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ void scale( std::vector< double >::const_iterator values ,
+             Subset && subset ,
+             const bool ordered = false ,
+             c_ModParam issuePMod = eNoBlck ,
+             c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1569,6 +1596,9 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
+
+ /// the scale factor of this ThermalUnitBlock
+ double f_scale = 1;
 
 /*-----------------------------variables------------------------------------*/
  /// the start up binary variables
@@ -1801,6 +1831,66 @@ private:
                                        double availability ) const {
   return( nominal_max_power * availability );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the start up cost
+ /** This method updates the terms of the Objective that are associated with
+  * the start up cost.
+  *
+  * @param subset A set of time instants at which the start up costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_start_up( const Subset & subset , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the active power cost
+ /** This method updates the terms of the Objective that are associated with
+  * the active power cost.
+  *
+  * @param subset A set of time instants at which the active power costs must
+  *        be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_active_power( const Subset & subset ,
+                                     c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the fixed cost
+ /** This method updates the terms of the Objective that are associated with
+  * the fixed cost.
+  *
+  * @param subset A set of time instants at which the fixed costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_commitment( const Subset & subset ,
+                                   c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( const Subset & subset ,c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( Range rng , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
 
