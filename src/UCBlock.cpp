@@ -447,7 +447,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
 void UCBlock::generate_node_injection_constraints() {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  v_node_injection_constraints.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
@@ -565,7 +565,7 @@ void UCBlock::generate_node_injection_constraints() {
 
 void UCBlock::generate_primary_demand_constraints() {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  if( f_number_primary_zones > 0 ) {
 
@@ -732,7 +732,7 @@ void UCBlock::generate_primary_demand_constraints() {
 
 void UCBlock::generate_secondary_demand_constraints() {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  if( f_number_secondary_zones > 0 ) {
 
@@ -894,7 +894,7 @@ void UCBlock::generate_secondary_demand_constraints() {
 
 void UCBlock::generate_inertia_demand_constraints() {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  if( f_number_inertia_zones > 0 ) {
 
@@ -1100,7 +1100,7 @@ void UCBlock::generate_inertia_demand_constraints() {
 
 void UCBlock::generate_pollutant_budget_constraints() {
 
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  if( f_number_pollutants > 0 ) {
 
@@ -1507,7 +1507,7 @@ void UCBlock::set_active_power_demand
  if( subset.empty() )
   return;
 
- const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  if( ! v_network_blocks.empty() ) {
   // Update the demand of the NetworkBlocks
@@ -1575,7 +1575,7 @@ void UCBlock::set_active_power_demand
 ( std::vector< double >::const_iterator values , Block::Range rng ,
   c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  rng.second = std::min( rng.second , number_nodes * f_time_horizon );
 

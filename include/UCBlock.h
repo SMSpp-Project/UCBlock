@@ -1463,6 +1463,13 @@ class UCBlock : public Block {
  void update_node_injection_constraints( Index time , Index node_index ,
                                          double demand );
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of nodes
+ Index get_number_nodes() const {
+  return f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+  }
+
 };   // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
