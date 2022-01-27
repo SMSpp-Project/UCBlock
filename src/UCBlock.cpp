@@ -425,17 +425,35 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   return;                       // nothing to do
 
  // generate abstract constraints in all the sub-Block
+
  Block::generate_abstract_constraints( stcc );
 
- // node injection constraints - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // generate the abstract constraints of UCBlock
+
+ generate_node_injection_constraints();
+ generate_primary_demand_constraints();
+ generate_secondary_demand_constraints();
+ generate_inertia_demand_constraints();
+ generate_pollutant_budget_constraints();
+ generate_heat_constraints();
+
+ // mark all done
+
+ set_constraints_generated();
+
+}  // end( UCBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_node_injection_constraints() {
+
  auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  v_node_injection_constraints.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
                                                         [ number_nodes ] );
 
- if( number_nodes > 0 ) {  // well, that'd be curios, but ...
+ if( number_nodes > 0 ) {  // well, that'd be curious, but ...
   if( number_nodes == 1 ) {
    // special case: in a BusNetwork there are no NetworkBlocks and the node
    // injection constraints actually are active power demand constraints
@@ -549,9 +567,14 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   }
   add_static_constraint( v_node_injection_constraints, "node_injection_c" );
  }
+}  // end( UCBlock::generate_node_injection_constraints )
 
- // primary demand constraints - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_primary_demand_constraints() {
+
+ auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+
  if( f_number_primary_zones > 0 ) {
 
   v_PrimaryDemand_Const.resize
@@ -716,9 +739,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   }
   add_static_constraint( v_PrimaryDemand_Const, "primary_demand_c"  );
  }
+}  // end( UCBlock::generate_primary_demand_constraints )
 
- // secondary demand constraints - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_secondary_demand_constraints() {
+
+ auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  if( f_number_secondary_zones > 0 ) {
 
@@ -883,9 +910,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   }
   add_static_constraint( v_SecondaryDemand_Const, "secondary_demand_c"  );
  }
+}  // end( UCBlock::generate_secondary_demand_constraints )
 
- // inertia demand constraints - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_inertia_demand_constraints() {
+
+ auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  if( f_number_inertia_zones > 0 ) {
 
@@ -1089,10 +1120,13 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   }
   add_static_constraint( v_InertiaDemand_Const, "inertia_demand_c"  );
  }
+}  // end( UCBlock::generate_inertia_demand_constraints )
 
+/*--------------------------------------------------------------------------*/
 
- // pollutant budget constraints - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void UCBlock::generate_pollutant_budget_constraints() {
+
+ auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  if( f_number_pollutants > 0 ) {
 
@@ -1262,6 +1296,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint
    ( v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
+}  // end( UCBlock::generate_pollutant_budget_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_heat_constraints() {
 
  /*!! commented away until HeatBlock are properly managed
  // Heat constraints.
@@ -1342,12 +1381,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( v_power_Heat_Rho_Const );
  }
 */
-
- // mark all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- set_constraints_generated();
-
- }  // end( UCBlock::generate_abstract_constraints )
+}  // end( UCBlock::generate_heat_constraints )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

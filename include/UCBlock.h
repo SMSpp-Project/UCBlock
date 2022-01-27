@@ -1420,6 +1420,36 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// generate the node injection constraints
+ void generate_node_injection_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// generate the primary demand constraints
+ void generate_primary_demand_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// generate the secondary demand constraints
+ void generate_secondary_demand_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// generate the inertia demand constraints
+ void generate_inertia_demand_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// generate the pollutant budget constraints
+ void generate_pollutant_budget_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// generate the heat constraints
+ void generate_heat_constraints();
+
+/*--------------------------------------------------------------------------*/
+
  /// updates a node injection constraint for the given demand
  /** This function updates the node injection constraint at the given \p time
   * for the node whose index is \p node_index considering the given \p demand.
