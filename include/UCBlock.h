@@ -12,7 +12,7 @@
  *
  * \version 0.20
  *
- * \date 13 - 12 - 2021
+ * \date 28 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -191,7 +191,7 @@ class UCBlock : public Block {
  *   get_number_generators() on each of the UnitBlock and summing all the
  *   results. Clearly, NumberElectricalGenerators >= NumberUnits; indeed,
  *   most of the UnitBlock can be expected to have just one electrical
- *   generator. If this happens for all the units then 
+ *   generator. If this happens for all the units then
  *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
  *   (like cascades of hydro generators or combined cycle plants) actually
  *   has more than one electrical generator, then NumberElectricalGenerators >
@@ -251,12 +251,12 @@ class UCBlock : public Block {
  *     heat generator 0 = first generator of HeatBlock_0
  *     heat generator 1 = second generator of HeatBlock_0
  *     ...
- *     heat generator k = k-th generator of HeatBlock_0 
+ *     heat generator k = k-th generator of HeatBlock_0
  *                    k = HeatBlock_0->get_number_heat_units()
  *     heat generator k + 1 = first generator of HeatBlock_1
  *     heat generator k + 2 = second generator of HeatBlock_1
  *     ...
- *   which of course boils down to "h = b" when each HeatBlock has exactly 
+ *   which of course boils down to "h = b" when each HeatBlock has exactly
  *   one heat generator (but this is not assumed to happen).
  *
  * - Optionally, the dimensions and variables necessary to deserialize a
@@ -1198,6 +1198,22 @@ class UCBlock : public Block {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// method for handling Modification
+ /** Method for handling Modification.
+  *
+  * This method has to intercept any "abstract Modification" that modifies the
+  * "abstract representation" of the UCBlock, and "translate" them into both
+  * changes of the actual data structures and corresponding "physical
+  * Modification". These Modification are those for which
+  * Modification::concerns_Block() is true. Currently, this method only
+  * handles UnitBlockMod whose modification is associated with the changing of
+  * the scale factor of a UnitBlock. */
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ /// update the active power demand
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Subset && subset = { 0 } ,
                                const bool ordered = false ,
@@ -1206,6 +1222,7 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// update the active power demand
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Range rng = Range( 0 , 1 ) ,
                                c_ModParam issuePMod = eNoBlck ,
@@ -1447,6 +1464,10 @@ class UCBlock : public Block {
 
  /// generate the heat constraints
  void generate_heat_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ void update_node_injection_constraints_scale( Block * block );
 
 /*--------------------------------------------------------------------------*/
 

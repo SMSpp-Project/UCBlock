@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 20 - 12 - 2021
+ * \date 28 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1474,18 +1474,234 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
+ if( mod->concerns_Block() ) {
+  if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
+   mod->concerns_Block( false );
+   if( tmod->type() == UnitBlockMod::eScale ) {
+    update_node_injection_constraints_scale( tmod->get_Block() );
+   }
+  }
+ }
+
+ Block::add_Modification( mod , chnl );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_node_injection_constraints_scale( Block * block ) {
+
+ if( ( ! constraints_generated() ) ||
+     ( v_node_injection_constraints.size() == 0 ) )
+  return;
+
+ const auto given_unit_block = dynamic_cast< UnitBlock * >( block );
+ if( ! given_unit_block )
+  throw( std::invalid_argument( "UCBlock::update_scale_node_injection_constra"
+                                "ints: given Block is not a UnitBlock." ) );
+
+ const auto number_nodes = get_number_nodes();
+
+ v_node_injection_constraints.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
+                                                        [ number_nodes ] );
+
+ if( number_nodes > 0 ) {
+  if( number_nodes == 1 ) { // BusNetwork
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
+
+    /* The active Variables of this LinearFunction are grouped by
+     * UnitBlocks. That is, all active Variables of a given UnitBlock have
+     * consecutive indices in this LinearFunction. The following will store
+     * the Range of indices of the active Variables of this LinearFunction
+     * that belong to the given Block. */
+    Range range( Inf< Index >() , Inf< Index >() );
+
+    // This will store the coefficients that must be updated, i.e., those of
+    // the active Variables that belong to the given Block.
+    LinearFunction::Vec_FunctionValue coefficients;
+
+    Index active_var_index = 0;
+
+    // initialise demand as active power
+    auto rhs = v_active_power_demand[ 0 ][ t ];
+
+    for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
+     const auto unit_block = get_unit_block( i );
+     const auto scale = unit_block->get_scale();
+
+     if( unit_block == given_unit_block )
+      coefficients.reserve( 2 * unit_block->get_number_generators() );
+
+     // for each electrical generator within the unit
+     for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+
+      if( unit_block == given_unit_block ) {
+
+       // update the Range
+       if( range.first == Inf< Index >() ) {
+        range.first = active_var_index;
+        range.second = active_var_index;
+       }
+       range.second++;
+
+       // update the coefficient of the active power variable
+       coefficients.push_back( scale );
+      }
+
+      // increment due to the active power variable
+      ++active_var_index;
+
+      if( auto fc = unit_block->get_fixed_consumption( g ) )
+       if( fc[ t ] )
+        if( unit_block->get_commitment( g ) ) {
+         const auto fixed_consumption = fc[ t ] * scale;
+         rhs -= fixed_consumption;    // update the RHS
+         if( unit_block == given_unit_block ) {
+          // update the coefficient of the commitment variable
+          coefficients.push_back( - fixed_consumption );
+
+          // update the Range
+          ++range.second;
+         }
+
+         // increment due to the commitment variable
+         ++active_var_index;
+        }
+     }  // end( for( g ) )
+    }  // end( for( i ) )
+
+    // Finally, we update the RHS of the constraint and the coefficients of
+    // the active Variables that belong to the given UnitBlock. Notice that
+    // the (abstract) Modifications that will be issued as a result of this
+    // update do not concern this UCBlock.
+
+    // update the RHS of the constraint (equality constraint)
+    v_node_injection_constraints[ t ][ 0 ].set_both( rhs , eNoBlck );
+
+    // update the coefficients
+    static_cast< LinearFunction * >
+     ( v_node_injection_constraints[ t ][ 0 ].get_function() )->
+     modify_coefficients( std::move( coefficients ) , range , eNoBlck );
+
+   }  // end( for( t ) )
+  }
+  else {  // number_nodes > 1
+   // DCNetwork needs GeneratorNode
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+    /* The active Variables of this LinearFunction are grouped by
+     * UnitBlocks. That is, all active Variables of a given UnitBlock have
+     * consecutive indices in this LinearFunction. The following will store
+     * the Range of indices of the active Variables of this LinearFunction
+     * that belong to the given Block. */
+    Range range( Inf< Index >() , Inf< Index >() );
+
+    // This will store the coefficients that must be updated, i.e., those of
+    // the active Variables that belong to the given Block.
+    LinearFunction::Vec_FunctionValue coefficients;
+
+    Index active_var_index = 0;
+
+    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+     // increment due to the node injection variable
+     ++active_var_index;
+
+     double rhs = 0.0;
+
+     Index elc_generator = 0;
+     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+
+      const auto unit_block = get_unit_block( unit_id );
+      const auto scale = unit_block->get_scale();
+
+      if( unit_block == given_unit_block )
+       coefficients.reserve( 2 * unit_block->get_number_generators() );
+
+      for( Index generator = 0 ;
+           generator < unit_block->get_number_generators() ;
+           ++generator , ++elc_generator ) {
+
+       if( node_id != v_generator_node[ elc_generator ] )
+        continue;
+
+       if( unit_block->get_active_power( generator ) ) {
+
+        if( unit_block == given_unit_block ) {
+         // update the Range
+         if( range.first == Inf< Index >() ) {
+          range.first = active_var_index;
+          range.second = active_var_index;
+         }
+         range.second++;
+         // update the coefficient of the active power variable
+         coefficients.push_back( scale );
+        }
+
+        // increment due to the active power variable
+        ++active_var_index;
+       }
+
+       double fixed_consumption = 0.0;
+       if( auto fc = unit_block->get_fixed_consumption( generator ) )
+        fixed_consumption = fc[ t ] * scale;
+
+       if( unit_block->get_commitment( generator ) ) {
+        if( unit_block == given_unit_block ) {
+         // update the Range
+         if( range.first == Inf< Index >() ) {
+          range.first = active_var_index;
+          range.second = active_var_index;
+         }
+         range.second++;
+         // update the coefficient of the commitment variable
+         coefficients.push_back( - fixed_consumption );
+        }
+
+        // increment due to the commitment variable
+        ++active_var_index;
+       }
+
+       rhs -= fixed_consumption;
+      }
+     }
+
+     // Finally, we update the RHS of the constraint and the coefficients of
+     // the active Variables that belong to the given UnitBlock. Notice that
+     // the (abstract) Modifications that will be issued as a result of this
+     // update do not concern this UCBlock.
+
+     // update the RHS of the constraint (equality constraint)
+     v_node_injection_constraints[ t ][ node_id ].set_both( rhs , eNoBlck );
+
+     // update the coefficients
+     static_cast< LinearFunction * >
+      ( v_node_injection_constraints[ t ][ node_id ].get_function() )->
+      modify_coefficients( std::move( coefficients ) , range , eNoBlck );
+
+    }  // end( for( node_id ) )
+   }  // end( for( t ) )
+  }
+ }   // end( if( number_nodes > 0 ) )
+}  // end( UCBlock::update_node_injection_constraints_scale )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
                                                  double demand ) {
  auto rhs = demand;
  for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
-  auto bi = static_cast< UnitBlock * >( v_Block[ i ] );
+  const auto unit_block = static_cast< UnitBlock * >( v_Block[ i ] );
+  const auto scale = unit_block->get_scale();
   // for each electrical generator within the unit
-  for( Index g = 0 ; g < bi->get_number_generators() ; ++g ) {
-   if( auto fc = bi->get_fixed_consumption( g ) )
+  for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+   if( auto fc = unit_block->get_fixed_consumption( g ) )
     if( fc[ time ] )
-     if( auto u = bi->get_commitment( g ) ) {
+     if( auto u = unit_block->get_commitment( g ) ) {
       // add the contribution of the corresponding commitment variables
-      rhs -= fc[ time ]; // update the RHS
+      rhs -= scale * fc[ time ]; // update the RHS
      }
   }  // end( for( g ) )
  }  // end( for( i ) )
