@@ -1086,44 +1086,46 @@ void UCBlock::generate_inertia_demand_constraints() {
 
 void UCBlock::generate_pollutant_budget_constraints() {
 
+ // TODO These constraints must be fixed
+
  const auto number_nodes = get_number_nodes();
 
  if( f_number_pollutants > 0 ) {
 
   v_PollutantBudget_Const.resize
-   ( v_number_pollutant_zones[f_total_number_pollutant_zones] );
+   ( v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
 
-  if ( number_nodes == 1 ) {
+  if( number_nodes == 1 ) {
 
-   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
+   for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
-    for( Index zone = 0; zone < v_number_pollutant_zones[pollutant];
+    for( Index zone = 0 ; zone < v_number_pollutant_zones[ pollutant ] ;
          ++zone ) {
 
-     for( Index t = 0; t < f_time_horizon; ++t ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
       // Terms associated with active power
       auto linear_function = new LinearFunction();
 
-      for( auto block : get_nested_Blocks()) {
+      for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
-       auto unit_block = dynamic_cast<UnitBlock *>(block);
-       if( ! unit_block )
-        continue;
+       const auto unit_block = get_unit_block( unit_id );
+       const auto scale = unit_block->get_scale();
 
-       for( Index generator = 0;
-            generator < unit_block->get_number_generators(); ++generator ) {
+       for( Index generator = 0 ;
+            generator < unit_block->get_number_generators() ; ++generator ) {
 
-        auto node_id = get_generator_node()[generator];
-        auto zone_id = get_pollutant_zone()[pollutant][node_id];
+        auto node_id = get_generator_node()[ generator ];
+        auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
 
-        if( zone_id >= v_number_pollutant_zones[pollutant] )
+        if( zone_id >= v_number_pollutant_zones[ pollutant ] )
          continue; // this unit does not belong to any zone
 
         if( auto ap = unit_block->get_active_power( generator ) ) {
-         auto active_power = &ap[t];
-         auto rho = get_pollutant_rho()[t][pollutant][generator];
-         linear_function->add_variable( active_power, rho );
+         auto active_power = & ap[ t ];
+         auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
+         auto coefficient =  scale * rho;
+         linear_function->add_variable( active_power , coefficient );
         }
        }
       }
@@ -1159,38 +1161,41 @@ void UCBlock::generate_pollutant_budget_constraints() {
       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
        ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function
+       ( linear_function );
      }
     }
    }
-
   }
-  else { //DCNetwork
+  else { // DCNetwork
 
-   for( Index pollutant = 0; pollutant < f_number_pollutants; ++pollutant ) {
+   for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
-    for( Index zone = 0; zone < v_number_pollutant_zones[pollutant]; ++zone ) {
+    for( Index zone = 0 ; zone < v_number_pollutant_zones[ pollutant ] ;
+         ++zone ) {
 
-     for( Index t = 0; t < f_time_horizon; ++t ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
       // Terms associated with active power
       auto linear_function = new LinearFunction();
 
       Index pollutant_zone = 0;
-      for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
+      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-       if( zone == v_pollutant_zones[pollutant][node_id] ) {
+       if( zone == v_pollutant_zones[ pollutant ][ node_id ] ) {
 
         Index generator_id = 0;
-        for( Index elc_generator = 0; elc_generator < f_number_elc_generators;
+        for( Index elc_generator = 0 ; elc_generator < f_number_elc_generators ;
              ++elc_generator ) {
 
-         if( node_id == v_generator_node[elc_generator] ) {
+         if( node_id == v_generator_node[ elc_generator ] ) {
 
-          auto block = get_nested_Blocks()[generator_id];
+          auto block = get_nested_Blocks()[ generator_id ];
           auto unit_block = dynamic_cast<UnitBlock *>(block);
           if( ! unit_block )
            continue;
+
+          const auto scale = unit_block->get_scale();
 
           for( Index generator = 0;
                generator < unit_block->get_number_generators(); ++generator ) {
@@ -1204,7 +1209,8 @@ void UCBlock::generate_pollutant_budget_constraints() {
            if( auto ap = unit_block->get_active_power( generator ) ) {
             auto active_power = &ap[t];
             auto rho = get_pollutant_rho()[t][pollutant][generator];
-            linear_function->add_variable( active_power, rho );
+            auto coefficient = scale * rho;
+            linear_function->add_variable( active_power , coefficient );
            }
           }
          }
@@ -1245,7 +1251,8 @@ void UCBlock::generate_pollutant_budget_constraints() {
       v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
        ( v_pollutant_budget[v_number_pollutant_zones[pollutant]][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(linear_function);
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function
+       ( linear_function );
      }
     }
    }
@@ -1262,6 +1269,8 @@ void UCBlock::generate_heat_constraints() {
  /* TODO commented away until HeatBlock are properly managed
  // Heat constraints.
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ // TODO Deal with the scaling of UnitBlock
 
  if( f_number_heat_blocks > 0 ) {
 
