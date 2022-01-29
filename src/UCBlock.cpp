@@ -574,7 +574,8 @@ void UCBlock::generate_primary_demand_constraints() {
 
  // We assume that, if a generator has primary spinning reserve for a time
  // instant, then it has primary spinning reserve for all time instants.
- primary_var_index.assign( f_number_units , Inf< Index >() );
+ primary_var_index.assign( f_number_units ,
+                           { Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -604,13 +605,18 @@ void UCBlock::generate_primary_demand_constraints() {
       if( auto primary_s_r =
           unit_block->get_primary_spinning_reserve( generator ) ) {
 
-       if( primary_var_index[ unit_id ] == Inf< Index >() ) {
+       if( primary_var_index[ unit_id ].first == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
-        primary_var_index[ unit_id ] = linear_function->get_num_active_var();
+        const auto num_active_var = linear_function->get_num_active_var();
+        primary_var_index[ unit_id ].first = num_active_var;
+        primary_var_index[ unit_id ].second = num_active_var;
        }
+
+       // Increment the upper bound of the range.
+       ++primary_var_index[ unit_id ].second;
 
        // Nowe we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = & primary_s_r[ t ];
@@ -646,7 +652,8 @@ void UCBlock::generate_secondary_demand_constraints() {
 
  // We assume that, if a generator has secondary spinning reserve for a time
  // instant, then it has secondary spinning reserve for all time instants.
- secondary_var_index.assign( f_number_units , Inf< Index >() );
+ secondary_var_index.assign( f_number_units ,
+                             { Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -676,13 +683,18 @@ void UCBlock::generate_secondary_demand_constraints() {
       if( auto secondary_s_r =
           unit_block->get_secondary_spinning_reserve( generator ) ) {
 
-       if( secondary_var_index[ unit_id ] == Inf< Index >() ) {
+       if( secondary_var_index[ unit_id ].first == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
-        secondary_var_index[ unit_id ] = linear_function->get_num_active_var();
+        const auto num_active_var = linear_function->get_num_active_var();
+        secondary_var_index[ unit_id ].first = num_active_var;
+        secondary_var_index[ unit_id ].second = num_active_var;
        }
+
+       // Increment the upper bound of the range.
+       ++secondary_var_index[ unit_id ].second;
 
        auto secondary_spinning_reserve = & secondary_s_r[ t ];
        linear_function->add_variable( secondary_spinning_reserve , scale );
@@ -1438,7 +1450,7 @@ void UCBlock::update_primary_demand_constraints
 
     const auto unit_id = modified_units[ i ];
 
-    if( primary_var_index[ unit_id ] == Inf< Index >() ) {
+    if( primary_var_index[ unit_id ].first == Inf< Index >() ) {
      // This unit has no active Variable in the primary demand constraints.
      continue;
     }
@@ -1453,10 +1465,12 @@ void UCBlock::update_primary_demand_constraints
     const auto num_generators = unit_block->get_number_generators();
 
     // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and start with primary_var_index[ unit_id ].
-    std::vector< Index > var_indices( num_generators );
+    // are consecutive and start with primary_var_index[ unit_id ].first.
+    const auto num_variables = primary_var_index[ unit_id ].first -
+     primary_var_index[ unit_id ].second;
+    std::vector< Index > var_indices( num_variables );
     std::iota( var_indices.begin() , var_indices.end() ,
-               primary_var_index[ unit_id ] );
+               primary_var_index[ unit_id ].first );
 
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
     coefficients.insert( coefficients.end() , num_generators , scale );
@@ -1525,7 +1539,7 @@ void UCBlock::update_secondary_demand_constraints
 
     const auto unit_id = modified_units[ i ];
 
-    if( secondary_var_index[ unit_id ] == Inf< Index >() ) {
+    if( secondary_var_index[ unit_id ].first == Inf< Index >() ) {
      // This unit has no active Variable in the secondary demand constraints.
      continue;
     }
@@ -1540,10 +1554,12 @@ void UCBlock::update_secondary_demand_constraints
     const auto num_generators = unit_block->get_number_generators();
 
     // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and start with secondary_var_index[ unit_id ].
-    std::vector< Index > var_indices( num_generators );
+    // are consecutive and start with secondary_var_index[ unit_id ].first.
+    const auto num_variables = secondary_var_index[ unit_id ].first -
+     secondary_var_index[ unit_id ].second;
+    std::vector< Index > var_indices( num_variables );
     std::iota( var_indices.begin() , var_indices.end() ,
-               secondary_var_index[ unit_id ] );
+               secondary_var_index[ unit_id ].first );
 
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
     coefficients.insert( coefficients.end() , num_generators , scale );

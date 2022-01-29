@@ -1424,32 +1424,34 @@ class UCBlock : public Block {
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
   * defines each constraint. The i-th element of this vector will store the
-  * smallest index of an active Variable in the LinearFunction that belongs to
+  * range of indices of active Variable in the LinearFunction that belong to
   * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
-  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  * LinearFunction, then the i-th element of this vector is ( Inf<Index>() ,
+  * Inf<Index>() ).
   *
   * Notice that these indices do not depend on the time instant. This is
-  * because We assume that, if a generator has primary spinning reserve for
+  * because we assume that, if a generator has primary spinning reserve for
   * some time instant, then it has primary spinning reserve for all time
   * instants. */
 
- std::vector< Index > primary_var_index;
+ std::vector< Range > primary_var_index;
 
  /// indices of active Variable in the secondary demand constraints
  /** The active Variables of each LinearFunction defining a secondary demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
   * defines each constraint. The i-th element of this vector will store the
-  * smallest index of an active Variable in the LinearFunction that belongs to
+  * range of indices of active Variable in the LinearFunction that belong to
   * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
-  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  * LinearFunction, then the i-th element of this vector is ( Inf<Index>() ,
+  * Inf<Index>() ).
   *
   * Notice that these indices do not depend on the time instant. This is
-  * because We assume that, if a generator has secondary spinning reserve for
+  * because we assume that, if a generator has secondary spinning reserve for
   * some time instant, then it has secondary spinning reserve for all time
   * instants. */
 
- std::vector< Index > secondary_var_index;
+ std::vector< Range > secondary_var_index;
 
  SMSpp_insert_in_factory_h;
 
