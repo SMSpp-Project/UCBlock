@@ -572,6 +572,10 @@ void UCBlock::generate_primary_demand_constraints() {
   ( boost::multi_array< FRowConstraint , 2 >::
     extent_gen()[ f_time_horizon ][ f_number_primary_zones ] );
 
+ // We assume that, if a generator has primary spinning reserve for a time
+ // instant, then it has primary spinning reserve for all time instants.
+ primary_var_index.assign( f_number_units , Inf< Index >() );
+
  const auto number_nodes = get_number_nodes();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -599,6 +603,16 @@ void UCBlock::generate_primary_demand_constraints() {
 
       if( auto primary_s_r =
           unit_block->get_primary_spinning_reserve( generator ) ) {
+
+       if( primary_var_index[ unit_id ] == Inf< Index >() ) {
+        // This is the first Variable of this unit to be added to the
+        // LinearFunction, so we store its index, which is given by the
+        // current number of active Variables of the LinearFunction (right
+        // before this Variable is added).
+        primary_var_index[ unit_id ] = linear_function->get_num_active_var();
+       }
+
+       // Nowe we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = & primary_s_r[ t ];
        linear_function->add_variable( primary_spinning_reserve , scale );
       }
@@ -1154,8 +1168,13 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
   }
  }
 
- if( ! modified_units.empty() )
-  update_node_injection_constraints( std::move( modified_units ) );
+ if( ! modified_units.empty() ) {
+  // Sort the IDs of the modified units
+  std::sort( modified_units.begin() , modified_units.end() );
+
+  update_node_injection_constraints( modified_units );
+  update_primary_demand_constraints( modified_units );
+ }
 
  Block::add_Modification( mod , chnl );
 }
@@ -1163,16 +1182,12 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints
-( std::vector< Index > && modified_units ) {
+( const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) ||
      ( v_node_injection_constraints.size() == 0 ) ||
      modified_units.empty() )
   return;
-
- // Sort the IDs of the modified units
-
- std::sort( modified_units.begin() , modified_units.end() );
 
  // Lambda for determining if some unit has been modified
 
@@ -1356,6 +1371,93 @@ void UCBlock::update_node_injection_constraints
   }
  }   // end( if( number_nodes > 0 ) )
 }  // end( UCBlock::update_node_injection_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_primary_demand_constraints
+( const std::vector< Index > & modified_units ) {
+
+ if( ( ! constraints_generated() ) ||
+     ( v_PrimaryDemand_Const.size() == 0 ) ||
+     modified_units.empty() )
+  return; // there is nothing to be updated
+
+ // Returns the id of the primary zone to which the given unit belongs.
+ const auto get_zone_id = [ this ]( Index unit_id ) -> Index {
+  if( f_number_primary_zones == 0 )
+   return 0;
+  return v_primary_zones[ unit_id ];
+ };
+
+ // Indices of the zones that are affected by the modified units.
+ std::set< Index > affected_zones;
+
+ // Number of modified generators in each zone.
+ std::vector< Index > num_generators_per_zone( f_number_primary_zones , 0 );
+
+ // Collect the affected zones and count the number of affected generators in
+ // each zone.
+ for( const auto unit_id : modified_units ) {
+  const auto zone_id = get_zone_id( unit_id );
+  affected_zones.insert( zone_id );
+
+  const auto unit_block = get_unit_block( unit_id );
+  num_generators_per_zone[ zone_id ] += unit_block->get_number_generators();
+ }
+
+ // Now loop over all affected constraints
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( const auto zone_id : affected_zones ) {
+
+   // This will store the coefficients that must be updated, i.e., those of
+   // the active Variables that belong to the units that have been modified.
+   LinearFunction::Vec_FunctionValue coefficients;
+   coefficients.reserve( num_generators_per_zone[ zone_id ] );
+
+   // Subset that will store the indices of the active Variables whose
+   // coefficients have changed.
+   Subset subset;
+   subset.reserve( num_generators_per_zone[ zone_id ] );
+
+   for( Index i = 0 ; i < modified_units.size() ; ++i ) {
+
+    const auto unit_id = modified_units[ i ];
+
+    if( primary_var_index[ unit_id ] == Inf< Index >() ) {
+     // This unit has no active Variable in the primary demand constraints.
+     continue;
+    }
+
+    if( zone_id != get_zone_id( unit_id ) ) {
+     // This unit does not belong to this zone.
+     continue;
+    }
+
+    const auto unit_block = get_unit_block( unit_id );
+    const auto scale = unit_block->get_scale();
+    const auto num_generators = unit_block->get_number_generators();
+
+    // Indices of the active Variables of the current UnitBlock: the indices
+    // are consecutive and start with primary_var_index[ unit_id ].
+    std::vector< Index > var_indices( num_generators );
+    std::iota( var_indices.begin() , var_indices.end() ,
+               primary_var_index[ unit_id ] );
+
+    subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
+    coefficients.insert( coefficients.end() , num_generators , scale );
+
+   }  // end( for( modified_units ) )
+
+   // Update the coefficients of the active Variables.
+   static_cast< LinearFunction * >
+    ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function() )->
+    modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
+                         eNoBlck );
+
+  }  // end( for( zone_id ) )
+ }  // end( for( t ) )
+}  // end( UCBlock::update_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 

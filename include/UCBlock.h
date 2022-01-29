@@ -1419,6 +1419,22 @@ class UCBlock : public Block {
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
+ /// indices of active Variable in the primary demand constraints
+ /** The active Variables of each LinearFunction defining a primary demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The i-th element of this vector will store the
+  * smallest index of an active Variable in the LinearFunction that belongs to
+  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
+  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because We assume that, if a generator has primary spinning reserve for
+  * some time instant, then it has primary spinning reserve for all time
+  * instants. */
+
+ std::vector< Index > primary_var_index;
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -1469,10 +1485,27 @@ class UCBlock : public Block {
 
  /// updates the node injection constraints
  /** This function updates the node injection constraints considering that the
-  * scale factors of the given units have been modified. */
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
 
  void update_node_injection_constraints
- ( std::vector< Index > && modified_units );
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the primary demand constraints
+ /** This function updates the primary demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_primary_demand_constraints
+ ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
 
