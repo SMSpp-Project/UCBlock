@@ -565,157 +565,59 @@ void UCBlock::generate_node_injection_constraints() {
 
 void UCBlock::generate_primary_demand_constraints() {
 
- if( f_number_primary_zones > 0 ) {
+ if( f_number_primary_zones == 0 )
+  return;
 
-  const auto number_nodes = get_number_nodes();
+ v_PrimaryDemand_Const.resize
+  ( boost::multi_array< FRowConstraint , 2 >::
+    extent_gen()[ f_time_horizon ][ f_number_primary_zones ] );
 
-  v_PrimaryDemand_Const.resize
-   ( boost::multi_array< FRowConstraint, 2 >::
-     extent_gen()[ f_time_horizon ][ f_number_primary_zones ] );
+ const auto number_nodes = get_number_nodes();
 
-  if( f_number_primary_zones == 1 ) {  //no need to PrimaryZones
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   auto linear_function = new LinearFunction();
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-     auto lf = new LinearFunction();
+    if( ( f_number_primary_zones > 1 ) &&
+        ( zone_id != v_primary_zones[ node_id ] ) )
+     continue;
 
-     v_PrimaryDemand_Const[ t ][ 0 ].set_lhs( get_primary_demand()[ 0 ][ t ] );
-     v_PrimaryDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
+    Index elc_generator = 0;
+    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
-     for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
+     const auto unit_block = get_unit_block( unit_id );
+     const auto scale = unit_block->get_scale();
 
-      const auto unit_block = get_unit_block( unit_id );
-      const auto scale = unit_block->get_scale();
+     for( Index generator = 0 ;
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ; ++generator ) {
+      if( ( number_nodes > 1 ) &&
+          ( node_id != v_generator_node[ elc_generator ] ) )
+       continue;
 
-       if( auto primary_s_r =
-           unit_block->get_primary_spinning_reserve( generator ) ) {
-        auto primary_spinning_reserve = & primary_s_r[ t ];
-        lf->add_variable( primary_spinning_reserve , scale , eNoMod );
-       }
-      }
-     }
-     v_PrimaryDemand_Const[ t ][ 0 ].set_function( lf );
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     auto linear_function = new LinearFunction();
-
-     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-      Index elc_generator = 0;
-      for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-       const auto unit_block = get_unit_block( unit_id );
-       const auto scale = unit_block->get_scale();
-
-       for( Index generator = 0;
-            generator < unit_block->get_number_generators() ;
-            ++generator , ++elc_generator ) {
-
-        if( node_id != v_generator_node[ elc_generator ] )
-         continue;
-
-        if( auto primary_s_r =
-            unit_block->get_primary_spinning_reserve( generator ) ) {
-         auto primary_spinning_reserve = & primary_s_r[ t ];
-         linear_function->add_variable( primary_spinning_reserve , scale );
-        }
-       }
-      }
-     }
-     v_PrimaryDemand_Const[ t ][ 0 ].set_lhs( get_primary_demand()[ 0 ][ t ] );
-     v_PrimaryDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
-     v_PrimaryDemand_Const[ t ][ 0 ].set_function( linear_function );
-    }
-   }
-  }
-  else if( f_number_primary_zones > 1 ) {   // PrimaryZones is needed
-
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
-
-      auto linear_function = new LinearFunction();
-
-      if( zone_id == v_primary_zones[ 0 ] ) {
-
-       for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-        const auto unit_block = get_unit_block( unit_id );
-        const auto scale = unit_block->get_scale();
-
-        for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
-
-         if( auto primary_s_r =
-             unit_block->get_primary_spinning_reserve( generator ) ) {
-          auto primary_spinning_reserve = & primary_s_r[ t ];
-          linear_function->add_variable( primary_spinning_reserve , scale );
-         }
-        }
-       }
+      if( auto primary_s_r =
+          unit_block->get_primary_spinning_reserve( generator ) ) {
+       auto primary_spinning_reserve = & primary_s_r[ t ];
+       linear_function->add_variable( primary_spinning_reserve , scale );
       }
 
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_primary_demand()[ zone_id ][ t ] );
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
+     }  // end( for( generator ) )
+    }  // end( for( unit_id ) )
+   }  // end( for( node_id ) )
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto demand = get_primary_demand()[ zone_id ][ t ];
+   v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
+   v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
+   v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
+  }  // end( for( zone_id ) )
+ }  // end( for( t ) )
 
-     for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
+ add_static_constraint( v_PrimaryDemand_Const , "primary_demand_c" );
 
-      auto linear_function = new LinearFunction();
-
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-       if( zone_id == v_primary_zones[ node_id ] ) {
-
-        Index elc_generator = 0;
-        for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-         const auto unit_block = get_unit_block( unit_id );
-         const auto scale = unit_block->get_scale();
-
-         for( Index generator = 0;
-              generator < unit_block->get_number_generators();
-              ++generator , ++elc_generator ) {
-
-          if( node_id != v_generator_node[ elc_generator ] )
-           continue;
-
-          if( auto primary_s_r =
-              unit_block->get_primary_spinning_reserve( generator ) ) {
-           auto primary_spinning_reserve = & primary_s_r[ t ];
-           linear_function->add_variable( primary_spinning_reserve , scale );
-          }
-         }
-        }
-       }
-      }
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_primary_demand()[ zone_id ][ t ] );
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-  }
-  add_static_constraint( v_PrimaryDemand_Const , "primary_demand_c" );
- }
 }  // end( UCBlock::generate_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
