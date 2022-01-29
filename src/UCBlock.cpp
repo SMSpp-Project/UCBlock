@@ -519,7 +519,7 @@ void UCBlock::generate_node_injection_constraints() {
 
      linear_function->add_variable( &node_injection[node_id] , -1.0 , eNoMod );
 
-     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+     double rhs = 0.0;
 
      Index elc_generator = 0;
      for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
@@ -549,11 +549,10 @@ void UCBlock::generate_node_injection_constraints() {
                                        eNoMod );
        }
 
-       v_node_injection_constraints[ t ][ node_id ].set_both
-        ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
-          - fixed_consumption );
+       rhs -= fixed_consumption;
       }
      }
+     v_node_injection_constraints[ t ][ node_id ].set_both( rhs , eNoMod );
      v_node_injection_constraints[t][node_id].set_function( linear_function );
     }
    }
