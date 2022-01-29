@@ -1467,7 +1467,12 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void update_node_injection_constraints_scale( Block * block );
+ /// updates the node injection constraints
+ /** This function updates the node injection constraints considering that the
+  * scale factors of the given units have been modified. */
+
+ void update_node_injection_constraints
+ ( std::vector< Index > && modified_units );
 
 /*--------------------------------------------------------------------------*/
 
