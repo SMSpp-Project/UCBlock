@@ -1435,6 +1435,22 @@ class UCBlock : public Block {
 
  std::vector< Index > primary_var_index;
 
+ /// indices of active Variable in the secondary demand constraints
+ /** The active Variables of each LinearFunction defining a secondary demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The i-th element of this vector will store the
+  * smallest index of an active Variable in the LinearFunction that belongs to
+  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
+  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because We assume that, if a generator has secondary spinning reserve for
+  * some time instant, then it has secondary spinning reserve for all time
+  * instants. */
+
+ std::vector< Index > secondary_var_index;
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -1505,6 +1521,19 @@ class UCBlock : public Block {
   *        modified. This vector is assumed to be ordered. */
 
  void update_primary_demand_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the secondary demand constraints
+ /** This function updates the secondary demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_secondary_demand_constraints
  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
