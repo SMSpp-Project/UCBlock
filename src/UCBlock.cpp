@@ -581,8 +581,7 @@ void UCBlock::generate_primary_demand_constraints() {
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( ( f_number_primary_zones > 1 ) &&
-        ( zone_id != v_primary_zones[ node_id ] ) )
+    if( ! belong_to_primary_zone( node_id , zone_id ) )
      continue;
 
     Index elc_generator = 0;
@@ -595,8 +594,7 @@ void UCBlock::generate_primary_demand_constraints() {
           generator < unit_block->get_number_generators() ;
           ++generator , ++elc_generator ) {
 
-      if( ( number_nodes > 1 ) &&
-          ( node_id != v_generator_node[ elc_generator ] ) )
+      if( ! belong_to_node( elc_generator , node_id ) )
        continue;
 
       if( auto primary_s_r =

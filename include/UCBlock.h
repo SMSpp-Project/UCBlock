@@ -1491,6 +1491,26 @@ class UCBlock : public Block {
   return f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given node belongs to the given primary zone
+ bool belong_to_primary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_primary_zones > 1 ) &&
+      ( zone_id != v_primary_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given electrical generator belongs to the given node
+ bool belong_to_node( Index elc_generator , Index node_id ) const {
+  if( ( get_number_nodes() > 1 ) &&
+      ( node_id != v_generator_node[ elc_generator ] ) )
+   return false;
+  return true;
+  }
+
 };   // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
