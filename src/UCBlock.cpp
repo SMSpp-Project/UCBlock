@@ -565,9 +565,9 @@ void UCBlock::generate_node_injection_constraints() {
 
 void UCBlock::generate_primary_demand_constraints() {
 
- const auto number_nodes = get_number_nodes();
-
  if( f_number_primary_zones > 0 ) {
+
+  const auto number_nodes = get_number_nodes();
 
   v_PrimaryDemand_Const.resize
    ( boost::multi_array< FRowConstraint, 2 >::
@@ -1497,24 +1497,20 @@ void UCBlock::update_node_injection_constraints_scale( Block * block ) {
 
  const auto given_unit_block = dynamic_cast< UnitBlock * >( block );
  if( ! given_unit_block )
-  throw( std::invalid_argument( "UCBlock::update_scale_node_injection_constra"
-                                "ints: given Block is not a UnitBlock." ) );
+  throw( std::invalid_argument( "UCBlock::update_node_injection_constraints_"
+                                "scale: given Block is not a UnitBlock." ) );
 
  const auto number_nodes = get_number_nodes();
-
- v_node_injection_constraints.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
-                                                        [ number_nodes ] );
 
  if( number_nodes > 0 ) {
   if( number_nodes == 1 ) { // BusNetwork
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
-    /* The active Variables of this LinearFunction are grouped by
-     * UnitBlocks. That is, all active Variables of a given UnitBlock have
-     * consecutive indices in this LinearFunction. The following will store
-     * the Range of indices of the active Variables of this LinearFunction
-     * that belong to the given Block. */
+    /* The active Variables of the LinearFunction defining the constraint are
+     * grouped by UnitBlocks. That is, all active Variables of a given
+     * UnitBlock have consecutive indices in this LinearFunction. The
+     * following will store the Range of indices of the active Variables of
+     * this LinearFunction that belong to the given Block. */
     Range range( Inf< Index >() , Inf< Index >() );
 
     // This will store the coefficients that must be updated, i.e., those of
@@ -1591,11 +1587,11 @@ void UCBlock::update_node_injection_constraints_scale( Block * block ) {
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    /* The active Variables of this LinearFunction are grouped by
-     * UnitBlocks. That is, all active Variables of a given UnitBlock have
-     * consecutive indices in this LinearFunction. The following will store
-     * the Range of indices of the active Variables of this LinearFunction
-     * that belong to the given Block. */
+    /* The active Variables of the LinearFunction defining the constraint are
+     * grouped by UnitBlocks. That is, all active Variables of a given
+     * UnitBlock have consecutive indices in this LinearFunction. The
+     * following will store the Range of indices of the active Variables of
+     * this LinearFunction that belong to the given Block. */
     Range range( Inf< Index >() , Inf< Index >() );
 
     // This will store the coefficients that must be updated, i.e., those of
