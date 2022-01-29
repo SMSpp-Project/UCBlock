@@ -1309,7 +1309,7 @@ class ThermalUnitBlock : public UnitBlock {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
- // update the availability of the unit
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
@@ -1335,7 +1335,7 @@ class ThermalUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- // update the availability of the unit
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
