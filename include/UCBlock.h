@@ -1533,6 +1533,26 @@ class UCBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns true if the given node belongs to the given inertia zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the inertia zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a inertia zone.
+  *
+  * @return True if and only if the given node belongs to the given inertia
+  *         zone. */
+
+ bool belong_to_inertia_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_inertia_zones > 1 ) &&
+      ( zone_id != v_inertia_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns true if the given electrical generator belongs to the given node
  bool belong_to_node( Index elc_generator , Index node_id ) const {
   if( ( get_number_nodes() > 1 ) &&

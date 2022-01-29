@@ -681,208 +681,70 @@ void UCBlock::generate_secondary_demand_constraints() {
 
 void UCBlock::generate_inertia_demand_constraints() {
 
+ if( f_number_inertia_zones == 0 )
+  return;
+
  const auto number_nodes = get_number_nodes();
 
- if( f_number_inertia_zones > 0 ) {
+ v_InertiaDemand_Const.resize
+  ( boost::multi_array< FRowConstraint, 2 >::
+    extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
 
-  v_InertiaDemand_Const.resize
-   ( boost::multi_array< FRowConstraint, 2 >::
-     extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
 
-  if( f_number_inertia_zones == 1 ) {  //no need to InertiaZones
+   auto linear_function = new LinearFunction();
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( ! belong_to_inertia_zone( node_id , zone_id ) )
+     continue;
 
-     auto linear_function = new LinearFunction();
+    Index elc_generator = 0;
+    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
-     v_InertiaDemand_Const[ t ][ 0 ].set_lhs( get_inertia_demand()[ 0 ][ t ] );
-     v_InertiaDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
+     const auto unit_block = get_unit_block( unit_id );
+     const auto scale = unit_block->get_scale();
 
-     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+     for( Index generator = 0 ;
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
-      const auto unit_block = get_unit_block( unit_id );
-      const auto scale = unit_block->get_scale();
+      if( ! belong_to_node( elc_generator , node_id ) )
+       continue;
 
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ; ++generator ) {
+      auto commitment = unit_block->get_commitment( generator );
+      auto inertia_commitment = unit_block->get_inertia_commitment( generator );
 
-       auto c = unit_block->get_commitment( generator );
-       auto inertia_commitment =
-        unit_block->get_inertia_commitment( generator );
-
-       if( c && inertia_commitment ) {
-        auto commitment = & c[ t ];
-        auto coefficient = scale * inertia_commitment[ t ];
-        linear_function->add_variable( commitment , coefficient );
-       }
-
-       auto ap = unit_block->get_active_power( generator );
-       auto inertia_power = unit_block->get_inertia_power( generator );
-
-       if( ap && inertia_power ) {
-        auto active_power = & ap[ t ];
-        auto coefficient = scale * inertia_power[ t ];
-        linear_function->add_variable( active_power , coefficient );
-       }
+      if( commitment && inertia_commitment ) {
+       auto commitment_t = & commitment[ t ];
+       auto coefficient = scale * inertia_commitment[ t ];
+       linear_function->add_variable( commitment_t , coefficient );
       }
-     }
-     v_InertiaDemand_Const[ t ][ 0 ].set_function( linear_function );
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      auto active_power = unit_block->get_active_power( generator );
+      auto inertia_power = unit_block->get_inertia_power( generator );
 
-     auto linear_function = new LinearFunction();
-
-     v_InertiaDemand_Const[ t ][ 0 ].set_lhs( get_inertia_demand()[ 0 ][ t ] );
-     v_InertiaDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
-
-     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-      Index elc_generator = 0;
-      for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-       const auto unit_block = get_unit_block( unit_id );
-       const auto scale = unit_block->get_scale();
-
-       for( Index generator = 0 ;
-            generator < unit_block->get_number_generators() ;
-            ++generator , ++elc_generator ) {
-
-        if( node_id != v_generator_node[ elc_generator ] )
-         continue;
-
-        auto c = unit_block->get_commitment( generator );
-        auto inertia_commitment =
-         unit_block->get_inertia_commitment( generator );
-
-        if( c && inertia_commitment ) {
-         auto commitment = & c[ t ];
-         auto coefficient = scale * inertia_commitment[ t ];
-         linear_function->add_variable( commitment , coefficient );
-        }
-
-        auto ap = unit_block->get_active_power( generator );
-        auto inertia_power = unit_block->get_inertia_power( generator );
-        if( ap && inertia_power ) {
-         auto active_power = & ap[ t ];
-         auto coefficient = scale * inertia_power[ t ];
-         linear_function->add_variable( active_power, coefficient );
-        }
-       }
+      if( active_power && inertia_power ) {
+       auto active_power_t = & active_power[ t ];
+       auto coefficient = scale * inertia_power[ t ];
+       linear_function->add_variable( active_power_t , coefficient );
       }
-     }
-     v_InertiaDemand_Const[ t ][ 0 ].set_function( linear_function );
-    }
-   }
-  }
-  else if( f_number_inertia_zones > 1 ) {   // InertiaZones is needed
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+     }  // end( for( generator ) )
+    }  // end( for( unit_id ) )
+   }  // end( for( node_id ) )
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto demand = get_inertia_demand()[ zone_id ][ t ];
+   v_InertiaDemand_Const[ t ][ zone_id ].set_lhs( demand );
+   v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
+   v_InertiaDemand_Const[ t ][ zone_id ].set_function( linear_function );
 
-     for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
+  }  // end( for( zone_id ) )
+ }  // end( for( t ) )
 
-      auto linear_function = new LinearFunction();
+ add_static_constraint( v_InertiaDemand_Const , "inertia_demand_c" );
 
-      if( zone_id == v_inertia_zones[ 0 ] ) {
-
-       for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-        const auto unit_block = get_unit_block( unit_id );
-        const auto scale = unit_block->get_scale();
-
-        for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
-
-         auto c = unit_block->get_commitment( generator );
-         auto inertia_commitment =
-          unit_block->get_inertia_commitment( generator );
-
-         if( c && inertia_commitment ) {
-          auto commitment = & c[ t ];
-          auto coefficient = scale * inertia_commitment[ t ];
-          linear_function->add_variable( commitment , coefficient );
-         }
-
-         auto ap = unit_block->get_active_power( generator );
-         auto inertia_power = unit_block->get_inertia_power( generator );
-
-         if( ap && inertia_power ) {
-          auto active_power = & ap[ t ];
-          auto coefficient = scale * inertia_power[ t ];
-          linear_function->add_variable( active_power , coefficient );
-         }
-        }
-       }
-      }
-      v_InertiaDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_inertia_demand()[ zone_id ][ t ] );
-      v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_InertiaDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
-
-      auto linear_function = new LinearFunction();
-
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-       if( zone_id == v_inertia_zones[ node_id ] ) {
-
-        Index elc_generator = 0;
-        for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-         const auto unit_block = get_unit_block( unit_id );
-         const auto scale = unit_block->get_scale();
-
-         for( Index generator = 0 ;
-              generator < unit_block->get_number_generators() ;
-              ++generator , ++elc_generator ) {
-
-          if( node_id != v_generator_node[ elc_generator ] )
-           continue;
-
-          auto c = unit_block->get_commitment( generator );
-          auto inertia_commitment =
-           unit_block->get_inertia_commitment( generator );
-
-          if( c && inertia_commitment ) {
-           auto commitment = & c[ t ];
-           auto coefficient = scale * inertia_commitment[ t ];
-           linear_function->add_variable( commitment , coefficient );
-          }
-
-          auto ap = unit_block->get_active_power( generator );
-          auto inertia_power = unit_block->get_inertia_power( generator );
-
-          if( ap && inertia_power ) {
-           auto active_power = & ap[ t ];
-           auto coefficient = scale * inertia_power[ t ];
-           linear_function->add_variable( active_power , coefficient );
-          }
-         }
-        }
-       }
-      }
-      v_InertiaDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_inertia_demand()[ zone_id ][ t ] );
-      v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_InertiaDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-  }
-  add_static_constraint( v_InertiaDemand_Const , "inertia_demand_c" );
- }
 }  // end( UCBlock::generate_inertia_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
