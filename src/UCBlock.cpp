@@ -611,6 +611,7 @@ void UCBlock::generate_primary_demand_constraints() {
    v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
+
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
 
@@ -622,156 +623,58 @@ void UCBlock::generate_primary_demand_constraints() {
 
 void UCBlock::generate_secondary_demand_constraints() {
 
+ if( f_number_secondary_zones == 0 )
+  return;
+
+ v_SecondaryDemand_Const.resize
+  ( boost::multi_array< FRowConstraint, 2 >::
+    extent_gen()[ f_time_horizon ][ f_number_secondary_zones ] );
+
  const auto number_nodes = get_number_nodes();
 
- if( f_number_secondary_zones > 0 ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
 
-  v_SecondaryDemand_Const.resize
-   ( boost::multi_array< FRowConstraint, 2 >::
-     extent_gen()[ f_time_horizon ][ f_number_secondary_zones ] );
+   auto linear_function = new LinearFunction();
 
-  if( f_number_secondary_zones == 1 ) {  //no need to SecondaryZones
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+    if( ! belong_to_secondary_zone( node_id , zone_id ) )
+     continue;
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     auto linear_function = new LinearFunction();
+    Index elc_generator = 0;
+    for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
 
-     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+     const auto unit_block = get_unit_block( unit_id );
+     const auto scale = unit_block->get_scale();
 
-      const auto unit_block = get_unit_block( unit_id );
-      const auto scale = unit_block->get_scale();
+     for( Index generator = 0 ;
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ; ++generator ) {
+      if( ! belong_to_node( elc_generator , node_id ) )
+       continue;
 
-       if( auto secondary_s_r =
-           unit_block->get_secondary_spinning_reserve( generator ) ) {
-        auto secondary_spinning_reserve = & secondary_s_r[ t ];
-        linear_function->add_variable( secondary_spinning_reserve , scale );
-       }
-      }
-     }
-     v_SecondaryDemand_Const[ t ][ 0 ].set_lhs( get_secondary_demand()[0][t] );
-     v_SecondaryDemand_Const[ t ][ 0 ].set_rhs( Inf< double >());
-     v_SecondaryDemand_Const[ t ][ 0 ].set_function( linear_function );
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     auto linear_function = new LinearFunction();
-
-     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-      Index elc_generator = 0;
-      for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-       const auto unit_block = get_unit_block( unit_id );
-       const auto scale = unit_block->get_scale();
-
-       for( Index generator = 0 ;
-            generator < unit_block->get_number_generators() ;
-            ++generator , ++elc_generator ) {
-
-        if( node_id != v_generator_node[ elc_generator ] )
-         continue;
-
-        if( auto secondary_s_r =
-            unit_block->get_secondary_spinning_reserve( generator ) ) {
-         auto secondary_spinning_reserve = & secondary_s_r[ t ];
-         linear_function->add_variable( secondary_spinning_reserve , scale );
-        }
-       }
-      }
-     }
-     v_SecondaryDemand_Const[ t ][ 0 ].set_lhs( get_secondary_demand()[0][t] );
-     v_SecondaryDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
-     v_SecondaryDemand_Const[ t ][ 0 ].set_function( linear_function );
-    }
-   }
-  }
-  else if( f_number_secondary_zones > 1 ) {   // SecondaryZones is needed
-
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
-
-      auto linear_function = new LinearFunction();
-
-      if( zone_id == v_secondary_zones[ 0 ] ) {
-
-       for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-        const auto unit_block = get_unit_block( unit_id );
-        const auto scale = unit_block->get_scale();
-
-        for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
-
-         if( auto secondary_s_r =
-             unit_block->get_secondary_spinning_reserve( generator ) ) {
-          auto secondary_spinning_reserve = & secondary_s_r[ t ];
-          linear_function->add_variable( secondary_spinning_reserve , scale );
-         }
-        }
-       }
+      if( auto secondary_s_r =
+          unit_block->get_secondary_spinning_reserve( generator ) ) {
+       auto secondary_spinning_reserve = & secondary_s_r[ t ];
+       linear_function->add_variable( secondary_spinning_reserve , scale );
       }
 
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_secondary_demand()[ zone_id ][ t ] );
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-   else {  //DCNetwork needs GeneratorNode
+     }  // end( for( generator ) )
+    }  // end( for( unit_id ) )
+   }  // end( for( node_id ) )
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto demand = get_secondary_demand()[ zone_id ][ t ];
+   v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
+   v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
+   v_SecondaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
 
-     for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
+  }  // end( for( zone_id ) )
+ }  // end( for( t ) )
 
-      auto linear_function = new LinearFunction();
+ add_static_constraint( v_SecondaryDemand_Const , "secondary_demand_c" );
 
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-       if( zone_id == v_secondary_zones[ node_id ] ) {
-
-        Index elc_generator = 0;
-        for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
-
-         const auto unit_block = get_unit_block( unit_id );
-         const auto scale = unit_block->get_scale();
-
-         for( Index generator = 0 ;
-              generator < unit_block->get_number_generators() ;
-              ++generator , ++elc_generator ) {
-
-          if( node_id != v_generator_node[ elc_generator ] )
-           continue;
-
-          if( auto secondary_s_r =
-              unit_block->get_secondary_spinning_reserve( generator ) ) {
-
-           auto secondary_spinning_reserve = & secondary_s_r[ t ];
-           linear_function->add_variable( secondary_spinning_reserve , scale );
-          }
-         }
-        }
-       }
-      }
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs
-       ( get_secondary_demand()[ zone_id ][ t ] );
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-      v_SecondaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
-     }
-    }
-   }
-  }
-  add_static_constraint( v_SecondaryDemand_Const , "secondary_demand_c" );
- }
 }  // end( UCBlock::generate_secondary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/

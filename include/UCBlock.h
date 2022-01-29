@@ -1494,9 +1494,39 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  /// returns true if the given node belongs to the given primary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the primary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a primary zone.
+  *
+  * @return True if and only if the given node belongs to the given primary
+  *         zone. */
+
  bool belong_to_primary_zone( Index node_id , Index zone_id ) const {
   if( ( f_number_primary_zones > 1 ) &&
       ( zone_id != v_primary_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given node belongs to the given secondary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the secondary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a secondary zone.
+  *
+  * @return True if and only if the given node belongs to the given secondary
+  *         zone. */
+
+ bool belong_to_secondary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_secondary_zones > 1 ) &&
+      ( zone_id != v_secondary_zones[ node_id ] ) )
    return false;
   return true;
   }
