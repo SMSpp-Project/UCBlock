@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 06 - 01 - 2022
+ * \date 30 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -789,6 +789,11 @@ class BatteryUnitBlock : public UnitBlock {
  const std::vector< double > & get_demand() const {
   return( v_demand);
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the scale factor of this BatteryUnitBlock
+ double get_scale() const override { return f_scale; }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE Variable OF THE BatteryUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -979,6 +984,28 @@ class BatteryUnitBlock : public UnitBlock {
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this IntermittentUnitBlock
+ /** This method sets the scale factor of this IntermittentUnitBlock.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor is set to the value
+  *        pointed by \p values. If empty, no operation is performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ void scale( std::vector< double >::const_iterator values ,
+             Subset && subset ,
+             const bool ordered = false ,
+             c_ModParam issuePMod = eNoBlck ,
+             c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1027,6 +1054,9 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// the InitialPower value
  double f_initial_power;
+
+ /// the scale factor of this BatteryUnitBlock
+ double f_scale = 1;
 
  /// the vector of demand
  std::vector< double >  v_demand;
@@ -1152,6 +1182,14 @@ class BatteryUnitBlock : public UnitBlock {
   * constraints that depend on the initial power).
   */
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
 

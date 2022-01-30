@@ -776,8 +776,10 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  auto linear_function = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  linear_function->add_variable( &v_intake_level[ t ] , cost[ t ] , 0.0 );
-  linear_function->add_variable( &v_outtake_level[ t ] , cost[ t ] , 0.0 );
+  linear_function->add_variable( &v_intake_level[ t ] ,
+                                 f_scale * cost[ t ] , 0.0 );
+  linear_function->add_variable( &v_outtake_level[ t ] ,
+                                 f_scale * cost[ t ] , 0.0 );
   }
 
  objective.set_function( linear_function );
@@ -1068,6 +1070,59 @@ void BatteryUnitBlock::set_initial_power
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_power )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::scale
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_scale == *values )
+  return; // The scale factor does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_scale = *values; // Update the scale factor
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( objective_generated() )
+    // Update the Objective
+    update_objective( issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UnitBlockMod >
+                           ( this , UnitBlockMod::eScale ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( BatteryUnitBlock::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
+
+ if( ! objective_generated() )
+  return; // the Objective has not been generated: nothing to be done
+
+ auto function = static_cast< LinearFunction * >( objective.get_function() );
+
+ LinearFunction::Vec_FunctionValue coefficients;
+ coefficients.reserve( 2 * f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  coefficients.push_back( f_scale * v_cost[ t ] );
+  coefficients.push_back( f_scale * v_cost[ t ] );
+ }
+
+ function->modify_coefficients( std::move( coefficients ) ,
+                                Range( 0 , Inf< Index >() ) , issueAMod );
+
+}  // end( BatteryUnitBlock::update_objective )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File BatteryUnitBlock.cpp --------------------------*/
