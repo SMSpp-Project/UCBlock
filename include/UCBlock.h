@@ -1419,57 +1419,53 @@ class UCBlock : public Block {
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
- /// indices of active Variable in the primary demand constraints
- /** The active Variables of each LinearFunction defining a primary demand
+ boost::multi_array< Range , 2 > primary_var_index;
+ ///< indices of active Variable in the primary demand constraints
+ /**< The active Variables of each LinearFunction defining a primary demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
   * defines each constraint. The element at position (i, z) in the multi-array
   * will store the range of indices of active Variable (that belong to the
   * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
   * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>()
-  * ).
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has primary spinning reserve for
   * some time instant, then it has primary spinning reserve for all time
   * instants. */
 
- boost::multi_array< Range , 2 > primary_var_index;
-
- /// indices of active Variable in the secondary demand constraints
- /** The active Variables of each LinearFunction defining a secondary demand
+ boost::multi_array< Range , 2 > secondary_var_index;
+ ///< indices of active Variable in the secondary demand constraints
+ /**< The active Variables of each LinearFunction defining a secondary demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
   * defines each constraint. The element at position (i, z) in the multi-array
   * will store the range of indices of active Variable (that belong to the
   * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
   * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>()
-  * ).
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has secondary spinning reserve for
   * some time instant, then it has secondary spinning reserve for all time
   * instants. */
 
- boost::multi_array< Range , 2 > secondary_var_index;
-
- /// indices of active Variable in the inertia demand constraints
- /** The active Variables of each LinearFunction defining a inertia demand
+ boost::multi_array< Index , 2 > inertia_var_index;
+ ///< indices of active Variable in the inertia demand constraints
+ /**< The active Variables of each LinearFunction defining a inertia demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The i-th element of this vector will store the
-  * smallest index of an active Variable in the LinearFunction that belong to
-  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
-  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the smallest index of an active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is Inf<Index>().
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has commitment variable, inertia
   * commitment, inertia power, or active power variable for some time instant,
   * then it has the same thing for all time instants. */
-
- std::vector< Index > inertia_demand_var_index;
 
  SMSpp_insert_in_factory_h;
 
@@ -1554,6 +1550,19 @@ class UCBlock : public Block {
   *        modified. This vector is assumed to be ordered. */
 
  void update_secondary_demand_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the inertia demand constraints
+ /** This function updates the inertia demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_inertia_demand_constraints
  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
@@ -1676,6 +1685,21 @@ class UCBlock : public Block {
    node = v_generator_node[ elc_generator ];
 
   return v_secondary_zones[ node ];
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the inertia zone to which the given electrical generator belongs
+ Index get_inertia_zone( Index elc_generator ) const {
+  if( f_number_inertia_zones == 0 )
+   return 0;
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return v_inertia_zones[ node ];
   }
 
 };   // end( class( UCBlock ) )

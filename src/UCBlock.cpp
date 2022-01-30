@@ -741,7 +741,12 @@ void UCBlock::generate_inertia_demand_constraints() {
  // We assume that, if a generator has commitment variable, inertia
  // commitment, inertia power, or active power variable for some time instant,
  // then it has the same thing for all time instants.
- inertia_demand_var_index.assign( f_number_units , Inf< Index >() );
+ inertia_var_index.resize
+  ( boost::multi_array< Index , 2 >::
+    extent_gen()[ f_number_units ][ f_number_inertia_zones ] );
+
+ std::fill( inertia_var_index.data() , inertia_var_index.data() +
+            inertia_var_index.num_elements() , Inf< Index >() );
 
  const auto number_nodes = get_number_nodes();
 
@@ -775,13 +780,13 @@ void UCBlock::generate_inertia_demand_constraints() {
 
        // The term with the commitment variable will be added to the function.
 
-       if( inertia_demand_var_index[ unit_id ] == Inf< Index >() ) {
+       if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
         const auto num_active_var = linear_function->get_num_active_var();
-        inertia_demand_var_index[ unit_id ] = num_active_var;
+        inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
 
        auto commitment_t = & commitment[ t ];
@@ -795,13 +800,13 @@ void UCBlock::generate_inertia_demand_constraints() {
       if( active_power && inertia_power ) {
        // The term with the active power will be added to the function.
 
-       if( inertia_demand_var_index[ unit_id ] == Inf< Index >() ) {
+       if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
         const auto num_active_var = linear_function->get_num_active_var();
-        inertia_demand_var_index[ unit_id ] = num_active_var;
+        inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
 
        auto active_power_t = & active_power[ t ];
@@ -1239,7 +1244,14 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
   update_node_injection_constraints( modified_units );
   update_primary_demand_constraints( modified_units );
   update_secondary_demand_constraints( modified_units );
- }
+  update_inertia_demand_constraints( modified_units );
+
+  // TODO Implement the following methods when their constraints have been
+  // properly implemented.
+
+  // update_pollutant_budget_constraints();
+  // update_heat_constraints();
+}
 
  Block::add_Modification( mod , chnl );
 }
@@ -1442,8 +1454,7 @@ void UCBlock::update_node_injection_constraints
 void UCBlock::update_primary_demand_constraints
 ( const std::vector< Index > & modified_units ) {
 
- if( ( ! constraints_generated() ) ||
-     ( v_PrimaryDemand_Const.size() == 0 ) ||
+ if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.size() == 0 ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
 
@@ -1534,8 +1545,7 @@ void UCBlock::update_primary_demand_constraints
 void UCBlock::update_secondary_demand_constraints
 ( const std::vector< Index > & modified_units ) {
 
- if( ( ! constraints_generated() ) ||
-     ( v_SecondaryDemand_Const.size() == 0 ) ||
+ if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.size() == 0 ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
 
@@ -1620,6 +1630,133 @@ void UCBlock::update_secondary_demand_constraints
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
 }  // end( UCBlock::update_secondary_demand_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_inertia_demand_constraints
+( const std::vector< Index > & modified_units ) {
+
+ if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.size() == 0 ) ||
+     modified_units.empty() )
+  return; // there is nothing to be updated
+
+ // Indices of the zones that are affected by the modified units.
+ std::set< Index > affected_zones;
+
+ // Number of modified generators in each zone.
+ std::vector< Index > num_generators_per_zone( f_number_inertia_zones , 0 );
+
+ // Collect the affected zones and count the number of affected generators in
+ // each zone.
+
+ Index elc_generator = 0;
+ Index overall_unit_id = 0;
+ for( const auto unit_id : modified_units ) {
+
+  // Skip the units that have not been modified.
+  while( overall_unit_id < unit_id ) {
+   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
+   ++overall_unit_id;
+  }
+
+  const auto unit_block = get_unit_block( unit_id );
+  const auto num_generators = unit_block->get_number_generators();
+
+  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
+   const auto zone = get_inertia_zone( elc_generator );
+   affected_zones.insert( zone );
+   ++num_generators_per_zone[ zone ];
+  }
+
+  ++overall_unit_id;
+ }
+
+ const auto number_nodes = get_number_nodes();
+
+ // Now loop over all affected constraints
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( const auto zone_id : affected_zones ) {
+
+   // This will store the coefficients that must be updated, i.e., those of
+   // the active Variables that belong to the units that have been modified.
+   LinearFunction::Vec_FunctionValue coefficients;
+   coefficients.reserve( num_generators_per_zone[ zone_id ] );
+
+   // Subset that will store the indices of the active Variables whose
+   // coefficients have changed.
+   Subset subset;
+   subset.reserve( num_generators_per_zone[ zone_id ] );
+
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+    if( ! node_belongs_to_inertia_zone( node_id , zone_id ) )
+     continue;
+
+    Index elc_generator = 0;
+    Index overall_unit_id = 0;
+    for( const auto unit_id : modified_units ) {
+
+     // Skip the units that have not been modified.
+     while( overall_unit_id < unit_id ) {
+      elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
+      ++overall_unit_id;
+     }
+
+     const auto unit_block = get_unit_block( unit_id );
+
+     if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
+      // This unit has no active Variable in the inertia demand constraints
+      // associated with zone "zone_id".
+      elc_generator += unit_block->get_number_generators();
+      ++overall_unit_id;
+      continue;
+     }
+
+     const auto scale = unit_block->get_scale();
+     const auto num_generators = unit_block->get_number_generators();
+     auto next_var_index = inertia_var_index[ unit_id ][ zone_id ];
+
+     for( Index generator = 0 ; generator < num_generators ; ++generator ,
+           ++elc_generator ) {
+
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
+       continue;
+
+      const auto commitment = unit_block->get_commitment( generator );
+      auto inertia_commitment = unit_block->get_inertia_commitment( generator );
+
+      if( commitment && inertia_commitment ) {
+       const auto coefficient = scale * inertia_commitment[ t ];
+       coefficients.push_back( coefficient );
+       subset.push_back( next_var_index++ );
+      }
+
+      const auto active_power = unit_block->get_active_power( generator );
+      const auto inertia_power = unit_block->get_inertia_power( generator );
+
+      if( active_power && inertia_power ) {
+       const auto coefficient = scale * inertia_power[ t ];
+       coefficients.push_back( coefficient );
+       subset.push_back( next_var_index++ );
+      }
+
+     }  // end( for( generator ) )
+
+     ++overall_unit_id;
+
+    }  // end( for( unit_id ) )
+
+    // Update the coefficients of the active Variables.
+    static_cast< LinearFunction * >
+     ( v_InertiaDemand_Const[ t ][ zone_id ].get_function() )->
+     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
+                          eNoBlck );
+
+   }  // end( for( node_id ) )
+  }  // end( for( zone_id ) )
+ }  // end( for( t ) )
+}  // end( UCBlock::update_inertia_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
