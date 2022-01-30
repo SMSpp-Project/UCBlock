@@ -574,8 +574,13 @@ void UCBlock::generate_primary_demand_constraints() {
 
  // We assume that, if a generator has primary spinning reserve for a time
  // instant, then it has primary spinning reserve for all time instants.
- primary_var_index.assign( f_number_units ,
-                           { Inf< Index >() , Inf< Index >() } );
+ primary_var_index.resize
+  ( boost::multi_array< Range , 2 >::
+    extent_gen()[ f_number_units ][ f_number_primary_zones ] );
+
+ std::fill( primary_var_index.data() , primary_var_index.data() +
+            primary_var_index.num_elements() ,
+            std::pair{ Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -586,7 +591,7 @@ void UCBlock::generate_primary_demand_constraints() {
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( ! belong_to_primary_zone( node_id , zone_id ) )
+    if( ! node_belongs_to_primary_zone( node_id , zone_id ) )
      continue;
 
     Index elc_generator = 0;
@@ -599,26 +604,26 @@ void UCBlock::generate_primary_demand_constraints() {
           generator < unit_block->get_number_generators() ;
           ++generator , ++elc_generator ) {
 
-      if( ! belong_to_node( elc_generator , node_id ) )
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
        continue;
 
       if( auto primary_s_r =
           unit_block->get_primary_spinning_reserve( generator ) ) {
 
-       if( primary_var_index[ unit_id ].first == Inf< Index >() ) {
+       if( primary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
         const auto num_active_var = linear_function->get_num_active_var();
-        primary_var_index[ unit_id ].first = num_active_var;
-        primary_var_index[ unit_id ].second = num_active_var;
+        primary_var_index[ unit_id ][ zone_id ].first = num_active_var;
+        primary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
 
        // Increment the upper bound of the range.
-       ++primary_var_index[ unit_id ].second;
+       ++primary_var_index[ unit_id ][ zone_id ].second;
 
-       // Nowe we add the primary reserve variable to the LinearFunction.
+       // Now we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = & primary_s_r[ t ];
        linear_function->add_variable( primary_spinning_reserve , scale );
       }
@@ -652,8 +657,13 @@ void UCBlock::generate_secondary_demand_constraints() {
 
  // We assume that, if a generator has secondary spinning reserve for a time
  // instant, then it has secondary spinning reserve for all time instants.
- secondary_var_index.assign( f_number_units ,
-                             { Inf< Index >() , Inf< Index >() } );
+ secondary_var_index.resize
+  ( boost::multi_array< Range , 2 >::
+    extent_gen()[ f_number_units ][ f_number_secondary_zones ] );
+
+ std::fill( secondary_var_index.data() , secondary_var_index.data() +
+            secondary_var_index.num_elements() ,
+            std::pair{ Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -664,7 +674,7 @@ void UCBlock::generate_secondary_demand_constraints() {
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( ! belong_to_secondary_zone( node_id , zone_id ) )
+    if( ! node_belongs_to_secondary_zone( node_id , zone_id ) )
      continue;
 
     Index elc_generator = 0;
@@ -677,25 +687,26 @@ void UCBlock::generate_secondary_demand_constraints() {
           generator < unit_block->get_number_generators() ;
           ++generator , ++elc_generator ) {
 
-      if( ! belong_to_node( elc_generator , node_id ) )
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
        continue;
 
       if( auto secondary_s_r =
           unit_block->get_secondary_spinning_reserve( generator ) ) {
 
-       if( secondary_var_index[ unit_id ].first == Inf< Index >() ) {
+       if( secondary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
         const auto num_active_var = linear_function->get_num_active_var();
-        secondary_var_index[ unit_id ].first = num_active_var;
-        secondary_var_index[ unit_id ].second = num_active_var;
+        secondary_var_index[ unit_id ][ zone_id ].first = num_active_var;
+        secondary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
 
        // Increment the upper bound of the range.
-       ++secondary_var_index[ unit_id ].second;
+       ++secondary_var_index[ unit_id ][ zone_id ].second;
 
+       // Now we add the secondary reserve variable to the LinearFunction.
        auto secondary_spinning_reserve = & secondary_s_r[ t ];
        linear_function->add_variable( secondary_spinning_reserve , scale );
       }
@@ -723,11 +734,16 @@ void UCBlock::generate_inertia_demand_constraints() {
  if( f_number_inertia_zones == 0 )
   return;
 
- const auto number_nodes = get_number_nodes();
-
  v_InertiaDemand_Const.resize
-  ( boost::multi_array< FRowConstraint, 2 >::
+  ( boost::multi_array< FRowConstraint , 2 >::
     extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
+
+ // We assume that, if a generator has commitment variable, inertia
+ // commitment, inertia power, or active power variable for some time instant,
+ // then it has the same thing for all time instants.
+ inertia_demand_var_index.assign( f_number_units , Inf< Index >() );
+
+ const auto number_nodes = get_number_nodes();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
@@ -736,7 +752,7 @@ void UCBlock::generate_inertia_demand_constraints() {
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( ! belong_to_inertia_zone( node_id , zone_id ) )
+    if( ! node_belongs_to_inertia_zone( node_id , zone_id ) )
      continue;
 
     Index elc_generator = 0;
@@ -749,13 +765,25 @@ void UCBlock::generate_inertia_demand_constraints() {
           generator < unit_block->get_number_generators() ;
           ++generator , ++elc_generator ) {
 
-      if( ! belong_to_node( elc_generator , node_id ) )
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
        continue;
 
       auto commitment = unit_block->get_commitment( generator );
       auto inertia_commitment = unit_block->get_inertia_commitment( generator );
 
       if( commitment && inertia_commitment ) {
+
+       // The term with the commitment variable will be added to the function.
+
+       if( inertia_demand_var_index[ unit_id ] == Inf< Index >() ) {
+        // This is the first Variable of this unit to be added to the
+        // LinearFunction, so we store its index, which is given by the
+        // current number of active Variables of the LinearFunction (right
+        // before this Variable is added).
+        const auto num_active_var = linear_function->get_num_active_var();
+        inertia_demand_var_index[ unit_id ] = num_active_var;
+       }
+
        auto commitment_t = & commitment[ t ];
        auto coefficient = scale * inertia_commitment[ t ];
        linear_function->add_variable( commitment_t , coefficient );
@@ -765,6 +793,17 @@ void UCBlock::generate_inertia_demand_constraints() {
       auto inertia_power = unit_block->get_inertia_power( generator );
 
       if( active_power && inertia_power ) {
+       // The term with the active power will be added to the function.
+
+       if( inertia_demand_var_index[ unit_id ] == Inf< Index >() ) {
+        // This is the first Variable of this unit to be added to the
+        // LinearFunction, so we store its index, which is given by the
+        // current number of active Variables of the LinearFunction (right
+        // before this Variable is added).
+        const auto num_active_var = linear_function->get_num_active_var();
+        inertia_demand_var_index[ unit_id ] = num_active_var;
+       }
+
        auto active_power_t = & active_power[ t ];
        auto coefficient = scale * inertia_power[ t ];
        linear_function->add_variable( active_power_t , coefficient );
@@ -1408,13 +1447,6 @@ void UCBlock::update_primary_demand_constraints
      modified_units.empty() )
   return; // there is nothing to be updated
 
- // Returns the id of the primary zone to which the given unit belongs.
- const auto get_zone_id = [ this ]( Index unit_id ) -> Index {
-  if( f_number_primary_zones == 0 )
-   return 0;
-  return v_primary_zones[ unit_id ];
- };
-
  // Indices of the zones that are affected by the modified units.
  std::set< Index > affected_zones;
 
@@ -1423,12 +1455,27 @@ void UCBlock::update_primary_demand_constraints
 
  // Collect the affected zones and count the number of affected generators in
  // each zone.
+
+ Index elc_generator = 0;
+ Index overall_unit_id = 0;
  for( const auto unit_id : modified_units ) {
-  const auto zone_id = get_zone_id( unit_id );
-  affected_zones.insert( zone_id );
+
+  // Skip the units that have not been modified.
+  while( overall_unit_id < unit_id ) {
+   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
+   ++overall_unit_id;
+  }
 
   const auto unit_block = get_unit_block( unit_id );
-  num_generators_per_zone[ zone_id ] += unit_block->get_number_generators();
+  const auto num_generators = unit_block->get_number_generators();
+
+  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
+   const auto zone = get_primary_zone( elc_generator );
+   affected_zones.insert( zone );
+   ++num_generators_per_zone[ zone ];
+  }
+
+  ++overall_unit_id;
  }
 
  // Now loop over all affected constraints
@@ -1446,34 +1493,29 @@ void UCBlock::update_primary_demand_constraints
    Subset subset;
    subset.reserve( num_generators_per_zone[ zone_id ] );
 
-   for( Index i = 0 ; i < modified_units.size() ; ++i ) {
+   for( const auto unit_id : modified_units ) {
 
-    const auto unit_id = modified_units[ i ];
-
-    if( primary_var_index[ unit_id ].first == Inf< Index >() ) {
-     // This unit has no active Variable in the primary demand constraints.
-     continue;
-    }
-
-    if( zone_id != get_zone_id( unit_id ) ) {
-     // This unit does not belong to this zone.
+    if( primary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
+     // This unit has no active Variable in the primary demand constraints
+     // associated with zone "zone_id".
      continue;
     }
 
     const auto unit_block = get_unit_block( unit_id );
     const auto scale = unit_block->get_scale();
-    const auto num_generators = unit_block->get_number_generators();
 
     // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and start with primary_var_index[ unit_id ].first.
-    const auto num_variables = primary_var_index[ unit_id ].first -
-     primary_var_index[ unit_id ].second;
+    // are consecutive and are given by the open-closed interval
+    // [ primary_var_index[ unit_id ][ zone_id ].first ,
+    //   primary_var_index[ unit_id ][ zone_id ].second ).
+    const auto num_variables = primary_var_index[ unit_id ][ zone_id ].second -
+     primary_var_index[ unit_id ][ zone_id ].first;
     std::vector< Index > var_indices( num_variables );
     std::iota( var_indices.begin() , var_indices.end() ,
-               primary_var_index[ unit_id ].first );
+               primary_var_index[ unit_id ][ zone_id ].first );
 
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
-    coefficients.insert( coefficients.end() , num_generators , scale );
+    coefficients.insert( coefficients.end() , num_variables , scale );
 
    }  // end( for( modified_units ) )
 
@@ -1497,13 +1539,6 @@ void UCBlock::update_secondary_demand_constraints
      modified_units.empty() )
   return; // there is nothing to be updated
 
- // Returns the id of the secondary zone to which the given unit belongs.
- const auto get_zone_id = [ this ]( Index unit_id ) -> Index {
-  if( f_number_secondary_zones == 0 )
-   return 0;
-  return v_secondary_zones[ unit_id ];
- };
-
  // Indices of the zones that are affected by the modified units.
  std::set< Index > affected_zones;
 
@@ -1512,12 +1547,27 @@ void UCBlock::update_secondary_demand_constraints
 
  // Collect the affected zones and count the number of affected generators in
  // each zone.
+
+ Index elc_generator = 0;
+ Index overall_unit_id = 0;
  for( const auto unit_id : modified_units ) {
-  const auto zone_id = get_zone_id( unit_id );
-  affected_zones.insert( zone_id );
+
+  // Skip the units that have not been modified.
+  while( overall_unit_id < unit_id ) {
+   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
+   ++overall_unit_id;
+  }
 
   const auto unit_block = get_unit_block( unit_id );
-  num_generators_per_zone[ zone_id ] += unit_block->get_number_generators();
+  const auto num_generators = unit_block->get_number_generators();
+
+  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
+   const auto zone = get_secondary_zone( elc_generator );
+   affected_zones.insert( zone );
+   ++num_generators_per_zone[ zone ];
+  }
+
+  ++overall_unit_id;
  }
 
  // Now loop over all affected constraints
@@ -1535,34 +1585,29 @@ void UCBlock::update_secondary_demand_constraints
    Subset subset;
    subset.reserve( num_generators_per_zone[ zone_id ] );
 
-   for( Index i = 0 ; i < modified_units.size() ; ++i ) {
+   for( const auto unit_id : modified_units ) {
 
-    const auto unit_id = modified_units[ i ];
-
-    if( secondary_var_index[ unit_id ].first == Inf< Index >() ) {
-     // This unit has no active Variable in the secondary demand constraints.
-     continue;
-    }
-
-    if( zone_id != get_zone_id( unit_id ) ) {
-     // This unit does not belong to this zone.
+    if( secondary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
+     // This unit has no active Variable in the secondary demand constraints
+     // associated with zone "zone_id".
      continue;
     }
 
     const auto unit_block = get_unit_block( unit_id );
     const auto scale = unit_block->get_scale();
-    const auto num_generators = unit_block->get_number_generators();
 
     // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and start with secondary_var_index[ unit_id ].first.
-    const auto num_variables = secondary_var_index[ unit_id ].first -
-     secondary_var_index[ unit_id ].second;
+    // are consecutive and are given by the open-closed interval
+    // [ secondary_var_index[ unit_id ][ zone_id ].first ,
+    //   secondary_var_index[ unit_id ][ zone_id ].second ).
+    const auto num_variables = secondary_var_index[ unit_id ][ zone_id ].second -
+     secondary_var_index[ unit_id ][ zone_id ].first;
     std::vector< Index > var_indices( num_variables );
     std::iota( var_indices.begin() , var_indices.end() ,
-               secondary_var_index[ unit_id ].first );
+               secondary_var_index[ unit_id ][ zone_id ].first );
 
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
-    coefficients.insert( coefficients.end() , num_generators , scale );
+    coefficients.insert( coefficients.end() , num_variables , scale );
 
    }  // end( for( modified_units ) )
 

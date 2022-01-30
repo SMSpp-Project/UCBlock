@@ -1423,35 +1423,53 @@ class UCBlock : public Block {
  /** The active Variables of each LinearFunction defining a primary demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The i-th element of this vector will store the
-  * range of indices of active Variable in the LinearFunction that belong to
-  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
-  * LinearFunction, then the i-th element of this vector is ( Inf<Index>() ,
-  * Inf<Index>() ).
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the range of indices of active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>()
+  * ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has primary spinning reserve for
   * some time instant, then it has primary spinning reserve for all time
   * instants. */
 
- std::vector< Range > primary_var_index;
+ boost::multi_array< Range , 2 > primary_var_index;
 
  /// indices of active Variable in the secondary demand constraints
  /** The active Variables of each LinearFunction defining a secondary demand
   * constraint are grouped by UnitBlocks. That is, all active Variables of a
   * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The i-th element of this vector will store the
-  * range of indices of active Variable in the LinearFunction that belong to
-  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
-  * LinearFunction, then the i-th element of this vector is ( Inf<Index>() ,
-  * Inf<Index>() ).
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the range of indices of active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>()
+  * ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has secondary spinning reserve for
   * some time instant, then it has secondary spinning reserve for all time
   * instants. */
 
- std::vector< Range > secondary_var_index;
+ boost::multi_array< Range , 2 > secondary_var_index;
+
+ /// indices of active Variable in the inertia demand constraints
+ /** The active Variables of each LinearFunction defining a inertia demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The i-th element of this vector will store the
+  * smallest index of an active Variable in the LinearFunction that belong to
+  * the i-th UnitBlock. If no Variable of the i-th UnitBlock is active in the
+  * LinearFunction, then the i-th element of this vector is Inf<Index>().
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because we assume that, if a generator has commitment variable, inertia
+  * commitment, inertia power, or active power variable for some time instant,
+  * then it has the same thing for all time instants. */
+
+ std::vector< Index > inertia_demand_var_index;
 
  SMSpp_insert_in_factory_h;
 
@@ -1573,7 +1591,7 @@ class UCBlock : public Block {
   * @return True if and only if the given node belongs to the given primary
   *         zone. */
 
- bool belong_to_primary_zone( Index node_id , Index zone_id ) const {
+ bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
   if( ( f_number_primary_zones > 1 ) &&
       ( zone_id != v_primary_zones[ node_id ] ) )
    return false;
@@ -1593,7 +1611,7 @@ class UCBlock : public Block {
   * @return True if and only if the given node belongs to the given secondary
   *         zone. */
 
- bool belong_to_secondary_zone( Index node_id , Index zone_id ) const {
+ bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
   if( ( f_number_secondary_zones > 1 ) &&
       ( zone_id != v_secondary_zones[ node_id ] ) )
    return false;
@@ -1613,7 +1631,7 @@ class UCBlock : public Block {
   * @return True if and only if the given node belongs to the given inertia
   *         zone. */
 
- bool belong_to_inertia_zone( Index node_id , Index zone_id ) const {
+ bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
   if( ( f_number_inertia_zones > 1 ) &&
       ( zone_id != v_inertia_zones[ node_id ] ) )
    return false;
@@ -1623,11 +1641,41 @@ class UCBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  /// returns true if the given electrical generator belongs to the given node
- bool belong_to_node( Index elc_generator , Index node_id ) const {
+ bool generator_belongs_to_node( Index elc_generator , Index node_id ) const {
   if( ( get_number_nodes() > 1 ) &&
       ( node_id != v_generator_node[ elc_generator ] ) )
    return false;
   return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the primary zone to which the given electrical generator belongs
+ Index get_primary_zone( Index elc_generator ) const {
+  if( f_number_primary_zones == 0 )
+   return 0;
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return v_primary_zones[ node ];
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the secondary zone to which the given electrical generator belongs
+ Index get_secondary_zone( Index elc_generator ) const {
+  if( f_number_secondary_zones == 0 )
+   return 0;
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return v_secondary_zones[ node ];
   }
 
 };   // end( class( UCBlock ) )
