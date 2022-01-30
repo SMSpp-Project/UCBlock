@@ -604,6 +604,31 @@ void IntermittentUnitBlock::set_maximum_power
  }
 }
 
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::scale
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_scale == *values )
+  return; // The scale factor does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_scale = *values; // Update the scale factor
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UnitBlockMod >
+                           ( this , UnitBlockMod::eScale ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( IntermittentUnitBlock::scale )
+
 /*--------------------------------------------------------------------------*/
 
 template< typename T >

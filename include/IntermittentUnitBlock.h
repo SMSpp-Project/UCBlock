@@ -413,12 +413,14 @@ class IntermittentUnitBlock : public UnitBlock {
  * - secondary_spinning_reserve variables;
  *
  * @{ */
+
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return nullptr;
   return &( v_active_power.front());
  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -434,6 +436,11 @@ class IntermittentUnitBlock : public UnitBlock {
    return nullptr;
   return &( v_secondary_spinning_reserve.front());
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the scale factor of this IntermittentUnitBlock
+ double get_scale() const override { return f_scale; }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
@@ -476,6 +483,28 @@ class IntermittentUnitBlock : public UnitBlock {
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this IntermittentUnitBlock
+ /** This method sets the scale factor of this IntermittentUnitBlock.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor is set to the value
+  *        pointed by \p values. If empty, no operation is performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ void scale( std::vector< double >::const_iterator values ,
+             Subset && subset ,
+             const bool ordered = false ,
+             c_ModParam issuePMod = eNoBlck ,
+             c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -497,6 +526,9 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// the kappa value
  double f_kappa = 0;
+
+ /// the scale factor of this IntermittentUnitBlock
+ double f_scale = 1;
 
  /// the matrix of inertia power of generators
  std::vector< double >  v_inertia_power;

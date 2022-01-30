@@ -2729,7 +2729,7 @@ void ThermalUnitBlock::scale
                            ( this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( ThermalUnitBlock::set_num_replicas )
+}  // end( ThermalUnitBlock::scale )
 
 /*--------------------------------------------------------------------------*/
 
