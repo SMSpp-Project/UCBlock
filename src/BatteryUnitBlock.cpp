@@ -137,10 +137,12 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxSecondaryPower" , v_maximum_secondary_rho );
  ::deserialize( group , "DeltaRampUp" , v_delta_ramp_up );
  ::deserialize( group , "DeltaRampDown" , v_delta_ramp_down );
- ::deserialize( group , "Cost" , v_cost );
  ::deserialize( group , "Demand" , v_demand );
  ::deserialize( group , "StoringBatteryRho" , v_storing_battery_rho );
  ::deserialize( group , "ExtractingBatteryRho" , v_extracting_battery_rho );
+
+ if( ! ::deserialize( group , "Cost" , v_cost ) )
+  v_cost.resize( 1 , 0 );
 
  // Deserialize data from the base class
 
@@ -159,6 +161,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_storing_battery_rho );
  decompress_vector( v_extracting_battery_rho );
  decompress_vector( v_demand );
+ decompress_vector( v_cost );
 
  check_data_consistency();
 
@@ -747,39 +750,15 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
- // Construct the costs vector
-
- std::vector<double> cost = v_cost;
- if( cost.size() == 1 )
-  cost.resize( f_time_horizon , cost[ 0 ] );
- else
-  if( cost.size() < f_time_horizon ) {
-   assert( cost.size() == v_change_intervals.size() );
-   cost.resize( f_time_horizon , 0 );
-   Index t = 0;
-   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
-    auto upper_endpoint = v_change_intervals[ k ];
-    if( k == v_change_intervals.size() - 1 )
-     // The upper endpoint of the last interval must be time_horizon - 1. Since
-     // it may not be provided in v_change_intervals (the value for the last
-     // element of v_change_intervals is not required), we manually set it
-     // here.
-     upper_endpoint = f_time_horizon - 1;
-    for( ; t <= upper_endpoint ; ++t ) {
-     cost[ t ] = v_cost[ k ];
-    }
-   }
-  }
-
  // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
 
  auto linear_function = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   linear_function->add_variable( &v_intake_level[ t ] ,
-                                 f_scale * cost[ t ] , 0.0 );
+                                 f_scale * v_cost[ t ] , 0.0 );
   linear_function->add_variable( &v_outtake_level[ t ] ,
-                                 f_scale * cost[ t ] , 0.0 );
+                                 f_scale * v_cost[ t ] , 0.0 );
   }
 
  objective.set_function( linear_function );
