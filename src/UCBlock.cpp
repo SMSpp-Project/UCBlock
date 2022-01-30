@@ -1777,7 +1777,7 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
   }  // end( for( g ) )
  }  // end( for( i ) )
 
- v_node_injection_constraints[ time ][ node_index ].set_both( rhs );
+ v_node_injection_constraints[ time ][ node_index ].set_both( rhs , eNoBlck );
 }
 
 /*--------------------------------------------------------------------------*/
