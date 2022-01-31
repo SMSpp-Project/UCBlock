@@ -1006,6 +1006,11 @@ class BatteryUnitBlock : public UnitBlock {
              c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
+
+ // For the Range version, use the default implementation defined in UnitBlock
+ using UnitBlock::scale;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

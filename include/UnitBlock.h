@@ -609,14 +609,7 @@ class UnitBlock : public Block {
  virtual void scale( std::vector< double >::const_iterator values ,
                      Range rng = Range( 0, Inf< Index >() ) ,
                      c_ModParam issuePMod = eNoBlck ,
-                     c_ModParam issueAMod = eNoBlck ) {
-  if( rng.first >= rng.second )
-   return; // An empty Range was given: no operation is performed.
-
-  Subset subset( rng.second - rng.first );
-  std::iota( subset.begin() , subset.end() , rng.first );
-  scale( values , std::move( subset ) , true , issuePMod , issueAMod );
- }
+                     c_ModParam issueAMod = eNoBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/

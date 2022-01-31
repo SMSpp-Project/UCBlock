@@ -151,6 +151,34 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::scale( std::vector< double >::const_iterator values ,
+                       Range rng , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset;
+
+ if( rng.second == Inf< Index >() ) {
+  // If we decide to scale the generators individually rather than the whole
+  // unit, then, when rng.second is Inf<Index>(), we could interpret it as
+  // changing the scale factor of all generators and the vector containing the
+  // scale factor would be expected to have size at least equal to the number
+  // of generators. In this case, the subset would have size equal to the
+  // number of generators. Alternatively, we could have scale_generators() and
+  // leave scale() for scaling the whole unit.
+  subset.resize( 1 , 0 );
+ }
+ else {
+  subset.resize( rng.second - rng.first );
+  std::iota( subset.begin() , subset.end() , rng.first );
+ }
+
+ scale( values , std::move( subset ) , true , issuePMod , issueAMod );
+}
+
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
