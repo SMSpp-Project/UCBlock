@@ -611,6 +611,24 @@ class UnitBlock : public Block {
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck );
 
+/*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this UnitBlock
+ /** This method sets the scale factor of this UnitBlock. A default
+  * implementation is provided which simply call the Subset version of this
+  * method. See UnitBlock::scale() for the semantics of scaling a
+  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
+  *
+  * @param scale_factor The factor by which this UnitBlock should be scaled.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ virtual void scale( double scale_factor , c_ModParam issuePMod = eNoBlck ,
+                     c_ModParam issueAMod = eNoBlck );
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/

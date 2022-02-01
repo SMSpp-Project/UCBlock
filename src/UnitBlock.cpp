@@ -178,6 +178,14 @@ void UnitBlock::scale( std::vector< double >::const_iterator values ,
  scale( values , std::move( subset ) , true , issuePMod , issueAMod );
 }
 
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::scale( double scale_factor , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+ Subset subset = { 0 };
+ std::vector< double > values = { scale_factor };
+ scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
