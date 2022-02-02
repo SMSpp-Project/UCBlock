@@ -102,7 +102,11 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
    throw( std::invalid_argument( "UCBlock::deserialize: " +
                                  sub_group_name + " not present" ) );
 
-  v_Block[ sz++ ] = new_Block( sub_group , this );
+  if( auto bk = new_Block( sub_group , this ) )
+   v_Block[ sz++ ] = bk;
+  else
+   throw( std::invalid_argument( "UCBlock::deserialize: " +
+                                 sub_group_name + " deserialize failed" ) );
   }
  }
 
