@@ -106,16 +106,16 @@ class IntermittentUnitBlock : public UnitBlock {
 /** @name constructor and destructor
  *  @{ */
 
-/// constructor, takes the father and the time horizon
-/** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
- * father Block. */
+ /// constructor, takes the father and the time horizon
+ /** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
+  * father Block. */
 
  explicit IntermittentUnitBlock( Block * f_block = nullptr , Index t = 0 )
   : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
-/// destructor of IntermittentUnitBlock
 
+ /// destructor of IntermittentUnitBlock
  virtual ~IntermittentUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -124,140 +124,142 @@ class IntermittentUnitBlock : public UnitBlock {
 /** @name Other initializations
  *  @{ */
 
-/// extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the IntermittentUnitBlock. Besides the mandatory "type" attribute of any
- * :Block, the group must contain all the data required by the base UnitBlock,
- * as described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
- * In particular, we refer to that description for the crucial dimensions
- * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
- * must then also contain:
- *
- * - The variable "MinPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that, for
- *   each time instant t, contains the minimum potential production value of
- *   the unit for the corresponding time step.  If "MinPower" has length 1
- *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
- *   ] is the fixed value of MinP[ t ] for all t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded. Note that it must be MnP[
- *   t ] >= 0 for all t.
- *
- * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that, for
- *   each time instant t, contains the maximum potential production value of
- *   the unit for the corresponding time step.  If "MaxPower" has length 1
- *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
- *   ] is the fixed value of MaxP[ t ] for all t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded. Note that it must be MxP[
- *   t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ] is possible:
- *   it means that (at time instant t) the unit cannot be curtailed and cannot
- *   provide any reserve.
- *
- * - The variable "InertiaPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector IP[ t ] which, for
- *   each time instant t, contains the contribution that the unit can give to
- *   the inertia constraint which depends on the active power that it is
- *   currently generating (basically, the constant to be multiplied to the
- *   active power variable) at time t for this unit. The variable is optional;
- *   if it is not defined, IP[ t ] == 0 for each time instants t. If it has
- *   size 1 then the entry IP[ 0 ] is assumed to contain the inertia power
- *   value for this unit and all time instants t.  Otherwise, InertiaPower[ i
- *   ] is the fixed value of IP[ t ] for all t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
- *
- * - The scalar variable "Gamma", of type double and not indexed over any
- *   dimension. This variable is used to take into account an uncertainty on
- *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
- *   when Gamma == 0, the unit does not provide any reserve.
- *
- * - The scalar variable "Kappa", of type double and not indexed over any
- *   dimension. This variable is used to multiply to the minimum and maximum
- *   power at each time instant t. This variable is optional, if it is not
- *   provided it is taken to be Kappa == 1. */
+ /// extends Block::deserialize( netCDF::NcGroup )
+ /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+  * the IntermittentUnitBlock. Besides the mandatory "type" attribute of any
+  * :Block, the group must contain all the data required by the base
+  * UnitBlock, as described in the comments to UnitBlock::deserialize(
+  * netCDF::NcGroup ).  In particular, we refer to that description for the
+  * crucial dimensions "TimeHorizon", "NumberIntervals" and
+  * "ChangeIntervals". The netCDF::NcGroup must then also contain:
+  *
+  * - The variable "MinPower", of type double and either of size 1 or indexed
+  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+  *   provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
+  *   for each time instant t, contains the minimum potential production value
+  *   of the unit for the corresponding time step.  If "MinPower" has length 1
+  *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
+  *   ] is the fixed value of MinP[ t ] for all t in the interval [
+  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded. Note that it
+  *   must be MnP[ t ] >= 0 for all t.
+  *
+  * - The variable "MaxPower", of type double and either of size 1 or indexed
+  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+  *   provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
+  *   for each time instant t, contains the maximum potential production value
+  *   of the unit for the corresponding time step.  If "MaxPower" has length 1
+  *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
+  *   ] is the fixed value of MaxP[ t ] for all t in the interval [
+  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded. Note that it
+  *   must be MxP[ t ] >= MnP[ t ] [>= 0] for all t. Yet, MxP[ t ] == MnP[ t ]
+  *   is possible: it means that (at time instant t) the unit cannot be
+  *   curtailed and cannot provide any reserve.
+  *
+  * - The variable "InertiaPower", of type double and either of size 1 or
+  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+  *   not provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector IP[ t ] which, for
+  *   each time instant t, contains the contribution that the unit can give to
+  *   the inertia constraint which depends on the active power that it is
+  *   currently generating (basically, the constant to be multiplied to the
+  *   active power variable) at time t for this unit. The variable is
+  *   optional; if it is not defined, IP[ t ] == 0 for each time instants
+  *   t. If it has size 1 then the entry IP[ 0 ] is assumed to contain the
+  *   inertia power value for this unit and all time instants t.  Otherwise,
+  *   InertiaPower[ i ] is the fixed value of IP[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
+  *   "ChangeIntervals", which in fact is not loaded.
+  *
+  * - The scalar variable "Gamma", of type double and not indexed over any
+  *   dimension. This variable is used to take into account an uncertainty on
+  *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
+  *   when Gamma == 0, the unit does not provide any reserve.
+  *
+  * - The scalar variable "Kappa", of type double and not indexed over any
+  *   dimension. This variable is used to multiply to the minimum and maximum
+  *   power at each time instant t. This variable is optional, if it is not
+  *   provided it is taken to be Kappa == 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the IntermittentUnitBlock
-/** The IntermittentUnitBlock class has three different variables which are:
- *
- *  - the primary spinning reserve variables;
- *
- *  - the secondary spinning reserve variables;
- *
- *  - the active power variables.
- *
- *  All of those variables are optional except the active power variables in
- *  the sense that the model may just not have them and whenever a group of
- *  above variables is created, its size will be the time horizon. It is
- *  possible to restrict which of the subsets are generated with the parameter
- *  stvv. If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
- *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
- *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
- *  of the optional variables should be created. If the Configuration is not
- *  available, the default value is taken to be 0.
- * */
+
+ /// generate the abstract variables of the IntermittentUnitBlock
+ /** The IntermittentUnitBlock class has three different variables which are:
+  *
+  *  - the primary spinning reserve variables;
+  *
+  *  - the secondary spinning reserve variables;
+  *
+  *  - the active power variables.
+  *
+  *  All of those variables are optional except the active power variables in
+  *  the sense that the model may just not have them and whenever a group of
+  *  above variables is created, its size will be the time horizon. It is
+  *  possible to restrict which of the subsets are generated with the parameter
+  *  stvv. If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
+  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
+  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
+  *  of the optional variables should be created. If the Configuration is not
+  *  available, the default value is taken to be 0.
+  */
  void generate_abstract_variables( Configuration *stvv ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the static constraints of the IntermittentUnitBlock
-/** Method that generates the static constraints of the IntermittentUnitBlock.
- * These are the:
- *
- * - maximum and minimum power output constraints according to primary and
- *   secondary spinning reserves are presented in (1)-(2). Each of them is a
- *   std::vector<FRowConstraint>, with the dimension of get_time_horizon(),
- *   where the entry t, for t in \f$ \mathcal{T} = \f$ {0, ...,
- *   get_time_horizon() - 1}, being the maximum and minimum power output value
- *   according to the primary and the secondary spinning reserves at time
- *   t. These constraints ensure the maximum (or minimum) amount of energy
- *   that unit can produce (or use) when it is on (or off).
- *
- *   \f[
- *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
- *          \quad t \in \mathcal{T}                              \quad (1)
- *   \f]
- *
- *   \f[
- *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
- *          \quad t \in \mathcal{T}                              \quad (2)
- *   \f]
- *
- *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
- *   minimum power output parameters for each time t in \f$ \mathcal{T} \f$,
- *   respectively.
- *
- * - the active power bounds.
- *
- *   \f[
- *    p^{ac}_{t} \in [ \kappa * P^{mn}_{t} , \kappa * P^{mx}_{t}]
- *                              \quad t \in \mathcal{T}          \quad (3)
- *   \f]
- *   */
+ /// generate the static constraints of the IntermittentUnitBlock
+ /** Method that generates the static constraints of the IntermittentUnitBlock.
+  * These are the:
+  *
+  * - maximum and minimum power output constraints according to primary and
+  *   secondary spinning reserves are presented in (1)-(2). Each of them is a
+  *   std::vector<FRowConstraint>, with the dimension of get_time_horizon(),
+  *   where the entry t, for t in \f$ \mathcal{T} = \f$ {0, ...,
+  *   get_time_horizon() - 1}, being the maximum and minimum power output value
+  *   according to the primary and the secondary spinning reserves at time
+  *   t. These constraints ensure the maximum (or minimum) amount of energy
+  *   that unit can produce (or use) when it is on (or off).
+  *
+  *   \f[
+  *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
+  *          \quad t \in \mathcal{T}                              \quad (1)
+  *   \f]
+  *
+  *   \f[
+  *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
+  *          \quad t \in \mathcal{T}                              \quad (2)
+  *   \f]
+  *
+  *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
+  *   minimum power output parameters for each time t in \f$ \mathcal{T} \f$,
+  *   respectively.
+  *
+  * - the active power bounds.
+  *
+  *   \f[
+  *    p^{ac}_{t} \in [ \kappa * P^{mn}_{t} , \kappa * P^{mx}_{t}]
+  *                              \quad t \in \mathcal{T}          \quad (3)
+  *   \f]
+  */
  void generate_abstract_constraints( Configuration *stcc ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective of the IntermittentUnitBlock
-/** Method that generates the objective of the IntermittentUnitBlock.
- *
- * - Objective function: the objective function of the IntermittentUnitBlock
- *   is "empty" (a FRealObjective with a LinearFunction inside with no active
- *   variables) */
+
+ /// generate the objective of the IntermittentUnitBlock
+ /** Method that generates the objective of the IntermittentUnitBlock.
+  *
+  * - Objective function: the objective function of the IntermittentUnitBlock
+  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+  *   variables) */
 
  void generate_objective( Configuration *objc ) override;
 
@@ -336,61 +338,65 @@ class IntermittentUnitBlock : public UnitBlock {
  double get_kappa() const { return f_kappa; }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of minimum power
-/** The method returned a std::vector< double > V and each element of V
- * contains the minimum power at time t. There are three possible cases:
- *
- * - if the vector is empty, then the minimum power of the unit is 0;
- *
- * - if the vector has only one element, then V[ 0 ] is the minimum power of
- *   the unit for all time horizon;
- *
- * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the minimum power value at time t. */
+
+ /// returns the vector of minimum power
+ /** The method returned a std::vector< double > V and each element of V
+  * contains the minimum power at time t. There are three possible cases:
+  *
+  * - if the vector is empty, then the minimum power of the unit is 0;
+  *
+  * - if the vector has only one element, then V[ 0 ] is the minimum power of
+  *   the unit for all time horizon;
+  *
+  * - otherwise, the std::vector< double > V must have size get_time_horizon()
+  *   and each V[ t ] represents the minimum power value at time t. */
 
  const std::vector< double > & get_minimum_power() const {
   return( v_minimum_power );
  }
+
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum power
-/** The method returned a std::vector< double > V and each element of V
- * contains the maximum power at time t. There are three possible cases:
- *
- * - if the vector is empty, then the maximum power of the unit is 0;
- *
- * - if the vector has only one element, then V[ 0 ] is the maximum power of
- *   the unit for all time horizon;
- *
- * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the maximum power value at time t. */
+
+ /// returns the vector of maximum power
+ /** The method returned a std::vector< double > V and each element of V
+  * contains the maximum power at time t. There are three possible cases:
+  *
+  * - if the vector is empty, then the maximum power of the unit is 0;
+  *
+  * - if the vector has only one element, then V[ 0 ] is the maximum power of
+  *   the unit for all time horizon;
+  *
+  * - otherwise, the std::vector< double > V must have size get_time_horizon()
+  *   and each V[ t ] represents the maximum power value at time t. */
 
  const std::vector< double > & get_maximum_power() const {
   return( v_maximum_power );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the matrix of inertia power
-/** The returned value U = get_inertia_power() contains the contribution
- *  to inertia (basically, the constants to be multiplied by the active power
- *  variables returned by get_active_power()) of all the generators at all
- *  time instants. There are four possible cases:
- *
- * - if the matrix is empty, then the inertia power is always 0 and this
- *   function returns nullptr;
- *
- * - if the matrix only has one row (i.e., the first dimension has size 1),
- *   then the inertia power for each generator g is U[ 0 , g ] for all t
- *   which means that the second dimension has size get_number_generators();
- *
- * - if the matrix only has one column with size get_time_horizon() (i.e., the
- *   second dimension has size 1), then the InertiaPower[ t , 0 ] gives the
- *   inertia power for the problem at time t. Since in this unit there is only
- *   one electrical generator, this case should happen by assumption;
- *
- * - otherwise, the matrix has size get_time_horizon() per
- *   get_number_generators(), then the InertiaPower[ t , g ] represents
- *   the inertia power for the problem at time t for each electrical generator
- *   g. */
+
+ /// returns the matrix of inertia power
+ /** The returned value U = get_inertia_power() contains the contribution to
+  *  inertia (basically, the constants to be multiplied by the active power
+  *  variables returned by get_active_power()) of all the generators at all
+  *  time instants. There are four possible cases:
+  *
+  * - if the matrix is empty, then the inertia power is always 0 and this
+  *   function returns nullptr;
+  *
+  * - if the matrix only has one row (i.e., the first dimension has size 1),
+  *   then the inertia power for each generator g is U[ 0 , g ] for all t
+  *   which means that the second dimension has size get_number_generators();
+  *
+  * - if the matrix only has one column with size get_time_horizon() (i.e.,
+  *   the second dimension has size 1), then the InertiaPower[ t , 0 ] gives
+  *   the inertia power for the problem at time t. Since in this unit there is
+  *   only one electrical generator, this case should happen by assumption;
+  *
+  * - otherwise, the matrix has size get_time_horizon() per
+  *   get_number_generators(), then the InertiaPower[ t , g ] represents the
+  *   inertia power for the problem at time t for each electrical generator
+  *   g. */
 
  double * get_inertia_power( Index generator) override {
   if( v_inertia_power.empty() )
@@ -450,8 +456,8 @@ class IntermittentUnitBlock : public UnitBlock {
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * IntermittentGenerationUnitBlock. See
- * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details of the
- * format of the created netCDF group. */
+ * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details
+ * of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -520,6 +526,7 @@ class IntermittentUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
+
  /// the vector of MinPower
  std::vector< double >  v_minimum_power;
 
@@ -537,7 +544,9 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// the matrix of inertia power of generators
  std::vector< double >  v_inertia_power;
+
 /*-----------------------------variables------------------------------------*/
+
  /// the active power variables
  std::vector< ColVariable > v_active_power;
 
@@ -546,14 +555,16 @@ class IntermittentUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
-/*----------------------------constraints-----------------------------------*/
-/// the active power upper bound constraints
+
+ /*----------------------------constraints-----------------------------------*/
+
+ /// the active power upper bound constraints
  std::vector< FRowConstraint > MinPower_Constraints;
 
-/// the active power lower bound constraints
+ /// the active power lower bound constraints
  std::vector< FRowConstraint > MaxPower_Constraints;
 
-/// the active power bounds constraints
+ /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Constraints;
 
  /// the objective function
@@ -653,13 +664,16 @@ class IntermittentUnitBlockMod : public Modification {
  public:
 
  /// Public enum for the types of IntermittentUnitBlockMod
- enum TUBB_mod_type {
-  eSetMaxP = 0    ///< Set max power values
+ enum IUB_mod_type {
+  eSetMaxP = 0 ,    ///< Set max power values
+  eIUBModLastParam  ///< first allowed parameter value for derived classes
+                    /**< Convenience value to easily allow derived classes to
+                     * extend the set of types of ThermalUnitBlockMod. */
  };
 
  /// Constructor, takes the IntermittentUnitBlock and the type
- IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock,
-                      const int type )
+ IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
+                           const int type )
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
@@ -697,10 +711,9 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
  public:
 
  /// constructor: takes the IntermittentUnitBlock, the type, and the range
- IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock,
-                          const int type,
-                          Block::Range rng )
-  : IntermittentUnitBlockMod( fblock, type ), f_rng( rng ) {}
+ IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock ,
+                               const int type , Block::Range rng )
+  : IntermittentUnitBlockMod( fblock, type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockRngdMod() override = default;
@@ -729,10 +742,9 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
  public:
 
  /// constructor: takes the IntermittentUnitBlock, the type, and the subset
- IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock,
-                          const int type,
-                          Block::Subset && nms )
-  : IntermittentUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+ IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock ,
+                               const int type , Block::Subset && nms )
+  : IntermittentUnitBlockMod( fblock, type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockSbstMod() override = default;

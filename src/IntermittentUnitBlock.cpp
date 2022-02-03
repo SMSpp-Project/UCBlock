@@ -604,7 +604,6 @@ void IntermittentUnitBlock::set_maximum_power
  }
 }
 
-
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::scale
