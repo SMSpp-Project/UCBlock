@@ -267,7 +267,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
  *   variable */
 
-  void generate_objective( Configuration *objc ) override;
+  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the DCNetworkBlock -----------------*/

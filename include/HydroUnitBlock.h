@@ -550,7 +550,7 @@ class HydroUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the HydroUnit
@@ -756,7 +756,7 @@ class HydroUnitBlock : public UnitBlock {
  *   \f]
  *
  */
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HydroUnitBlock
@@ -766,7 +766,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the HydroUnitBlock -----------------*/

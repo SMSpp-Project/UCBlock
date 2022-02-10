@@ -263,7 +263,7 @@ class SlackUnitBlock : public UnitBlock {
  * generate.
  */
 
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the SlackUnitBlock
@@ -295,7 +295,7 @@ class SlackUnitBlock : public UnitBlock {
  * spinning reserve, and the last one for the secondary spinning reserve
  * variables. */
  
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the SlackUnitBlock
@@ -324,7 +324,7 @@ class SlackUnitBlock : public UnitBlock {
  *  of the SimpleConfiguration<int> is taken the objective function.
  */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration *objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE SlackUnitBlock -----------*/

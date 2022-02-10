@@ -666,7 +666,7 @@ class ThermalUnitBlock : public UnitBlock {
  * Note that there may be other formulations (like the DP one), which will
  * possibly be implemented in the future. */
 
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
@@ -725,7 +725,7 @@ class ThermalUnitBlock : public UnitBlock {
  *  set_secondary_spinning_reserve_cost() methods, respectively.
  */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/

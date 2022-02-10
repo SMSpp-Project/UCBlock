@@ -119,7 +119,7 @@ class BusNetworkBlock : public NetworkBlock {
  * variable since the only possible way to satisfy the constraints is by
  * having s = D which in fact makes the variable a constant.*/
 
- void generate_abstract_variables( Configuration * stvv ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 
 /*--------------------------------------------------------------------------*/
@@ -129,7 +129,7 @@ class BusNetworkBlock : public NetworkBlock {
  * must be a BoxConstraint for that variable whose lower and upper bounds are
  * equal to the active demand value.
  */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BusNetworkBlock
@@ -139,7 +139,7 @@ class BusNetworkBlock : public NetworkBlock {
  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

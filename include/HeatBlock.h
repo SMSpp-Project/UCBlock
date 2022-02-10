@@ -331,7 +331,7 @@ class HeatBlock : public Block {
  * Note that derived classes are free to use the other bits of the int to
  * similarly encode for creation of their own specific groups of variables.*/
 
-void generate_abstract_variables( Configuration *stvv ) override;
+void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the static constraint of the HeatBlock
@@ -374,7 +374,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   \f]
  */
 
- void generate_abstract_constraints( Configuration *stcc )  override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr )  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the objective of the HeatBlock
@@ -389,7 +389,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
  *   storing heat has no cost. */
 
- void generate_objective( Configuration *objc )  override;
+ void generate_objective( Configuration *objc = nullptr )  override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE HeatBlock -------------*/
