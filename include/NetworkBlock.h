@@ -468,7 +468,7 @@ class NetworkBlock : public Block {
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- void generate_abstract_variables( Configuration * stvv ) override {
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override {
   }
 
 /*--------------------------------------------------------------------------*/

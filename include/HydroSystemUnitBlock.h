@@ -187,7 +187,7 @@ class HydroSystemUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HydroSystemUnitBlock
@@ -197,7 +197,7 @@ class HydroSystemUnitBlock : public UnitBlock {
  *   "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/

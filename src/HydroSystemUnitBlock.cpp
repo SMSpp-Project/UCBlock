@@ -94,6 +94,8 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
   delete block;
  v_Block.clear();
 
+ v_Block.reserve( f_number_hydro_units + 1 );
+
  deserialize_sub_blocks( group, "HydroUnitBlock_", f_number_hydro_units );
  deserialize_polyhedral_function_block( group, "PolyhedralFunctionBlock" );
 }

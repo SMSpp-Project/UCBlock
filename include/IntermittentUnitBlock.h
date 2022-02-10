@@ -213,7 +213,7 @@ class IntermittentUnitBlock : public UnitBlock {
   *  of the optional variables should be created. If the Configuration is not
   *  available, the default value is taken to be 0.
   */
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// generate the static constraints of the IntermittentUnitBlock
@@ -250,7 +250,7 @@ class IntermittentUnitBlock : public UnitBlock {
   *                              \quad t \in \mathcal{T}          \quad (3)
   *   \f]
   */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -261,7 +261,7 @@ class IntermittentUnitBlock : public UnitBlock {
   *   is "empty" (a FRealObjective with a LinearFunction inside with no active
   *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for checking the IntermittentUnitBlock -------------*/

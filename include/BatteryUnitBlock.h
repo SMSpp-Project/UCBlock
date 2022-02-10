@@ -440,7 +440,7 @@ class BatteryUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the BatteryUnitBlock
@@ -567,7 +567,7 @@ class BatteryUnitBlock : public UnitBlock {
  *                              \quad t \in \mathcal{T}          \quad (13)
  *   \f]
 */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BatteryUnitBlock
 /** Method that generates the objective of the BatteryUnitBlock.
@@ -580,7 +580,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   \f]
  *
  *   where \f$ C_t \f$, is a certain proportion cost function. */
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE BatteryUnitBlock -----------*/
