@@ -457,36 +457,73 @@ class DCNetworkBlock : public NetworkBlock {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+ /// set the active demand at the nodes specified by \p subset
+ /** This function sets the active demand at each node in the given \p
+  * subset. The active demand at the node whose index is specified by the i-th
+  * element in \p subset is given by the i-th element of the vector pointed by
+  * \p values, i.e., it is given by the value pointed by (values + i). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param subset The indices of the nodes at which the active demand is being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Subset && subset , const bool ordered = false ,
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck ) final;
 
-  static void static_initialization() {
-   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-    * three-args version of register_method<> with the compact MS_*_*::args(),
-    *
-    * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-    *                                    &DCNetworkBlock::set_active_demand,
-    *                                    MS_dbl_sbst::args() );
-    *
-    * so we just use the slightly less compact one with the explicit argument
-    * and be done with it. */
+/*--------------------------------------------------------------------------*/
 
-   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-    "DCNetworkBlock::set_active_demand",
-    &DCNetworkBlock::set_active_demand );
+ /// set the active demand at the nodes specified by \p rng
+ /** This function sets the active demand at each node in the given Range \p
+  * rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is given by the element of the vector pointed
+  * by \p values whose index is (i - rng.first), i.e., it is given by the
+  * value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param rng A Range containing the indices of the nodes at which the active
+  *        demand is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
-   register_method< DCNetworkBlock, MF_dbl_it, Range >(
-    "DCNetworkBlock::set_active_demand",
-    &DCNetworkBlock::set_active_demand );
-  }
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck ) final;
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization() {
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   *                                    &DCNetworkBlock::set_active_demand,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
+   "DCNetworkBlock::set_active_demand",
+   &DCNetworkBlock::set_active_demand );
+
+  register_method< DCNetworkBlock, MF_dbl_it, Range >(
+   "DCNetworkBlock::set_active_demand",
+   &DCNetworkBlock::set_active_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
