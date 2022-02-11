@@ -4,17 +4,11 @@
 /** @file
  * Implementation of the BatteryStorageUnitBlock class.
  *
- * \version 0.11
- *
- * \date 06 - 01 - 2022
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -25,11 +19,8 @@
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -48,7 +39,6 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -126,11 +116,11 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxStorage" , v_maximum_storage , false );
  ::deserialize( group , "MinPower" , v_minimum_power , false );
  ::deserialize( group , "MaxPower" , v_maximum_power , false );
- ::deserialize( group , "InitialStorage" , & f_initial_storage , false );
+ ::deserialize( group , f_initial_storage , "InitialStorage" , false );
 
  // Optional variables
 
- if( ! ::deserialize( group , "InitialPower" , & f_initial_power ) )
+ if( ! ::deserialize( group , f_initial_power , "InitialPower" ) )
   f_initial_power = 0;
 
  ::deserialize( group , "MaxPrimaryPower" , v_maximum_primary_rho );

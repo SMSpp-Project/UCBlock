@@ -4,27 +4,18 @@
 /** @file
  * Implementation of the HydroSystemUnitBlock class.
  *
- * \version 0.11
- *
- * \date 05 - 02 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -32,7 +23,6 @@
 #include "UCBlock.h"
 #include "HydroSystemUnitBlock.h"
 #include "FRealObjective.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -45,45 +35,47 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register HydroSystemUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
-HydroSystemUnitBlock::~HydroSystemUnitBlock()  {
 
+HydroSystemUnitBlock::~HydroSystemUnitBlock()
+{
  for( auto block : v_Block )
   delete block;
  v_Block.clear();
 
  objective.clear();
-}
-
+ }
 
 /*--------------------------------------------------------------------------*/
-HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
- return dynamic_cast<HydroUnitBlock *>( v_Block[ i ] );
-}
+
+HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
+{
+ return( dynamic_cast<HydroUnitBlock *>( v_Block[ i ] ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
-#ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon",
-                                              "NumberIntervals",
-                                              "NumberHydroUnits"};
- check_dimensions( group, expected_dims, std::cerr );
-#endif
+void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
+ #ifndef NDEBUG
+  static std::vector< std::string > expected_dims = { "TimeHorizon",
+						      "NumberIntervals",
+						      "NumberHydroUnits" };
+  check_dimensions( group, expected_dims, std::cerr );
+ #endif
 
 
  UnitBlock::deserialize_time_horizon( group );
- ::deserialize_dim( group, "NumberHydroUnits", f_number_hydro_units, true );
+ ::deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units , true );
  deserialize_sub_blocks( group );
  Block::deserialize( group );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -224,26 +216,24 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
 
  auto dim_number_hydro_units = group.addDim( "NumberHydroUnits",
                                              f_number_hydro_units );
-
  // Serialize sub-blocks
-
  for( Index i = 0 ; i < f_number_hydro_units ; ++i ) {
   auto sub_block = get_hydro_unit_block( i );
   auto sub_group = group.addGroup( "HydroUnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
- }
+  }
 
  if( v_Block.size() > f_number_hydro_units ) {
   auto sub_group = group.addGroup( "PolyhedralFunctionBlock" );
   v_Block.back()->serialize( sub_group );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File HydroSystemUnitBlock.cpp --------------------*/

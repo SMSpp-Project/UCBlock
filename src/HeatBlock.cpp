@@ -4,33 +4,23 @@
 /** @file
  * Implementation of the HeatBlock class.
  *
- * \version 0.11
- *
- * \date 08 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                    Rafael Durbano Lobato
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -57,7 +47,6 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register HeatBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( HeatBlock );
 
 /*--------------------------------------------------------------------------*/
@@ -80,7 +69,7 @@ HeatBlock::~HeatBlock() {
 
  for( auto & constraint : v_EvolutionStoredHeat_Constraints )
   constraint.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

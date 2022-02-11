@@ -7,27 +7,20 @@
  * define a class representing set of "nearby" units (and a storage) that
  * can be used to satisfy a demand for (a single type of) heat.
  *
- * \version 0.11
- *
- * \date 08 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -52,8 +45,8 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS HeatBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -80,8 +73,8 @@ namespace SMSpp_di_unipi_it {
  * possibly of a single heat storage, and of the demand that has to be
  * satisfied. */
 
-class HeatBlock : public Block {
-
+class HeatBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -89,21 +82,6 @@ class HeatBlock : public Block {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * HeatBlock defines the following main public type:
- *
- * - Index, the type of parameters indices;
- *
- * @{ */
-
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index;
-
-/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor

@@ -13,17 +13,11 @@
  * modified UC would produce a "least unfeasible" solution which can be used
  * to identify the parts of the system that lack capacity/resources.
  *
- * \version 0.10
- *
- * \date 20 - 08 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -34,8 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __SlackUnitBlock
-#define __SlackUnitBlock
-
+ #define __SlackUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -55,7 +48,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS SlackUnitBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -73,8 +65,8 @@ namespace SMSpp_di_unipi_it
  * unfeasible" solution which can be used to identify the parts of the system
  * that lack capacity/resources. */
 
-class SlackUnitBlock : public UnitBlock {
-
+class SlackUnitBlock : public UnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
