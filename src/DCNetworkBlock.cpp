@@ -4,33 +4,23 @@
 /** @file
  * Implementation of the DCNetworkBlock class.
  *
- * \version 0.11
- *
- * \date 14 - 12 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
- * Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -41,7 +31,6 @@
 #include "DCNetworkBlock.h"
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -54,18 +43,14 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register DCNetworkBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
-/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-DCNetworkBlock::~DCNetworkBlock() {
+DCNetworkBlock::~DCNetworkBlock()
+{
  for( auto & constraint : v_AC_power_flow_limit_constraints )
   constraint.clear();
 
@@ -92,14 +77,14 @@ DCNetworkBlock::~DCNetworkBlock() {
  // Delete the NetworkData if it is local.
  if( f_local_NetworkData )
   delete f_NetworkData;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
-
+void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
  auto NumberNodes = group.getDim( "NumberNodes" );
 
  if( ! NumberNodes.isNull() ) {
@@ -113,12 +98,12 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  }
 
  NetworkBlock::deserialize( group );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -132,7 +117,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
   for( auto & var : v_node_injection )
    var.set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection, "S" );
- }
+  }
 
  if( number_lines > 0 ) {
   // the power flow Variable
@@ -147,18 +132,18 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
    for( auto & var : v_auxiliary_variable )
     var.set_type( ColVariable::kContinuous );
    add_static_variable( v_auxiliary_variable, "V_auxiliary" );
+   }
   }
- }
- set_variables_generated();
 
-}
+ set_variables_generated();
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 

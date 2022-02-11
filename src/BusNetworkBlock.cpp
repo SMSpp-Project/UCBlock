@@ -4,38 +4,27 @@
 /** @file
  * Implementation of the BusNetworkBlock class.
  *
- * \version 0.11
- *
- * \date 30 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato,
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -61,16 +50,11 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( BusNetworkBlock );
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-
-/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void BusNetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -82,11 +66,12 @@ void BusNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_node_injection[ 0 ], "S");
 
  set_variables_generated();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
-void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
+void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc )
+{
  if( constraints_generated())
   return; // constraints have already been generated
 
@@ -99,11 +84,12 @@ void BusNetworkBlock::generate_abstract_constraints ( Configuration * stcc ) {
 
  add_static_constraint( NodeInjection_bound_Constraints,
                         "NodeInjection_bound_BusNetwork" );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
-void BusNetworkBlock::generate_objective( Configuration * objc ) {
 
+void BusNetworkBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
@@ -119,43 +105,38 @@ void BusNetworkBlock::generate_objective( Configuration * objc ) {
 
  set_objective_generated();
 
-}  // end( BusNetworkBlock::generate_objective )
+ }  // end( BusNetworkBlock::generate_objective )
+
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BusNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values,
- Block::Subset && subset,
- const bool ordered,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
-
+void BusNetworkBlock::set_active_demand( MF_dbl_it values ,
+					 Subset && subset , bool ordered ,
+					 ModParam issuePMod ,
+					 ModParam issueAMod )
+{
  // For BusNetworkBlock, this method degenerates a bit
 
- if( subset.empty() ) {
+ if( subset.empty() )
   return;
- }
 
- if (subset.size() > 1 ) {
+ if (subset.size() > 1 )
   throw ( std::invalid_argument( "subset is too big" ) );
- }
 
  if( v_active_demand.empty() ) {
-  if( *values == 0 ) {
+  if( *values == 0 )
    return;
-  }
-  v_active_demand.assign( 1, 0 );
- }
 
- if( subset[0] >= 1 ) {
+  v_active_demand.assign( 1, 0 );
+  }
+
+ if( subset[0] >= 1 )
   throw ( std::invalid_argument( "invalid value in subset" ) );
- }
 
  // If nothing changes, return
- if( v_active_demand[ 0 ] == *values ) {
+ if( v_active_demand[ 0 ] == *values )
   return;
- }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -166,64 +147,60 @@ void BusNetworkBlock::set_active_demand(
    // Change the abstract representation
 
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
+   }
   }
- }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
 
   Block::add_Modification(
-   std::make_shared< NetworkBlockSbstMod >( this,
+   std::make_shared< NetworkBlockSbstMod >( this ,
                                             NetworkBlockMod::eSetActD,
-                                            std::move( subset ) ),
+                                            std::move( subset ) ) ,
    Observer::par2chnl( issuePMod ) );
+  }
  }
-}
 
-void BusNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values,
- Block::Range rng,
- c_ModParam issuePMod,
- c_ModParam issueAMod ) {
+/*--------------------------------------------------------------------------*/
 
+void BusNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
+					 ModParam issuePMod ,
+					 ModParam issueAMod )
+{
  // For BusNetworkBlock, this method degenerates a bit
 
- if( rng != Range( 0, 1 ) ) {
+ if( rng != Range( 0, 1 ) )
   throw ( std::invalid_argument( "invalid value in subset" ) );
- }
 
  if( v_active_demand.empty() ) {
-  if( *values == 0 ) {
+  if( *values == 0 )
    return;
-  }
+
   v_active_demand.assign( 1, 0 );
- }
+  }
 
  // If nothing changes, return
- if( v_active_demand[ 0 ] == *values ) {
+ if( v_active_demand[ 0 ] == *values )
   return;
- }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
   v_active_demand[ 0 ] = *values ;
 
-  if( not_dry_run( issueAMod ) && variables_generated() ) {
+  if( not_dry_run( issueAMod ) && variables_generated() )
    // Change the abstract representation
-
    v_node_injection[ 0 ].set_value( v_active_demand[ 0 ] );
   }
- }
 
  if( issue_pmod( issuePMod ) ) {
   Block::add_Modification(
-   std::make_shared< NetworkBlockRngdMod >( this,
-                                            NetworkBlockMod::eSetActD,
-                                            rng ),
+   std::make_shared< NetworkBlockRngdMod >( this ,
+                                            NetworkBlockMod::eSetActD ,
+                                            rng ) ,
    Observer::par2chnl( issuePMod ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File BusNetworkBlock.cpp -----------------------*/

@@ -6,34 +6,27 @@
  * [see UnitBlock.h], in order to define a "reasonably standard" hydro unit
  * of a Unit Commitment Problem.
  *
- * \version 0.11
- *
- * \date 27 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
- * Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __HydroUnitBlock
-#define __HydroUnitBlock
+ #define __HydroUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -54,8 +47,8 @@
 
 /// Namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS HydroUnitBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -91,8 +84,8 @@ namespace SMSpp_di_unipi_it {
  *
  * - final volumes variable bounds. */
 
-class HydroUnitBlock : public UnitBlock {
-
+class HydroUnitBlock : public UnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
