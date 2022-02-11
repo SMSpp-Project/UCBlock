@@ -22,8 +22,6 @@
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-/*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -120,16 +118,16 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! ::deserialize( group , "MinUpTime" , & f_MinUpTime ) )
+ if( ! ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = 0;
 
- if( ! ::deserialize( group , "MinDownTime" , & f_MinDownTime ) )
+ if( ! ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
   f_MinDownTime = 0;
 
- if( ! ::deserialize( group , "InitialPower" , & f_initial_power ) )
+ if( ! ::deserialize( group, f_initial_power  , "InitialPower" ) )
   f_initial_power = 0;
 
- if( ! ::deserialize( group , "InitUpDownTime" , & f_InitUpDownTime ) ) {
+ if( ! ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) ) {
   if( f_initial_power == 0 )
    f_InitUpDownTime = - f_MinDownTime;
   else
@@ -151,7 +149,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "InertiaCommitment" , v_inertia_commitment );
 
  // Decompress vectors
-
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
  decompress_vector( v_Availability );

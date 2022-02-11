@@ -8,17 +8,11 @@
  * management, Distributed storage, and Power to gas units in a single class
  * at Unit commitment problem.
  *
- * \version 0.11
- *
- * \date 30 - 01 - 2022
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -34,8 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BatteryUnitBlock
-#define __BatteryUnitBlock
-
+ #define __BatteryUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -54,8 +47,8 @@
 
 /// Namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BatteryUnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
