@@ -659,16 +659,13 @@ class NetworkBlock : public Block
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Subset && subset,
-                                 const bool ordered,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Subset && subset , bool ordered ,
+                                 ModParam issuePMod , ModParam issueAMod ) = 0;
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Range rng,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Range rng , ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/

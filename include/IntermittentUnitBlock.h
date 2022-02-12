@@ -454,15 +454,14 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_maximum_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+                         Subset && subset , bool ordered = false,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0, Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -524,12 +523,12 @@ class IntermittentUnitBlock : public UnitBlock
   // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
   //                                           &IntermittentUnitBlock::set_maximum_power,
   //                                           MS_dbl_rngd::args() );
-  register_method< IntermittentUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "IntermittentUnitBlock::set_maximum_power",
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_maximum_power" ,
    &IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock, MF_dbl_it, Range >(
-   "IntermittentUnitBlock::set_maximum_power",
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_maximum_power" ,
    &IntermittentUnitBlock::set_maximum_power );
  }
 

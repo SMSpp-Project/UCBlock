@@ -442,16 +442,16 @@ class DCNetworkBlock : public NetworkBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+  void set_active_demand( std::vector< double >::const_iterator values ,
+                          Subset && subset ,
+                          bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck ) override final;
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+  void set_active_demand( std::vector< double >::const_iterator values ,
+                          Range rng = Range( 0 , Inf< Index >() ) ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck ) override final;
 
   static void static_initialization() {
    /*!!
@@ -467,12 +467,12 @@ class DCNetworkBlock : public NetworkBlock
    //                                    &DCNetworkBlock::set_active_demand,
    //                                    MS_dbl_rngd::args() );
 
-   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-    "DCNetworkBlock::set_active_demand",
+   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+    "DCNetworkBlock::set_active_demand" ,
     &DCNetworkBlock::set_active_demand );
 
-   register_method< DCNetworkBlock, MF_dbl_it, Range >(
-    "DCNetworkBlock::set_active_demand",
+   register_method< DCNetworkBlock , MF_dbl_it , Range >(
+    "DCNetworkBlock::set_active_demand" ,
     &DCNetworkBlock::set_active_demand );
   }
 

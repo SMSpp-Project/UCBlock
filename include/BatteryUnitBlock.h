@@ -1105,12 +1105,12 @@ class BatteryUnitBlock : public UnitBlock {
   //                                      &BatteryUnitBlock::set_initial_storage,
   //                                      MS_dbl_rngd::args() );
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Range >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
  }
 
