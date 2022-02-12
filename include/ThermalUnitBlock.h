@@ -1327,11 +1327,10 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values,
-                        Subset && subset,
-                        const bool ordered = false,
-                        c_ModParam issuePMod = eNoBlck,
-                        c_ModParam issueAMod = eNoBlck );
+ void set_availability( std::vector< double >::const_iterator values ,
+                        Subset && subset , bool ordered = false ,
+                        ModParam issuePMod = eNoBlck ,
+                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1353,113 +1352,108 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values,
-                        Range rng = Range( 0, Inf< Index >() ),
-                        c_ModParam issuePMod = eNoBlck,
-                        c_ModParam issueAMod = eNoBlck );
+ void set_availability( std::vector< double >::const_iterator values ,
+                        Range rng = Range( 0 , Inf< Index >() ) ,
+                        ModParam issuePMod = eNoBlck ,
+                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-			 bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_startup_costs( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_startup_costs( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values,
-                      Subset && subset,
-		      bool ordered = false,
-                      c_ModParam issuePMod = eNoBlck,
-                      c_ModParam issueAMod = eNoBlck );
+ void set_const_term( std::vector< double >::const_iterator values ,
+                      Subset && subset , bool ordered = false ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values,
-                      Range rng = Range( 0, Inf< Index >() ),
-                      c_ModParam issuePMod = eNoBlck,
-                      c_ModParam issueAMod = eNoBlck );
+ void set_const_term( std::vector< double >::const_iterator values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values,
-                       Subset && subset,
-		       bool ordered = false,
-                       c_ModParam issuePMod = eNoBlck,
-                       c_ModParam issueAMod = eNoBlck );
+ void set_linear_term( std::vector< double >::const_iterator values ,
+                       Subset && subset , bool ordered = false ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values,
-                       Range rng = Range( 0, Inf< Index >() ),
-                       c_ModParam issuePMod = eNoBlck,
-                       c_ModParam issueAMod = eNoBlck );
+ void set_linear_term( std::vector< double >::const_iterator values ,
+                       Range rng = Range( 0 , Inf< Index >() ) ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values,
-                     Subset && subset,
-		     bool ordered = false,
-                     c_ModParam issuePMod = eNoBlck,
-                     c_ModParam issueAMod = eNoBlck );
+ void set_quad_term( std::vector< double >::const_iterator values ,
+                     Subset && subset , bool ordered = false ,
+                     ModParam issuePMod = eNoBlck ,
+                     ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values,
-                     Range rng = Range( 0, Inf< Index >() ),
-                     c_ModParam issuePMod = eNoBlck,
-                     c_ModParam issueAMod = eNoBlck );
+ void set_quad_term( std::vector< double >::const_iterator values ,
+                     Range rng = Range( 0 , Inf< Index >() ) ,
+                     ModParam issuePMod = eNoBlck ,
+                     ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_primary_spinning_reserve_cost(
 	                       std::vector< double >::const_iterator values ,
 			       Subset && subset , bool ordered ,
-			       c_ModParam issuePMod = eNoBlck ,
-			       c_ModParam issueAMod = eNoBlck );
+			       ModParam issuePMod = eNoBlck ,
+			       ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_primary_spinning_reserve_cost(
 	   std::vector< double >::const_iterator values , Range rng ,
-           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+           ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_secondary_spinning_reserve_cost(
 			       std::vector< double >::const_iterator values ,
 			       Subset && subset , bool ordered ,
-			       c_ModParam issuePMod = eNoBlck ,
-			       c_ModParam issueAMod = eNoBlck );
+			       ModParam issuePMod = eNoBlck ,
+			       ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_secondary_spinning_reserve_cost(
 	   std::vector< double >::const_iterator values , Range rng ,
-           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+           ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1472,8 +1466,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_initial_power( std::vector< double >::const_iterator values ,
                          Subset && subset , bool ordered = false ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck );
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1485,23 +1479,23 @@ class ThermalUnitBlock : public UnitBlock {
   * Range \p rng does not contain the 0 index, this function does nothing. */
 
  void set_initial_power( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0, Inf< Index >() ) ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck );
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values ,
                             Subset && subset , bool ordered = false ,
-                            c_ModParam issuePMod = eNoBlck ,
-                            c_ModParam issueAMod = eNoBlck );
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( std::vector< int >::const_iterator values ,
-                            Range rng = Range( 0, Inf< Index >() ) ,
-                            c_ModParam issuePMod = eNoBlck ,
-                            c_ModParam issueAMod = eNoBlck );
+                            Range rng = Range( 0 , Inf< Index >() ) ,
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1675,6 +1669,7 @@ class ThermalUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
+
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *
@@ -1685,36 +1680,36 @@ class ThermalUnitBlock : public UnitBlock {
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_availability",
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_availability" ,
    &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_availability",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_availability" ,
    &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_maximum_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_maximum_power" ,
    &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_maximum_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_maximum_power" ,
    &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_initial_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_initial_power" ,
    &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_initial_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_initial_power" ,
    &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock, MF_int_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_init_updown_time",
+  register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
+   "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
 
-  register_method< ThermalUnitBlock, MF_int_it, Range >(
-   "ThermalUnitBlock::set_init_updown_time",
+  register_method< ThermalUnitBlock , MF_int_it , Range >(
+   "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
  }
 

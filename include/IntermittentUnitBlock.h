@@ -467,15 +467,14 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_maximum_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+                         Subset && subset , bool ordered = false,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0, Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -560,6 +559,7 @@ class IntermittentUnitBlock : public UnitBlock
  FRealObjective objective;
 
  static void static_initialization() {
+
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *
@@ -571,12 +571,12 @@ class IntermittentUnitBlock : public UnitBlock
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< IntermittentUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "IntermittentUnitBlock::set_maximum_power",
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_maximum_power" ,
    &IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock, MF_dbl_it, Range >(
-   "IntermittentUnitBlock::set_maximum_power",
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_maximum_power" ,
    &IntermittentUnitBlock::set_maximum_power );
  }
 

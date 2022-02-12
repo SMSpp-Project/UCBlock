@@ -136,16 +136,15 @@ class BusNetworkBlock : public NetworkBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Subset && subset = { 0 },
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck ) final;
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Subset && subset = { 0 } , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, 1 ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck ) final;
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , 1 ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
  static void static_initialization() {
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
@@ -158,12 +157,12 @@ class BusNetworkBlock : public NetworkBlock
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< BusNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-   "BusNetworkBlock::set_active_demand",
+  register_method< BusNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "BusNetworkBlock::set_active_demand" ,
    &BusNetworkBlock::set_active_demand );
 
-  register_method< BusNetworkBlock, MF_dbl_it, Range >(
-   "BusNetworkBlock::set_active_demand",
+  register_method< BusNetworkBlock , MF_dbl_it , Range >(
+   "BusNetworkBlock::set_active_demand" ,
    &BusNetworkBlock::set_active_demand );
  }
 

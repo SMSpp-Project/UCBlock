@@ -461,9 +461,9 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_active_demand( std::vector< double >::const_iterator values ,
-                         Subset && subset , const bool ordered = false ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck ) final;
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -485,8 +485,8 @@ class DCNetworkBlock : public NetworkBlock
 
  void set_active_demand( std::vector< double >::const_iterator values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck ) final;
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -501,12 +501,12 @@ class DCNetworkBlock : public NetworkBlock
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-   "DCNetworkBlock::set_active_demand",
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::set_active_demand" ,
    &DCNetworkBlock::set_active_demand );
 
-  register_method< DCNetworkBlock, MF_dbl_it, Range >(
-   "DCNetworkBlock::set_active_demand",
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::set_active_demand" ,
    &DCNetworkBlock::set_active_demand );
  }
 

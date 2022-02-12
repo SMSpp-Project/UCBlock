@@ -1137,12 +1137,12 @@ class BatteryUnitBlock : public UnitBlock {
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Range >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
  }
 

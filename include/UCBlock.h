@@ -1208,27 +1208,27 @@ class UCBlock : public Block
  /// update the active power demand
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Subset && subset = { 0 } ,
-                               const bool ordered = false ,
-                               c_ModParam issuePMod = eNoBlck ,
-                               c_ModParam issueAMod = eNoBlck );
+                               bool ordered = false ,
+                               ModParam issuePMod = eNoBlck ,
+                               ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  /// update the active power demand
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Range rng = Range( 0 , 1 ) ,
-                               c_ModParam issuePMod = eNoBlck ,
-                               c_ModParam issueAMod = eNoBlck );
+                               ModParam issuePMod = eNoBlck ,
+                               ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization() {
-  register_method< UCBlock , MF_dbl_it , Subset && , const bool >(
-   "UCBlock::set_active_power_demand",
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_active_power_demand" ,
    &UCBlock::set_active_power_demand );
 
   register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand",
+   "UCBlock::set_active_power_demand" ,
    &UCBlock::set_active_power_demand );
  }
 

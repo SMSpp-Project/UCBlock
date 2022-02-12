@@ -1558,49 +1558,45 @@ class HydroUnitBlock : public UnitBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_inflow( std::vector< double >::const_iterator values,
-                  Subset && subset,
-                  const bool ordered = false,
-                  c_ModParam issuePMod = eNoBlck,
-                  c_ModParam issueAMod = eNoBlck );
+ void set_inflow( std::vector< double >::const_iterator values ,
+                  Subset && subset , bool ordered = false ,
+                  ModParam issuePMod = eNoBlck ,
+                  ModParam issueAMod = eNoBlck );
 
- void set_inflow( std::vector< double >::const_iterator values,
-                  Range rng = Range( 0, Inf< Index >() ),
-                  c_ModParam issuePMod = eNoBlck,
-                  c_ModParam issueAMod = eNoBlck );
+ void set_inflow( std::vector< double >::const_iterator values ,
+                  Range rng = Range( 0 , Inf< Index >() ) ,
+                  ModParam issuePMod = eNoBlck ,
+                  ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_inertia_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_inertia_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values ,
+                          Subset && subset , bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values ,
+                          Range rng = Range( 0 , Inf< Index >() ) ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values,
-                              Subset && subset,
-                              const bool ordered = false,
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                             Subset && subset , bool ordered = false ,
+                             ModParam issuePMod = eNoBlck ,
+                             ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values,
-                              Range rng = Range( 0, Inf< Index >() ),
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             ModParam issuePMod = eNoBlck ,
+                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1751,6 +1747,7 @@ class HydroUnitBlock : public UnitBlock
  FRealObjective objective;
 
  static void static_initialization() {
+
   /* Warning: Not all C++ compilers enjoy the template wizardry behing the
    * three-args version of register_method<> with the compact MS_*_*::args()
    *
@@ -1761,28 +1758,28 @@ class HydroUnitBlock : public UnitBlock
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_inflow",
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inflow" ,
    &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_inflow",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inflow" ,
    &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_inertia_power",
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inertia_power" ,
    &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_inertia_power",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inertia_power" ,
    &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_initial_volume",
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_initial_volume" ,
    &HydroUnitBlock::set_initial_volume );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_initial_volume",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_initial_volume" ,
    &HydroUnitBlock::set_initial_volume );
  }
 
