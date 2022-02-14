@@ -611,13 +611,6 @@ class SlackUnitBlock : public UnitBlock {
 
  SMSpp_insert_in_factory_h;
 
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
- /// Resizes a vector to time_horizon by using change_intervals
- template< typename T > void decompress_vector( std::vector< T > & v );
-/*--------------------------------------------------------------------------*/
-
 };  // end( class( SlackUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/

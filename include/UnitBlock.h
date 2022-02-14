@@ -547,6 +547,9 @@ class UnitBlock : public Block {
  /// indicates whether the Objective of the UnitBlock has been generated
  bool objective_generated() const { return( AR & HasObj ); }
 
+ /// Resizes a vector to time_horizon by using change_intervals
+ template< typename T > void decompress_vector( std::vector< T > & v );
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/

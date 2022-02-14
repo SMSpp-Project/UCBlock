@@ -202,5 +202,52 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const {
 }
 
 /*--------------------------------------------------------------------------*/
+
+template< typename T >
+void UnitBlock::decompress_vector( std::vector< T > & v ) {
+ if ( v.empty() )
+  return;
+
+ if( v.size() == 1 ) {
+  // The given vector has a single element. Thus, for each time instant, the
+  // value is equal to that single given element.
+  v.resize( f_time_horizon , v[ 0 ] );
+ }
+ else if( v.size() < f_time_horizon ) {
+  // Since the number of elements is greater than 1 and less than the time
+  // horizon, it must be equal to the number of change intervals.
+  if( v.size() != v_change_intervals.size() ) {
+   throw ( std::logic_error
+    ( "BatteryUnitBlock::decompress_vector: invalid number of elements"
+      " (" + std::to_string( v.size() ) + ") for some variable. It "
+                                          "should be equal to the number of change intervals (" +
+      std::to_string( v_change_intervals.size() ) + ")" ) );
+  }
+
+  // For each time instant t, the value associated with time t is equal to
+  // given_vector[ k ], where k is such that t belongs to the closed interval
+  // [i_{k-1} + 1, i_k] and i_k is the k-th element of v_change_intervals
+  // (starting from k = 0) and i_{-1} = -1 by definition. We resize the vector
+  // so that its size becomes f_time_horizon and copy the given data.
+
+  std::vector< T > given_vector = v;
+  v.resize( f_time_horizon );
+  Index t = 0;
+  for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+   auto upper_endpoint = v_change_intervals[ k ];
+   if( k == v_change_intervals.size() - 1 )
+    // The upper endpoint of the last interval must be time_horizon - 1. Since
+    // it may not be provided in v_change_intervals (the value for the last
+    // element of v_change_intervals is not required), we manually set it
+    // here.
+    upper_endpoint = f_time_horizon - 1;
+   for( ; t <= upper_endpoint ; ++t ) {
+    v[ t ] = given_vector[ k ];
+   }
+  }
+ }
+}
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/
