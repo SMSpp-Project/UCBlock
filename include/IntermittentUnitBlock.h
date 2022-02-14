@@ -436,6 +436,18 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the scale factor of this IntermittentUnitBlock
  double get_scale() const override { return f_scale; }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power constraints
+ const std::vector< FRowConstraint > & get_min_power_constraints() const {
+  return MinPower_Constraints;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power constraints
+ const std::vector< FRowConstraint > & get_max_power_constraints() const {
+  return MaxPower_Constraints;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
