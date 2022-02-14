@@ -8,17 +8,11 @@
  * management, Distributed storage, and Power to gas units in a single class
  * at Unit commitment problem.
  *
- * \version 0.11
- *
- * \date 06 - 01 - 2022
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -34,8 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BatteryUnitBlock
-#define __BatteryUnitBlock
-
+ #define __BatteryUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -54,8 +47,8 @@
 
 /// Namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BatteryUnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -440,7 +433,7 @@ class BatteryUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the BatteryUnitBlock
@@ -567,7 +560,7 @@ class BatteryUnitBlock : public UnitBlock {
  *                              \quad t \in \mathcal{T}          \quad (13)
  *   \f]
 */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BatteryUnitBlock
 /** Method that generates the objective of the BatteryUnitBlock.
@@ -580,7 +573,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   \f]
  *
  *   where \f$ C_t \f$, is a certain proportion cost function. */
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE BatteryUnitBlock -----------*/
@@ -1112,12 +1105,12 @@ class BatteryUnitBlock : public UnitBlock {
   //                                      &BatteryUnitBlock::set_initial_storage,
   //                                      MS_dbl_rngd::args() );
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock, MF_dbl_it, Range >(
-   "BatteryUnitBlock::set_initial_storage",
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
  }
 

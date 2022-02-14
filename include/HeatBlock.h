@@ -7,27 +7,20 @@
  * define a class representing set of "nearby" units (and a storage) that
  * can be used to satisfy a demand for (a single type of) heat.
  *
- * \version 0.11
- *
- * \date 08 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael
- * Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -52,8 +45,8 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS HeatBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -80,8 +73,8 @@ namespace SMSpp_di_unipi_it {
  * possibly of a single heat storage, and of the demand that has to be
  * satisfied. */
 
-class HeatBlock : public Block {
-
+class HeatBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -89,21 +82,6 @@ class HeatBlock : public Block {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * HeatBlock defines the following main public type:
- *
- * - Index, the type of parameters indices;
- *
- * @{ */
-
-/*--------------------------------------------------------------------------*/
-
- typedef std::size_t Index;
-
-/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -331,7 +309,7 @@ class HeatBlock : public Block {
  * Note that derived classes are free to use the other bits of the int to
  * similarly encode for creation of their own specific groups of variables.*/
 
-void generate_abstract_variables( Configuration *stvv ) override;
+void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the static constraint of the HeatBlock
@@ -374,7 +352,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   \f]
  */
 
- void generate_abstract_constraints( Configuration *stcc )  override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr )  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// Generate the objective of the HeatBlock
@@ -389,7 +367,7 @@ void generate_abstract_variables( Configuration *stvv ) override;
  *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
  *   storing heat has no cost. */
 
- void generate_objective( Configuration *objc )  override;
+ void generate_objective( Configuration *objc = nullptr )  override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE HeatBlock -------------*/

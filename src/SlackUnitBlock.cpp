@@ -9,17 +9,11 @@
  * completely independently from each other and from all other time periods,
  * albeit at a (typically, huge) cost.
  *
- * \version 0.11
- *
- * \date 06 - 01 - 2022
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -28,8 +22,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -49,14 +41,14 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register SlackUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-SlackUnitBlock::~SlackUnitBlock() {
+SlackUnitBlock::~SlackUnitBlock()
+{
  auto clear_LB0Constraints =
          []( std::vector< LB0Constraint > & constraints ) {
           for( auto & constraint : constraints )
@@ -74,30 +66,26 @@ SlackUnitBlock::~SlackUnitBlock() {
  clear_ZOConstraints( Inertia_Bound_Constraints );
 
  objective.clear();
-
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
+ #ifndef NDEBUG
+  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
+						      "NumberIntervals" };
+  check_dimensions( group , expected_dims , std::cerr );
 
-#ifndef NDEBUG
- std::vector< std::string > expected_dims =
-  { "TimeHorizon" , "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- std::vector< std::string > expected_vars =
-  { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-    "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"};
-
- check_variables( group , expected_vars , std::cerr );
-#endif
+  static std::vector< std::string > expected_vars ={ "MaxPower" ,
+	    "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+	    "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia" };
+  check_variables( group , expected_vars , std::cerr );
+ #endif
 
  // Optional variables
-
  ::deserialize( group , "MaxPower" , v_MaxPower );
  ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
  ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
@@ -108,11 +96,9 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxInertia" , v_MaxInertia );
 
  // Deserialize data from the base class
-
  UnitBlock::deserialize( group );
 
  // Decompress vectors
-
  decompress_vector( v_MaxPower );
  decompress_vector( v_MaxPrimaryPower );
  decompress_vector( v_MaxSecondaryPower );
@@ -122,12 +108,11 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_inertia_cost );
  decompress_vector( v_MaxInertia );
 
-} // end( SlackUnitBlock::deserialize )
+ }  // end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_variables
-        ( Configuration *stvv )
+void SlackUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
 
  if( variables_generated() )
@@ -172,13 +157,12 @@ void SlackUnitBlock::generate_abstract_variables
  }
  set_variables_generated();
 
-} // end( SlackUnitBlock::generate_abstract_variables )
+ } // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_constraints
-        ( Configuration *stcc ) {
-
+void SlackUnitBlock::generate_abstract_constraints( Configuration *stcc )
+{
  if( constraints_generated())
   return; // constraints have already been generated
 
@@ -366,18 +350,18 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  this->set_objective( &objective );
 
  set_objective_generated();
-}  // end( SlackUnitBlock::generate_objective )
+
+ }  // end( SlackUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE SlackUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  UnitBlock::serialize( group );
 
  // Serialize one-dimensional variables.
-
  auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
@@ -417,7 +401,7 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "SecondaryCost" , v_secondary_cost );
  serialize( "InertiaCost" , v_inertia_cost );
 
-}  // end( SlackUnitBlock::serialize )
+ }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File SlackUnitBlock.cpp ----------------------*/

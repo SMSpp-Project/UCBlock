@@ -9,39 +9,31 @@
  * specific time instant in the Unit Commitment (UC) problem, as represented
  * in UCBlock.
  *
- * \version 0.11
- *
- * \date 30 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __NetworkBlock
-#define __NetworkBlock
+ #define __NetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -55,8 +47,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -80,8 +72,8 @@ namespace SMSpp_di_unipi_it {
  * variables, which will have to satisfy the technical constraints of the
  * transmission network. */
 
-class NetworkBlock : public Block {
-
+class NetworkBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -468,7 +460,7 @@ class NetworkBlock : public Block {
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- void generate_abstract_variables( Configuration * stvv ) override {
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override {
   }
 
 /*--------------------------------------------------------------------------*/
@@ -667,16 +659,13 @@ class NetworkBlock : public Block {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Subset && subset,
-                                 const bool ordered,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Subset && subset , bool ordered ,
+                                 ModParam issuePMod , ModParam issueAMod ) = 0;
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Range rng,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Range rng , ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/

@@ -7,34 +7,27 @@
  * defines the standard linear constraints corresponding to the "DC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \version 0.11
- *
- * \date 14 - 12 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano
- * Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DCNetworkBlock
-#define __DCNetworkBlock
+ #define __DCNetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -51,8 +44,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -75,22 +68,13 @@ namespace SMSpp_di_unipi_it {
  *    is a combination of first and second cases, where for some lines(not all
  *    of them) may have zero susceptance. */
 
-class DCNetworkBlock : public NetworkBlock {
-
+class DCNetworkBlock : public NetworkBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  public:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * DCNetworkBlock defines a main public type:
- *
- @{ */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -106,30 +90,31 @@ class DCNetworkBlock : public NetworkBlock {
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
 
 /*--------------------------------------------------------------------------*/
-/// destructor of DCNetworkBlock
+ /// destructor of DCNetworkBlock
+
  virtual ~DCNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the DCNetworkBlock
-/** Depending on the susceptance for each line of the network, the
- * DCNetworkBlock class may have a power flow variable or not. In other word,
- * if the susceptance is equal to zero(or not defined), the corresponding line
- * is a HVDC line and it must have the power flow variable. It means, each
- * HVDC line correspond to a power flow variable, then for the Net Transfer
- * Capacity (NTC) model all lines must have a power flow variable. If the
- * susceptance value is a non-zero value, the corresponding line is called AC
- * and there is no needed to define the power flow variable for that line.
- * Therefor, in the case of pure AC line there is no needed to define power
- * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
- * variable must define just for HVDC lines. Similarly, depending on the
- * NetworkCost for each line of the network, the DCNetworkBlock class may have
- * an auxiliary variable or not. In other word, if the NetworkCost is equal to
- * zero(or not defined), the auxiliary variable and corresponding constraints
- * will not be defined.
- *
- * Note that since in this class the configuration is ignored.*/
+ /// generate the abstract variables of the DCNetworkBlock
+ /** Depending on the susceptance for each line of the network, the
+  * DCNetworkBlock class may have a power flow variable or not. In other word,
+  * if the susceptance is equal to zero(or not defined), the corresponding line
+  * is a HVDC line and it must have the power flow variable. It means, each
+  * HVDC line correspond to a power flow variable, then for the Net Transfer
+  * Capacity (NTC) model all lines must have a power flow variable. If the
+  * susceptance value is a non-zero value, the corresponding line is called AC
+  * and there is no needed to define the power flow variable for that line.
+  * Therefor, in the case of pure AC line there is no needed to define power
+  * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
+  * variable must define just for HVDC lines. Similarly, depending on the
+  * NetworkCost for each line of the network, the DCNetworkBlock class may have
+  * an auxiliary variable or not. In other word, if the NetworkCost is equal to
+  * zero(or not defined), the auxiliary variable and corresponding constraints
+  * will not be defined.
+  *
+  * Note that since in this class the configuration is ignored.*/
 
-  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
@@ -267,7 +252,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
  *   variable */
 
-  void generate_objective( Configuration *objc ) override;
+  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the DCNetworkBlock -----------------*/
@@ -457,16 +442,16 @@ class DCNetworkBlock : public NetworkBlock {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+  void set_active_demand( std::vector< double >::const_iterator values ,
+                          Subset && subset ,
+                          bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck ) override final;
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+  void set_active_demand( std::vector< double >::const_iterator values ,
+                          Range rng = Range( 0 , Inf< Index >() ) ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck ) override final;
 
   static void static_initialization() {
    /*!!
@@ -482,12 +467,12 @@ class DCNetworkBlock : public NetworkBlock {
    //                                    &DCNetworkBlock::set_active_demand,
    //                                    MS_dbl_rngd::args() );
 
-   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-    "DCNetworkBlock::set_active_demand",
+   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+    "DCNetworkBlock::set_active_demand" ,
     &DCNetworkBlock::set_active_demand );
 
-   register_method< DCNetworkBlock, MF_dbl_it, Range >(
-    "DCNetworkBlock::set_active_demand",
+   register_method< DCNetworkBlock , MF_dbl_it , Range >(
+    "DCNetworkBlock::set_active_demand" ,
     &DCNetworkBlock::set_active_demand );
   }
 

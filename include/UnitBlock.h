@@ -19,39 +19,31 @@
  * satisfying inertia constraints, and the fixed consumption (if any) of the
  * generators in the unit when they are off.
  *
- * \version 0.11
- *
- * \date 25 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
-#define __UnitBlock   /* self-identification: #endif at the end of the file */
+ #define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -64,8 +56,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -102,8 +94,8 @@ namespace SMSpp_di_unipi_it {
  * constraints, and the fixed consumption (if any) of each generator in the
  * unit when it is off. */
 
-class UnitBlock : public Block {
-
+class UnitBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -111,15 +103,6 @@ class UnitBlock : public Block {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * UnitBlock defines the following main public type:
- *
- * @{ */
-
-/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -130,7 +113,7 @@ class UnitBlock : public Block {
   * Block and the time horizon. By default the time horizon is initialized to
   * 0, which means "not set yet". */
 
- explicit UnitBlock( Block * father_block = nullptr, Index t = 0 );
+ explicit UnitBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of UnitBlock
@@ -139,7 +122,7 @@ class UnitBlock : public Block {
   for( auto & block : v_Block )
    delete block;
   v_Block.clear();
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
