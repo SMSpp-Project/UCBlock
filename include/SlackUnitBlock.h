@@ -303,10 +303,10 @@ class SlackUnitBlock : public UnitBlock
  *     (P^{MaxI}_{t} * C^{i}_{t}) u_t )
  *   \f]
  *
- *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$ , \f$ C^{sc}_{t} \f$,
- *   C^{i}_{t}, and P^{MaxI}_{t} for each time step t are defined as the
- *   ActivePowerCost, PrimaryCost, and SecondaryCost, InertiaCost, and the
- *   MaxInertia respectively.
+ *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$, \f$ C^{sc}_{t} \f$,
+ *   \f$ C^{i}_{t} \f$, and \f$ P^{MaxI}_{t} \f$ for each time step t are
+ *   defined as the ActivePowerCost, PrimaryCost, and SecondaryCost,
+ *   InertiaCost, and the MaxInertia respectively.
  *
  *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
  *  object, there is still a nontrivial decision to be made about it, and it
