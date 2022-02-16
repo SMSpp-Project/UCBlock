@@ -66,10 +66,10 @@ DCNetworkBlock::~DCNetworkBlock()
  for( auto & constraint : v_AC_HVDC_power_flow_constraints )
   constraint.clear();
 
- for( auto & constraint : v_power_flow_auxiliary_variable_one_constraints)
+ for( auto & constraint : v_power_flow_relax_abs_1 )
   constraint.clear();
 
- for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints)
+ for( auto & constraint : v_power_flow_relax_abs_2 )
   constraint.clear();
 
  objective.clear();
@@ -218,9 +218,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
    // F_l <= V_l
 
-   if( v_power_flow_auxiliary_variable_one_constraints.size() != number_lines ) {
-    assert( v_power_flow_auxiliary_variable_one_constraints.empty() );
-    v_power_flow_auxiliary_variable_one_constraints.resize( number_lines );
+   if( v_power_flow_relax_abs_1.size() != number_lines ) {
+    assert( v_power_flow_relax_abs_1.empty() );
+    v_power_flow_relax_abs_1.resize( number_lines );
    }
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
@@ -228,22 +228,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
     linear_function->add_variable( &v_power_flow[ line_id ] , -1.0 );
     linear_function->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_lhs( 0.0 );
-    v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_rhs
-     ( Inf< double >() );
+    v_power_flow_relax_abs_1[ line_id ].set_lhs( 0.0 );
+    v_power_flow_relax_abs_1[ line_id ].set_rhs( Inf< double >() );
 
-    v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_function
-     ( linear_function );
+    v_power_flow_relax_abs_1[ line_id ].set_function( linear_function );
    }
 
-   add_static_constraint( v_power_flow_auxiliary_variable_one_constraints ,
-                          "power_flow_auxiliary_variable_one" );
+   add_static_constraint( v_power_flow_relax_abs_1 , "power_flow_relax_abs_1" );
 
    // - F_l <= V_l
 
-   if( v_power_flow_auxiliary_variable_two_constraints.size() != number_lines ) {
-    assert( v_power_flow_auxiliary_variable_two_constraints.empty() );
-    v_power_flow_auxiliary_variable_two_constraints.resize( number_lines );
+   if( v_power_flow_relax_abs_2.size() != number_lines ) {
+    assert( v_power_flow_relax_abs_2.empty() );
+    v_power_flow_relax_abs_2.resize( number_lines );
    }
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
@@ -252,15 +249,12 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
     linear_f->add_variable( &v_power_flow[ line_id ] , 1.0 );
     linear_f->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_lhs( 0.0 );
-    v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_rhs
-     ( Inf< double >() );
-    v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_function
-     ( linear_f );
+    v_power_flow_relax_abs_2[ line_id ].set_lhs( 0.0 );
+    v_power_flow_relax_abs_2[ line_id ].set_rhs( Inf< double >() );
+    v_power_flow_relax_abs_2[ line_id ].set_function( linear_f );
    }
 
-   add_static_constraint( v_power_flow_auxiliary_variable_two_constraints ,
-                          "power_flow_auxiliary_variable_two" );
+   add_static_constraint( v_power_flow_relax_abs_2 , "power_flow_relax_abs_2" );
   } // end( cost not empty )
  } // end( HVDC_Lines constraints )
 
@@ -380,10 +374,8 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && ::is_feasible( v_AC_HVDC_power_flow_limit_constraints , tolerance )
   && ::is_feasible( v_power_flow_injection_constraints , tolerance )
   && ::is_feasible( v_AC_HVDC_power_flow_constraints , tolerance )
-  && ::is_feasible( v_power_flow_auxiliary_variable_one_constraints ,
-                    tolerance )
-  && ::is_feasible( v_power_flow_auxiliary_variable_two_constraints ,
-                    tolerance );
+  && ::is_feasible( v_power_flow_relax_abs_1 , tolerance )
+  && ::is_feasible( v_power_flow_relax_abs_2 , tolerance );
 
 } // end( DCNetworkBlock::is_feasible )
 

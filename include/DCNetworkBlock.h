@@ -651,10 +651,10 @@ class DCNetworkBlock : public NetworkBlock
  std::vector<FRowConstraint> v_power_flow_injection_constraints;
 
   /// HVDC power flow auxiliary variable 1 constraints
-  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_one_constraints;
+  std::vector<FRowConstraint> v_power_flow_relax_abs_1;
 
   /// HVDC power flow auxiliary variable 2 constraints
-  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_two_constraints;
+  std::vector<FRowConstraint> v_power_flow_relax_abs_2;
 
  /// AC_HVDC power flow constraints
  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
