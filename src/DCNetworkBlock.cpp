@@ -202,8 +202,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
         ++line_id ) {
 
-    v_HVDC_power_flow_limit_constraints[line_id].set_lhs(MinPowerFlow[line_id]);
-    v_HVDC_power_flow_limit_constraints[line_id].set_rhs(MaxPowerFlow[line_id]);
+    const auto kappa = get_kappa( line_id );
+    v_HVDC_power_flow_limit_constraints[line_id].set_lhs(kappa * MinPowerFlow[line_id]);
+    v_HVDC_power_flow_limit_constraints[line_id].set_rhs(kappa * MaxPowerFlow[line_id]);
     v_HVDC_power_flow_limit_constraints[line_id].set_variable(&v_power_flow[line_id]);
    }
 
@@ -489,9 +490,6 @@ void DCNetworkBlock::set_active_demand
    return;
   }
 
-  Index max_index = * std::max_element( std::begin( subset ) ,
-                                        std::end( subset ) );
-  assert( max_index < get_number_nodes() );
   v_active_demand.assign( get_number_nodes() , 0 );
  }
 
@@ -519,7 +517,8 @@ void DCNetworkBlock::set_active_demand
   switch( f_NetworkData->get_lines_type() ) {
    case( kHVDC ): {
     for( auto i : subset )
-     v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
+     v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] ,
+                                                       issueAMod );
     break;
    }
    case( kAC ):
@@ -582,7 +581,8 @@ void DCNetworkBlock::set_active_demand
    switch( f_NetworkData->get_lines_type() ) {
     case( kHVDC ): {
      for( Index i = rng.first ; i < rng.second ; ++i )
-      v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
+      v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] ,
+                                                        issueAMod );
      break;
     }
     case( kAC ):
@@ -600,6 +600,143 @@ void DCNetworkBlock::set_active_demand
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >
                            ( this , NetworkBlockMod::eSetActD , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::set_kappa
+( std::vector< double >::const_iterator values , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return;
+
+ if( v_kappa.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return cst == 1; } ) )
+   return;
+
+  v_kappa.assign( get_number_lines() , 1 );
+ }
+
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_kappa.size() )
+   throw ( std::invalid_argument( "DCNetworkBlock::set_kappa: "
+                                  "invalid value in subset: " +
+                                  std::to_string( i ) + "." ) );
+  const auto kappa = *( values++ );
+  if( v_kappa[ i ] != kappa ) {
+   identical = false;
+   if( not_dry_run( issuePMod ) )
+    // Change the physical representation
+    v_kappa[ i ] = kappa;
+  }
+ }
+ if( identical )
+  return;  // nothing changes; return
+
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
+
+  // Change the abstract representation
+
+  switch( f_NetworkData->get_lines_type() ) {
+   case( kHVDC ): {
+    for( auto i : subset ) {
+     v_HVDC_power_flow_limit_constraints[ i ].set_lhs
+      ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
+
+     v_HVDC_power_flow_limit_constraints[ i ].set_rhs
+      ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
+    }
+    break;
+   }
+   case( kAC ):
+    // TODO
+    break;
+   case( kAC_HVDC ):
+    // TODO
+    break;
+   default: break;
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< DCNetworkBlockSbstMod >
+                           ( this , DCNetworkBlockMod::eSetKappa ,
+                             std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::set_kappa
+( std::vector< double >::const_iterator values , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second , get_number_lines() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_kappa.empty() ) {
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 1 ); } ) ) {
+   return;
+  }
+
+  v_kappa.assign( get_number_lines() , 1 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values , values + ( rng.second - rng.first ) ,
+                 v_kappa.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values , values + ( rng.second - rng.first ) ,
+             v_kappa.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+
+   switch( f_NetworkData->get_lines_type() ) {
+    case( kHVDC ): {
+     for( Index i = rng.first ; i < rng.second ; ++i ) {
+      v_HVDC_power_flow_limit_constraints[ i ].set_lhs
+       ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
+
+      v_HVDC_power_flow_limit_constraints[ i ].set_rhs
+       ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
+     }
+     break;
+    }
+    case( kAC ):
+     // TODO
+     break;
+    case( kAC_HVDC ):
+     // TODO
+     break;
+    default: break;
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >
+                           ( this , DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }

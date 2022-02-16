@@ -815,12 +815,14 @@ class NetworkBlockMod : public Modification {
 
  /// Public enum for the types of NetworkBlockMod
  enum NetB_mod_type {
-  eSetActD = 0    ///< Set max power values
+  eSetActD = 0 ,     ///< Set max power values
+  eNetBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of NetworkBlockMod. */
  };
 
  /// Constructor, takes the NetworkBlock and the type
- NetworkBlockMod( NetworkBlock * const fblock,
-                      const int type )
+ NetworkBlockMod( NetworkBlock * const fblock , const int type )
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
@@ -860,7 +862,7 @@ class NetworkBlockRngdMod : public NetworkBlockMod {
  /// constructor: takes the NetworkBlock, the type, and the range
  NetworkBlockRngdMod( NetworkBlock * const fblock , const int type ,
                       Block::Range rng )
-  : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
+  : NetworkBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockRngdMod() override = default;
@@ -891,7 +893,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod {
  /// constructor: takes the NetworkBlock, the type, and the subset
  NetworkBlockSbstMod( NetworkBlock * const fblock , const int type ,
                       Block::Subset && nms )
-  : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+  : NetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockSbstMod() override = default;
