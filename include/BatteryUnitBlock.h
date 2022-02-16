@@ -1129,11 +1129,6 @@ class BatteryUnitBlock : public UnitBlock {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Resizes a vector to time_horizon by using change_intervals
- template< typename T > void decompress_vector( std::vector< T > & v );
-
-/*--------------------------------------------------------------------------*/
-
  /// updates the constraints for the current initial storage
  /** This function updates both sides of the demand constraint at time 0
   * (which is the constraint that depends on the initial storage).

@@ -567,11 +567,6 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- /// Resize a vector to time_horizon by using change_intervals
- template< typename T > void decompress_vector( std::vector< T > & v );
-
-/*--------------------------------------------------------------------------*/
-
  /// verify whether the data in this IntermittentUnitBlock is consistent
  /** This function checks whether the data in this IntermittentUnitBlock is
   * consistent. The data is consistent if all of the following conditions are

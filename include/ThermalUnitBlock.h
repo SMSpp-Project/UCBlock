@@ -1718,11 +1718,7 @@ private:
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Resizes a vector to time_horizon by using change_intervals
 
- template< typename T > void decompress_vector( std::vector< T > & v );
-
-/*--------------------------------------------------------------------------*/
  /// updates the abstract representation dependent on the availability
  /** This method updates any part of the abstract representation that may
   * depend on the availability of the unit at the given time \p t.

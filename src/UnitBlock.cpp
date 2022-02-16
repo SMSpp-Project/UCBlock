@@ -201,7 +201,7 @@ void UnitBlock::decompress_vector( std::vector< T > & v ) {
   // horizon, it must be equal to the number of change intervals.
   if( v.size() != v_change_intervals.size() ) {
    throw ( std::logic_error
-    ( "BatteryUnitBlock::decompress_vector: invalid number of elements"
+    ( "UnitBlock::decompress_vector: invalid number of elements"
       " (" + std::to_string( v.size() ) + ") for some variable. It "
                                           "should be equal to the number of change intervals (" +
       std::to_string( v_change_intervals.size() ) + ")" ) );
