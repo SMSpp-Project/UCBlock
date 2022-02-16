@@ -152,9 +152,10 @@ class DCNetworkBlock : public NetworkBlock
  *    \f]
  *
  *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
- *    will have an objective function which is equal to multiplying NetworkCost
- *    by absolut value of power flows variable. To relaxing the absolute value,
- *    an auxiliary variable and constraints as below are needed:
+ *    will have an objective function which is equal to multiplying
+ *    NetworkCost by the absolute value of the power flows variable. To relax
+ *    the absolute value, an auxiliary variable and constraints as below are
+ *    needed:
  *
  *    \f[
  *    F_l \leq V_l                                     \quad l \in L \quad (3)
