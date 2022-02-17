@@ -1226,19 +1226,19 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a BatteryUnitBlock
- class BatteryUnitBlockMod : public Modification {
+ class BatteryUnitBlockMod : public UnitBlockMod {
 
   public:
 
   /// Public enum for the types of BatteryUnitBlockMod
   enum BUB_mod_type {
-   eSetInitS = 0 ,  ///< Set initial storage values
-   eSetInitP    ,   ///< Set initial power values
+   eSetInitS = eUBModLastParam ,  ///< Set initial storage values
+   eSetInitP                   ,   ///< Set initial power values
   };
 
   /// Constructor, takes the BatteryUnitBlock and the type
   BatteryUnitBlockMod( BatteryUnitBlock * const fblock, const int type )
-   : f_Block( fblock ), f_type( type ) {}
+   : UnitBlockMod( fblock , type ) {}
 
   ///< Destructor, does nothing
   virtual ~BatteryUnitBlockMod() override = default;

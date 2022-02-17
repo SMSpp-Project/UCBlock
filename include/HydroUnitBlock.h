@@ -1861,22 +1861,21 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a HydroUnitBlock
-class HydroUnitBlockMod : public Modification {
+class HydroUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of HydroUnitBlockMod
  enum HUB_mod_type {
-  eSetInf = 0 ,    ///< Set inflow values
-  eSetInerP    ,   ///< Set inertia power values
-  eSetInitF    ,    ///< Set initial flow rate values
-  eSetInitV        ///< Set initial volumetric values
+  eSetInf = eUBModLastParam , ///< Set inflow values
+  eSetInerP                 , ///< Set inertia power values
+  eSetInitF                 , ///< Set initial flow rate values
+  eSetInitV                   ///< Set initial volumetric values
  };
 
  /// Constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * const fblock,
-                      const int type )
-  : f_Block( fblock ), f_type( type ) {}
+                    const int type ) : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~HydroUnitBlockMod() override = default;

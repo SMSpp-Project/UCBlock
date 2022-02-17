@@ -1514,8 +1514,7 @@ class ThermalUnitBlock : public UnitBlock {
   * @param issueAMod Controls how abstract Modification are issued. */
 
  void scale( std::vector< double >::const_iterator values ,
-             Subset && subset ,
-             const bool ordered = false ,
+             Subset && subset , const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
 
@@ -1711,6 +1710,12 @@ class ThermalUnitBlock : public UnitBlock {
   register_method< ThermalUnitBlock , MF_int_it , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1901,13 +1906,13 @@ private:
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a ThermalUnitBlock
-class ThermalUnitBlockMod : public Modification {
+class ThermalUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type {
-  eSetMaxP = 0      , ///< Set max power values
+  eSetMaxP = eUBModLastParam , ///< Set max power values
   eSetInitP         , ///< Set initial power values
   eSetInitUD        , ///< Set initial up/down times
   eSetAv            , ///< Set availability
@@ -1923,8 +1928,8 @@ class ThermalUnitBlockMod : public Modification {
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
+  : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;

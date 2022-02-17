@@ -566,8 +566,7 @@ class UnitBlock : public Block
   * @param issueAMod Controls how abstract Modification are issued. */
 
  virtual void scale( std::vector< double >::const_iterator values ,
-                     Subset && subset ,
-                     const bool ordered = false ,
+                     Subset && subset , const bool ordered = false ,
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck ) { }
 
@@ -713,10 +712,12 @@ public:
 
  /// Public enum for the types of UnitBlockMod
  enum UB_mod_type {
-  eScale = 0
-  ///< Set the scale factor
-  /**< This indicates that the scale factor of the UnitBlock has been
-   * modified. See UnitBlock::scale(). */
+  eScale = 0 ,    ///< Set the scale factor
+                  /**< This indicates that the scale factor of the UnitBlock
+                   * has been modified. See UnitBlock::scale(). */
+  eUBModLastParam ///< first allowed parameter value for derived classes
+                  /**< Convenience value to easily allow derived classes to
+                   * extend the set of types of UnitBlockMod. */
  };
 
  /// Constructor, takes the UnitBlock and the type
