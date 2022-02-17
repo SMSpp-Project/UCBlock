@@ -437,15 +437,22 @@ class IntermittentUnitBlock : public UnitBlock
  double get_scale() const override { return f_scale; }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power constraints
+ /// returns the minimum total power constraints
  const std::vector< FRowConstraint > & get_min_power_constraints() const {
   return MinPower_Constraints;
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power constraints
+ /// returns the maximum total power constraints
  const std::vector< FRowConstraint > & get_max_power_constraints() const {
   return MaxPower_Constraints;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bound constraints on the active power
+ const std::vector< BoxConstraint > &
+ get_active_power_bound_constraints() const {
+  return active_power_bounds_Constraints;
  }
 
 /**@} ----------------------------------------------------------------------*/

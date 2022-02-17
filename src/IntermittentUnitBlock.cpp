@@ -70,7 +70,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  #ifndef NDEBUG
   static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-						      "NumberIntervals" };
+                                                      "NumberIntervals" };
   check_dimensions( group , expected_dims , std::cerr );
 
   static std::vector< std::string > expected_vars =
@@ -208,96 +208,88 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration *stvv )
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::generate_abstract_constraints(
-							Configuration *stcc )
+                                                       Configuration *stcc )
 {
  if( constraints_generated() )
   return; // constraints have already been generated
 
- std::vector<double> max_power = v_maximum_power;
- std::vector<double> min_power = v_minimum_power;
-
-/*--------------------------------------------------------------------------*/
- // Initializing maximum power constraints
+ // Maximum power constraints
 
  if ( f_gamma != 0 ) { // if unit produces any reserve
 
   if( MaxPower_Constraints.size() != f_time_horizon ) {
    // this should only happen once
-   assert( MaxPower_Constraints.empty());
-
+   assert( MaxPower_Constraints.empty() );
    MaxPower_Constraints.resize( f_time_horizon );
   }
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[t], f_gamma );
-   if( reserve_vars & 1u ) {
-    linear_function->add_variable( &v_primary_spinning_reserve[t], 1.0 );
-   }
-   if( reserve_vars & 2u ) {
-    linear_function->add_variable( &v_secondary_spinning_reserve[t], 1.0 );
-   }
-   MaxPower_Constraints[t].set_lhs( -Inf< double >());
-   MaxPower_Constraints[t].set_rhs(( f_gamma * f_kappa * ( max_power[t] )));
+   linear_function->add_variable( &v_active_power[ t ] , f_gamma );
+
+   if( reserve_vars & 1u )
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , 1.0 );
+   if( reserve_vars & 2u )
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , 1.0 );
+
+   MaxPower_Constraints[t].set_lhs( -Inf< double >() );
+   MaxPower_Constraints[t].set_rhs( f_gamma * f_kappa * v_maximum_power[ t ] );
    MaxPower_Constraints[t].set_function( linear_function );
   }
 
-  add_static_constraint( MaxPower_Constraints, "MaxPower_Intermittent" );
+  add_static_constraint( MaxPower_Constraints , "MaxPower_Intermittent" );
 
  }
-  // Initializing minimum power constraints
 
-  if( MinPower_Constraints.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( MinPower_Constraints.empty());
+ // Minimum power constraints
 
-   MinPower_Constraints.resize( f_time_horizon );
+ if( MinPower_Constraints.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( MinPower_Constraints.empty() );
+  MinPower_Constraints.resize( f_time_horizon );
+ }
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
+
+  if( f_gamma != 0 ) { // if unit produces any reserve
+   if( reserve_vars & 1u )
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , -1.0 );
+   if( reserve_vars & 2u )
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , -1.0 );
   }
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  MinPower_Constraints[t].set_lhs( f_kappa * v_minimum_power[ t ] );
+  MinPower_Constraints[t].set_rhs( Inf< double >() );
+  MinPower_Constraints[t].set_function( linear_function );
+ }
 
-   auto linear_function = new LinearFunction();
+ add_static_constraint( MinPower_Constraints , "MinPower_Intermittent" );
 
-   linear_function->add_variable( &v_active_power[t], 1.0 );
-   if( reserve_vars & 1u ) {
-    if ( f_gamma != 0 ) { // if unit produces any reserve
-     linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
-    }
-   }
-   if( reserve_vars & 2u ) {
-    if ( f_gamma != 0 ) { // if unit produces any reserve
-     linear_function->add_variable( &v_secondary_spinning_reserve[t], -1.0 );
-    }
-   }
+ // Active power bound constraints
 
-   MinPower_Constraints[t].set_lhs( f_kappa * min_power[t] );
-   MinPower_Constraints[t].set_rhs( Inf< double >());
-   MinPower_Constraints[t].set_function( linear_function );
-  }
-
-  add_static_constraint( MinPower_Constraints, "MinPower_Intermittent" );
-
- // Initializing active power bounds constraints
  if( active_power_bounds_Constraints.size() != f_time_horizon ) {
   // this should only happen once
-  assert( active_power_bounds_Constraints.empty());
-
+  assert( active_power_bounds_Constraints.empty() );
   active_power_bounds_Constraints.resize( f_time_horizon );
  }
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
-
-  active_power_bounds_Constraints[t].set_lhs( f_kappa * min_power[ t ]);
-  active_power_bounds_Constraints[t].set_rhs( f_kappa * max_power[ t ] );
-  active_power_bounds_Constraints[t].set_variable( &v_active_power[t] );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  active_power_bounds_Constraints[t].set_lhs( f_kappa * v_minimum_power[ t ] );
+  active_power_bounds_Constraints[t].set_rhs( f_kappa * v_maximum_power[ t ] );
+  active_power_bounds_Constraints[t].set_variable( &v_active_power[ t ] );
  }
 
- add_static_constraint( active_power_bounds_Constraints, "ActivePowerBound_Intermittent" );
+ add_static_constraint( active_power_bounds_Constraints ,
+                        "ActivePowerBound_Intermittent" );
 
  set_constraints_generated();
 
- } // end( IntermittentUnitBlock::generate_abstract_constraints )
+} // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 /// verifies whether the current solution is feasible for the given constraints
@@ -445,8 +437,8 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
-						        const Subset & time ,
-						        ModParam issueAMod )
+                                                        const Subset & time ,
+                                                        ModParam issueAMod )
 {
  if( ! MaxPower_Constraints.empty() ) {
   for( auto t : time ) {
@@ -468,7 +460,7 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
-			            const Range & time , ModParam issueAMod )
+                                    const Range & time , ModParam issueAMod )
 {
  if( ! MaxPower_Constraints.empty() ) {
   for( auto t = time.first ; t < time.second ; ++t ) {
@@ -490,10 +482,10 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
-					       Subset && subset ,
-					       bool ordered ,
-					       ModParam issuePMod ,
-					       ModParam issueAMod )
+                                               Subset && subset ,
+                                               bool ordered ,
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
 {
  if( subset.empty() )
   return;
@@ -549,8 +541,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
-					       ModParam issuePMod ,
-					       ModParam issueAMod )
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
 {
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
@@ -585,7 +577,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< IntermittentUnitBlockRngdMod >(
-			   this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
+                           this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 
