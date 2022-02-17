@@ -607,6 +607,76 @@ void IntermittentUnitBlock::scale
 
 /*--------------------------------------------------------------------------*/
 
+void IntermittentUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , ModParam issuePMod , ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_kappa == *values )
+  return; // The kappa constant does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_kappa = *values; // Update the kappa constant
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( constraints_generated() ) {
+    // Update the constraints
+
+    if( ! active_power_bounds_Constraints.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      active_power_bounds_Constraints[ t ].set_lhs
+       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+
+      active_power_bounds_Constraints[ t ].set_rhs
+       ( f_kappa * v_maximum_power[ t ] , issueAMod );
+     }
+    }
+
+    if( ! MinPower_Constraints.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      MinPower_Constraints[ t ].set_lhs
+       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+     }
+    }
+
+    if( ! MaxPower_Constraints.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      MaxPower_Constraints[ t ].set_rhs
+       ( f_gamma * f_kappa * v_maximum_power[ t ] , issueAMod );
+     }
+    }
+   } // end( constraints_generated )
+  } // end( if( not_dry_run( issueAMod ) )
+ } // end( if( not_dry_run( issuePMod ) )
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >
+                           ( this , IntermittentUnitBlockMod::eSetKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( IntermittentUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Range rng ,
+  ModParam issuePMod , ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset( 1 , 0 );
+
+ set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
+
+}  // end( IntermittentUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
 template< typename T >
 void IntermittentUnitBlock::decompress_vector( std::vector< T > & v )
 {

@@ -512,10 +512,51 @@ class IntermittentUnitBlock : public UnitBlock
   * @param issueAMod Controls how abstract Modification are issued. */
 
  void scale( std::vector< double >::const_iterator values ,
-             Subset && subset ,
-             const bool ordered = false ,
+             Subset && subset , const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum power in the constraints of this IntermittentUnitBlock.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param subset If non-empty, the kappa constant is set to the value pointed
+  *        by \p values. If empty, no operation is performed.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Subset && subset , const bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum power in the constraints of this IntermittentUnitBlock.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param rng If non-empty, the kappa constant is set to the value pointed by
+  *        \p values. If empty, no operation is performed.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -597,11 +638,28 @@ class IntermittentUnitBlock : public UnitBlock
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::set_maximum_power" ,
    &IntermittentUnitBlock::set_maximum_power );
- }
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::scale" ,
+   &IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::scale" ,
+   &IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_kappa" ,
+   &IntermittentUnitBlock::set_kappa );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_kappa" ,
+   &IntermittentUnitBlock::set_kappa );
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/
@@ -667,22 +725,22 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a IntermittentUnitBlock
-class IntermittentUnitBlockMod : public Modification {
+class IntermittentUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of IntermittentUnitBlockMod
  enum IUB_mod_type {
-  eSetMaxP = 0 ,    ///< Set max power values
+  eSetMaxP = eUBModLastParam , ///< Set max power values
+  eSetKappa ,                  ///< Set the kappa constant
   eIUBModLastParam  ///< first allowed parameter value for derived classes
                     /**< Convenience value to easily allow derived classes to
-                     * extend the set of types of ThermalUnitBlockMod. */
+                     * extend the set of types of IntermittentUnitBlockMod. */
  };
 
  /// Constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
-                           const int type )
-  : f_Block( fblock ), f_type( type ) {}
+                           const int type ) : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
