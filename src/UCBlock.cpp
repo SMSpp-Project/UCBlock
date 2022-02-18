@@ -535,17 +535,15 @@ void UCBlock::generate_node_injection_constraints() {
         linear_function->add_variable( active_power , scale , eNoMod );
        }
 
-       double fixed_consumption = 0.0;
-       if( auto fc = unit_block->get_fixed_consumption( generator ) )
-        fixed_consumption = fc[ t ] * scale;
-
-       if( auto c = unit_block->get_commitment( generator ) ) {
-        auto commitment = &c[ t ];
-        linear_function->add_variable( commitment , - fixed_consumption ,
-                                       eNoMod );
+       if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
+        if( auto c = unit_block->get_commitment( generator ) ) {
+         auto fixed_consumption = fc[ t ] * scale;
+         auto commitment = &c[ t ];
+         linear_function->add_variable( commitment , - fixed_consumption ,
+                                        eNoMod );
+         rhs -= fixed_consumption;
+        }
        }
-
-       rhs -= fixed_consumption;
       }
      }
      v_node_injection_constraints[ t ][ node_id ].set_both( rhs , eNoMod );
