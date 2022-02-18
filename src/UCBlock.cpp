@@ -1350,7 +1350,7 @@ void UCBlock::update_node_injection_constraints
     static_cast< LinearFunction * >
      ( v_node_injection_constraints[ t ][ 0 ].get_function() )->
      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                          eNoBlck );
+                          true , eNoBlck );
 
    }  // end( for( t ) )
   }
@@ -1437,7 +1437,7 @@ void UCBlock::update_node_injection_constraints
      static_cast< LinearFunction * >
       ( v_node_injection_constraints[ t ][ node_id ].get_function() )->
       modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                           eNoBlck );
+                           true , eNoBlck );
 
     }  // end( for( node_id ) )
    }  // end( for( t ) )
@@ -1530,7 +1530,7 @@ void UCBlock::update_primary_demand_constraints
    static_cast< LinearFunction * >
     ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         eNoBlck );
+                         false , eNoBlck );
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
@@ -1621,7 +1621,7 @@ void UCBlock::update_secondary_demand_constraints
    static_cast< LinearFunction * >
     ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         eNoBlck );
+                         false , eNoBlck );
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
@@ -1747,7 +1747,7 @@ void UCBlock::update_inertia_demand_constraints
     static_cast< LinearFunction * >
      ( v_InertiaDemand_Const[ t ][ zone_id ].get_function() )->
      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                          eNoBlck );
+                          true , eNoBlck );
 
    }  // end( for( node_id ) )
   }  // end( for( zone_id ) )
