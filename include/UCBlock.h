@@ -1158,6 +1158,80 @@ class UCBlock : public Block
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR OBTAINING INFORMATION ABOUT THE UCBlock ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for obtaining information about the UCBlock
+ *  @{ */
+
+ /// returns true if the given node belongs to the given primary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the primary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a primary zone.
+  *
+  * @return True if and only if the given node belongs to the given primary
+  *         zone. */
+
+ bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_primary_zones > 1 ) &&
+      ( zone_id != v_primary_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given node belongs to the given secondary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the secondary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a secondary zone.
+  *
+  * @return True if and only if the given node belongs to the given secondary
+  *         zone. */
+
+ bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_secondary_zones > 1 ) &&
+      ( zone_id != v_secondary_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given node belongs to the given inertia zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the inertia zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a inertia zone.
+  *
+  * @return True if and only if the given node belongs to the given inertia
+  *         zone. */
+
+ bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_inertia_zones > 1 ) &&
+      ( zone_id != v_inertia_zones[ node_id ] ) )
+   return false;
+  return true;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given electrical generator belongs to the given node
+ bool generator_belongs_to_node( Index elc_generator , Index node_id ) const {
+  if( ( get_number_nodes() > 1 ) &&
+      ( node_id != v_generator_node[ elc_generator ] ) )
+   return false;
+  return true;
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing and saving the UCBlock
@@ -1577,76 +1651,6 @@ class UCBlock : public Block
  /// returns the number of nodes
  Index get_number_nodes() const {
   return f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true if the given node belongs to the given primary zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the primary zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  *
-  * @param zone_id The ID of a primary zone.
-  *
-  * @return True if and only if the given node belongs to the given primary
-  *         zone. */
-
- bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_primary_zones > 1 ) &&
-      ( zone_id != v_primary_zones[ node_id ] ) )
-   return false;
-  return true;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true if the given node belongs to the given secondary zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the secondary zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  *
-  * @param zone_id The ID of a secondary zone.
-  *
-  * @return True if and only if the given node belongs to the given secondary
-  *         zone. */
-
- bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_secondary_zones > 1 ) &&
-      ( zone_id != v_secondary_zones[ node_id ] ) )
-   return false;
-  return true;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true if the given node belongs to the given inertia zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the inertia zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  *
-  * @param zone_id The ID of a inertia zone.
-  *
-  * @return True if and only if the given node belongs to the given inertia
-  *         zone. */
-
- bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_inertia_zones > 1 ) &&
-      ( zone_id != v_inertia_zones[ node_id ] ) )
-   return false;
-  return true;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true if the given electrical generator belongs to the given node
- bool generator_belongs_to_node( Index elc_generator , Index node_id ) const {
-  if( ( get_number_nodes() > 1 ) &&
-      ( node_id != v_generator_node[ elc_generator ] ) )
-   return false;
-  return true;
   }
 
 /*--------------------------------------------------------------------------*/
