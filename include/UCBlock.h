@@ -600,7 +600,7 @@ class UCBlock : public Block
  *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
  *   be satisfied. So, if the f_number_secondary_zones > 0,
- *   a boost::multi_array<FRowConstraint,2>; with two dimensions which are
+ *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
  *   f_time_horizon, and f_number_secondary_zones entries, which the entry
  *   t = 0, ..., f_time_horizon - 1 and the entry
  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
