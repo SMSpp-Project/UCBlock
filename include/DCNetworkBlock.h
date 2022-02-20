@@ -125,7 +125,7 @@ class DCNetworkBlock : public NetworkBlock
  * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
  * at node \f$ n \in N \f$ in the network respectively. The node injection
  * variable of each node \f$ n \in N \f$ and the power flows variable and an
- * auxiliary variable(which is not be defined if there is no network cost), of
+ * auxiliary variable (which is not be defined if there is no network cost), of
  * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
  * \f$ V_l \f$ respectively.
  *
