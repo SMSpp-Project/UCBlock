@@ -363,6 +363,42 @@ class DCNetworkBlock : public NetworkBlock
   return v_kappa[ line ];
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the minimum power flow on the given \p line
+ /** This function returns the minimum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the minimum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The minimum power flow on the given \p line. */
+
+ double get_min_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return 0;
+  return f_NetworkData->get_min_power_flow( line );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the maximum power flow on the given \p line
+ /** This function returns the maximum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the maximum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The maximum power flow on the given \p line. */
+
+ double get_max_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return 0;
+  return f_NetworkData->get_max_power_flow( line );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -672,26 +708,6 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
   SMSpp_insert_in_factory_h;
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- double get_min_power_flow( Index line ) const {
-  if( ! f_NetworkData )
-   return 0;
-  return f_NetworkData->get_min_power_flow( line );
- }
-
-/*--------------------------------------------------------------------------*/
-
- double get_max_power_flow( Index line ) const {
-  if( ! f_NetworkData )
-   return 0;
-  return f_NetworkData->get_max_power_flow( line );
- }
-
-/*--------------------------------------------------------------------------*/
 
  };  // end( class( DCNetworkBlock ) )
 
