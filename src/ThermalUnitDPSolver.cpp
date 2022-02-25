@@ -71,6 +71,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
 int ThermalUnitDPSolver::compute( bool changedvars )
 {
+ lock();  // lock the mutex
+
  process_modifications();
 
  switch( stage ) {
@@ -80,6 +82,8 @@ int ThermalUnitDPSolver::compute( bool changedvars )
   case( path_OK ):  compute_solutions();
   }
 
+ unlock();  // unlock the mutex
+ 
  assert( stage == sol_OK );
  return( f_end.lab == TUDPINF ? kInfeasible : kOK );
  }
