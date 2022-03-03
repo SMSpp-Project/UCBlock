@@ -68,7 +68,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
-      min_SOC: 0.2  # [-] maximum state of charge
+      min_SOC: 0.2  # [-] minimum state of charge
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
@@ -81,7 +81,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
@@ -119,7 +119,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
-      min_SOC: 0.2  # [-] maximum state of charge
+      min_SOC: 0.2  # [-] minimum state of charge
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
@@ -132,7 +132,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
@@ -188,7 +188,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
-      min_SOC: 0.2  # [-] maximum state of charge
+      min_SOC: 0.2  # [-] minimum state of charge
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
@@ -201,7 +201,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
@@ -248,7 +248,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
-      min_SOC: 0.2  # [-] maximum state of charge
+      min_SOC: 0.2  # [-] minimum state of charge
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
@@ -261,7 +261,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
@@ -290,7 +290,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
-      min_SOC: 0.2  # [-] maximum state of charge
+      min_SOC: 0.2  # [-] minimum state of charge
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
@@ -303,7 +303,7 @@ users: # list of users and the corresponding assets
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
