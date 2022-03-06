@@ -43,7 +43,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
- #define __UnitBlock  /* self-identification: #endif at the end of the file */
+#define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -122,7 +122,7 @@ class UnitBlock : public Block
   for( auto & block : v_Block )
    delete block;
   v_Block.clear();
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -243,10 +243,9 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose fixed consumption is
   *        desired. */
 
- virtual double * get_fixed_consumption( Index generator )
- {
+ virtual double * get_fixed_consumption( Index generator ) {
   return( nullptr );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia commitment of the given generator
@@ -263,10 +262,9 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose inertia commitment is
   *        desired. */
 
- virtual double *  get_inertia_commitment( Index generator )
- {
+ virtual double * get_inertia_commitment( Index generator ) {
   return( nullptr );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia power of the given generator
@@ -283,10 +281,9 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose inertia power is
   *        desired. */
 
- virtual double * get_inertia_power( Index generator )
- {
+ virtual double * get_inertia_power( Index generator ) {
   return( nullptr );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
@@ -318,7 +315,7 @@ class UnitBlock : public Block
   *        desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
-  return ( nullptr);
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -482,7 +479,7 @@ class UnitBlock : public Block
   * Note: this method is only to "destroy" the (primary, secondary and inertia)
   * reserve variables; it cannot create them if they are not there.*/
 
- virtual void set_reserve_vars(unsigned char what) {
+ virtual void set_reserve_vars( unsigned char what ) {
   reserve_vars = what;
  }
 
@@ -494,7 +491,7 @@ class UnitBlock : public Block
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "UnitBlock::load() not implemented yet" ) );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -531,7 +528,8 @@ class UnitBlock : public Block
  bool objective_generated() const { return( AR & HasObj ); }
 
  /// Resizes a vector to time_horizon by using change_intervals
- template< typename T > void decompress_vector( std::vector< T > & v );
+ template< typename T >
+ void decompress_vector( std::vector< T > & v );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -574,7 +572,7 @@ class UnitBlock : public Block
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( UnitBlock ) )
+};  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

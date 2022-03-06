@@ -54,13 +54,12 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-UnitBlock::UnitBlock( Block * father_block, Index t )
+UnitBlock::UnitBlock( Block * father_block , Index t )
  : Block( father_block ) , f_time_horizon( t ) , f_number_intervals( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
-{
+void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -74,8 +73,8 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
     this->set_time_horizon( f_B->get_time_horizon() );
    else
     throw ( std::invalid_argument(
-     "UnitBlock::deserialize: TimeHorizon is not present in the "
-     "netCDF input and UnitBlock does not have a father." ) );
+     classname() + "::deserialize: TimeHorizon is not present in the "
+                   "netCDF input and UnitBlock does not have a father." ) );
   }
  } else {
   // dimension TimeHorizon is present in the netCDF input
@@ -85,28 +84,27 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    this->set_time_horizon( th );
   else if( f_time_horizon != th )
    throw ( std::logic_error(
-    "UnitBlock::deserialize: TimeHorizon is not present in the "
-    "netCDF. The (nonzero) time horizon of UnitBlock is different "
-    "from that of its father, but they should be equal." ) );
-  }
+    classname() + "::deserialize: TimeHorizon is not present in the "
+                  "netCDF. The (nonzero) time horizon of UnitBlock is different "
+                  "from that of its father, but they should be equal." ) );
  }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
-{
+void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
   f_number_intervals = 1;
  else {
   f_number_intervals = NumberIntervals.getSize();
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-   throw( std::invalid_argument( "UnitBlock::deserialize: NumberIntervals "
-				 "not between 1 and TimeHorizon." ) );
-  }
+   throw ( std::invalid_argument( classname() + "::deserialize: " +
+                                  "NumberIntervals not between 1 and TimeHorizon." ) );
+ }
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
-  ::deserialize( group, "ChangeIntervals", f_number_intervals,
+  ::deserialize( group , "ChangeIntervals" , f_number_intervals ,
                  v_change_intervals );
 
   // Check that the numbers are ordered in increasing sense. Notice that the
@@ -116,25 +114,24 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
 
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    const auto t = v_change_intervals[ k ];
-   if( ! ( ( t < f_time_horizon ) &&
-           ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
-    throw ( std::invalid_argument( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
-              std::to_string( t ) + ". All values must be between 0 and "
-              "TimeHorizon - 1 and in strictly increasing order." ) );
-   }
+   if( !( ( t < f_time_horizon ) &&
+          ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
+    throw ( std::invalid_argument(
+     classname() + "::deserialize: invalid value in ChangeIntervals: " +
+     std::to_string( t ) + ". All values must be between 0 and " +
+     "TimeHorizon - 1 and in strictly increasing order." ) );
   }
- else
+ } else
   v_change_intervals.clear();
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( const netCDF::NcGroup & group )
-{
+void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
  Block::deserialize( group );
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
@@ -144,66 +141,68 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
-Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
-{
+Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
  Index solution_type = 0;
- if( ( ! csolc ) && f_BlockConfig )
+ if( ( !csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   solution_type = config->f_value;
 
- Solution * sol = nullptr;
+ Solution * sol;
  switch( solution_type ) {
-  case 1:  sol = new RowConstraintSolution; break;
-  case 2:  sol = new ColRowSolution; break;
-  default: sol = new ColVariableSolution;
-  }
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
 
- if( ! emptys )
+ if( !emptys )
   sol->read( this );
 
  return( sol );
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::serialize( netCDF::NcGroup & group ) const
-{
+void UnitBlock::serialize( netCDF::NcGroup & group ) const {
  Block::serialize( group );
 
- group.addDim( "TimeHorizon", f_time_horizon );
+ group.addDim( "TimeHorizon" , f_time_horizon );
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
   auto NI = group.addDim( "NumberIntervals" , f_number_intervals );
 
-  ::serialize( group , "ChangeInterval", netCDF::NcUint64() , NI ,
-	       v_change_intervals );
-  }
+  ::serialize( group , "ChangeInterval" , netCDF::NcUint64() , NI ,
+               v_change_intervals );
  }
+}
 
 /*--------------------------------------------------------------------------*/
 
 template< typename T >
 void UnitBlock::decompress_vector( std::vector< T > & v ) {
- if ( v.empty() )
+ if( v.empty() )
   return;
 
  if( v.size() == 1 ) {
   // The given vector has a single element. Thus, for each time instant, the
   // value is equal to that single given element.
   v.resize( f_time_horizon , v[ 0 ] );
- }
- else if( v.size() < f_time_horizon ) {
+ } else if( v.size() < f_time_horizon ) {
   // Since the number of elements is greater than 1 and less than the time
   // horizon, it must be equal to the number of change intervals.
   if( v.size() != v_change_intervals.size() ) {
    throw ( std::logic_error
-    ( "UnitBlock::decompress_vector: invalid number of elements"
-      " (" + std::to_string( v.size() ) + ") for some variable. It "
-                                          "should be equal to the number of change intervals (" +
+    ( classname() + "::decompress_vector: invalid number of elements" +
+      " (" + std::to_string( v.size() ) + ") for some variable. It should be " +
+      "equal to the number of change intervals (" +
       std::to_string( v_change_intervals.size() ) + ")" ) );
   }
 
