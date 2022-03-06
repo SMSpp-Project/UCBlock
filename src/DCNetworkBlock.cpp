@@ -26,6 +26,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <map>
+
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "DCNetworkBlock.h"
@@ -49,8 +50,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-DCNetworkBlock::~DCNetworkBlock()
-{
+DCNetworkBlock::~DCNetworkBlock() {
  for( auto & constraint : v_AC_power_flow_limit_constraints )
   constraint.clear();
 
@@ -66,10 +66,10 @@ DCNetworkBlock::~DCNetworkBlock()
  for( auto & constraint : v_AC_HVDC_power_flow_constraints )
   constraint.clear();
 
- for( auto & constraint : v_power_flow_auxiliary_variable_one_constraints)
+ for( auto & constraint : v_power_flow_auxiliary_variable_one_constraints )
   constraint.clear();
 
- for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints)
+ for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints )
   constraint.clear();
 
  objective.clear();
@@ -77,17 +77,16 @@ DCNetworkBlock::~DCNetworkBlock()
  // Delete the NetworkData if it is local.
  if( f_local_NetworkData )
   delete f_NetworkData;
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
-{
+void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  auto NumberNodes = group.getDim( "NumberNodes" );
 
- if( ! NumberNodes.isNull() ) {
+ if( !NumberNodes.isNull() ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
   // NetworkData has been provided. Thus, the NetworkData is deserialized and
   // it is marked as being local.
@@ -98,12 +97,11 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 
  NetworkBlock::deserialize( group );
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
-{
+void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -116,34 +114,33 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
   v_node_injection.resize( number_nodes );
   for( auto & var : v_node_injection )
    var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_node_injection, "S" );
-  }
+  add_static_variable( v_node_injection , "S" );
+ }
 
  if( number_lines > 0 ) {
   // the power flow Variable
   v_power_flow.resize( number_lines );
   for( auto & var : v_power_flow )
    var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_power_flow, "F_power_flow" );
+  add_static_variable( v_power_flow , "F_power_flow" );
 
   if( !f_NetworkData->get_network_cost().empty() ) {
    // the auxiliary Variable
    v_auxiliary_variable.resize( number_lines );
    for( auto & var : v_auxiliary_variable )
     var.set_type( ColVariable::kContinuous );
-   add_static_variable( v_auxiliary_variable, "V_auxiliary" );
-   }
+   add_static_variable( v_auxiliary_variable , "V_auxiliary" );
   }
+ }
 
  set_variables_generated();
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
-{
+void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -199,12 +196,15 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
      ( f_NetworkData->get_number_lines() );
    }
 
-   for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+   for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
         ++line_id ) {
 
-    v_HVDC_power_flow_limit_constraints[line_id].set_lhs(MinPowerFlow[line_id]);
-    v_HVDC_power_flow_limit_constraints[line_id].set_rhs(MaxPowerFlow[line_id]);
-    v_HVDC_power_flow_limit_constraints[line_id].set_variable(&v_power_flow[line_id]);
+    v_HVDC_power_flow_limit_constraints[ line_id ].set_lhs(
+     MinPowerFlow[ line_id ] );
+    v_HVDC_power_flow_limit_constraints[ line_id ].set_rhs(
+     MaxPowerFlow[ line_id ] );
+    v_HVDC_power_flow_limit_constraints[ line_id ].set_variable(
+     &v_power_flow[ line_id ] );
    }
 
    add_static_constraint( v_HVDC_power_flow_limit_constraints ,
@@ -226,16 +226,16 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
     auto linear_function = new LinearFunction();
 
-    linear_function->add_variable( &v_node_injection[n], -1.0 );
+    linear_function->add_variable( &v_node_injection[ n ] , -1.0 );
 
-    for( Index line_id = 0; line_id < number_lines; ++line_id ) {
-     if( StartLine[line_id] == n )
-      linear_function->add_variable( &v_power_flow[line_id], 1.0 );
-     if( EndLine[line_id] == n )
-      linear_function->add_variable( &v_power_flow[line_id], -1.0 );
+    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+     if( StartLine[ line_id ] == n )
+      linear_function->add_variable( &v_power_flow[ line_id ] , 1.0 );
+     if( EndLine[ line_id ] == n )
+      linear_function->add_variable( &v_power_flow[ line_id ] , -1.0 );
     }
-    v_power_flow_injection_constraints[n].set_both( -v_active_demand[n] );
-    v_power_flow_injection_constraints[n].set_function( linear_function );
+    v_power_flow_injection_constraints[ n ].set_both( -v_active_demand[ n ] );
+    v_power_flow_injection_constraints[ n ].set_function( linear_function );
    }
 
    add_static_constraint( v_power_flow_injection_constraints ,
@@ -245,50 +245,54 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    if( !f_NetworkData->get_network_cost().empty() ) {
 
     if( v_power_flow_auxiliary_variable_one_constraints.size() !=
-        f_NetworkData->get_number_lines()) {
+        f_NetworkData->get_number_lines() ) {
 
-     assert( v_power_flow_auxiliary_variable_one_constraints.empty());
+     assert( v_power_flow_auxiliary_variable_one_constraints.empty() );
      v_power_flow_auxiliary_variable_one_constraints.resize
-             ( f_NetworkData->get_number_lines());
+      ( f_NetworkData->get_number_lines() );
     }
 
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+    for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
          ++line_id ) {
      auto linear_function = new LinearFunction();
 
-     linear_function->add_variable( &v_power_flow[line_id], -1.0 );
-     linear_function->add_variable( &v_auxiliary_variable[line_id], 1.0 );
-     v_power_flow_auxiliary_variable_one_constraints[line_id].set_lhs( 0.0 );
-     v_power_flow_auxiliary_variable_one_constraints[line_id].set_rhs( Inf< double >() );
+     linear_function->add_variable( &v_power_flow[ line_id ] , -1.0 );
+     linear_function->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
+     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_rhs(
+      Inf< double >() );
 
-     v_power_flow_auxiliary_variable_one_constraints[line_id].set_function( linear_function );
+     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_function(
+      linear_function );
     }
 
-    add_static_constraint( v_power_flow_auxiliary_variable_one_constraints,
+    add_static_constraint( v_power_flow_auxiliary_variable_one_constraints ,
                            "power_flow_auxiliary_variable_one" );
 
 /*--------------------------------------------------------------------------*/
     if( v_power_flow_auxiliary_variable_two_constraints.size() !=
-        f_NetworkData->get_number_lines()) {
+        f_NetworkData->get_number_lines() ) {
 
-     assert( v_power_flow_auxiliary_variable_two_constraints.empty());
+     assert( v_power_flow_auxiliary_variable_two_constraints.empty() );
      v_power_flow_auxiliary_variable_two_constraints.resize
-             ( f_NetworkData->get_number_lines());
+      ( f_NetworkData->get_number_lines() );
     }
 
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
+    for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
          ++line_id ) {
 
      auto linear_f = new LinearFunction();
 
-     linear_f->add_variable( &v_power_flow[line_id], 1.0 );
-     linear_f->add_variable( &v_auxiliary_variable[line_id], 1.0 );
-     v_power_flow_auxiliary_variable_two_constraints[line_id].set_lhs( 0.0 );
-     v_power_flow_auxiliary_variable_two_constraints[line_id].set_rhs( Inf< double >() );
-     v_power_flow_auxiliary_variable_two_constraints[line_id].set_function( linear_f );
+     linear_f->add_variable( &v_power_flow[ line_id ] , 1.0 );
+     linear_f->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
+     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_lhs( 0.0 );
+     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_rhs(
+      Inf< double >() );
+     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_function(
+      linear_f );
     }
 
-    add_static_constraint( v_power_flow_auxiliary_variable_two_constraints,
+    add_static_constraint( v_power_flow_auxiliary_variable_two_constraints ,
                            "power_flow_auxiliary_variable_two" );
 
    }
@@ -375,7 +379,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  *         each RowConstraint in the given group is not greater than the given
  *         tolerance. */
 
-template<class C>
+template< class C >
 static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
 is_feasible( std::vector< C > & constraints , double tolerance ) {
  for( auto & constraint : constraints ) {
@@ -396,23 +400,23 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
 
- if( ( ! config ) && f_BlockConfig )
+ if( ( !config ) && f_BlockConfig )
   config = dynamic_cast< SimpleConfiguration< double > * >
-   ( f_BlockConfig->f_is_feasible_Configuration );
+  ( f_BlockConfig->f_is_feasible_Configuration );
 
  // If a tolerance has not been provided, use the default tolerance.
  const auto tolerance = config ? config->f_value : 1.0e-8;
 
  return NetworkBlock::is_feasible( useabstract )
-  && ::is_feasible( v_AC_power_flow_limit_constraints , tolerance )
-  && ::is_feasible( v_HVDC_power_flow_limit_constraints , tolerance )
-  && ::is_feasible( v_AC_HVDC_power_flow_limit_constraints , tolerance )
-  && ::is_feasible( v_power_flow_injection_constraints , tolerance )
-  && ::is_feasible( v_AC_HVDC_power_flow_constraints , tolerance )
-  && ::is_feasible( v_power_flow_auxiliary_variable_one_constraints ,
-                    tolerance )
-  && ::is_feasible( v_power_flow_auxiliary_variable_two_constraints ,
-                    tolerance );
+        && ::is_feasible( v_AC_power_flow_limit_constraints , tolerance )
+        && ::is_feasible( v_HVDC_power_flow_limit_constraints , tolerance )
+        && ::is_feasible( v_AC_HVDC_power_flow_limit_constraints , tolerance )
+        && ::is_feasible( v_power_flow_injection_constraints , tolerance )
+        && ::is_feasible( v_AC_HVDC_power_flow_constraints , tolerance )
+        && ::is_feasible( v_power_flow_auxiliary_variable_one_constraints ,
+                          tolerance )
+        && ::is_feasible( v_power_flow_auxiliary_variable_two_constraints ,
+                          tolerance );
 
 } // end( DCNetworkBlock::is_feasible )
 
@@ -428,7 +432,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
  if( lines_type == kHVDC ) {   // HVDC power flow limit
 
-  if( objective_generated())
+  if( objective_generated() )
    return; // Objective has already been generated
 
   if( get_objective() != nullptr )  // an objective is there already
@@ -437,9 +441,9 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   if( !f_NetworkData->get_network_cost().empty() ) {
 
    auto linear_function = new LinearFunction();
-   for( Index l = 0; l < f_NetworkData->get_number_lines(); ++l ) {
+   for( Index l = 0 ; l < f_NetworkData->get_number_lines() ; ++l ) {
     linear_function->add_variable( &v_auxiliary_variable[ l ] ,
-                                   f_NetworkData->get_network_cost()[l] ,
+                                   f_NetworkData->get_network_cost()[ l ] ,
                                    0.0 );
     objective.set_function( linear_function );
     objective.set_sense( Objective::eMin );
@@ -477,8 +481,8 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::set_active_demand
-( std::vector< double >::const_iterator values , Block::Subset && subset ,
-  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+ ( std::vector< double >::const_iterator values , Block::Subset && subset ,
+   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -489,8 +493,8 @@ void DCNetworkBlock::set_active_demand
    return;
   }
 
-  Index max_index = * std::max_element( std::begin( subset ) ,
-                                        std::end( subset ) );
+  Index max_index = *std::max_element( std::begin( subset ) ,
+                                       std::end( subset ) );
   assert( max_index < get_number_nodes() );
   v_active_demand.assign( get_number_nodes() , 0 );
  }
@@ -517,29 +521,30 @@ void DCNetworkBlock::set_active_demand
   // Change the abstract representation
 
   switch( f_NetworkData->get_lines_type() ) {
-   case( kHVDC ): {
+   case ( kHVDC ): {
     for( auto i : subset )
      v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
     break;
    }
-   case( kAC ):
+   case ( kAC ):
     // TODO
     break;
-   case( kAC_HVDC ):
+   case ( kAC_HVDC ):
     // TODO
     break;
-   default: break;
+   default:
+    break;
   }
  }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
   if( !ordered )
-   std::sort( subset.begin(), subset.end() );
+   std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< NetworkBlockSbstMod >
-                           ( this , NetworkBlockMod::eSetActD ,
-                             std::move( subset ) ) ,
+                            ( this , NetworkBlockMod::eSetActD ,
+                              std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }
@@ -547,8 +552,8 @@ void DCNetworkBlock::set_active_demand
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::set_active_demand
-( std::vector< double >::const_iterator values , Block::Range rng ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
+ ( std::vector< double >::const_iterator values , Block::Range rng ,
+   c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , get_number_nodes() );
  if( rng.second <= rng.first ) {
@@ -557,7 +562,7 @@ void DCNetworkBlock::set_active_demand
 
  if( v_active_demand.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 
@@ -580,18 +585,19 @@ void DCNetworkBlock::set_active_demand
    // Change the abstract representation
 
    switch( f_NetworkData->get_lines_type() ) {
-    case( kHVDC ): {
+    case ( kHVDC ): {
      for( Index i = rng.first ; i < rng.second ; ++i )
       v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
      break;
     }
-    case( kAC ):
+    case ( kAC ):
      // TODO
      break;
-    case( kAC_HVDC ):
+    case ( kAC_HVDC ):
      // TODO
      break;
-    default: break;
+    default:
+     break;
    }
   }
  }
@@ -599,7 +605,7 @@ void DCNetworkBlock::set_active_demand
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >
-                           ( this , NetworkBlockMod::eSetActD , rng ) ,
+                            ( this , NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }
