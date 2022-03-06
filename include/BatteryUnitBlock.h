@@ -129,7 +129,8 @@ namespace SMSpp_di_unipi_it
  *
  * - the demand constraints (if any). */
 
-class BatteryUnitBlock : public UnitBlock {
+class BatteryUnitBlock : public UnitBlock
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -140,11 +141,12 @@ class BatteryUnitBlock : public UnitBlock {
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- enum battery_type {
+ enum battery_type
+ {
   ///< when ExtractingBatteryRho >= 1 and StoringBatteryRho <=1
-  ASSUME_POSITIVE_PRICES,
+  ASSUME_POSITIVE_PRICES ,
   ///< when ExtractingBatteryRho and StoringBatteryRho not defined(both == 1)
-  NO_Binary_Variables_Constraints,
+  NO_Binary_Variables_Constraints ,
   ///< otherwise binary variables with related constraints are needed
   Binary_Variables_Constraints
  };
@@ -159,8 +161,8 @@ class BatteryUnitBlock : public UnitBlock {
  * Block.
  */
 
- explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0):
-         UnitBlock( f_block ) {}
+ explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
+  UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -780,7 +782,7 @@ class BatteryUnitBlock : public UnitBlock {
  *   and each V[ t ] represents the demand value at time t. */
 
  const std::vector< double > & get_demand() const {
-  return( v_demand);
+  return( v_demand );
  }
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE Variable OF THE BatteryUnitBlock --------*/
@@ -864,7 +866,7 @@ class BatteryUnitBlock : public UnitBlock {
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
- ColVariable * get_primary_spinning_reserve( Index generator) override {
+ ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return nullptr;
   return &( v_primary_spinning_reserve.front() );
@@ -883,14 +885,16 @@ class BatteryUnitBlock : public UnitBlock {
 
  battery_type get_battery_type() const {
 
-  if( std::all_of( v_storing_battery_rho.cbegin() , v_storing_battery_rho.cend() ,
-                   []( double s ) { return s <= 1.0; } ) &&
-          std::all_of( v_extracting_battery_rho.cbegin() , v_extracting_battery_rho.cend() ,
-                       []( double s ) { return s >= 1.0; } ) )
+  if(
+   std::all_of( v_storing_battery_rho.cbegin() , v_storing_battery_rho.cend() ,
+                []( double s ) { return s <= 1.0; } ) &&
+   std::all_of( v_extracting_battery_rho.cbegin() ,
+                v_extracting_battery_rho.cend() ,
+                []( double s ) { return s >= 1.0; } ) )
 
-    return ASSUME_POSITIVE_PRICES;
+   return ASSUME_POSITIVE_PRICES;
 
-  if (!v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty())
+  if( !v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty() )
 
    return NO_Binary_Variables_Constraints;
 
@@ -922,22 +926,22 @@ class BatteryUnitBlock : public UnitBlock {
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "BatteryUnitBlock::load() not "
-                            "implemented yet") );
+                            "implemented yet" ) );
  };
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_initial_storage( std::vector< double >::const_iterator it,
-                           Subset && subset,
-                           const bool ordered = false,
-                           c_ModParam issuePMod = eNoBlck,
+ void set_initial_storage( std::vector< double >::const_iterator it ,
+                           Subset && subset ,
+                           const bool ordered = false ,
+                           c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
 
- void set_initial_storage( std::vector< double >::const_iterator it,
-                           Range rng = Range( 0, Inf< Index >() ),
-                           c_ModParam issuePMod = eNoBlck,
+ void set_initial_storage( std::vector< double >::const_iterator it ,
+                           Range rng = Range( 0 , Inf< Index >() ) ,
+                           c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -950,10 +954,10 @@ class BatteryUnitBlock : public UnitBlock {
   * will be that in the vector pointed by \p it associated with this last
   * zero.
   */
- void set_initial_power( std::vector< double >::const_iterator it,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
+ void set_initial_power( std::vector< double >::const_iterator it ,
+                         Subset && subset ,
+                         const bool ordered = false ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -966,9 +970,9 @@ class BatteryUnitBlock : public UnitBlock {
   * vector pointed by \p it if this Range contains the 0 index. If the given
   * Range \p rng does not contain the 0 index, this function does nothing.
   */
- void set_initial_power( std::vector< double >::const_iterator it,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
+ void set_initial_power( std::vector< double >::const_iterator it ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -989,31 +993,31 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< double > v_maximum_storage;
 
  /// the vector of MinPower
- std::vector< double >  v_minimum_power;
+ std::vector< double > v_minimum_power;
 
  /// the vector of MaxPower
- std::vector< double >  v_maximum_power;
+ std::vector< double > v_maximum_power;
 
  /// the vector of MaxPrimaryRho
- std::vector< double >  v_maximum_primary_rho;
+ std::vector< double > v_maximum_primary_rho;
 
  /// the vector of MaxSecondaryRho
- std::vector< double >  v_maximum_secondary_rho;
+ std::vector< double > v_maximum_secondary_rho;
 
  /// the vector of RampUp
- std::vector< double >  v_delta_ramp_up;
+ std::vector< double > v_delta_ramp_up;
 
  /// the vector of RampDown
- std::vector< double >  v_delta_ramp_down;
+ std::vector< double > v_delta_ramp_down;
 
  /// the vector of storing battery rho
- std::vector< double >  v_storing_battery_rho;
+ std::vector< double > v_storing_battery_rho;
 
  /// the vector of extracting battery rho
- std::vector< double >  v_extracting_battery_rho;
+ std::vector< double > v_extracting_battery_rho;
 
  /// the vector of Cost
- std::vector< double >  v_cost;
+ std::vector< double > v_cost;
 
  /// the InitialStorage value
  double f_initial_storage;
@@ -1022,7 +1026,7 @@ class BatteryUnitBlock : public UnitBlock {
  double f_initial_power;
 
  /// the vector of demand
- std::vector< double >  v_demand;
+ std::vector< double > v_demand;
 /*-----------------------------variables------------------------------------*/
  /// the vector of storage level variables
  std::vector< ColVariable > v_storage_level;
@@ -1105,7 +1109,7 @@ class BatteryUnitBlock : public UnitBlock {
   //                                      &BatteryUnitBlock::set_initial_storage,
   //                                      MS_dbl_rngd::args() );
 
-  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
 
@@ -1181,28 +1185,30 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a BatteryUnitBlock
- class BatteryUnitBlockMod : public Modification {
+ class BatteryUnitBlockMod : public Modification
+ {
 
   public:
 
   /// Public enum for the types of BatteryUnitBlockMod
-  enum BUB_mod_type {
+  enum BUB_mod_type
+  {
    eSetInitS = 0 ,  ///< Set initial storage values
-   eSetInitP    ,   ///< Set initial power values
+   eSetInitP ,   ///< Set initial power values
   };
 
   /// Constructor, takes the BatteryUnitBlock and the type
-  BatteryUnitBlockMod( BatteryUnitBlock * const fblock, const int type )
-   : f_Block( fblock ), f_type( type ) {}
+  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
+   : f_Block( fblock ) , f_type( type ) {}
 
   ///< Destructor, does nothing
   virtual ~BatteryUnitBlockMod() override = default;
 
   /// returns the Block to which the Modification refers
-  Block * get_Block() const override { return ( f_Block ); }
+  Block * get_Block() const override { return( f_Block ); }
 
   /// Accessor to the type of modification
-  int type() { return ( f_type ); }
+  int type() { return( f_type ); }
 
   protected:
 
@@ -1230,15 +1236,16 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------- CLASS BatteryUnitBlockRngdMod ----------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived from BatteryUnitBlockMod for "ranged" modifications
- class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod {
+ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
+ {
 
   public:
 
   /// constructor: takes the BatteryUnitBlock, the type, and the range
-  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock,
-                           const int type,
+  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock ,
+                           const int type ,
                            Block::Range rng )
-   : BatteryUnitBlockMod( fblock, type ), f_rng( rng ) {}
+   : BatteryUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
   /// destructor, does nothing
   virtual ~BatteryUnitBlockRngdMod() override = default;
@@ -1263,15 +1270,16 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /// derived from BatteryUnitBlockMod for "subset" modifications
- class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod {
+ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
+ {
 
   public:
 
   /// constructor: takes the BatteryUnitBlock, the type, and the subset
-  BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock,
-                           const int type,
+  BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock ,
+                           const int type ,
                            Block::Subset && nms )
-   : BatteryUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+   : BatteryUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
   /// destructor, does nothing
   virtual ~BatteryUnitBlockSbstMod() override = default;
@@ -1282,7 +1290,7 @@ class BatteryUnitBlock : public UnitBlock {
   protected:
 
   /// prints the BatteryUnitBlockSbstMod
-  void print( std::ostream &output ) const override {
+  void print( std::ostream & output ) const override {
    BatteryUnitBlockMod::print( output );
    output << "(# " << f_nms.size() << ")" << std::endl;
   }

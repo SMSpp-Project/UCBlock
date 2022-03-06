@@ -381,10 +381,10 @@ class IntermittentUnitBlock : public UnitBlock
  *   the inertia power for the problem at time t for each electrical generator
  *   g. */
 
- double * get_inertia_power( Index generator) override {
+ double * get_inertia_power( Index generator ) override {
   if( v_inertia_power.empty() )
    return nullptr;
-  return & ( v_inertia_power.front() );
+  return &( v_inertia_power.front() );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -406,14 +406,14 @@ class IntermittentUnitBlock : public UnitBlock
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return nullptr;
-  return &( v_active_power.front());
+  return &( v_active_power.front() );
  }
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return nullptr;
-  return &( v_primary_spinning_reserve.front());
+  return &( v_primary_spinning_reserve.front() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -421,7 +421,7 @@ class IntermittentUnitBlock : public UnitBlock
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
    return nullptr;
-  return &( v_secondary_spinning_reserve.front());
+  return &( v_secondary_spinning_reserve.front() );
  }
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
@@ -446,20 +446,20 @@ class IntermittentUnitBlock : public UnitBlock
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "IntermittentUnitBlock::load() not "
-                            "implemented yet") );
+                            "implemented yet" ) );
  };
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Subset && subset , bool ordered = false,
+ void set_maximum_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  void set_maximum_power( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0, Inf< Index >() ) ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -475,10 +475,10 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------data--------------------------------------*/
  /// the vector of MinPower
- std::vector< double >  v_minimum_power;
+ std::vector< double > v_minimum_power;
 
  /// the vector of MaxPower
- std::vector< double >  v_maximum_power;
+ std::vector< double > v_maximum_power;
 
  /// the gamma value
  double f_gamma = 1;
@@ -487,7 +487,7 @@ class IntermittentUnitBlock : public UnitBlock
  double f_kappa = 0;
 
  /// the matrix of inertia power of generators
- std::vector< double >  v_inertia_power;
+ std::vector< double > v_inertia_power;
 /*-----------------------------variables------------------------------------*/
  /// the active power variables
  std::vector< ColVariable > v_active_power;
@@ -595,28 +595,30 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a IntermittentUnitBlock
-class IntermittentUnitBlockMod : public Modification {
+class IntermittentUnitBlockMod : public Modification
+{
 
  public:
 
  /// Public enum for the types of IntermittentUnitBlockMod
- enum TUBB_mod_type {
+ enum TUBB_mod_type
+ {
   eSetMaxP = 0    ///< Set max power values
  };
 
  /// Constructor, takes the IntermittentUnitBlock and the type
- IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock,
-                      const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
+                           const int type )
+  : f_Block( fblock ) , f_type( type ) {}
 
  ///< Destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return ( f_Block ); }
+ Block * get_Block() const override { return( f_Block ); }
 
  /// Accessor to the type of modification
- int type() { return ( f_type ); }
+ int type() { return( f_type ); }
 
  protected:
 
@@ -639,15 +641,16 @@ class IntermittentUnitBlockMod : public Modification {
 /*------------------- CLASS IntermittentUnitBlockRngdMod -------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived from IntermittentUnitBlockMod for "ranged" modifications
-class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
+class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod
+{
 
  public:
 
  /// constructor: takes the IntermittentUnitBlock, the type, and the range
- IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock,
-                          const int type,
-                          Block::Range rng )
-  : IntermittentUnitBlockMod( fblock, type ), f_rng( rng ) {}
+ IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock ,
+                               const int type ,
+                               Block::Range rng )
+  : IntermittentUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockRngdMod() override = default;
@@ -671,15 +674,16 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod {
 /*--------------------------------------------------------------------------*/
 
 /// derived from IntermittentUnitBlockMod for "subset" modifications
-class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
+class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod
+{
 
  public:
 
  /// constructor: takes the IntermittentUnitBlock, the type, and the subset
- IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock,
-                          const int type,
-                          Block::Subset && nms )
-  : IntermittentUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+ IntermittentUnitBlockSbstMod( IntermittentUnitBlock * const fblock ,
+                               const int type ,
+                               Block::Subset && nms )
+  : IntermittentUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockSbstMod() override = default;
@@ -690,7 +694,7 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod {
  protected:
 
  /// prints the IntermittentUnitBlockSbstMod
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   IntermittentUnitBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
  }
