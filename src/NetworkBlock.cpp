@@ -155,7 +155,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   solution_type = config->f_value;
 
- Solution * sol = nullptr;
+ Solution * sol;
  switch( solution_type ) {
   case 1:
    sol = new RowConstraintSolution;
