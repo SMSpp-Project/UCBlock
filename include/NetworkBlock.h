@@ -94,12 +94,13 @@ class NetworkBlock : public Block
  *  @{ */
 
  /// public enum for defining the types of lines of the network
- enum line_type {
+ enum line_type
+ {
   kNone = 0 ,  ///< no line
   kAC ,        ///< AC lines
   kHVDC ,      ///< HVDC lines
   kAC_HVDC     ///< AC and HVDC lines
-  };
+ };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
@@ -116,7 +117,8 @@ class NetworkBlock : public Block
  * NetworkData, but most often they can share the same. By bunching all the
  * information together we make it easy for this sharing to happen. */
 
- class NetworkData {
+ class NetworkData
+ {
 
 /*--------------------------------------------------------------------------*/
 /*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
@@ -212,7 +214,7 @@ class NetworkBlock : public Block
  * to one, it means that the transmission network is bus, and therefore all
  * the rest of the data is meaningless. */
 
-  Index get_number_nodes() const { return( f_number_nodes ); }
+  Index get_number_nodes() const { return ( f_number_nodes ); }
 
 /*--------------------------------------------------------------------------*/
 /// returns the number of lines of the network
@@ -221,7 +223,7 @@ class NetworkBlock : public Block
  * (no self-loops are allowed, hence there is no line to be made with a single
  * node). */
 
-  Index get_number_lines() const { return( f_number_lines ); }
+  Index get_number_lines() const { return ( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
 /// returns the vector of start lines
@@ -253,7 +255,7 @@ class NetworkBlock : public Block
  *    element of the vectors gives ending point of each line in the network.
  */
 
-  const std::vector< Index > & get_end_line() const { return( v_end_line ); }
+  const std::vector< Index > & get_end_line() const { return ( v_end_line ); }
 
 /*--------------------------------------------------------------------------*/
 /// returns vector of the minimum power flow
@@ -270,7 +272,7 @@ class NetworkBlock : public Block
 
   const std::vector< double > & get_min_power_flow() const {
    return v_min_power_flow;
-   }
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns vector of the maximum power flow
@@ -287,7 +289,7 @@ class NetworkBlock : public Block
 
   const std::vector< double > & get_max_power_flow() const {
    return v_max_power_flow;
-   }
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns vector of the susceptances
@@ -304,7 +306,7 @@ class NetworkBlock : public Block
 
   const std::vector< double > & get_susceptance() const {
    return v_susceptance;
-   }
+  }
 
   /*--------------------------------------------------------------------------*/
 /// returns vector of the network cost
@@ -461,7 +463,7 @@ class NetworkBlock : public Block
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override {
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -472,7 +474,7 @@ class NetworkBlock : public Block
 
  void load( std::istream & input ) override {
   throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -551,11 +553,10 @@ class NetworkBlock : public Block
  * otherwise it is left empty so that it can be set by this method.
  */
 
- void set_ActiveDemand( const std::vector< double > & v )
- {
+ void set_ActiveDemand( const std::vector< double > & v ) {
   if( v_active_demand.empty() )
    v_active_demand = v;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -569,7 +570,7 @@ class NetworkBlock : public Block
  * NetworkBlock class does not handle it, and therefore it assumes the network
  * is a bus and returns 1. */
 
- virtual Index get_number_nodes( void ) const { return( 1 ); }
+ virtual Index get_number_nodes( void ) const { return ( 1 ); }
 
 /*--------------------------------------------------------------------------*/
 /// returns the NetworkData object
@@ -579,7 +580,7 @@ class NetworkBlock : public Block
 
  virtual NetworkData * get_NetworkData() const {
   return nullptr;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /// returns the vector of active demands
@@ -588,7 +589,7 @@ class NetworkBlock : public Block
 
  const std::vector< double > & get_active_demand() const {
   return v_active_demand;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -603,9 +604,9 @@ class NetworkBlock : public Block
 /** Method for returning vector of node injection variables, which is assumed
  * to have size get_number_nodes(). */
 
-  std::vector< ColVariable > & get_node_injection()  {
+ std::vector< ColVariable > & get_node_injection() {
   return v_node_injection;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -687,13 +688,13 @@ class NetworkBlock : public Block
  void set_objective_generated() { AR |= HasObj; }
 
  /// indicates whether the Variable of the NetworkBlock have been generated
- bool variables_generated() const { return( AR & HasVar ); }
+ bool variables_generated() const { return ( AR & HasVar ); }
 
  /// indicates whether the Constraint of the NetworkBlock have been generated
- bool constraints_generated() const { return( AR & HasCst ); }
+ bool constraints_generated() const { return ( AR & HasCst ); }
 
  /// indicates whether the Objective of the NetworkBlock has been generated
- bool objective_generated() const { return( AR & HasObj ); }
+ bool objective_generated() const { return ( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -726,26 +727,28 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
- };   // end( class( NetworkBlock ) )
+};   // end( class( NetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NetworkBlockMod --------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a NetworkBlock
-class NetworkBlockMod : public Modification {
+class NetworkBlockMod : public Modification
+{
 
  public:
 
  /// Public enum for the types of NetworkBlockMod
- enum NetB_mod_type {
+ enum NetB_mod_type
+ {
   eSetActD = 0    ///< Set max power values
  };
 
  /// Constructor, takes the NetworkBlock and the type
- NetworkBlockMod( NetworkBlock * const fblock,
-                      const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ NetworkBlockMod( NetworkBlock * const fblock ,
+                  const int type )
+  : f_Block( fblock ) , f_type( type ) {}
 
  ///< Destructor, does nothing
  virtual ~NetworkBlockMod() override = default;
@@ -777,21 +780,22 @@ class NetworkBlockMod : public Modification {
 /*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived from NetworkBlockMod for "ranged" modifications
-class NetworkBlockRngdMod : public NetworkBlockMod {
+class NetworkBlockRngdMod : public NetworkBlockMod
+{
 
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the range
- NetworkBlockRngdMod( NetworkBlock * const fblock,
-                          const int type,
-                          Block::Range rng )
-  : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
+ NetworkBlockRngdMod( NetworkBlock * const fblock ,
+                      const int type ,
+                      Block::Range rng )
+  : NetworkBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng() { return( f_rng ); }
+ Block::c_Range & rng() { return ( f_rng ); }
 
  protected:
 
@@ -809,26 +813,27 @@ class NetworkBlockRngdMod : public NetworkBlockMod {
 /*--------------------------------------------------------------------------*/
 
 /// derived from NetworkBlockMod for "subset" modifications
-class NetworkBlockSbstMod : public NetworkBlockMod {
+class NetworkBlockSbstMod : public NetworkBlockMod
+{
 
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the subset
- NetworkBlockSbstMod( NetworkBlock * const fblock,
-                          const int type,
-                          Block::Subset && nms )
-  : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+ NetworkBlockSbstMod( NetworkBlock * const fblock ,
+                      const int type ,
+                      Block::Subset && nms )
+  : NetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms() { return( f_nms ); }
+ Block::c_Subset & nms() { return ( f_nms ); }
 
  protected:
 
  /// prints the NetworkBlockSbstMod
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   NetworkBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
  }
