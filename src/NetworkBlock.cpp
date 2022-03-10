@@ -52,83 +52,85 @@ using namespace SMSpp_di_unipi_it;
 NetworkBlock::NetworkData::NetworkData() {
  f_number_lines = 0;
  f_number_nodes = 0;
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
-{
- #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-						      "NumberLines" };
-  check_dimensions( group, expected_dims, std::cerr );
-  static std::vector< std::string > expected_vars = { "StartLine" ,
-   "EndLine" , "MinPowerFlow" , "MaxPowerFlow" , "Susceptance" , "NetworkCost"
-   };
-  check_variables( group, expected_vars, std::cerr );
- #endif
+void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
+#ifndef NDEBUG
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberLines" };
+ check_dimensions( group , expected_dims , std::cerr );
+ static std::vector< std::string > expected_vars = { "StartLine" ,
+                                                     "EndLine" ,
+                                                     "MinPowerFlow" ,
+                                                     "MaxPowerFlow" ,
+                                                     "Susceptance" ,
+                                                     "NetworkCost"
+ };
+ check_variables( group , expected_vars , std::cerr );
+#endif
 
- if( ! ::deserialize_dim( group, "NumberNodes", f_number_nodes, true ) )
+ if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes , true ) )
   f_number_nodes = 1;
 
- if ( f_number_nodes > 1  ) {  // DCNetworkBlock
+ if( f_number_nodes > 1 ) {  // DCNetworkBlock
 
-  ::deserialize_dim( group , "NumberLines", f_number_lines , false );
+  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
-  ::deserialize( group , "StartLine", f_number_lines , v_start_line , false ,
-		 true );
+  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
+                 true );
 
-  ::deserialize( group , "EndLine", f_number_lines , v_end_line, false, true );
+  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
+                 true );
 
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
-		 true , true );
+                 true , true );
 
   ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
-		 true , true );
+                 true , true );
 
   ::deserialize( group , "Susceptance" , f_number_lines , v_susceptance ,
-		 true , true );
+                 true , true );
 
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
-		 true , true );
-  }
+                 true , true );
  }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::deserialize( const netCDF::NcGroup & group )
-{
+void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  Block::deserialize( group );
 
- #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "NumberNodes" };
-  check_dimensions( group , expected_dims , std::cerr );
-  static std::vector< std::string > expected_vars = { "ActiveDemand" };
-  check_variables( group , expected_vars , std::cerr );
- #endif
+#ifndef NDEBUG
+ static std::vector< std::string > expected_dims = { "NumberNodes" };
+ check_dimensions( group , expected_dims , std::cerr );
+ static std::vector< std::string > expected_vars = { "ActiveDemand" };
+ check_variables( group , expected_vars , std::cerr );
+#endif
 
  const auto NumberNodes = group.getDim( "NumberNodes" );
 
- if( ! NumberNodes.isNull() ) {
+ if( !NumberNodes.isNull() ) {
   // A NetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , NumberNodes.getSize() ,
                  v_active_demand );
-  }
- else {
+ } else {
   // A NetworkData has not been provided. However, the active demand may still
   // have been provided.
   auto ActiveDemand = group.getVar( "ActiveDemand" );
 
-  if( ! ActiveDemand.isNull() ) {
+  if( !ActiveDemand.isNull() ) {
    // The active demand has indeed been provided.
 
    if( ActiveDemand.getDimCount() != 1 )
     // The active demand must be a one-dimensional array.
-    throw( std::invalid_argument( "NetworkBlock::deserialize(): ActiveDemand"
-                                  " should have one dimension, but it has " +
-                                  std::to_string( ActiveDemand.getDimCount() )
-                                  ) );
+    throw ( std::invalid_argument( "NetworkBlock::deserialize(): ActiveDemand"
+                                   " should have one dimension, but it has " +
+                                   std::to_string( ActiveDemand.getDimCount() )
+    ) );
 
    // Retrieve the number of nodes from the size of the given netCDF variable.
    const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
@@ -138,41 +140,44 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group )
 
    // Retrieve the active demand from the netCDF variable.
    ActiveDemand.getVar( v_active_demand.data() );
-   }
   }
  }
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
-Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
-{
+Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
  Index solution_type = 0;
- if( ( ! csolc ) && f_BlockConfig )
+ if( ( !csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   solution_type = config->f_value;
 
  Solution * sol = nullptr;
  switch( solution_type ) {
-  case 1:  sol = new RowConstraintSolution; break;
-  case 2:  sol = new ColRowSolution; break;
-  default: sol = new ColVariableSolution;
-  }
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
 
- if( ! emptys )
+ if( !emptys )
   sol->read( this );
 
- return( sol );
- }
+ return ( sol );
+}
 
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const
-{
+void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
  group.addDim( "NumberNodes" , f_number_nodes );
 
  if( f_number_nodes > 1 ) {
@@ -183,30 +188,29 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "EndLine" , netCDF::NcUint() , NL , v_end_line );
 
   ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NL ,
-	       v_min_power_flow );
+               v_min_power_flow );
 
   ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NL ,
-	       v_max_power_flow );
+               v_max_power_flow );
 
   ::serialize( group , "Susceptance" , netCDF::NcDouble() , NL ,
-	       v_susceptance );
+               v_susceptance );
 
-  ::serialize( group , "NetworkCost" , netCDF::NcDouble() ,  NL ,
-	       v_network_cost );
-  }
+  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NL ,
+               v_network_cost );
  }
+}
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::serialize( netCDF::NcGroup & group ) const
-{
+void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
  Block::serialize( group );
 
  if( auto network_data = get_NetworkData() )
   // If a NetworkData is present, serialize it.
   network_data->serialize( group );
 
- if( ! v_active_demand.empty() ) {
+ if( !v_active_demand.empty() ) {
   // This NetworkBlock has active demand, so it is serialized.
 
   auto NumberNodes = group.getDim( "NumberNodes" );
@@ -220,13 +224,13 @@ void NetworkBlock::serialize( netCDF::NcGroup & group ) const
     * case). Therefore, we create an alternative dimension in order to be able
     * to serialize the active demand. */
    NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
-   }
+  }
 
   // Finally, serialize the active demand.
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_active_demand );
-  }
- }  // end( NetworkBlock::serialize )
+ }
+}  // end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/
