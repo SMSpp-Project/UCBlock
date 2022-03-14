@@ -302,7 +302,7 @@ class HydroSystemUnitBlock : public UnitBlock {
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the HydroSystemUnitBlock
+/** @name Methods for printing & saving the HydroSystemUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
@@ -340,18 +340,18 @@ class HydroSystemUnitBlock : public UnitBlock {
    }
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
  /** @name Handling the data of the HydroSystemUnitBlock
-    @{ */
+  *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "HydroSystemUnitBlock::load() not implemented "
-                            "yet" ) );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		     "HydroSystemUnitBlock::load() not implemented  yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 

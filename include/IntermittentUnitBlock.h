@@ -402,54 +402,59 @@ class IntermittentUnitBlock : public UnitBlock
  * - secondary_spinning_reserve variables;
  *
  * @{ */
+
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
-   return nullptr;
-  return &( v_active_power.front());
- }
+   return( nullptr );
+  return( &( v_active_power.front() ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_primary_spinning_reserve.front());
- }
+   return( nullptr );
+  return( &( v_primary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_secondary_spinning_reserve.front());
- }
-/**@} ----------------------------------------------------------------------*/
+   return( nullptr );
+  return( &( v_secondary_spinning_reserve.front() ) );
+  }
+ 
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the IntermittentUnitBlock
+/** @name Methods for printing & saving the IntermittentUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * IntermittentGenerationUnitBlock. See
- * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details of the
- * format of the created netCDF group. */
+ * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR INITIALIZING THE IntermittentUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
 
 /** @name Handling the data of the IntermittentUnitBlock
     @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "IntermittentUnitBlock::load() not "
-                            "implemented yet") );
- };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		      "IntermittentUnitBlock::load() not implemented yet") );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
