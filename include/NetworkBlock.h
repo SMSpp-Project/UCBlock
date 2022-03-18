@@ -216,6 +216,11 @@ class NetworkBlock : public Block
 
   Index get_number_nodes() const { return ( f_number_nodes ); }
 
+/// returns the number of intervals of the network
+/** Method for returning the number of intervals the network refers to. */
+
+  Index get_number_intervals() const { return ( f_number_intervals ); }
+
 /*--------------------------------------------------------------------------*/
 /// returns the number of lines of the network
 /** Method for returning the number of lines of the network. When
@@ -370,6 +375,8 @@ class NetworkBlock : public Block
   Index f_number_nodes;    ///< Number of nodes of the network
 
   Index f_number_lines;    ///< Number of lines of the network
+
+  Index f_number_intervals; ///<  the number of intervals
 
   std::vector< Index > v_start_line;  ///< Vector of starting lines
 
@@ -585,10 +592,13 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /// returns the vector of active demands
 /** Method for returning the active demand for the given node, which is
- * assumed to have size get_number_nodes(). */
+ * assumed to have size get_number_nodes() by get_number_intervals().
+ *
+ * @param t The time horizon wrt the vector of demands for each user is
+ *          returned. */
 
- const std::vector< double > & get_active_demand() const {
-  return v_active_demand;
+ virtual const double * get_active_demand( Index t = 0 ) {
+  return ( nullptr );
  }
 
 /**@} ----------------------------------------------------------------------*/
