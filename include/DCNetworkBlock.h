@@ -91,11 +91,13 @@ class DCNetworkBlock : public NetworkBlock
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
+
  /// destructor of DCNetworkBlock
 
  virtual ~DCNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
+
  /// generate the abstract variables of the DCNetworkBlock
  /** Depending on the susceptance for each line of the network, the
   * DCNetworkBlock class may have a power flow variable or not. In other word,
@@ -118,6 +120,7 @@ class DCNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 ///generate abstract constraints of DCNetworkBlock
 /** Three different kinds of DCNetworkBlock constraints are defined as below:
  * The topology of the transmission network is defined by a set of nodes
@@ -240,7 +243,8 @@ class DCNetworkBlock : public NetworkBlock
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
 /// generate the objective of the DCNetworkBlock
 /** Method that generates the objective of the DCNetworkBlock.
  *
@@ -262,6 +266,7 @@ class DCNetworkBlock : public NetworkBlock
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
@@ -362,7 +367,9 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< ColVariable > & get_power_flow() const {
   return v_power_flow;
  }
+
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of auxiliary variables
  /** The returned std::vector< ColVariable >, say V, contains the auxiliary
   * variables and is indexed over the dimension number of lines. There are two
@@ -377,6 +384,7 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< ColVariable > & get_auxiliary_variable() const {
   return v_auxiliary_variable;
  }
+
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
@@ -442,13 +450,14 @@ class DCNetworkBlock : public NetworkBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
   */
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -547,6 +556,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/
@@ -558,6 +568,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+
 
 
 /*--------------------------------------------------------------------------*/
