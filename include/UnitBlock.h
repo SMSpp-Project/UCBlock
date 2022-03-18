@@ -407,10 +407,10 @@ class UnitBlock : public Block
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the UnitBlock
+/** @name Methods for printing & saving the UnitBlock
  *  @{ */
 
  /// extends Block::serialize( netCDF::NcGroup )
@@ -420,7 +420,7 @@ class UnitBlock : public Block
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Methods for modifying the UnitBlock
@@ -481,19 +481,19 @@ class UnitBlock : public Block
 
  virtual void set_reserve_vars( unsigned char what ) {
   reserve_vars = what;
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Handling the data of the UnitBlock
     @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "UnitBlock::load() not implemented yet" ) );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
