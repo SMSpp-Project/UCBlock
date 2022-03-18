@@ -504,10 +504,10 @@ class SlackUnitBlock : public UnitBlock
   return &( v_secondary_spinning_reserve.front() );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the SlackUnitBlock
+/** @name Methods for printing & saving the SlackUnitBlock
  *  @{ */
 
 /// Extends Block::serialize( netCDF::NcGroup )
@@ -517,18 +517,17 @@ class SlackUnitBlock : public UnitBlock
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR INITIALIZING THE SlackUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the SlackUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "SlackUnitBlock::load() not implemented yet") );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "SlackUnitBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -1279,18 +1279,17 @@ class ThermalUnitBlock : public UnitBlock {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR INITIALIZING THE ThermalUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the ThermalUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet") );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
  /** Method for handling Modification.

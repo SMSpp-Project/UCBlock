@@ -486,8 +486,8 @@ class NetworkBlock : public Block
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- void generate_abstract_variables( Configuration * stvv = nullptr ) override {
-  }
+ void generate_abstract_variables( Configuration * stvv = nullptr )
+  override { }
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -496,8 +496,8 @@ class NetworkBlock : public Block
  * @param input an input stream
  */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
   }
 
 /**@} ----------------------------------------------------------------------*/

@@ -1244,7 +1244,7 @@ class UCBlock : public Block
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UCBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the UCBlock
@@ -1256,11 +1256,11 @@ class UCBlock : public Block
  * @param input an input stream
  */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "UCBlock::load() not implemented yet" ) );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 

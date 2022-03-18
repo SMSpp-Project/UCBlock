@@ -582,17 +582,17 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  * be followed for that subsequent call to deserialize(). */
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE HeatBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the HeatBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream &input ) override {
+ void load( std::istream &input , char frmt = 0 ) override {
   throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
- };
+  };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

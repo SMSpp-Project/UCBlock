@@ -1530,10 +1530,10 @@ class HydroUnitBlock : public UnitBlock
   return nullptr;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE HydroUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the HydroUnitBlock
+/** @name Methods for printing & saving the HydroUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
@@ -1543,18 +1543,17 @@ class HydroUnitBlock : public UnitBlock
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR INITIALIZING THE HydroUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the HydroUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "HydroUnitBlock::load() not implemented yet") );
- };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "HydroUnitBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 

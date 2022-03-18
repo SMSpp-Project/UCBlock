@@ -93,13 +93,10 @@ class BusNetworkBlock : public NetworkBlock
 /** @name Other initializations
  *  @{ */
 
-/// loads the BusNetworkBlock instance from memory
-/** Like load( std::istream & ), if there is any Solver attached to this
- *  BusNetworkBlock then a NBModification (the "nuclear option") is issued.
- */
+/// loads the BusNetworkBlock instance from file - not implememted yet
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -111,7 +108,6 @@ class BusNetworkBlock : public NetworkBlock
  * having s = D which in fact makes the variable a constant.*/
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
-
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the BusNetworkBlock

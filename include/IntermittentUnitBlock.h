@@ -412,53 +412,55 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
-   return nullptr;
-  return &( v_active_power.front());
- }
+   return( nullptr );
+  return( &( v_active_power.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_primary_spinning_reserve.front());
- }
+   return( nullptr );
+  return( &( v_primary_spinning_reserve.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_secondary_spinning_reserve.front());
+   return( nullptr );
+  return( &( v_secondary_spinning_reserve.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this IntermittentUnitBlock
- double get_scale() const override { return f_scale; }
+ double get_scale( void ) const override { return( f_scale ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum total power constraints
- const std::vector< FRowConstraint > & get_min_power_constraints() const {
-  return MinPower_Constraints;
+ const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
+  return( MinPower_Constraints );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum total power constraints
- const std::vector< FRowConstraint > & get_max_power_constraints() const {
-  return MaxPower_Constraints;
+ const std::vector< FRowConstraint > & get_max_power_constraints( void ) const {
+  return( MaxPower_Constraints );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the bound constraints on the active power
  const std::vector< BoxConstraint > &
- get_active_power_bound_constraints() const {
-  return active_power_bounds_Constraints;
+ get_active_power_bound_constraints( void ) const {
+  return( active_power_bounds_Constraints );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the IntermittentUnitBlock
+/** @name Methods for printing & saving the IntermittentUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
@@ -469,19 +471,19 @@ class IntermittentUnitBlock : public UnitBlock
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR INITIALIZING THE IntermittentUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
 
 /** @name Handling the data of the IntermittentUnitBlock
     @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "IntermittentUnitBlock::load() not "
-                            "implemented yet") );
- };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		      "IntermittentUnitBlock::load() not implemented yet") );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 

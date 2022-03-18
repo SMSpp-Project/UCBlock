@@ -487,7 +487,7 @@ class DCNetworkBlock : public NetworkBlock
   f_local_NetworkData = false;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -510,16 +510,15 @@ class DCNetworkBlock : public NetworkBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
   */
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
