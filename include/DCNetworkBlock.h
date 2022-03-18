@@ -400,7 +400,7 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< FRowConstraint > &
  get_power_flow_limit_constraints() const {
   if( !f_NetworkData )
-   throw ( std::logic_error( "DCNetworkBlock:get_power_flow_limit_constraints:"
+   throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
                              " NetworkData has not been set." ) );
 
   switch( f_NetworkData->get_lines_type() ) {
@@ -415,7 +415,7 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds() const {
   if( !f_NetworkData )
-   throw ( std::logic_error( "DCNetworkBlock:get_power_flow_limit_HVDC_bounds:"
+   throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
                              " NetworkData has not been set." ) );
   return v_HVDC_power_flow_limit_constraints;
  }
