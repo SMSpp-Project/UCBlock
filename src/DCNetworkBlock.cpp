@@ -105,9 +105,9 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- int number_nodes = f_NetworkData->get_number_nodes();
+ Index number_nodes = f_NetworkData->get_number_nodes();
 
- int number_lines = f_NetworkData->get_number_lines();
+ Index number_lines = f_NetworkData->get_number_lines();
 
  if( number_nodes > 1 ) {
   // the node injection variables
