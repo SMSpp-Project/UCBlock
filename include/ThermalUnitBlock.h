@@ -35,9 +35,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "FRowConstraint.h"
+
 #include "OneVarConstraint.h"
+
 #include "FRealObjective.h"
-#include "DQuadFunction.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -45,10 +47,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS ThermalUnitBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -89,14 +89,15 @@ class ThermalUnitBlock : public UnitBlock {
  /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
   * father Block and the time horizon. */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
+ explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
   UnitBlock( f_block ) {}
+
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock
 
  virtual ~ThermalUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -722,8 +723,7 @@ class ThermalUnitBlock : public UnitBlock {
  *  If the primary and/or secondary spinning reserve variables are included in
  *  the objective function, their coefficients can be set by the
  *  set_primary_spinning_reserve_cost() and
- *  set_secondary_spinning_reserve_cost() methods, respectively.
- */
+ *  set_secondary_spinning_reserve_cost() methods, respectively. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1321,13 +1321,12 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values ,
+ void set_availability( MF_dbl_it values ,
                         Subset && subset , bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
-                        ModParam issueAMod = eNoBlck );
+			ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
@@ -1346,108 +1345,104 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values ,
-                        Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_availability( MF_dbl_it values , Range rng = INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values ,
+ void set_maximum_power( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values ,
+ void set_startup_costs( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values ,
+ void set_const_term( MF_dbl_it values ,
                       Subset && subset , bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values ,
-                      Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_const_term( MF_dbl_it values , Range rng = INFRange ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values ,
+ void set_linear_term( MF_dbl_it values ,
                        Subset && subset , bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values ,
-                       Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_linear_term( MF_dbl_it values , Range rng = INFRange ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values ,
-                     Subset && subset , bool ordered = false ,
+ void set_quad_term( MF_dbl_it values ,
+		     Subset && subset , bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values ,
-                     Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
-                     ModParam issueAMod = eNoBlck );
+		     ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost(
-	                       std::vector< double >::const_iterator values ,
-			       Subset && subset , bool ordered ,
-			       ModParam issuePMod = eNoBlck ,
-			       ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+					 Subset && subset ,
+					 bool ordered = false ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost(
-	   std::vector< double >::const_iterator values , Range rng ,
-           ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+					 Range rng = INFRange ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost(
-			       std::vector< double >::const_iterator values ,
-			       Subset && subset , bool ordered ,
-			       ModParam issuePMod = eNoBlck ,
-			       ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+					   Subset && subset ,
+					   bool ordered = false ,
+					   ModParam issuePMod = eNoBlck ,
+					   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost(
-	   std::vector< double >::const_iterator values , Range rng ,
-           ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+					   Range rng = INFRange ,
+					   ModParam issuePMod = eNoBlck ,
+					   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1458,7 +1453,7 @@ class ThermalUnitBlock : public UnitBlock {
   * will be that in the vector pointed by \p it associated with this last
   * zero. */
 
- void set_initial_power( std::vector< double >::const_iterator values ,
+ void set_initial_power( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
@@ -1472,22 +1467,20 @@ class ThermalUnitBlock : public UnitBlock {
   * vector pointed by \p it if this Range contains the 0 index. If the given
   * Range \p rng does not contain the 0 index, this function does nothing. */
 
- void set_initial_power( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_initial_power( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values ,
+ void set_init_updown_time( MF_int_it values ,
                             Subset && subset , bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values ,
-                            Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_init_updown_time( MF_int_it values , Range rng = INFRange ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
