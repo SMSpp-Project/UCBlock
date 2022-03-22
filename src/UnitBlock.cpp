@@ -93,11 +93,10 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
- auto NumberIntervals = group.getDim( "NumberIntervals" );
- if( NumberIntervals.isNull() )
+ if( !::deserialize_dim( group , "NumberIntervals" ,
+                         f_number_intervals , true ) )
   f_number_intervals = 1;
  else {
-  f_number_intervals = NumberIntervals.getSize();
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
    throw ( std::invalid_argument( classname() + "::deserialize: " +
                                   "NumberIntervals not between 1 and TimeHorizon." ) );
@@ -164,7 +163,7 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
  if( !emptys )
   sol->read( this );
 
- return( sol );
+ return ( sol );
 }
 
 /*--------------------------------------------------------------------------*/

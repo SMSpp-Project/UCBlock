@@ -67,16 +67,15 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
- #ifndef NDEBUG
+#ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars =
   { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" };
-
  check_variables( group , expected_vars , std::cerr );
- #endif
+#endif
 
  // Deserialize data that is needed for deserializing the variables
  UnitBlock::deserialize_time_horizon( group );
@@ -491,7 +490,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
    return;
   }
 
@@ -548,7 +547,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
    return;
   }
 

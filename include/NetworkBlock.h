@@ -477,6 +477,7 @@ class NetworkBlock : public Block
  * @brief It loads a NetworkBlock from a input standard stream.
  * @warning This method is not implemented yet.
  * @param input an input stream
+ * @param frmt the verbosity level
  */
 
  void load( std::istream & input , char frmt = 0 ) override {
@@ -597,7 +598,7 @@ class NetworkBlock : public Block
  * @param t The time horizon wrt the vector of demands for each user is
  *          returned. */
 
- virtual const double * get_active_demand( Index t = 0 ) {
+ virtual const double * get_active_demand( Index t = 0 ) const {
   return ( nullptr );
  }
 

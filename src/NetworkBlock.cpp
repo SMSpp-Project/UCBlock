@@ -61,6 +61,7 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
                                                      "NumberLines" };
  check_dimensions( group , expected_dims , std::cerr );
+
  static std::vector< std::string > expected_vars = { "StartLine" ,
                                                      "EndLine" ,
                                                      "MinPowerFlow" ,

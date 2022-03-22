@@ -342,7 +342,7 @@ class DCNetworkBlock : public NetworkBlock
  * @param t The time horizon wrt the vector of demands for each user is
  *          returned. */
 
- const double * get_active_demand( Index t = 0 ) override {
+ const double * get_active_demand( Index t = 0 ) const override {
   return &v_active_demand[ t ];
  }
 

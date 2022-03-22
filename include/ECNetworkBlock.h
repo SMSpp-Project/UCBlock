@@ -75,10 +75,8 @@ class ECNetworkBlock : public NetworkBlock
  /** Constructor of ECNetworkBlock, taking possibly a pointer of its father
  * Block. */
 
- explicit ECNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) ,
-    f_NetworkData( nullptr ) ,
-    f_local_NetworkData( false ) {}
+ explicit ECNetworkBlock( Block * f_block = nullptr ) :
+  NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
 
  /// Destructor of ECNetworkBlock
 
@@ -140,7 +138,7 @@ class ECNetworkBlock : public NetworkBlock
 /** Method for returning the active demand for the given node, which is
  * assumed to have size get_number_intervals() by get_number_nodes(). */
 
- const double * get_active_demand( Index t = 0 ) override {
+ const double * get_active_demand( Index t = 0 ) const override {
   // TODO
  }
 
@@ -221,23 +219,46 @@ class ECNetworkBlock : public NetworkBlock
  /** Deserialize a ECNetworkBlock out of a netCDF::NcGroup, which should
   * contain all the data necessary to describe a NetworkBlock (see
   * NetworkBlock::deserialize()).
-  * In particular, we refer to that description for the crucial dimensions
-  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals".
+  * In particular, we refer to that description for the dimension
+  * "NumberIntervals". The netCDF::NcGroup must then also contain:
   *
-  * // TODO copy some doc from UnitBlock::deserialize()
+  * - The variable "BuyPrice", of type double and either of size 1 or indexed
+  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
+  *   provided, then this variable must be of size 1). This is meant to
+  *   represent the vector BuyP[ t ] that, for each time instant t, contains
+  *   the variable tariff that user pay to buy electricity from the public
+  *   market for the corresponding time step. If "BuyPrice" has length 1 then
+  *   BuyP[ t ] contains the same value for all t.
   *
+  * - The variable "ConsumptionPrice", of type double and either of size 1 or
+  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+  *   provided, then this variable must be of size 1). This is meant to
+  *   represent the vector ConsP[ t ] that, for each time instant t, contains
+  *   the fixed tariff that user pay to buy electricity from the public market
+  *   for the corresponding time step. If "ConsumptionPrice" has length 1 then
+  *   ConsP[ t ] contains the same value for all t.
+  *
+  * - The variable "SellPrice", of type double and either of size 1 or
+  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
+  *   provided, then this variable must be of size 1). This is meant to
+  *   represent the vector SellP[ t ] that, for each time instant t, contains
+  *   the tariff that user gain to sell electricity to the public market
+  *   for the corresponding time step. If "SellPrice" has length 1 then
+  *   SellP[ t ] contains the same value for all t.
   * */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/// loads the ECNetworkBlock instance from memory
+/// loads the ECNetworkBlock instance from an input standard stream.
 /** Like load( std::istream & ), if there is any Solver attached to this
  *  ECNetworkBlock then a NBModification (the "nuclear option") is issued.
+ *  @warning this method is not implemented yet
+ *  @param input an input stream
+ *  @param frmt the verbosity level
  */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error(
-   "ECNetworkBlock::load() not implemented yet" ) );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw ( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -255,9 +276,6 @@ class ECNetworkBlock : public NetworkBlock
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
- /// true if the NetworkData object has not been passed from outside
- bool f_local_NetworkData;
-
 
  /// vector to store the demand of each node of the network
  boost::multi_array< double , 2 > v_active_demand;
@@ -265,7 +283,7 @@ class ECNetworkBlock : public NetworkBlock
  // energy bought from the public market at the national
  // price /pi^{P-,V} + /pi^{P-,F}
 
- /// variable tariff that user pay to but electricity, i.e.,
+ /// variable tariff that user pay to buy electricity, i.e.,
  /// the tariff on the withdrawing, in any time horizon
  std::vector< double > v_buy_price; // /pi^{P-,V}
 

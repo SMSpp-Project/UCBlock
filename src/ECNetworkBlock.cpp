@@ -51,9 +51,7 @@ ECNetworkBlock::~ECNetworkBlock() {
 
  objective.clear();
 
- // delete the NetworkData if it is local
- if( f_local_NetworkData )
-  delete f_NetworkData;
+ delete f_NetworkData;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -63,26 +61,44 @@ ECNetworkBlock::~ECNetworkBlock() {
 void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims =
-  { "TimeHorizon" , "NumberIntervals" };
-
+ static std::vector< std::string > expected_dims =
+  { "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
+
+ static std::vector< std::string > expected_vars =
+  { "BuyPrice" , "ConsumptionPrice" , "SellPrice" };
+ check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Deserialize data from the base class
- UnitBlock::deserialize( group );
+ // Optional variables
 
- auto NumberNodes = group.getDim( "NumberNodes" );
-
- if( !NumberNodes.isNull() ) {
-  // Since the dimension "NumberNodes" has been provided, it means that a
-  // NetworkData has been provided. Thus, the NetworkData is deserialized and
-  // it is marked as being local.
-  delete f_NetworkData;
-  f_NetworkData = new NetworkData();
-  f_NetworkData->deserialize( group );
-  f_local_NetworkData = true;
+ if( !::deserialize_dim( group , "NumberIntervals" ,
+                         f_number_intervals , false ) )
+  f_number_intervals = 1;
+ else {
+  if( ( f_number_intervals < 1 ) )
+   throw ( std::invalid_argument(
+    "ECNetworkBlock::::deserialize: NumberIntervals must be > 0." ) );
  }
+
+ // Mandatory variables
+
+ Index number_nodes;
+ ::deserialize_dim( group , "NumberNodes" , number_nodes , false )
+ // Since the dimension "NumberNodes" must be provided since there not could
+ // be an Energy Community with only one node, i.e., only one user, it means
+ // that a NetworkData has always been provided. Thus, the NetworkData is
+ // deserialized, and it is marked as being local.
+ delete f_NetworkData;
+ f_NetworkData = new NetworkData();
+ f_NetworkData->deserialize( group );
+
+ ::deserialize( group , "BuyPrice" , f_number_intervals ,
+                v_buy_price , false , true );
+ ::deserialize( group , "ConsumptionPrice" , f_number_intervals ,
+                v_consumption_price , false , true );
+ ::deserialize( group , "SellPrice" , f_number_intervals ,
+                v_sell_price , false , true );
 
  // Deserialize data from the base class
  NetworkBlock::deserialize( group );
@@ -262,7 +278,7 @@ void ECNetworkBlock::generate_abstract_constraints(
  //    P^{POD,+} = P^{P,+} + P^{M,+}
  //    P^{POD,-} = P^{P,-} + P^{M,-}
 
- power_flow_limit_constraints.resize(
+ power_balance_constraints.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ number_nodes ][ number_intervals ] );
 

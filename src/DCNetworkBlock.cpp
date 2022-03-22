@@ -84,11 +84,10 @@ DCNetworkBlock::~DCNetworkBlock() {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
- auto NumberNodes = group.getDim( "NumberNodes" );
-
- if( !NumberNodes.isNull() ) {
+ Index number_nodes;
+ if( ::deserialize_dim( group , "NumberNodes" , number_nodes , true ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
-  // NetworkData has been provided. Thus, the NetworkData is deserialized and
+  // NetworkData has been provided. Thus, the NetworkData is deserialized, and
   // it is marked as being local.
   delete f_NetworkData;
   f_NetworkData = new NetworkData();
@@ -562,7 +561,7 @@ void DCNetworkBlock::set_active_demand
 
  if( v_active_demand.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
    return;
   }
 
