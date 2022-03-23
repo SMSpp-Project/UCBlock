@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*---------------------- File ECNetworkBlock.h ----------------------*/
+/*-------------------------- File ECNetworkBlock.h -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  *
@@ -12,10 +12,11 @@
  * Each user is connected to the public grid through each own
  * Point-of-Delivery (PoD), and each user is billed for the energy he
  * consumes and sells.
- * Each time period in the time horizon
- * \f$ \mathcal{\hat{t}_w} \in \mathcal{\hat{T}_w} \subseteq \mathcal{T} \f$
- * refers to an interval \f$ \mathcal{w} \in \mathcal{W} \f$ with a
- * corresponding tariff.
+ * Each instance of this class refers to a specific time period, e.g., a
+ * peak period, in the whole time horizon, i.e.,
+ * \f$ \mathcal{w} \in \mathcal{W} \f$, and can span an arbitrary number of
+ * sub time horizon or intervals, i.e.,
+ * \f$ \mathcal{\hat{t}_w} \in \mathcal{\hat{T}_w} \subseteq \mathcal{T} \f$.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -261,6 +262,44 @@ class ECNetworkBlock : public NetworkBlock
   throw ( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
  }
 
+/** @} ---------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Subset && subset ,
+                         bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
+
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
+
+ static void static_initialization() {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
+  //                                    &ECNetworkBlock::set_active_demand,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
+  //                                    &ECNetworkBlock::set_active_demand,
+  //                                    MS_dbl_rngd::args() );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_active_demand" ,
+   &ECNetworkBlock::set_active_demand );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_active_demand" ,
+   &ECNetworkBlock::set_active_demand );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -358,10 +397,15 @@ class ECNetworkBlock : public NetworkBlock
 /*---------------------------- PRIVATE METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Clear the constraints from any-sized boost::multi_array of FRowConstraint
- template< unsigned long T >
+ /// Clear the constraints from any-sized boost::multi_array of
+ /// OneVarConstraint subtype
+ template< typename T , unsigned long K >
  void clear_constraints(
-  boost::multi_array< FRowConstraint , T > & constraints );
+  boost::multi_array< T , K > & constraints );
+
+ /// Clear the constraints from a std::vector of OneVarConstraint subtype
+ template< typename T >
+ void clear_constraints( std::vector< T > & constraints );
 
 }; // end( class( ECNetworkBlock ) )
 
@@ -370,5 +414,5 @@ class ECNetworkBlock : public NetworkBlock
 #endif /* ECNetworkBlock.h included */
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- End File ECNetworkBlock.h --------------------*/
+/*------------------------ End File ECNetworkBlock.h -----------------------*/
 /*--------------------------------------------------------------------------*/

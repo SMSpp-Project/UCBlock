@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*--------------------- File ECNetworkBlock.cpp ---------------------*/
+/*------------------------- File ECNetworkBlock.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the ECNetworkBlock class.
@@ -43,8 +43,7 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
 ECNetworkBlock::~ECNetworkBlock() {
 
- for( auto & constraint : micro_power_balance_constraints )
-  constraint.clear();
+ clear_constraints( micro_power_balance_constraints );
 
  clear_constraints( power_balance_constraints );
  clear_constraints( power_flow_limit_constraints );
@@ -84,7 +83,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  // Mandatory variables
 
  Index number_nodes;
- ::deserialize_dim( group , "NumberNodes" , number_nodes , false )
+ ::deserialize_dim( group , "NumberNodes" , number_nodes , false );
  // Since the dimension "NumberNodes" must be provided since there not could
  // be an Energy Community with only one node, i.e., only one user, it means
  // that a NetworkData has always been provided. Thus, the NetworkData is
@@ -369,10 +368,130 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 }
 
 /*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
+/*--------------------------------------------------------------------------*/
 
-template< unsigned long T >
+void ECNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return;
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return cst == 0; } ) ) {
+   return;
+  }
+
+  Index max_index = *std::max_element( std::begin( subset ) ,
+                                       std::end( subset ) );
+  assert( max_index < get_number_nodes() );
+  v_active_demand.assign( get_number_nodes() , 0 );
+ }
+
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_active_demand.size() )
+   throw ( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
+                                  "invalid value in subset" ) );
+  auto demand = *( values++ );
+  if( v_active_demand[ i ] != demand ) {
+   identical = false;
+   if( not_dry_run( issuePMod ) )
+    // Change the physical representation
+    v_active_demand[ i ] = demand;
+  }
+ }
+ if( identical )
+  return;  // nothing changes; return
+
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
+
+  // Change the abstract representation
+
+  for( auto i : subset )
+   v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( !ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >
+                            ( this , NetworkBlockMod::eSetActD ,
+                              std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Range rng ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
+
+ rng.second = std::min( rng.second , get_number_nodes() );
+ if( rng.second <= rng.first ) {
+  return;
+ }
+
+ if( v_active_demand.empty() ) {
+  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return ( cst == 0 ); } ) ) {
+   return;
+  }
+
+  v_active_demand.assign( get_number_nodes() , 0 );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values , values + ( rng.second - rng.first ) ,
+                 v_active_demand.begin() + rng.first ) ) {
+  return;
+ }
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+
+  std::copy( values , values + ( rng.second - rng.first ) ,
+             v_active_demand.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+
+   for( Index i = rng.first ; i < rng.second ; ++i )
+    v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
+  }
+
+  if( issue_pmod( issuePMod ) ) {
+   // Issue a Physical Modification
+   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >
+                             ( this , NetworkBlockMod::eSetActD , rng ) ,
+                            Observer::par2chnl( issuePMod ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template< typename T >
+void ECNetworkBlock::clear_constraints( std::vector< T > & constraints ) {
+ BOOST_STATIC_ASSERT( ( boost::is_base_of< OneVarConstraint , T >::value ) );
+ for( auto & constraint : constraints )
+  constraint->clear();
+}
+
+template< typename T , unsigned long K >
 void ECNetworkBlock::clear_constraints(
- boost::multi_array< FRowConstraint , T > & constraints ) {
+ boost::multi_array< T , K > & constraints ) {
+ BOOST_STATIC_ASSERT( ( boost::is_base_of< OneVarConstraint , T >::value ) );
  auto constraint = constraints.data();
  auto n = constraints.num_elements();
  for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )

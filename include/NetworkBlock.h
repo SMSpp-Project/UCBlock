@@ -219,9 +219,10 @@ class NetworkBlock : public Block
 /// returns the number of intervals of the network
 /** Method for returning the number of intervals the network refers to. */
 
-  Index get_number_intervals() const { return ( f_number_intervals ); }
+  Index get_number_intervals( void ) const { return ( f_number_intervals ); }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the number of lines of the network
 /** Method for returning the number of lines of the network. When
  * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
@@ -231,6 +232,7 @@ class NetworkBlock : public Block
   Index get_number_lines() const { return ( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of start lines
 /** Method for returning the vector of starting point of each line. This
  *  vector may have empty size (bus network) or the size of number of lines,
@@ -247,6 +249,7 @@ class NetworkBlock : public Block
   const std::vector< Index > & get_start_line() const { return v_start_line; }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns vector of end lines
 /** Method for returning the vector of ending point of each line. This vector
  * may have empty size (bus network) or the size of number of lines, then
@@ -263,6 +266,7 @@ class NetworkBlock : public Block
   const std::vector< Index > & get_end_line() const { return ( v_end_line ); }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns vector of the minimum power flow
 /** Method for returning the vector of minimum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -280,6 +284,7 @@ class NetworkBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns vector of the maximum power flow
 /** Method for returning the vector of maximum power flow of each line. This
  *  vector may have empty size (bus network) or the size of number of nodes,
@@ -297,6 +302,7 @@ class NetworkBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns vector of the susceptances
 /** Method for returning the vector of susceptances for each line. This vector
  * may have empty size (bus network) or the size of number of nodes, then
@@ -313,7 +319,8 @@ class NetworkBlock : public Block
    return v_susceptance;
   }
 
-  /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 /// returns vector of the network cost
 /** Method for returning the vector of network cost for each line. This vector
  * may have empty size (bus network) or the size of number of lines, then
@@ -329,7 +336,9 @@ class NetworkBlock : public Block
   const std::vector< double > & get_network_cost() const {
    return v_network_cost;
   }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the types of lines in the network
 /** This method returns the types of lines present in the network. */
 
@@ -411,6 +420,7 @@ class NetworkBlock : public Block
  explicit NetworkBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
+
 /// Destructor of NetworkBlock
 
  virtual ~NetworkBlock() override = default;
@@ -454,6 +464,7 @@ class NetworkBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the static variables of NetworkBlock
 /** Method that generates the static variables of this NetworkBlock. The
  * base NetworkBlock class has just the node injection variables, which are
@@ -470,7 +481,7 @@ class NetworkBlock : public Block
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr )
-  override { }
+ override {}
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -481,8 +492,8 @@ class NetworkBlock : public Block
  */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -539,6 +550,7 @@ class NetworkBlock : public Block
  virtual void set_NetworkData( NetworkData * nd ) {}
 
 /*--------------------------------------------------------------------------*/
+
 /// method to set the ActiveDemand
 /** This method can be called either before or after that deserialize() is
  * called to provide the NetworkBlock with the ActiveDemand data. This allows
@@ -581,6 +593,7 @@ class NetworkBlock : public Block
  virtual Index get_number_nodes( void ) const { return ( 1 ); }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the NetworkData object
 /** The method of the base class always returns nullptr, because the base
  * class does not handle the NetworkData object. This is OK for derived
@@ -591,6 +604,7 @@ class NetworkBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of active demands
 /** Method for returning the active demand for the given node, which is
  * assumed to have size get_number_nodes() by get_number_intervals().
