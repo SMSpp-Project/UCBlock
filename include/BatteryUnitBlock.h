@@ -150,6 +150,7 @@ class BatteryUnitBlock : public UnitBlock
   ///< otherwise binary variables with related constraints are needed
   Binary_Variables_Constraints
  };
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -160,10 +161,11 @@ class BatteryUnitBlock : public UnitBlock
 /** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
  * Block. */
 
- explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
-  UnitBlock( f_block ) {}
+ explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0 )
+  : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
+
 /// destructor of BatteryUnitBlock
 
  virtual ~BatteryUnitBlock() override;
@@ -391,6 +393,7 @@ class BatteryUnitBlock : public UnitBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the abstract variables of the BatteryUnitBlock
 /** The BatteryUnitBlock class use get_variable() method to access to
  *  each "group" of variable that may create in UnitBlock class which are:
@@ -435,7 +438,7 @@ class BatteryUnitBlock : public UnitBlock
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 /// generate the static constraint of the BatteryUnitBlock
 /** Method that generates the static constraint of the BatteryUnitBlock. The
  * operations of the battery storage unit are described on a discrete time
@@ -563,7 +566,7 @@ class BatteryUnitBlock : public UnitBlock
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 /// generate the objective of the BatteryUnitBlock
 /** Method that generates the objective of the BatteryUnitBlock.
  * - Objective function: the objective function of the BatteryUnitBlock
@@ -594,6 +597,7 @@ class BatteryUnitBlock : public UnitBlock
  double get_initial_power() const { return f_initial_power; }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of minimum storage
 /** The method returned a std::vector< double > V and each element of V
  * contains the minimum storage at time t. There are three possible cases:
@@ -608,9 +612,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_minimum_storage( void ) const {
   return( v_minimum_storage );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum storage
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum storage at time t. There are three possible cases:
@@ -625,9 +630,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_maximum_storage( void ) const {
   return( v_maximum_storage );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of minimum power
 /** The method returned a std::vector< double > V and each element of V
  * contains the minimum power at time t. There are three possible cases:
@@ -642,9 +648,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_minimum_power( void ) const {
   return( v_minimum_power );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum power
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum power at time t. There are three possible cases:
@@ -659,9 +666,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_maximum_power( void ) const {
   return( v_maximum_power );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum primary rho
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum primary rho at time t. There are three possible cases:
@@ -676,9 +684,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_maximum_primary_rho( void ) const {
   return( v_maximum_primary_rho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum secondary rho
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum secondary rho at time t. There are three possible
@@ -694,9 +703,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_maximum_secondary_rho( void ) const {
   return( v_maximum_secondary_rho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of delta ramp up
 /** The method returned a std::vector< double > V and each element of V
  * contains the delta ramp up at time t. There are three possible cases:
@@ -711,9 +721,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_delta_ramp_up );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of delta ramp down
 /** The method returned a std::vector< double > V and each element of V
  * contains the delta ramp down at time t. There are three possible cases:
@@ -728,9 +739,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_delta_ramp_down );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of storing battery rho
 /** The method returned a std::vector< double > V and each element of V
  * contains the storing battery at time t. There are three possible cases:
@@ -745,9 +757,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_storing_battery_rho( void ) const {
   return( v_storing_battery_rho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of extracting battery rho
 /** The method returned a std::vector< double > V and each element of V
  * contains the extracting battery rho at time t. There are three possible
@@ -764,9 +777,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_extracting_battery_rho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of cost
 /** The method returned a std::vector< double > V and each element of V
  * contains the cost of the unit at time t. There are three possible cases:
@@ -781,9 +795,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_cost( void ) const {
   return( v_cost );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of E-mobility demand
 /** The method returned a std::vector< double > V and each element of V
  * contains the demand at time t. There are two possible cases:
@@ -793,7 +808,7 @@ class BatteryUnitBlock : public UnitBlock
  * - otherwise, the std::vector< double > V must have size get_time_horizon()
  *   and each V[ t ] represents the demand value at time t. */
 
- const std::vector< double > & get_demand() const {
+ const std::vector< double > & get_demand( void ) const {
   return( v_demand );
  }
 
@@ -825,9 +840,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_storage_level( void ) const {
   return( v_storage_level );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of intake level variables
 /** The returned std::vector< ColVariable >, say V, contains the
  * intake level variables and is indexed over the dimension time horizon.
@@ -840,9 +856,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_intake_level( void ) const {
   return( v_intake_level );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of outtake level variables
 /** The returned std::vector< ColVariable >, say V, contains the
  * outtake level variables and is indexed over the dimension time horizon.
@@ -855,9 +872,10 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_outtake_level( void ) const {
   return( v_outtake_level );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of battery binary variables
 /** The returned std::vector< ColVariable >, say V, contains the
  * battery binary variables and is indexed over the dimension time horizon.
@@ -870,7 +888,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_battery_binary( void ) const {
   return( v_battery_binary );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
@@ -879,15 +897,16 @@ class BatteryUnitBlock : public UnitBlock
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
@@ -896,24 +915,29 @@ class BatteryUnitBlock : public UnitBlock
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the types of battery unit
 /** This method returns the types of battery unit. */
 
  battery_type get_battery_type() const {
 
-  if(
-   std::all_of( v_storing_battery_rho.cbegin() , v_storing_battery_rho.cend() ,
-                []( double s ) { return s <= 1.0; } ) &&
-   std::all_of( v_extracting_battery_rho.cbegin() ,
-                v_extracting_battery_rho.cend() ,
-                []( double s ) { return s >= 1.0; } ) )
+  if( std::all_of( v_storing_battery_rho.cbegin() ,
+                   v_storing_battery_rho.cend() ,
+                   []( double s ) { return s <= 1.0; } ) &&
+      std::all_of( v_extracting_battery_rho.cbegin() ,
+                   v_extracting_battery_rho.cend() ,
+                   []( double s ) { return s >= 1.0; } ) )
+   return( ASSUME_POSITIVE_PRICES );
 
-   return ASSUME_POSITIVE_PRICES;
+  if( ( !v_storing_battery_rho.empty() ) &&
+      ( !v_extracting_battery_rho.empty() ) )
+   return( NO_Binary_Variables_Constraints );
 
-  if( !v_storing_battery_rho.empty() & !v_extracting_battery_rho.empty() )
+  return( Binary_Variables_Constraints );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
@@ -934,18 +958,16 @@ class BatteryUnitBlock : public UnitBlock
 /** @name Handling the data of the BatteryUnitBlock
  *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "BatteryUnitBlock::load() not "
-                            "implemented yet" ) );
- };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw ( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
  void set_initial_storage( std::vector< double >::const_iterator it ,
-                           Subset && subset ,
-                           const bool ordered = false ,
+                           Subset && subset , bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
 
@@ -995,6 +1017,7 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
+
  /// The vector of minimum storage
  std::vector< double > v_minimum_storage;
 
@@ -1036,7 +1059,9 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the vector of demand
  std::vector< double > v_demand;
+
 /*-----------------------------variables------------------------------------*/
+
  /// the vector of storage level variables
  std::vector< ColVariable > v_storage_level;
 
@@ -1057,7 +1082,9 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
 /*----------------------------constraints-----------------------------------*/
+
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;
 

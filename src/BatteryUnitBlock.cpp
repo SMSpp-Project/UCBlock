@@ -69,16 +69,16 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  clear_constraints( outtake_binary_Constraints );
  clear_constraints( demand_Constraints );
 
- auto clear_boxconstraints =
+ auto clear_box_constraints =
   []( std::vector< BoxConstraint > & constraints ) {
    for( auto & constraint : constraints )
     constraint.clear();
   };
 
- clear_boxconstraints( intake_upper_bound_Constraints );
- clear_boxconstraints( storage_level_bounds_Constraints );
- clear_boxconstraints( primary_upper_bound_Constraints );
- clear_boxconstraints( secondary_upper_bound_Constraints );
+ clear_box_constraints( intake_upper_bound_Constraints );
+ clear_box_constraints( storage_level_bounds_Constraints );
+ clear_box_constraints( primary_upper_bound_Constraints );
+ clear_box_constraints( secondary_upper_bound_Constraints );
 
  auto clear_ZOConstraints =
   []( std::vector< ZOConstraint > & constraints ) {
@@ -168,8 +168,8 @@ void BatteryUnitBlock::check_data_consistency() const {
    throw ( std::logic_error(
     "BatteryUnitBlock::check_data_consistency: minimum "
     "power for time " + std::to_string( t ) + " is " +
-    std::to_string( v_minimum_power[ t ] ) + ", which "
-                                             "greater than the maximum power, which is " +
+    std::to_string( v_minimum_power[ t ] ) + ", which " +
+    "greater than the maximum power, which is " +
     std::to_string( v_maximum_power[ t ] ) + "." ) );
   }
  }
@@ -224,9 +224,9 @@ void BatteryUnitBlock::check_data_consistency() const {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
     throw ( std::logic_error(
-     "BatteryUnitBlock::check_data_consistency: the ine"
-     "fficiency of storing energy must not be greater "
-     "than the inneficiency of extracting energy." ) );
+     "BatteryUnitBlock::check_data_consistency: the inefficiency of storing "
+     "energy must not be greater than the inefficiency of extracting energy."
+    ) );
    }
   }
  }
@@ -237,10 +237,10 @@ void BatteryUnitBlock::check_data_consistency() const {
   assert( v_delta_ramp_up.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_up[ t ] < 0 )
-    throw ( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                   "wrong DeltaRampUp for time step " +
-                                   std::to_string( t ) + ": " +
-                                   std::to_string( v_delta_ramp_up[ t ] ) ) );
+    throw ( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: wrong DeltaRampUp for time "
+     "step " + std::to_string( t ) + ": " +
+     std::to_string( v_delta_ramp_up[ t ] ) ) );
  }
 
  // Delta ramp-down
@@ -249,10 +249,10 @@ void BatteryUnitBlock::check_data_consistency() const {
   assert( v_delta_ramp_down.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_down[ t ] < 0 )
-    throw ( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                   "wrong DeltaRampDown for time step " +
-                                   std::to_string( t ) + ": " +
-                                   std::to_string( v_delta_ramp_down[ t ] ) ) );
+    throw ( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: wrong DeltaRampDown for time "
+     "step " + std::to_string( t ) + ": " +
+     std::to_string( v_delta_ramp_down[ t ] ) ) );
  }
 
  // Maximum active power that can be used as primary reserve
@@ -261,13 +261,11 @@ void BatteryUnitBlock::check_data_consistency() const {
   assert( v_maximum_primary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_primary_rho[ t ] < 0 )
-    throw ( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                   "the maximum power that can be used as "
-                                   "primary reserve for time " +
-                                   std::to_string( t ) + " is " +
-                                   std::to_string(
-                                    v_maximum_primary_rho[ t ] ) +
-                                   ", but it must be nonnegative." ) );
+    throw ( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: the maximum power that can be"
+     " used as primary reserve for time " + std::to_string( t ) + " is " +
+     std::to_string( v_maximum_primary_rho[ t ] ) +
+     ", but it must be nonnegative." ) );
  }
 
  // Maximum active power that can be used as secondary reserve
@@ -276,12 +274,12 @@ void BatteryUnitBlock::check_data_consistency() const {
   assert( v_maximum_secondary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_secondary_rho[ t ] < 0 )
-    throw ( std::invalid_argument
-     ( "BatteryUnitBlock::check_data_consistency: the maximum power that "
-       "can be used as secondary reserve for time " +
-       std::to_string( t ) + " is " +
-       std::to_string( v_maximum_secondary_rho[ t ] ) +
-       ", but it must be nonnegative." ) );
+    throw ( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: the maximum power that "
+     "can be used as secondary reserve for time " +
+     std::to_string( t ) + " is " +
+     std::to_string( v_maximum_secondary_rho[ t ] ) +
+     ", but it must be nonnegative." ) );
  }
 
  // Demand
@@ -290,19 +288,18 @@ void BatteryUnitBlock::check_data_consistency() const {
   assert( v_demand.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_demand[ t ] < 0 )
-    throw ( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                   "demand for time " + std::to_string( t ) +
-                                   " is " + std::to_string( v_demand[ t ] ) +
-                                   ", but is must be nonnegative." ) );
+    throw ( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: demand for time " +
+     std::to_string( t ) + " is " + std::to_string( v_demand[ t ] ) +
+     ", but is must be nonnegative." ) );
  }
 
  // Initial storage
 
  if( f_initial_storage < 0 ) {
-  throw ( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                 "initial storage is " +
-                                 std::to_string( f_initial_storage ) +
-                                 ", but it must be nonnegative." ) );
+  throw ( std::invalid_argument(
+   "BatteryUnitBlock::check_data_consistency: initial storage is " +
+   std::to_string( f_initial_storage ) + ", but it must be nonnegative." ) );
  }
 
 } // end( BatteryUnitBlock::check_data_consistency )
@@ -560,7 +557,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( intake_upper_bound_Constraints ,
                         "Intake_UpperBound_Constraints_Battery" );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 // Initializing demand_Constraints
 
  {
@@ -626,7 +623,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( demand_Constraints , "demand_Constraints_Battery" );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 // Initializing storage_level_bounds_Constraints
 
  storage_level_bounds_Constraints.resize( f_time_horizon );
@@ -779,7 +776,7 @@ void BatteryUnitBlock::generate_objective( Configuration * objc ) {
   }
  }
 
- // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
+ // initialize objective function
 
  auto linear_function = new LinearFunction();
 
