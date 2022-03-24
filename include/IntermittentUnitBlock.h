@@ -476,7 +476,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
 /** @name Handling the data of the IntermittentUnitBlock
-    @{ */
+ *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(
@@ -559,6 +559,25 @@ class IntermittentUnitBlock : public UnitBlock
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum power in the constraints of this IntermittentUnitBlock.
+  *
+  * @param value The value of the kappa constant.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+             issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 
