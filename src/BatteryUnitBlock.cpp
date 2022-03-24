@@ -444,7 +444,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
   }
 
-  active_power_lower_bound_Constraints[ t ].set_lhs( v_minimum_power[ t ] );
+  active_power_lower_bound_Constraints[ t ].set_lhs
+   ( f_kappa * v_minimum_power[ t ] );
   active_power_lower_bound_Constraints[ t ].set_rhs( Inf< double >() );
   active_power_lower_bound_Constraints[ t ].set_function( linear_function );
 
@@ -477,7 +478,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   active_power_upper_bound_Constraints[ t ].set_lhs( -Inf< double >() );
-  active_power_upper_bound_Constraints[ t ].set_rhs( v_maximum_power[ t ] );
+  active_power_upper_bound_Constraints[ t ].set_rhs
+   ( f_kappa * v_maximum_power[ t ] );
   active_power_upper_bound_Constraints[ t ].set_function( linear_function );
  }
 
@@ -574,7 +576,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   intake_upper_bound_Constraints[ t ].set_lhs( 0.0 );
-  intake_upper_bound_Constraints[ t ].set_rhs( v_maximum_power[ t ] );
+  intake_upper_bound_Constraints[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
   intake_upper_bound_Constraints[ t ].set_variable( &v_intake_level[ t ] );
 
  }
@@ -647,8 +649,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  storage_level_bounds_Constraints[ t ].set_lhs( v_minimum_storage[ t ] );
-  storage_level_bounds_Constraints[ t ].set_rhs( v_maximum_storage[ t ] );
+  storage_level_bounds_Constraints[ t ].set_lhs
+   ( f_kappa * v_minimum_storage[ t ] );
+  storage_level_bounds_Constraints[ t ].set_rhs
+   ( f_kappa * v_maximum_storage[ t ] );
   storage_level_bounds_Constraints[ t ].set_variable( &v_storage_level[ t ] );
  }
 
@@ -669,7 +673,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    linear_function->add_variable( &v_intake_level[ t ] , 1.0 );
    linear_function->add_variable( &v_battery_binary[ t ] ,
-                                  -v_maximum_power[ t ] );
+                                  - f_kappa * v_maximum_power[ t ] );
 
    intake_binary_Constraints[ t ].set_lhs( -Inf<double>() );
    intake_binary_Constraints[ t ].set_rhs( 0.0 );
@@ -689,10 +693,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    linear_function->add_variable( &v_outtake_level[ t ] , 1.0 );
    linear_function->add_variable( &v_battery_binary[ t ] ,
-                                  - v_minimum_power[ t ] );
+                                  - f_kappa * v_minimum_power[ t ] );
 
    outtake_binary_Constraints[ t ].set_lhs( -Inf<double>() );
-   outtake_binary_Constraints[ t ].set_rhs( -v_minimum_power[ t ] );
+   outtake_binary_Constraints[ t ].set_rhs
+    ( - f_kappa * v_minimum_power[ t ] );
    outtake_binary_Constraints[ t ].set_function( linear_function );
 
   }
@@ -714,7 +719,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     primary_upper_bound_Constraints[ t ].set_lhs( 0.0 );
-    primary_upper_bound_Constraints[ t ].set_rhs( v_maximum_primary_rho[ t ] );
+    primary_upper_bound_Constraints[ t ].set_rhs
+     ( f_kappa * v_maximum_primary_rho[ t ] );
     primary_upper_bound_Constraints[ t ].set_variable
      ( &v_primary_spinning_reserve[ t ] );
    }
@@ -735,7 +741,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     secondary_upper_bound_Constraints[ t ].set_lhs( 0.0 );
     secondary_upper_bound_Constraints[ t ].set_rhs
-     ( v_maximum_secondary_rho[ t ] );
+     ( f_kappa * v_maximum_secondary_rho[ t ] );
     secondary_upper_bound_Constraints[ t ].set_variable
      ( &v_secondary_spinning_reserve[ t ] );
    }
