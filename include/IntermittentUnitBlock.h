@@ -606,7 +606,7 @@ class IntermittentUnitBlock : public UnitBlock
  double f_gamma = 1;
 
  /// the kappa value
- double f_kappa = 0;
+ double f_kappa = 1;
 
  /// the scale factor of this IntermittentUnitBlock
  double f_scale = 1;
