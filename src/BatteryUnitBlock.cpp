@@ -1119,6 +1119,134 @@ void BatteryUnitBlock::scale
 
 /*--------------------------------------------------------------------------*/
 
+void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
+ if( ! active_power_lower_bound_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   active_power_lower_bound_Constraints[ t ].set_lhs
+    ( f_kappa * v_minimum_power[ t ] , issueAMod );
+ }
+
+ if( ! active_power_upper_bound_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   active_power_upper_bound_Constraints[ t ].set_rhs
+    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+ }
+
+ if( ! intake_upper_bound_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   intake_upper_bound_Constraints[ t ].set_rhs
+    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+ }
+
+ if( ! storage_level_bounds_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   storage_level_bounds_Constraints[ t ].set_lhs
+    ( f_kappa * v_minimum_storage[ t ] , issueAMod );
+   storage_level_bounds_Constraints[ t ].set_rhs
+    ( f_kappa * v_maximum_storage[ t ] , issueAMod );
+  }
+ }
+
+ if( ! intake_binary_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f = static_cast< LinearFunction * >
+    ( intake_binary_Constraints[ t ].get_function() );
+
+   const auto index = f->is_active( & v_battery_binary[ t ] );
+
+   if( index == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
+                             "not found in intake_binary_Constraints." ) );
+
+   f->modify_coefficient( index , - f_kappa * v_maximum_power[ t ] ,
+                          issueAMod );
+  }
+ }
+
+ if( ! outtake_binary_Constraints.empty() ) {
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f = static_cast< LinearFunction * >
+    ( outtake_binary_Constraints[ t ].get_function() );
+
+   const auto index = f->is_active( & v_battery_binary[ t ] );
+
+   if( index == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
+                             "not found in outtake_binary_Constraints." ) );
+
+   f->modify_coefficient( index , - f_kappa * v_minimum_power[ t ] ,
+                          issueAMod );
+
+   outtake_binary_Constraints[ t ].set_rhs( - f_kappa * v_minimum_power[ t ] ,
+                                            issueAMod );
+  }
+ }
+
+ if( ! primary_upper_bound_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   primary_upper_bound_Constraints[ t ].set_rhs
+    ( f_kappa * v_maximum_primary_rho[ t ] , issueAMod );
+ }
+
+ if( ! secondary_upper_bound_Constraints.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   secondary_upper_bound_Constraints[ t ].set_rhs
+    ( f_kappa * v_maximum_secondary_rho[ t ] , issueAMod );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , ModParam issuePMod , ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_kappa == *values )
+  return; // The kappa constant does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_kappa = *values; // Update the kappa constant
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( constraints_generated() ) {
+    // Update the constraints
+    update_kappa_in_constraints( issueAMod );
+   } // end( constraints_generated )
+  } // end( if( not_dry_run( issueAMod ) )
+ } // end( if( not_dry_run( issuePMod ) )
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( BatteryUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Range rng ,
+  ModParam issuePMod , ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset( 1 , 0 );
+
+ set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
+
+}  // end( BatteryUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
 void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
 
  if( ! objective_generated() )

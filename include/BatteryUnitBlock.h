@@ -997,8 +997,8 @@ class BatteryUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- /// sets the scale factor of this IntermittentUnitBlock
- /** This method sets the scale factor of this IntermittentUnitBlock.
+ /// sets the scale factor of this BatteryUnitBlock
+ /** This method sets the scale factor of this BatteryUnitBlock.
   *
   * @param values An iterator to a vector containing the scale factor.
   *
@@ -1016,6 +1016,73 @@ class BatteryUnitBlock : public UnitBlock {
              const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum active power, maximum primary and secondary reserve, and the
+  * minimum and maximum storage levels in the constraints of this
+  * BatteryUnitBlock.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param subset If non-empty, the kappa constant is set to the value pointed
+  *        by \p values. If empty, no operation is performed.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Subset && subset , const bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum active power, maximum primary and secondary reserve, and the
+  * minimum and maximum storage levels in the constraints of this
+  * BatteryUnitBlock.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param rng If non-empty, the kappa constant is set to the value pointed by
+  *        \p values. If empty, no operation is performed.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the kappa constant
+ /** This function sets the kappa constant, which multiplies the minimum and
+  * maximum active power, maximum primary and secondary reserve, and the
+  * minimum and maximum storage levels in the constraints of this
+  * BatteryUnitBlock.
+  *
+  * @param value The value of the kappa constant.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+             issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1170,6 +1237,14 @@ class BatteryUnitBlock : public UnitBlock {
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_initial_storage" ,
    &BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_kappa" ,
+   &BatteryUnitBlock::set_kappa );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_kappa" ,
+   &BatteryUnitBlock::set_kappa );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1195,8 +1270,8 @@ private:
 
  /// updates the constraints for the current initial storage
  /** This function updates both sides of the demand constraint at time 0
-  * (which is the constraint that depends on the initial storage).
-  */
+  * (which is the constraint that depends on the initial storage). */
+
  void update_initial_storage_in_constraints( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1204,9 +1279,17 @@ private:
  /// updates the constraints for the current initial power
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
-  * constraints that depend on the initial power).
-  */
+  * constraints that depend on the initial power). */
+
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the constraints for the current kappa
+ /** This function updates the constraints to take into account the current
+  * value of the kappa constant. */
+
+ void update_kappa_in_constraints( ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1214,6 +1297,7 @@ private:
  /** This method updates the coefficients of the Objective.
   *
   * @param issueAMod controls how abstract Modification are issued. */
+
  void update_objective( c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
@@ -1260,7 +1344,8 @@ private:
   /// Public enum for the types of BatteryUnitBlockMod
   enum BUB_mod_type {
    eSetInitS = eUBModLastParam ,  ///< Set initial storage values
-   eSetInitP                   ,   ///< Set initial power values
+   eSetInitP                   ,  ///< Set initial power values
+   eSetKappa                   ,  ///< Set the kappa constant
   };
 
   /// Constructor, takes the BatteryUnitBlock and the type
@@ -1287,6 +1372,9 @@ private:
      break;
     case ( eSetInitP ):
      output << "set initial power values ";
+     break;
+    case ( eSetKappa ):
+     output << "set kappa ";
      break;
    }
   }
