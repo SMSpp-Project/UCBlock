@@ -53,11 +53,6 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 BatteryUnitBlock::~BatteryUnitBlock() {
- auto clear_constraints =
-  []( std::vector< FRowConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
 
  clear_constraints( active_power_upper_bound_Constraints );
  clear_constraints( active_power_lower_bound_Constraints );
@@ -69,24 +64,12 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  clear_constraints( outtake_binary_Constraints );
  clear_constraints( demand_Constraints );
 
- auto clear_box_constraints =
-  []( std::vector< BoxConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
+ clear_constraints( intake_upper_bound_Constraints );
+ clear_constraints( storage_level_bounds_Constraints );
+ clear_constraints( primary_upper_bound_Constraints );
+ clear_constraints( secondary_upper_bound_Constraints );
 
- clear_box_constraints( intake_upper_bound_Constraints );
- clear_box_constraints( storage_level_bounds_Constraints );
- clear_box_constraints( primary_upper_bound_Constraints );
- clear_box_constraints( secondary_upper_bound_Constraints );
-
- auto clear_ZOConstraints =
-  []( std::vector< ZOConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
-
- clear_ZOConstraints( battery_binary_bound_Constraints );
+ clear_constraints( battery_binary_bound_Constraints );
 
  objective.clear();
 }

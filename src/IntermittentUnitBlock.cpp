@@ -45,6 +45,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register IntermittentUnitBlock to the Block factory
+
 SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
 /*--------------------------------------------------------------------------*/
@@ -67,6 +68,7 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberIntervals" };
@@ -332,11 +334,10 @@ is_feasible( std::vector< C > & constraints , double tolerance ) {
 template< class V >
 static std::enable_if_t< std::is_base_of_v< ColVariable , V > , bool >
 is_feasible( const std::vector< V > & variables , double tolerance ) {
- for( const auto & variable : variables )
-  if( !variable.is_feasible( tolerance ) )
-   return false;
-
- return true;
+ return std::all_of( variables.begin() , variables.end() ,
+                     [ tolerance ]( const auto & variable ) {
+                      return variable.is_feasible( tolerance );
+                     } );
 }
 
 /*--------------------------------------------------------------------------*/

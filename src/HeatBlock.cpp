@@ -54,22 +54,15 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 /*--------------------------------------------------------------------------*/
 
 HeatBlock::~HeatBlock() {
- auto clear_constraints =
-  []( boost::multi_array< FRowConstraint, 2 > & constraints ) {
-   auto constraint = constraints.data();
-   auto n = constraints.num_elements();
-   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
-    constraint->clear();
-  };
 
  clear_constraints( v_HeatBounds_Constraints );
 
- for( auto & constraint : v_HeatStorageBounds_Constraints )
-  constraint.clear();
+ clear_constraints( v_HeatStorageBounds_Constraints );
 
- for( auto & constraint : v_EvolutionStoredHeat_Constraints )
-  constraint.clear();
- }
+ clear_constraints( v_EvolutionStoredHeat_Constraints );
+
+ objective.clear();
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -87,23 +80,21 @@ void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
     // The father Block is available. Take time horizon from it.
     this->set_time_horizon( f_B->get_time_horizon() );
    else
-    throw( std::invalid_argument
-           ( "HeatBlock::deserialize: TimeHorizon is not present in the "
-             "netCDF input and HeatBlock does not have a father." ) );
+    throw ( std::invalid_argument
+     ( "HeatBlock::deserialize: TimeHorizon is not present in the "
+       "netCDF input and HeatBlock does not have a father." ) );
   }
- }
- else {
+ } else {
   // dimension TimeHorizon is present in the netCDF input
 
   auto th = TimeHorizon.getSize();
   if( f_time_horizon == 0 )
    this->set_time_horizon( th );
-  else
-   if( f_time_horizon != th )
-    throw( std::logic_error
-           ( "HeatBlock::deserialize: TimeHorizon is not present in the "
-             "netCDF. The (nonzero) time horizon of HeatBlock is different "
-             "from that of its father, but they should be equal." ) );
+  else if( f_time_horizon != th )
+   throw ( std::logic_error
+    ( "HeatBlock::deserialize: TimeHorizon is not present in the "
+      "netCDF. The (nonzero) time horizon of HeatBlock is different "
+      "from that of its father, but they should be equal." ) );
  }
 }
 
@@ -116,15 +107,15 @@ void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
   f_number_intervals = 0;
  else {
   f_number_intervals = NumberIntervals.getSize();
-  if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ))
-   throw( std::invalid_argument
-          ( "HeatBlock::deserialize: invalid NumberIntervals. "
-            "It must be between 1 and TimeHorizon." ) );
+  if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
+   throw ( std::invalid_argument
+    ( "HeatBlock::deserialize: invalid NumberIntervals. "
+      "It must be between 1 and TimeHorizon." ) );
  }
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
 
-  ::deserialize( group, "ChangeIntervals", f_number_intervals,
+  ::deserialize( group , "ChangeIntervals" , f_number_intervals ,
                  v_change_intervals );
 
   // Check that all numbers are between 1 and f_time_horizon, that
@@ -132,19 +123,19 @@ void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
   // in increasing sense
 
   if( v_change_intervals.back() != f_time_horizon ) {
-   throw( std::invalid_argument
-          ( "HeatBlock::deserialize: invalid value in ChangeIntervals: "
-            "the last element must be TimeHorizon." ) );
+   throw ( std::invalid_argument
+    ( "HeatBlock::deserialize: invalid value in ChangeIntervals: "
+      "the last element must be TimeHorizon." ) );
   }
 
   Index previous_t = 0;
 
   for( auto t : v_change_intervals ) {
-   if( ! ( t > previous_t && t < f_time_horizon - 1 ) )
-    throw( std::invalid_argument
-           ( "HeatBlock::deserialize: invalid value in ChangeIntervals: " +
-             std::to_string( t ) + ". All values must be between 1 and "
-             "TimeHorizon and in strictly increasing order." ) );
+   if( !( t > previous_t && t < f_time_horizon - 1 ) )
+    throw ( std::invalid_argument
+     ( "HeatBlock::deserialize: invalid value in ChangeIntervals: " +
+       std::to_string( t ) + ". All values must be between 1 and "
+                             "TimeHorizon and in strictly increasing order." ) );
 
    previous_t = t;
   }
@@ -158,7 +149,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
 
- ::deserialize( group, "TotalHeatDemand", f_time_horizon,
+ ::deserialize( group , "TotalHeatDemand" , f_time_horizon ,
                 v_heat_demand );
 /*
     ::deserialize( group, "CostHeatUnit",
@@ -173,16 +164,16 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
                    { f_number_intervals , f_number_heat_units },
                    v_max_heat_production );*/
 
- ::deserialize( group, "MinHeatStorage", f_number_intervals,
+ ::deserialize( group , "MinHeatStorage" , f_number_intervals ,
                 v_min_heat_storage );
 
- ::deserialize( group, "MaxHeatStorage", f_number_intervals,
+ ::deserialize( group , "MaxHeatStorage" , f_number_intervals ,
                 v_max_heat_storage );
 
- ::deserialize( group, "StoringHeatRho", &f_storing_heat_rho );
- ::deserialize( group, "ExtractingHeatRho", &f_extracting_heat_rho );
- ::deserialize( group, "KeepingHeatRho", &f_keeping_heat_rho );
- ::deserialize( group, "InitialHeatAvailable", &f_initial_heat_storage );
+ ::deserialize( group , "StoringHeatRho" , &f_storing_heat_rho );
+ ::deserialize( group , "ExtractingHeatRho" , &f_extracting_heat_rho );
+ ::deserialize( group , "KeepingHeatRho" , &f_keeping_heat_rho );
+ ::deserialize( group , "InitialHeatAvailable" , &f_initial_heat_storage );
 
  Block::deserialize( group );
 
@@ -190,21 +181,21 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-unsigned int HeatBlock::get_variables_to_be_generated( Configuration *stvv ) {
+unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
- if( ! stvv )
+ if( !stvv )
   return 0;
 
  // informs which variables must be generated
  int variables_to_be_generated = 0;
 
- auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+ auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
 
- if( ( ! tstvv ) && f_BlockConfig &&
+ if( ( !tstvv ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration ) {
 
-  tstvv = dynamic_cast<SimpleConfiguration<int> *>
-   ( f_BlockConfig->f_static_constraints_Configuration );
+  tstvv = dynamic_cast<SimpleConfiguration< int > *>
+  ( f_BlockConfig->f_static_constraints_Configuration );
  }
 
  if( tstvv )
@@ -215,7 +206,7 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration *stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
+void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
  if( v_heat.size() != 0 ) {
   // the abstract variables have already been generated
@@ -231,9 +222,9 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
 
  v_heat->resize( boost::extents[ f_time_horizon ][ f_number_heat_units ] );
  for( Index t = 0 ; t < f_time_horizon ; ++t )
-  for(Index g = 0 ; t < f_number_heat_units ; ++g )
+  for( Index g = 0 ; t < f_number_heat_units ; ++g )
    v_heat[ t ][ g ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_heat);
+ add_static_variable( v_heat );
 
  // Heat added, removed, and available variables
 
@@ -252,7 +243,7 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
   if( variables_to_be_generated & k ) {
    auto variables = pair.first;
    variables->resize( f_time_horizon );
-   for( auto & variable : * variables )
+   for( auto & variable : *variables )
     variable.set_type( pair.second );
    add_static_variable( variables );
   }
@@ -263,20 +254,21 @@ void HeatBlock::generate_abstract_variables( Configuration *stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
+void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( ! v_HeatBounds_Constraints.empty() )
+ if( !v_HeatBounds_Constraints.empty() )
   return; // constraints have already been generated
 
  // Satisfaction Heat Bounds constraints
 
  v_HeatBounds_Constraints.resize
-  ( boost::multi_array<BoxConstraint , 2>::
+  ( boost::multi_array< BoxConstraint , 2 >::
     extent_gen()[ f_time_horizon ][ f_number_heat_units ] );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
-   v_HeatBounds_Constraints[ t ][ unit_id ].set_variable( & v_heat[ t ][ unit_id ] );
+   v_HeatBounds_Constraints[ t ][ unit_id ].set_variable(
+    &v_heat[ t ][ unit_id ] );
    v_HeatBounds_Constraints[ t ][ unit_id ].set_lhs
     ( v_min_heat_production[ t ][ unit_id ] );
    v_HeatBounds_Constraints[ t ][ unit_id ].set_rhs
@@ -287,10 +279,10 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  // Satisfaction Heat Storage Bounds constraints
 
- if( ! v_heat_available.empty() ) {
+ if( !v_heat_available.empty() ) {
   v_HeatStorageBounds_Constraints.resize( f_time_horizon );
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   v_HeatStorageBounds_Constraints[ t ].set_variable( & v_heat_available[ t ] );
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   v_HeatStorageBounds_Constraints[ t ].set_variable( &v_heat_available[ t ] );
    v_HeatStorageBounds_Constraints[ t ].set_lhs( v_min_heat_storage[ t ] );
    v_HeatStorageBounds_Constraints[ t ].set_rhs( v_max_heat_storage[ t ] );
   }
@@ -299,8 +291,8 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  // Evolution Stored Heat Constraints
 
- if( ! ( v_heat_available.empty() || v_heat_added.empty() ||
-         v_heat_removed.empty() ) ) {
+ if( !( v_heat_available.empty() || v_heat_added.empty() ||
+        v_heat_removed.empty() ) ) {
 
   v_EvolutionStoredHeat_Constraints.resize( f_time_horizon );
 
@@ -308,23 +300,23 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
    if( t == 0 ) {
     auto linear_function = new LinearFunction();
-    linear_function->add_variable( & v_heat_available[t] , 1.0 );
-    linear_function->add_variable( & v_heat_added[t] , - f_storing_heat_rho );
-    linear_function->add_variable( & v_heat_removed[t] , f_extracting_heat_rho );
+    linear_function->add_variable( &v_heat_available[ t ] , 1.0 );
+    linear_function->add_variable( &v_heat_added[ t ] , -f_storing_heat_rho );
+    linear_function->add_variable( &v_heat_removed[ t ] ,
+                                   f_extracting_heat_rho );
     v_EvolutionStoredHeat_Constraints[ t ].set_function( linear_function );
-    v_EvolutionStoredHeat_Constraints[ t ].set_lhs ( 0.0 );
+    v_EvolutionStoredHeat_Constraints[ t ].set_lhs( 0.0 );
     v_EvolutionStoredHeat_Constraints[ t ].set_rhs
      ( f_initial_heat_storage * f_keeping_heat_rho );
-   }
-   else {
+   } else {
     auto linear_function = new LinearFunction();
     // TODO t+1 is not defined for t = time_horizon - 1
-    linear_function->add_variable( & v_heat_available[ t + 1 ] , 1.0 );
-    linear_function->add_variable( & v_heat_available[ t ] ,
-                                   - f_keeping_heat_rho );
-    linear_function->add_variable( & v_heat_added[ t + 1 ] ,
-                                   - f_storing_heat_rho );
-    linear_function->add_variable( & v_heat_removed[ t  + 1] ,
+    linear_function->add_variable( &v_heat_available[ t + 1 ] , 1.0 );
+    linear_function->add_variable( &v_heat_available[ t ] ,
+                                   -f_keeping_heat_rho );
+    linear_function->add_variable( &v_heat_added[ t + 1 ] ,
+                                   -f_storing_heat_rho );
+    linear_function->add_variable( &v_heat_removed[ t + 1 ] ,
                                    f_extracting_heat_rho );
 
     v_EvolutionStoredHeat_Constraints[ t ].set_function( linear_function );
@@ -336,21 +328,21 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
  // Satisfaction Heat Demand constraints
 
- if( ( ! v_heat_added.empty() ) && ( ! v_heat_removed.empty() ) ) {
+ if( ( !v_heat_added.empty() ) && ( !v_heat_removed.empty() ) ) {
 
   v_HeatDemand_Constraints.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
    auto linear_function = new LinearFunction();
-   linear_function->add_variable( & v_heat_added[ t ] , -1.0 );
-   linear_function->add_variable( & v_heat_removed[ t ] , 1.0 );
-   for( Index unit_id = 0; unit_id < f_number_heat_units; ++unit_id )
-    linear_function->add_variable( & v_heat[ t ][ unit_id ] , 1.0 );
+   linear_function->add_variable( &v_heat_added[ t ] , -1.0 );
+   linear_function->add_variable( &v_heat_removed[ t ] , 1.0 );
+   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id )
+    linear_function->add_variable( &v_heat[ t ][ unit_id ] , 1.0 );
 
    v_HeatDemand_Constraints[ t ].set_function( linear_function );
    v_HeatDemand_Constraints[ t ].set_lhs( v_heat_demand[ t ] );
-   v_HeatDemand_Constraints[ t ].set_rhs( Inf<double>() );
+   v_HeatDemand_Constraints[ t ].set_rhs( Inf< double >() );
   }
 
   add_static_constraint( v_HeatDemand_Constraints );
@@ -360,7 +352,7 @@ void HeatBlock::generate_abstract_constraints( Configuration *stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_objective( Configuration *objc ) {
+void HeatBlock::generate_objective( Configuration * objc ) {
 
  if( get_objective() )  // an objective is there already
   return;               // cowardly (and silently) return
@@ -368,17 +360,17 @@ void HeatBlock::generate_objective( Configuration *objc ) {
  // Initialize objective function
 
  if( v_heat.size() != f_time_horizon ) {
-  throw( std::logic_error
-         ( "HeatBlock::generate_objective: v_heat must have "
-           "size equal to the time horizon." ) );
+  throw ( std::logic_error
+   ( "HeatBlock::generate_objective: v_heat must have "
+     "size equal to the time horizon." ) );
  }
 
  auto linear_function = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
-   auto cost = get_cost_heat_unit()[ t ] [ unit_id ];
-   linear_function->add_variable( & v_heat[ t ][ unit_id ] , cost );
+   auto cost = get_cost_heat_unit()[ t ][ unit_id ];
+   linear_function->add_variable( &v_heat[ t ][ unit_id ] , cost );
   }
  }
 
@@ -397,9 +389,9 @@ void HeatBlock::serialize( netCDF::NcGroup & group ) const {
  Block::serialize( group );
  group.addDim( "TimeHorizon" , f_time_horizon );
 
- auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
+ auto NumberIntervals = group.addDim( "NumberIntervals" , f_number_intervals );
 
- ::serialize( group, "ChangeInterval", netCDF::NcUint64() ,
+ ::serialize( group , "ChangeInterval" , netCDF::NcUint64() ,
               NumberIntervals , v_change_intervals );
 
  auto dim_number_units = group.addDim( "NumberHeatUnits" ,

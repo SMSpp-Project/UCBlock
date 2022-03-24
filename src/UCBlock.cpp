@@ -50,13 +50,6 @@ SMSpp_insert_in_factory_cpp_1( UCBlock );
 /*--------------------------------------------------------------------------*/
 
 UCBlock::~UCBlock() {
- auto clear_constraints =
-  []( boost::multi_array< FRowConstraint , 2 > & constraints ) {
-   auto constraint = constraints.data();
-   auto n = constraints.num_elements();
-   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
-    constraint->clear();
-  };
 
  clear_constraints( v_node_injection_constraints );
  clear_constraints( v_PrimaryDemand_Const );
@@ -67,8 +60,7 @@ UCBlock::~UCBlock() {
  */
 
  for( auto & v : v_PollutantBudget_Const )
-  for( auto & constraint : v )
-   constraint.clear();
+  clear_constraints( v );
 
  for( auto & block : v_Block )
   delete block;
