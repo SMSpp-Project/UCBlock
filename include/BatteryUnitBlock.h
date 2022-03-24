@@ -384,7 +384,13 @@ class BatteryUnitBlock : public UnitBlock {
  *   energy that must be discharged from the battery and "sent away for some
  *   other purpose" (say, driving your e-car) at time t. This variable is
  *   optional; if it isn't defined, then Demand[ t ] == 0. Otherwise the
- *   Demand[ t ] contains the demand value for each time instant t. */
+ *   Demand[ t ] contains the demand value for each time instant t.
+ *
+ * - The scalar variable "Kappa", of type netCDF::NcDouble(). This variable
+ *   contains the factor that multiplies the minimum and maximum active power,
+ *   maximum primary and secondary reserve, and the minimum and maximum
+ *   storage levels, at each time instant t. This variable is optional, if it
+ *   is not provided it is taken to be Kappa == 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1034,31 +1040,31 @@ class BatteryUnitBlock : public UnitBlock {
  std::vector< double > v_maximum_storage;
 
  /// the vector of MinPower
- std::vector< double >  v_minimum_power;
+ std::vector< double > v_minimum_power;
 
  /// the vector of MaxPower
- std::vector< double >  v_maximum_power;
+ std::vector< double > v_maximum_power;
 
  /// the vector of MaxPrimaryRho
- std::vector< double >  v_maximum_primary_rho;
+ std::vector< double > v_maximum_primary_rho;
 
  /// the vector of MaxSecondaryRho
- std::vector< double >  v_maximum_secondary_rho;
+ std::vector< double > v_maximum_secondary_rho;
 
  /// the vector of RampUp
- std::vector< double >  v_delta_ramp_up;
+ std::vector< double > v_delta_ramp_up;
 
  /// the vector of RampDown
- std::vector< double >  v_delta_ramp_down;
+ std::vector< double > v_delta_ramp_down;
 
  /// the vector of storing battery rho
- std::vector< double >  v_storing_battery_rho;
+ std::vector< double > v_storing_battery_rho;
 
  /// the vector of extracting battery rho
- std::vector< double >  v_extracting_battery_rho;
+ std::vector< double > v_extracting_battery_rho;
 
  /// the vector of Cost
- std::vector< double >  v_cost;
+ std::vector< double > v_cost;
 
  /// the InitialStorage value
  double f_initial_storage;
@@ -1069,9 +1075,14 @@ class BatteryUnitBlock : public UnitBlock {
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
+ /// the kappa value
+ double f_kappa = 1;
+
  /// the vector of demand
  std::vector< double >  v_demand;
+
 /*-----------------------------variables------------------------------------*/
+
  /// the vector of storage level variables
  std::vector< ColVariable > v_storage_level;
 
@@ -1092,44 +1103,46 @@ class BatteryUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
 /*----------------------------constraints-----------------------------------*/
-/// the active power upper bound constraints
+
+ /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;
 
-/// the active power lower bound constraints
+ /// the active power lower bound constraints
  std::vector< FRowConstraint > active_power_lower_bound_Constraints;
 
-/// the ramp up constraints
+ /// the ramp up constraints
  std::vector< FRowConstraint > ramp_up_Constraints;
 
-/// the ramp down constraints
+ /// the ramp down constraints
  std::vector< FRowConstraint > ramp_down_Constraints;
 
-/// the active power, intake and outtake relation constraints
+ /// the active power, intake and outtake relation constraints
  std::vector< FRowConstraint > power_intake_outtake_Constraints;
 
-/// the intake upper bound constraints
+ /// the intake upper bound constraints
  std::vector< BoxConstraint > intake_upper_bound_Constraints;
 
-/// the storage , intake and outtake level relation constraints
+ /// the storage, intake and outtake level relation constraints
  std::vector< FRowConstraint > storage_intake_outtake_Constraints;
 
-/// the storage level bounds constraints
+ /// the storage level bounds constraints
  std::vector< BoxConstraint > storage_level_bounds_Constraints;
 
-/// the intake and binary variable relation constraints
+ /// the intake and binary variable relation constraints
  std::vector< FRowConstraint > intake_binary_Constraints;
 
-/// the outtake and binary variable relation constraints
+ /// the outtake and binary variable relation constraints
  std::vector< FRowConstraint > outtake_binary_Constraints;
 
-/// the demand constraints
+ /// the demand constraints
  std::vector< FRowConstraint > demand_Constraints;
 
-/// primary upper bound constraints
+ /// primary upper bound constraints
  std::vector< BoxConstraint > primary_upper_bound_Constraints;
 
-/// secondary upper bound constraints
+ /// secondary upper bound constraints
  std::vector< BoxConstraint > secondary_upper_bound_Constraints;
 
  /// the vector of binary variables
@@ -1162,7 +1175,8 @@ class BatteryUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
- private:
+
+private:
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
