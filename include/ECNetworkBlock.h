@@ -122,7 +122,7 @@ class ECNetworkBlock : public NetworkBlock
  * get_NetworkData() returns nullptr, this is equivalent to
  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
 
- Index get_number_nodes( void ) const override {
+ Index get_number_nodes() const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
   return 0;
@@ -136,7 +136,7 @@ class ECNetworkBlock : public NetworkBlock
   return f_NetworkData;
  }
 
-/// returns the matrix of active demands
+/// returns the vector of active demands
 /** Method for returning the active demand for the given node, which is
  * assumed to have size get_number_intervals() by get_number_nodes(). */
 
@@ -144,7 +144,7 @@ class ECNetworkBlock : public NetworkBlock
   // TODO
  }
 
-/// returns the matrix of sell prices
+/// returns the vector of sell prices
 /** Method for returning the tariff that user gain to sell electricity to
  * the public market. */
 
@@ -153,19 +153,11 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /// returns the vector of buy prices
-/** Method for returning the *variable* tariff that user pay to buy electricity
- * at each time horizon from the public market. */
+/** Method for returning the tariff that user pay to buy electricity at each
+ * time horizon from the public market. */
 
  const std::vector< double > & get_buy_price() const {
   return v_buy_price;
- }
-
-/// returns the matrix of consumption prices
-/** Method for returning the *fixed* tariff that user pay to buy electricity
- * at each time horizon from the public market. */
-
- const std::vector< double > & get_consumption_price() const {
-  return v_consumption_price;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -228,17 +220,9 @@ class ECNetworkBlock : public NetworkBlock
   *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
   *   provided, then this variable must be of size 1). This is meant to
   *   represent the vector BuyP[ t ] that, for each time instant t, contains
-  *   the variable tariff that user pay to buy electricity from the public
-  *   market for the corresponding time step. If "BuyPrice" has length 1 then
-  *   BuyP[ t ] contains the same value for all t.
-  *
-  * - The variable "ConsumptionPrice", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable must be of size 1). This is meant to
-  *   represent the vector ConsP[ t ] that, for each time instant t, contains
-  *   the fixed tariff that user pay to buy electricity from the public market
-  *   for the corresponding time step. If "ConsumptionPrice" has length 1 then
-  *   ConsP[ t ] contains the same value for all t.
+  *   the tariff that user pay to buy electricity from the public market for
+  *   the corresponding time step. If "BuyPrice" has length 1 then BuyP[ t ]
+  *   contains the same value for all t.
   *
   * - The variable "SellPrice", of type double and either of size 1 or
   *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
@@ -322,14 +306,11 @@ class ECNetworkBlock : public NetworkBlock
 
  // energy bought from the public market at the national
  // price /pi^{P-,V} + /pi^{P-,F}
+ // (the second term, i.e., the fixed tariff, is given as constant term)
 
- /// variable tariff that user pay to buy electricity, i.e.,
+ /// tariff that user pay to buy electricity, i.e.,
  /// the tariff on the withdrawing, in any time horizon
  std::vector< double > v_buy_price; // /pi^{P-,V}
-
- /// fixed tariff that user pay to buy electricity, i.e.,
- /// the tariff component on the demand consumption
- std::vector< double > v_consumption_price; // /pi^{P-,F}
 
  /// tariff that user gain to sell electricity
  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
@@ -398,15 +379,7 @@ class ECNetworkBlock : public NetworkBlock
 /*---------------------------- PRIVATE METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Clear the constraints from any-sized boost::multi_array of
- /// OneVarConstraint subtype
- template< typename T , unsigned long K >
- void clear_constraints(
-  boost::multi_array< T , K > & constraints );
 
- /// Clear the constraints from a std::vector of OneVarConstraint subtype
- template< typename T >
- void clear_constraints( std::vector< T > & constraints );
 
 }; // end( class( ECNetworkBlock ) )
 

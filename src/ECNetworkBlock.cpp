@@ -35,6 +35,8 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+// register ECNetworkBlock to the Block factory
+
 SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
 /*--------------------------------------------------------------------------*/
@@ -69,17 +71,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
-
- if( !::deserialize_dim( group , "NumberIntervals" ,
-                         f_number_intervals , false ) )
-  f_number_intervals = 1;
- else {
-  if( ( f_number_intervals < 1 ) )
-   throw ( std::invalid_argument(
-    "ECNetworkBlock::::deserialize: NumberIntervals must be > 0." ) );
- }
-
  // Mandatory variables
 
  Index number_nodes;
@@ -92,11 +83,9 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  f_NetworkData = new NetworkData();
  f_NetworkData->deserialize( group );
 
- ::deserialize( group , "BuyPrice" , f_number_intervals ,
+ ::deserialize( group , "BuyPrice" , f_NetworkData->get_number_intervals() ,
                 v_buy_price , false , true );
- ::deserialize( group , "ConsumptionPrice" , f_number_intervals ,
-                v_consumption_price , false , true );
- ::deserialize( group , "SellPrice" , f_number_intervals ,
+ ::deserialize( group , "SellPrice" , f_NetworkData->get_number_intervals() ,
                 v_sell_price , false , true );
 
  // Deserialize data from the base class
@@ -186,7 +175,7 @@ void ECNetworkBlock::generate_abstract_constraints(
 
    // P^{max} vars also depends from P^{M+} and P^{M-}
    // vars as specified in the paper
-   if( default_config ) {
+   if( true ) { // default_config
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                       1.0 ) );
@@ -329,34 +318,35 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
    vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
                                    v_sell_price[ t ] ) );
    // v_sell_price, i.e.:
-   // ( v_energy_weight[ t ] * v_time_resolution[ t ] * v_sell_price[ t ] ) /
+   // ( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_sell_price[ t ] ) /
    // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
                                    v_sell_price[ t ] ) );
    // v_sell_price, i.e.:
-   //( v_energy_weight[ t ] * v_time_resolution[ t ] * v_sell_price[ t ] ) /
+   //( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_sell_price[ t ] ) /
    //pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
    vars.push_back( std::make_pair( &v_public_power_injection[ node_id ] ,
                                    -v_buy_price[ t ] ) );
    // v_buy_price, i.e.:
-   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * v_buy_price[ t ] ) /
+   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_buy_price[ t ] ) /
    // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                    -v_buy_price[ t ] ) );
    // v_buy_price, i.e.:
-   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * v_buy_price[ t ] ) /
+   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_buy_price[ t ] ) /
    // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
   }
 
   // the costs due to the peak power
   vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_tariff );
-  // f_tariff, i.e.: f_weight * f_tariff
+  // f_tariff, i.e.:
+  // f_weight * _f_tariff
  }
 
  auto lf = new LinearFunction( std::move( vars ) );
  // f_constant_term, i.e.:
  // -( v_energy_weight[ t ] * v_time_resolution[ t ] *
- //    v_consumption_price[ t ] * v_active_demand[ node_id ][ t ] ) /
+ //    _v_consumption_price[ t ] * v_active_demand[ node_id ][ t ] ) /
  //  pow( ( 1 + f_discount_rate ) , f_project_lifetime ) );
  lf->set_constant_term( f_constant_term );
  objective.set_function( lf );
@@ -371,132 +361,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
 
- if( subset.empty() )
-  return;
-
- if( v_active_demand.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return cst == 0; } ) ) {
-   return;
-  }
-
-  Index max_index = *std::max_element( std::begin( subset ) ,
-                                       std::end( subset ) );
-  assert( max_index < get_number_nodes() );
-  v_active_demand.assign( get_number_nodes() , 0 );
- }
-
- bool identical = true;
- for( auto i : subset ) {
-  if( i >= v_active_demand.size() )
-   throw ( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
-                                  "invalid value in subset" ) );
-  auto demand = *( values++ );
-  if( v_active_demand[ i ] != demand ) {
-   identical = false;
-   if( not_dry_run( issuePMod ) )
-    // Change the physical representation
-    v_active_demand[ i ] = demand;
-  }
- }
- if( identical )
-  return;  // nothing changes; return
-
- if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
-     constraints_generated() ) {
-
-  // Change the abstract representation
-
-  for( auto i : subset )
-   v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
- }
-
- if( issue_pmod( issuePMod ) ) {
-  // Issue a Physical Modification
-  if( !ordered )
-   std::sort( subset.begin() , subset.end() );
-
-  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >
-                            ( this , NetworkBlockMod::eSetActD ,
-                              std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-void ECNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
- rng.second = std::min( rng.second , get_number_nodes() );
- if( rng.second <= rng.first ) {
-  return;
- }
-
- if( v_active_demand.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
-   return;
-  }
-
-  v_active_demand.assign( get_number_nodes() , 0 );
- }
-
- // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_active_demand.begin() + rng.first ) ) {
-  return;
- }
-
- if( not_dry_run( issuePMod ) ) {
-  // Change the physical representation
-
-  std::copy( values , values + ( rng.second - rng.first ) ,
-             v_active_demand.begin() + rng.first );
-
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   // Change the abstract representation
-
-   for( Index i = rng.first ; i < rng.second ; ++i )
-    v_power_flow_injection_constraints[ i ].set_both( -v_active_demand[ i ] );
-  }
-
-  if( issue_pmod( issuePMod ) ) {
-   // Issue a Physical Modification
-   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >
-                             ( this , NetworkBlockMod::eSetActD , rng ) ,
-                            Observer::par2chnl( issuePMod ) );
-  }
- }
-
-/*--------------------------------------------------------------------------*/
-
-template< typename T >
-void ECNetworkBlock::clear_constraints( std::vector< T > & constraints ) {
- BOOST_STATIC_ASSERT( ( boost::is_base_of< OneVarConstraint , T >::value ) );
- for( auto & constraint : constraints )
-  constraint->clear();
-}
-
-template< typename T , unsigned long K >
-void ECNetworkBlock::clear_constraints(
- boost::multi_array< T , K > & constraints ) {
- BOOST_STATIC_ASSERT( ( boost::is_base_of< OneVarConstraint , T >::value ) );
- auto constraint = constraints.data();
- auto n = constraints.num_elements();
- for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
-  constraint->clear();
-}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/

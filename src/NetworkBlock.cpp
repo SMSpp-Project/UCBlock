@@ -52,11 +52,13 @@ using namespace SMSpp_di_unipi_it;
 NetworkBlock::NetworkData::NetworkData() {
  f_number_lines = 0;
  f_number_nodes = 0;
+ f_number_intervals = 0;
 }
 
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
+
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
                                                      "NumberLines" };
@@ -72,8 +74,13 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes , true ) )
+ if( !::deserialize_dim( group , "NumberNodes" ,
+                         f_number_nodes , true ) )
   f_number_nodes = 1;
+
+ if( !::deserialize_dim( group , "NumberIntervals" ,
+                         f_number_intervals , true ) )
+  f_number_intervals = 1;
 
  if( f_number_nodes > 1 ) {  // DCNetworkBlock
 
@@ -102,22 +109,23 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
+
  Block::deserialize( group );
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" };
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
+
  static std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- const auto NumberNodes = group.getDim( "NumberNodes" );
-
- if( !NumberNodes.isNull() ) {
+ Index NumberNodes;
+ if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
   // A NetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes.getSize() ,
-                 v_active_demand );
+  ::deserialize( group , "ActiveDemand" , NumberNodes , v_active_demand );
  } else {
   // A NetworkData has not been provided. However, the active demand may still
   // have been provided.
@@ -128,10 +136,9 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
    if( ActiveDemand.getDimCount() != 1 )
     // The active demand must be a one-dimensional array.
-    throw ( std::invalid_argument( "NetworkBlock::deserialize(): ActiveDemand"
-                                   " should have one dimension, but it has " +
-                                   std::to_string( ActiveDemand.getDimCount() )
-    ) );
+    throw ( std::invalid_argument(
+     "NetworkBlock::deserialize(): ActiveDemand should have one dimension, "
+     "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
 
    // Retrieve the number of nodes from the size of the given netCDF variable.
    const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
@@ -180,6 +187,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
  group.addDim( "NumberNodes" , f_number_nodes );
+ group.addDim( "NumberIntervals" , f_number_intervals );
 
  if( f_number_nodes > 1 ) {
   auto NL = group.addDim( "NumberLines" , f_number_lines );
@@ -205,6 +213,7 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
+
  Block::serialize( group );
 
  if( auto network_data = get_NetworkData() )
