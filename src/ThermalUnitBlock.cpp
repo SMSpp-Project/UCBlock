@@ -1317,6 +1317,8 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
  if( !constraints_generated() )
   return;
 
+ not_ModBlock( issueAMod );
+
  // MaxPower_Constraints: the commitment variable is in position 0
  LF( MaxPower_Constraints[ t ].get_function()
  )->modify_coefficient( 0 , get_operational_max_power( t ) , issueAMod );
@@ -1424,7 +1426,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( auto t : subset )
-   update_availability_dependents( t , issueAMod );
+   update_availability_dependents( t , un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -1473,10 +1475,10 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_Availability.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
-  // Change the abstract representation
-  for( Index t = rng.first ; t < rng.second ; ++t )
-   update_availability_dependents( t , issueAMod );
+  if( not_dry_run( issueAMod ) && constraints_generated() )
+   // Change the abstract representation
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    update_availability_dependents( t , un_ModBlock( issueAMod ) );
 
 
  if( issue_pmod( issuePMod ) )
@@ -1522,8 +1524,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   for( auto t : subset )
    // the committment variable is in position 0 in the LF
    LF( MaxPower_Constraints[ t ].get_function()
-   )->modify_coefficient( 0 , get_operational_max_power( t ) ,
-                          issueAMod );
+       )->modify_coefficient( 0 , get_operational_max_power( t ) ,
+			      un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -1567,8 +1569,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
   for( Index t = rng.first ; t < rng.second ; ++t )
    // the committment variable is in position 0 in the LF
    LF( MaxPower_Constraints[ t ].get_function()
-   )->modify_coefficient( 0 , get_operational_max_power( t ) ,
-                          issueAMod );
+       )->modify_coefficient( 0 , get_operational_max_power( t ) ,
+			      un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -1618,7 +1620,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
 
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
-  update_initial_power_in_constraints( issueAMod );
+  update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
@@ -1646,7 +1648,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
 
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
-  update_initial_power_in_constraints( issueAMod );
+  update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
@@ -1703,9 +1705,9 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
-                                 true , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+				     true , un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -1758,11 +1760,11 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) ,
-                                 Range( rng.first - init_t ,
-                                        rng.second - init_t ) ,
-                                 issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) ,
+				     Range( rng.first - init_t ,
+					    rng.second - init_t ) ,
+				     un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -1820,9 +1822,9 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
-                                 true , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+				     true , un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -1876,10 +1878,11 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) ,
-                                 Range( rng.first + dpos ,
-                                        rng.second + dpos ) , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) ,
+				     Range( rng.first + dpos ,
+					    rng.second + dpos ) ,
+				     un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -1935,9 +1938,9 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
-                                 true , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+				     true , un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -1989,10 +1992,11 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) ,
-                                 Range( rng.first + dpos ,
-                                        rng.second + dpos ) , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) ,
+				     Range( rng.first + dpos ,
+					    rng.second + dpos ) ,
+				     un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -2052,7 +2056,12 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
   if( !v_LinearTerm.empty() ) {
    auto tmplvit = tmplv.begin();
    for( auto t : subset )
-    *( tmplvit++ ) = v_LinearTerm[ t ];
+    *(tmplvit++) = v_LinearTerm[ t ];
+   }
+  
+  QF( objective.get_function()
+      )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
+		       un_ModBlock( issueAMod ) );
   }
 
   QF( objective.get_function()
@@ -2116,10 +2125,10 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
               v_LinearTerm.begin() + rng.second , tmplv.begin() );
 
   QF( objective.get_function()
-  )->modify_terms( values , tmplv.begin() ,
-                   Range( rng.first + dpos , rng.second + dpos ) ,
-                   issueAMod );
- }
+      )->modify_terms( values , tmplv.begin() ,
+		       Range( rng.first + dpos , rng.second + dpos ) ,
+		       un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -2132,11 +2141,10 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
-                                                          Subset && subset ,
-                                                          bool ordered ,
-                                                          ModParam issuePMod ,
-                                                          ModParam issueAMod ) {
- if( v_primary_spinning_reserve.empty() || ( !( reserve_vars & 1u ) ) )
+				    Subset && subset , bool ordered ,
+				    ModParam issuePMod , ModParam issueAMod )
+{
+ if( v_primary_spinning_reserve.empty() || ( ! ( reserve_vars & 1u ) ) )
   return;  // primary reserve is not there, silently return
 
  if( subset.empty() )
@@ -2187,9 +2195,9 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
-                                 true , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+				     true , un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
@@ -2253,11 +2261,11 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) ,
-                                 Range( rng.first + dpos ,
-                                        rng.second + dpos ) , issueAMod );
- }
-
+      )->modify_linear_coefficients( std::move( tmpv ) ,
+				     Range( rng.first + dpos ,
+					    rng.second + dpos ) ,
+				     un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
@@ -2327,9 +2335,9 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
-                                 true , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+				     true , un_ModBlock( issueAMod ) );
+  }
 
 
  if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
@@ -2398,10 +2406,11 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
-  )->modify_linear_coefficients( std::move( tmpv ) ,
-                                 Range( rng.first + dpos ,
-                                        rng.second + dpos ) , issueAMod );
- }
+      )->modify_linear_coefficients( std::move( tmpv ) ,
+				     Range( rng.first + dpos ,
+					    rng.second + dpos ) ,
+				     un_ModBlock( issueAMod ) );
+  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
