@@ -61,7 +61,8 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" };
+                                                     "NumberLines" ,
+                                                     "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "StartLine" ,
@@ -69,8 +70,7 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
-                                                     "NetworkCost"
- };
+                                                     "NetworkCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -113,13 +113,15 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  Block::deserialize( group );
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" };
+ static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" };
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ // Optional variables
 
  Index NumberNodes;
  if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
@@ -150,6 +152,9 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    ActiveDemand.getVar( v_active_demand.data() );
   }
  }
+
+ if( !::deserialize( group , f_const_term , "ConstantTerm" , true ) )
+  f_const_term = 0;
 }
 
 /*--------------------------------------------------------------------------*/

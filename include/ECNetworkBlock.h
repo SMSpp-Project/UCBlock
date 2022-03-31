@@ -165,6 +165,13 @@ class ECNetworkBlock : public NetworkBlock
   return v_buy_price;
  }
 
+/// returns the maximum tariff
+/** Method for returning the tariff that user pay due to the peak power. */
+
+ const double & get_max_tariff() const {
+  return f_max_tariff;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -311,7 +318,8 @@ class ECNetworkBlock : public NetworkBlock
 
  // energy bought from the public market at the national
  // price /pi^{P-,V} + /pi^{P-,F}
- // (the second term, i.e., the fixed tariff, is given as constant term)
+ // (the second term, i.e., the fixed tariff, is given as part of the
+ // constant term)
 
  /// tariff that user pay to buy electricity, i.e.,
  /// the tariff on the withdrawing, in any time horizon
@@ -319,6 +327,10 @@ class ECNetworkBlock : public NetworkBlock
 
  /// tariff that user gain to sell electricity
  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
+
+
+ /// tariff that user pay due to the peak power
+ double f_max_tariff;
 
 /*------------------------------- variables --------------------------------*/
 

@@ -67,7 +67,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars =
-  { "BuyPrice" , "ConsumptionPrice" , "SellPrice" };
+  { "BuyPrice" , "SellPrice", "MaxTariff"};
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -87,6 +87,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
                 v_buy_price , false , true );
  ::deserialize( group , "SellPrice" , f_NetworkData->get_number_intervals() ,
                 v_sell_price , false , true );
+ ::deserialize( group , f_max_tariff , "MaxTariff", false );
 
  // Deserialize data from the base class
  NetworkBlock::deserialize( group );
@@ -338,9 +339,9 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
   }
 
   // the costs due to the peak power
-  vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_tariff );
-  // f_tariff, i.e.:
-  // f_weight * _f_tariff
+  vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_max_tariff ));
+  // f_max_tariff, i.e.:
+  // f_weight * f_tariff
  }
 
  auto lf = new LinearFunction( std::move( vars ) );
@@ -348,7 +349,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
  // -( v_energy_weight[ t ] * v_time_resolution[ t ] *
  //    _v_consumption_price[ t ] * v_active_demand[ t ][ node_id ] ) /
  //  pow( ( 1 + f_discount_rate ) , f_project_lifetime ) );
- lf->set_constant_term( f_constant_term );
+ lf->set_constant_term( f_const_term );
  objective.set_function( lf );
  objective.set_sense( Objective::eMax );
 

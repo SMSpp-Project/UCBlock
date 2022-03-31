@@ -429,7 +429,8 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
 /*--------------------------------------------------------------------------*/
 
- if( lines_type == kHVDC ) {   // HVDC power flow limit
+ // HVDC power flow limit
+ if( lines_type == kHVDC ) {
 
   if( objective_generated() )
    return; // Objective has already been generated
@@ -437,39 +438,38 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   if( get_objective() != nullptr )  // an objective is there already
    return;                         // cowardly (and silently) return
 
-  if( !f_NetworkData->get_network_cost().empty() ) {
+  auto linear_function = new LinearFunction();
 
-   auto linear_function = new LinearFunction();
+  if( !f_NetworkData->get_network_cost().empty() ) {
    for( Index l = 0 ; l < f_NetworkData->get_number_lines() ; ++l ) {
     linear_function->add_variable( &v_auxiliary_variable[ l ] ,
                                    f_NetworkData->get_network_cost()[ l ] ,
                                    0.0 );
-    objective.set_function( linear_function );
-    objective.set_sense( Objective::eMin );
-
    }
+   objective.set_function( linear_function );
+   objective.set_sense( Objective::eMin );
 
   } else { // empty objective function
-   auto linear_function = new LinearFunction();
    objective.set_function( linear_function );
   }
   // Set Block objective
   this->set_objective( &objective );
  }
-// TODO The implementation of objective function for AC and AC-HVDC lines is
-//  not ready
 
- if( lines_type == kAC ) {    // AC power flow limit
+ // TODO The implementation of objective function for
+ //  AC and AC-HVDC lines is not ready
+
+ // AC power flow limit
+ if( lines_type == kAC ) {
 
   //TODO
  }
 
- if( lines_type == kAC_HVDC ) { // AC-HVDC power flow limit
+ // AC-HVDC power flow limit
+ if( lines_type == kAC_HVDC ) {
 
   //TODO
-
  }
-
 
  set_objective_generated();
 

@@ -385,7 +385,7 @@ class NetworkBlock : public Block
 
   Index f_number_lines;    ///< Number of lines of the network
 
-  Index f_number_intervals; ///<  the number of intervals
+  Index f_number_intervals; ///<  Number of intervals
 
   std::vector< Index > v_start_line;  ///< Vector of starting lines
 
@@ -628,6 +628,13 @@ class NetworkBlock : public Block
   return &( v_active_demand.front() );
  }
 
+/*--------------------------------------------------------------------------*/
+
+/// returns the constant term
+ const double & get_const_term() const {
+  return f_const_term;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
 /*--------------------------------------------------------------------------*/
@@ -737,8 +744,15 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*---------------------------------- data ----------------------------------*/
+
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
+
+ /// the constant term
+ double f_const_term;
+
+/*------------------------------- variables --------------------------------*/
 
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
