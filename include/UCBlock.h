@@ -143,8 +143,9 @@ class UCBlock : public Block
 
  /// Constructor of UCBlock, taking possibly a pointer of its father Block
 
- explicit UCBlock( Block * father = nullptr ) : Block( father ) ,
-  f_time_horizon( 0 ) , f_number_units( 0 ) , f_NetworkData( nullptr ) ,
+ explicit UCBlock( Block * father = nullptr ) :
+  Block( father ) , f_time_horizon( 0 ) , f_number_units( 0 ) ,
+  f_NetworkData( nullptr ) ,
   // TODO commented away until HeatBlock are properly managed
   //f_number_heat_blocks( 0 ) ,
   f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
@@ -732,7 +733,7 @@ class UCBlock : public Block
 
  const std::vector< NetworkBlock * > & get_network_blocks() const {
   return v_network_blocks;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of active power demand
@@ -741,9 +742,9 @@ class UCBlock : public Block
   * the time instant t. If it is empty, the active power demand can be found
   * in each NetworkBlock of this UCBlock. */
 
- const boost::multi_array< double, 2 > & get_active_power_demand() const {
+ const boost::multi_array< double , 2 > & get_active_power_demand() const {
   return v_active_power_demand;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of primary zones
@@ -764,7 +765,7 @@ class UCBlock : public Block
 
  const std::vector< Index > & get_primary_zone() const {
   return v_primary_zones;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of secondary zones
@@ -785,7 +786,7 @@ class UCBlock : public Block
 
  const std::vector< Index > & get_secondary_zone() const {
   return v_secondary_zones;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the vector of inertia zones
@@ -806,7 +807,7 @@ class UCBlock : public Block
 
  const std::vector< Index > & get_inertia_zone() const {
   return v_inertia_zones;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of primary demand
@@ -829,9 +830,9 @@ class UCBlock : public Block
   *    get_time_horizon() and each element of M[ n , t ] gives the primary
   *    demand of primary zone n at time instant t. */
 
- const boost::multi_array< double, 2 > & get_primary_demand() const {
+ const boost::multi_array< double , 2 > & get_primary_demand() const {
   return v_primary_demand;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of secondary demand
@@ -855,9 +856,9 @@ class UCBlock : public Block
   *    get_time_horizon() and each element of M[ n , t ] gives the secondary
   *    demand of secondary zone n at time instant t.*/
 
- const boost::multi_array< double, 2 > & get_secondary_demand() const {
+ const boost::multi_array< double , 2 > & get_secondary_demand() const {
   return v_secondary_demand;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of inertia demand
@@ -880,9 +881,9 @@ class UCBlock : public Block
   *    get_time_horizon() and each element of M[ n , t ] gives the inertia
   *    demand of inertia zone n at time instant t. */
 
- const boost::multi_array< double, 2 > & get_inertia_demand() const {
+ const boost::multi_array< double , 2 > & get_inertia_demand() const {
   return v_inertia_demand;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of pollutant zones associated with each pollutant
@@ -892,7 +893,7 @@ class UCBlock : public Block
 
  const std::vector< Index > & get_number_pollutant_zones() const {
   return v_number_pollutant_zones;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the matrix of pollutant zones
@@ -919,7 +920,7 @@ class UCBlock : public Block
 
  const boost::multi_array< Index , 2 > & get_pollutant_zone() const {
   return v_pollutant_zones;
-  }
+ }
 /*--------------------------------------------------------------------------*/
  /// Returns the two-dimensional vector of pollutant budget
  /** The method returned a std::vector< std::vector< double > > V such that
@@ -940,7 +941,7 @@ class UCBlock : public Block
   *    which means that node i does not belong to any pollutant zone for
   *    pollutant p. */
 
- const  std::vector< std::vector< double >> & get_pollutant_budget() const {
+ const std::vector< std::vector< double >> & get_pollutant_budget() const {
   return v_pollutant_budget;
  }
 /*--------------------------------------------------------------------------*/
@@ -987,9 +988,9 @@ class UCBlock : public Block
   *     factor of pollutant p due to the electrical generator g for time
   *     instant t. */
 
- const boost::multi_array< double, 3 > & get_pollutant_rho() const {
+ const boost::multi_array< double , 3 > & get_pollutant_rho() const {
   return v_pollutant_rho;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  // TODO commented away until HeatBlock are properly managed
@@ -1031,21 +1032,21 @@ class UCBlock : public Block
 
  UnitBlock * get_unit_block( Index i ) const {
   if( i >= f_number_units )
-   throw( std::invalid_argument( "invalid unit index" ) );
-  return( static_cast< UnitBlock * >( v_Block[ i ] ) );
-  }
+   throw ( std::invalid_argument( "invalid unit index" ) );
+  return ( static_cast< UnitBlock * >( v_Block[ i ] ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// Returns the NetworkBlock at time instant t
 
- NetworkBlock * get_network_block( Index t ) const  {
+ NetworkBlock * get_network_block( Index t ) const {
   if( v_network_blocks.empty() )
-   return( nullptr );
+   return ( nullptr );
   if( t >= f_time_horizon )
-   throw( std::invalid_argument( "invalid network (time) index" ) );
+   throw ( std::invalid_argument( "invalid network (time) index" ) );
 
-  return( v_network_blocks[ t ] );
-  }
+  return ( v_network_blocks[ t ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  // TODO commented away until HeatBlock are properly managed
@@ -1079,7 +1080,7 @@ class UCBlock : public Block
 
  const std::vector< Index > & get_generator_node() const {
   return v_generator_node;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  // TODO commented away until HeatBlock are properly managed
@@ -1107,10 +1108,10 @@ class UCBlock : public Block
   * containing the node injection constraints. C[ t ][ n ] is the node
   * injection constraint associated with time t and node n. */
 
- const boost::multi_array< FRowConstraint, 2 > &
+ const boost::multi_array< FRowConstraint , 2 > &
  get_node_injection_constraints() const {
   return v_node_injection_constraints;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary demand constraints
@@ -1118,10 +1119,10 @@ class UCBlock : public Block
   * containing the primary demand constraints. C[ t ][ z ] is the primary
   * demand constraint associated with time t and primary zone z. */
 
- const boost::multi_array< FRowConstraint, 2 > &
+ const boost::multi_array< FRowConstraint , 2 > &
  get_primary_demand_constraints() const {
   return v_PrimaryDemand_Const;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary demand constraints
@@ -1129,10 +1130,10 @@ class UCBlock : public Block
   * containing the secondary demand constraints. C[ t ][ z ] is the secondary
   * demand constraint associated with time t and secondary zone z. */
 
- const boost::multi_array< FRowConstraint, 2 > &
+ const boost::multi_array< FRowConstraint , 2 > &
  get_secondary_demand_constraints() {
   return v_SecondaryDemand_Const;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia demand constraints
@@ -1140,10 +1141,10 @@ class UCBlock : public Block
   * containing the inertia demand constraints. C[ t ][ z ] is the inertia
   * demand constraint associated with time t and inertia zone z. */
 
- const boost::multi_array< FRowConstraint, 2 > &
+ const boost::multi_array< FRowConstraint , 2 > &
  get_inertia_demand_constraints() const {
   return v_InertiaDemand_Const;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum pollutant emission constraints
@@ -1152,10 +1153,10 @@ class UCBlock : public Block
   * pollutant emission constraint associated with pollutant p and pollutant
   * zone z. */
 
- const std::vector< std::vector< FRowConstraint> > &
+ const std::vector< std::vector< FRowConstraint > > &
  get_pollutant_constraints() const {
   return v_PollutantBudget_Const;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
@@ -1183,8 +1184,8 @@ class UCBlock : public Block
  */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "UCBlock::load() not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -1268,7 +1269,7 @@ class UCBlock : public Block
 
  /// The matrix of pollutant zones
  /** Indexed over the dimensions NumberPollutants and NumberNodes. */
- boost::multi_array< Index, 2 > v_pollutant_zones;
+ boost::multi_array< Index , 2 > v_pollutant_zones;
 
  /// Vector of pointers to the NetworkBlock.
  /** This vector has size f_time_horizon. So the NetworkBlock at
@@ -1285,21 +1286,21 @@ class UCBlock : public Block
 
  /// The matrix of PrimaryDemand
  /** Indexed over the dimensions PrimaryZones and TimeHorizon. */
- boost::multi_array< double, 2 > v_primary_demand;
+ boost::multi_array< double , 2 > v_primary_demand;
 
  /// the vector of SecondaryZones
  std::vector< Index > v_secondary_zones;
 
  /// The matrix of SecondaryDemand
  /** Indexed over the dimensions SecondaryZones and TimeHorizon. */
- boost::multi_array< double, 2 > v_secondary_demand;
+ boost::multi_array< double , 2 > v_secondary_demand;
 
  /// The vector InertiaZones
  std::vector< Index > v_inertia_zones;
 
  /// The matrix of InertiaDemand
  /** Indexed over the dimensions InertiaZones and TimeHorizon. */
- boost::multi_array< double, 2 > v_inertia_demand;
+ boost::multi_array< double , 2 > v_inertia_demand;
 
  /// The vector of PollutantBudget
  /** Indexed over the pair of each NumberPollutantZone and NumberPollutant*/
@@ -1307,7 +1308,7 @@ class UCBlock : public Block
 
  /// The PollutantRho matrix
  /** Indexed over TimeHorizon, NumberPollutants, and NumberElcGenerators. */
- boost::multi_array< double, 3 > v_pollutant_rho;
+ boost::multi_array< double , 3 > v_pollutant_rho;
 
  /* TODO commented away until HeatBlock are properly managed
  /// The PollutantHeatRho matrix
@@ -1334,16 +1335,16 @@ class UCBlock : public Block
  */
 
  /// Node injection constraints for each time and node
- boost::multi_array< FRowConstraint, 2 > v_node_injection_constraints;
+ boost::multi_array< FRowConstraint , 2 > v_node_injection_constraints;
 
  /// Primary demand constraints for each time and primary zone
- boost::multi_array< FRowConstraint, 2 > v_PrimaryDemand_Const;
+ boost::multi_array< FRowConstraint , 2 > v_PrimaryDemand_Const;
 
  /// Secondary demand constraints for each time and secondary zone
- boost::multi_array< FRowConstraint, 2 > v_SecondaryDemand_Const;
+ boost::multi_array< FRowConstraint , 2 > v_SecondaryDemand_Const;
 
  /// Inertia demand constraints for each time and inertia zone
- boost::multi_array< FRowConstraint, 2 > v_InertiaDemand_Const;
+ boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
 
  /* TODO commented away until HeatBlock are properly managed
  /// heat constraints for each time and index unit
@@ -1351,7 +1352,7 @@ class UCBlock : public Block
  */
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
- std::vector< std::vector< FRowConstraint> > v_PollutantBudget_Const;
+ std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
@@ -1367,13 +1368,13 @@ class UCBlock : public Block
  void set_objective_generated() { AR |= HasObj; }
 
  /// indicates whether the Variable of the UCBlock have been generated
- bool variables_generated() const { return( AR & HasVar ); }
+ bool variables_generated() const { return ( AR & HasVar ); }
 
  /// indicates whether the Constraint of the UCBlock have been generated
- bool constraints_generated() const { return( AR & HasCst ); }
+ bool constraints_generated() const { return ( AR & HasCst ); }
 
  /// indicates whether the Objective of the UCBlock has been generated
- bool objective_generated() const { return( AR & HasObj ); }
+ bool objective_generated() const { return ( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1432,18 +1433,20 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a UCBlock
-class UCBlockMod : public Modification {
+class UCBlockMod : public Modification
+{
 
  public:
 
  /// Public enum for the types of UCBlockMod
- enum UCB_mod_type {
+ enum UCB_mod_type
+ {
   eSetActD = 0    ///< Set active power demand
  };
 
  /// constructor, takes the UCBlock and the type
  UCBlockMod( UCBlock * const fblock , const int type )
-  : f_Block( fblock ), f_type( type ) {}
+  : f_Block( fblock ) , f_type( type ) {}
 
  /// destructor, does nothing
  virtual ~UCBlockMod() override = default;
@@ -1476,19 +1479,20 @@ class UCBlockMod : public Modification {
 /*--------------------------------------------------------------------------*/
 
 /// derived from UCBlockMod for "ranged" modifications
-class UCBlockRngdMod : public UCBlockMod {
+class UCBlockRngdMod : public UCBlockMod
+{
 
  public:
 
  /// constructor: takes the UCBlock, the type, and the range
  UCBlockRngdMod( UCBlock * const fblock , const int type , Block::Range rng )
-  : UCBlockMod( fblock, type ), f_rng( rng ) {}
+  : UCBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~UCBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng() { return( f_rng ); }
+ Block::c_Range & rng() { return ( f_rng ); }
 
  protected:
 
@@ -1506,25 +1510,26 @@ class UCBlockRngdMod : public UCBlockMod {
 /*--------------------------------------------------------------------------*/
 
 /// derived from UCBlockMod for "subset" modifications
-class UCBlockSbstMod : public UCBlockMod {
+class UCBlockSbstMod : public UCBlockMod
+{
 
  public:
 
  /// constructor: takes the UCBlock, the type, and the subset
  UCBlockSbstMod( UCBlock * const fblock , const int type ,
                  Block::Subset && nms )
-  : UCBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+  : UCBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~UCBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms() { return( f_nms ); }
+ Block::c_Subset & nms() { return ( f_nms ); }
 
  protected:
 
  /// prints the UCBlockSbstMod
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   UCBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
  }

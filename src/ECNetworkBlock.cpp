@@ -286,7 +286,7 @@ void ECNetworkBlock::generate_abstract_constraints(
                                    -1.0 ) );
    vars.push_back( std::make_pair( &v_node_injection[ node_id ] , -1.0 ) );
    power_balance_constraints[ node_id ][ t ].set_both(
-    -v_active_demand[ node_id ][ t ] );
+    -v_active_demand[ t ][ node_id ] );
    power_balance_constraints[ node_id ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
@@ -346,7 +346,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
  auto lf = new LinearFunction( std::move( vars ) );
  // f_constant_term, i.e.:
  // -( v_energy_weight[ t ] * v_time_resolution[ t ] *
- //    _v_consumption_price[ t ] * v_active_demand[ node_id ][ t ] ) /
+ //    _v_consumption_price[ t ] * v_active_demand[ t ][ node_id ] ) /
  //  pow( ( 1 + f_discount_rate ) , f_project_lifetime ) );
  lf->set_constant_term( f_constant_term );
  objective.set_function( lf );

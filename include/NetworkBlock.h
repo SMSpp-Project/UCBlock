@@ -605,16 +605,24 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-/// returns the vector of active demands
-/** Method for returning the active demand for the given node, which is
- * assumed to have size get_number_nodes() by get_number_intervals().
+/// returns the matrix of active demands
+/** Method for returning the active demand for the given interval, which is
+ * assumed to have size get_number_intervals() per get_number_nodes().
+ * There are two possible cases:
  *
- * @param t The time horizon wrt the vector of demands for each user is
+ * - if the matrix only has one row (i.e., the first dimension has size 1),
+ *   then the active demand for each user u is D[ 0 , u ] for all intervals t,
+ *   which means that the second dimension has size get_number_nodes().
+ *   This will be the default case;
+ *
+ * - otherwise, the matrix has size get_number_intervals() per
+ *   get_number_nodes(), then the D[ t , u ] represents the active demand
+ *   for the problem at time t for each user u, e.g., ECNetwork case;
+ *
+ * @param t The interval wrt the vector of demands for each user is
  *          returned. */
 
- virtual const double * get_active_demand( Index t = 0 ) const {
-  return ( nullptr );
- }
+ virtual double * get_active_demand( Index t = 0 ) {};
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/

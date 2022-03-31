@@ -335,15 +335,17 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-/// returns the vector of active demands
-/** Method for returning the active demand for the given node, which is
- * assumed to have size get_number_intervals() by get_number_nodes().
+/// returns the matrix of active demands
+/** Method for returning the active demand for the given interval, which is
+ * assumed to have size get_number_intervals() per get_number_nodes().
  *
- * @param t The time horizon wrt the vector of demands for each user is
+ * @param t The interval wrt the vector of demands for each user is
  *          returned. */
 
- const double * get_active_demand( Index t = 0 ) const override {
-  return &v_active_demand[ t ];
+ double * get_active_demand( Index t = 0 ) override {
+  if( v_active_demand.empty() )
+   return nullptr;
+  return &( v_active_demand.front() );
  }
 
 /**@} ----------------------------------------------------------------------*/
