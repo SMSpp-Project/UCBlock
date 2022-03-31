@@ -306,7 +306,7 @@ class ECNetworkBlock : public NetworkBlock
  NetworkBlock::NetworkData * f_NetworkData;
 
 
- /// vector to store the demand of each node of the network
+ /// matrix to store, for each interval, the demand of each node of the network
  std::vector< std::vector< double>> v_active_demand;
 
  // energy bought from the public market at the national

@@ -622,7 +622,11 @@ class NetworkBlock : public Block
  * @param t The interval wrt the vector of demands for each user is
  *          returned. */
 
- virtual double * get_active_demand( Index t = 0 ) {};
+ virtual double * get_active_demand( Index t = 0 ) {
+  if( v_active_demand.empty() )
+   return nullptr;
+  return &( v_active_demand.front() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
