@@ -345,9 +345,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   if( !v_network_blocks.empty() ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     if( v_network_blocks[ t ] ) {
-     auto & ad = v_network_blocks[ t ]->get_active_demand();
-     if( !ad.empty() )
-      v_active_power_demand[ 0 ][ t ] = ad.front();
+     auto ad = v_network_blocks[ t ]->get_active_demand();
+     if( ad )
+      v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
      delete v_network_blocks[ t ];
     }
    v_network_blocks.clear();
@@ -377,7 +377,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
     nbi->set_NetworkData( f_NetworkData );
    }
 
-   if( nbi->get_active_demand().empty() ) {
+   if( !nbi->get_active_demand() ) {
     if( !v_active_power_demand.num_elements() )
      throw ( std::invalid_argument(
       "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
