@@ -47,50 +47,43 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-SlackUnitBlock::~SlackUnitBlock()
-{
- auto clear_LB0Constraints =
-         []( std::vector< LB0Constraint > & constraints ) {
-          for( auto & constraint : constraints )
-           constraint.clear();
-         };
- clear_LB0Constraints( Secondary_Spinning_Reserve_Bound_Constraints );
- clear_LB0Constraints( Primary_Spinning_Reserve_Bound_Constraints );
- clear_LB0Constraints( ActivePower_Bound_Constraints );
+SlackUnitBlock::~SlackUnitBlock() {
+ clear_constraints( Secondary_Spinning_Reserve_Bound_Constraints );
+ clear_constraints( Primary_Spinning_Reserve_Bound_Constraints );
+ clear_constraints( ActivePower_Bound_Constraints );
 
- auto clear_ZOConstraints =
-         []( std::vector< ZOConstraint > & constraints ) {
-          for( auto & constraint : constraints )
-           constraint.clear();
-         };
- clear_ZOConstraints( Inertia_Bound_Constraints );
+ clear_constraints( Inertia_Bound_Constraints );
 
  objective.clear();
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
-{
- #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-						      "NumberIntervals" };
-  check_dimensions( group , expected_dims , std::cerr );
+void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+#ifndef NDEBUG
+ static std::vector< std::string > expected_dims = { "TimeHorizon" ,
+                                                     "NumberIntervals" };
+ check_dimensions( group , expected_dims , std::cerr );
 
-  static std::vector< std::string > expected_vars ={ "MaxPower" ,
-	    "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-	    "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia" };
-  check_variables( group , expected_vars , std::cerr );
- #endif
+ static std::vector< std::string > expected_vars = { "MaxPower" ,
+                                                     "MaxPrimaryPower" ,
+                                                     "MaxSecondaryPower" ,
+                                                     "ActivePowerCost" ,
+                                                     "PrimaryCost" ,
+                                                     "SecondaryCost" ,
+                                                     "InertiaCost" ,
+                                                     "MaxInertia" };
+ check_variables( group , expected_vars , std::cerr );
+#endif
 
  // Optional variables
  ::deserialize( group , "MaxPower" , v_MaxPower );
  ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
  ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
  ::deserialize( group , "ActivePowerCost" , v_active_power_cost );
- ::deserialize( group , "PrimaryCost"  , v_primary_cost );
+ ::deserialize( group , "PrimaryCost" , v_primary_cost );
  ::deserialize( group , "SecondaryCost" , v_secondary_cost );
  ::deserialize( group , "InertiaCost" , v_inertia_cost );
  ::deserialize( group , "MaxInertia" , v_MaxInertia );
@@ -108,68 +101,66 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
  decompress_vector( v_inertia_cost );
  decompress_vector( v_MaxInertia );
 
- }  // end( SlackUnitBlock::deserialize )
+}  // end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_variables( Configuration *stvv )
-{
+void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  if( variables_generated() )
   return; // variables have already been generated
 
 /*--------------------------------------------------------------------------*/
-  // Commitment Variable
+ // Commitment Variable
  if( reserve_vars & 4u ) { // if UCBlock has inertia demand variables
-  if( !v_MaxInertia.empty()) { // if unit produces any inertia reserve
+  if( !v_MaxInertia.empty() ) { // if unit produces any inertia reserve
    v_commitment.resize( f_time_horizon );
    for( auto & i : v_commitment ) {
     i.set_type( ColVariable::kPosUnitary );
    }
-   add_static_variable( v_commitment, "u_inertia_slack" );
+   add_static_variable( v_commitment , "u_inertia_slack" );
   }
  }
-  // Active Power Variable
-  v_active_power.resize( f_time_horizon );
-  for( auto & var : v_active_power )
-   var.set_type( ColVariable::kNonNegative );
-  add_static_variable( v_active_power, "p_slack" );
+ // Active Power Variable
+ v_active_power.resize( f_time_horizon );
+ for( auto & var : v_active_power )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_active_power , "p_slack" );
 
-  // Primary Spinning Reserve Variable
+ // Primary Spinning Reserve Variable
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-  if( !v_MaxPrimaryPower.empty()) { // if unit produces any primary reserve
+  if( !v_MaxPrimaryPower.empty() ) { // if unit produces any primary reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve ) {
     var.set_type( ColVariable::kNonNegative );
    }
-   add_static_variable( v_primary_spinning_reserve, "pr_slack" );
+   add_static_variable( v_primary_spinning_reserve , "pr_slack" );
   }
  }
-  // Secondary Spinning Reserve Variable
+ // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( !v_MaxSecondaryPower.empty()) { // if unit produces any secondary reserve
+  if( !v_MaxSecondaryPower.empty() ) { // if unit produces any secondary reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_secondary_spinning_reserve ) {
     var.set_type( ColVariable::kNonNegative );
    }
-   add_static_variable( v_secondary_spinning_reserve, "sr_slack" );
+   add_static_variable( v_secondary_spinning_reserve , "sr_slack" );
   }
  }
  set_variables_generated();
 
- } // end( SlackUnitBlock::generate_abstract_variables )
+} // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_constraints( Configuration *stcc )
-{
- if( constraints_generated())
+void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
+ if( constraints_generated() )
   return; // constraints have already been generated
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
- if(( !config ) && f_BlockConfig &&
-    f_BlockConfig->f_static_constraints_Configuration )
+ if( ( !config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_constraints_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
   ( f_BlockConfig->f_static_constraints_Configuration );
  if( config )
@@ -178,61 +169,68 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration *stcc )
  // Initializing active power bounds constraints
  if( ActivePower_Bound_Constraints.size() != f_time_horizon ) {
   // this should only happen once
-  assert( ActivePower_Bound_Constraints.empty());
+  assert( ActivePower_Bound_Constraints.empty() );
 
   ActivePower_Bound_Constraints.resize( f_time_horizon );
  }
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  if( !v_MaxPower.empty()) {
-   ActivePower_Bound_Constraints[t].set_rhs( v_MaxPower[t] );
+  if( !v_MaxPower.empty() ) {
+   ActivePower_Bound_Constraints[ t ].set_rhs( v_MaxPower[ t ] );
   } else {
-   ActivePower_Bound_Constraints[t].set_rhs( 0.0 );
+   ActivePower_Bound_Constraints[ t ].set_rhs( 0.0 );
   }
-  ActivePower_Bound_Constraints[t].set_variable( &v_active_power[t] );
+  ActivePower_Bound_Constraints[ t ].set_variable( &v_active_power[ t ] );
  }
 
- add_static_constraint( ActivePower_Bound_Constraints, "ActivePowerBound_Slack" );
+ add_static_constraint( ActivePower_Bound_Constraints ,
+                        "ActivePowerBound_Slack" );
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
  if( reserve_vars & 1u ) {
-  if(!v_MaxPrimaryPower.empty()) {
+  if( !v_MaxPrimaryPower.empty() ) {
 
    if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( Primary_Spinning_Reserve_Bound_Constraints.empty());
+    // this should only happen once
+    assert( Primary_Spinning_Reserve_Bound_Constraints.empty() );
 
-   Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+    Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+   }
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    Primary_Spinning_Reserve_Bound_Constraints[ t ].set_rhs(
+     v_MaxPrimaryPower[ t ] );
+    Primary_Spinning_Reserve_Bound_Constraints[ t ].set_variable(
+     &v_primary_spinning_reserve[ t ] );
+   }
+
+   add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints ,
+                          "PrimarySpinningReserveBound_Slack" );
   }
-
-  for( Index t = 0; t < f_time_horizon; ++t ) {
-   Primary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxPrimaryPower[t] );
-   Primary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_primary_spinning_reserve[t] );
-  }
-
-  add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints, "PrimarySpinningReserveBound_Slack" );
  }
-}
 /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
  if( reserve_vars & 2u ) {
-  if( !v_MaxSecondaryPower.empty()) {
+  if( !v_MaxSecondaryPower.empty() ) {
    if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
     // this should only happen once
-    assert( Secondary_Spinning_Reserve_Bound_Constraints.empty());
+    assert( Secondary_Spinning_Reserve_Bound_Constraints.empty() );
 
     Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
    }
 
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    Secondary_Spinning_Reserve_Bound_Constraints[t].set_rhs( v_MaxSecondaryPower[t] );
-    Secondary_Spinning_Reserve_Bound_Constraints[t].set_variable( &v_secondary_spinning_reserve[t] );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    Secondary_Spinning_Reserve_Bound_Constraints[ t ].set_rhs(
+     v_MaxSecondaryPower[ t ] );
+    Secondary_Spinning_Reserve_Bound_Constraints[ t ].set_variable(
+     &v_secondary_spinning_reserve[ t ] );
    }
 
-   add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints, "SecondarySpinningReserveBound_Slack" );
+   add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints ,
+                          "SecondarySpinningReserveBound_Slack" );
   }
  }
  /*-------------------------------ZOConstraint-------------------------------*/
@@ -242,10 +240,10 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration *stcc )
   // the commitment bound constraints
   if( reserve_vars & 4u ) {
    Inertia_Bound_Constraints.resize( f_time_horizon );
-   for( Index t = 0; t < f_time_horizon; ++t ) {
-    Inertia_Bound_Constraints[t].set_variable( &v_commitment[t] );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    Inertia_Bound_Constraints[ t ].set_variable( &v_commitment[ t ] );
    }
-   add_static_constraint( Inertia_Bound_Constraints, "Inertia_bound_Slack" );
+   add_static_constraint( Inertia_Bound_Constraints , "Inertia_bound_Slack" );
   }
  }
 
@@ -255,8 +253,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration *stcc )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_objective( Configuration *objc )
-{
+void SlackUnitBlock::generate_objective( Configuration * objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                        // cowardly (and silently) return
 
@@ -264,81 +261,81 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  if( reserve_vars & 4u ) {
   if( v_commitment.size() != f_time_horizon ) {
    throw ( std::logic_error
-           ( "SlackUnitBlock::generate_objective: v_commitment must have "
-             "size equal to the time horizon." ));
+    ( "SlackUnitBlock::generate_objective: v_commitment must have "
+      "size equal to the time horizon." ) );
   }
  }
  if( v_active_power.size() != f_time_horizon ) {
   throw ( std::logic_error
-          ( "SlackUnitBlock::generate_objective: v_active_power must have "
-            "size equal to the time horizon." ) );
+   ( "SlackUnitBlock::generate_objective: v_active_power must have "
+     "size equal to the time horizon." ) );
  }
  if( reserve_vars & 1u ) {
-  if( !v_MaxPrimaryPower.empty()) {
+  if( !v_MaxPrimaryPower.empty() ) {
    if( v_primary_spinning_reserve.size() != f_time_horizon ) {
     throw ( std::logic_error
-            ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
-              "must have size equal to the time horizon." ));
+     ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
+       "must have size equal to the time horizon." ) );
    }
   }
  }
  if( reserve_vars & 2u ) {
-  if( !v_MaxSecondaryPower.empty()) {
+  if( !v_MaxSecondaryPower.empty() ) {
    if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
     throw ( std::logic_error
-            ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
-              "must have size equal to the time horizon." ));
+     ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
+       "must have size equal to the time horizon." ) );
    }
   }
  }
  auto linear_function = new LinearFunction();
 
- for( Index t = 0; t < f_time_horizon; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  if( !v_active_power_cost.empty()) {
-   linear_function->add_variable( &v_active_power[t],
-                                  v_active_power_cost[t],
+  if( !v_active_power_cost.empty() ) {
+   linear_function->add_variable( &v_active_power[ t ] ,
+                                  v_active_power_cost[ t ] ,
                                   0.0 );
   } else {
-   linear_function->add_variable( &v_active_power[t],
-                                  0.0,
+   linear_function->add_variable( &v_active_power[ t ] ,
+                                  0.0 ,
                                   0.0 );
   }
   if( reserve_vars & 1u ) {
-   if( !v_MaxPrimaryPower.empty()) {
-    if( !v_primary_cost.empty()) {
-     linear_function->add_variable( &v_primary_spinning_reserve[t],
-                                    v_primary_cost[t],
+   if( !v_MaxPrimaryPower.empty() ) {
+    if( !v_primary_cost.empty() ) {
+     linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
+                                    v_primary_cost[ t ] ,
                                     0.0 );
     } else {
-     linear_function->add_variable( &v_primary_spinning_reserve[t],
-                                    0.0,
+     linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
+                                    0.0 ,
                                     0.0 );
     }
    }
   }
   if( reserve_vars & 2u ) {
-   if( !v_MaxSecondaryPower.empty()) {
+   if( !v_MaxSecondaryPower.empty() ) {
 
-    if( !v_secondary_cost.empty()) {
-     linear_function->add_variable( &v_secondary_spinning_reserve[t],
-                                    v_secondary_cost[t],
+    if( !v_secondary_cost.empty() ) {
+     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
+                                    v_secondary_cost[ t ] ,
                                     0.0 );
     } else {
-     linear_function->add_variable( &v_secondary_spinning_reserve[t],
-                                    0.0,
+     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
+                                    0.0 ,
                                     0.0 );
     }
    }
   }
   if( reserve_vars & 4u ) {
-   if( !v_inertia_cost.empty() && !v_MaxInertia.empty()) {
-    linear_function->add_variable( &v_commitment[t],
-                                   v_inertia_cost[t] * v_MaxInertia[t],
+   if( !v_inertia_cost.empty() && !v_MaxInertia.empty() ) {
+    linear_function->add_variable( &v_commitment[ t ] ,
+                                   v_inertia_cost[ t ] * v_MaxInertia[ t ] ,
                                    0.0 );
    } else {
-    linear_function->add_variable( &v_commitment[t],
-                                   0.0,
+    linear_function->add_variable( &v_commitment[ t ] ,
+                                   0.0 ,
                                    0.0 );
    }
   }
@@ -351,14 +348,13 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
 
  set_objective_generated();
 
- }  // end( SlackUnitBlock::generate_objective )
+}  // end( SlackUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE SlackUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
-{
+void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
  UnitBlock::serialize( group );
 
  // Serialize one-dimensional variables.
@@ -382,10 +378,10 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
   else if( data.size() != 1 ) {
-   throw( std::logic_error
-          ( "SlackUnitBlock::serialize: invalid dimension for variable " +
-            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
-            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
+   throw ( std::logic_error
+    ( "SlackUnitBlock::serialize: invalid dimension for variable " +
+      var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+                                                        "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
   }
 
   ::serialize( group , var_name , ncType , dimension , data ,
@@ -393,7 +389,7 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
  };
 
  serialize( "MaxPower" , v_MaxPower );
- serialize( "MaxPrimaryPower" , v_MaxPrimaryPower);
+ serialize( "MaxPrimaryPower" , v_MaxPrimaryPower );
  serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
  serialize( "MaxInertia" , v_MaxInertia );
  serialize( "ActivePowerCost" , v_active_power_cost );
@@ -401,7 +397,7 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "SecondaryCost" , v_secondary_cost );
  serialize( "InertiaCost" , v_inertia_cost );
 
- }  // end( SlackUnitBlock::serialize )
+}  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File SlackUnitBlock.cpp ----------------------*/

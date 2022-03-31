@@ -51,26 +51,14 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 
 DCNetworkBlock::~DCNetworkBlock() {
- for( auto & constraint : v_AC_power_flow_limit_constraints )
-  constraint.clear();
+ clear_constraints( v_AC_power_flow_limit_constraints );
+ clear_constraints( v_AC_HVDC_power_flow_limit_constraints );
+ clear_constraints( v_power_flow_injection_constraints );
+ clear_constraints( v_AC_HVDC_power_flow_constraints );
+ clear_constraints( v_power_flow_auxiliary_variable_one_constraints );
+ clear_constraints( v_power_flow_auxiliary_variable_two_constraints );
 
- for( auto & constraint : v_HVDC_power_flow_limit_constraints )
-  constraint.clear();
-
- for( auto & constraint : v_AC_HVDC_power_flow_limit_constraints )
-  constraint.clear();
-
- for( auto & constraint : v_power_flow_injection_constraints )
-  constraint.clear();
-
- for( auto & constraint : v_AC_HVDC_power_flow_constraints )
-  constraint.clear();
-
- for( auto & constraint : v_power_flow_auxiliary_variable_one_constraints )
-  constraint.clear();
-
- for( auto & constraint : v_power_flow_auxiliary_variable_two_constraints )
-  constraint.clear();
+ clear_constraints( v_HVDC_power_flow_limit_constraints );
 
  objective.clear();
 

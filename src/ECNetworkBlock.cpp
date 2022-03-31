@@ -20,9 +20,6 @@
 #include "NetworkBlock.h"
 #include "ECNetworkBlock.h"
 #include "LinearFunction.h"
-#include "BatteryUnitBlock.h"
-#include "IntermittentUnitBlock.h"
-#include "ThermalUnitBlock.h"
 #include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -67,7 +64,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars =
-  { "BuyPrice" , "SellPrice", "MaxTariff"};
+  { "BuyPrice" , "SellPrice" , "MaxTariff" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -87,7 +84,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
                 v_buy_price , false , true );
  ::deserialize( group , "SellPrice" , f_NetworkData->get_number_intervals() ,
                 v_sell_price , false , true );
- ::deserialize( group , f_max_tariff , "MaxTariff", false );
+ ::deserialize( group , f_max_tariff , "MaxTariff" , false );
 
  // Deserialize data from the base class
  NetworkBlock::deserialize( group );
@@ -339,7 +336,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
   }
 
   // the costs due to the peak power
-  vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_max_tariff ));
+  vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_max_tariff ) );
   // f_max_tariff, i.e.:
   // f_weight * f_tariff
  }
@@ -362,7 +359,26 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void ECNetworkBlock::set_active_demand(
+ // TODO this should be a const ptr to double (?)
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
+ // TODO
+}
 
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_active_demand(
+ // TODO this should be a const ptr to double (?)
+ std::vector< double >::const_iterator values ,
+ Block::Range rng ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
+ //TODO
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/

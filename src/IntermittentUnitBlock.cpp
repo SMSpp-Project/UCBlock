@@ -53,12 +53,9 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 IntermittentUnitBlock::~IntermittentUnitBlock() {
- for( auto & constraint : MinPower_Constraints )
-  constraint.clear();
- for( auto & constraint : MaxPower_Constraints )
-  constraint.clear();
- for( auto & constraint : active_power_bounds_Constraints )
-  constraint.clear();
+ clear_constraints(MinPower_Constraints);
+ clear_constraints(MaxPower_Constraints);
+ clear_constraints(active_power_bounds_Constraints);
 
  objective.clear();
 }
