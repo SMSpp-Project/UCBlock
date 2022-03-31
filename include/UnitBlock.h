@@ -43,7 +43,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
-#define __UnitBlock  /* self-identification: #endif at the end of the file */
+ #define __UnitBlock  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
