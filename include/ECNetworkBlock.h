@@ -143,10 +143,14 @@ class ECNetworkBlock : public NetworkBlock
  * @param t The interval wrt the vector of demands for each user is
  *          returned. */
 
- double * get_active_demand( Index t = 0 ) override {
+ const double * get_active_demand( Index t = 0 ) const override {
   if( v_active_demand.empty() )
    return nullptr;
-  return &( v_active_demand[ t ].front() );
+  // element* data(); / const element* data() const;
+  // This returns a pointer to the beginning of the contiguous block that
+  // contains the array's data. If all dimensions of the array are 0-indexed
+  // and stored in ascending order, this is equivalent to origin().
+  return &( v_active_demand.data() )[ t ]; // `v_active_demand[ t ].origin()`
  }
 
 /// returns the vector of sell prices
@@ -314,7 +318,7 @@ class ECNetworkBlock : public NetworkBlock
 
 
  /// matrix to store, for each interval, the demand of each node of the network
- std::vector< std::vector< double>> v_active_demand;
+ boost::multi_array< double , 2 > v_active_demand;
 
  // energy bought from the public market at the national
  // price /pi^{P-,V} + /pi^{P-,F}
@@ -333,6 +337,9 @@ class ECNetworkBlock : public NetworkBlock
  double f_max_tariff;
 
 /*------------------------------- variables --------------------------------*/
+
+ /// power injection for each interval at each node
+ boost::multi_array< ColVariable , 2 > v_node_injection;
 
  /// power injected (+) at each node of the network, i.e., at each user PoD,
  /// to the microgrid market / network

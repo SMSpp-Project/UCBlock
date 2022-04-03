@@ -282,7 +282,7 @@ void ECNetworkBlock::generate_abstract_constraints(
                                    -1.0 ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
                                    -1.0 ) );
-   vars.push_back( std::make_pair( &v_node_injection[ node_id ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_node_injection[ t ][ node_id ] , -1.0 ) );
    power_balance_constraints[ node_id ][ t ].set_both(
     -v_active_demand[ t ][ node_id ] );
    power_balance_constraints[ node_id ][ t ].set_function(
