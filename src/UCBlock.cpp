@@ -488,7 +488,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    auto & node_injection = v_network_blocks[ t ]->get_node_injection();
+    auto node_injection = v_network_blocks[ t ]->get_node_injection();
 
     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 

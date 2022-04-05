@@ -315,37 +315,19 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
    // net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
                                    v_sell_price[ t ] ) );
-   // v_sell_price, i.e.:
-   // ( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_sell_price[ t ] ) /
-   // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
                                    v_sell_price[ t ] ) );
-   // v_sell_price, i.e.:
-   //( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_sell_price[ t ] ) /
-   //pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
    vars.push_back( std::make_pair( &v_public_power_injection[ node_id ] ,
                                    -v_buy_price[ t ] ) );
-   // v_buy_price, i.e.:
-   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_buy_price[ t ] ) /
-   // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                    -v_buy_price[ t ] ) );
-   // v_buy_price, i.e.:
-   // -( v_energy_weight[ t ] * v_time_resolution[ t ] * _v_buy_price[ t ] ) /
-   // pow( ( 1 + f_discount_rate ) , f_project_lifetime ) )
   }
 
   // the costs due to the peak power
   vars.push_back( std::make_pair( &v_max_power[ node_id ] , f_max_tariff ) );
-  // f_max_tariff, i.e.:
-  // f_weight * f_tariff
  }
 
  auto lf = new LinearFunction( std::move( vars ) );
- // f_constant_term, i.e.:
- // -( v_energy_weight[ t ] * v_time_resolution[ t ] *
- //    _v_consumption_price[ t ] * v_active_demand[ t ][ node_id ] ) /
- //  pow( ( 1 + f_discount_rate ) , f_project_lifetime ) );
  lf->set_constant_term( f_const_term );
  objective.set_function( lf );
  objective.set_sense( Objective::eMax );

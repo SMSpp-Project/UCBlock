@@ -146,11 +146,7 @@ class ECNetworkBlock : public NetworkBlock
  const double * get_active_demand( Index t = 0 ) const override {
   if( v_active_demand.empty() )
    return nullptr;
-  // element* data(); / const element* data() const;
-  // This returns a pointer to the beginning of the contiguous block that
-  // contains the array's data. If all dimensions of the array are 0-indexed
-  // and stored in ascending order, this is equivalent to origin().
-  return &( v_active_demand.data() )[ t ]; // `v_active_demand[ t ].origin()`
+  return &( v_active_demand.data()[ t ] );
  }
 
 /// returns the vector of sell prices
@@ -217,6 +213,19 @@ class ECNetworkBlock : public NetworkBlock
 
  std::vector< ColVariable > & get_public_power_absorption() {
   return v_public_power_absorption;
+ }
+
+ /// returns the matrix of node injection variables
+ /** Method for returning the node injection for the given interval, which is
+  * assumed to have size get_number_intervals() per get_number_nodes().
+  *
+  * @param t The interval wrt the vector of node injections for each user is
+  *          returned. */
+
+ ColVariable * get_node_injection( Index t = 0 ) override {
+  if( v_node_injection.empty() )
+   return nullptr;
+  return &( v_node_injection.data()[ t ] );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -325,11 +334,10 @@ class ECNetworkBlock : public NetworkBlock
  // (the second term, i.e., the fixed tariff, is given as part of the
  // constant term)
 
- /// tariff that user pay to buy electricity, i.e.,
- /// the tariff on the withdrawing, in any time horizon
+ /// tariff that user pay to buy electricity at each time horizon
  std::vector< double > v_buy_price; // /pi^{P-,V}
 
- /// tariff that user gain to sell electricity
+ /// tariff that user gain to sell electricity at each time horizon
  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
 
 

@@ -644,12 +644,27 @@ class NetworkBlock : public Block
  * injection ones for each node) that NetworkBlock in necessarily has.
  * @{ */
 
-/// returns the vector of node injection variables
-/** Method for returning vector of node injection variables, which is assumed
- * to have size get_number_nodes(). */
+/// returns the matrix of node injection variables
+/** Method for returning the node injection variables for the given interval,
+ * which is assumed to have size get_number_intervals() per get_number_nodes().
+ * There are two possible cases:
+ *
+ * - if the matrix only has one row (i.e., the first dimension has size 1),
+ *   then the node injection for each user u is I[ 0 , u ] for all intervals t,
+ *   which means that the second dimension has size get_number_nodes().
+ *   This will be the default case;
+ *
+ * - otherwise, the matrix has size get_number_intervals() per
+ *   get_number_nodes(), then the I[ t , u ] represents the node injection
+ *   for the problem at time t for each user u, e.g., ECNetwork case;
+ *
+ * @param t The interval wrt the vector of node injections for each user is
+ *          returned. */
 
- std::vector< ColVariable > & get_node_injection() {
-  return v_node_injection;
+ virtual ColVariable * get_node_injection( Index t = 0 ) {
+  if( v_active_demand.empty() )
+   return nullptr;
+  return &( v_node_injection.front() );
  }
 
 /**@} ----------------------------------------------------------------------*/
