@@ -107,12 +107,12 @@ end
 
 
 "Function to safely get a field of a dictionary with default value"
-@inline field_d(d::AbstractDict, field, default = nothing) =
+@inline field_d(d::AbstractDict, field, default=nothing) =
     (field in keys(d) ? d[field] : default)
 @inline field_i(d, field) = field_d(d, field, 0)
 @inline field_f(d, field) = field_d(d, field, 0.0)
 "Function get field that throws an error if the field is not found"
-@inline function field(d, field, desc = nothing)
+@inline function field(d, field, desc=nothing)
     if d isa AbstractDict && field in keys(d)
         return d[field]
     else
@@ -316,7 +316,7 @@ function read_input(file_name::AbstractString)
             if isempty(opt_data)
                 opt_data = d
             else
-                opt_data = innerjoin(opt_data, d, on = "time")
+                opt_data = innerjoin(opt_data, d, on="time")
             end
         end
     end

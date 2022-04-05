@@ -109,9 +109,9 @@ function csvEC2nc4()
             ub = defGroup(block, "UnitBlock_$(last_g-1)")
 
             generator_node[last_g] = i_u # assign the ownership of the current electrical generator to the respective user
-            
+
             last_g += 1
-            
+
 
 
         end
