@@ -2,15 +2,16 @@ using YAML
 # the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
 # does not support (jet) the concept of group :(
 using NCDatasets
+using DataStructures
 
 include("utils.jl")
 
 function csvEC2nc4()
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset("../../../netCDF_files/EC_Data/EC_Test.nc4", "c")
+    ds = NCDataset("../../../netCDF_files/EC_Data/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
-    block = defGroup(ds, "Block_0") # UCBlock
+    block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
     n_users = length(user_set)
     defDim(block, "NumberNodes", n_users)
     n_timesteps = length(time_set)
@@ -63,22 +64,23 @@ function csvEC2nc4()
     last_t = 1
     for (i_w, w) in enumerate(peak_set)
 
-        ecnb = defGroup(block, "NetworkBlock_$(i_w-1)")
+        ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
         # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
-        # n_intervals = findlast(x -> x == w, peak_categories)
         n_intervals = count(x -> x == w, peak_categories)
         defDim(ecnb, "NumberIntervals", n_intervals)
 
         # Vector variables
 
+        last_i = findlast(x -> x == w, peak_categories)
+
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
         buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-        buy_price = buy_price_data[last_t:n_intervals]
+        buy_price = buy_price_data[last_t:last_i]
 
         # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
         sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-        sell_price = sell_price_data[last_t:n_intervals]
+        sell_price = sell_price_data[last_t:last_i]
 
         last_t += n_intervals
 
@@ -106,14 +108,20 @@ function csvEC2nc4()
             intersect(device_names(users_data[u]),
                 devices))
 
-            ub = defGroup(block, "UnitBlock_$(last_g-1)")
+            if g in ("PV", "wind")
+
+                ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
+
+
+            elseif g == "batt"
+
+                ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
+
+
+            end
 
             generator_node[last_g] = i_u # assign the ownership of the current electrical generator to the respective user
-
             last_g += 1
-
-
-
         end
     end
 
