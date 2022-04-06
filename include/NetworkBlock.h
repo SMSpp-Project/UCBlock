@@ -91,7 +91,7 @@ class NetworkBlock : public Block
  *
  * - NetworkData, a small auxiliary class to bunch together the basic data
  *   (topology and electrical characteristics) of the transmission network.
- *  @{ */
+ * @{ */
 
  /// public enum for defining the types of lines of the network
  enum line_type
@@ -130,7 +130,7 @@ class NetworkBlock : public Block
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
   /// constructor of NetworkData, does nothing
   NetworkData();
@@ -142,7 +142,7 @@ class NetworkBlock : public Block
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
 /// deserialize a NetworkData out of a netCDF::NcGroup
 /** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
@@ -209,6 +209,9 @@ class NetworkBlock : public Block
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Reading the data of the NetworkData
+ * @{ */
+
 /// returns the number of nodes of the network
 /** Method for returning the number of nodes of the network. When it is equal
  * to one, it means that the transmission network is bus, and therefore all
@@ -362,7 +365,7 @@ class NetworkBlock : public Block
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkData
- *  @{ */
+ * @{ */
 
 /// Serialize a NetworkData out of a netCDF::NcGroup
 /** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
@@ -411,7 +414,7 @@ class NetworkBlock : public Block
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
 /// Constructor, takes the father
 /** Constructor of NetworkBlock, taking possibly a pointer of its father
@@ -429,7 +432,7 @@ class NetworkBlock : public Block
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -453,7 +456,7 @@ class NetworkBlock : public Block
  *   and the number of nodes can be read via NetworkData::get_number_nodes().
  *   However, "ActiveDemand" itself is optional. If it is not found in the
  *   NcGroup, then it *must* be passed (either before or after the call to
- *   deserialize()) by calling set_ActiveDemand(). Since both groups of data
+ *   deserialize()) by calling set_active_demand(). Since both groups of data
  *   are optional, the NcGroup  can actually be empty which implies that all
  *   the data will be (or have been) passed by the in-memory interface. In
  *   this case, it would clearly be preferable to *entirely avoid the NcGroup
@@ -499,7 +502,7 @@ class NetworkBlock : public Block
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the NetworkBlock
- *  @{ */
+ * @{ */
 
 /// method to set the NetworkData object
 /** This method can be called *before* that deserialize() is called to provide
@@ -573,16 +576,13 @@ class NetworkBlock : public Block
  * otherwise it is left empty so that it can be set by this method.
  */
 
- void set_ActiveDemand( const std::vector< double > & v ) {
-  if( v_active_demand.empty() )
-   v_active_demand = v;
- }
+ virtual void set_ActiveDemand( const double * v ) = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
-    @{ */
+ * @{ */
 
 /// returns the number of nodes
 /** Returns the number of nodes in the transmission network. This should just
@@ -623,9 +623,7 @@ class NetworkBlock : public Block
  *          returned. */
 
  virtual const double * get_active_demand( Index t = 0 ) const {
-  if( v_active_demand.empty() )
-   return nullptr;
-  return &( v_active_demand.front() );
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -639,9 +637,6 @@ class NetworkBlock : public Block
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the NetworkBlock
- *
- * These methods allow to read the just the one set of Variable (which is node
- * injection ones for each node) that NetworkBlock in necessarily has.
  * @{ */
 
 /// returns the matrix of node injection variables
@@ -662,16 +657,15 @@ class NetworkBlock : public Block
  *          returned. */
 
  virtual ColVariable * get_node_injection( Index t = 0 ) {
-  if( v_active_demand.empty() )
-   return nullptr;
-  return &( v_node_injection.front() );
+  return nullptr;
  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
- *  @{ */
+ * @{ */
+
  /// returns a Solution representing the current solution of this NetworkBlock
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this NetworkBlock. The base
@@ -706,7 +700,7 @@ class NetworkBlock : public Block
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkBlock
- *  @{ */
+ * @{ */
 
 /// Extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -761,16 +755,12 @@ class NetworkBlock : public Block
 
 /*---------------------------------- data ----------------------------------*/
 
- /// vector to store the demand of each node of the network
- std::vector< double > v_active_demand;
-
  /// the constant term
  double f_const_term;
 
 /*------------------------------- variables --------------------------------*/
 
- /// power injection at each node
- std::vector< ColVariable > v_node_injection;
+
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

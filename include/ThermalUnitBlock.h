@@ -1494,7 +1494,7 @@ class ThermalUnitBlock : public UnitBlock {
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
 
  /// the vector of MinPower
  std::vector< double > v_MinPower;
@@ -1556,7 +1556,8 @@ class ThermalUnitBlock : public UnitBlock {
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
-/*-----------------------------variables------------------------------------*/
+/*---------------------------- variables -----------------------------------*/
+
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
 
@@ -1574,7 +1575,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
-/*----------------------------constraints-----------------------------------*/
+
+/*--------------------------- constraints ----------------------------------*/
 
  /// the connection power out put constraints
  std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Constraints;

@@ -387,7 +387,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
      boost::indices[ range( 0 , number_nodes ) ][ t ] ];
     std::vector< double > ap_v( number_nodes );
     std::copy( ap_c.begin() , ap_c.end() , ap_v.begin() );
-    nbi->set_ActiveDemand( ap_v );
+    nbi->set_ActiveDemand( &ap_v.front() );
    }
   }  // end( for( t ) )
 

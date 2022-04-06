@@ -1607,7 +1607,8 @@ class HydroUnitBlock : public UnitBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
+
  /// The number of reservoirs(nodes) of the problem
  Index f_number_reservoirs;
 
@@ -1692,7 +1693,7 @@ class HydroUnitBlock : public UnitBlock
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double, 2 > v_secondary_rho;
 
-/*-----------------------------variables------------------------------------*/
+/*---------------------------- variables -----------------------------------*/
 
  /// the matrix of volumetric variables
  boost::multi_array< ColVariable , 2 > v_volumetric;
@@ -1708,7 +1709,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  boost::multi_array< ColVariable , 2 > v_secondary_spinning_reserve;
-/*----------------------------constraints-----------------------------------*/
+
+/*--------------------------- constraints ----------------------------------*/
+
  /// maximum power output according to primary-secondary reserves constraints
  boost::multi_array< FRowConstraint, 2 >  MaxPowerPrimarySecondary_Const;
 

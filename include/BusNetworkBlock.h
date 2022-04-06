@@ -79,7 +79,7 @@ class BusNetworkBlock : public NetworkBlock
 
  explicit BusNetworkBlock( Block * f_block = nullptr ) :
   NetworkBlock( f_block ) {
-  v_node_injection.resize(1);
+  v_node_injection.resize( 1 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -96,8 +96,8 @@ class BusNetworkBlock : public NetworkBlock
 /// loads the BusNetworkBlock instance from file - not implememted yet
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// generates the static variables of BusNetworkBlock
@@ -116,7 +116,7 @@ class BusNetworkBlock : public NetworkBlock
  * must be a BoxConstraint for that variable whose lower and upper bounds are
  * equal to the active demand value.
  */
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BusNetworkBlock
@@ -175,12 +175,17 @@ class BusNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
+
  /// the objective function
  FRealObjective objective;
-/*-----------------------------variables------------------------------------*/
 
-/*----------------------------constraints-----------------------------------*/
+/*---------------------------- variables -----------------------------------*/
+
+
+
+/*--------------------------- constraints ----------------------------------*/
+
  /// the node injection bound constraints
  std::vector< BoxConstraint > NodeInjection_bound_Constraints;
 

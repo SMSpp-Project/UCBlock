@@ -478,7 +478,8 @@ class IntermittentUnitBlock : public UnitBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
+
  /// the vector of MinPower
  std::vector< double > v_minimum_power;
 
@@ -493,7 +494,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the matrix of inertia power of generators
  std::vector< double > v_inertia_power;
-/*-----------------------------variables------------------------------------*/
+
+/*---------------------------- variables -----------------------------------*/
+
  /// the active power variables
  std::vector< ColVariable > v_active_power;
 
@@ -502,7 +505,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
-/*----------------------------constraints-----------------------------------*/
+
+/*--------------------------- constraints ----------------------------------*/
+
 /// the active power upper bound constraints
  std::vector< FRowConstraint > MinPower_Constraints;
 

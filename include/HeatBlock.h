@@ -641,7 +641,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  /// the initial amount of heat in the storage at the beginning of the time t
  double f_initial_heat_storage;
 
-/*-----------------------------variables------------------------------------*/
+/*---------------------------- variables -----------------------------------*/
 
  /// Matrix of Heat variables
  boost::multi_array< ColVariable , 2 > v_heat;
@@ -655,7 +655,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  /// Vector of HeatAvailable variables
  std::vector< ColVariable > v_heat_available;
 
-/*----------------------------constraints-----------------------------------*/
+/*--------------------------- constraints ----------------------------------*/
 
  /// the heat demand satisfaction constraints
  std::vector< BoxConstraint > v_HeatDemand_Constraints;

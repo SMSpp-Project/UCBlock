@@ -537,7 +537,8 @@ class SlackUnitBlock : public UnitBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
+
  /// the vector of MaxPower
  std::vector< double > v_MaxPower;
 
@@ -562,7 +563,7 @@ class SlackUnitBlock : public UnitBlock
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
 
- /*-----------------------------variables------------------------------------*/
+ /*---------------------------- variables -----------------------------------*/
  /// the commitment variables
  std::vector< ColVariable > v_commitment;
 
@@ -575,7 +576,7 @@ class SlackUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*----------------------------constraints-----------------------------------*/
+/*--------------------------- constraints ----------------------------------*/
 
  /// the active power bound constraints
  std::vector< LB0Constraint > ActivePower_Bound_Constraints;

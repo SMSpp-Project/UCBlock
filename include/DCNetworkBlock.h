@@ -80,7 +80,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// constructor of DCNetworkBlock
  /** Constructor of DCNetworkBlock, taking possibly a pointer of its
@@ -263,9 +263,7 @@ class DCNetworkBlock : public NetworkBlock
 /*---------------- Methods for checking the DCNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the DCNetworkBlock
- *  @{ */
-
-/*--------------------------------------------------------------------------*/
+ * @{ */
 
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
@@ -311,7 +309,7 @@ class DCNetworkBlock : public NetworkBlock
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
-    @{ */
+ * @{ */
 
  /// returns the number of nodes
  /** Returns the number of nodes in the transmission network. If
@@ -333,12 +331,46 @@ class DCNetworkBlock : public NetworkBlock
   return f_NetworkData;
  }
 
+/*--------------------------------------------------------------------------*/
+
+/// returns the vector of active demands
+/** Method for returning the active demand for the given interval, which is
+ * assumed to have size get_number_nodes(). */
+
+ const double * get_active_demand( Index t = 0 ) const override {
+  if( v_active_demand.empty() )
+   return nullptr;
+  return &( v_active_demand.front() );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the DCNetworkBlock
- *
  * @{ */
+
+ /// returns the matrix of node injection variables
+ /** Method for returning the node injection variables for the given interval,
+  * which is assumed to have size get_number_intervals() per get_number_nodes().
+  * There are two possible cases:
+  *
+  * - if the matrix only has one row (i.e., the first dimension has size 1),
+  *   then the node injection for each user u is I[ 0 , u ] for all intervals t,
+  *   which means that the second dimension has size get_number_nodes().
+  *   This will be the default case;
+  *
+  * - otherwise, the matrix has size get_number_intervals() per
+  *   get_number_nodes(), then the I[ t , u ] represents the node injection
+  *   for the problem at time t for each user u, e.g., ECNetwork case;
+  *
+  * @param t The interval wrt the vector of node injections for each user is
+  *          returned. */
+
+ ColVariable * get_node_injection( Index t = 0 ) override {
+  if( v_node_injection.empty() )
+   return nullptr;
+  return &( v_node_injection.front() );
+ }
 
  /// returns the vector of power flow variables
  /** The returned std::vector< ColVariable >, say F, contains the power flow
@@ -348,8 +380,7 @@ class DCNetworkBlock : public NetworkBlock
   * - if F is empty(), then this variable is not defined;
   *
   * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
-  *   variable for line l.
-  *   */
+  *   variable for line l. */
 
  const std::vector< ColVariable > & get_power_flow() const {
   return v_power_flow;
@@ -365,8 +396,7 @@ class DCNetworkBlock : public NetworkBlock
   * - if V is empty(), then this variable is not defined;
   *
   * - otherwise, V must have f_number_lines rows and V[ l ] is the auxiliary
-  *   variable for line l.
-  *   */
+  *   variable for line l. */
 
  const std::vector< ColVariable > & get_auxiliary_variable() const {
   return v_auxiliary_variable;
@@ -376,7 +406,6 @@ class DCNetworkBlock : public NetworkBlock
 /*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Constraint of the DCNetworkBlock
- *
  * @{ */
 
  /// returns the vector of power flow limit constraints
@@ -411,11 +440,11 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------- METHODS FOR MODIFYING THE DCNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the DCNetworkBlock
- *  @{ */
+ * @{ */
 
  void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr )
  override {
-  // if there was a previous NetworkData and it was local, delete it
+  // if there was a previous NetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
@@ -423,11 +452,42 @@ class DCNetworkBlock : public NetworkBlock
   f_local_NetworkData = false;
  }
 
+/*--------------------------------------------------------------------------*/
+
+/// method to set the ActiveDemand
+/** This method can be called either before or after that deserialize() is
+ * called to provide the NetworkBlock with the ActiveDemand data. This allows
+ * all Active Power Demand data corresponding to some UC problem to be
+"grouped" together (typically, in UCBlock) rather than "spread" among the
+ * different NetworkBlock, which may be convenient for some user.
+ *
+ * If this method is called *before* deserialize(), the data is just copied.
+ * However, when deserialize() is called, if ActiveDemand data is present in
+ * the NcGroup then this data is used, replacing (and therefore ignoring) the
+ * data set by this method.
+ *
+ * Similarly, if this method is called *after* deserialize(), but some the
+ * ActiveDemand was already present in the NcGroup, then that data is kept and
+ * the call to this method does nothing.
+ *
+ * When this method is called, if it is empty it is written into, otherwise
+ * nothing happens. In deserialize(), if the data is there in the NcGroup then
+ * it is written in v_active_demand (which therefore is no longer empty),
+ * otherwise it is left empty so that it can be set by this method.
+ */
+
+ void set_ActiveDemand( const double * v ) override {
+  if( v_active_demand.empty() ) {
+   std::vector< double > value_vec( v , v + get_number_nodes() );
+   v_active_demand = value_vec;
+  }
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
  /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
  /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
@@ -440,8 +500,7 @@ class DCNetworkBlock : public NetworkBlock
 
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
-  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
-  */
+  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
  void load( std::istream & input , char frmt = 0 ) override {
   throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
  }
@@ -498,7 +557,7 @@ class DCNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
@@ -506,7 +565,13 @@ class DCNetworkBlock : public NetworkBlock
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;
 
-/*-----------------------------variables------------------------------------*/
+ /// vector to store the demand of each node of the network
+ std::vector< double > v_active_demand;
+
+/*---------------------------- variables -----------------------------------*/
+
+ /// power injection at each node
+ std::vector< ColVariable > v_node_injection;
 
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;
@@ -514,7 +579,7 @@ class DCNetworkBlock : public NetworkBlock
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
-/*----------------------------constraints-----------------------------------*/
+/*--------------------------- constraints ----------------------------------*/
 
  /// AC power flow limit constraints
  std::vector< FRowConstraint > v_AC_power_flow_limit_constraints;

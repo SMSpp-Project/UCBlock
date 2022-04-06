@@ -71,7 +71,7 @@ class ECNetworkBlock : public NetworkBlock
 /*----------------------- CONSTRUCTOR AND DESTRUCTOR -----------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Constructor and Destructor
-  *  @{ */
+ * @{ */
 
  /// Constructor, takes the father
  /** Constructor of ECNetworkBlock, taking possibly a pointer of its father
@@ -115,7 +115,7 @@ class ECNetworkBlock : public NetworkBlock
 /*------- METHODS FOR READING THE DATA OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
  /** @name Reading the data of the ECNetworkBlock
-     @{ */
+ * @{ */
 
 /// returns the number of nodes
 /** Returns the number of nodes in the transmission network. If
@@ -146,7 +146,7 @@ class ECNetworkBlock : public NetworkBlock
  const double * get_active_demand( Index t = 0 ) const override {
   if( v_active_demand.empty() )
    return nullptr;
-  return &( v_active_demand.data()[ t ] );
+  return &( v_active_demand.data()[ t * get_number_nodes() ] );
  }
 
 /// returns the vector of sell prices
@@ -177,10 +177,6 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /** @name Reading the Variable of the ECNetworkBlock
   *
-  * These methods allow to read the just the one set of Variable (which are
-  * power injection (+) and absorption (-) to/from the the public market or
-  * microgrid market / network, ones for each node) that ECNetworkBlock
-  * in necessarily has.
   * @{ */
 
  /// returns the vector of micro power injection variables
@@ -225,14 +221,56 @@ class ECNetworkBlock : public NetworkBlock
  ColVariable * get_node_injection( Index t = 0 ) override {
   if( v_node_injection.empty() )
    return nullptr;
-  return &( v_node_injection.data()[ t ] );
+  return &( v_node_injection.data()[ t * get_number_nodes() ] );
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR READING THE Constraint OF THE ECNetworkBlock -------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the Constraint of the ECNetworkBlock
+ * @{ */
+
+
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------- METHODS FOR MODIFYING THE ECNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the DCNetworkBlock
+ * @{ */
+
+/// method to set the ActiveDemand
+/** This method can be called either before or after that deserialize() is
+ * called to provide the NetworkBlock with the ActiveDemand data. This allows
+ * all Active Power Demand data corresponding to some UC problem to be
+"grouped" together (typically, in UCBlock) rather than "spread" among the
+ * different NetworkBlock, which may be convenient for some user.
+ *
+ * If this method is called *before* deserialize(), the data is just copied.
+ * However, when deserialize() is called, if ActiveDemand data is present in
+ * the NcGroup then this data is used, replacing (and therefore ignoring) the
+ * data set by this method.
+ *
+ * Similarly, if this method is called *after* deserialize(), but some the
+ * ActiveDemand was already present in the NcGroup, then that data is kept and
+ * the call to this method does nothing.
+ *
+ * When this method is called, if it is empty it is written into, otherwise
+ * nothing happens. In deserialize(), if the data is there in the NcGroup then
+ * it is written in v_active_demand (which therefore is no longer empty),
+ * otherwise it is left empty so that it can be set by this method.
+ */
+
+ void set_ActiveDemand( const double * v ) override {
+  if( v_active_demand.empty() ) {
+   // TODO
+  }
  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- OTHER INITIALIZATIONS --------------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Other initializations
-  *  @{ */
+ * @{ */
 
  /// deserialize a ECNetworkBlock out of a netCDF::NcGroup
  /** Deserialize a ECNetworkBlock out of a netCDF::NcGroup, which should

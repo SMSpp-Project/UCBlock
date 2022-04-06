@@ -1016,7 +1016,7 @@ class BatteryUnitBlock : public UnitBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------data--------------------------------------*/
+/*------------------------------- data -------------------------------------*/
 
  /// The vector of minimum storage
  std::vector< double > v_minimum_storage;
@@ -1060,7 +1060,7 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of demand
  std::vector< double > v_demand;
 
-/*-----------------------------variables------------------------------------*/
+/*---------------------------- variables -----------------------------------*/
 
  /// the vector of storage level variables
  std::vector< ColVariable > v_storage_level;
@@ -1083,7 +1083,7 @@ class BatteryUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*----------------------------constraints-----------------------------------*/
+/*--------------------------- constraints ----------------------------------*/
 
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;
