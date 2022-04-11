@@ -97,8 +97,7 @@ class ECNetworkBlock : public NetworkBlock
 /** This method generates the abstract constraints of the ECNetworkBlock.
  * Since the node injection variable is fixed to the active demand value, it
  * must be a BoxConstraint for that variable whose lower and upper bounds are
- * equal to the active demand value.
- */
+ * equal to the active demand value. */
 
  void generate_abstract_constraints( Configuration * stcc ) override;
 
@@ -128,6 +127,16 @@ class ECNetworkBlock : public NetworkBlock
   return 0;
  }
 
+/// returns the number of intervals
+/** Returns the number of intervals spanned by this NetworkBlock. If
+ * get_NetworkData() returns nullptr, this is equivalent to
+ * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
+
+ Index get_number_intervals() const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_intervals();
+  return 0;
+ }
 
 /// returns a pointer to the NetworkData
 /** Return a pointer to the NetworkData. */
@@ -242,7 +251,7 @@ class ECNetworkBlock : public NetworkBlock
 /** This method can be called either before or after that deserialize() is
  * called to provide the NetworkBlock with the ActiveDemand data. This allows
  * all Active Power Demand data corresponding to some UC problem to be
-"grouped" together (typically, in UCBlock) rather than "spread" among the
+ * "grouped" together (typically, in UCBlock) rather than "spread" among the
  * different NetworkBlock, which may be convenient for some user.
  *
  * If this method is called *before* deserialize(), the data is just copied.
@@ -257,8 +266,7 @@ class ECNetworkBlock : public NetworkBlock
  * When this method is called, if it is empty it is written into, otherwise
  * nothing happens. In deserialize(), if the data is there in the NcGroup then
  * it is written in v_active_demand (which therefore is no longer empty),
- * otherwise it is left empty so that it can be set by this method.
- */
+ * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand( const double * v ) override {
   if( v_active_demand.empty() ) {
@@ -355,6 +363,10 @@ class ECNetworkBlock : public NetworkBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -362,7 +374,6 @@ class ECNetworkBlock : public NetworkBlock
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
-
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_active_demand;
@@ -378,11 +389,10 @@ class ECNetworkBlock : public NetworkBlock
  /// tariff that user gain to sell electricity at each time horizon
  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
 
-
  /// tariff that user pay due to the peak power
  double f_max_tariff;
 
-/*------------------------------- variables --------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
  boost::multi_array< ColVariable , 2 > v_node_injection;
@@ -409,7 +419,7 @@ class ECNetworkBlock : public NetworkBlock
  /// i.e., a specific interval in "NumberIntervals"
  std::vector< ColVariable > v_max_power; // P^{max}
 
-/*------------------------------ constraints -------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the power balance constraints within the microgrid market / network
  std::vector< FRowConstraint > micro_power_balance_constraints;

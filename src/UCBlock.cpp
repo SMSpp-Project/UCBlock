@@ -34,7 +34,6 @@
 
 #include "LinearFunction.h"
 #include "UCBlock.h"
-#include "BusNetworkBlock.h"
 #include "DCNetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -42,6 +41,12 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register UCBlock to the Block factory
 
 SMSpp_insert_in_factory_cpp_1( UCBlock );
 
@@ -126,6 +131,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberUnits" ,
+                                                     "NumberNetworks" ,
                                                      "NumberHeatBlocks" ,
                                                      "NumberPrimaryZones" ,
                                                      "NumberSecondaryZones" ,
@@ -138,8 +144,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
+                                                     "StartNetworkIntervals" ,
                                                      "GeneratorNode" ,
-                                                     "HeatNode" , "HeatSet" ,
+                                                     "HeatNode" ,
+                                                     "HeatSet" ,
                                                      "PowerHeatRho" ,
                                                      "PrimaryZones" ,
                                                      "PrimaryDemand" ,
@@ -151,7 +159,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "PollutantZones" ,
                                                      "PollutantBudget" ,
                                                      "PollutantRho" ,
-                                                     "StartLine" , "EndLine" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
@@ -159,8 +168,22 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ // Mandatory variables
+
  ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
  ::deserialize_dim( group , "NumberUnits" , f_number_units , false );
+
+ // Optional variables
+
+ if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks , true ) )
+  f_number_networks = 0;
+
+ if( ::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
+                    v_start_network_intervals , true ) ) {
+  v_start_network_intervals.resize( f_number_networks );
+  std::iota( std::begin( v_start_network_intervals ) ,
+             std::end( v_start_network_intervals ) , 0 );
+ }
 
  Index number_nodes;
  if( !::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
@@ -389,13 +412,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
     std::copy( ap_c.begin() , ap_c.end() , ap_v.begin() );
     nbi->set_ActiveDemand( &ap_v.front() );
    }
-  }  // end( for( t ) )
+  }
 
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
    boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
 
- }  // end( else( number_nodes > 1 ) )
+ }
 
  /*!! commented away until HeatBlock are properly managed
  if( f_number_heat_blocks )
@@ -429,7 +452,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // node injection constraints - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes =
+  f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  v_node_injection_constraints.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
@@ -488,7 +512,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    auto node_injection = v_network_blocks[ t ]->get_node_injection();
+    auto node_injection =
+     v_network_blocks[ t ]->get_node_injection(); // TODO check
 
     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -1136,7 +1161,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       // Terms associated with heat-only generation units
       /*!! commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
 
        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
 
@@ -1224,7 +1249,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       // Terms associated with heat-only generation units
       /*!! commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { //TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
 
        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
 
@@ -1504,8 +1529,8 @@ void UCBlock::set_active_power_demand
  if( subset.empty() )
   return;
 
- const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes()
-                                         : 1;
+ const auto number_nodes =
+  f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  if( !v_network_blocks.empty() ) {
   // Update the demand of the NetworkBlocks
@@ -1573,8 +1598,8 @@ void UCBlock::set_active_power_demand
  ( std::vector< double >::const_iterator values , Block::Range rng ,
    c_ModParam issuePMod , c_ModParam issueAMod ) {
 
- const auto number_nodes = f_NetworkData ? f_NetworkData->get_number_nodes()
-                                         : 1;
+ const auto number_nodes =
+  f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  rng.second = std::min( rng.second , number_nodes * f_time_horizon );
 

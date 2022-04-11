@@ -124,8 +124,7 @@ namespace SMSpp_di_unipi_it
  *
  *   - possibly, constraints linking the electricity production of some
  *     UnitBlock with the heat production of some unit in a HeatBlock,
- *     for the appropriate units and for each time instant.
- */
+ *     for the appropriate units and for each time instant. */
 
 class UCBlock : public Block
 {
@@ -145,7 +144,7 @@ class UCBlock : public Block
 
  explicit UCBlock( Block * father = nullptr ) :
   Block( father ) , f_time_horizon( 0 ) , f_number_units( 0 ) ,
-  f_NetworkData( nullptr ) ,
+  f_number_networks( 0 ) , f_NetworkData( nullptr ) ,
   // TODO commented away until HeatBlock are properly managed
   //f_number_heat_blocks( 0 ) ,
   f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
@@ -492,6 +491,7 @@ class UCBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// Generates the static constraint of the UCBlock
 /** This method generates the abstract constraints of the UCBlock.
  *
@@ -683,8 +683,7 @@ class UCBlock : public Block
  *   generator \f$ j \f$ is representing. Thus, we need a mapping
  *   \f$ e^h : \mathcal{G}^{ec}(h) \to \mathcal{G} \f$, where \f$ \mathcal{G}
  *   \f$ is the set of electricity generators (standard electrical generators
- *   in UC parlance).
- */
+ *   in UC parlance). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -701,6 +700,9 @@ class UCBlock : public Block
  Index get_time_horizon() const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
+
+ /// Returns the number of NetworkBlock
+ Index get_number_networks() const { return f_number_networks; }
 
  /// Returns the number of UnitBlock
  Index get_number_units() const { return f_number_units; }
@@ -1225,6 +1227,13 @@ class UCBlock : public Block
  /// The time horizon of the problem
  Index f_time_horizon;
 
+ /// The number of the networks of the problem
+ Index f_number_networks;
+
+ /// The starting index of each NetworkBlock
+ /// v_start_network_intervals [ n ] tells from which index network n starts
+ std::vector<Index > v_start_network_intervals;
+
  /// The number of units of the problem
  Index f_number_units;
 
@@ -1239,7 +1248,7 @@ class UCBlock : public Block
  /// The total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones;
 
- /// the NetworkData object
+ /// The NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
  /* TODO commented away until HeatBlock are properly managed

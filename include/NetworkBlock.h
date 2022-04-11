@@ -247,7 +247,7 @@ class NetworkBlock : public Block
  *
  *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
  *    element of the vectors gives starting point of each line in the network.
- */
+*/
 
   const std::vector< Index > & get_start_line() const { return v_start_line; }
 
@@ -263,8 +263,7 @@ class NetworkBlock : public Block
  *    defined.
  *
  *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
- *    element of the vectors gives ending point of each line in the network.
- */
+ *    element of the vectors gives ending point of each line in the network. */
 
   const std::vector< Index > & get_end_line() const { return ( v_end_line ); }
 
@@ -558,7 +557,7 @@ class NetworkBlock : public Block
 /** This method can be called either before or after that deserialize() is
  * called to provide the NetworkBlock with the ActiveDemand data. This allows
  * all Active Power Demand data corresponding to some UC problem to be
-"grouped" together (typically, in UCBlock) rather than "spread" among the
+ * "grouped" together (typically, in UCBlock) rather than "spread" among the
  * different NetworkBlock, which may be convenient for some user.
  *
  * If this method is called *before* deserialize(), the data is just copied.
@@ -573,8 +572,7 @@ class NetworkBlock : public Block
  * When this method is called, if it is empty it is written into, otherwise
  * nothing happens. In deserialize(), if the data is there in the NcGroup then
  * it is written in v_active_demand (which therefore is no longer empty),
- * otherwise it is left empty so that it can be set by this method.
- */
+ * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand( const double * v ) = 0;
 
@@ -586,11 +584,21 @@ class NetworkBlock : public Block
 
 /// returns the number of nodes
 /** Returns the number of nodes in the transmission network. This should just
- * be equivalent to get_NetworkData()-> get_number_nodes(), but the base
+ * be equivalent to get_NetworkData()->get_number_nodes(), but the base
  * NetworkBlock class does not handle it, and therefore it assumes the network
  * is a bus and returns 1. */
 
  virtual Index get_number_nodes( void ) const { return ( 1 ); }
+
+/*--------------------------------------------------------------------------*/
+
+/// returns the number of intervals
+/** Returns the number of intervals spanned by this NetworkBlock. This should
+ * just be equivalent to get_NetworkData()->get_number_intervals(), but the base
+ * NetworkBlock class does not handle it, and therefore it assumes the network
+ * handle just one time horizon and returns 1. */
+
+ virtual Index get_number_intervals( void ) const { return ( 1 ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -697,19 +705,6 @@ class NetworkBlock : public Block
                           bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the NetworkBlock
- * @{ */
-
-/// Extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group. */
-
- void serialize( netCDF::NcGroup & group ) const override;
-
-/**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -758,7 +753,11 @@ class NetworkBlock : public Block
  /// the constant term
  double f_const_term;
 
-/*------------------------------- variables --------------------------------*/
+/*-------------------------------- variables -------------------------------*/
+
+
+
+/*------------------------------- constraints ------------------------------*/
 
 
 

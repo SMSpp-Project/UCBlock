@@ -103,6 +103,7 @@ class IntermittentUnitBlock : public UnitBlock
   : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
+
 /// destructor of IntermittentUnitBlock
 
  virtual ~IntermittentUnitBlock() override;
@@ -182,6 +183,7 @@ class IntermittentUnitBlock : public UnitBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the abstract variables of the IntermittentUnitBlock
 /** The IntermittentUnitBlock class has three different variables which are:
  *
@@ -203,7 +205,8 @@ class IntermittentUnitBlock : public UnitBlock
  * */
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// generate the static constraints of the IntermittentUnitBlock
 /** Method that generates the static constraints of the IntermittentUnitBlock.
  * These are the:
@@ -240,7 +243,8 @@ class IntermittentUnitBlock : public UnitBlock
  *   */
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// generate the objective of the IntermittentUnitBlock
 /** Method that generates the objective of the IntermittentUnitBlock.
  *
@@ -325,6 +329,7 @@ class IntermittentUnitBlock : public UnitBlock
  double get_kappa() const { return f_kappa; }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of minimum power
 /** The method returned a std::vector< double > V and each element of V
  * contains the minimum power at time t. There are three possible cases:
@@ -341,6 +346,7 @@ class IntermittentUnitBlock : public UnitBlock
   return( v_minimum_power );
  }
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum power
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum power at time t. There are three possible cases:
@@ -358,6 +364,7 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the matrix of inertia power
 /** The returned value U = get_inertia_power() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the active power
@@ -408,7 +415,7 @@ class IntermittentUnitBlock : public UnitBlock
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
@@ -417,7 +424,7 @@ class IntermittentUnitBlock : public UnitBlock
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
@@ -426,8 +433,8 @@ class IntermittentUnitBlock : public UnitBlock
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
-  }
- 
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
@@ -450,9 +457,9 @@ class IntermittentUnitBlock : public UnitBlock
     @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error(
-		      "IntermittentUnitBlock::load() not implemented yet") );
-  }
+  throw ( std::logic_error(
+   "IntermittentUnitBlock::load() not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -475,10 +482,14 @@ class IntermittentUnitBlock : public UnitBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// the vector of MinPower
  std::vector< double > v_minimum_power;
@@ -495,7 +506,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the matrix of inertia power of generators
  std::vector< double > v_inertia_power;
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// the active power variables
  std::vector< ColVariable > v_active_power;
@@ -506,7 +517,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
 /// the active power upper bound constraints
  std::vector< FRowConstraint > MinPower_Constraints;

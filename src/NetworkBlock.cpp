@@ -116,42 +116,11 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "ConstantTerm" };
+ static std::vector< std::string > expected_vars = { "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
  // Optional variables
-
- Index NumberNodes;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
-  // A NetworkData has been provided. So, the size of the given vector of
-  // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes , v_active_demand );
- } else {
-  // A NetworkData has not been provided. However, the active demand may still
-  // have been provided.
-  auto ActiveDemand = group.getVar( "ActiveDemand" );
-
-  if( !ActiveDemand.isNull() ) {
-   // The active demand has indeed been provided.
-
-   if( ActiveDemand.getDimCount() != 1 )
-    // The active demand must be a one-dimensional array.
-    throw ( std::invalid_argument(
-     "NetworkBlock::deserialize(): ActiveDemand should have one dimension, "
-     "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
-
-   // Retrieve the number of nodes from the size of the given netCDF variable.
-   const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
-
-   // Resize the vector of active demand.
-   v_active_demand.resize( number_nodes );
-
-   // Retrieve the active demand from the netCDF variable.
-   ActiveDemand.getVar( v_active_demand.data() );
-  }
- }
 
  if( !::deserialize( group , f_const_term , "ConstantTerm" , true ) )
   f_const_term = 0;
@@ -214,38 +183,6 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
                v_network_cost );
  }
 }
-
-/*--------------------------------------------------------------------------*/
-
-void NetworkBlock::serialize( netCDF::NcGroup & group ) const {
-
- Block::serialize( group );
-
- if( auto network_data = get_NetworkData() )
-  // If a NetworkData is present, serialize it.
-  network_data->serialize( group );
-
- if( !v_active_demand.empty() ) {
-  // This NetworkBlock has active demand, so it is serialized.
-
-  auto NumberNodes = group.getDim( "NumberNodes" );
-
-  if( NumberNodes.isNull() ) {
-   /* The dimension "NumberNodes" is not present in the group (which means
-    * that a NetworkData is not present). However, the number of nodes can
-    * still be obtained from the size of the active demand vector. Notice that
-    * the name "NumberNodes" is not used for this new dimension, because it
-    * would indicate that a NetworkData is present (which is not the
-    * case). Therefore, we create an alternative dimension in order to be able
-    * to serialize the active demand. */
-   NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
-  }
-
-  // Finally, serialize the active demand.
-  ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
-               NumberNodes , v_active_demand );
- }
-}  // end( NetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File NetworkBlock.cpp --------------------------*/

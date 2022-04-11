@@ -71,7 +71,8 @@ namespace SMSpp_di_unipi_it
  *
  * - active power relation with primary and secondary spinning reserves. */
 
-class ThermalUnitBlock : public UnitBlock {
+class ThermalUnitBlock : public UnitBlock
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -360,6 +361,7 @@ class ThermalUnitBlock : public UnitBlock {
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the abstract variables of the ThermalUnitBlock
 /** The ThermalUnitBlock class has six different variables:
  *
@@ -401,9 +403,10 @@ class ThermalUnitBlock : public UnitBlock {
  * Note that there may be other formulations (like the DP one), which will
  * possibly be implemented in the future. */
 
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// Generate the static constraint of the ThermalUnitBlock
 /** This method generates the abstract constraints of the ThermalUnitBlock.
  *
@@ -669,7 +672,8 @@ class ThermalUnitBlock : public UnitBlock {
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// generate the objective of the ThermalUnitBlock
 /** Method that generates the objective of the ThermalUnitBlock. The objective
  *  function of the ThermalUnitBlock representing the total power production
@@ -901,7 +905,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_availability( void ) const {
   return( v_Availability );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the availability of the unit at the given time \t
@@ -911,7 +915,7 @@ class ThermalUnitBlock : public UnitBlock {
    return( 1.0 );
   assert( t < get_time_horizon() );
   return( v_Availability[ t ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary rho
@@ -920,7 +924,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary rho
@@ -929,7 +933,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning reserve costs
@@ -941,7 +945,7 @@ class ThermalUnitBlock : public UnitBlock {
   * @return The vector containing the primary spinning reserve costs. */
 
  const std::vector< double > & get_primary_spinning_reserve_cost( void )
-  const { return( v_primary_spinning_reserve_cost ); }
+ const { return( v_primary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary spinning reserve costs
@@ -953,7 +957,7 @@ class ThermalUnitBlock : public UnitBlock {
   * @return The vector containing the secondary spinning reserve costs. */
 
  const std::vector< double > & get_secondary_spinning_reserve_cost( void )
-  const { return( v_secondary_spinning_reserve_cost ); }
+ const { return( v_secondary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
@@ -962,7 +966,7 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-down
@@ -971,9 +975,10 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of quadratic term
 /** The returned vector contains to quadratic term at time t. There are three
  * possible cases:
@@ -988,9 +993,10 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_quad_term( void ) const {
   return( v_QuadTerm );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the coefficient of the quadratic term of the power cost function
 /** This function returns the coefficient of the quadratic term of the
  * quadratic function that represents the cost of the power produced by the
@@ -1009,12 +1015,13 @@ class ThermalUnitBlock : public UnitBlock {
    return( v_QuadTerm.front() );
   assert( v_QuadTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw ( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
+                             "time index: " + std::to_string( t ) ) );
   return( v_QuadTerm[ t ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of linear term
 /** The returned vector contains to linear term at time t. There are three
  * possible cases:
@@ -1029,9 +1036,10 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the coefficient of the linear term of the power cost function
 /** This function returns the coefficient of the linear term of the quadratic
  * function that represents the cost of the power produced by the unit at the
@@ -1050,12 +1058,13 @@ class ThermalUnitBlock : public UnitBlock {
    return( v_LinearTerm.front() );
   assert( v_LinearTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw ( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
+                             "time index: " + std::to_string( t ) ) );
   return( v_LinearTerm[ t ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of constant term
 /** The returned vector contains to constant term at time t. There are three
  * possible cases:
@@ -1070,9 +1079,10 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the constant term of the power cost function
 /** This function returns the constant term of the function that represents
  * the cost of the power produced by the unit at the given time instant. This
@@ -1090,12 +1100,13 @@ class ThermalUnitBlock : public UnitBlock {
    return( v_ConstTerm.front() );
   assert( v_ConstTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw ( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
+                             "time index: " + std::to_string( t ) ) );
   return( v_ConstTerm[ t ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of startup cost
 /** The returned vector contains to startup cost at time t.  There are three
  * possible cases:
@@ -1110,9 +1121,10 @@ class ThermalUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the start up cost for the given time instant.
 /** This function returns the start up cost of the unit for the given time
  * instant.
@@ -1128,12 +1140,13 @@ class ThermalUnitBlock : public UnitBlock {
    return( v_StartUpCost.front() );
   assert( v_StartUpCost.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw ( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
+                             "time index: " + std::to_string( t ) ) );
   return( v_StartUpCost[ t ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of fixed consumption
 /** The returned value U = get_fixed_consumption() contains the contribution
  *  to fixed consumption (basically, the constants to be multiplied by the
@@ -1152,10 +1165,11 @@ class ThermalUnitBlock : public UnitBlock {
  double * get_fixed_consumption( Index generator ) override {
   if( v_fixed_consumption.empty() )
    return( nullptr );
-  return( & ( v_fixed_consumption.front() ) );
-  }
+  return( &( v_fixed_consumption.front() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
@@ -1174,8 +1188,8 @@ class ThermalUnitBlock : public UnitBlock {
  double * get_inertia_commitment( Index generator ) override {
   if( v_inertia_commitment.empty() )
    return( nullptr );
-  return( & ( v_inertia_commitment.front() ) );
-  }
+  return( &( v_inertia_commitment.front() ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
@@ -1201,11 +1215,11 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// returns the vector of commitment variables
 
- ColVariable * get_commitment( Index generator  ) override {
+ ColVariable * get_commitment( Index generator ) override {
   if( v_commitment.empty() )
    return( nullptr );
   return &( v_commitment.front() );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
@@ -1214,7 +1228,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
@@ -1223,7 +1237,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
@@ -1232,7 +1246,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start_up variables, or nullptr if not defined
@@ -1241,7 +1255,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_start_up.empty() )
    return( nullptr );
   return( &( v_start_up.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of shut_down variables, or nullptr if not defined
@@ -1250,7 +1264,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_shut_down.empty() )
    return( nullptr );
   return( &( v_shut_down.front() ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the shut_down variable for time t, or nullptr if not defined
@@ -1259,7 +1273,7 @@ class ThermalUnitBlock : public UnitBlock {
   if( v_shut_down.empty() || ( t < init_t ) )
    return( nullptr );
   return( &( v_shut_down[ t - init_t ] ) );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -1281,8 +1295,8 @@ class ThermalUnitBlock : public UnitBlock {
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -1324,7 +1338,7 @@ class ThermalUnitBlock : public UnitBlock {
  void set_availability( MF_dbl_it values ,
                         Subset && subset , bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
-			ModParam issueAMod = eNoBlck );
+                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  // update the availability of the unit
@@ -1404,7 +1418,7 @@ class ThermalUnitBlock : public UnitBlock {
  /*--------------------------------------------------------------------------*/
 
  void set_quad_term( MF_dbl_it values ,
-		     Subset && subset , bool ordered = false ,
+                     Subset && subset , bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
@@ -1412,37 +1426,37 @@ class ThermalUnitBlock : public UnitBlock {
 
  void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
-		     ModParam issueAMod = eNoBlck );
+                     ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
-					 Subset && subset ,
-					 bool ordered = false ,
-					 ModParam issuePMod = eNoBlck ,
-					 ModParam issueAMod = eNoBlck );
+                                         Subset && subset ,
+                                         bool ordered = false ,
+                                         ModParam issuePMod = eNoBlck ,
+                                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
-					 Range rng = INFRange ,
-					 ModParam issuePMod = eNoBlck ,
-					 ModParam issueAMod = eNoBlck );
+                                         Range rng = INFRange ,
+                                         ModParam issuePMod = eNoBlck ,
+                                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
-					   Subset && subset ,
-					   bool ordered = false ,
-					   ModParam issuePMod = eNoBlck ,
-					   ModParam issueAMod = eNoBlck );
+                                           Subset && subset ,
+                                           bool ordered = false ,
+                                           ModParam issuePMod = eNoBlck ,
+                                           ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
-					   Range rng = INFRange ,
-					   ModParam issuePMod = eNoBlck ,
-					   ModParam issueAMod = eNoBlck );
+                                           Range rng = INFRange ,
+                                           ModParam issuePMod = eNoBlck ,
+                                           ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1491,10 +1505,14 @@ class ThermalUnitBlock : public UnitBlock {
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// the vector of MinPower
  std::vector< double > v_MinPower;
@@ -1556,7 +1574,7 @@ class ThermalUnitBlock : public UnitBlock {
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
@@ -1576,7 +1594,7 @@ class ThermalUnitBlock : public UnitBlock {
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the connection power out put constraints
  std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Constraints;
@@ -1701,7 +1719,7 @@ class ThermalUnitBlock : public UnitBlock {
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-private:
+ private:
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
@@ -1748,11 +1766,11 @@ private:
  bool availability_is_consistent( Index t , double availability ) const {
   assert( t < get_time_horizon() );
   const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
-							availability );
+                                                        availability );
   const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
-							availability );
+                                                        availability );
   return( min_power <= max_power );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the operational minimum power
@@ -1767,8 +1785,8 @@ private:
 
  double compute_operational_min_power( double nominal_min_power ,
                                        double availability ) const {
-  return(  availability > 0.0 ? nominal_min_power : 0.0 );
-  }
+  return( availability > 0.0 ? nominal_min_power : 0.0 );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the operational maximum power
@@ -1784,7 +1802,7 @@ private:
  double compute_operational_max_power( double nominal_max_power ,
                                        double availability ) const {
   return( nominal_max_power * availability );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1821,39 +1839,41 @@ private:
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a ThermalUnitBlock
-class ThermalUnitBlockMod : public Modification {
+class ThermalUnitBlockMod : public Modification
+{
 
  public:
 
  /// Public enum for the types of ThermalUnitBlockMod
- enum TUBB_mod_type {
-  eSetMaxP = 0      , ///< Set max power values
-  eSetInitP         , ///< Set initial power values
-  eSetInitUD        , ///< Set initial up/down times
-  eSetAv            , ///< Set availability
-  eSetSUC           , ///< Set startup costs
-  eSetLinT          , ///< Set linear term
-  eSetQuadT         , ///< Set quad term
-  eSetConstT        , ///< Set constant term
-  eSetPrSpResCost   , ///< Set primary spinning reserve (linear) costs
-  eSetSecSpResCost  , ///< Set secondary spinning reserve (linear) costs
+ enum TUBB_mod_type
+ {
+  eSetMaxP = 0 , ///< Set max power values
+  eSetInitP , ///< Set initial power values
+  eSetInitUD , ///< Set initial up/down times
+  eSetAv , ///< Set availability
+  eSetSUC , ///< Set startup costs
+  eSetLinT , ///< Set linear term
+  eSetQuadT , ///< Set quad term
+  eSetConstT , ///< Set constant term
+  eSetPrSpResCost , ///< Set primary spinning reserve (linear) costs
+  eSetSecSpResCost , ///< Set secondary spinning reserve (linear) costs
   eTUBBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
+  : f_Block( fblock ) , f_type( type ) {}
 
  ///< Destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return ( f_Block ); }
+ Block * get_Block() const override { return( f_Block ); }
 
  /// Accessor to the type of modification
- int type() { return ( f_type ); }
+ int type() { return( f_type ); }
 
  protected:
 
@@ -1899,15 +1919,16 @@ class ThermalUnitBlockMod : public Modification {
 /*--------------------- CLASS ThermalUnitBlockRngdMod ----------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived from ThermalUnitBlockMod for "ranged" modifications
-class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod {
+class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod
+{
 
  public:
 
  /// constructor: takes the ThermalUnitBlock, the type, and the range
- ThermalUnitBlockRngdMod( ThermalUnitBlock * const fblock,
-                          const int type,
+ ThermalUnitBlockRngdMod( ThermalUnitBlock * const fblock ,
+                          const int type ,
                           Block::Range rng )
-  : ThermalUnitBlockMod( fblock, type ), f_rng( rng ) {}
+  : ThermalUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~ThermalUnitBlockRngdMod() override = default;
@@ -1931,15 +1952,16 @@ class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod {
 /*--------------------------------------------------------------------------*/
 
 /// derived from ThermalUnitBlockMod for "subset" modifications
-class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod {
+class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod
+{
 
  public:
 
  /// constructor: takes the ThermalUnitBlock, the type, and the subset
- ThermalUnitBlockSbstMod( ThermalUnitBlock * const fblock,
-                          const int type,
+ ThermalUnitBlockSbstMod( ThermalUnitBlock * const fblock ,
+                          const int type ,
                           Block::Subset && nms )
-  : ThermalUnitBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+  : ThermalUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~ThermalUnitBlockSbstMod() override = default;
@@ -1950,7 +1972,7 @@ class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod {
  protected:
 
  /// prints the ThermalUnitBlockSbstMod
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   ThermalUnitBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
  }

@@ -439,6 +439,7 @@ class BatteryUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the static constraint of the BatteryUnitBlock
 /** Method that generates the static constraint of the BatteryUnitBlock. The
  * operations of the battery storage unit are described on a discrete time
@@ -567,6 +568,7 @@ class BatteryUnitBlock : public UnitBlock
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the objective of the BatteryUnitBlock
 /** Method that generates the objective of the BatteryUnitBlock.
  * - Objective function: the objective function of the BatteryUnitBlock
@@ -772,8 +774,7 @@ class BatteryUnitBlock : public UnitBlock
  *   rho of the unit for all time horizon;
  *
  * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the extracting battery rho value at time t.
- */
+ *   and each V[ t ] represents the extracting battery rho value at time t. */
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_extracting_battery_rho );
@@ -1013,10 +1014,14 @@ class BatteryUnitBlock : public UnitBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// The vector of minimum storage
  std::vector< double > v_minimum_storage;
@@ -1060,7 +1065,7 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of demand
  std::vector< double > v_demand;
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// the vector of storage level variables
  std::vector< ColVariable > v_storage_level;
@@ -1083,7 +1088,7 @@ class BatteryUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
 /// the active power upper bound constraints
  std::vector< FRowConstraint > active_power_upper_bound_Constraints;

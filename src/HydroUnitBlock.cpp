@@ -55,7 +55,6 @@ using namespace SMSpp_di_unipi_it;
 
 // register HydroUnitBlock to the Block factory
 
-
 SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 
 /*--------------------------------------------------------------------------*/

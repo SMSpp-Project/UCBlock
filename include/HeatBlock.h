@@ -94,6 +94,7 @@ class HeatBlock : public Block
  explicit HeatBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
+
 /// Destructor of HeatBlock
 
  virtual ~HeatBlock() override;
@@ -269,8 +270,10 @@ class HeatBlock : public Block
  *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
  *   KeepingHeatRho == 1. If there is no heat storage (say, MaxHeatStorage is
  *   not defined) then this variable is not read, because it is not used. */
-  void deserialize( const netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
+
 /*--------------------------------------------------------------------------*/
+
 /// Generate the static variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.
  * HeatBlock class has four different "groups" of variables:
@@ -309,9 +312,10 @@ class HeatBlock : public Block
  * Note that derived classes are free to use the other bits of the int to
  * similarly encode for creation of their own specific groups of variables.*/
 
-void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// Generate the static constraint of the HeatBlock
 /** Method that generates the static constraint of the HeatBlock.
  *
@@ -352,9 +356,10 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *   \f]
  */
 
- void generate_abstract_constraints( Configuration *stcc = nullptr )  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// Generate the objective of the HeatBlock
 /** Method that generates the objective of the HeatBlock.
  *
@@ -367,7 +372,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
  *   storing heat has no cost. */
 
- void generate_objective( Configuration *objc = nullptr )  override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE HeatBlock -------------*/
@@ -382,12 +387,16 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  Index get_time_horizon( void ) const {
   return( f_time_horizon );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// Returns the number of heat units in this HeatBlock
  Index get_number_heat_generators( void ) const {
   return( f_number_heat_units );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// Returns the vector of heat demand
 /** The returned vector implies the heat demand of each HeatBlock at time t.
  *  There are two possible cases:
@@ -396,12 +405,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *   constraints;
  *
  * - otherwise, the vector must have size of time horizon and the t_th
- *   element of the vector gives the total heat demand at time t.
- */
+ *   element of the vector gives the total heat demand at time t. */
  const std::vector< double > & get_heat_demand() const {
   return v_heat_demand;
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// Returns the vector of minimum heat storage
 /** The returned vector implies the minimum heat storage of each HeatBlock
  * at time t. There are three possible cases:
@@ -413,12 +423,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *   always equal to the value of that element;
  *
  * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the minimum heat storage at time t.
- */
+ *   of vector represents the minimum heat storage at time t. */
  const std::vector< double > & get_min_heat_storage() const {
   return v_min_heat_storage;
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// Returns the vector of maximum heat storage
 /** The returned vector implies the maximum heat storage of each HeatBlock
  * at time t. There are three possible cases:
@@ -430,12 +441,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *   always equal to the value of that element;
  *
  * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum heat storage at time t.
- */
+ *   of vector represents the maximum heat storage at time t. */
  const std::vector< double > & get_max_heat_storage() const {
   return v_max_heat_storage;
  }
+
 /*--------------------------------------------------------------------------*/
+
 ///Returns the matrix of minimum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the minimum heat production of unit i in time t. There
@@ -450,12 +462,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the minimum heat
- *   production of each unit i at time instant t.
- */
- const boost::multi_array< double , 2 > &get_min_heat_production() const {
+ *   production of each unit i at time instant t. */
+ const boost::multi_array< double , 2 > & get_min_heat_production() const {
   return v_min_heat_production;
-  }
+ }
+
 /*--------------------------------------------------------------------------*/
+
 ///Returns the matrix of maximum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the maximum heat production of unit i in time t. There
@@ -470,13 +483,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the maximum heat
- *   production of each unit i at time instant t.
- */
- const boost::multi_array< double , 2 > &get_max_heat_production( ) const {
+ *   production of each unit i at time instant t. */
+ const boost::multi_array< double , 2 > & get_max_heat_production() const {
   return v_max_heat_production;
  }
 
 /*--------------------------------------------------------------------------*/
+
 ///Returns the matrix of production heat cost
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the production heat cost of unit i in time t. There
@@ -491,11 +504,11 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  *
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the production heat
- *   cost of each unit i at time instant t.
- */
- const boost::multi_array< double , 2 > &get_cost_heat_unit() const {
+ *   cost of each unit i at time instant t. */
+ const boost::multi_array< double , 2 > & get_cost_heat_unit() const {
   return v_cost_heat_unit;
  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE HeatBlock ----------*/
 /*--------------------------------------------------------------------------*/
@@ -588,9 +601,9 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 /** @name Handling the data of the HeatBlock
  *  @{ */
 
- void load( std::istream &input , char frmt = 0 ) override {
-  throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
-  };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw ( std::logic_error( "HeatBlock::load() not implemented yet" ) );
+ };
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -599,6 +612,14 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*---------------------------------- data ----------------------------------*/
 
  Index f_time_horizon;  ///< the time horizon of the HB
 
@@ -606,7 +627,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
  Index f_number_intervals;   ///< the number of intervals
 
- std::vector< Index >  v_change_intervals;  ///< the vector of change interval
+ std::vector< Index > v_change_intervals;  ///< the vector of change interval
 
  /// the vector of HeatDemand indexed over the dimensions TimeHorizon
  std::vector< double > v_heat_demand;
@@ -641,7 +662,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  /// the initial amount of heat in the storage at the beginning of the time t
  double f_initial_heat_storage;
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// Matrix of Heat variables
  boost::multi_array< ColVariable , 2 > v_heat;
@@ -655,13 +676,13 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  /// Vector of HeatAvailable variables
  std::vector< ColVariable > v_heat_available;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the heat demand satisfaction constraints
  std::vector< BoxConstraint > v_HeatDemand_Constraints;
 
  /// the heat bound satisfaction constraints
- boost::multi_array<FRowConstraint, 2> v_HeatBounds_Constraints;
+ boost::multi_array< FRowConstraint , 2 > v_HeatBounds_Constraints;
 
  /// the heat storage bound satisfaction constraints
  std::vector< BoxConstraint > v_HeatStorageBounds_Constraints;
@@ -694,7 +715,7 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
  * according to what is specified in the generate_abstract_variables() method.
  */
 
- unsigned int get_variables_to_be_generated( Configuration *stvv );
+ unsigned int get_variables_to_be_generated( Configuration * stvv );
 
  void deserialize_time_horizon( netCDF::NcGroup & group );
 
@@ -702,12 +723,12 @@ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 
-  }; // end( class( HeatBlock ) )
+}; // end( class( HeatBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }; // end( namespace SMSpp_di_unipi_it )
+}; // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 

@@ -186,8 +186,7 @@ class UnitBlock : public Block
  *   NumberIntervals - 1 ], is ignored and does not need to be set (although
  *   the variable has actually "NumberIntervals" elements). Anyway, the whole
  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
- *   not defined), or "NumberIntervals" >= "TimeHorizon".
- */
+ *   not defined), or "NumberIntervals" >= "TimeHorizon". */
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -481,7 +480,7 @@ class UnitBlock : public Block
 
  virtual void set_reserve_vars( unsigned char what ) {
   reserve_vars = what;
-  }
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
@@ -491,7 +490,7 @@ class UnitBlock : public Block
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
-  }
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/

@@ -45,7 +45,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
+namespace SMSpp_di_unipi_it
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS ThermalUnitDPSolver ------------------------*/
@@ -218,7 +219,8 @@ namespace SMSpp_di_unipi_it {
  * is it equivalent to a ON node) to solve EDs to compute the arc costs, then 
  * uses a( acyclic) min-path algorithm to solve the problem. */
 
- class ThermalUnitDPSolver : public Solver {
+class ThermalUnitDPSolver : public Solver
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -230,9 +232,9 @@ namespace SMSpp_di_unipi_it {
 /*------------------------------ PUBLIC TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  static constexpr auto TUDPINF = Inf< double >();  ///< the INF value
+ static constexpr auto TUDPINF = Inf< double >();  ///< the INF value
 
-  using Index = Block::Index;
+ using Index = Block::Index;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -303,13 +305,14 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 
  /// Stage of the computation
- enum stage_value {
-  start    = 0 ,
+ enum stage_value
+ {
+  start = 0 ,
   graph_OK = 1 ,
-  edps_OK  = 2 ,
-  path_OK  = 3 ,
-  sol_OK   = 4
-  };
+  edps_OK = 2 ,
+  path_OK = 3 ,
+  sol_OK = 4
+ };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS EDSolver --------------------------------*/
@@ -323,81 +326,82 @@ namespace SMSpp_di_unipi_it {
  * solver does. However, it being virtual other implementations may be
  * considered. */
 
-class EDSolver {
+ class EDSolver
+ {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
- public:
+  public:
 
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 
- EDSolver( Index h , ThermalUnitDPSolver * s ) : f_h( h ) , f_solver( s ) {}
+  EDSolver( Index h , ThermalUnitDPSolver * s ) : f_h( h ) , f_solver( s ) {}
 
- virtual ~EDSolver() = default;
+  virtual ~EDSolver() = default;
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// compute the cost vector z_h[ h ], ..., z_h[ n - 1 ], z_h[ d ]
- /** Compute the costs of the arcs ( h , h ), ( h , h + 1 ), ...
-  * ( h , n - 1 ), ( h , d ), where t is the end of the horizon and d is the
-  * end node. The picture for h == 2 and n == 6 is
-  *
-  *       (0,1)   (1,1)   (2,1) -------+-------+-------+  
-  *                             \       \       \       \-> (t)
-  *       (0,0)   (1,0)   (2,0)   (3,0)   (4,0)   (5,0)  
-  *
-  * That is, these are t - h [ = 6 - 2 = 4 ] values corresponding to the
-  * costs of the arcs in the DP graph of type ( h, h + 1 ), ( h, h + 2 ),
-  * ..., ( h, n - 1 ), and finally the special arc ( h, d ) [ ( 2, 3 ),
-  * ( 2, 4 ), ( 2, 5 ), ( 2, t ) ]. These are written in the positions h,
-  * h + 1, ..., t - 1 [ 2 , 3 , 4 , 5 ] of the vector cost.
-  *
-  * The cost of each arc ( h , k ) for h < k <= n - 1 is ED( h , k - 1 ),
-  * corresponding to the fact that the unit remains on from h to k - 1
-  * included, but it is off at k. The cost of the special arc ( h , t )
-  * corresponds to a "special" ED( h , n - 1 ) in which the unit remains
-  * on from h to the end of the time horizon, comprised the last istant.
-  * The difference is that in this last ED we do *not* assume the unit will
-  * be shut down at n, as this is outside of the time horizon and whatever
-  * happens to the unit then is of no concern here.
-  *
-  * More specifically, the point is that, due to the ramp-down constraints,
-  * if the unit has to be down at time k, then it must enter in a "shutdown
-  * trajectory" in the previous time instants, so that the power at k - 1
-  * is the right one to stop. This constrains the ED, resulting in a higher
-  * cost. This means that forcing the shut down at the end of n - 1 is never
-  * economical: it is in principle better to allow the unit do what it wants
-  * (which may comprise autonomously entering in a shutdown trajectory if
-  * this is the optimal thing to do, as this is not prohibited). This is
-  * why the constraints of the "special" ED( h , n - 1 ) do not include the
-  * one forcing the power of the unit at the last time instant to be the
-  * shutdown one, unlike for all the other ED( h , k ). */
+  /// compute the cost vector z_h[ h ], ..., z_h[ n - 1 ], z_h[ d ]
+  /** Compute the costs of the arcs ( h , h ), ( h , h + 1 ), ...
+   * ( h , n - 1 ), ( h , d ), where t is the end of the horizon and d is the
+   * end node. The picture for h == 2 and n == 6 is
+   *
+   *       (0,1)   (1,1)   (2,1) -------+-------+-------+
+   *                             \       \       \       \-> (t)
+   *       (0,0)   (1,0)   (2,0)   (3,0)   (4,0)   (5,0)
+   *
+   * That is, these are t - h [ = 6 - 2 = 4 ] values corresponding to the
+   * costs of the arcs in the DP graph of type ( h, h + 1 ), ( h, h + 2 ),
+   * ..., ( h, n - 1 ), and finally the special arc ( h, d ) [ ( 2, 3 ),
+   * ( 2, 4 ), ( 2, 5 ), ( 2, t ) ]. These are written in the positions h,
+   * h + 1, ..., t - 1 [ 2 , 3 , 4 , 5 ] of the vector cost.
+   *
+   * The cost of each arc ( h , k ) for h < k <= n - 1 is ED( h , k - 1 ),
+   * corresponding to the fact that the unit remains on from h to k - 1
+   * included, but it is off at k. The cost of the special arc ( h , t )
+   * corresponds to a "special" ED( h , n - 1 ) in which the unit remains
+   * on from h to the end of the time horizon, comprised the last istant.
+   * The difference is that in this last ED we do *not* assume the unit will
+   * be shut down at n, as this is outside of the time horizon and whatever
+   * happens to the unit then is of no concern here.
+   *
+   * More specifically, the point is that, due to the ramp-down constraints,
+   * if the unit has to be down at time k, then it must enter in a "shutdown
+   * trajectory" in the previous time instants, so that the power at k - 1
+   * is the right one to stop. This constrains the ED, resulting in a higher
+   * cost. This means that forcing the shut down at the end of n - 1 is never
+   * economical: it is in principle better to allow the unit do what it wants
+   * (which may comprise autonomously entering in a shutdown trajectory if
+   * this is the optimal thing to do, as this is not prohibited). This is
+   * why the constraints of the "special" ED( h , n - 1 ) do not include the
+   * one forcing the power of the unit at the last time instant to be the
+   * shutdown one, unlike for all the other ED( h , k ). */
 
- virtual void compute_costs( std::vector< double > & costs ) = 0;
+  virtual void compute_costs( std::vector< double > & costs ) = 0;
 
 /*--------------------------------------------------------------------------*/
- /// compute optimal power values p_h[ h ], p_h[ h + 1 ], ..., p_h[ k - 1 ]
- /** After compute_costs() have been called once, it is possible to call
-  * compute_power_variables( k ) for h <= k <= t - 1 to get the optimal
-  * power values corresponding to the arc ( h , k - 1 ); note that this also
-  * works for the arc ( h , s ) by passing k = t, as we cheat so that the two
-  * correspond to the same ED (see compute_costs()). The optimal values of
-  * the power variables are written in the positions h, h + 1, ..., k - 1 of
-  * the vector p. The solution depends on k, but this method is typically
-  * only called for one particular value of k >= h during the final
-  * computation of the optimal solution to the whole 1UC. */
- 
- virtual void compute_power_variables( Index k ,
-				       std::vector< double > & p ) = 0;
+  /// compute optimal power values p_h[ h ], p_h[ h + 1 ], ..., p_h[ k - 1 ]
+  /** After compute_costs() have been called once, it is possible to call
+   * compute_power_variables( k ) for h <= k <= t - 1 to get the optimal
+   * power values corresponding to the arc ( h , k - 1 ); note that this also
+   * works for the arc ( h , s ) by passing k = t, as we cheat so that the two
+   * correspond to the same ED (see compute_costs()). The optimal values of
+   * the power variables are written in the positions h, h + 1, ..., k - 1 of
+   * the vector p. The solution depends on k, but this method is typically
+   * only called for one particular value of k >= h during the final
+   * computation of the optimal solution to the whole 1UC. */
+
+  virtual void compute_power_variables( Index k ,
+                                        std::vector< double > & p ) = 0;
 
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 
- protected:
+  protected:
 
- /// the ThermalUnitDPSolver using this EDSolver
- ThermalUnitDPSolver * f_solver;
+  /// the ThermalUnitDPSolver using this EDSolver
+  ThermalUnitDPSolver * f_solver;
 
- Index f_h;  ///< the initial time instant for this EDSolver
+  Index f_h;  ///< the initial time instant for this EDSolver
 
  };  // end( class( EDSolver ) )
 
@@ -410,56 +414,59 @@ class EDSolver {
 /** DPEDSolver derives from EDSolver and solves the Economic Dispatch
  * problem by means of a Dynamic Programming approach. */
 
-class DPEDSolver : public EDSolver {
+ class DPEDSolver : public EDSolver
+ {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
- public:
+  public:
 
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 
- DPEDSolver( Index h , ThermalUnitDPSolver * s );
+  DPEDSolver( Index h , ThermalUnitDPSolver * s );
 
- virtual ~DPEDSolver() = default;
+  virtual ~DPEDSolver() = default;
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- void compute_costs( std::vector< double > & costs ) override;
+  void compute_costs( std::vector< double > & costs ) override;
 
- void compute_power_variables( Index k , std::vector< double > & p ) override;
+  void compute_power_variables( Index k , std::vector< double > & p ) override;
 
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 
- protected:
+  protected:
 
- /// coefficients for a variable of the objective function
- struct coeff_t {
-  double alfa;
-  double beta;
-  double gamma;
+  /// coefficients for a variable of the objective function
+  struct coeff_t
+  {
+   double alfa;
+   double beta;
+   double gamma;
   } __attribute__((aligned(32)));
 
- /// cost coefficients of the objective function
- std::vector< coeff_t > coeffs;
+  /// cost coefficients of the objective function
+  std::vector< coeff_t > coeffs;
 
- /// indices for a piece of the (piece-wise) objective function
- struct pos_t {
-  int begt;
-  int begm;
+  /// indices for a piece of the (piece-wise) objective function
+  struct pos_t
+  {
+   int begt;
+   int begm;
   } __attribute__((aligned(8)));
 
- /** For each k = h, ..., n - 1 the vector contains the indices of the pieces
-  * of the objective function.  */
- std::vector< pos_t > pos;
+  /** For each k = h, ..., n - 1 the vector contains the indices of the pieces
+   * of the objective function.  */
+  std::vector< pos_t > pos;
 
- /// unconstrained optimal power values
- std::vector< double > unc_p;
+  /// unconstrained optimal power values
+  std::vector< double > unc_p;
 
- /// constrained optimal power values
- std::vector< double > con_p;
+  /// constrained optimal power values
+  std::vector< double > con_p;
 
- std::vector< double > m;
- std::vector< int > v;
+  std::vector< double > m;
+  std::vector< int > v;
 
  };  // end( class( DPEDSolver ) );
 
@@ -471,23 +478,25 @@ class DPEDSolver : public EDSolver {
 /*--------------------------------------------------------------------------*/
  /// an arc
 
- class arc {
+ class arc
+ {
   public:
 
   arc( void ) : cost1( 0 ) , cost2( 0 ) , tail( nullptr ) {}
 
   ~arc() = default;
- 
+
   double cost1;  ///< the now-power-dependent part of the cost (fixed, SUC)
   double cost2;  ///< the power-dependent part of the cost
   node * tail;   ///< (pointer to) the tail node
 
-  };  // end( class( arc ) )
+ };  // end( class( arc ) )
 
 /*--------------------------------------------------------------------------*/
  /// a node
 
- class node {
+ class node
+ {
   public:
 
   node( void ) : lab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
@@ -499,22 +508,22 @@ class DPEDSolver : public EDSolver {
   EDSolver * DPS;             ///< the Economic Dispatch solver of the node
   std::vector< arc > v_arcs;  ///< the Forward Star of the node
 
-  };  // end( class( node ) )
+ };  // end( class( node ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
  Index h_of_node( node * n ) {
-  if( n == & f_start )  // the source should be "-1", but we make it 0
+  if( n == &f_start )  // the source should be "-1", but we make it 0
    return( 0 );
-  if( n == & f_end )    // the destination
+  if( n == &f_end )    // the destination
    return( time_horizon );
   if( n->DPS )          // an ON-node
    return( n - v_on_nodes.data() );
   // else it must be an OFF-node, this is never called on the destination
   return( n - v_off_nodes.data() );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  // reset label and predecessor of a node
@@ -522,7 +531,7 @@ class DPEDSolver : public EDSolver {
  static void init_node( node & nde ) {
   nde.lab = TUDPINF;
   nde.pred = nullptr;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  // do the scanning of the forward star of a node
@@ -532,10 +541,10 @@ class DPEDSolver : public EDSolver {
    const auto nl = nde.lab + a.cost1 + a.cost2;
    if( ( a.tail )->lab > nl ) {
     ( a.tail )->lab = nl;
-    ( a.tail )->pred = & nde;
-    }
+    ( a.tail )->pred = &nde;
    }
   }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -550,7 +559,7 @@ class DPEDSolver : public EDSolver {
 
 /*--------------------------------------------------------------------------*/
 
- void retrieve_term( std::vector< double > & out,
+ void retrieve_term( std::vector< double > & out ,
                      const std::vector< double > & in ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -560,7 +569,7 @@ class DPEDSolver : public EDSolver {
   if( startup_costs.empty() )
    return 0;
   return( startup_costs[ k ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE FIELDS OF THE CLASS ----------------------*/
@@ -598,7 +607,7 @@ class DPEDSolver : public EDSolver {
 
  std::vector< node > v_on_nodes;   ///< vector of ON nodes
  std::vector< node > v_off_nodes;  ///< vector of OFF nodes
- 
+
  std::vector< double > P;          ///< power values
  std::vector< bool > U;            ///< commitment values
 
@@ -609,11 +618,11 @@ class DPEDSolver : public EDSolver {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( ThermalUnitDPSolver ) )
+};  // end( class( ThermalUnitDPSolver ) )
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( namespace SMSpp_di_unipi_it )
+};  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

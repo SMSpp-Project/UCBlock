@@ -83,13 +83,13 @@ class SlackUnitBlock : public UnitBlock
  /** Constructor of SlackUnitBlock, taking possibly a pointer of its
   * father Block and the time horizon. */
 
- explicit SlackUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
- UnitBlock( f_block , t ) {}
+ explicit SlackUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
+  UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock, it is empty
 
- virtual ~SlackUnitBlock() override ;
+ virtual ~SlackUnitBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -233,6 +233,7 @@ class SlackUnitBlock : public UnitBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// generate the abstract variables of the SlackUnitBlock
 /** The SlackUnitBlock class has several different variables which are:
  *
@@ -252,12 +253,12 @@ class SlackUnitBlock : public UnitBlock
  * defined if and only if the MaxInertia or MaxPrimaryPower or
  * MaxSecondaryPower or MaxPower is defined in the deserialize(netCDF::NcGroup)
  * respectively. Otherwise, the corresponding variable is not to be needed to
- * generate.
- */
+ * generate. */
 
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// Generate the static constraint of the SlackUnitBlock
 /** This method generates the abstract constraints of the SlackUnitBlock.
  *
@@ -286,10 +287,11 @@ class SlackUnitBlock : public UnitBlock
  * group is about active power bounds the second one is about the primary
  * spinning reserve, and the last one for the secondary spinning reserve
  * variables. */
- 
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+
 /// generate the objective of the SlackUnitBlock
 /** Method that generates the objective of the SlackUnitBlock.
  *
@@ -313,10 +315,9 @@ class SlackUnitBlock : public UnitBlock
  *  is also possible to restrict. If objc is not nullptr and it is a
  *  SimpleConfiguration<double> or if f_BlockConfig->f_objective_Configuration
  *  is not nullptr and it is a SimpleConfiguration<double>, then the f_value
- *  of the SimpleConfiguration<int> is taken the objective function.
- */
+ *  of the SimpleConfiguration<int> is taken the objective function. */
 
- void generate_objective( Configuration *objc = nullptr ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE SlackUnitBlock -----------*/
@@ -339,7 +340,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_max_power() const {
   return( v_MaxPower );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum primary power
 /** The returned vector contains to maximum primary power at time t. There are
  * three possible cases:
@@ -355,7 +358,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_max_primary_power() const {
   return( v_MaxPrimaryPower );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of active power cost
 /** The returned vector contains to active power cost at time t. There are
  * three possible cases:
@@ -371,7 +376,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_active_power_cost() const {
   return( v_active_power_cost );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of maximum secondary power
 /** The returned vector contains to maximum secondary power at time t. There
  * are three possible cases:
@@ -388,7 +395,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_max_secondary_power() const {
   return( v_MaxSecondaryPower );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of primary cost
 /** The returned vector contains to primary cost at time t. There are three
  * possible cases:
@@ -404,7 +413,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_primary_cost() const {
   return( v_primary_cost );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of secondary cost
 /** The returned vector contains to secondary cost at time t. There are three
  * possible cases:
@@ -420,7 +431,9 @@ class SlackUnitBlock : public UnitBlock
  const std::vector< double > & get_secondary_cost() const {
   return( v_secondary_cost );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
@@ -439,9 +452,11 @@ class SlackUnitBlock : public UnitBlock
  double * get_inertia_commitment( Index generator ) override {
   if( v_MaxInertia.empty() )
    return nullptr;
-  return & ( v_MaxInertia.front() );
+  return &( v_MaxInertia.front() );
  }
+
 /*--------------------------------------------------------------------------*/
+
 /// returns the vector of inertia cost
 /** The returned vector contains to inertia cost at time t. There are three
  * possible cases:
@@ -524,8 +539,8 @@ class SlackUnitBlock : public UnitBlock
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "SlackUnitBlock::load() not implemented yet" ) );
-  }
+  throw ( std::logic_error( "SlackUnitBlock::load() not implemented yet" ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -534,10 +549,14 @@ class SlackUnitBlock : public UnitBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// the vector of MaxPower
  std::vector< double > v_MaxPower;
@@ -563,7 +582,8 @@ class SlackUnitBlock : public UnitBlock
  /// the vector of InertiaCost
  std::vector< double > v_inertia_cost;
 
- /*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
+
  /// the commitment variables
  std::vector< ColVariable > v_commitment;
 
@@ -576,7 +596,7 @@ class SlackUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the active power bound constraints
  std::vector< LB0Constraint > ActivePower_Bound_Constraints;

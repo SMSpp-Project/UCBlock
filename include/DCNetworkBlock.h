@@ -243,7 +243,7 @@ class DCNetworkBlock : public NetworkBlock
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 
 /// generate the objective of the DCNetworkBlock
 /** Method that generates the objective of the DCNetworkBlock.
@@ -319,6 +319,19 @@ class DCNetworkBlock : public NetworkBlock
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/// returns the number of intervals
+/** Returns the number of intervals spanned by this NetworkBlock. If
+ * get_NetworkData() returns nullptr, this is equivalent to
+ * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
+
+ Index get_number_intervals() const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_intervals();
   return 0;
  }
 
@@ -458,7 +471,7 @@ class DCNetworkBlock : public NetworkBlock
 /** This method can be called either before or after that deserialize() is
  * called to provide the NetworkBlock with the ActiveDemand data. This allows
  * all Active Power Demand data corresponding to some UC problem to be
-"grouped" together (typically, in UCBlock) rather than "spread" among the
+ * "grouped" together (typically, in UCBlock) rather than "spread" among the
  * different NetworkBlock, which may be convenient for some user.
  *
  * If this method is called *before* deserialize(), the data is just copied.
@@ -473,8 +486,7 @@ class DCNetworkBlock : public NetworkBlock
  * When this method is called, if it is empty it is written into, otherwise
  * nothing happens. In deserialize(), if the data is there in the NcGroup then
  * it is written in v_active_demand (which therefore is no longer empty),
- * otherwise it is left empty so that it can be set by this method.
- */
+ * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand( const double * v ) override {
   if( v_active_demand.empty() ) {
@@ -504,6 +516,19 @@ class DCNetworkBlock : public NetworkBlock
  void load( std::istream & input , char frmt = 0 ) override {
   throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- METHODS FOR SAVING THE DCNetworkBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the DCNetworkBlock
+ * @{ */
+
+/// Extends Block::serialize( netCDF::NcGroup )
+/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+ * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
+ * details of the format of the created netCDF group. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -550,14 +575,14 @@ class DCNetworkBlock : public NetworkBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
@@ -568,7 +593,7 @@ class DCNetworkBlock : public NetworkBlock
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// power injection at each node
  std::vector< ColVariable > v_node_injection;
@@ -579,7 +604,7 @@ class DCNetworkBlock : public NetworkBlock
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// AC power flow limit constraints
  std::vector< FRowConstraint > v_AC_power_flow_limit_constraints;

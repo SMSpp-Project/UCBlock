@@ -83,9 +83,44 @@ class BusNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// destructor of BusNetworkBlock, (understandably) does nothing
 
  virtual ~BusNetworkBlock() override = default;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------- METHODS FOR MODIFYING THE BusNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the BusNetworkBlock
+ * @{ */
+
+/// method to set the ActiveDemand
+/** This method can be called either before or after that deserialize() is
+ * called to provide the NetworkBlock with the ActiveDemand data. This allows
+ * all Active Power Demand data corresponding to some UC problem to be
+ * "grouped" together (typically, in UCBlock) rather than "spread" among the
+ * different NetworkBlock, which may be convenient for some user.
+ *
+ * If this method is called *before* deserialize(), the data is just copied.
+ * However, when deserialize() is called, if ActiveDemand data is present in
+ * the NcGroup then this data is used, replacing (and therefore ignoring) the
+ * data set by this method.
+ *
+ * Similarly, if this method is called *after* deserialize(), but some the
+ * ActiveDemand was already present in the NcGroup, then that data is kept and
+ * the call to this method does nothing.
+ *
+ * When this method is called, if it is empty it is written into, otherwise
+ * nothing happens. In deserialize(), if the data is there in the NcGroup then
+ * it is written in v_active_demand (which therefore is no longer empty),
+ * otherwise it is left empty so that it can be set by this method. */
+
+ void set_ActiveDemand( const double * v ) override {
+  if( v_active_demand.empty() ) {
+   std::vector< double > value_vec( v , v + get_number_nodes() );
+   v_active_demand = value_vec;
+  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -100,6 +135,7 @@ class BusNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
 /// generates the static variables of BusNetworkBlock
 /** The base BusNetworkBlock class has just the node injection variables.
  * Since a "bus" network has just one node, and therefore a single value D for
@@ -110,15 +146,16 @@ class BusNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+
 /// Generate the static constraint of the BusNetworkBlock
 /** This method generates the abstract constraints of the BusNetworkBlock.
  * Since the node injection variable is fixed to the active demand value, it
  * must be a BoxConstraint for that variable whose lower and upper bounds are
- * equal to the active demand value.
- */
+ * equal to the active demand value. */
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
+
 /// generate the objective of the BusNetworkBlock
 /** Method that generates the objective of the BusNetworkBlock.
  *
@@ -172,22 +209,30 @@ class BusNetworkBlock : public NetworkBlock
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*------------------------------- data -------------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
- /// the objective function
- FRealObjective objective;
+ /// vector to store the demand of the node of the network
+ std::vector< double > v_active_demand;
 
-/*---------------------------- variables -----------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
+ /// power injection at each node
+ std::vector< ColVariable > v_node_injection;
 
-
-/*--------------------------- constraints ----------------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
  std::vector< BoxConstraint > NodeInjection_bound_Constraints;
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
