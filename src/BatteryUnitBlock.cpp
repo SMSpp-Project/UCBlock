@@ -134,7 +134,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  check_data_consistency();
 
-} // end( BatteryUnitBlock::deserialize )
+}  // end( BatteryUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -284,7 +284,7 @@ void BatteryUnitBlock::check_data_consistency() const {
    std::to_string( f_initial_storage ) + ", but it must be nonnegative." ) );
  }
 
-} // end( BatteryUnitBlock::check_data_consistency )
+}  // end( BatteryUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 
@@ -364,7 +364,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  set_variables_generated();
-} // end( BatteryUnitBlock::generate_abstract_variables )
+}  // end( BatteryUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -503,6 +503,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                         "RampDown_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
+
 // Initializing power_intake_outtake_Constraints
 
  power_intake_outtake_Constraints.resize( f_time_horizon );
@@ -540,6 +541,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                         "Intake_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
+
 // Initializing demand_Constraints
 
  {
@@ -606,6 +608,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( demand_Constraints , "demand_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
+
 // Initializing storage_level_bounds_Constraints
 
  storage_level_bounds_Constraints.resize( f_time_horizon );
@@ -720,7 +723,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
  set_constraints_generated();
-} // end( BatteryUnitBlock::generate_abstract_constraints )
+}  // end( BatteryUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

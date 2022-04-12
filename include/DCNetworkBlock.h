@@ -121,124 +121,124 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-///generate abstract constraints of DCNetworkBlock
-/** Three different kinds of DCNetworkBlock constraints are defined as below:
- * The topology of the transmission network is defined by a set of nodes
- * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
- * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
- * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
- * at node \f$ n \in N \f$ in the network respectively. The node injection
- * variable of each node \f$ n \in N \f$ and the power flows variable and an
- * auxiliary variable (which is not be defined if there is no network cost), of
- * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
- * \f$ V_l \f$ respectively.
- *
- *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
- *    model:
- *    In this special case the susceptance value for each line is equal to
- *    zero. In fact, this corresponds to a model with a single connected grid
- *    composed of HVDC lines only. In this case, the flow limit equations
- *    define as:
- *
- *    \f[
- *    P^{mn}_l \leq F_l  \leq P^{mx}_l
- *                                                     \quad l \in L \quad (1)
- *    \f]
- *
- *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
- *   be the start and the end point of that respectively. Besides, the
- *   following link between power flows and injected power at each node of the
- *   grid:
- *
- *    \f[
- *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
- *                                                   \quad n \in N   \quad (2)
- *    \f]
- *
- *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
- *    will have an objective function which is equal to multiplying NetworkCost
- *    by absolut value of power flows variable. To relaxing the absolute value,
- *    an auxiliary variable and constraints as below are needed:
- *
- *    \f[
- *    F_l \leq V_l                                     \quad l \in L \quad (3)
- *    \f]
- *
- *    \f[
- *    -V_l \leq F_l                                    \quad l \in L \quad (4)
- *    \f]
- *
- *  - DCNetworkBlock with just AC lines model:
- *    By considering a \f$ |L| \times |N| \f$ matrix
- *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
- *    Factor matrix (PTDF-matrix) which represents the linear relationship
- *    between power injections at each node of the grid and active power flows
- *    through the transmission lines.
- *
- *  The flow limit equations can be written as follow:
- *
- *  \f[
- *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
- *   (S_n - D^{ac}_n) \leq  P^{mx}_l
- *                                                     \quad l \in L \quad (5)
- *  \f]
- *
- *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
- *    This is the case of an hybrid grid constituted of both AC and HVDC (High
- *    Voltage Direct Current) lines. The DC lines are characterized by the
- *    fact that the flow passing through those lines is fully controllable.
- *    However, this flow still has an impact on the flows passing through
- *    connected AC lines. To use the matrix formalism, we first introduce some
- *    additional notations:
- *
- *    - Lines of the grid are indexed by \f$ l = 1,···|L^{ac}| \f$ for AC
- *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
- *      refer to DC lines.
- *
- *    - For any \f$ l \in \{1,···|L^{ac}| \}\f$ and
- *      \f$ k \in \{1,···|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
- *      nodes related by the AC line indexed by \f$ l \f$ and
- *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
- *      line indexed by \f$ k+|L^{dc}| \f$.
- *
- *    - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
- *      matrix induced by DC lines of the grid and the
- *      \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
- *      concatenation of bloc matrices as follows:
- *
- *     \f[
- *
- *       A = \left[
- *       \begin{array}{cc}
- *       B & -B(A^{dc})^T \\
- *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
- *       \end{array}\right]                                          \quad (6)
- *
- *     \f]
- *
- *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
- *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
- *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
- *      identity matrix. Therefor, the flow limit equations can be transformed
- *      into:
- *
- *      \f[
- *
- *       P^{mn} \leq A \left[
- *       \begin{array}{c}
- *       a \\
- *       b
- *       \end{array}\right]
- *       \leq  P^{mx}                                                \quad (7)
- *
- *      \f]
- *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
- *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
- *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
- *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
- *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
- *
- * Note that since in this class the configuration is ignored.*/
+ ///generate abstract constraints of DCNetworkBlock
+ /** Three different kinds of DCNetworkBlock constraints are defined as below:
+  * The topology of the transmission network is defined by a set of nodes
+  * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
+  * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
+  * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
+  * at node \f$ n \in N \f$ in the network respectively. The node injection
+  * variable of each node \f$ n \in N \f$ and the power flows variable and an
+  * auxiliary variable (which is not be defined if there is no network cost), of
+  * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
+  * \f$ V_l \f$ respectively.
+  *
+  *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
+  *    model:
+  *    In this special case the susceptance value for each line is equal to
+  *    zero. In fact, this corresponds to a model with a single connected grid
+  *    composed of HVDC lines only. In this case, the flow limit equations
+  *    define as:
+  *
+  *    \f[
+  *    P^{mn}_l \leq F_l  \leq P^{mx}_l
+  *                                                     \quad l \in L \quad (1)
+  *    \f]
+  *
+  *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
+  *   be the start and the end point of that respectively. Besides, the
+  *   following link between power flows and injected power at each node of the
+  *   grid:
+  *
+  *    \f[
+  *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
+  *                                                   \quad n \in N   \quad (2)
+  *    \f]
+  *
+  *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
+  *    will have an objective function which is equal to multiplying NetworkCost
+  *    by absolut value of power flows variable. To relaxing the absolute value,
+  *    an auxiliary variable and constraints as below are needed:
+  *
+  *    \f[
+  *    F_l \leq V_l                                     \quad l \in L \quad (3)
+  *    \f]
+  *
+  *    \f[
+  *    -V_l \leq F_l                                    \quad l \in L \quad (4)
+  *    \f]
+  *
+  *  - DCNetworkBlock with just AC lines model:
+  *    By considering a \f$ |L| \times |N| \f$ matrix
+  *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
+  *    Factor matrix (PTDF-matrix) which represents the linear relationship
+  *    between power injections at each node of the grid and active power flows
+  *    through the transmission lines.
+  *
+  *  The flow limit equations can be written as follow:
+  *
+  *  \f[
+  *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
+  *   (S_n - D^{ac}_n) \leq  P^{mx}_l
+  *                                                     \quad l \in L \quad (5)
+  *  \f]
+  *
+  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
+  *    This is the case of an hybrid grid constituted of both AC and HVDC (High
+  *    Voltage Direct Current) lines. The DC lines are characterized by the
+  *    fact that the flow passing through those lines is fully controllable.
+  *    However, this flow still has an impact on the flows passing through
+  *    connected AC lines. To use the matrix formalism, we first introduce some
+  *    additional notations:
+  *
+  *    - Lines of the grid are indexed by \f$ l = 1,···|L^{ac}| \f$ for AC
+  *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
+  *      refer to DC lines.
+  *
+  *    - For any \f$ l \in \{1,···|L^{ac}| \}\f$ and
+  *      \f$ k \in \{1,···|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
+  *      nodes related by the AC line indexed by \f$ l \f$ and
+  *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
+  *      line indexed by \f$ k+|L^{dc}| \f$.
+  *
+  *    - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
+  *      matrix induced by DC lines of the grid and the
+  *      \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
+  *      concatenation of bloc matrices as follows:
+  *
+  *     \f[
+  *
+  *       A = \left[
+  *       \begin{array}{cc}
+  *       B & -B(A^{dc})^T \\
+  *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
+  *       \end{array}\right]                                          \quad (6)
+  *
+  *     \f]
+  *
+  *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
+  *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
+  *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
+  *      identity matrix. Therefor, the flow limit equations can be transformed
+  *      into:
+  *
+  *      \f[
+  *
+  *       P^{mn} \leq A \left[
+  *       \begin{array}{c}
+  *       a \\
+  *       b
+  *       \end{array}\right]
+  *       \leq  P^{mx}                                                \quad (7)
+  *
+  *      \f]
+  *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
+  *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
+  *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
+  *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
+  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
+  *
+  * Note that since in this class the configuration is ignored.*/
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
@@ -319,6 +319,19 @@ class DCNetworkBlock : public NetworkBlock
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of lines of the network
+ /** Returns the number of lines in the transmission network. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
+
+ Index get_number_lines() const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_lines();
   return 0;
  }
 
@@ -619,10 +632,10 @@ class DCNetworkBlock : public NetworkBlock
  std::vector< FRowConstraint > v_power_flow_injection_constraints;
 
  /// HVDC power flow auxiliary variable 1 constraints
- std::vector< FRowConstraint > v_power_flow_auxiliary_variable_one_constraints;
+ std::vector< FRowConstraint > v_power_flow_aux_var_one_constraints;
 
  /// HVDC power flow auxiliary variable 2 constraints
- std::vector< FRowConstraint > v_power_flow_auxiliary_variable_two_constraints;
+ std::vector< FRowConstraint > v_power_flow_aux_var_two_constraints;
 
  /// AC_HVDC power flow constraints
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_constraints;

@@ -131,7 +131,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberUnits" ,
                                                      "NumberNetworks" ,
-                                                     "NetworkBlockClassname" ,
                                                      "NumberHeatBlocks" ,
                                                      "NumberPrimaryZones" ,
                                                      "NumberSecondaryZones" ,
@@ -144,6 +143,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
+                                                     "NetworkBlockClassname" ,
                                                      "StartNetworkIntervals" ,
                                                      "GeneratorNode" ,
                                                      "HeatNode" ,
@@ -181,14 +181,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  if( !::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
                      v_start_network_intervals , true ) ) {
   v_start_network_intervals.resize( f_number_networks );
-  std::iota( std::begin( v_start_network_intervals ) ,
-             std::end( v_start_network_intervals ) , 0 );
+  std::iota( v_start_network_intervals.begin() ,
+             v_start_network_intervals.end() , 0 );
  }
 
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default value is `DCNetworkBlock`.
- if( !::deserialize_dim( group , "StartNetworkIntervals" ,
-                         network_classname , true ) ) {
+ if( !::deserialize( group , network_classname ,
+                     "NetworkBlockClassname" , true ) ) {
   network_classname = "DCNetworkBlock";
  }
 

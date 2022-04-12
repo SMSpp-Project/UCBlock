@@ -80,9 +80,9 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  f_NetworkData = new NetworkData();
  f_NetworkData->deserialize( group );
 
- ::deserialize( group , "BuyPrice" , f_NetworkData->get_number_intervals() ,
+ ::deserialize( group , "BuyPrice" , get_number_intervals() ,
                 v_buy_price , false , true );
- ::deserialize( group , "SellPrice" , f_NetworkData->get_number_intervals() ,
+ ::deserialize( group , "SellPrice" , get_number_intervals() ,
                 v_sell_price , false , true );
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
 
@@ -100,7 +100,7 @@ void ECNetworkBlock::generate_abstract_variables(
  if( variables_generated() )
   return; // variables have already been generated
 
- auto number_nodes = f_NetworkData->get_number_nodes();
+ auto number_nodes = get_number_nodes();
 
  // the power injected variables
  v_micro_power_injection.resize( number_nodes );
@@ -143,8 +143,8 @@ void ECNetworkBlock::generate_abstract_constraints(
  if( constraints_generated() )
   return; // constraints have already been generated
 
- auto number_nodes = f_NetworkData->get_number_nodes();
- auto number_intervals = f_NetworkData->get_number_intervals();
+ auto number_nodes = get_number_nodes();
+ auto number_intervals = get_number_intervals();
 
 /*------------------------- inequality constraints -------------------------*/
 
@@ -176,11 +176,13 @@ void ECNetworkBlock::generate_abstract_constraints(
    // P^{max} vars also depends from P^{M+} and P^{M-}
    // vars as specified in the paper
    if( true ) { // default_config
+
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                       1.0 ) );
     vars_p.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
                                       -1.0 ) );
+
     // case (2)
     vars_n.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                       -1.0 ) );
@@ -194,6 +196,7 @@ void ECNetworkBlock::generate_abstract_constraints(
    vars_p.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
                                      -1.0 ) );
    vars_p.push_back( std::make_pair( &v_max_power[ node_id ] , -1.0 ) );
+
    // case (2)
    vars_n.push_back( std::make_pair( &v_public_power_injection[ node_id ] ,
                                      -1.0 ) );
@@ -302,13 +305,9 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- for( Index node_id = 0 ;
-      node_id < f_NetworkData->get_number_nodes() ;
-      ++node_id ) {
+ for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
 
-  for( Index t = 0 ;
-       t < f_NetworkData->get_number_intervals() ;
-       ++t ) {
+  for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
 
    // net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,

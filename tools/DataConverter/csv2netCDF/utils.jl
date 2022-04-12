@@ -123,6 +123,18 @@ end
     end
 end
 
+"Function to check if all the elements of an array are equal.
+ See more @ https://stackoverflow.com/a/47578613"
+@inline function allequal(x)
+    length(x) < 2 && return true
+    e1 = x[1]
+    i = 2
+    @inbounds for i = 2:length(x)
+        x[i] == e1 || return false
+    end
+    return true
+end
+
 "Function to get the general parameters"
 general(d) = field(d, "general")
 "Function to get the users configuration"

@@ -12,20 +12,12 @@ function csvEC2nc4()
     ds = NCDataset("../../../netCDF_files/EC_Data/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+
     n_users = length(user_set)
     defDim(block, "NumberNodes", n_users)
+
     n_timesteps = length(time_set)
     defDim(block, "TimeHorizon", n_timesteps)
-    devices = [d for u in user_set
-               for d in asset_names(users_data[u], SMSPP_DEVICES)]
-    n_devices = length(devices)
-    defDim(block, "NumberElectricalGenerators", n_devices)
-    # w `ECNetworkBlock` for each time peak period/category; each of then span t time step/horizon + 
-    # g `(Battery/Intermittent)UnitBlock` for each electrical generator/device
-    peak_categories = profile(market_data, "peak_categories")
-    peak_set = unique(peak_categories)
-    n_peaks = length(peak_set)
-    defDim(block, "NumberUnits", n_peaks + n_devices)
 
     # `ActivePowerDemand` is a 2D variable that represent the electricity
     # demand for each node/user wrt each time step/horizon
@@ -33,8 +25,27 @@ function csvEC2nc4()
     power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
                           for u in user_set, t in time_set]
 
-    # Let's create `EnergyCommunityNetworkBlock`(s)
+    # --------------------------------------------------------------------------------------- #
 
+    # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
+
+    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock`
+    network_classname = defVar(block, "NetworkBlockClassname", String, ())
+    network_classname = "ECNetworkBlock"
+
+    # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
+    peak_categories = profile(market_data, "peak_categories")
+    peak_set = unique(peak_categories)
+    n_peaks = length(peak_set)
+    defDim(block, "NumberNetworks", n_peaks)
+
+    # Store the first index (-1 since in C++ the aray's indexing starts from zero) 
+    # of each peak period/category, i.e., of each `(EC)NetworkBlock`
+    peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
+    peak_start_idx = [findfirst(x -> x == w, peak_categories) - 1
+                      for w in peak_set]
+
+    # Create (sell/buy/consumption) price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
 
@@ -48,54 +59,73 @@ function csvEC2nc4()
                       profile(market_data, "buy_price")[t]
                       for t in time_set] * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    _consumption_price_data = [profile(market_data, "energy_weight")[t] *
-                               profile(market_data, "time_res")[t] *
-                               (
-                                   profile(market_data, "consumption_price")[t] *
-                                   sum(Float64[
-                                       profile_component(users_data[u], l, "load")[t]
-                                       for l in asset_names(users_data[u], LOAD)])
-                               )
-                               for u in user_set, t in time_set]
-    consumption_price_data = [sum(_consumption_price_data[u, t]
-                                  for (u, _) in enumerate(user_set), t in time_set) *
-                              sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)]
+    consumption_price_data = [profile(market_data, "energy_weight")[t] *
+                              profile(market_data, "time_res")[t] *
+                              (
+                                  profile(market_data, "consumption_price")[t] *
+                                  sum(Float64[
+                                      profile_component(users_data[u], l, "load")[t]
+                                      for l in asset_names(users_data[u], LOAD)])
+                              )
+                              for u in user_set, t in time_set]
+    constant_term = [sum(consumption_price_data[u, t]
+                         for (u, _) in enumerate(user_set), t in time_set) *
+                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)]
 
-    last_t = 1
-    for (i_w, w) in enumerate(peak_set)
+    peak_tariff = [profile(market_data, "peak_weight")[w] *
+                   profile(market_data, "peak_tariff")[w] for w in peak_set]
 
-        ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
+    if allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff)
+        # no needs to create w `(EC)NetworkBlock`(s) with the same data repeated, we create just one `NetworkData`
 
-        # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
-        n_intervals = count(x -> x == w, peak_categories)
-        defDim(ecnb, "NumberIntervals", n_intervals)
+    else
+        # create one `(EC)NetworkBlock` for each peak period/category
+        last_t = 1
+        for (i_w, w) in enumerate(peak_set)
 
-        # Vector variables
+            ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
-        last_i = findlast(x -> x == w, peak_categories)
+            # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
+            n_intervals = count(x -> x == w, peak_categories)
+            defDim(ecnb, "NumberIntervals", n_intervals)
 
-        # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-        buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-        buy_price = buy_price_data[last_t:last_i]
+            # Vector variables
 
-        # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-        sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-        sell_price = sell_price_data[last_t:last_i]
+            last_i = findlast(x -> x == w, peak_categories)
 
-        last_t += n_intervals
+            # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
+            buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
+            buy_price = buy_price_data[last_t:last_i]
 
-        # Scalar variables
+            # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
+            sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
+            sell_price = sell_price_data[last_t:last_i]
 
-        # `MaxTariff`, i.e., the peak tariff cost
-        peak_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-        peak_tariff = profile(market_data, "peak_weight")[w] * profile(market_data, "peak_tariff")[w]
+            last_t += n_intervals
 
-        # `ConstantTerm`
-        constant_term = defVar(ecnb, "ConstantTerm", Float64, ())
-        constant_term = sum(consumption_price_data)
+            # Scalar variables
+
+            # `MaxTariff`, i.e., the peak tariff cost
+            peak_tariff = defVar(ecnb, "MaxTariff", Float64, ())
+            peak_tariff = peak_tariff[i_w]
+
+            # `ConstantTerm`
+            constant_term = defVar(ecnb, "ConstantTerm", Float64, ())
+            constant_term = sum(constant_term)
+        end
     end
 
-    # Let's create `(Battery/Intermittent)UnitBlock`(s)
+    # --------------------------------------------------------------------------------------- #
+
+    # Let's create g `(Battery/Intermittent)UnitBlock`(s) for each electrical generator/device
+
+    devices = [d for u in user_set
+               for d in asset_names(users_data[u], SMSPP_DEVICES)]
+    n_devices = length(devices)
+    # number of UnitBlock
+    defDim(block, "NumberUnits", n_devices)
+    # each UnitBlock has just one electrical generator
+    defDim(block, "NumberElectricalGenerators", n_devices)
 
     # `GeneratorNode` is a 1D variable that represent the node/user owner
     # of each electrical generator/device

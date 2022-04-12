@@ -251,7 +251,7 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
   k *= 2;
  }
 
-} // end( HeatBlock::generate_abstract_variables )
+}  // end( HeatBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -349,7 +349,7 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( v_HeatDemand_Constraints );
  }
 
-} // end( HeatBlock::generate_abstract_constraints )
+}  // end( HeatBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

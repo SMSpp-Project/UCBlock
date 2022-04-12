@@ -101,7 +101,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  check_data_consistency();
 
-} // end( IntermittentUnitBlock::deserialize )
+}  // end( IntermittentUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -156,7 +156,7 @@ void IntermittentUnitBlock::check_data_consistency() const {
    }
   }
  }
-} // end( IntermittentUnitBlock::check_data_consistency )
+}  // end( IntermittentUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 
@@ -199,7 +199,7 @@ IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  set_variables_generated();
 
-} // end( IntermittentUnitBlock::generate_abstract_variables )
+}  // end( IntermittentUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -294,9 +294,10 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  set_constraints_generated();
 
-} // end( IntermittentUnitBlock::generate_abstract_constraints )
+}  // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
+
 /// verifies whether the current solution is feasible for the given constraints
 /** This function checks whether the relative violation of each RowConstraint
  * in the given group of RowConstraint is not greater than the provided
@@ -320,6 +321,7 @@ is_feasible( std::vector< C > & constraints , double tolerance ) {
 }
 
 /*--------------------------------------------------------------------------*/
+
 /// verifies whether the given ColVariable are feasible
 /** This function returns true if and only if each given ColVariable is
  * feasible with respect to the given tolerance (see
@@ -363,7 +365,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && ::is_feasible( v_primary_spinning_reserve , tolerance )
   && ::is_feasible( v_secondary_spinning_reserve , tolerance );
 
-} // end( IntermittentUnitBlock::is_feasible )
+}  // end( IntermittentUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 

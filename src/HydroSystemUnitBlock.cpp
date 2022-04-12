@@ -190,7 +190,7 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   set_variables( std::move( x ) );
 
  set_variables_generated();
-} // end( HydroSystemUnitBlock::generate_abstract_variables )
+}  // end( HydroSystemUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -213,6 +213,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
  set_objective_generated();
 
 }  // end( HydroSystemUnitBlock::generate_objective )
+
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/

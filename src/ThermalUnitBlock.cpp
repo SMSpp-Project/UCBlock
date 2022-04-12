@@ -513,7 +513,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  set_variables_generated();
 
-} // end( ThermalUnitBlock::generate_abstract_variables )
+}  // end( ThermalUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1050,9 +1050,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  set_constraints_generated();
 
-} // end( ThermalUnitBlock::generate_abstract_constraints )
+}  // end( ThermalUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
+
 /// verifies whether the current solution is feasible for the given constraints
 /** This function checks whether the relative violation of each RowConstraint
  * in the given group of RowConstraint is not greater than the provided
@@ -1076,6 +1077,7 @@ is_feasible( std::vector< C > & constraints , double tolerance ) {
 }
 
 /*--------------------------------------------------------------------------*/
+
 /// verifies whether the given ColVariable are feasible
 /** This function returns true if and only if each given ColVariable is
  * feasible with respect to the given tolerance (see
@@ -2202,7 +2204,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                                          subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-} // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2269,7 +2271,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                                         rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-} // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
 
 /*--------------------------------------------------------------------------*/
 

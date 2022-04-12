@@ -217,7 +217,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  }
 
  UnitBlock::deserialize( group );
-}// end( HydroUnitBlock::deserialize )
+}  // end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -277,7 +277,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  set_variables_generated();
-} // end( HydroUnitBlock::generate_abstract_variables )
+}  // end( HydroUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -986,7 +986,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 
  set_constraints_generated();
-} // end( HydroUnitBlock::generate_abstract_constraints )
+}  // end( HydroUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1085,7 +1085,7 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && ::is_feasible( v_volumetric , tolerance )
   && ::is_feasible( v_primary_spinning_reserve , tolerance )
   && ::is_feasible( v_secondary_spinning_reserve , tolerance );
-} // end( HydroUnitBlock::is_feasible )
+}  // end( HydroUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1106,6 +1106,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc ) {
  set_objective_generated();
 
 }  // end( HydroUnitBlock::generate_objective )
+
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/
 /*--------------------------------------------------------------------------*/

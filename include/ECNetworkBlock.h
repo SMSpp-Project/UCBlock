@@ -124,7 +124,7 @@ class ECNetworkBlock : public NetworkBlock
  /** @name Reading the data of the ECNetworkBlock
  * @{ */
 
- /// returns the number of nodes
+ /// returns the number of nodes of the network
  /** Returns the number of nodes in the transmission network. If
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
@@ -132,6 +132,19 @@ class ECNetworkBlock : public NetworkBlock
  Index get_number_nodes() const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of lines of the network
+ /** Returns the number of lines in the transmission network. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
+
+ Index get_number_lines() const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_lines();
   return 0;
  }
 

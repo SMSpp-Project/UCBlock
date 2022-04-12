@@ -150,7 +150,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
  set_variables_generated();
 
-} // end( SlackUnitBlock::generate_abstract_variables )
+}  // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -249,7 +249,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  set_constraints_generated();
-} // end( SlackUnitBlock::generate_abstract_constraints )
+}  // end( SlackUnitBlock::generate_abstract_constraints )
 
 
 /*--------------------------------------------------------------------------*/

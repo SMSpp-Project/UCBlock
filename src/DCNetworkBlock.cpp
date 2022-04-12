@@ -56,8 +56,8 @@ DCNetworkBlock::~DCNetworkBlock() {
  clear_constraints( v_AC_HVDC_power_flow_limit_constraints );
  clear_constraints( v_power_flow_injection_constraints );
  clear_constraints( v_AC_HVDC_power_flow_constraints );
- clear_constraints( v_power_flow_auxiliary_variable_one_constraints );
- clear_constraints( v_power_flow_auxiliary_variable_two_constraints );
+ clear_constraints( v_power_flow_aux_var_one_constraints );
+ clear_constraints( v_power_flow_aux_var_two_constraints );
 
  clear_constraints( v_HVDC_power_flow_limit_constraints );
 
@@ -246,9 +246,9 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- Index number_nodes = f_NetworkData->get_number_nodes();
+ Index number_nodes = get_number_nodes();
 
- Index number_lines = f_NetworkData->get_number_lines();
+ Index number_lines = get_number_lines();
 
  if( number_nodes > 1 ) {
   // the node injection variables
@@ -285,15 +285,15 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( constraints_generated() )
   return; // constraints have already been generated
 
- if( f_NetworkData->get_number_nodes() > 1 ) {
+ if( get_number_nodes() > 1 ) {
 
-  if( f_NetworkData->get_number_lines() <= 0 ) {
+  if( get_number_lines() <= 0 ) {
    throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                              "number of lines of DCNetworkBlock is not set" ) );
   }
 
   // initial condition of number lines
-  auto number_lines = f_NetworkData->get_number_lines();
+  auto number_lines = get_number_lines();
 
   // initial condition of vector StartLine
   auto & StartLine = f_NetworkData->get_start_line();
@@ -320,8 +320,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   //  Net Transfer Capacity (NTC) model
+
 /*--------------------------------------------------------------------------*/
-// Initial check on network
+
+  // Initial check on network
 
   auto lines_type = f_NetworkData->get_lines_type();
 
@@ -329,16 +331,13 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( lines_type == kHVDC ) {   // HVDC power flow limit
 
-   if( v_HVDC_power_flow_limit_constraints.size() !=
-       f_NetworkData->get_number_lines() ) {
+   if( v_HVDC_power_flow_limit_constraints.size() != get_number_lines() ) {
 
     assert( v_HVDC_power_flow_limit_constraints.empty() );
-    v_HVDC_power_flow_limit_constraints.resize
-     ( f_NetworkData->get_number_lines() );
+    v_HVDC_power_flow_limit_constraints.resize( get_number_lines() );
    }
 
-   for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
-        ++line_id ) {
+   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
 
     v_HVDC_power_flow_limit_constraints[ line_id ].set_lhs(
      MinPowerFlow[ line_id ] );
@@ -355,15 +354,13 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    // HVDC power flow and node injection constraints
 
-   if( v_power_flow_injection_constraints.size() !=
-       f_NetworkData->get_number_nodes() ) {
+   if( v_power_flow_injection_constraints.size() != get_number_nodes() ) {
 
     assert( v_power_flow_injection_constraints.empty() );
-    v_power_flow_injection_constraints.resize
-     ( f_NetworkData->get_number_nodes() );
+    v_power_flow_injection_constraints.resize( get_number_nodes() );
    }
 
-   for( Index n = 0 ; n < f_NetworkData->get_number_nodes() ; ++n ) {
+   for( Index n = 0 ; n < get_number_nodes() ; ++n ) {
 
     auto linear_function = new LinearFunction();
 
@@ -383,82 +380,78 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                           "HVDC_power_flow_injection" );
 
 /*--------------------------------------------------------------------------*/
+
    if( !f_NetworkData->get_network_cost().empty() ) {
 
-    if( v_power_flow_auxiliary_variable_one_constraints.size() !=
-        f_NetworkData->get_number_lines() ) {
+    if( v_power_flow_aux_var_one_constraints.size() != get_number_lines() ) {
 
-     assert( v_power_flow_auxiliary_variable_one_constraints.empty() );
-     v_power_flow_auxiliary_variable_one_constraints.resize
-      ( f_NetworkData->get_number_lines() );
+     assert( v_power_flow_aux_var_one_constraints.empty() );
+     v_power_flow_aux_var_one_constraints.resize( get_number_lines() );
     }
 
-    for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
-         ++line_id ) {
+    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
      auto linear_function = new LinearFunction();
 
      linear_function->add_variable( &v_power_flow[ line_id ] , -1.0 );
      linear_function->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_lhs( 0.0 );
-     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_rhs(
+     v_power_flow_aux_var_one_constraints[ line_id ].set_lhs( 0.0 );
+     v_power_flow_aux_var_one_constraints[ line_id ].set_rhs(
       Inf< double >() );
 
-     v_power_flow_auxiliary_variable_one_constraints[ line_id ].set_function(
+     v_power_flow_aux_var_one_constraints[ line_id ].set_function(
       linear_function );
     }
 
-    add_static_constraint( v_power_flow_auxiliary_variable_one_constraints ,
+    add_static_constraint( v_power_flow_aux_var_one_constraints ,
                            "power_flow_auxiliary_variable_one" );
 
 /*--------------------------------------------------------------------------*/
-    if( v_power_flow_auxiliary_variable_two_constraints.size() !=
-        f_NetworkData->get_number_lines() ) {
 
-     assert( v_power_flow_auxiliary_variable_two_constraints.empty() );
-     v_power_flow_auxiliary_variable_two_constraints.resize
-      ( f_NetworkData->get_number_lines() );
+    if( v_power_flow_aux_var_two_constraints.size() != get_number_lines() ) {
+
+     assert( v_power_flow_aux_var_two_constraints.empty() );
+     v_power_flow_aux_var_two_constraints.resize( get_number_lines() );
     }
 
-    for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
-         ++line_id ) {
+    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
 
-     auto linear_f = new LinearFunction();
+     auto linear_function = new LinearFunction();
 
-     linear_f->add_variable( &v_power_flow[ line_id ] , 1.0 );
-     linear_f->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_lhs( 0.0 );
-     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_rhs(
+     linear_function->add_variable( &v_power_flow[ line_id ] , 1.0 );
+     linear_function->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
+     v_power_flow_aux_var_two_constraints[ line_id ].set_lhs( 0.0 );
+     v_power_flow_aux_var_two_constraints[ line_id ].set_rhs(
       Inf< double >() );
-     v_power_flow_auxiliary_variable_two_constraints[ line_id ].set_function(
-      linear_f );
+     v_power_flow_aux_var_two_constraints[ line_id ].set_function(
+      linear_function );
     }
 
-    add_static_constraint( v_power_flow_auxiliary_variable_two_constraints ,
+    add_static_constraint( v_power_flow_aux_var_two_constraints ,
                            "power_flow_auxiliary_variable_two" );
 
    }
   } // end HVDC_Lines constraints
+
 /*--------------------------------------------------------------------------*/
+
 // TODO implementation of AC and AC-HVDC lines is not ready
 
   if( lines_type == kAC ) {    // AC power flow limit
 /*
-  if( v_AC_power_flow_limit_constraints.size() != f_NetworkData->get_number_lines()) {
+  if( v_AC_power_flow_limit_constraints.size() != get_number_lines() ) {
    // this should only happen once
-   assert( v_AC_power_flow_limit_constraints.empty());
-   v_AC_power_flow_limit_constraints.resize( f_NetworkData->get_number_lines());
+   assert( v_AC_power_flow_limit_constraints.empty() );
+   v_AC_power_flow_limit_constraints.resize( get_number_lines() );
   }
 
   // Flow limit constraints
 
-  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines();
-       ++line_id ) {
-
+  for( Index line_id = 0; line_id < get_number_lines(); ++line_id ) {
 
     auto linear_function = new LinearFunction();
     double constant_term = 0;
 
-    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
+    for( Index node_id = 0; node_id < get_number_nodes(); ++node_id ) {
 
      double coefficient = 0.0;
      // Distribution Factor Matrix
@@ -487,19 +480,18 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( v_AC_power_flow_limit_constraints, "AC_power_low_limits" );
 */
   } // end AC_Lines constraints
+
 /*--------------------------------------------------------------------------*/
 
   if( lines_type == kAC_HVDC ) { // AC-HVDC power flow limit
 
 
 /*
-  if( v_AC_HVDC_power_flow_constraints.size() != f_NetworkData->get_number_lines()) {
+  if( v_AC_HVDC_power_flow_constraints.size() != get_number_lines() ) {
    // this should only happen once
-   assert( v_AC_HVDC_power_flow_constraints.empty());
-   v_AC_HVDC_power_flow_constraints.resize( f_NetworkData->get_number_lines());
+   assert( v_AC_HVDC_power_flow_constraints.empty() );
+   v_AC_HVDC_power_flow_constraints.resize( get_number_lines() );
   }
-  // TODO
-  // TODO
   // TODO
 
   add_static_constraint( v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_limits" );
@@ -554,18 +546,18 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
         && ::is_feasible( v_AC_HVDC_power_flow_limit_constraints , tolerance )
         && ::is_feasible( v_power_flow_injection_constraints , tolerance )
         && ::is_feasible( v_AC_HVDC_power_flow_constraints , tolerance )
-        && ::is_feasible( v_power_flow_auxiliary_variable_one_constraints ,
+        && ::is_feasible( v_power_flow_aux_var_one_constraints ,
                           tolerance )
-        && ::is_feasible( v_power_flow_auxiliary_variable_two_constraints ,
+        && ::is_feasible( v_power_flow_aux_var_two_constraints ,
                           tolerance );
 
-} // end( DCNetworkBlock::is_feasible )
+}  // end( DCNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
-// Initial check on network
+ // Initial check on network
 
  auto lines_type = f_NetworkData->get_lines_type();
 
@@ -583,9 +575,9 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   auto linear_function = new LinearFunction();
 
   if( !f_NetworkData->get_network_cost().empty() ) {
-   for( Index l = 0 ; l < f_NetworkData->get_number_lines() ; ++l ) {
-    linear_function->add_variable( &v_auxiliary_variable[ l ] ,
-                                   f_NetworkData->get_network_cost()[ l ] ,
+   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
+    linear_function->add_variable( &v_auxiliary_variable[ line_id ] ,
+                                   f_NetworkData->get_network_cost()[ line_id ] ,
                                    0.0 );
    }
    linear_function->set_constant_term( f_const_term );
