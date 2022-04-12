@@ -135,6 +135,8 @@ void ECNetworkBlock::generate_abstract_variables(
  set_variables_generated();
 }
 
+/*--------------------------------------------------------------------------*/
+
 void ECNetworkBlock::generate_abstract_constraints(
  Configuration * stcc ) {
 
@@ -144,7 +146,7 @@ void ECNetworkBlock::generate_abstract_constraints(
  auto number_nodes = f_NetworkData->get_number_nodes();
  auto number_intervals = f_NetworkData->get_number_intervals();
 
- // inequality constraints
+/*------------------------- inequality constraints -------------------------*/
 
  // set that the hourly dispatch cannot go beyond the maximum dispatch
  // of the corresponding peak power period, i.e.:
@@ -218,9 +220,7 @@ void ECNetworkBlock::generate_abstract_constraints(
  add_static_constraint( power_flow_limit_constraints ,
                         "power_flow_limit_constraints" );
 
-/*--------------------------------------------------------------------------*/
-
- // equality constraints
+/*-------------------------- equality constraints --------------------------*/
 
  // set the power balance within the microgrid market/network, i.e., the
  // flows within the microgrid to have sum equal to zero:
@@ -252,8 +252,6 @@ void ECNetworkBlock::generate_abstract_constraints(
 
  add_static_constraint( micro_power_balance_constraints ,
                         "micro_power_balance_constraints" );
-
-/*--------------------------------------------------------------------------*/
 
  // set the power balance, i.e.:
  //
@@ -359,7 +357,7 @@ void ECNetworkBlock::set_active_demand(
  Block::Range rng ,
  c_ModParam issuePMod ,
  c_ModParam issueAMod ) {
- //TODO
+ // TODO
 }
 
 /*--------------------------------------------------------------------------*/
