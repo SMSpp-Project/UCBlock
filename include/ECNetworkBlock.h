@@ -80,33 +80,41 @@ class ECNetworkBlock : public NetworkBlock
  explicit ECNetworkBlock( Block * f_block = nullptr ) :
   NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
 
+/*--------------------------------------------------------------------------*/
+
  /// Destructor of ECNetworkBlock
 
  virtual ~ECNetworkBlock() override;
 
-/// generates the static variables of ECNetworkBlock
-/** The base ECNetworkBlock class has just the node injection variables.
- * Since a "bus" network has just one node, and therefore a single value D for
- * the demand and a single injection variable s, which can hardly be called a
- * variable since the only possible way to satisfy the constraints is by
- * having s = D which in fact makes the variable a constant.*/
+/*--------------------------------------------------------------------------*/
+
+ /// generates the static variables of ECNetworkBlock
+ /** The base ECNetworkBlock class has just the node injection variables.
+  * Since a "bus" network has just one node, and therefore a single value D for
+  * the demand and a single injection variable s, which can hardly be called a
+  * variable since the only possible way to satisfy the constraints is by
+  * having s = D which in fact makes the variable a constant. */
 
  void generate_abstract_variables( Configuration * stvv ) override;
 
-/// Generate the static constraint of the ECNetworkBlock
-/** This method generates the abstract constraints of the ECNetworkBlock.
- * Since the node injection variable is fixed to the active demand value, it
- * must be a BoxConstraint for that variable whose lower and upper bounds are
- * equal to the active demand value. */
+/*--------------------------------------------------------------------------*/
+
+ /// Generate the static constraint of the ECNetworkBlock
+ /** This method generates the abstract constraints of the ECNetworkBlock.
+  * Since the node injection variable is fixed to the active demand value, it
+  * must be a BoxConstraint for that variable whose lower and upper bounds are
+  * equal to the active demand value. */
 
  void generate_abstract_constraints( Configuration * stcc ) override;
 
-/// generate the objective of the ECNetworkBlock
-/** Method that generates the objective of the ECNetworkBlock.
- *
- * - Objective function: the objective function of the ECNetworkBlock
- *   is "empty" (a FRealObjective with a LinearFunction inside with no active
- *   variables) */
+/*--------------------------------------------------------------------------*/
+
+ /// generate the objective of the ECNetworkBlock
+ /** Method that generates the objective of the ECNetworkBlock.
+  *
+  * - Objective function: the objective function of the ECNetworkBlock
+  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+  *   variables) */
 
  void generate_objective( Configuration * objc ) override;
 
@@ -116,10 +124,10 @@ class ECNetworkBlock : public NetworkBlock
  /** @name Reading the data of the ECNetworkBlock
  * @{ */
 
-/// returns the number of nodes
-/** Returns the number of nodes in the transmission network. If
- * get_NetworkData() returns nullptr, this is equivalent to
- * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
+ /// returns the number of nodes
+ /** Returns the number of nodes in the transmission network. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
 
  Index get_number_nodes() const override {
   if( f_NetworkData )
@@ -127,10 +135,12 @@ class ECNetworkBlock : public NetworkBlock
   return 0;
  }
 
-/// returns the number of intervals
-/** Returns the number of intervals spanned by this NetworkBlock. If
- * get_NetworkData() returns nullptr, this is equivalent to
- * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of intervals
+ /** Returns the number of intervals spanned by this NetworkBlock. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
 
  Index get_number_intervals() const override {
   if( f_NetworkData )
@@ -138,19 +148,23 @@ class ECNetworkBlock : public NetworkBlock
   return 0;
  }
 
-/// returns a pointer to the NetworkData
-/** Return a pointer to the NetworkData. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns a pointer to the NetworkData
+ /** Return a pointer to the NetworkData. */
 
  NetworkData * get_NetworkData() const override {
   return f_NetworkData;
  }
 
-/// returns the matrix of active demands
-/** Method for returning the active demand for the given interval, which is
- * assumed to have size get_number_intervals() per get_number_nodes().
- *
- * @param t The interval wrt the vector of demands for each user is
- *          returned. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the matrix of active demands
+ /** Method for returning the active demand for the given interval, which is
+  * assumed to have size get_number_intervals() per get_number_nodes().
+  *
+  * @param t The interval wrt the vector of demands for each user is
+  *          returned. */
 
  const double * get_active_demand( Index t = 0 ) const override {
   if( v_active_demand.empty() )
@@ -158,24 +172,30 @@ class ECNetworkBlock : public NetworkBlock
   return &( v_active_demand.data()[ t * get_number_nodes() ] );
  }
 
-/// returns the vector of sell prices
-/** Method for returning the tariff that user gain to sell electricity to
- * the public market. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of sell prices
+ /** Method for returning the tariff that user gain to sell electricity to
+  * the public market. */
 
  const std::vector< double > & get_sell_price() const {
   return v_sell_price;
  }
 
-/// returns the vector of buy prices
-/** Method for returning the tariff that user pay to buy electricity at each
- * time horizon from the public market. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of buy prices
+ /** Method for returning the tariff that user pay to buy electricity at each
+  * time horizon from the public market. */
 
  const std::vector< double > & get_buy_price() const {
   return v_buy_price;
  }
 
-/// returns the maximum tariff
-/** Method for returning the tariff that user pay due to the peak power. */
+/*--------------------------------------------------------------------------*/
+
+ /// returns the maximum tariff
+ /** Method for returning the tariff that user pay due to the peak power. */
 
  const double & get_max_tariff() const {
   return f_max_tariff;
@@ -196,6 +216,8 @@ class ECNetworkBlock : public NetworkBlock
   return v_micro_power_injection;
  }
 
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of micro power absorption variables
  /** Method for returning vector of micro public power absorption variables,
   * which is assumed to have size get_number_nodes(). */
@@ -203,6 +225,8 @@ class ECNetworkBlock : public NetworkBlock
  std::vector< ColVariable > & get_micro_power_absorption() {
   return v_micro_power_absorption;
  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the vector of public power injection variables
  /** Method for returning vector of public power injection variables, which is
@@ -212,6 +236,8 @@ class ECNetworkBlock : public NetworkBlock
   return v_public_power_injection;
  }
 
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of public power absorption variables
  /** Method for returning vector of public power absorbed variables, which is
   * assumed to have size get_number_nodes(). */
@@ -219,6 +245,8 @@ class ECNetworkBlock : public NetworkBlock
  std::vector< ColVariable > & get_public_power_absorption() {
   return v_public_power_absorption;
  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the matrix of node injection variables
  /** Method for returning the node injection for the given interval, which is
@@ -247,26 +275,26 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the DCNetworkBlock
  * @{ */
 
-/// method to set the ActiveDemand
-/** This method can be called either before or after that deserialize() is
- * called to provide the NetworkBlock with the ActiveDemand data. This allows
- * all Active Power Demand data corresponding to some UC problem to be
- * "grouped" together (typically, in UCBlock) rather than "spread" among the
- * different NetworkBlock, which may be convenient for some user.
- *
- * If this method is called *before* deserialize(), the data is just copied.
- * However, when deserialize() is called, if ActiveDemand data is present in
- * the NcGroup then this data is used, replacing (and therefore ignoring) the
- * data set by this method.
- *
- * Similarly, if this method is called *after* deserialize(), but some the
- * ActiveDemand was already present in the NcGroup, then that data is kept and
- * the call to this method does nothing.
- *
- * When this method is called, if it is empty it is written into, otherwise
- * nothing happens. In deserialize(), if the data is there in the NcGroup then
- * it is written in v_active_demand (which therefore is no longer empty),
- * otherwise it is left empty so that it can be set by this method. */
+ /// method to set the ActiveDemand
+ /** This method can be called either before or after that deserialize() is
+  * called to provide the NetworkBlock with the ActiveDemand data. This allows
+  * all Active Power Demand data corresponding to some UC problem to be
+  * "grouped" together (typically, in UCBlock) rather than "spread" among the
+  * different NetworkBlock, which may be convenient for some user.
+  *
+  * If this method is called *before* deserialize(), the data is just copied.
+  * However, when deserialize() is called, if ActiveDemand data is present in
+  * the NcGroup then this data is used, replacing (and therefore ignoring) the
+  * data set by this method.
+  *
+  * Similarly, if this method is called *after* deserialize(), but some the
+  * ActiveDemand was already present in the NcGroup, then that data is kept and
+  * the call to this method does nothing.
+  *
+  * When this method is called, if it is empty it is written into, otherwise
+  * nothing happens. In deserialize(), if the data is there in the NcGroup then
+  * it is written in v_active_demand (which therefore is no longer empty),
+  * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand( const double * v ) override {
   if( v_active_demand.empty() ) {
@@ -306,13 +334,15 @@ class ECNetworkBlock : public NetworkBlock
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/// loads the ECNetworkBlock instance from an input standard stream.
-/** Like load( std::istream & ), if there is any Solver attached to this
- *  ECNetworkBlock then a NBModification (the "nuclear option") is issued.
- *  @warning this method is not implemented yet
- *  @param input an input stream
- *  @param frmt the verbosity level
- */
+/*--------------------------------------------------------------------------*/
+
+ /// loads the ECNetworkBlock instance from an input standard stream.
+ /** Like load( std::istream & ), if there is any Solver attached to this
+  *  ECNetworkBlock then a NBModification (the "nuclear option") is issued.
+  *  @warning this method is not implemented yet
+  *  @param input an input stream
+  *  @param frmt the verbosity level
+  */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw ( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );

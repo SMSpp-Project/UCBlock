@@ -245,17 +245,17 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-/// generate the objective of the DCNetworkBlock
-/** Method that generates the objective of the DCNetworkBlock.
- *
- * - Objective function: the objective function of the DCNetworkBlock
- *   is given as below:
- *
- *   \f[
- *     \min ( \sum_{ l \in L } ( NC_l V_l )
- *   \f]
- *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
- *   variable */
+ /// generate the objective of the DCNetworkBlock
+ /** Method that generates the objective of the DCNetworkBlock.
+  *
+  * - Objective function: the objective function of the DCNetworkBlock
+  *   is given as below:
+  *
+  *   \f[
+  *     \min ( \sum_{ l \in L } ( NC_l V_l )
+  *   \f]
+  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
+  *   variable */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -324,10 +324,10 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-/// returns the number of intervals
-/** Returns the number of intervals spanned by this NetworkBlock. If
- * get_NetworkData() returns nullptr, this is equivalent to
- * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
+ /// returns the number of intervals
+ /** Returns the number of intervals spanned by this NetworkBlock. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
 
  Index get_number_intervals() const override {
   if( f_NetworkData )
@@ -346,9 +346,9 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-/// returns the vector of active demands
-/** Method for returning the active demand for the given interval, which is
- * assumed to have size get_number_nodes(). */
+ /// returns the vector of active demands
+ /** Method for returning the active demand for the given interval, which is
+  * assumed to have size get_number_nodes(). */
 
  const double * get_active_demand( Index t = 0 ) const override {
   if( v_active_demand.empty() )
@@ -467,26 +467,26 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-/// method to set the ActiveDemand
-/** This method can be called either before or after that deserialize() is
- * called to provide the NetworkBlock with the ActiveDemand data. This allows
- * all Active Power Demand data corresponding to some UC problem to be
- * "grouped" together (typically, in UCBlock) rather than "spread" among the
- * different NetworkBlock, which may be convenient for some user.
- *
- * If this method is called *before* deserialize(), the data is just copied.
- * However, when deserialize() is called, if ActiveDemand data is present in
- * the NcGroup then this data is used, replacing (and therefore ignoring) the
- * data set by this method.
- *
- * Similarly, if this method is called *after* deserialize(), but some the
- * ActiveDemand was already present in the NcGroup, then that data is kept and
- * the call to this method does nothing.
- *
- * When this method is called, if it is empty it is written into, otherwise
- * nothing happens. In deserialize(), if the data is there in the NcGroup then
- * it is written in v_active_demand (which therefore is no longer empty),
- * otherwise it is left empty so that it can be set by this method. */
+ /// method to set the ActiveDemand
+ /** This method can be called either before or after that deserialize() is
+  * called to provide the NetworkBlock with the ActiveDemand data. This allows
+  * all Active Power Demand data corresponding to some UC problem to be
+  * "grouped" together (typically, in UCBlock) rather than "spread" among the
+  * different NetworkBlock, which may be convenient for some user.
+  *
+  * If this method is called *before* deserialize(), the data is just copied.
+  * However, when deserialize() is called, if ActiveDemand data is present in
+  * the NcGroup then this data is used, replacing (and therefore ignoring) the
+  * data set by this method.
+  *
+  * Similarly, if this method is called *after* deserialize(), but some the
+  * ActiveDemand was already present in the NcGroup, then that data is kept and
+  * the call to this method does nothing.
+  *
+  * When this method is called, if it is empty it is written into, otherwise
+  * nothing happens. In deserialize(), if the data is there in the NcGroup then
+  * it is written in v_active_demand (which therefore is no longer empty),
+  * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand( const double * v ) override {
   if( v_active_demand.empty() ) {
@@ -523,10 +523,10 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for loading, printing & saving the DCNetworkBlock
  * @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group. */
+ /// Extends Block::serialize( netCDF::NcGroup )
+ /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+  * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
