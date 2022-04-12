@@ -34,7 +34,6 @@
 
 #include "LinearFunction.h"
 #include "UCBlock.h"
-#include "DCNetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -132,6 +131,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberUnits" ,
                                                      "NumberNetworks" ,
+                                                     "NetworkBlockClassname" ,
                                                      "NumberHeatBlocks" ,
                                                      "NumberPrimaryZones" ,
                                                      "NumberSecondaryZones" ,
@@ -178,11 +178,18 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks , true ) )
   f_number_networks = 0;
 
- if( ::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
-                    v_start_network_intervals , true ) ) {
+ if( !::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
+                     v_start_network_intervals , true ) ) {
   v_start_network_intervals.resize( f_number_networks );
   std::iota( std::begin( v_start_network_intervals ) ,
              std::end( v_start_network_intervals ) , 0 );
+ }
+
+ // For backward compatibility reasons wrt the nc4 input data files already
+ // given, the default value is `DCNetworkBlock`.
+ if( !::deserialize_dim( group , "StartNetworkIntervals" ,
+                         network_classname , true ) ) {
+  network_classname = "DCNetworkBlock";
  }
 
  Index number_nodes;
@@ -385,8 +392,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    auto nbi = v_network_blocks[ t ];
-   if( !nbi ) {  // NetworkBlock i does not exist: create a DCNetworkBlock
-    nbi = new DCNetworkBlock( this );
+   if( !nbi ) {  // NetworkBlock i does not exist: create a (DC/EC)NetworkBlock
+    nbi = dynamic_cast< NetworkBlock *>( new_Block( network_classname , this ));
     v_network_blocks[ t ] = nbi;
     v_Block[ f_number_units + t ] = nbi;
    }
