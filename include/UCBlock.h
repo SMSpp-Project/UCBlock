@@ -300,9 +300,9 @@ class UCBlock : public Block
  *     is automatically constructed for that time instant, and the entry
  *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
  *
- *   - If "NumberNodes" > 1, then a DCNetworkBlock is automatically
- *     constructed for that time instant, it is provided with the NetworkData
- *     object (which must be present in UCBlock) and the row
+ *   - If "NumberNodes" > 1, then a NetworkBlock is automatically constructed
+ *     for that time instant, it is provided with the NetworkData object
+ *     (which must be present in UCBlock) and the row
  *     ActivePowerDemand[ ... , t ] contains the active demand of each node
  *     at time instant t.
  *
@@ -1226,6 +1226,13 @@ class UCBlock : public Block
 
  /// The time horizon of the problem
  Index f_time_horizon;
+
+ /// The specific classname of the networks that need to be instantiated,
+ /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc. .
+ /// Used in case of no `NetworkBlock`s were given since there is just one
+ /// node, i.e., the network is a bus, or all the nodes share the same data in
+ /// `NetworkData`.
+ std::string network_classname;
 
  /// The number of the networks of the problem
  Index f_number_networks;
