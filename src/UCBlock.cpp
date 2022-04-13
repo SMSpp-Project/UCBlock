@@ -33,9 +33,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// !! commented away until HeatBlock are properly managed
-// #include "HeatBlock.h"
-
+/*!! commented away until HeatBlock are properly managed
+#include "HeatBlock.h" */
 #include "LinearFunction.h"
 #include "UCBlock.h"
 
@@ -80,7 +79,7 @@ UCBlock::~UCBlock() {
 
 void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
                                       const std::string & prefix ,
-                                      int num_sub_blocks ) {
+                                      Index num_sub_blocks ) {
  auto sz = v_Block.size();
  v_Block.resize( sz + num_sub_blocks , nullptr );
  for( int i = 0 ; i < num_sub_blocks ; ++i ) {
@@ -221,8 +220,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   ActivePowerDemand.getVar( v_active_power_demand.data() );
  }
 
- // optional dimensions
- /* !! commented away until HeatBlock are properly managed
+ // Optional dimensions
+
+ /*!! commented away until HeatBlock are properly managed
  f_number_heat_blocks = 0;
  ::deserialize_dim( group , "NumberHeatBlocks" ,
                     f_number_heat_blocks , true );
@@ -285,7 +285,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   ::deserialize( group , "PollutantZones" ,
                  v_pollutant_zones , true , true );
 
-  /* TODO commented away until this is properly managed
+  /*!! commented away until this is properly managed
   ::deserialize( group , "PollutantBudget" ,
                  { f_total_number_pollutant_zones } ,
                  v_pollutant_budget , true , false );
@@ -395,6 +395,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   }
 
  } else {  // number_nodes > 1
+
+  // TODO fixed here
 
   int sum_intervals = std::accumulate(
    v_network_blocks.begin() , v_network_blocks.end() , 0 ,
@@ -542,7 +544,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         if( auto u = bi->get_commitment( g ) ) {
          // add the contribution of the corresponding commitment variables
          *( vcit++ ) = std::pair( &u[ t ] , -fc[ t ] );
-         rhs -= fc[ t ];        // update the RHS
+         rhs -= fc[ t ]; // update the RHS
         }
 
      }  // end( for( g ) )
@@ -1219,25 +1221,25 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       /*!! commented away until HeatBlock are properly managed
       if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
 
-       for( Index h = 0; h < f_number_heat_blocks; ++h ) {
+       for( Index h = 0 ; h < f_number_heat_blocks ; ++h ) {
 
-        for( std::vector< Index >::size_type i = 0;
-             i <= f_number_units; ++i ) {
+        for( std::vector< Index >::size_type i = 0 ;
+             i <= f_number_units ; ++i ) {
 
          // auto unit_id = v_heat_only_units[ i ];
-         auto heat_id = v_heat_set[i];
+         auto heat_id = v_heat_set[ i ];
 
-         auto zone_id = get_pollutant_zone()[pollutant][h];
-         if( zone_id >= v_number_pollutant_zones[pollutant] )
+         auto zone_id = get_pollutant_zone()[ pollutant ][ h ];
+         if( zone_id >= v_number_pollutant_zones[ pollutant ] )
           continue; // this unit does not belong to any zone
 
-         auto heat = get_heat_block()[h]->get_heat()[t][i];
-         auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+         auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
+         auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
          auto linear_function = dynamic_cast<LinearFunction *>
-         ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+         ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function());
 
-         linear_function->add_variable( &heat, rho );
+         linear_function->add_variable( &heat , rho );
         }
        }
       }
@@ -1308,25 +1310,25 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       /*!! commented away until HeatBlock are properly managed
       if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
 
-       for( Index h = 0; h < f_number_heat_blocks; ++h ) {
+       for( Index h = 0 ; h < f_number_heat_blocks ; ++h ) {
 
-        for( std::vector< Index >::size_type i = 0;
-             i <= f_number_units; ++i ) {
+        for( std::vector< Index >::size_type i = 0 ;
+             i <= f_number_units ; ++i ) {
 
          // auto unit_id = v_heat_only_units[ i ];
-         auto heat_id = v_heat_set[i];
+         auto heat_id = v_heat_set[ i ];
 
-         auto zone_id = get_pollutant_zone()[pollutant][h];
-         if( zone_id >= v_number_pollutant_zones[pollutant] )
+         auto zone_id = get_pollutant_zone()[ pollutant ][ h ];
+         if( zone_id >= v_number_pollutant_zones[ pollutant ] )
           continue; // this unit does not belong to any zone
 
-         auto heat = get_heat_block()[h]->get_heat()[t][i];
-         auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+         auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
+         auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
          auto linear_function = dynamic_cast<LinearFunction *>
-         ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+         ( v_PollutantBudget_Const[ pollutant ][ zone_id ].get_function() );
 
-         linear_function->add_variable( &heat, rho );
+         linear_function->add_variable( &heat , rho );
         }
        }
       }
@@ -1365,7 +1367,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    auto is_electricity_producing_inside_a_heat_block =
     [ this ]( Index unit ) {
-     for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
+     for( Index heat_block_id = 0 ; heat_block_id < f_number_heat_blocks ;
           ++heat_block_id ) {
       if( get_heat_set()[ unit ] <
           v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
@@ -1374,7 +1376,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      return false;
     };
 
-   for( Index unit_id = 0; unit_id < f_number_units; ++unit_id ) {
+   for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
     if( is_electricity_producing_inside_a_heat_block( unit_id ) ) {
      electricity_generators_inside_a_heat_block
      [ num_constraints_per_time++ ] = unit_id;
@@ -1382,18 +1384,18 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
 
    v_power_Heat_Rho_Const.resize
-    ( boost::multi_array< FRowConstraint *, 2 >::
+    ( boost::multi_array< FRowConstraint * , 2 >::
       extent_gen()[ f_time_horizon ][ num_constraints_per_time ] );
   }
 
-  for( Index t = 0; t < f_time_horizon; ++t ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   for( std::vector< Index >::size_type constraint_id = 0;
-        constraint_id < num_constraints_per_time; ++constraint_id ) {
+   for( std::vector< Index >::size_type constraint_id = 0 ;
+        constraint_id < num_constraints_per_time ; ++constraint_id ) {
 
     auto generator_id = electricity_generators_inside_a_heat_block[ constraint_id ];
 
-    for( Index heat_block_id = 0; heat_block_id < f_number_heat_blocks;
+    for( Index heat_block_id = 0 ; heat_block_id < f_number_heat_blocks ;
          ++heat_block_id ) {
 
      auto heat_unit_id = get_heat_set()[ generator_id ];
@@ -1411,20 +1413,21 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      auto active_power = get_unit_block( generator_id )->get_active_power();
-     auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][generator_id];
+     auto heat = get_heat_block()[ heat_unit_id ]->get_heat()[ t ][ generator_id ];
      auto power_heat_rho = get_power_heat_rho()[ generator_id ];
 
      auto linear_function = dynamic_cast<LinearFunction *>
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
-     linear_function->add_variable( &heat, 1, 0 );
-     linear_function->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
+     linear_function->add_variable( &heat , 1 , 0 );
+     linear_function->add_variable( &active_power[ t ][ generator_id ] ,
+                                    -power_heat_rho );
     }
    }
   }
 
   add_static_constraint( v_power_Heat_Rho_Const );
  }
-*/
+ */
 
  // mark all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1502,7 +1505,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "PollutantZones" , netCDF::NcUint() ,
               { NumberPollutants , NumberNodes } , v_pollutant_zones );
 
- /* TODO commented away until this is properly managed
+ /*!! commented away until this is properly managed
  ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
               TotalNumberPollutantZones , v_pollutant_budget );
  */

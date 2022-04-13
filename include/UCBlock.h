@@ -1447,7 +1447,7 @@ class UCBlock : public Block
  /// Deserialize the sub-blocks of UCBlock that have the given prefix name
  void deserialize_sub_blocks( const netCDF::NcGroup & group ,
                               const std::string & prefix ,
-                              int num_sub_blocks );
+                              Index num_sub_blocks );
 
 /*--------------------------------------------------------------------------*/
 
