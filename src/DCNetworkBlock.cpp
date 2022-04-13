@@ -598,13 +598,13 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
  // AC power flow limit
  if( lines_type == kAC ) {
 
-  //TODO
+  // TODO
  }
 
  // AC-HVDC power flow limit
  if( lines_type == kAC_HVDC ) {
 
-  //TODO
+  // TODO
  }
 
  set_objective_generated();

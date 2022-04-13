@@ -516,7 +516,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
       if( v_minimum_flow[ t ][ arc ] >= 0 &&
-          v_maximum_flow[ t ][ arc ] > 0 ) { //Turbines
+          v_maximum_flow[ t ][ arc ] > 0 ) { // Turbines
        auto linear_func = new LinearFunction();
        auto active_power = get_active_power( arc , t );
        auto primary_spinning_reserve = get_primary_spinning_reserve( arc , t );
@@ -529,7 +529,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
 
       if( ( v_maximum_flow[ t ][ arc ] <= 0 ) &&
-          ( v_minimum_flow[ t ][ arc ] < 0 ) ) { //Pumps
+          ( v_minimum_flow[ t ][ arc ] < 0 ) ) { // Pumps
        auto linear_f = new LinearFunction();
        auto primary_spinning_reserve = get_primary_spinning_reserve( arc , t );
        linear_f->add_variable( primary_spinning_reserve , 1.0 );
@@ -538,7 +538,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
 
       if( ( v_maximum_flow[ t ][ arc ] == 0 ) &&
-          ( v_minimum_flow[ t ][ arc ] == 0 ) ) { //Nothing
+          ( v_minimum_flow[ t ][ arc ] == 0 ) ) { // Nothing
        auto linear_function = new LinearFunction();
        auto flow_rate = get_flow_rate( arc , t );
        linear_function->add_variable( flow_rate , 1.0 );
@@ -553,7 +553,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     for( Index arc = 0 ; arc < f_number_arcs ; ++arc ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-      if( v_maximum_flow[ t ][ arc ] > 0 ) { //Turbines
+      if( v_maximum_flow[ t ][ arc ] > 0 ) { // Turbines
        auto linear_func = new LinearFunction();
        auto active_power = get_active_power( arc , t );
        auto primary_spinning_reserve = get_primary_spinning_reserve( arc , t );
@@ -564,7 +564,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
        ActivePowerPrimary_Const[ t ][ arc ].set_rhs( Inf< double >() );
        ActivePowerPrimary_Const[ t ][ arc ].set_function( linear_func );
       }
-      if( v_maximum_flow[ t ][ arc ] == 0 ) { //Nothing
+      if( v_maximum_flow[ t ][ arc ] == 0 ) { // Nothing
        auto linear_function = new LinearFunction();
        auto flow_rate = get_flow_rate( arc , t );
        linear_function->add_variable( flow_rate , 1.0 );
@@ -593,7 +593,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     for( Index arc = 0 ; arc < f_number_arcs ; ++arc ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       if( ( v_minimum_flow[ t ][ arc ] >= 0 ) &&
-          ( v_maximum_flow[ t ][ arc ] > 0 ) ) { //Turbines
+          ( v_maximum_flow[ t ][ arc ] > 0 ) ) { // Turbines
 
        auto linear_function = new LinearFunction();
        auto active_power = get_active_power( arc , t );
@@ -608,7 +608,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
 
       if( ( v_maximum_flow[ t ][ arc ] <= 0 ) &&
-          ( v_minimum_flow[ t ][ arc ] < 0 ) ) { //Pumps
+          ( v_minimum_flow[ t ][ arc ] < 0 ) ) { // Pumps
        auto linear_f = new LinearFunction();
        auto secondary_spinning_reserve =
         get_secondary_spinning_reserve( arc , t );
@@ -619,7 +619,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
 
       if( ( v_maximum_flow[ t ][ arc ] == 0 ) &&
-          ( v_minimum_flow[ t ][ arc ] == 0 ) ) { //Nothing
+          ( v_minimum_flow[ t ][ arc ] == 0 ) ) { // Nothing
        auto l_function = new LinearFunction();
        auto flow_rate = get_flow_rate( arc , t );
        l_function->add_variable( flow_rate , 1.0 );
@@ -633,7 +633,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     for( Index arc = 0 ; arc < f_number_arcs ; ++arc ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-      if( v_maximum_flow[ t ][ arc ] > 0 ) { //Turbines
+      if( v_maximum_flow[ t ][ arc ] > 0 ) { // Turbines
 
        auto linear_function = new LinearFunction();
        auto active_power = get_active_power( arc , t );
@@ -648,7 +648,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
        ActivePowerSecondary_Const[ t ][ arc ].set_function( linear_function );
       }
 
-      if( v_maximum_flow[ t ][ arc ] == 0 ) { //Nothing
+      if( v_maximum_flow[ t ][ arc ] == 0 ) { // Nothing
        auto l_function = new LinearFunction();
        auto flow_rate = get_flow_rate( arc , t );
        l_function->add_variable( flow_rate , 1.0 );
@@ -682,7 +682,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      if( ( v_minimum_flow[ t ][ arc ] >= 0 ) &&
-         ( v_maximum_flow[ t ][ arc ] > 0 ) ) { //Turbines
+         ( v_maximum_flow[ t ][ arc ] > 0 ) ) { // Turbines
       for( ; piece < end ; ++piece ) {
 
        auto linear_function_turbine = new LinearFunction();
@@ -712,7 +712,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      if( ( v_maximum_flow[ t ][ arc ] <= 0 ) &&
-         ( v_minimum_flow[ t ][ arc ] < 0 ) ) { //Pumps
+         ( v_minimum_flow[ t ][ arc ] < 0 ) ) { // Pumps
 
       auto linear_function_pump = new LinearFunction();
       auto active_power = get_active_power( arc , t );
@@ -729,7 +729,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
      }
 
      if( ( v_maximum_flow[ t ][ arc ] == 0 ) &&
-         ( v_minimum_flow[ t ][ arc ] == 0 ) ) { //Nothing
+         ( v_minimum_flow[ t ][ arc ] == 0 ) ) { // Nothing
 
       auto linear_function_nothing = new LinearFunction();
       auto flow_rate = get_flow_rate( arc , t );
@@ -758,7 +758,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       end = 1;
      }
 
-     if( v_maximum_flow[ t ][ arc ] > 0 ) { //Turbines
+     if( v_maximum_flow[ t ][ arc ] > 0 ) { // Turbines
       for( ; piece < end ; ++piece ) {
 
        auto linear_function_turbine = new LinearFunction();
@@ -785,7 +785,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
       }
      }
 
-     if( v_maximum_flow[ t ][ arc ] == 0 ) { //Nothing
+     if( v_maximum_flow[ t ][ arc ] == 0 ) { // Nothing
 
       auto linear_function_nothing = new LinearFunction();
       auto flow_rate = get_flow_rate( arc , t );

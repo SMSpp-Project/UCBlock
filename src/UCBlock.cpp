@@ -20,6 +20,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
  *                  Rafael Durbano Lobato
  */
@@ -98,7 +102,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
 
 void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
  Index cntr = 0;
- v_network_blocks.resize( f_time_horizon , nullptr );
+ v_network_blocks.resize( f_number_networks , nullptr );
 
  for( Index i = 0 ; i < f_time_horizon ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -117,7 +121,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
  }
 
  if( cntr ) {
-  v_Block.resize( f_number_units + f_time_horizon );
+  v_Block.resize( f_number_units + f_number_networks );
   std::copy( v_network_blocks.begin() , v_network_blocks.end() ,
              std::next( v_Block.begin() , f_number_units ) );
  } else
@@ -176,7 +180,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  // Optional variables
 
  if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks , true ) )
-  f_number_networks = 0;
+  f_number_networks = f_time_horizon;
 
  if( !::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
                      v_start_network_intervals , true ) ) {
@@ -373,51 +377,89 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   }
 
   if( !v_network_blocks.empty() ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( v_network_blocks[ t ] ) {
-     auto ad = v_network_blocks[ t ]->get_active_demand();
-     if( ad )
-      v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
-     delete v_network_blocks[ t ];
+
+   Index t = 0;
+   for( Index n = 0 ; n < f_number_networks ; ++n )
+    if( v_network_blocks[ n ] ) {
+     for( Index i = 0 ;
+          i < v_network_blocks[ n ]->get_number_intervals() ;
+          ++i , ++t ) {
+      auto ad = v_network_blocks[ n ]->get_active_demand( i );
+      if( ad )
+       v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
+     }
+     delete v_network_blocks[ n ];
     }
    v_network_blocks.clear();
    v_Block.resize( f_number_units );
   }
+
  } else {  // number_nodes > 1
-  // if they don't exist, create them now as DCNetworkBlock
+
+  int sum_intervals = std::accumulate(
+   v_network_blocks.begin() , v_network_blocks.end() , 0 ,
+   []( int init , const NetworkBlock * nb ) {
+    return nb->get_number_intervals();
+   } );
+
+  // the simplest case: sum_intervals == f_time_horizon, i.e., we receive in
+  // input n `NetworkBlock`(s) and the sum of intervals spanned by each of
+  // them is equal to the time  horizon of the problem
+
+  if( sum_intervals < f_time_horizon ) {
+   // se no (allora mancano) attraverso il vettore di indici di inizio di ogni
+   // network block aggiungo nuovi network block dove mancano.
+
+
+
+  } else if( sum_intervals > f_time_horizon )
+   throw ( std::invalid_argument
+    ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
+      "each NetworkBlock should be equal to the number of time horizon but it"
+      " is greater than." ) );
+
+  // if they don't exist, create them now as (DC/EC)NetworkBlock
   if( v_network_blocks.empty() ) {
-   v_network_blocks.resize( f_time_horizon , nullptr );
-   v_Block.resize( f_number_units + f_time_horizon , nullptr );
+   v_network_blocks.resize( f_number_networks , nullptr );
+   v_Block.resize( f_number_units + f_number_networks , nullptr );
   }
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   auto nbi = v_network_blocks[ t ];
-   if( !nbi ) {  // NetworkBlock i does not exist: create a (DC/EC)NetworkBlock
+  Index t = 0;
+  for( Index n = 0 ; n < f_number_networks ; ++n ) {
+
+   auto nbi = v_network_blocks[ n ];
+   if( !nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
     nbi = dynamic_cast< NetworkBlock *>( new_Block( network_classname , this ));
-    v_network_blocks[ t ] = nbi;
-    v_Block[ f_number_units + t ] = nbi;
+    v_network_blocks[ n ] = nbi;
+    v_Block[ f_number_units + n ] = nbi;
    }
 
    if( !nbi->get_NetworkData() ) {
     if( !f_NetworkData )
      throw ( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                     "missing in NetworkBlock " +
-                                    std::to_string( t ) + " and in UCBlock" )
+                                    std::to_string( n ) + " and in UCBlock" )
      );
     nbi->set_NetworkData( f_NetworkData );
    }
 
-   if( !nbi->get_active_demand() ) {
-    if( !v_active_power_demand.num_elements() )
-     throw ( std::invalid_argument(
-      "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
-      "NetworkBlock " + std::to_string( t ) ) );
-    typedef boost::multi_array_types::index_range range;
-    auto ap_c = v_active_power_demand[
-     boost::indices[ range( 0 , number_nodes ) ][ t ] ];
-    std::vector< double > ap_v( number_nodes );
-    std::copy( ap_c.begin() , ap_c.end() , ap_v.begin() );
-    nbi->set_ActiveDemand( &ap_v.front() );
+   for( Index i = 0 ;
+        i < v_network_blocks[ n ]->get_number_intervals() ;
+        ++i , ++t ) {
+
+    if( !nbi->get_active_demand( i ) ) {
+     if( !v_active_power_demand.num_elements() )
+      throw ( std::invalid_argument(
+       "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
+       "NetworkBlock " + std::to_string( n ) ) );
+     typedef boost::multi_array_types::index_range range;
+     auto ap_c = v_active_power_demand[
+      boost::indices[ range( 0 , number_nodes ) ][ t ] ];
+     std::vector< double > ap_v( number_nodes );
+     std::copy( ap_c.begin() , ap_c.end() , ap_v.begin() );
+     nbi->set_ActiveDemand( &ap_v.front() );
+    }
+
    }
   }
 
@@ -443,7 +485,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
- // finally call the method of the base class
+ // finally, call the method of the base class
  Block::deserialize( group );
 
 }  // end( UCBlock::deserialize )
@@ -517,66 +559,72 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   } else {  // number_nodes > 1
    // DCNetwork needs GeneratorNode
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   Index t = 0;
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
 
-    auto node_injection =
-     v_network_blocks[ t ]->get_node_injection(); // TODO check
+    for( Index i = 0 ;
+         i < v_network_blocks[ n ]->get_number_intervals() ;
+         ++i , ++t ) {
 
-    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+     auto node_injection =
+      v_network_blocks[ n ]->get_node_injection( i );
 
-     auto linear_function = new LinearFunction();
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-     linear_function->add_variable( &node_injection[ node_id ] , -1.0 ,
-                                    eNoMod );
+      auto linear_function = new LinearFunction();
 
-     v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+      linear_function->add_variable( &node_injection[ node_id ] , -1.0 ,
+                                     eNoMod );
 
-     Index elc_generator = 0;
-     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+      v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
 
-      auto block = get_nested_Blocks()[ unit_id ];
-      auto unit_block = dynamic_cast<UnitBlock *>(block);
+      Index elc_generator = 0;
+      for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
 
-      if( !unit_block )
-       continue;
+       auto block = get_nested_Blocks()[ unit_id ];
+       auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ;
-           ++generator , ++elc_generator ) {
-
-       if( node_id != v_generator_node[ elc_generator ] )
+       if( !unit_block )
         continue;
 
-       if( auto ap = unit_block->get_active_power( generator ) ) {
-        auto active_power = &ap[ t ];
-        linear_function->add_variable( active_power , 1.0 , eNoMod );
-       }
+       for( Index generator = 0 ;
+            generator < unit_block->get_number_generators() ;
+            ++generator , ++elc_generator ) {
 
-       auto fixed_consumption = unit_block->get_fixed_consumption( generator );
+        if( node_id != v_generator_node[ elc_generator ] )
+         continue;
 
-       if( auto c = unit_block->get_commitment( generator ) ) {
-        auto commitment = &c[ t ];
+        if( auto ap = unit_block->get_active_power( generator ) ) {
+         auto active_power = &ap[ t ];
+         linear_function->add_variable( active_power , 1.0 , eNoMod );
+        }
+
+        auto fixed_consumption = unit_block->get_fixed_consumption( generator );
+
+        if( auto c = unit_block->get_commitment( generator ) ) {
+         auto commitment = &c[ t ];
+         if( fixed_consumption ) {
+          linear_function->add_variable
+           ( commitment , -fixed_consumption[ t ] , eNoMod );
+         } else {
+          linear_function->add_variable( commitment , 0.0 , eNoMod );
+         }
+        }
+
         if( fixed_consumption ) {
-         linear_function->add_variable
-          ( commitment , -fixed_consumption[ t ] , eNoMod );
+         v_node_injection_constraints[ t ][ node_id ].set_both
+          ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+            - fixed_consumption[ t ] );
         } else {
-         linear_function->add_variable( commitment , 0.0 , eNoMod );
+         v_node_injection_constraints[ t ][ node_id ].set_both
+          ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+            - 0.0 );
         }
        }
-
-       if( fixed_consumption ) {
-        v_node_injection_constraints[ t ][ node_id ].set_both
-         ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
-           - fixed_consumption[ t ] );
-       } else {
-        v_node_injection_constraints[ t ][ node_id ].set_both
-         ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
-           - 0.0 );
-       }
       }
+      v_node_injection_constraints[ t ][ node_id ].set_function(
+       linear_function );
      }
-     v_node_injection_constraints[ t ][ node_id ].set_function(
-      linear_function );
     }
    }
   }
@@ -591,9 +639,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    ( boost::multi_array< FRowConstraint , 2 >::
      extent_gen()[ f_time_horizon ][ f_number_primary_zones ] );
 
-  if( f_number_primary_zones == 1 ) {  //no need to PrimaryZones
+  if( f_number_primary_zones == 1 ) {  // no need to PrimaryZones
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -611,19 +659,18 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       for( Index generator = 0 ;
            generator < unit_block->get_number_generators() ;
-           ++generator ) {
+           ++generator , ++generator_id ) {
 
        if( auto primary_s_r =
         unit_block->get_primary_spinning_reserve( generator ) ) {
         auto primary_spinning_reserve = &primary_s_r[ t ];
         lf->add_variable( primary_spinning_reserve , 1.0 , eNoMod );
        }
-       generator_id++;
       }
      }
      v_PrimaryDemand_Const[ t ][ 0 ].set_function( lf );
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -661,7 +708,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_primary_zones > 1 ) {   // PrimaryZones is needed
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -680,15 +727,14 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          continue;
 
         for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
+             generator < unit_block->get_number_generators() ;
+             ++generator , ++generator_id ) {
 
          if( auto primary_s_r =
           unit_block->get_primary_spinning_reserve( generator ) ) {
           auto primary_spinning_reserve = &primary_s_r[ t ];
           linear_function->add_variable( primary_spinning_reserve , 1.0 );
          }
-
-         generator_id++;
         }
        }
       }
@@ -698,10 +744,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        ( get_primary_demand()[ zone_id ][ t ] );
       v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
       v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
-
      }
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -710,7 +755,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       auto linear_function = new LinearFunction();
 
       Index primary_zone = 0;
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      for( Index node_id = 0 ;
+           node_id < number_nodes ;
+           ++node_id , ++primary_zone ) {
        if( zone_id == v_primary_zones[ node_id ] ) {
 
         Index elc_generator = 0;
@@ -735,8 +782,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
           }
          }
         }
+
        }
-       primary_zone++;
       }
       v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs
        ( get_primary_demand()[ zone_id ][ t ] );
@@ -758,9 +805,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    ( boost::multi_array< FRowConstraint , 2 >::
      extent_gen()[ f_time_horizon ][ f_number_secondary_zones ] );
 
-  if( f_number_secondary_zones == 1 ) {  //no need to SecondaryZones
+  if( f_number_secondary_zones == 1 ) {  // no need to SecondaryZones
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      auto linear_function = new LinearFunction();
@@ -773,7 +820,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        continue;
 
       for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ; ++generator ) {
+           generator < unit_block->get_number_generators() ;
+           ++generator , ++generator_id ) {
 
        if( auto secondary_s_r =
         unit_block->get_secondary_spinning_reserve( generator ) ) {
@@ -781,7 +829,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         linear_function->add_variable( secondary_spinning_reserve , 1.0 );
        }
 
-       generator_id++;
       }
      }
      v_SecondaryDemand_Const[ t ][ 0 ].set_lhs(
@@ -789,7 +836,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_SecondaryDemand_Const[ t ][ 0 ].set_rhs( Inf< double >() );
      v_SecondaryDemand_Const[ t ][ 0 ].set_function( linear_function );
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -828,7 +875,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_secondary_zones > 1 ) {   // SecondaryZones is needed
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -847,14 +894,15 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          continue;
 
         for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
+             generator < unit_block->get_number_generators() ;
+             ++generator , ++generator_id ) {
 
          if( auto secondary_s_r =
           unit_block->get_secondary_spinning_reserve( generator ) ) {
           auto secondary_spinning_reserve = &secondary_s_r[ t ];
           linear_function->add_variable( secondary_spinning_reserve , 1.0 );
          }
-         generator_id++;
+
         }
        }
       }
@@ -866,7 +914,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       v_SecondaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
      }
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -875,7 +923,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       auto linear_function = new LinearFunction();
 
       Index secondary_zone = 0;
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      for( Index node_id = 0 ;
+           node_id < number_nodes ;
+           ++node_id , ++secondary_zone ) {
        if( zone_id == v_secondary_zones[ node_id ] ) {
 
         Index elc_generator = 0;
@@ -902,7 +952,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          }
         }
        }
-       secondary_zone++;
       }
       v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs
        ( get_secondary_demand()[ zone_id ][ t ] );
@@ -924,9 +973,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    ( boost::multi_array< FRowConstraint , 2 >::
      extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
 
-  if( f_number_inertia_zones == 1 ) {  //no need to InertiaZones
+  if( f_number_inertia_zones == 1 ) {  // no need to InertiaZones
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -943,7 +992,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        continue;
 
       for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ; ++generator ) {
+           generator < unit_block->get_number_generators() ;
+           ++generator , ++generator_id ) {
 
        auto c = unit_block->get_commitment( generator );
        auto inertia_commitment =
@@ -961,12 +1011,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         auto active_power = &ap[ t ];
         linear_function->add_variable( active_power , inertia_power[ t ] );
        }
-       generator_id++;
       }
      }
      v_InertiaDemand_Const[ t ][ 0 ].set_function( linear_function );
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -1015,7 +1064,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_inertia_zones > 1 ) {   // InertiaZones is needed
 
-   if( number_nodes == 1 ) {  //BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -1033,7 +1082,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          continue;
 
         for( Index generator = 0 ;
-             generator < unit_block->get_number_generators() ; ++generator ) {
+             generator < unit_block->get_number_generators() ;
+             ++generator , ++generator_id ) {
 
          auto c = unit_block->get_commitment( generator );
          auto inertia_commitment =
@@ -1051,7 +1101,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
           auto active_power = &ap[ t ];
           linear_function->add_variable( active_power , inertia_power[ t ] );
          }
-         generator_id++;
+
         }
        }
       }
@@ -1061,7 +1111,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       v_InertiaDemand_Const[ t ][ zone_id ].set_function( linear_function );
      }
     }
-   } else {  //DCNetwork needs GeneratorNode
+   } else {  // DCNetwork needs GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -1148,7 +1198,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         continue;
 
        for( Index generator = 0 ;
-            generator < unit_block->get_number_generators() ; ++generator ) {
+            generator < unit_block->get_number_generators() ;
+            ++generator , ++generator_id ) {
 
         auto node_id = get_generator_node()[ generator ];
         auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
@@ -1161,8 +1212,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
          linear_function->add_variable( active_power , rho );
         }
-
-        generator_id++;
        }
       }
 
@@ -1175,7 +1224,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         for( std::vector< Index >::size_type i = 0;
              i <= f_number_units; ++i ) {
 
-         //auto unit_id = v_heat_only_units[ i ];
+         // auto unit_id = v_heat_only_units[ i ];
          auto heat_id = v_heat_set[i];
 
          auto zone_id = get_pollutant_zone()[pollutant][h];
@@ -1204,7 +1253,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
 
-  } else { //DCNetwork
+  } else { // DCNetwork
 
    for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
@@ -1217,13 +1266,16 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       auto linear_function = new LinearFunction();
 
       Index pollutant_zone = 0;
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      for( Index node_id = 0 ;
+           node_id < number_nodes ;
+           ++node_id , ++pollutant_zone ) {
 
        if( zone == v_pollutant_zones[ pollutant ][ node_id ] ) {
 
         Index generator_id = 0;
-        for( Index elc_generator = 0 ; elc_generator < f_number_elc_generators ;
-             ++elc_generator ) {
+        for( Index elc_generator = 0 ;
+             elc_generator < f_number_elc_generators ;
+             ++elc_generator , ++generator_id ) {
 
          if( node_id == v_generator_node[ elc_generator ] ) {
 
@@ -1248,10 +1300,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
            }
           }
          }
-         generator_id++;
         }
        }
-       pollutant_zone++;
       }
 
       // Terms associated with heat-only generation units
@@ -1263,7 +1313,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         for( std::vector< Index >::size_type i = 0;
              i <= f_number_units; ++i ) {
 
-         //auto unit_id = v_heat_only_units[ i ];
+         // auto unit_id = v_heat_only_units[ i ];
          auto heat_id = v_heat_set[i];
 
          auto zone_id = get_pollutant_zone()[pollutant][h];
