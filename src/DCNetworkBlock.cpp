@@ -132,7 +132,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "ConstantTerm" };
+                                                     "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -175,7 +175,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   }
  }
 
- if( !::deserialize( group , f_const_term , "ConstantTerm" , true ) )
+ if( !::deserialize( group , f_const_term , "ConstTerm" , true ) )
   f_const_term = 0;
 }
 

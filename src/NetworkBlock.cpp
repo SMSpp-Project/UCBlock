@@ -82,7 +82,7 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
                          f_number_intervals , true ) )
   f_number_intervals = 1;
 
- if( f_number_nodes > 1 ) {  // DCNetworkBlock
+ if( f_number_nodes > 1 ) {
 
   ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
@@ -116,13 +116,13 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ConstantTerm" };
+ static std::vector< std::string > expected_vars = { "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
  // Optional variables
 
- if( !::deserialize( group , f_const_term , "ConstantTerm" , true ) )
+ if( !::deserialize( group , f_const_term , "ConstTerm" , true ) )
   f_const_term = 0;
 }
 

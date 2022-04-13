@@ -110,7 +110,7 @@ function csvEC2nc4()
             peak_tariff = peak_tariff[i_w]
 
             # `ConstantTerm`
-            constant_term = defVar(ecnb, "ConstantTerm", Float64, ())
+            constant_term = defVar(ecnb, "ConstTerm", Float64, ())
             constant_term = sum(constant_term)
         end
     end

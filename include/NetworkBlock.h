@@ -410,8 +410,6 @@ class NetworkBlock : public Block
   /// Vector to store the network cost at each line
   std::vector< double > v_network_cost;
 
-/*--------------------------------------------------------------------------*/
-
  };   // end( class( NetworkData ) )
 
 /**@} ----------------------------------------------------------------------*/
