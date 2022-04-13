@@ -641,13 +641,13 @@ class NetworkBlock : public Block
   *   This will be the default case;
   *
   * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the D[ t , u ] represents the active demand
+  *   get_number_nodes(), then the D[ i , u ] represents the active demand
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
-  * @param t The interval wrt the vector of demands for each user is
+  * @param i The interval wrt the vector of demands for each user is
   *          returned. */
 
- virtual const double * get_active_demand( Index t = 0 ) const {
+ virtual const double * get_active_demand( Index i = 0 ) const {
   return nullptr;
  }
 
@@ -676,13 +676,13 @@ class NetworkBlock : public Block
   *   This will be the default case;
   *
   * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the I[ t , u ] represents the node injection
+  *   get_number_nodes(), then the I[ i , u ] represents the node injection
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
-  * @param t The interval wrt the vector of node injections for each user is
+  * @param i The interval wrt the vector of node injections for each user is
   *          returned. */
 
- virtual ColVariable * get_node_injection( Index t = 0 ) {
+ virtual ColVariable * get_node_injection( Index i = 0 ) {
   return nullptr;
  }
 

@@ -151,6 +151,7 @@ class UCBlock : public Block
   f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) , AR( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
+
  /// Destructor of UCBlock
 
  virtual ~UCBlock() override;
@@ -720,6 +721,7 @@ class UCBlock : public Block
  Index get_number_pollutants() const { return f_number_pollutants; }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the NetworkData object
  /** Note that no NetworkData may be defined (see comments to deserialize()),
   * which means that the transmission network is a "bus"; in this case, this
@@ -728,6 +730,7 @@ class UCBlock : public Block
  NetworkBlock::NetworkData * get_NetworkData() const { return f_NetworkData; }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the vector of (pointers to) NetworkBlock elements.
  /** Since there always is a NetworkBlock for each time instant t, this vector
   * should have size of get_time_horizon() where each element of the vector
@@ -738,6 +741,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the matrix of active power demand
  /** This method returns a two-dimensional boost::multi_array<> M such that,
   * if it is not empty, M[ n , t ] gives the active power demand of node n at
@@ -749,6 +753,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the vector of primary zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which primary zone node n belongs. There are three possible cases:
@@ -770,6 +775,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the vector of secondary zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which secondary zone node n belongs. There are three possible cases:
@@ -791,6 +797,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the vector of inertia zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which inertia zone node n belongs. There are three possible cases:
@@ -812,6 +819,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the matrix of primary demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the primary demand of the primary zone n at the time
@@ -837,6 +845,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the matrix of secondary demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the secondary demand of the secondary zone n at the time
@@ -863,6 +872,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the matrix of inertia demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the inertia demand of the inertia zone n at the time
@@ -888,6 +898,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the number of pollutant zones associated with each pollutant
  /** This method returns a vector containing the number of pollutant zones for
   * each pollutant. The i-th entry of this vector is the number of pollutant
@@ -898,6 +909,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the matrix of pollutant zones
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ p , n ] tells to which pollutant zone associated with pollutant p the
@@ -924,6 +936,7 @@ class UCBlock : public Block
   return v_pollutant_zones;
  }
 /*--------------------------------------------------------------------------*/
+
  /// Returns the two-dimensional vector of pollutant budget
  /** The method returned a std::vector< std::vector< double > > V such that
   * V[ p ] contains the pollutant budget (across all the time horizon) for
@@ -946,7 +959,9 @@ class UCBlock : public Block
  const std::vector< std::vector< double >> & get_pollutant_budget() const {
   return v_pollutant_budget;
  }
+
 /*--------------------------------------------------------------------------*/
+
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of HeatSet
@@ -969,6 +984,7 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the matrix of pollutant rho
  /** The method returned a three-dimensional boost::multi_array<> M such that
   * M[ t , p , g ] gives the production of pollutant p from electrical
@@ -995,6 +1011,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the matrix of pollutant heat rho
@@ -1030,27 +1047,30 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the i-th UnitBlock
 
- UnitBlock * get_unit_block( Index i ) const {
-  if( i >= f_number_units )
+ /// Returns the u-th UnitBlock
+
+ UnitBlock * get_unit_block( Index u ) const {
+  if( u >= f_number_units )
    throw ( std::invalid_argument( "invalid unit index" ) );
-  return ( static_cast< UnitBlock * >( v_Block[ i ] ) );
+  return ( static_cast< UnitBlock * >( v_Block[ u ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the NetworkBlock at time instant t
 
- NetworkBlock * get_network_block( Index t ) const {
+ /// Returns the n-th NetworkBlock
+
+ NetworkBlock * get_network_block( Index n ) const {
   if( v_network_blocks.empty() )
    return ( nullptr );
-  if( t >= f_time_horizon )
-   throw ( std::invalid_argument( "invalid network (time) index" ) );
+  if( n >= f_number_networks )
+   throw ( std::invalid_argument( "invalid network index" ) );
 
-  return ( v_network_blocks[ t ] );
+  return ( v_network_blocks[ n ] );
  }
 
 /*--------------------------------------------------------------------------*/
+
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of (pointers to) HeatBlock elements.
@@ -1069,6 +1089,7 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
+
  /// Returns the vector of generator node
  /** The method returned a std::vector< Index > V such that V[ g ] tells to
   * which node of the transmission network n, the specified electrical
@@ -1085,6 +1106,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of electrical-power-to-heat ratio
@@ -1105,6 +1127,7 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the node injection constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the node injection constraints. C[ t ][ n ] is the node
@@ -1116,6 +1139,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the primary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the primary demand constraints. C[ t ][ z ] is the primary
@@ -1127,6 +1151,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the secondary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the secondary demand constraints. C[ t ][ z ] is the secondary
@@ -1138,6 +1163,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the inertia demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the inertia demand constraints. C[ t ][ z ] is the inertia
@@ -1149,6 +1175,7 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the maximum pollutant emission constraints
  /** This method returns (a const reference to) the vector C containing the
   * maximum pollutant emission constraints. C[ p ][ z ] is the maximum
@@ -1239,7 +1266,7 @@ class UCBlock : public Block
 
  /// The starting index of each NetworkBlock
  /// v_start_network_intervals [ n ] tells from which index network n starts
- std::vector<Index > v_start_network_intervals;
+ std::vector< Index > v_start_network_intervals;
 
  /// The number of units of the problem
  Index f_number_units;

@@ -363,7 +363,7 @@ class DCNetworkBlock : public NetworkBlock
  /** Method for returning the active demand for the given interval, which is
   * assumed to have size get_number_nodes(). */
 
- const double * get_active_demand( Index t = 0 ) const override {
+ const double * get_active_demand( Index i = 0 ) const override {
   if( v_active_demand.empty() )
    return nullptr;
   return &( v_active_demand.front() );

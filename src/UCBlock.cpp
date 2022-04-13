@@ -514,7 +514,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    // injection constraints actually are active power demand constraints
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // initialise demand as active power
     auto rhs = v_active_power_demand[ 0 ][ t ];
 
@@ -1532,15 +1532,15 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  // Serialize sub-blocks
 
- for( Index i = 0 ; i < f_number_units ; ++i ) {
-  auto sub_block = get_unit_block( i );
-  auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ) );
+ for( Index u = 0 ; u < f_number_units ; ++u ) {
+  auto sub_block = get_unit_block( u );
+  auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( u ) );
   sub_block->serialize( sub_group );
  }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( auto sub_block = get_network_block( t ) ) {
-   auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ) );
+ for( Index n = 0 ; n < f_number_networks ; ++n )
+  if( auto sub_block = get_network_block( n ) ) {
+   auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( n ) );
    sub_block->serialize( sub_group );
   }
 
