@@ -801,16 +801,16 @@ class ThermalUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the initial power value
- double get_initial_power() const { return f_initial_power; }
+ double get_initial_power( void ) const { return f_initial_power; }
 
  /// returns the init up and down time value
- int get_init_up_down_time() const { return f_InitUpDownTime; }
+ int get_init_up_down_time( void ) const { return f_InitUpDownTime; }
 
  /// returns the minimum allowed up time value
- Index get_min_up_time() const { return f_MinUpTime; }
+ Index get_min_up_time( void ) const { return f_MinUpTime; }
 
  /// returns the minimum allowed down time value
- Index get_min_down_time() const { return f_MinDownTime; }
+ Index get_min_down_time( void ) const { return f_MinDownTime; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -820,7 +820,8 @@ class ThermalUnitBlock : public UnitBlock
   * the unit is available, get_min_power()[ t ] gives the minimum active power
   * output of the unit at time t, for each t in {0, ..., get_time_horizon() -
   * 1}.  */
- const std::vector< double > & get_min_power() const {
+
+ const std::vector< double > & get_min_power( void ) const {
   return v_MinPower;
  }
 
@@ -850,8 +851,9 @@ class ThermalUnitBlock : public UnitBlock
   * the unit is fully available, get_min_power()[ t ] gives the maximum active
   * power output of the unit at time t, for each t in {0, ...,
   * get_time_horizon() - 1}. See get_availability() to understand the
-  * difference between nominal and operational maximum active power.  */
- const std::vector< double > & get_max_power() const {
+  * difference between nominal and operational maximum active power. */
+
+ const std::vector< double > & get_max_power( void ) const {
   return v_MaxPower;
  }
 
@@ -1821,7 +1823,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * If any of the above conditions are not met, an exception is thrown. */
 
- void check_data_consistency() const;
+ void check_data_consistency( void ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1870,7 +1872,7 @@ class ThermalUnitBlockMod : public Modification
  virtual ~ThermalUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  /// Accessor to the type of modification
  int type() { return( f_type ); }
@@ -1913,7 +1915,8 @@ class ThermalUnitBlockMod : public Modification
  ///< pointer to the Block to which the Modification refers
 
  int f_type; ///< type of modification
-}; // end( class( ThermalUnitBlockMod ) )
+
+};  // end( class( ThermalUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS ThermalUnitBlockRngdMod ----------------------*/

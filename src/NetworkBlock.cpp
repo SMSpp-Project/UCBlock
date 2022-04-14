@@ -30,6 +30,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <map>
+
 #include "LinearFunction.h"
 #include "NetworkBlock.h"
 #include "RowConstraintSolution.h"
@@ -59,20 +60,7 @@ NetworkBlock::NetworkData::NetworkData() {
 
 void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" ,
-                                                     "NumberIntervals" };
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = { "StartLine" ,
-                                                     "EndLine" ,
-                                                     "MinPowerFlow" ,
-                                                     "MaxPowerFlow" ,
-                                                     "Susceptance" ,
-                                                     "NetworkCost" };
- check_variables( group , expected_vars , std::cerr );
-#endif
+ // Optional variables
 
  if( !::deserialize_dim( group , "NumberNodes" ,
                          f_number_nodes , true ) )
@@ -81,6 +69,8 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  if( !::deserialize_dim( group , "NumberIntervals" ,
                          f_number_intervals , true ) )
   f_number_intervals = 1;
+
+ // Mandatory variables
 
  if( f_number_nodes > 1 ) {
 
@@ -91,18 +81,6 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
   ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
                  true );
-
-  ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
-                 true , true );
-
-  ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
-                 true , true );
-
-  ::deserialize( group , "Susceptance" , f_number_lines , v_susceptance ,
-                 true , true );
-
-  ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
-                 true , true );
  }
 }
 
@@ -111,14 +89,6 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  Block::deserialize( group );
-
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" };
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = { "ConstTerm" };
- check_variables( group , expected_vars , std::cerr );
-#endif
 
  // Optional variables
 
@@ -169,18 +139,6 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "StartLine" , netCDF::NcUint() , NL , v_start_line );
 
   ::serialize( group , "EndLine" , netCDF::NcUint() , NL , v_end_line );
-
-  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NL ,
-               v_min_power_flow );
-
-  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NL ,
-               v_max_power_flow );
-
-  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NL ,
-               v_susceptance );
-
-  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NL ,
-               v_network_cost );
  }
 }
 

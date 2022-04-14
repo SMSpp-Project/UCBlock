@@ -53,9 +53,9 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 IntermittentUnitBlock::~IntermittentUnitBlock() {
- clear_constraints(MinPower_Constraints);
- clear_constraints(MaxPower_Constraints);
- clear_constraints(active_power_bounds_Constraints);
+ clear_constraints( MinPower_Constraints );
+ clear_constraints( MaxPower_Constraints );
+ clear_constraints( active_power_bounds_Constraints );
 
  objective.clear();
 }
@@ -71,8 +71,11 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars =
-  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" };
+ static std::vector< std::string > expected_vars = { "MinPower" ,
+                                                     "MaxPower" ,
+                                                     "InertiaPower" ,
+                                                     "Gamma" ,
+                                                     "Kappa" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -105,7 +108,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::check_data_consistency() const {
+void IntermittentUnitBlock::check_data_consistency( void ) const {
  // Minimum and maximum power
 
  assert( v_minimum_power.size() == f_time_horizon );

@@ -85,7 +85,6 @@ HydroUnitBlock::~HydroUnitBlock() {
 
 void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
-
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                               "NumberIntervals" ,
@@ -116,7 +115,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "DownhillFlow" };
  check_variables( group , expected_vars , std::cerr );
 #endif
-
 
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );

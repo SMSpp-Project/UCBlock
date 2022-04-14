@@ -337,7 +337,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum power value at time t.   */
 
- const std::vector< double > & get_max_power() const {
+ const std::vector< double > & get_max_power( void ) const {
   return( v_MaxPower );
  }
 
@@ -355,7 +355,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum primary power value at time t.   */
 
- const std::vector< double > & get_max_primary_power() const {
+ const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
  }
 
@@ -373,7 +373,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the active power cost value at time t.   */
 
- const std::vector< double > & get_active_power_cost() const {
+ const std::vector< double > & get_active_power_cost( void ) const {
   return( v_active_power_cost );
  }
 
@@ -392,7 +392,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum secondary power value at time t.   */
 
- const std::vector< double > & get_max_secondary_power() const {
+ const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
  }
 
@@ -410,7 +410,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the primary cost value at time t.   */
 
- const std::vector< double > & get_primary_cost() const {
+ const std::vector< double > & get_primary_cost( void ) const {
   return( v_primary_cost );
  }
 
@@ -428,7 +428,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the secondary cost value at time t.   */
 
- const std::vector< double > & get_secondary_cost() const {
+ const std::vector< double > & get_secondary_cost( void ) const {
   return( v_secondary_cost );
  }
 
@@ -469,7 +469,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the inertia cost value at time t.   */
 
- const std::vector< double > & get_inertia_cost() const {
+ const std::vector< double > & get_inertia_cost( void ) const {
   return( v_inertia_cost );
  }
 

@@ -829,14 +829,14 @@ class HydroUnitBlock : public UnitBlock
  * @{ */
 
 /// returns the number of reservoirs
- Index get_number_reservoirs() const {
+ Index get_number_reservoirs( void ) const {
   return f_number_reservoirs ? f_number_reservoirs : 1;
  }
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the number of arcs/generators
- Index get_number_generators() const override {
+ Index get_number_generators( void ) const override {
   return f_number_arcs ? f_number_arcs : 1;
  }
 
@@ -854,7 +854,10 @@ class HydroUnitBlock : public UnitBlock
  *  - if f_number_reservoirs > 2, this vector have size of f_number_reservoirs
  *    and each element of the vectors gives starting point of each arc in the
  *    network. */
- const std::vector< Index > & get_start_arc() const { return v_start_arc; }
+
+ const std::vector< Index > & get_start_arc( void ) const {
+  return v_start_arc;
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -870,7 +873,8 @@ class HydroUnitBlock : public UnitBlock
  *  - if f_number_reservoirs > 2, this vector have size of f_number_reservoirs
  *    and each element of the vectors gives ending point of each arc in the
  *    network. */
- const std::vector< Index > & get_end_arc() const { return( v_end_arc ); }
+
+ const std::vector< Index > & get_end_arc( void ) const { return( v_end_arc ); }
 
  /*--------------------------------------------------------------------------*/
 
@@ -916,7 +920,7 @@ class HydroUnitBlock : public UnitBlock
  *    get_number_reservoirs() row where each row must have size of
  *    get_time_horizon() and each element of M[ n , t ] gives the minimum
  *    volumetric of reservoir n at time instant t. */
- const boost::multi_array< double , 2 > & get_minimum_volumetric() const {
+ const boost::multi_array< double , 2 > & get_minimum_volumetric( void ) const {
   return( v_minimum_volumetric );
  }
 /*--------------------------------------------------------------------------*/
@@ -939,7 +943,7 @@ class HydroUnitBlock : public UnitBlock
  *    get_number_reservoirs() row where each row must have size of
  *    get_time_horizon() and each element of M[ n , t ] gives the maximum
  *    volumetric of reservoir n at time instant t. */
- const boost::multi_array< double , 2 > & get_maximum_volumetric() const {
+ const boost::multi_array< double , 2 > & get_maximum_volumetric( void ) const {
   return( v_maximum_volumetric );
  }
 
@@ -957,7 +961,7 @@ class HydroUnitBlock : public UnitBlock
  *    get_number_reservoirs() row where each row must have size of
  *    get_time_horizon() and each element of M[ n , t ] represents the inflows
  *    of reservoir n at time instant t. */
- const boost::multi_array< double , 2 > & get_inflows() const {
+ const boost::multi_array< double , 2 > & get_inflows( void ) const {
   return( v_inflows );
  }
 
@@ -980,7 +984,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the minimum power at time t and unit i. */
- const boost::multi_array< double , 2 > & get_minimum_power() const {
+ const boost::multi_array< double , 2 > & get_minimum_power( void ) const {
   return( v_minimum_power );
  }
 
@@ -1003,7 +1007,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the maximum power at time t and unit i. */
- const boost::multi_array< double , 2 > & get_maximum_power() const {
+ const boost::multi_array< double , 2 > & get_maximum_power( void ) const {
   return( v_maximum_power );
  }
 
@@ -1026,7 +1030,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the minimum flow at time t and unit i. */
- const boost::multi_array< double , 2 > & get_minimum_flow() const {
+ const boost::multi_array< double , 2 > & get_minimum_flow( void ) const {
   return( v_minimum_flow );
  }
 
@@ -1049,7 +1053,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the maximum flow at time t and unit i. */
- const boost::multi_array< double , 2 > & get_maximum_flow() const {
+ const boost::multi_array< double , 2 > & get_maximum_flow( void ) const {
   return( v_maximum_flow );
  }
 
@@ -1071,7 +1075,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the delta ramp up value at time t and unit i. */
- const boost::multi_array< double , 2 > & get_delta_ramp_up() const {
+ const boost::multi_array< double , 2 > & get_delta_ramp_up( void ) const {
   return( v_delta_ramp_up );
  }
 
@@ -1093,7 +1097,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the delta ramp down value at time t and unit i. */
- const boost::multi_array< double , 2 > & get_delta_ramp_down() const {
+ const boost::multi_array< double , 2 > & get_delta_ramp_down( void ) const {
   return( v_delta_ramp_down );
  }
 
@@ -1116,7 +1120,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the primary rho value at time t and unit i. */
- const boost::multi_array< double , 2 > & get_primary_rho() const {
+ const boost::multi_array< double , 2 > & get_primary_rho( void ) const {
   return( v_primary_rho );
  }
 
@@ -1139,7 +1143,7 @@ class HydroUnitBlock : public UnitBlock
  *  - otherwise the two-dimensional boost::multi_array<> M must have
  *    get_time_horizon() rows and get_number_arcs() columns and each element
  *    of M[ t , i ] gives the secondary rho value at time t and unit i. */
- const boost::multi_array< double , 2 > & get_secondary_rho() const {
+ const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
   return( v_secondary_rho );
  }
  /*--------------------------------------------------------------------------*/
@@ -1154,7 +1158,7 @@ class HydroUnitBlock : public UnitBlock
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the number of pieces of each unit i. */
- const std::vector< Index > & get_number_pieces() const {
+ const std::vector< Index > & get_number_pieces( void ) const {
   return( v_number_pieces );
  }
  /*--------------------------------------------------------------------------*/
@@ -1171,7 +1175,7 @@ class HydroUnitBlock : public UnitBlock
  * - otherwise, the returned V is a std::vector < double > and
  *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
  *   const term value of each piece h. */
- const std::vector< double > & get_const_term() const {
+ const std::vector< double > & get_const_term( void ) const {
   return( v_const_term );
  }
 /*--------------------------------------------------------------------------*/
@@ -1188,7 +1192,8 @@ class HydroUnitBlock : public UnitBlock
  * - otherwise, the returned V is a std::vector < double > and
  *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
  *   linear term value of each piece h. */
- const std::vector< double > & get_linear_term() const {
+
+ const std::vector< double > & get_linear_term( void ) const {
   return( v_linear_term );
  }
 /*--------------------------------------------------------------------------*/
@@ -1203,7 +1208,8 @@ class HydroUnitBlock : public UnitBlock
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the uphill delay for each unit i. */
- const std::vector< int > & get_uphill_delay() const {
+
+ const std::vector< int > & get_uphill_delay( void ) const {
   return( v_uphill_delay );
  }
 
@@ -1233,7 +1239,8 @@ class HydroUnitBlock : public UnitBlock
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the downhill delay for each unit i. */
- const std::vector< Index > & get_downhill_delay() const {
+
+ const std::vector< Index > & get_downhill_delay( void ) const {
   return( v_downhill_delay );
  }
 
@@ -1265,7 +1272,8 @@ class HydroUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_number_reservoirs() and each
  *   element of V[ i ] represents the initial volumetric for each reservoir n.
  *   */
- const std::vector< double > & get_initial_volumetric() const {
+
+ const std::vector< double > & get_initial_volumetric( void ) const {
   return( v_initial_volumetric );
  }
 
@@ -1281,7 +1289,8 @@ class HydroUnitBlock : public UnitBlock
  *
  * - otherwise, the vector must have size get_number_arcs() and each element
  *   of V[ i ] represents the initial flow rate for each unit i. */
- const std::vector< double > & get_initial_flow_rate() const {
+
+ const std::vector< double > & get_initial_flow_rate( void ) const {
   return( v_initial_flow_rate );
  }
 
@@ -1930,10 +1939,10 @@ class HydroUnitBlockMod : public Modification
   : f_Block( fblock ) , f_type( type ) {}
 
  ///< Destructor, does nothing
- virtual ~HydroUnitBlockMod() override = default;
+ virtual ~HydroUnitBlockMod( void ) override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  /// Accessor to the type of modification
  int type() { return( f_type ); }
@@ -1962,7 +1971,8 @@ class HydroUnitBlockMod : public Modification
  ///< pointer to the Block to which the Modification refers
 
  int f_type; ///< type of modification
-}; // end( class( HydroUnitBlockMod ) )
+
+};  // end( class( HydroUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS HydroUnitBlockRngdMod ----------------------*/

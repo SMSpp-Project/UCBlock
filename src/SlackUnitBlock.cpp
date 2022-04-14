@@ -63,6 +63,7 @@ SlackUnitBlock::~SlackUnitBlock() {
 /*--------------------------------------------------------------------------*/
 
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberIntervals" };

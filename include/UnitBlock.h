@@ -213,7 +213,7 @@ class UnitBlock : public Block
  * @{ */
 
  /// returns the time horizon of the problem
- Index get_time_horizon() const { return f_time_horizon; }
+ Index get_time_horizon( void ) const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of electrical generators of each unit in the problem
@@ -509,22 +509,22 @@ class UnitBlock : public Block
  void deserialize_change_intervals( const netCDF::NcGroup & group );
 
  /// states that the Variable of the UnitBlock have been generated
- void set_variables_generated() { AR |= HasVar; }
+ void set_variables_generated( void ) { AR |= HasVar; }
 
  /// states that the Constraint of the UnitBlock have been generated
- void set_constraints_generated() { AR |= HasCst; }
+ void set_constraints_generated( void ) { AR |= HasCst; }
 
  /// states that the Objective of the UnitBlock has been generated
- void set_objective_generated() { AR |= HasObj; }
+ void set_objective_generated( void ) { AR |= HasObj; }
 
  /// indicates whether the Variable of the UnitBlock have been generated
- bool variables_generated() const { return( AR & HasVar ); }
+ bool variables_generated( void ) const { return( AR & HasVar ); }
 
  /// indicates whether the Constraint of the UnitBlock have been generated
- bool constraints_generated() const { return( AR & HasCst ); }
+ bool constraints_generated( void ) const { return( AR & HasCst ); }
 
  /// indicates whether the Objective of the UnitBlock has been generated
- bool objective_generated() const { return( AR & HasObj ); }
+ bool objective_generated( void ) const { return( AR & HasObj ); }
 
  /// Resizes a vector to time_horizon by using change_intervals
  template< typename T >
@@ -556,7 +556,8 @@ class UnitBlock : public Block
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
+ ///< bit-wise coded: what abstract is there
+ unsigned char AR{};
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed

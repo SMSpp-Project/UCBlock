@@ -129,6 +129,7 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
 void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
  Block::deserialize( group );
+
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
 }

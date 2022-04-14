@@ -53,7 +53,7 @@ namespace SMSpp_di_unipi_it
 {
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- CLASS ECNetworkBlock -----------------------*/
+/*-------------------------- CLASS ECNetworkBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -67,6 +67,163 @@ class ECNetworkBlock : public NetworkBlock
 
  public:
 
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * NetworkBlock defines the ECNetworkData data type, a small auxiliary class
+ * to bunch the basic data of the community network.
+ * @{ */
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// Auxiliary class holding basic data about the transmission network
+ /** The ECNetworkData class is a nested sub-class which only serves to have a
+  * quick way to load all the basic data (topology and electrical
+  * characteristics) that describe the transmission network. The rationale is
+  * that while often the network does not change during the (short) time
+  * horizon of UC, it makes sense to allow for this to happen. This means that
+  * individual NetworkBlock objects may in principle have different
+  * ECNetworkData, but most often they can share the same. By bunching all the
+  * information together we make it easy for this sharing to happen. */
+
+ class ECNetworkData : public NetworkBlock::NetworkData
+ {
+
+/*--------------------------------------------------------------------------*/
+/*---------------- PUBLIC PART OF THE ECNetworkData CLASS ------------------*/
+/*--------------------------------------------------------------------------*/
+
+  public:
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructor and Destructor
+ * @{ */
+
+  /// constructor of ECNetworkData, does nothing
+  ECNetworkData() {}
+
+  /// destructor of ECNetworkData: it is virtual, and empty
+  virtual ~ECNetworkData() = default;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ * @{ */
+
+  /// deserialize an ECNetworkData out of a netCDF::NcGroup
+  /** Deserialize an ECNetworkData out of a netCDF::NcGroup, which should
+   * contain the following:
+   *
+   * - The dimension "NumberNodes" containing the number of nodes in the
+   *   problem; this dimension is optional, if it is not provided then it is
+   *   taken to be == 1.
+   *
+   * If NumberNodes == 1 (equivalently, it is not provided), the network is a
+   * "bus" formed of only one node, and therefore all the subsequent information
+   * need not to be present since it is not loaded. If NumberNodes > 1, then all
+   * the subsequent information is mandatory:
+   *
+   * - The dimension "NumberLines" containing the number of lines in the
+   *   transmission network.
+   *
+   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
+   *   dimension "NumberLines"; the l-th entry of the variable is the starting
+   *   point of the line (a number in 0, ..., NumberLines - 1). Note that lines
+   *   are not oriented, but the flow of energy is; that is, a positive flow
+   *   along line l means that energy is being taken away from StartLine[ l ]
+   *   and delivered to EndLine[ l ] (see next), a negative flow means
+   *   vice-versa. Note that node names here go from 0 to NNodes.getSize() - 1;
+   *
+   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
+   *   dimension "NumberLines"; the l-th entry of the variable is the ending
+   *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
+   *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
+   *   not allowed, but multiple lines between the same pair of nodes are. Note
+   *   that node names here go from 0 to NNodes.getSize() - 1.
+   */
+
+  virtual void deserialize( const netCDF::NcGroup & group );
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR READING THE DATA OF THE ECNetworkData -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the ECNetworkData
+ * @{ */
+
+  /// returns the vector of sell prices
+  /** Method for returning the tariff that user gain to sell electricity to
+   * the public market. */
+
+  const std::vector< double > & get_sell_price( void ) const {
+   return v_sell_price;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the vector of buy prices
+  /** Method for returning the tariff that user pay to buy electricity at each
+   * time horizon from the public market. */
+
+  const std::vector< double > & get_buy_price( void ) const {
+   return v_buy_price;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the maximum tariff
+  /** Method for returning the tariff that user pay due to the peak power. */
+
+  const double & get_max_tariff( void ) const {
+   return f_max_tariff;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- METHODS FOR SAVING THE ECNetworkData ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the ECNetworkData
+ * @{ */
+
+  /// Serialize an ECNetworkData out of a netCDF::NcGroup
+  /** Serialize an ECNetworkData out of a netCDF::NcGroup to the specific
+   * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
+   * ) for details of the format of the created netCDF group. */
+
+  virtual void serialize( netCDF::NcGroup & group ) const;
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+  protected:
+
+/*--------------------------------------------------------------------------*/
+/*---------------- PROTECTED FIELDS OF THE ECNetworkData -------------------*/
+/*--------------------------------------------------------------------------*/
+
+  // energy bought from the public market at the national
+  // price /pi^{P-,V} + /pi^{P-,F}
+  // (the second term, i.e., the fixed tariff, is given as part of the
+  // constant term)
+
+  /// tariff that user pay to buy electricity at each time horizon
+  std::vector< double > v_buy_price; // /pi^{P-,V}
+
+  /// tariff that user gain to sell electricity at each time horizon
+  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
+
+  /// tariff that user pay due to the peak power
+  double f_max_tariff;
+
+ };  // end( class( ECNetworkData ) )
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- CONSTRUCTOR AND DESTRUCTOR -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -78,7 +235,8 @@ class ECNetworkBlock : public NetworkBlock
  * Block. */
 
  explicit ECNetworkBlock( Block * f_block = nullptr ) :
-  NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
+  NetworkBlock( f_block ) ,
+  f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -129,7 +287,7 @@ class ECNetworkBlock : public NetworkBlock
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
 
- Index get_number_nodes() const override {
+ Index get_number_nodes( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
   return 0;
@@ -142,7 +300,7 @@ class ECNetworkBlock : public NetworkBlock
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
 
- Index get_number_lines() const override {
+ Index get_number_lines( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_lines();
   return 0;
@@ -155,7 +313,7 @@ class ECNetworkBlock : public NetworkBlock
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
 
- Index get_number_intervals() const override {
+ Index get_number_intervals( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_intervals();
   return 0;
@@ -163,10 +321,10 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the NetworkData
- /** Return a pointer to the NetworkData. */
+ /// returns a pointer to the ECNetworkData
+ /** Return a pointer to the ECNetworkData. */
 
- NetworkData * get_NetworkData() const override {
+ NetworkData * get_NetworkData( void ) const override {
   return f_NetworkData;
  }
 
@@ -183,35 +341,6 @@ class ECNetworkBlock : public NetworkBlock
   if( v_active_demand.empty() )
    return nullptr;
   return &( v_active_demand.data()[ i * get_number_nodes() ] );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the vector of sell prices
- /** Method for returning the tariff that user gain to sell electricity to
-  * the public market. */
-
- const std::vector< double > & get_sell_price() const {
-  return v_sell_price;
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the vector of buy prices
- /** Method for returning the tariff that user pay to buy electricity at each
-  * time horizon from the public market. */
-
- const std::vector< double > & get_buy_price() const {
-  return v_buy_price;
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the maximum tariff
- /** Method for returning the tariff that user pay due to the peak power. */
-
- const double & get_max_tariff() const {
-  return f_max_tariff;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -285,8 +414,20 @@ class ECNetworkBlock : public NetworkBlock
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE ECNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the DCNetworkBlock
+/** @name Methods for modifying the ECNetworkBlock
  * @{ */
+
+ void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr )
+ override {
+  // if there was a previous ECNetworkData, and it was local, delete it
+  if( f_NetworkData && f_local_NetworkData )
+   delete f_NetworkData;
+
+  f_NetworkData = dynamic_cast<ECNetworkData *>(network_data);
+  f_local_NetworkData = false;
+ }
+
+/*--------------------------------------------------------------------------*/
 
  /// method to set the ActiveDemand
  /** This method can be called either before or after that deserialize() is
@@ -361,6 +502,19 @@ class ECNetworkBlock : public NetworkBlock
   throw ( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
  }
 
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- METHODS FOR SAVING THE ECNetworkBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the ECNetworkBlock
+ * @{ */
+
+ /// Extends Block::serialize( netCDF::NcGroup )
+ /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+  * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
+  * details of the format of the created netCDF group. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -415,25 +569,14 @@ class ECNetworkBlock : public NetworkBlock
 
 /*---------------------------------- data ----------------------------------*/
 
- /// the NetworkData object
- NetworkBlock::NetworkData * f_NetworkData;
+ /// the ECNetworkData object
+ ECNetworkData * f_NetworkData;
+
+ /// true if the ECNetworkData object has not been passed from outside
+ bool f_local_NetworkData;
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_active_demand;
-
- // energy bought from the public market at the national
- // price /pi^{P-,V} + /pi^{P-,F}
- // (the second term, i.e., the fixed tariff, is given as part of the
- // constant term)
-
- /// tariff that user pay to buy electricity at each time horizon
- std::vector< double > v_buy_price; // /pi^{P-,V}
-
- /// tariff that user gain to sell electricity at each time horizon
- std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
-
- /// tariff that user pay due to the peak power
- double f_max_tariff;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -504,7 +647,7 @@ class ECNetworkBlock : public NetworkBlock
 
 
 
-}; // end( class( ECNetworkBlock ) )
+};  // end( class( ECNetworkBlock ) )
 
 } /* namespace SMSpp_di_unipi_it */
 

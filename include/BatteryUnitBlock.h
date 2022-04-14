@@ -593,10 +593,10 @@ class BatteryUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the initial storage value
- double get_initial_storage() const { return f_initial_storage; }
+ double get_initial_storage( void ) const { return f_initial_storage; }
 
  /// Returns the initial power value
- double get_initial_power() const { return f_initial_power; }
+ double get_initial_power( void ) const { return f_initial_power; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -923,7 +923,7 @@ class BatteryUnitBlock : public UnitBlock
 /// returns the types of battery unit
 /** This method returns the types of battery unit. */
 
- battery_type get_battery_type() const {
+ battery_type get_battery_type( void ) const {
 
   if( std::all_of( v_storing_battery_rho.cbegin() ,
                    v_storing_battery_rho.cend() ,
@@ -1219,7 +1219,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * If any of the above conditions are not met, an exception is thrown. */
 
- void check_data_consistency() const;
+ void check_data_consistency( void ) const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
@@ -1246,7 +1246,7 @@ class BatteryUnitBlock : public UnitBlock
   virtual ~BatteryUnitBlockMod() override = default;
 
   /// returns the Block to which the Modification refers
-  Block * get_Block() const override { return( f_Block ); }
+  Block * get_Block( void ) const override { return( f_Block ); }
 
   /// Accessor to the type of modification
   int type() { return( f_type ); }
@@ -1270,8 +1270,8 @@ class BatteryUnitBlock : public UnitBlock
   ///< pointer to the Block to which the Modification refers
 
   int f_type; ///< type of modification
- }; // end( class( BatteryUnitBlockMod ) )
 
+ };  // end( class( BatteryUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS BatteryUnitBlockRngdMod ----------------------*/

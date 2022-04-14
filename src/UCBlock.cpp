@@ -33,6 +33,7 @@
 #include "HeatBlock.h" */
 #include "LinearFunction.h"
 #include "UCBlock.h"
+#include "DCNetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -126,6 +127,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize( const netCDF::NcGroup & group ) {
+
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberUnits" ,
@@ -197,7 +199,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( number_nodes > 1 ) {
   delete f_NetworkData;
-  f_NetworkData = new NetworkBlock::NetworkData();
+  f_NetworkData = new DCNetworkBlock::DCNetworkData();
   f_NetworkData->deserialize( group );
  }
 

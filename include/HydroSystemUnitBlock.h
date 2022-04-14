@@ -209,7 +209,7 @@ class HydroSystemUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the number of hydro units of the problem
- Index get_number_hydro_units() const { return f_number_hydro_units; }
+ Index get_number_hydro_units( void ) const { return f_number_hydro_units; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -219,7 +219,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  /// Returns the PolyhedralFunctionBlock
- PolyhedralFunctionBlock * get_polyhedral_function_block() const {
+ PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
   assert( !v_Block.empty() );
   return static_cast< PolyhedralFunctionBlock * >( v_Block.back() );
  }
@@ -412,7 +412,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  /// Compute the total number of reservoirs
- Index get_total_number_reservoirs() const;
+ Index get_total_number_reservoirs( void ) const;
 
 /*--------------------------------------------------------------------------*/
 

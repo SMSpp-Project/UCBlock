@@ -80,15 +80,20 @@ BatteryUnitBlock::~BatteryUnitBlock() {
 void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims =
-  { "TimeHorizon" , "NumberIntervals" };
+ std::vector< std::string > expected_dims = { "TimeHorizon" ,
+                                              "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- std::vector< std::string > expected_vars =
-  { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
-    "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
-    "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
-    "Demand" };
+ std::vector< std::string > expected_vars = { "MinStorage" , "MaxStorage" ,
+                                              "MinPower" , "MaxPower" ,
+                                              "InitialPower" ,
+                                              "MaxPrimaryPower" ,
+                                              "MaxSecondaryPower" ,
+                                              "DeltaRampUp" , "DeltaRampDown" ,
+                                              "StoringBatteryRho" ,
+                                              "ExtractingBatteryRho" ,
+                                              "InitialStorage" ,
+                                              "Cost" , "Demand" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -138,7 +143,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::check_data_consistency() const {
+void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Minimum and maximum power
 

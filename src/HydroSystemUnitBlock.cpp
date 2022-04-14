@@ -42,46 +42,44 @@ SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 /*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 
-HydroSystemUnitBlock::~HydroSystemUnitBlock()
-{
+HydroSystemUnitBlock::~HydroSystemUnitBlock() {
  for( auto block : v_Block )
   delete block;
  v_Block.clear();
 
  objective.clear();
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
-HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
-{
- return( dynamic_cast<HydroUnitBlock *>( v_Block[ i ] ) );
- }
+HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
+ return ( dynamic_cast<HydroUnitBlock *>( v_Block[ i ] ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
-{
- #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "TimeHorizon",
-						      "NumberIntervals",
-						      "NumberHydroUnits" };
-  check_dimensions( group, expected_dims, std::cerr );
- #endif
+void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
+#ifndef NDEBUG
+ static std::vector< std::string > expected_dims = { "TimeHorizon" ,
+                                                     "NumberIntervals" ,
+                                                     "NumberHydroUnits" };
+ check_dimensions( group , expected_dims , std::cerr );
+#endif
 
  UnitBlock::deserialize_time_horizon( group );
  ::deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units , true );
  deserialize_sub_blocks( group );
+
  Block::deserialize( group );
- }
+}
 
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::deserialize_sub_blocks
-( const netCDF::NcGroup & group ) {
+ ( const netCDF::NcGroup & group ) {
 
  for( auto block : v_Block )
   delete block;
@@ -89,13 +87,13 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
 
  v_Block.reserve( f_number_hydro_units + 1 );
 
- deserialize_sub_blocks( group, "HydroUnitBlock_", f_number_hydro_units );
- deserialize_polyhedral_function_block( group, "PolyhedralFunctionBlock" );
+ deserialize_sub_blocks( group , "HydroUnitBlock_" , f_number_hydro_units );
+ deserialize_polyhedral_function_block( group , "PolyhedralFunctionBlock" );
 }
 
 /*--------------------------------------------------------------------------*/
 
-Block::Index HydroSystemUnitBlock::get_total_number_reservoirs() const {
+Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const {
  Index total_number_reservoirs = 0;
  assert( v_Block.size() >= f_number_hydro_units );
  for( Index i = 0 ; i < f_number_hydro_units ; ++i )
@@ -107,7 +105,7 @@ Block::Index HydroSystemUnitBlock::get_total_number_reservoirs() const {
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::deserialize_polyhedral_function_block
-( const netCDF::NcGroup & group , const std::string & sub_group_name ) {
+ ( const netCDF::NcGroup & group , const std::string & sub_group_name ) {
 
  if( group.isNull() )
   return;
@@ -120,17 +118,17 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
 
  std::string class_name = "PolyhedralFunctionBlock";
  auto class_name_attribute = sub_group.getAtt( "type" );
- if( ! class_name_attribute.isNull() )
+ if( !class_name_attribute.isNull() )
   class_name_attribute.getValues( class_name );
 
  auto polyhedral_function_block = dynamic_cast< PolyhedralFunctionBlock * >
-  ( new_Block( class_name, this ) );
+ ( new_Block( class_name , this ) );
 
- if( ! polyhedral_function_block )
+ if( !polyhedral_function_block )
   throw ( std::logic_error
-          ( "HydroSystemUnitBlock::deserialize: the type attribute of group " +
-            sub_group_name + " must be either 'PolyhedralFunctionBlock' or "
-            "the name of a class derived from PolyhedralFunctionBlock." ) );
+   ( "HydroSystemUnitBlock::deserialize: the type attribute of group " +
+     sub_group_name + " must be either 'PolyhedralFunctionBlock' or "
+                      "the name of a class derived from PolyhedralFunctionBlock." ) );
 
  // Deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
@@ -138,11 +136,11 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
  v_Block.push_back( polyhedral_function_block );
 }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::deserialize_sub_blocks
-( const netCDF::NcGroup & group , const std::string & sub_group_name_prefix ,
-  const Index num_sub_blocks ) {
+ ( const netCDF::NcGroup & group , const std::string & sub_group_name_prefix ,
+   const Index num_sub_blocks ) {
 
  for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
 
@@ -150,10 +148,10 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
   auto sub_group = group.getGroup( sub_group_name );
   auto sub_block = new_Block( sub_group , this );
 
-  if( ! sub_block )
+  if( !sub_block )
    throw ( std::invalid_argument
-           ( "HydroSystemUnitBlock::deserialize: error when creating "
-             "Block from group " + sub_group_name ) );
+    ( "HydroSystemUnitBlock::deserialize: error when creating "
+      "Block from group " + sub_group_name ) );
 
   v_Block.push_back( sub_block );
  }
@@ -218,24 +216,23 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
-{
+void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
  Block::serialize( group );
 
- auto dim_number_hydro_units = group.addDim( "NumberHydroUnits",
+ auto dim_number_hydro_units = group.addDim( "NumberHydroUnits" ,
                                              f_number_hydro_units );
  // Serialize sub-blocks
  for( Index i = 0 ; i < f_number_hydro_units ; ++i ) {
   auto sub_block = get_hydro_unit_block( i );
   auto sub_group = group.addGroup( "HydroUnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
-  }
+ }
 
  if( v_Block.size() > f_number_hydro_units ) {
   auto sub_group = group.addGroup( "PolyhedralFunctionBlock" );
   v_Block.back()->serialize( sub_group );
-  }
  }
+}
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File HydroSystemUnitBlock.cpp --------------------*/

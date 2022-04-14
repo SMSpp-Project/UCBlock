@@ -323,10 +323,10 @@ class IntermittentUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the gamma value
- double get_gamma() const { return f_gamma; }
+ double get_gamma( void ) const { return f_gamma; }
 
  /// Returns the kappa value
- double get_kappa() const { return f_kappa; }
+ double get_kappa( void ) const { return f_kappa; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -342,7 +342,7 @@ class IntermittentUnitBlock : public UnitBlock
  * - otherwise, the std::vector< double > V must have size get_time_horizon()
  *   and each V[ t ] represents the minimum power value at time t. */
 
- const std::vector< double > & get_minimum_power() const {
+ const std::vector< double > & get_minimum_power( void ) const {
   return( v_minimum_power );
  }
 /*--------------------------------------------------------------------------*/
@@ -359,7 +359,7 @@ class IntermittentUnitBlock : public UnitBlock
  * - otherwise, the std::vector< double > V must have size get_time_horizon()
  *   and each V[ t ] represents the maximum power value at time t. */
 
- const std::vector< double > & get_maximum_power() const {
+ const std::vector< double > & get_maximum_power( void ) const {
   return( v_maximum_power );
  }
 
@@ -605,7 +605,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * If any of the above conditions are not met, an exception is thrown. */
 
- void check_data_consistency() const;
+ void check_data_consistency( void ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -636,7 +636,7 @@ class IntermittentUnitBlockMod : public Modification
  virtual ~IntermittentUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  /// Accessor to the type of modification
  int type() { return( f_type ); }
@@ -656,7 +656,8 @@ class IntermittentUnitBlockMod : public Modification
  ///< pointer to the Block to which the Modification refers
 
  int f_type; ///< type of modification
-}; // end( class( IntermittentUnitBlockMod ) )
+
+};  // end( class( IntermittentUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- CLASS IntermittentUnitBlockRngdMod -------------------*/

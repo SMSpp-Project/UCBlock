@@ -77,6 +77,265 @@ class DCNetworkBlock : public NetworkBlock
  public:
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *
+ * NetworkBlock defines two main public types:
+ *
+ * - line_type, an enum defining the types of lines present in the network.
+ *
+ * - DCNetworkData, a small auxiliary class to bunch the basic electrical data
+ *   of the transmission network.
+ * @{ */
+
+ /// public enum for defining the types of lines of the network
+ enum line_type
+ {
+  kNone = 0 ,  ///< no line
+  kAC ,        ///< AC lines
+  kHVDC ,      ///< HVDC lines
+  kAC_HVDC     ///< AC and HVDC lines
+ };
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// Auxiliary class holding basic data about the transmission network
+ /** The DCNetworkData class is a nested sub-class which only serves to have a
+  * quick way to load all the basic data (topology and electrical
+  * characteristics) that describe the transmission network. The rationale is
+  * that while often the network does not change during the (short) time
+  * horizon of UC, it makes sense to allow for this to happen. This means that
+  * individual NetworkBlock objects may in principle have different
+  * DCNetworkData, but most often they can share the same. By bunching all the
+  * information together we make it easy for this sharing to happen. */
+
+ class DCNetworkData : public NetworkBlock::NetworkData
+ {
+
+/*--------------------------------------------------------------------------*/
+/*---------------- PUBLIC PART OF THE DCNetworkData CLASS ------------------*/
+/*--------------------------------------------------------------------------*/
+
+  public:
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructor and Destructor
+ * @{ */
+
+  /// constructor of DCNetworkData, does nothing
+  DCNetworkData() {}
+
+  /// destructor of DCNetworkData: it is virtual, and empty
+  virtual ~DCNetworkData() = default;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ * @{ */
+
+  /// deserialize a DCNetworkData out of a netCDF::NcGroup
+  /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should contain
+   * the following:
+   *
+   * - The dimension "NumberNodes" containing the number of nodes in the
+   *   problem; this dimension is optional, if it is not provided then it is
+   *   taken to be == 1.
+   *
+   * If NumberNodes == 1 (equivalently, it is not provided), the network is a
+   * "bus" formed of only one node, and therefore all the subsequent information
+   * need not to be present since it is not loaded. If NumberNodes > 1, then all
+   * the subsequent information is mandatory:
+   *
+   * - The dimension "NumberLines" containing the number of lines in the
+   *   transmission network.
+   *
+   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
+   *   dimension "NumberLines"; the l-th entry of the variable is the starting
+   *   point of the line (a number in 0, ..., NumberLines - 1). Note that lines
+   *   are not oriented, but the flow of energy is; that is, a positive flow
+   *   along line l means that energy is being taken away from StartLine[ l ]
+   *   and delivered to EndLine[ l ] (see next), a negative flow means
+   *   vice-versa. Note that node names here go from 0 to NNodes.getSize() - 1;
+   *
+   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
+   *   dimension "NumberLines"; the l-th entry of the variable is the ending
+   *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
+   *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
+   *   not allowed, but multiple lines between the same pair of nodes are. Note
+   *   that node names here go from 0 to NNodes.getSize() - 1;
+   *
+   * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
+   *   ] that, for each line l, contains the minimum power flow at line l (note
+   *   that this is typically a negative number as lines are bi-directional, see
+   *   above).
+   *
+   * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
+   *   ] that, for each line l, contains the maximum power flow at line l (a
+   *   non-negative number).
+   *
+   * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
+   *   dimension "NumberLines". This is meant to represent the vector S[ l ]
+   *   that, for each line i contains the susceptance of the network for the
+   *   corresponding line i. Note that this variable is optional, for each line
+   *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
+   *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
+   *   model with AC lines, and when for each line l, it's not defined or S[ l ]
+   *   == 0, then it corresponds to a single connected grid composed of HVDC
+   *   lines only which is also known as the Net Transfer Capacity (NTC)
+   *   model.
+   *
+   * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over the
+   *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
+   *   that, for each line l, contains the monetary cost to exchanges between
+   *   nodes or each network. This variable is optional; if it is not provided
+   *   then it's taken to be zero. */
+
+  virtual void deserialize( const netCDF::NcGroup & group );
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the DCNetworkData
+ * @{ */
+
+  /// returns vector of the minimum power flow
+  /** Method for returning the vector of minimum power flow of each line. This
+   *  vector may have empty size (bus network) or the size of number of nodes,
+   *  then there are two possible cases:
+   *
+   *  - if f_number_lines == 0, this vector has empty size which means there is
+   *    no line at network (bus network).
+   *
+   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+   *    element of the vectors gives minimum power flow of each line in the
+   *    network. */
+
+  const std::vector< double > & get_min_power_flow( void ) const {
+   return v_min_power_flow;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns vector of the maximum power flow
+  /** Method for returning the vector of maximum power flow of each line. This
+   *  vector may have empty size (bus network) or the size of number of nodes,
+   *  then there are two possible cases:
+   *
+   *  - if f_number_lines == 0, this vector has empty size which means there is
+   *    no line at network (bus network).
+   *
+   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+   *   element of the vectors gives maximum power flow of each line in the
+   *   network. */
+
+  const std::vector< double > & get_max_power_flow( void ) const {
+   return v_max_power_flow;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns vector of the susceptances
+  /** Method for returning the vector of susceptances for each line. This vector
+   * may have empty size (bus network) or the size of number of nodes, then
+   * there are two possible cases:
+   *
+   *  - if f_number_lines == 0, this vector has empty size which means there is
+   *    no line at network (bus network).
+   *
+   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
+   *    element of the vectors gives the Susceptance value for each line in the
+   *    network. */
+
+  const std::vector< double > & get_susceptance( void ) const {
+   return v_susceptance;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns vector of the network cost
+  /** Method for returning the vector of network cost for each line. This vector
+   * may have empty size (bus network) or the size of number of lines, then
+   * there are two possible cases:
+   *
+   *  - if f_number_lines == 0, this vector has empty size which means there is
+   *    no line at network (bus network).
+   *
+   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
+   *    element of the vectors gives the network cost value for each line in the
+   *    network. */
+
+  const std::vector< double > & get_network_cost( void ) const {
+   return v_network_cost;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the types of lines in the network
+  /** This method returns the types of lines present in the network. */
+
+  line_type get_lines_type( void ) const {
+
+   if( get_number_lines() == 0 )
+    return kNone;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s == 0.0; } ) )
+    return kHVDC;
+
+   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+                    []( double s ) { return s != 0.0; } ) )
+    return kAC;
+
+   return kAC_HVDC;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the DCNetworkData
+ * @{ */
+
+  /// Serialize a DCNetworkData out of a netCDF::NcGroup
+  /** Serialize a DCNetworkData out of a netCDF::NcGroup to the specific
+   * format of a DCNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
+   * ) for details of the format of the created netCDF group. */
+
+  virtual void serialize( netCDF::NcGroup & group ) const;
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+  protected:
+
+/*--------------------------------------------------------------------------*/
+/*---------------- PROTECTED FIELDS OF THE DCNetworkData -------------------*/
+/*--------------------------------------------------------------------------*/
+
+  /// Vector to store the susceptance of each line of the network
+  std::vector< double > v_susceptance;
+
+  /// Vector to store the minimum power flow at each line
+  std::vector< double > v_min_power_flow;
+
+  /// Vector to store the maximum power flow at each line
+  std::vector< double > v_max_power_flow;
+
+  /// Vector to store the network cost at each line
+  std::vector< double > v_network_cost;
+
+ };  // end( class( DCNetworkData ) )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -115,7 +374,7 @@ class DCNetworkBlock : public NetworkBlock
   * zero(or not defined), the auxiliary variable and corresponding constraints
   * will not be defined.
   *
-  * Note that since in this class the configuration is ignored.*/
+  * Note that since in this class the configuration is ignored. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -238,7 +497,7 @@ class DCNetworkBlock : public NetworkBlock
   *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
   *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
   *
-  * Note that since in this class the configuration is ignored.*/
+  * Note that since in this class the configuration is ignored. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
@@ -329,7 +588,7 @@ class DCNetworkBlock : public NetworkBlock
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
 
- Index get_number_lines() const override {
+ Index get_number_lines( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_lines();
   return 0;
@@ -342,7 +601,7 @@ class DCNetworkBlock : public NetworkBlock
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
 
- Index get_number_intervals() const override {
+ Index get_number_intervals( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_intervals();
   return 0;
@@ -350,10 +609,10 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the NetworkData
- /** Return a pointer to the NetworkData. */
+ /// returns a pointer to the DCNetworkData
+ /** Return a pointer to the DCNetworkData. */
 
- NetworkData * get_NetworkData() const override {
+ NetworkData * get_NetworkData( void ) const override {
   return f_NetworkData;
  }
 
@@ -408,7 +667,7 @@ class DCNetworkBlock : public NetworkBlock
   * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
   *   variable for line l. */
 
- const std::vector< ColVariable > & get_power_flow() const {
+ const std::vector< ColVariable > & get_power_flow( void ) const {
   return v_power_flow;
  }
 
@@ -424,7 +683,7 @@ class DCNetworkBlock : public NetworkBlock
   * - otherwise, V must have f_number_lines rows and V[ l ] is the auxiliary
   *   variable for line l. */
 
- const std::vector< ColVariable > & get_auxiliary_variable() const {
+ const std::vector< ColVariable > & get_auxiliary_variable( void ) const {
   return v_auxiliary_variable;
  }
 
@@ -440,10 +699,10 @@ class DCNetworkBlock : public NetworkBlock
   * i-th line of the network. */
 
  const std::vector< FRowConstraint > &
- get_power_flow_limit_constraints() const {
+ get_power_flow_limit_constraints( void ) const {
   if( !f_NetworkData )
    throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
-                             " NetworkData has not been set." ) );
+                             " DCNetworkData has not been set." ) );
 
   switch( f_NetworkData->get_lines_type() ) {
    case ( kAC ):
@@ -455,10 +714,10 @@ class DCNetworkBlock : public NetworkBlock
  }
 
  const std::vector< BoxConstraint > &
- get_power_flow_limit_HVDC_bounds() const {
+ get_power_flow_limit_HVDC_bounds( void ) const {
   if( !f_NetworkData )
    throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
-                             " NetworkData has not been set." ) );
+                             " DCNetworkData has not been set." ) );
   return v_HVDC_power_flow_limit_constraints;
  }
 
@@ -470,11 +729,11 @@ class DCNetworkBlock : public NetworkBlock
 
  void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr )
  override {
-  // if there was a previous NetworkData, and it was local, delete it
+  // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
-  f_NetworkData = network_data;
+  f_NetworkData = dynamic_cast<DCNetworkData *>(network_data);
   f_local_NetworkData = false;
  }
 
@@ -597,10 +856,10 @@ class DCNetworkBlock : public NetworkBlock
 
 /*---------------------------------- data ----------------------------------*/
 
- /// the NetworkData object
- NetworkBlock::NetworkData * f_NetworkData;
+ /// the DCNetworkData object
+ DCNetworkData * f_NetworkData;
 
- /// true if the NetworkData object has not been passed from outside
+ /// true if the DCNetworkData object has not been passed from outside
  bool f_local_NetworkData;
 
  /// vector to store the demand of each node of the network

@@ -85,12 +85,8 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * NetworkBlock defines two main public types:
- *
- * - line_type, an enum defining the types of lines present in the network.
- *
- * - NetworkData, a small auxiliary class to bunch together the basic data
- *   (topology and electrical characteristics) of the transmission network.
+ * NetworkBlock defines the NetworkData public type, a small auxiliary class
+ * to bunch the basic topological data of the transmission network.
  * @{ */
 
  /// public enum for defining the types of lines of the network
@@ -216,7 +212,9 @@ class NetworkBlock : public Block
    * to one, it means that the transmission network is bus, and therefore all
    * the rest of the data is meaningless. */
 
-  Index get_number_nodes() const { return ( f_number_nodes ); }
+  Index get_number_nodes( void ) const { return ( f_number_nodes ); }
+
+/*--------------------------------------------------------------------------*/
 
   /// returns the number of intervals of the network
   /** Method for returning the number of intervals the network refers to. */
@@ -231,7 +229,7 @@ class NetworkBlock : public Block
    * (no self-loops are allowed, hence there is no line to be made with a single
    * node). */
 
-  Index get_number_lines() const { return ( f_number_lines ); }
+  Index get_number_lines( void ) const { return ( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -248,7 +246,9 @@ class NetworkBlock : public Block
    *    element of the vectors gives starting point of each line in the network.
   */
 
-  const std::vector< Index > & get_start_line() const { return v_start_line; }
+  const std::vector< Index > & get_start_line( void ) const {
+   return v_start_line;
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -265,99 +265,8 @@ class NetworkBlock : public Block
    *    element of the vectors gives ending point of each line in the network.
    */
 
-  const std::vector< Index > & get_end_line() const { return ( v_end_line ); }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns vector of the minimum power flow
-  /** Method for returning the vector of minimum power flow of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
-   *  then there are two possible cases:
-   *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
-   *
-   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives minimum power flow of each line in the
-   *    network. */
-
-  const std::vector< double > & get_min_power_flow() const {
-   return v_min_power_flow;
-  }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns vector of the maximum power flow
-  /** Method for returning the vector of maximum power flow of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
-   *  then there are two possible cases:
-   *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
-   *
-   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-   *   element of the vectors gives maximum power flow of each line in the
-   *   network. */
-
-  const std::vector< double > & get_max_power_flow() const {
-   return v_max_power_flow;
-  }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns vector of the susceptances
-  /** Method for returning the vector of susceptances for each line. This vector
-   * may have empty size (bus network) or the size of number of nodes, then
-   * there are two possible cases:
-   *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
-   *
-   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
-   *    element of the vectors gives the Susceptance value for each line in the
-   *    network. */
-
-  const std::vector< double > & get_susceptance() const {
-   return v_susceptance;
-  }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns vector of the network cost
-  /** Method for returning the vector of network cost for each line. This vector
-   * may have empty size (bus network) or the size of number of lines, then
-   * there are two possible cases:
-   *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
-   *
-   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
-   *    element of the vectors gives the network cost value for each line in the
-   *    network. */
-
-  const std::vector< double > & get_network_cost() const {
-   return v_network_cost;
-  }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns the types of lines in the network
-  /** This method returns the types of lines present in the network. */
-
-  line_type get_lines_type() const {
-
-   if( get_number_lines() == 0 )
-    return kNone;
-
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
-                    []( double s ) { return s == 0.0; } ) )
-    return kHVDC;
-
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
-                    []( double s ) { return s != 0.0; } ) )
-    return kAC;
-
-   return kAC_HVDC;
+  const std::vector< Index > & get_end_line( void ) const {
+   return ( v_end_line );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -398,19 +307,7 @@ class NetworkBlock : public Block
   /// Vector of ending lines
   std::vector< Index > v_end_line;
 
-  /// Vector to store the susceptance of each line of the network
-  std::vector< double > v_susceptance;
-
-  /// Vector to store the minimum power flow at each line
-  std::vector< double > v_min_power_flow;
-
-  /// Vector to store the maximum power flow at each line
-  std::vector< double > v_max_power_flow;
-
-  /// Vector to store the network cost at each line
-  std::vector< double > v_network_cost;
-
- };   // end( class( NetworkData ) )
+ };  // end( class( NetworkData ) )
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -603,7 +500,7 @@ class NetworkBlock : public Block
   * is a bus, i.e., get_number_nodes() == 1, and returns 0 (no self-loops are
   * allowed, hence there is no line to be made with a single node). */
 
- virtual Index get_number_lines() const { return ( 0 ); }
+ virtual Index get_number_lines( void ) const { return ( 0 ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -622,7 +519,7 @@ class NetworkBlock : public Block
   * class does not handle the NetworkData object. This is OK for derived
   * classes that only handle the "bus" case. */
 
- virtual NetworkData * get_NetworkData() const {
+ virtual NetworkData * get_NetworkData( void ) const {
   return nullptr;
  }
 
@@ -653,7 +550,7 @@ class NetworkBlock : public Block
 
  /// returns the constant term
 
- const double & get_const_term() const {
+ const double & get_const_term( void ) const {
   return f_const_term;
  }
 
@@ -743,22 +640,22 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  /// states that the Variable of the NetworkBlock have been generated
- void set_variables_generated() { AR |= HasVar; }
+ void set_variables_generated( void ) { AR |= HasVar; }
 
  /// states that the Constraint of the NetworkBlock have been generated
- void set_constraints_generated() { AR |= HasCst; }
+ void set_constraints_generated( void ) { AR |= HasCst; }
 
  /// states that the Objective of the NetworkBlock has been generated
- void set_objective_generated() { AR |= HasObj; }
+ void set_objective_generated( void ) { AR |= HasObj; }
 
  /// indicates whether the Variable of the NetworkBlock have been generated
- bool variables_generated() const { return ( AR & HasVar ); }
+ bool variables_generated( void ) const { return ( AR & HasVar ); }
 
  /// indicates whether the Constraint of the NetworkBlock have been generated
- bool constraints_generated() const { return ( AR & HasCst ); }
+ bool constraints_generated( void ) const { return ( AR & HasCst ); }
 
  /// indicates whether the Objective of the NetworkBlock has been generated
- bool objective_generated() const { return ( AR & HasObj ); }
+ bool objective_generated( void ) const { return ( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -797,9 +694,7 @@ class NetworkBlock : public Block
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
-/*--------------------------------------------------------------------------*/
-
-};   // end( class( NetworkBlock ) )
+};  // end( class( NetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NetworkBlockMod --------------------------*/
@@ -823,13 +718,13 @@ class NetworkBlockMod : public Modification
   : f_Block( fblock ) , f_type( type ) {}
 
  ///< Destructor, does nothing
- virtual ~NetworkBlockMod() override = default;
+ virtual ~NetworkBlockMod( void ) override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block() const override { return ( f_Block ); }
+ Block * get_Block( void ) const override { return ( f_Block ); }
 
  /// Accessor to the type of modification
- int type() { return ( f_type ); }
+ int type( void ) { return ( f_type ); }
 
  protected:
 
@@ -846,7 +741,8 @@ class NetworkBlockMod : public Modification
  ///< pointer to the Block to which the Modification refers
 
  int f_type; ///< type of modification
-}; // end( class( NetworkBlockMod ) )
+
+};  // end( class( NetworkBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS NetworkBlockRngdMod ------------------------*/

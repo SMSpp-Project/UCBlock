@@ -52,6 +52,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 /*--------------------------------------------------------------------------*/
 
 DCNetworkBlock::~DCNetworkBlock() {
+
  clear_constraints( v_AC_power_flow_limit_constraints );
  clear_constraints( v_AC_HVDC_power_flow_limit_constraints );
  clear_constraints( v_power_flow_injection_constraints );
@@ -63,7 +64,7 @@ DCNetworkBlock::~DCNetworkBlock() {
 
  objective.clear();
 
- // Delete the NetworkData if it is local.
+ // Delete the DCNetworkData if it is local.
  if( f_local_NetworkData )
   delete f_NetworkData;
 }
@@ -72,7 +73,10 @@ DCNetworkBlock::~DCNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
+void DCNetworkBlock::DCNetworkData::deserialize(
+ const netCDF::NcGroup & group ) {
+
+ NetworkBlock::NetworkData::deserialize( group );
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
@@ -80,8 +84,7 @@ void DCNetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "StartLine" ,
-                                                     "EndLine" ,
+ static std::vector< std::string > expected_vars = { "StartLine" , "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
@@ -89,23 +92,12 @@ void DCNetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- if( !::deserialize_dim( group , "NumberNodes" ,
-                         f_number_nodes , true ) )
+ // Optional variables
+
+ if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes , true ) )
   f_number_nodes = 1;
 
- if( !::deserialize_dim( group , "NumberIntervals" ,
-                         f_number_intervals , true ) )
-  f_number_intervals = 1;
-
- if( f_number_nodes > 1 ) {  // DCNetworkBlock
-
-  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
-
-  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
-                 true );
-
-  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
-                 true );
+ if( f_number_nodes > 1 ) {
 
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
                  true , true );
@@ -125,7 +117,7 @@ void DCNetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
- Block::deserialize( group );
+ NetworkBlock::deserialize( group );
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" };
@@ -141,17 +133,18 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  Index NumberNodes;
  if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
-  // NetworkData has been provided. Thus, the NetworkData is deserialized, and
-  // it is marked as being local.
+  // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
+  // and it is marked as being local.
   delete f_NetworkData;
-  f_NetworkData = new NetworkData();
+  f_NetworkData = new DCNetworkData();
   f_NetworkData->deserialize( group );
   f_local_NetworkData = true;
-  // A NetworkData has been provided. So, the size of the given vector of
+  // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes , v_active_demand );
+  ::deserialize( group , "ActiveDemand" , NumberNodes ,
+                 v_active_demand , true );
  } else {
-  // A NetworkData has not been provided. However, the active demand may still
+  // A DCNetworkData has not been provided. However, the active demand may still
   // have been provided.
   auto ActiveDemand = group.getVar( "ActiveDemand" );
 
@@ -161,7 +154,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    if( ActiveDemand.getDimCount() != 1 )
     // The active demand must be a one-dimensional array.
     throw ( std::invalid_argument(
-     "NetworkBlock::deserialize(): ActiveDemand should have one dimension, "
+     "DCNetworkBlock::deserialize(): ActiveDemand should have one dimension, "
      "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
 
    // Retrieve the number of nodes from the size of the given netCDF variable.
@@ -174,36 +167,29 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    ActiveDemand.getVar( v_active_demand.data() );
   }
  }
-
- if( !::deserialize( group , f_const_term , "ConstTerm" , true ) )
-  f_const_term = 0;
 }
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
- group.addDim( "NumberNodes" , f_number_nodes );
- group.addDim( "NumberIntervals" , f_number_intervals );
+void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
+
+ NetworkBlock::NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
-  auto NL = group.addDim( "NumberLines" , f_number_lines );
+  auto NumberLines = group.getDim( "NumberLines" );
 
-  ::serialize( group , "StartLine" , netCDF::NcUint() , NL , v_start_line );
-
-  ::serialize( group , "EndLine" , netCDF::NcUint() , NL , v_end_line );
-
-  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NL ,
+  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
                v_min_power_flow );
 
-  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NL ,
+  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
                v_max_power_flow );
 
-  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NL ,
+  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NumberLines ,
                v_susceptance );
 
-  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NL ,
+  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
                v_network_cost );
  }
 }
@@ -212,10 +198,10 @@ void DCNetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 
 void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
- Block::serialize( group );
+ NetworkBlock::serialize( group );
 
  if( auto network_data = get_NetworkData() )
-  // If a NetworkData is present, serialize it.
+  // If a DCNetworkData is present, serialize it.
   network_data->serialize( group );
 
  if( !v_active_demand.empty() ) {
@@ -225,10 +211,10 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   if( NumberNodes.isNull() ) {
    /* The dimension "NumberNodes" is not present in the group (which means
-    * that a NetworkData is not present). However, the number of nodes can
+    * that a DCNetworkData is not present). However, the number of nodes can
     * still be obtained from the size of the active demand vector. Notice that
     * the name "NumberNodes" is not used for this new dimension, because it
-    * would indicate that a NetworkData is present (which is not the
+    * would indicate that a DCNetworkData is present (which is not the
     * case). Therefore, we create an alternative dimension in order to be able
     * to serialize the active demand. */
    NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
@@ -240,6 +226,8 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
  }
 }
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
@@ -277,8 +265,6 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  set_variables_generated();
 }
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {

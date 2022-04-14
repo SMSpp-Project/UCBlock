@@ -406,7 +406,7 @@ class HeatBlock : public Block
  *
  * - otherwise, the vector must have size of time horizon and the t_th
  *   element of the vector gives the total heat demand at time t. */
- const std::vector< double > & get_heat_demand() const {
+ const std::vector< double > & get_heat_demand( void ) const {
   return v_heat_demand;
  }
 
@@ -424,7 +424,8 @@ class HeatBlock : public Block
  *
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the minimum heat storage at time t. */
- const std::vector< double > & get_min_heat_storage() const {
+
+ const std::vector< double > & get_min_heat_storage( void ) const {
   return v_min_heat_storage;
  }
 
@@ -442,7 +443,8 @@ class HeatBlock : public Block
  *
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum heat storage at time t. */
- const std::vector< double > & get_max_heat_storage() const {
+
+ const std::vector< double > & get_max_heat_storage( void ) const {
   return v_max_heat_storage;
  }
 
@@ -463,7 +465,9 @@ class HeatBlock : public Block
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the minimum heat
  *   production of each unit i at time instant t. */
- const boost::multi_array< double , 2 > & get_min_heat_production() const {
+
+ const boost::multi_array< double , 2 > & get_min_heat_production( void )
+ const {
   return v_min_heat_production;
  }
 
@@ -484,7 +488,8 @@ class HeatBlock : public Block
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the maximum heat
  *   production of each unit i at time instant t. */
- const boost::multi_array< double , 2 > & get_max_heat_production() const {
+ const boost::multi_array< double , 2 > & get_max_heat_production( void )
+ const {
   return v_max_heat_production;
  }
 
@@ -505,7 +510,8 @@ class HeatBlock : public Block
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the production heat
  *   cost of each unit i at time instant t. */
- const boost::multi_array< double , 2 > & get_cost_heat_unit() const {
+
+ const boost::multi_array< double , 2 > & get_cost_heat_unit( void ) const {
   return v_cost_heat_unit;
  }
 
@@ -535,7 +541,8 @@ class HeatBlock : public Block
  *  - otherwise, U must have get_time_horizon() rows and
  *    get_number_heat_units() columns and M[ t , i ] is the heat variable for
  *    time step t of unit i */
- const boost::multi_array< ColVariable , 2 > & get_heat() const {
+
+ const boost::multi_array< ColVariable , 2 > & get_heat( void ) const {
   return v_heat;
  }
 
@@ -721,14 +728,12 @@ class HeatBlock : public Block
 
  void deserialize_change_intervals( netCDF::NcGroup & group );
 
-/*--------------------------------------------------------------------------*/
-
-}; // end( class( HeatBlock ) )
+};  // end( class( HeatBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-}; // end( namespace SMSpp_di_unipi_it )
+};  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 
