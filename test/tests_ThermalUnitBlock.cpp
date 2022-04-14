@@ -11,7 +11,8 @@ using namespace SMSpp_di_unipi_it;
 /*------------------------------- GLOBALS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-struct TestParameters {
+struct TestParameters
+{
  std::string test_file;
 };
 
@@ -19,18 +20,19 @@ struct TestParameters {
 /*------------------------- PARAMETRIZED FIXTURE ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
-class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters > {
+class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters >
+{
 
  protected:
  ThermalUnitBlock * block{};
 
- ThermalUnitBlockTest() = default;
+ ThermalUnitBlockTest( void ) = default;
 
  ~ThermalUnitBlockTest() override = default;
 
- void SetUp() override {
+ void SetUp( void ) override {
   std::string filename( GetParam().test_file );
-  netCDF::NcFile f( filename, netCDF::NcFile::read );
+  netCDF::NcFile f( filename , netCDF::NcFile::read );
   ASSERT_FALSE( f.isNull() );
 
   netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
@@ -38,19 +40,19 @@ class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters > {
 
   int type;
   gtype.getValues( &type );
-  ASSERT_EQ( type, eBlockFile );
+  ASSERT_EQ( type , eBlockFile );
 
   netCDF::NcGroup bg = f.getGroup( "Block_0" );
   ASSERT_FALSE( bg.isNull() );
 
-  block = dynamic_cast<ThermalUnitBlock *>(Block::new_Block( "ThermalUnitBlock" ));
+  block = dynamic_cast<ThermalUnitBlock *>(Block::new_Block(
+   "ThermalUnitBlock" ));
   block->deserialize( bg );
  }
 
- void TearDown() override {
+ void TearDown( void ) override {
   delete block;
  }
-
 
 };
 
@@ -58,33 +60,33 @@ class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters > {
 /*------------------------ PARAMETRIZED TEST CASES -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-TEST_P( ThermalUnitBlockTest, ChangeMaxPowerRange ) {
+TEST_P( ThermalUnitBlockTest , ChangeMaxPowerRange ) {
 
- std::vector<double> orig(block->get_max_power());
+ std::vector< double > orig( block->get_max_power() );
 
- std::vector<double> new_values( 10 , 1);
+ std::vector< double > new_values( 10 , 1 );
 
- block->set_maximum_power( new_values.begin(), Block::Range( 0, 10 ) );
+ block->set_maximum_power( new_values.begin() , Block::Range( 0 , 10 ) );
 
  auto max_power = block->get_max_power();
 
- for (int i = 0; i < 10; ++i) {
-  EXPECT_EQ(max_power[i], 1);
+ for( int i = 0 ; i < 10 ; ++i ) {
+  EXPECT_EQ( max_power[ i ] , 1 );
  }
 }
 
-TEST_P( ThermalUnitBlockTest, ChangeMaxPowerSubset ) {
+TEST_P( ThermalUnitBlockTest , ChangeMaxPowerSubset ) {
 
- std::vector<double> orig(block->get_max_power());
+ std::vector< double > orig( block->get_max_power() );
 
- std::vector<double> new_values( 10 , 1);
+ std::vector< double > new_values( 10 , 1 );
 
- block->set_maximum_power( new_values.begin(), Block::Range( 0, 10 ) );
+ block->set_maximum_power( new_values.begin() , Block::Range( 0 , 10 ) );
 
  auto max_power = block->get_max_power();
 
- for (int i = 0; i < 10; ++i) {
-  EXPECT_EQ(max_power[i], 1);
+ for( int i = 0 ; i < 10 ; ++i ) {
+  EXPECT_EQ( max_power[ i ] , 1 );
  }
 }
 
@@ -92,17 +94,18 @@ TEST_P( ThermalUnitBlockTest, ChangeMaxPowerSubset ) {
 /*------------------------- TEST CASE INSTANCES ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-INSTANTIATE_TEST_SUITE_P( ThermalUnitBlockTests,
-                          ThermalUnitBlockTest,
+INSTANTIATE_TEST_SUITE_P( ThermalUnitBlockTests ,
+                          ThermalUnitBlockTest ,
                           ::testing::Values(
-                           TestParameters{ "netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
+                           TestParameters{
+                            "netCDF_files/1UC_Data/24/S1ramp1_24.nc4" }
                           ) );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------------- MAIN ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-int main( int argc, char ** argv ) {
- ::testing::InitGoogleTest( &argc, argv );
+int main( int argc , char ** argv ) {
+ ::testing::InitGoogleTest( &argc , argv );
  return RUN_ALL_TESTS();
 }
