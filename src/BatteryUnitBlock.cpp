@@ -53,6 +53,7 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 BatteryUnitBlock::~BatteryUnitBlock() {
+
  clear_constraints( active_power_upper_bound_Constraints );
  clear_constraints( active_power_lower_bound_Constraints );
  clear_constraints( ramp_up_Constraints );

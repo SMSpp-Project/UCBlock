@@ -763,7 +763,7 @@ class NetworkBlockRngdMod : public NetworkBlockMod
  virtual ~NetworkBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng() { return ( f_rng ); }
+ Block::c_Range & rng( void ) { return ( f_rng ); }
 
  protected:
 
@@ -796,7 +796,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod
  virtual ~NetworkBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms() { return ( f_nms ); }
+ Block::c_Subset & nms( void ) { return ( f_nms ); }
 
  protected:
 

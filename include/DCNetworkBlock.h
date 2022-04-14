@@ -129,7 +129,7 @@ class DCNetworkBlock : public NetworkBlock
  * @{ */
 
   /// constructor of DCNetworkData, does nothing
-  DCNetworkData() {}
+  DCNetworkData( void ) : NetworkBlock::NetworkData() {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
   virtual ~DCNetworkData() = default;
@@ -817,7 +817,7 @@ class DCNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
- static void static_initialization() {
+ static void static_initialization( void ) {
   /*!!
    * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just

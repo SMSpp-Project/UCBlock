@@ -107,7 +107,7 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
   /// constructor of ECNetworkData, does nothing
-  ECNetworkData() {}
+  ECNetworkData( void ) : NetworkBlock::NetworkData() {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
   virtual ~ECNetworkData() = default;
@@ -354,7 +354,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of micro power injection variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_micro_power_injection() {
+ std::vector< ColVariable > & get_micro_power_injection( void ) {
   return v_micro_power_injection;
  }
 
@@ -364,7 +364,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of micro public power absorption variables,
   * which is assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_micro_power_absorption() {
+ std::vector< ColVariable > & get_micro_power_absorption( void ) {
   return v_micro_power_absorption;
  }
 
@@ -374,7 +374,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of public power injection variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_public_power_injection() {
+ std::vector< ColVariable > & get_public_power_injection( void ) {
   return v_public_power_injection;
  }
 
@@ -384,7 +384,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of public power absorbed variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_public_power_absorption() {
+ std::vector< ColVariable > & get_public_power_absorption( void ) {
   return v_public_power_absorption;
  }
 
@@ -530,7 +530,7 @@ class ECNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
- static void static_initialization() {
+ static void static_initialization( void ) {
   /*!!
    * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just

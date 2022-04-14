@@ -1165,7 +1165,7 @@ class UCBlock : public Block
   * demand constraint associated with time t and secondary zone z. */
 
  const boost::multi_array< FRowConstraint , 2 > &
- get_secondary_demand_constraints() {
+ get_secondary_demand_constraints( void ) {
   return v_SecondaryDemand_Const;
  }
 
@@ -1242,7 +1242,7 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization() {
+ static void static_initialization( void ) {
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
    "UCBlock::set_active_power_demand" ,
    &UCBlock::set_active_power_demand );
@@ -1506,7 +1506,7 @@ class UCBlockMod : public Modification
  Block * get_Block( void ) const override { return ( f_Block ); }
 
  /// accessor to the type of modification
- int type() { return ( f_type ); }
+ int type( void ) { return ( f_type ); }
 
  protected:
 
@@ -1544,7 +1544,7 @@ class UCBlockRngdMod : public UCBlockMod
  virtual ~UCBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng() { return ( f_rng ); }
+ Block::c_Range & rng( void ) { return ( f_rng ); }
 
  protected:
 
@@ -1576,7 +1576,7 @@ class UCBlockSbstMod : public UCBlockMod
  virtual ~UCBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms() { return ( f_nms ); }
+ Block::c_Subset & nms( void ) { return ( f_nms ); }
 
  protected:
 

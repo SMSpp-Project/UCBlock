@@ -531,7 +531,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the objective function
  FRealObjective objective;
 
- static void static_initialization() {
+ static void static_initialization( void ) {
   /*!!
    * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just
@@ -639,7 +639,7 @@ class IntermittentUnitBlockMod : public Modification
  Block * get_Block( void ) const override { return( f_Block ); }
 
  /// Accessor to the type of modification
- int type() { return( f_type ); }
+ int type( void ) { return( f_type ); }
 
  protected:
 
@@ -678,7 +678,7 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod
  virtual ~IntermittentUnitBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng() { return( f_rng ); }
+ Block::c_Range & rng( void ) { return( f_rng ); }
 
  protected:
 
@@ -711,7 +711,7 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod
  virtual ~IntermittentUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms() { return( f_nms ); }
+ Block::c_Subset & nms( void ) { return( f_nms ); }
 
  protected:
 
