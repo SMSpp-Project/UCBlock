@@ -134,11 +134,13 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
  group.addDim( "NumberIntervals" , f_number_intervals );
 
  if( f_number_nodes > 1 ) {
-  auto NL = group.addDim( "NumberLines" , f_number_lines );
+  auto NumberLines = group.addDim( "NumberLines" , f_number_lines );
 
-  ::serialize( group , "StartLine" , netCDF::NcUint() , NL , v_start_line );
+  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
+               v_start_line );
 
-  ::serialize( group , "EndLine" , netCDF::NcUint() , NL , v_end_line );
+  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
+               v_end_line );
  }
 }
 

@@ -419,6 +419,16 @@ class NetworkBlock : public Block
   /// Vector of ending lines
   std::vector< Index > v_end_line;
 
+  private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+  // Definition of State::private_name() (pure virtual)
+
+  virtual const std::string & private_name( void ) const = 0;
+
  };  // end( class( NetworkData ) )
 
 /**@} ----------------------------------------------------------------------*/

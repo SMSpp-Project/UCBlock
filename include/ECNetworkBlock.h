@@ -109,6 +109,9 @@ class ECNetworkBlock : public NetworkBlock
   /// constructor of ECNetworkData, does nothing
   ECNetworkData( void ) : NetworkBlock::NetworkData() {}
 
+  /// copy constructor of ECNetworkData, does nothing
+  ECNetworkData( NetworkData * network_data ) {}
+
   /// destructor of ECNetworkData: it is virtual, and empty
   virtual ~ECNetworkData() = default;
 

@@ -51,7 +51,9 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 // register DCNetworkData to the NetworkData factory
 
-SMSpp_insert_in_factory_cpp_1( DCNetworkBlock::DCNetworkData );
+typedef DCNetworkBlock::DCNetworkData DCNetworkData;
+
+SMSpp_insert_in_factory_cpp_1( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/

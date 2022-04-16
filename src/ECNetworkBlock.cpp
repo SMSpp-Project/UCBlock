@@ -41,7 +41,9 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
 // register ECNetworkData to the NetworkData factory
 
-SMSpp_insert_in_factory_cpp_1( ECNetworkBlock::ECNetworkData );
+typedef ECNetworkBlock::ECNetworkData ECNetworkData;
+
+SMSpp_insert_in_factory_cpp_1( ECNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
