@@ -128,6 +128,7 @@ namespace SMSpp_di_unipi_it
 
 class UCBlock : public Block
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1060,7 +1061,7 @@ class UCBlock : public Block
  UnitBlock * get_unit_block( Index u ) const {
   if( u >= f_number_units )
    throw ( std::invalid_argument( "invalid unit index" ) );
-  return ( static_cast< UnitBlock * >( v_Block[ u ] ) );
+  return( static_cast< UnitBlock * >( v_Block[ u ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1069,11 +1070,11 @@ class UCBlock : public Block
 
  NetworkBlock * get_network_block( Index n ) const {
   if( v_network_blocks.empty() )
-   return ( nullptr );
+   return( nullptr );
   if( n >= f_number_networks )
    throw ( std::invalid_argument( "invalid network index" ) );
 
-  return ( v_network_blocks[ n ] );
+  return( v_network_blocks[ n ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1252,13 +1253,41 @@ class UCBlock : public Block
    &UCBlock::set_active_power_demand );
  }
 
-/**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
 
- /// The time horizon of the problem
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// states that the Variable of the UCBlock have been generated
+ void set_variables_generated( void ) { AR |= HasVar; }
+
+ /// states that the Constraint of the UCBlock have been generated
+ void set_constraints_generated( void ) { AR |= HasCst; }
+
+ /// states that the Objective of the UCBlock has been generated
+ void set_objective_generated( void ) { AR |= HasObj; }
+
+ /// indicates whether the Variable of the UCBlock have been generated
+ bool variables_generated( void ) const { return( AR & HasVar ); }
+
+ /// indicates whether the Constraint of the UCBlock have been generated
+ bool constraints_generated( void ) const { return( AR & HasCst ); }
+
+ /// indicates whether the Objective of the UCBlock has been generated
+ bool objective_generated( void ) const { return( AR & HasObj ); }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*---------------------------------- data ----------------------------------*/
+
+/// The time horizon of the problem
  Index f_time_horizon;
 
  /// The specific classname of the networks that need to be instantiated,
@@ -1267,6 +1296,7 @@ class UCBlock : public Block
  /// node, i.e., the network is a bus, or all the nodes share the same data in
  /// `NetworkData`.
  std::string network_classname;
+ std::string network_data_classname;
 
  /// The number of the networks of the problem
  Index f_number_networks;
@@ -1384,6 +1414,12 @@ class UCBlock : public Block
  std::vector< double > v_power_heat_rho;
  */
 
+/*-------------------------------- variables -------------------------------*/
+
+
+
+/*------------------------------- constraints ------------------------------*/
+
  /// Node injection constraints for each time and node
  boost::multi_array< FRowConstraint , 2 > v_node_injection_constraints;
 
@@ -1403,28 +1439,6 @@ class UCBlock : public Block
 
  /// Pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
-
-/*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// states that the Variable of the UCBlock have been generated
- void set_variables_generated( void ) { AR |= HasVar; }
-
- /// states that the Constraint of the UCBlock have been generated
- void set_constraints_generated( void ) { AR |= HasCst; }
-
- /// states that the Objective of the UCBlock has been generated
- void set_objective_generated( void ) { AR |= HasObj; }
-
- /// indicates whether the Variable of the UCBlock have been generated
- bool variables_generated( void ) const { return ( AR & HasVar ); }
-
- /// indicates whether the Constraint of the UCBlock have been generated
- bool constraints_generated( void ) const { return ( AR & HasCst ); }
-
- /// indicates whether the Objective of the UCBlock has been generated
- bool objective_generated( void ) const { return ( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1503,10 +1517,10 @@ class UCBlockMod : public Modification
  virtual ~UCBlockMod() override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block( void ) const override { return ( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  /// accessor to the type of modification
- int type( void ) { return ( f_type ); }
+ int type( void ) { return( f_type ); }
 
  protected:
 
@@ -1544,7 +1558,7 @@ class UCBlockRngdMod : public UCBlockMod
  virtual ~UCBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng( void ) { return ( f_rng ); }
+ Block::c_Range & rng( void ) { return( f_rng ); }
 
  protected:
 
@@ -1576,7 +1590,7 @@ class UCBlockSbstMod : public UCBlockMod
  virtual ~UCBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms( void ) { return ( f_nms ); }
+ Block::c_Subset & nms( void ) { return( f_nms ); }
 
  protected:
 

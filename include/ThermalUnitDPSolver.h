@@ -329,7 +329,9 @@ class ThermalUnitDPSolver : public Solver
  class EDSolver
  {
 
+/*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
   public:
 
@@ -394,7 +396,9 @@ class ThermalUnitDPSolver : public Solver
   virtual void compute_power_variables( Index k ,
                                         std::vector< double > & p ) = 0;
 
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
   protected:
 
@@ -417,7 +421,9 @@ class ThermalUnitDPSolver : public Solver
  class DPEDSolver : public EDSolver
  {
 
+/*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
   public:
 
@@ -427,13 +433,17 @@ class ThermalUnitDPSolver : public Solver
 
   virtual ~DPEDSolver() = default;
 
-/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
 
   void compute_costs( std::vector< double > & costs ) override;
 
   void compute_power_variables( Index k , std::vector< double > & p ) override;
 
-/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
   protected:
 

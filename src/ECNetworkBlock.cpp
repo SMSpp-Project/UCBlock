@@ -39,7 +39,7 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-// register ECNetworkData to the Data factory
+// register ECNetworkData to the NetworkData factory
 
 SMSpp_insert_in_factory_cpp_1( ECNetworkBlock::ECNetworkData );
 

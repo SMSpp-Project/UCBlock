@@ -10,7 +10,7 @@ int main( int argc, char ** argv ) {
  netCDF::NcFile f;
  f.open( filename, netCDF::NcFile::read );
  netCDF::NcGroup bg = f.getGroup( "Block_0" );
- auto ucb = dynamic_cast<UCBlock *>(Block::new_Block( "UCBlock" ));
+ auto ucb = static_cast<UCBlock *>(Block::new_Block( "UCBlock" ));
  ucb->deserialize( bg );
 
  return 0;

@@ -83,6 +83,7 @@ namespace SMSpp_di_unipi_it
 
 class IntermittentUnitBlock : public UnitBlock
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -485,6 +486,28 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+  //                                           &IntermittentUnitBlock::set_maximum_power,
+  //                                           MS_dbl_sbst::args() );
+  //
+  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
+  //                                           &IntermittentUnitBlock::set_maximum_power,
+  //                                           MS_dbl_rngd::args() );
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_maximum_power" ,
+   &IntermittentUnitBlock::set_maximum_power );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_maximum_power" ,
+   &IntermittentUnitBlock::set_maximum_power );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -531,31 +554,10 @@ class IntermittentUnitBlock : public UnitBlock
  /// the objective function
  FRealObjective objective;
 
- static void static_initialization( void ) {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-  //                                           &IntermittentUnitBlock::set_maximum_power,
-  //                                           MS_dbl_sbst::args() );
-  //
-  // register_method< IntermittentUnitBlock >( "IntermittentUnitBlock::set_maximum_power",
-  //                                           &IntermittentUnitBlock::set_maximum_power,
-  //                                           MS_dbl_rngd::args() );
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
- }
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/

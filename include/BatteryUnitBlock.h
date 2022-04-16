@@ -1017,6 +1017,29 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+  //                                      &BatteryUnitBlock::set_initial_storage,
+  //                                      MS_dbl_sbst::args() );
+  //
+  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+  //                                      &BatteryUnitBlock::set_initial_storage,
+  //                                      MS_dbl_rngd::args() );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_storage" ,
+   &BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_storage" ,
+   &BatteryUnitBlock::set_initial_storage );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1136,32 +1159,10 @@ class BatteryUnitBlock : public UnitBlock
  /// the objective function
  FRealObjective objective;
 
- static void static_initialization( void ) {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-  //                                      &BatteryUnitBlock::set_initial_storage,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-  //                                      &BatteryUnitBlock::set_initial_storage,
-  //                                      MS_dbl_rngd::args() );
-
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
-   "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
-
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
-   "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
- }
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/

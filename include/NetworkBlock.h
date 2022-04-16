@@ -32,8 +32,9 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __NetworkBlock
-#define __NetworkBlock
-/* self-identification: #endif at the end of the file */
+ #define __NetworkBlock
+                      /* self-identification: #endif at the end of the file */
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -73,6 +74,7 @@ namespace SMSpp_di_unipi_it
 
 class NetworkBlock : public Block
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -107,7 +109,7 @@ class NetworkBlock : public Block
  {
 
 /*--------------------------------------------------------------------------*/
-/*----------------- PUBLIC PART OF THE NetworkData CLASS -------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
   public:
@@ -120,6 +122,63 @@ class NetworkBlock : public Block
 
   /// constructor of NetworkData, does nothing
   NetworkData();
+
+  /*--------------------------------------------------------------------------*/
+
+  /// construct a :NetworkData of specific type using the Block factory
+  /** Use the NetworkData factory to construct a :NetworkData object of type
+   * specified by classname (a std::string with the name of the class inside).
+   * If there is no class with the given name, exception is thrown.
+   *
+   * Note that the method is static because the factory is static, hence it is
+   * to be called as
+   *
+   *  NetworkData * myNetworkData = NetworkData::new_NetworkData( some_class );
+   *
+   * i.e., without any reference to any specific NetworkData (and, therefore,
+   * it can be used to construct the very first NetworkData if needed).
+   *
+   * Note that the :NetworkData returned my this method is "empty": it
+   * contains no (instance) data, and therefore it has to be explicitly
+   * initialized with
+   * any of the corresponding methods (operator>>, serialize(), anything that
+   * the specific :NetworkData class provides) before it can be used.
+   *
+   * For this to work, each :NetworkData has to:
+   *
+   * - add the line
+   *
+   *       SMSpp_insert_in_factory_h;
+   *
+   *   to its definition (typically, in the private part in its .h file);
+   *
+   * - add the line
+   *
+   *       SMSpp_insert_in_factory_cpp_1( name_of_the_class );
+   *
+   *   to exactly *one* .cpp file, typically that :NetworkData .cpp file. If
+   *   the name of the class contains any parentheses, then one must enclose
+   *   the name of the class in parentheses and instead add the line
+   *
+   *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
+   *
+   * Any whitespaces that the given \p classname may contain is ignored. So,
+   * for example, to create an instance of the class MyNetworkData<int> one
+   * could pass "MyNetworkData<int>" or "MyNetworkData< int >"
+   * (even " M y B l o c k < int > " would work).
+   *
+   * @param classname The name of the :NetworkData class that must be
+   *                  constructed. */
+
+  static NetworkData * new_NetworkData( const std::string & classname ) {
+   const std::string classname_( SMSpp_classname_normalise(
+    std::string( classname ) ) );
+   const auto it = NetworkData::f_factory().find( classname_ );
+   if( it == NetworkData::f_factory().end() )
+    throw ( std::invalid_argument( classname +
+                                   " not present in NetworkData factory" ) );
+   return( ( it->second )( nullptr ) );
+  }
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
@@ -202,14 +261,14 @@ class NetworkBlock : public Block
    * to one, it means that the network is bus, and therefore all the rest of
    * the data is meaningless. */
 
-  Index get_number_nodes( void ) const { return ( f_number_nodes ); }
+  Index get_number_nodes( void ) const { return( f_number_nodes ); }
 
 /*--------------------------------------------------------------------------*/
 
   /// returns the number of intervals of the network
   /** Method for returning the number of intervals the network refers to. */
 
-  Index get_number_intervals( void ) const { return ( f_number_intervals ); }
+  Index get_number_intervals( void ) const { return( f_number_intervals ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -219,7 +278,7 @@ class NetworkBlock : public Block
    * (no self-loops are allowed, hence there is no line to be made with a single
    * node). */
 
-  Index get_number_lines( void ) const { return ( f_number_lines ); }
+  Index get_number_lines( void ) const { return( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -256,7 +315,7 @@ class NetworkBlock : public Block
    */
 
   const std::vector< Index > & get_end_line( void ) const {
-   return ( v_end_line );
+   return( v_end_line );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -272,14 +331,41 @@ class NetworkBlock : public Block
 
   virtual void serialize( netCDF::NcGroup & group ) const;
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
   protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED TYPES ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+  typedef boost::function< NetworkData *( NetworkData * ) > NetworkDataFactory;
+  // type of the factory of NetworkData
+
+  typedef std::map< std::string , NetworkDataFactory > NetworkDataFactoryMap;
+  // Type of the map between strings and the factory of NetworkData
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+  /** @name Protected methods for handling static fields
+   *
+   * These methods allow derived classes to partake into static initialization
+   * procedures performed once and for all at the start of the program. These
+   * are typically related with factories.
+   * @{ */
+
+  /// method encapsulating the NetworkData factory
+  /** This method returns the NetworkData factory, which is a static object.
+   * The rationale for using a method is that this is the "Construct On
+   * First Use Idiom" that solves the "static initialization order problem".
+   */
+
+  static NetworkDataFactoryMap & f_factory( void );
+
 /*--------------------------------------------------------------------------*/
 
   /// empty placeholder for class-specific static initialization
@@ -315,7 +401,7 @@ class NetworkBlock : public Block
   static void static_initialization( void ) {}
 
 /*--------------------------------------------------------------------------*/
-/*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
   /// Number of nodes of the network
@@ -510,12 +596,12 @@ class NetworkBlock : public Block
  * @{ */
 
  /// returns the number of nodes of the network
- /** Returns the number of nodes in the network. This should just be 
+ /** Returns the number of nodes in the network. This should just be
   * equivalent to get_NetworkData()->get_number_nodes(), but the base
   * NetworkBlock class does not handle it, and therefore it assumes the network
   * is a bus, i.e., get_number_nodes() == 1, and returns 1. */
 
- virtual Index get_number_nodes( void ) const { return ( 1 ); }
+ virtual Index get_number_nodes( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -526,7 +612,7 @@ class NetworkBlock : public Block
   * is a bus, i.e., get_number_nodes() == 1, and returns 0 (no self-loops are
   * allowed, hence there is no line to be made with a single node). */
 
- virtual Index get_number_lines( void ) const { return ( 0 ); }
+ virtual Index get_number_lines( void ) const { return( 0 ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -536,7 +622,7 @@ class NetworkBlock : public Block
   * NetworkBlock class does not handle it, and therefore it assumes the network
   * handle just one time horizon and returns 1. */
 
- virtual Index get_number_intervals( void ) const { return ( 1 ); }
+ virtual Index get_number_intervals( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -675,13 +761,13 @@ class NetworkBlock : public Block
  void set_objective_generated( void ) { AR |= HasObj; }
 
  /// indicates whether the Variable of the NetworkBlock have been generated
- bool variables_generated( void ) const { return ( AR & HasVar ); }
+ bool variables_generated( void ) const { return( AR & HasVar ); }
 
  /// indicates whether the Constraint of the NetworkBlock have been generated
- bool constraints_generated( void ) const { return ( AR & HasCst ); }
+ bool constraints_generated( void ) const { return( AR & HasCst ); }
 
  /// indicates whether the Objective of the NetworkBlock has been generated
- bool objective_generated( void ) const { return ( AR & HasObj ); }
+ bool objective_generated( void ) const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -747,10 +833,10 @@ class NetworkBlockMod : public Modification
  virtual ~NetworkBlockMod( void ) override = default;
 
  /// returns the Block to which the Modification refers
- Block * get_Block( void ) const override { return ( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  /// Accessor to the type of modification
- int type( void ) { return ( f_type ); }
+ int type( void ) { return( f_type ); }
 
  protected:
 
@@ -789,7 +875,7 @@ class NetworkBlockRngdMod : public NetworkBlockMod
  virtual ~NetworkBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng( void ) { return ( f_rng ); }
+ Block::c_Range & rng( void ) { return( f_rng ); }
 
  protected:
 
@@ -822,7 +908,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod
  virtual ~NetworkBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms( void ) { return ( f_nms ); }
+ Block::c_Subset & nms( void ) { return( f_nms ); }
 
  protected:
 

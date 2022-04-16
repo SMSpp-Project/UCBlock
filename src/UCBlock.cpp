@@ -33,7 +33,6 @@
 #include "HeatBlock.h" */
 #include "LinearFunction.h"
 #include "UCBlock.h"
-#include "DCNetworkBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -187,10 +186,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  }
 
  // For backward compatibility reasons wrt the nc4 input data files already
- // given, the default value is `DCNetworkBlock`.
+ // given, the default values are `DCNetworkBlock` and `DCNetworkData`
  if( !::deserialize( group , network_classname ,
                      "NetworkBlockClassname" , true ) ) {
   network_classname = "DCNetworkBlock";
+ }
+ if( !::deserialize( group , network_data_classname ,
+                     "NetworkDataClassname" , true ) ) {
+  network_data_classname = "DCNetworkData";
  }
 
  Index number_nodes;
@@ -199,7 +202,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( number_nodes > 1 ) {
   delete f_NetworkData;
-  f_NetworkData = new DCNetworkBlock::DCNetworkData();
+  f_NetworkData = static_cast<NetworkBlock::NetworkData *>(
+   NetworkBlock::NetworkData::new_NetworkData( network_data_classname ));
   f_NetworkData->deserialize( group );
  }
 
@@ -656,6 +660,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      for( auto block : get_nested_Blocks() ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
+
       if( !unit_block )
        continue;
 
@@ -685,6 +690,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
+
        if( !unit_block )
         continue;
 
@@ -725,6 +731,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        for( auto block : get_nested_Blocks() ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
+
         if( !unit_block )
          continue;
 
@@ -767,6 +774,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
+
          if( !unit_block )
           continue;
 
@@ -818,6 +826,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      for( auto block : get_nested_Blocks() ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
+
       if( !unit_block )
        continue;
 
@@ -851,6 +860,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
+
        if( !unit_block )
         continue;
 
@@ -892,6 +902,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        for( auto block : get_nested_Blocks() ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
+
         if( !unit_block )
          continue;
 
@@ -935,6 +946,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
+
          if( !unit_block )
           continue;
 
@@ -990,6 +1002,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      for( auto block : get_nested_Blocks() ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
+
       if( !unit_block )
        continue;
 
@@ -1033,6 +1046,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
+
        if( !unit_block )
         continue;
 
@@ -1080,6 +1094,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        for( auto block : get_nested_Blocks() ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
+
         if( !unit_block )
          continue;
 
@@ -1129,6 +1144,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
+
          if( !unit_block )
           continue;
 
@@ -1196,6 +1212,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       for( auto block : get_nested_Blocks() ) {
 
        auto unit_block = dynamic_cast<UnitBlock *>(block);
+
        if( !unit_block )
         continue;
 

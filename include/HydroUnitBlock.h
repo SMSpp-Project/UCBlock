@@ -86,6 +86,7 @@ namespace SMSpp_di_unipi_it
 
 class HydroUnitBlock : public UnitBlock
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1642,6 +1643,60 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it. !!*/
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+  //                                    &HydroUnitBlock::set_inflow,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+  //                                    &HydroUnitBlock::set_inflow,
+  //                                    MS_dbl_rngd::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+  //                                    &HydroUnitBlock::set_inertia_power,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
+  //                                    &HydroUnitBlock::set_inertia_power,
+  //                                    MS_dbl_rngd::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
+  //                                    MS_dbl_sbst::args() );
+  //
+  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
+  //                                    &HydroUnitBlock::set_initial_volume,
+  //                                    MS_dbl_rngd::args() );
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inflow" ,
+   &HydroUnitBlock::set_inflow );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inflow" ,
+   &HydroUnitBlock::set_inflow );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inertia_power" ,
+   &HydroUnitBlock::set_inertia_power );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inertia_power" ,
+   &HydroUnitBlock::set_inertia_power );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_initial_volume" ,
+   &HydroUnitBlock::set_initial_volume );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_initial_volume" ,
+   &HydroUnitBlock::set_initial_volume );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1787,63 +1842,10 @@ class HydroUnitBlock : public UnitBlock
  /// the objective function
  FRealObjective objective;
 
- static void static_initialization( void ) {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_rngd::args() );
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-   "HydroUnitBlock::set_inflow" ,
-   &HydroUnitBlock::set_inflow );
-
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
-   "HydroUnitBlock::set_inflow" ,
-   &HydroUnitBlock::set_inflow );
-
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-   "HydroUnitBlock::set_inertia_power" ,
-   &HydroUnitBlock::set_inertia_power );
-
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
-   "HydroUnitBlock::set_inertia_power" ,
-   &HydroUnitBlock::set_inertia_power );
-
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-   "HydroUnitBlock::set_initial_volume" ,
-   &HydroUnitBlock::set_initial_volume );
-
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
-   "HydroUnitBlock::set_initial_volume" ,
-   &HydroUnitBlock::set_initial_volume );
- }
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/

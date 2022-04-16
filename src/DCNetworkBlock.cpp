@@ -49,7 +49,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-// register DCNetworkData to the Data factory
+// register DCNetworkData to the NetworkData factory
 
 SMSpp_insert_in_factory_cpp_1( DCNetworkBlock::DCNetworkData );
 
