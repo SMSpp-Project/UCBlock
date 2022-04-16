@@ -37,6 +37,12 @@ using namespace SMSpp_di_unipi_it;
 
 SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+// register ECNetworkData to the Data factory
+
+SMSpp_insert_in_factory_cpp_1( ECNetworkBlock::ECNetworkData );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/

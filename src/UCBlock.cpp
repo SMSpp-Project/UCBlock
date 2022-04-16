@@ -100,14 +100,14 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
  Index cntr = 0;
  v_network_blocks.resize( f_number_networks , nullptr );
 
- for( Index i = 0 ; i < f_time_horizon ; ++i ) {
-  std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+ for( Index n = 0 ; n < f_number_networks ; ++n ) {
+  std::string sub_group_name = "NetworkBlock_" + std::to_string( n );
   auto sub_group = group.getGroup( sub_group_name );
   if( sub_group.isNull() )
    continue;
 
   auto nbi = new_Block( sub_group , this );
-  if( ( v_network_blocks[ i ] = dynamic_cast< NetworkBlock * >( nbi ) ) )
+  if( ( v_network_blocks[ n ] = dynamic_cast< NetworkBlock * >( nbi ) ) )
    ++cntr;
   else {
    delete nbi;
@@ -394,8 +394,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  } else {  // number_nodes > 1
 
-  // TODO fixed here
-
   int sum_intervals = std::accumulate(
    v_network_blocks.begin() , v_network_blocks.end() , 0 ,
    []( int init , const NetworkBlock * nb ) {
@@ -406,17 +404,21 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   // input n `NetworkBlock`(s) and the sum of intervals spanned by each of
   // them is equal to the time  horizon of the problem
 
-  if( sum_intervals < f_time_horizon ) {
+  if( sum_intervals < f_time_horizon ) {  // TODO fix here
    // se no (allora mancano) attraverso il vettore di indici di inizio di ogni
-   // network block aggiungo nuovi network block dove mancano.
+   // NetworkBlock in UCBlock aggiungo nuovi network block deserializzando
+   // in ognuno di essi il contenuto di NetworkData ed inserendoli nei buchi
+   // dove mancano, poi setto il `NumberIntervals' del `NetworkBlock` come:
+   // StartNetworkIntervals[ i + 1 ] - StartNetworkIntervals[ i ]
+   // for all i in `f_number_networks`
 
 
 
   } else if( sum_intervals > f_time_horizon )
    throw ( std::invalid_argument
     ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
-      "each NetworkBlock should be equal to the number of time horizon but it"
-      " is greater than." ) );
+      "each NetworkBlock should be equal (or less than) to the number of "
+      "time horizon but it is greater than." ) );
 
   // if they don't exist, create them now as (DC/EC)NetworkBlock
   if( v_network_blocks.empty() ) {
@@ -706,7 +708,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_PrimaryDemand_Const[ t ][ 0 ].set_function( linear_function );
     }
    }
-  } else if( f_number_primary_zones > 1 ) {   // PrimaryZones is needed
+  } else if( f_number_primary_zones > 1 ) {  // PrimaryZones is needed
 
    if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
@@ -873,7 +875,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_SecondaryDemand_Const[ t ][ 0 ].set_function( linear_function );
     }
    }
-  } else if( f_number_secondary_zones > 1 ) {   // SecondaryZones is needed
+  } else if( f_number_secondary_zones > 1 ) {  // SecondaryZones is needed
 
    if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
@@ -1062,7 +1064,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
      v_InertiaDemand_Const[ t ][ 0 ].set_function( linear_function );
     }
    }
-  } else if( f_number_inertia_zones > 1 ) {   // InertiaZones is needed
+  } else if( f_number_inertia_zones > 1 ) {  // InertiaZones is needed
 
    if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
 
@@ -1217,7 +1219,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       // Terms associated with heat-only generation units
       /*!! commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) {  // TODO Do we have any HeatBlock?
 
        for( Index h = 0 ; h < f_number_heat_blocks ; ++h ) {
 
@@ -1253,7 +1255,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
    }
 
-  } else { // DCNetwork
+  } else {  // DCNetwork
 
    for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
@@ -1306,7 +1308,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       // Terms associated with heat-only generation units
       /*!! commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) {  // TODO Do we have any HeatBlock?
 
        for( Index h = 0 ; h < f_number_heat_blocks ; ++h ) {
 

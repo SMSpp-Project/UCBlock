@@ -47,6 +47,12 @@ using namespace SMSpp_di_unipi_it;
 
 SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+// register DCNetworkData to the Data factory
+
+SMSpp_insert_in_factory_cpp_1( DCNetworkBlock::DCNetworkData );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/

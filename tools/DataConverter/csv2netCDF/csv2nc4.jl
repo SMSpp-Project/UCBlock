@@ -39,8 +39,8 @@ function csvEC2nc4()
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Store the first index (-1 since in C++ the aray's indexing starts from zero) 
-    # of each peak period/category, i.e., of each `(EC)NetworkBlock`
+    # Store the first index (-1 since in C++ the array's indexing starts from
+    # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
     peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
     peak_start_idx = [findfirst(x -> x == w, peak_categories) - 1
                       for w in peak_set]

@@ -5,9 +5,8 @@
  *
  * Header file for the class NetworkBlock, which derives from the Block, in
  * order to define the basic interface for the constraints/optimization
- * problems which describe the behaviour of the transmission network in a
- * specific time instant in the Unit Commitment (UC) problem, as represented
- * in UCBlock.
+ * problems which describe the behaviour of the network in a specific time
+ * instant in the Unit Commitment (UC) problem, as represented in UCBlock.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -33,8 +32,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __NetworkBlock
- #define __NetworkBlock
-                      /* self-identification: #endif at the end of the file */
+#define __NetworkBlock
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -54,11 +53,11 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Block that describes the transmission network in the UC problem
+/// Block that describes the network in the UC problem
 /** The class NetworkBlock, which derives from the Block, defines the basic
  * interface for the constraints/optimization problems which describe the
- * behaviour of the transmission network in a specific time instant in the
- * Unit Commitment (UC) problem, as represented in UCBlock.
+ * behaviour of the network in a specific time instant in the Unit Commitment
+ * (UC) problem, as represented in UCBlock.
  *
  * The base class handles only basic information: it allows to read/set the
  * topology (and capacity/susceptances) of the network, and the active power
@@ -70,7 +69,7 @@ namespace SMSpp_di_unipi_it
  * are entirely demanded to derived objects. The interface between a
  * NetworkBlock and the rest of the UC is just the vector of node injection
  * variables, which will have to satisfy the technical constraints of the
- * transmission network. */
+ * network. */
 
 class NetworkBlock : public Block
 {
@@ -86,32 +85,23 @@ class NetworkBlock : public Block
 /** @name Public types
  *
  * NetworkBlock defines the NetworkData public type, a small auxiliary class
- * to bunch the basic topological data of the transmission network.
+ * to bunch the basic topological data of the network.
  * @{ */
-
- /// public enum for defining the types of lines of the network
- enum line_type
- {
-  kNone = 0 ,  ///< no line
-  kAC ,        ///< AC lines
-  kHVDC ,      ///< HVDC lines
-  kAC_HVDC     ///< AC and HVDC lines
- };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Auxiliary class holding basic data about the transmission network
+ /// Auxiliary class holding basic data about the network
  /** The NetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
-  * characteristics) that describe the transmission network. The rationale is
-  * that while often the network does not change during the (short) time
-  * horizon of UC, it makes sense to allow for this to happen. This means that
-  * individual NetworkBlock objects may in principle have different
-  * NetworkData, but most often they can share the same. By bunching all the
-  * information together we make it easy for this sharing to happen. */
+  * characteristics) that describe the network. The rationale is that while
+  * often the network does not change during the (short) time horizon of UC,
+  * it makes sense to allow for this to happen. This means that individual
+  * NetworkBlock objects may in principle have different NetworkData, but
+  * most often they can share the same. By bunching all the information
+  * together we make it easy for this sharing to happen. */
 
  class NetworkData
  {
@@ -154,7 +144,7 @@ class NetworkBlock : public Block
    * the subsequent information is mandatory:
    *
    * - The dimension "NumberLines" containing the number of lines in the
-   *   transmission network.
+   *   network.
    *
    * - The variable "StartLine", of type netCDF::NcUint and indexed over the
    *   dimension "NumberLines"; the l-th entry of the variable is the starting
@@ -209,8 +199,8 @@ class NetworkBlock : public Block
 
   /// returns the number of nodes of the network
   /** Method for returning the number of nodes of the network. When it is equal
-   * to one, it means that the transmission network is bus, and therefore all
-   * the rest of the data is meaningless. */
+   * to one, it means that the network is bus, and therefore all the rest of
+   * the data is meaningless. */
 
   Index get_number_nodes( void ) const { return ( f_number_nodes ); }
 
@@ -289,6 +279,42 @@ class NetworkBlock : public Block
   protected:
 
 /*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+  /// empty placeholder for class-specific static initialization
+  /** The method static_initialization() is an empty placeholder which is made
+   * available to derived classes that need to perform some class-specific
+   * static initialization besides these of any :NetworkBlock::NetworkData
+   * class, i.e., the management of the factory. This method is invoked by the
+   * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+   * standard initialization procedures. If a derived class needs to perform
+   * any static initialization it just have to do this into its version of
+   * this method; if not it just has nothing to do, as the (empty) method of
+   * the base class will be called.
+   *
+   * This mechanism has a potential drawback in that a redefined
+   * static_initialization() may be called multiple times. Assume that a
+   * derived class X redefines the method to perform something, and that a
+   * further class Y is derived from X that has to do nothing, and that
+   * therefore will not define Y::static_initialization(): them, within the
+   * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+   * called again.
+   *
+   * If this is undesirable, X will have to explicitly instruct derived classes
+   * to redefine their (empty) static_initialization(). Alternatively,
+   * X::static_initialization() may contain mechanisms to ensure that it will
+   * actually do things only the very first time it is called. One standard
+   * trick is to do everything within the initialisation of a static local
+   * variable of X::static_initialization(): this is guaranteed by the
+   * compiler to happen only once, regardless of how many times the function
+   * is called. Alternatively, an explicit static boolean could be used (this
+   * may just be the same as what the compiler does during the initialization
+   * of static variables without telling you). */
+
+  static void static_initialization( void ) {}
+
+/*--------------------------------------------------------------------------*/
 /*----------------- PROTECTED FIELDS OF THE NetworkData --------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -339,10 +365,10 @@ class NetworkBlock : public Block
   * group should contain the following:
   *
   * - Optionally, the dimensions and variables necessary to a NetworkData
-  *   object, that describe the transmission network; see
-  *   NetworkData::deserialize() for details. All that is optional, because the
-  *   NetworkData object can alternatively be passed to the NetworkBlock via a
-  *   call to set_NetworkData(). Note that if set_NetworkData() is called, but
+  *   object, that describe the network; see NetworkData::deserialize() for
+  *   details. All that is optional, because the NetworkData object can
+  *   alternatively be passed to the NetworkBlock via a call to
+  *   set_NetworkData(). Note that if set_NetworkData() is called, but
   *   the representation of a NetworkData object is found in the NcGroup, then
   *   the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead.
@@ -375,8 +401,8 @@ class NetworkBlock : public Block
   * read
   *
   * - if NetworkData object is not provided (basically, "NumberNodes" is not
-  *   provided or it is == 1) then the transmission network is taken to have
-  *   only one node (a bus) and there is only one node injection variable.
+  *   provided or it is == 1) then the network is taken to have only one node
+  *   (a bus) and there is only one node injection variable.
   *
   * - if the NetworkData object is present (either in the NcGroup or because it
   *   has been passed and NumberNodes > 1) then this variable has size
@@ -406,10 +432,10 @@ class NetworkBlock : public Block
 
  /// method to set the NetworkData object
  /** This method can be called *before* that deserialize() is called to provide
-  * the NetworkBlock with the data corresponding to the transmission network
-  * description. This allows the information not to be duplicated in the netCDF
-  * group that describes the NetworkBlock, since usually (but not necessarily)
-  * a NetworkBlock is deserialized inside a UCBlock, and all networks have the
+  * the NetworkBlock with the data corresponding to the network description.
+  * This allows the information not to be duplicated in the netCDF group that
+  * describes the NetworkBlock, since usually (but not necessarily) a
+  * NetworkBlock is deserialized inside a UCBlock, and all networks have the
   * same data, that can therefore be read once and for all by the father
   * UCBlock.
   *
@@ -484,8 +510,8 @@ class NetworkBlock : public Block
  * @{ */
 
  /// returns the number of nodes of the network
- /** Returns the number of nodes in the transmission network. This should just
-  * be equivalent to get_NetworkData()->get_number_nodes(), but the base
+ /** Returns the number of nodes in the network. This should just be 
+  * equivalent to get_NetworkData()->get_number_nodes(), but the base
   * NetworkBlock class does not handle it, and therefore it assumes the network
   * is a bus, i.e., get_number_nodes() == 1, and returns 1. */
 
