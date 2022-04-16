@@ -1017,7 +1017,7 @@ class ThermalUnitBlock : public UnitBlock
    return( v_QuadTerm.front() );
   assert( v_QuadTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw ( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
+   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
                              "time index: " + std::to_string( t ) ) );
   return( v_QuadTerm[ t ] );
  }
@@ -1060,7 +1060,7 @@ class ThermalUnitBlock : public UnitBlock
    return( v_LinearTerm.front() );
   assert( v_LinearTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw ( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
+   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
                              "time index: " + std::to_string( t ) ) );
   return( v_LinearTerm[ t ] );
  }
@@ -1102,7 +1102,7 @@ class ThermalUnitBlock : public UnitBlock
    return( v_ConstTerm.front() );
   assert( v_ConstTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw ( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
+   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
                              "time index: " + std::to_string( t ) ) );
   return( v_ConstTerm[ t ] );
  }
@@ -1142,7 +1142,7 @@ class ThermalUnitBlock : public UnitBlock
    return( v_StartUpCost.front() );
   assert( v_StartUpCost.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw ( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
+   throw( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
                              "time index: " + std::to_string( t ) ) );
   return( v_StartUpCost[ t ] );
  }
@@ -1297,7 +1297,7 @@ class ThermalUnitBlock : public UnitBlock
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
  }
 
 /** @} ---------------------------------------------------------------------*/

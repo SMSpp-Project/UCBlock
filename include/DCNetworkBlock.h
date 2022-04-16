@@ -728,7 +728,7 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< FRowConstraint > &
  get_power_flow_limit_constraints( void ) const {
   if( !f_NetworkData )
-   throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
+   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
                              " DCNetworkData has not been set." ) );
 
   switch( f_NetworkData->get_lines_type() ) {
@@ -743,7 +743,7 @@ class DCNetworkBlock : public NetworkBlock
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds( void ) const {
   if( !f_NetworkData )
-   throw ( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
+   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
                              " DCNetworkData has not been set." ) );
   return v_HVDC_power_flow_limit_constraints;
  }
@@ -813,7 +813,7 @@ class DCNetworkBlock : public NetworkBlock
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
  }
 
 /**@} ----------------------------------------------------------------------*/

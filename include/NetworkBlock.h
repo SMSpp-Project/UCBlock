@@ -175,7 +175,7 @@ class NetworkBlock : public Block
     std::string( classname ) ) );
    const auto it = NetworkData::f_factory().find( classname_ );
    if( it == NetworkData::f_factory().end() )
-    throw ( std::invalid_argument( classname +
+    throw( std::invalid_argument( classname +
                                    " not present in NetworkData factory" ) );
    return( ( it->second )( nullptr ) );
   }
@@ -507,7 +507,7 @@ class NetworkBlock : public Block
   */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
  }
 
 /**@} ----------------------------------------------------------------------*/

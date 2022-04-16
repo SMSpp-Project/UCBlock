@@ -525,7 +525,7 @@ class ECNetworkBlock : public NetworkBlock
   */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
  }
 
 /**@} ----------------------------------------------------------------------*/

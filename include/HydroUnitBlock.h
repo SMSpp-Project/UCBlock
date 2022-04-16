@@ -1586,7 +1586,7 @@ class HydroUnitBlock : public UnitBlock
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "HydroUnitBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "HydroUnitBlock::load() not implemented yet" ) );
  }
 
 /** @} ---------------------------------------------------------------------*/

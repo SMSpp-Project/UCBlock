@@ -458,7 +458,7 @@ class IntermittentUnitBlock : public UnitBlock
     @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error(
+  throw( std::logic_error(
    "IntermittentUnitBlock::load() not implemented yet" ) );
  }
 

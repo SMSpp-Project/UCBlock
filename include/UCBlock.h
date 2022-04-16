@@ -1060,7 +1060,7 @@ class UCBlock : public Block
 
  UnitBlock * get_unit_block( Index u ) const {
   if( u >= f_number_units )
-   throw ( std::invalid_argument( "invalid unit index" ) );
+   throw( std::invalid_argument( "invalid unit index" ) );
   return( static_cast< UnitBlock * >( v_Block[ u ] ) );
  }
 
@@ -1072,7 +1072,7 @@ class UCBlock : public Block
   if( v_network_blocks.empty() )
    return( nullptr );
   if( n >= f_number_networks )
-   throw ( std::invalid_argument( "invalid network index" ) );
+   throw( std::invalid_argument( "invalid network index" ) );
 
   return( v_network_blocks[ n ] );
  }
@@ -1221,7 +1221,7 @@ class UCBlock : public Block
  */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "UCBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
  }
 
 /** @} ---------------------------------------------------------------------*/

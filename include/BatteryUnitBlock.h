@@ -960,7 +960,7 @@ class BatteryUnitBlock : public UnitBlock
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );
+  throw( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );
  }
 
 /** @} ---------------------------------------------------------------------*/

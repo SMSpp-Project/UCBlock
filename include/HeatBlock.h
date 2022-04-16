@@ -610,7 +610,7 @@ class HeatBlock : public Block
  *  @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
-  throw ( std::logic_error( "HeatBlock::load() not implemented yet" ) );
+  throw( std::logic_error( "HeatBlock::load() not implemented yet" ) );
  };
 
 /** @} ---------------------------------------------------------------------*/
