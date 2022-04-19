@@ -1213,7 +1213,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) {
-                    return ( cst == 0 );
+                    return( cst == 0 );
                    } ) ) {
    return;
   }
@@ -1292,7 +1292,7 @@ HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
   if( std::all_of( values ,
                    values + ( rng.second - rng.first ) ,
                    []( double cst ) {
-                    return ( cst == 0 );
+                    return( cst == 0 );
                    } ) ) {
    return;
   }
@@ -1357,7 +1357,7 @@ HydroUnitBlock::set_inertia_power(
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) {
-                    return ( cst == 0 );
+                    return( cst == 0 );
                    } ) ) {
    return;
   }
@@ -1424,7 +1424,7 @@ HydroUnitBlock::set_inertia_power(
   if( std::all_of( values ,
                    values + ( rng.second - rng.first ) ,
                    []( double cst ) {
-                    return ( cst == 0 );
+                    return( cst == 0 );
                    } ) ) {
    return;
   }
@@ -1473,7 +1473,7 @@ void HydroUnitBlock::set_initial_volume
  if( v_initial_volumetric.empty() ) {
   // The initial volumes are currently zero.
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    // The initial volumes are still zero. There is nothing to be updated.
    return;
   }
@@ -1538,7 +1538,7 @@ void HydroUnitBlock::set_initial_volume
  if( v_initial_volumetric.empty() ) {
   // The initial volumes are currently zero.
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    // The initial volumes are still zero. There is nothing to be updated.
    return;
   }
@@ -1634,7 +1634,7 @@ void HydroUnitBlock::set_initial_flow_rate
 
  if( v_initial_flow_rate.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 
@@ -1690,7 +1690,7 @@ void HydroUnitBlock::set_initial_flow_rate
 
  if( v_initial_flow_rate.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 

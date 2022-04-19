@@ -165,7 +165,7 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
  if( !emptys )
   sol->read( this );
 
- return ( sol );
+ return( sol );
 }
 
 /*--------------------------------------------------------------------------*/

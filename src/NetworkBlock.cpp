@@ -122,7 +122,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
  if( !emptys )
   sol->read( this );
 
- return ( sol );
+ return( sol );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -149,7 +149,7 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
 NetworkBlock::NetworkData::NetworkDataFactoryMap &
 NetworkBlock::NetworkData::f_factory( void ) {
  static NetworkDataFactoryMap s_factory;
- return ( s_factory );
+ return( s_factory );
 }
 
 /*--------------------------------------------------------------------------*/

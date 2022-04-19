@@ -29,9 +29,11 @@ function csvEC2nc4()
 
     # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
-    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock`
-    network_classname = defVar(block, "NetworkBlockClassname", String, ())
-    network_classname = "ECNetworkBlock"
+    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`
+    network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
+    network_block_classname = "ECNetworkBlock"
+    network_data_classname = defVar(block, "NetworkDataClassname", String, ())
+    network_data_classname = "ECNetworkData"
 
     # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")

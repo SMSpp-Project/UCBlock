@@ -53,7 +53,7 @@ HydroSystemUnitBlock::~HydroSystemUnitBlock() {
 /*--------------------------------------------------------------------------*/
 
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
- return ( dynamic_cast<HydroUnitBlock *>( v_Block[ i ] ) );
+ return( dynamic_cast<HydroUnitBlock *>( v_Block[ i ] ) );
 }
 
 /*--------------------------------------------------------------------------*/

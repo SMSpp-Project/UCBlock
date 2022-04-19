@@ -52,13 +52,13 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 static LinearFunction * LF( Function * f ) {
- return ( static_cast< LinearFunction * >( f ) );
+ return( static_cast< LinearFunction * >( f ) );
 }
 
 /*--------------------------------------------------------------------------*/
 
 static DQuadFunction * QF( Function * f ) {
- return ( static_cast< DQuadFunction * >( f ) );
+ return( static_cast< DQuadFunction * >( f ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -70,9 +70,9 @@ static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
  // in sbst is identical to the vector starting at it
  for( auto t : sbst )
   if( vec[ t ] != *( it++ ) )
-   return ( false );
+   return( false );
 
- return ( true );
+ return( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -93,7 +93,7 @@ Block::Subset subset_add( const Block::Subset & sbst , Block::Index dlt ) {
  for( auto & t : ret )
   t += dlt;
 
- return ( ret );
+ return( ret );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -103,7 +103,7 @@ Block::Subset subset_sbtrct( const Block::Subset & sbst , Block::Index dlt ) {
  for( auto & t : ret )
   t -= dlt;
 
- return ( ret );
+ return( ret );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1384,7 +1384,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
 
  if( v_Availability.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 1.0 ); } ) )
+                   []( double cst ) { return( cst == 1.0 ); } ) )
    return;
 
   v_Availability.assign( get_time_horizon() , 1.0 );
@@ -1449,7 +1449,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
 
  if( v_Availability.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 1.0 ); } ) )
+                   []( double cst ) { return( cst == 1.0 ); } ) )
    return;
 
   v_Availability.assign( get_time_horizon() , 1.0 );
@@ -1501,7 +1501,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( v_MaxPower.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_MaxPower.assign( get_time_horizon() , 0 );
@@ -1548,7 +1548,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
  if( v_MaxPower.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_MaxPower.assign( get_time_horizon() , 0 );
@@ -1669,7 +1669,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
 
  if( v_StartUpCost.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_StartUpCost.assign( get_time_horizon() , 0 );
@@ -1731,7 +1731,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
  c_Index sz = rng.second - rng.first;
  if( v_StartUpCost.empty() ) {
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_StartUpCost.assign( get_time_horizon() , 0 );
@@ -1785,7 +1785,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
 
  if( v_ConstTerm.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_ConstTerm.assign( get_time_horizon() , 0 );
@@ -1848,7 +1848,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
  c_Index sz = rng.second - rng.first;
  if( v_ConstTerm.empty() ) {
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_ConstTerm.assign( get_time_horizon() , 0 );
@@ -1903,7 +1903,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
 
  if( v_LinearTerm.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_LinearTerm.assign( get_time_horizon() , 0 );
@@ -1964,7 +1964,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
  c_Index sz = rng.second - rng.first;
  if( v_LinearTerm.empty() ) {
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_LinearTerm.assign( get_time_horizon() , 0 );
@@ -2017,7 +2017,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
 
  if( v_QuadTerm.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_QuadTerm.assign( get_time_horizon() , 0 );
@@ -2086,7 +2086,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
  c_Index sz = rng.second - rng.first;
  if( v_QuadTerm.empty() ) {
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_QuadTerm.assign( get_time_horizon() , 0 );
@@ -2150,7 +2150,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  if( v_primary_spinning_reserve_cost.empty() ) {
   // The primary spinning reserve costs are currently all zero.
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. Nothing to do.
 
   v_primary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
@@ -2222,7 +2222,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  if( v_primary_spinning_reserve_cost.empty() ) {
   // The primary spinning reserve costs are currently all zero.
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. So, there is nothing to be changed.
 
   v_primary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
@@ -2286,7 +2286,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  if( v_secondary_spinning_reserve_cost.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. Nothing to do.
 
   v_secondary_spinning_reserve_cost.assign( get_time_horizon() , 0 );
@@ -2362,7 +2362,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  if( v_secondary_spinning_reserve_cost.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
   if( std::all_of( values , values + sz ,
-                   []( double cst ) { return ( cst == 0 ); } ) )
+                   []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. So, there is nothing to be changed.
 
   v_secondary_spinning_reserve_cost.assign( get_time_horizon() , 0 );

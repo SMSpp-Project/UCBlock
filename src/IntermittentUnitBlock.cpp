@@ -493,7 +493,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 
@@ -550,7 +550,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 

@@ -691,7 +691,7 @@ void DCNetworkBlock::set_active_demand
 
  if( v_active_demand.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return ( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) ) {
    return;
   }
 

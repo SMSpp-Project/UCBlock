@@ -639,12 +639,12 @@ int main( int argc , char ** argv ) {
  // Check input file type
  if( std::equal( ext.begin() , ext.end() , dat.begin() ,
                  []( auto a , auto b ) {
-                  return ( std::tolower( a ) == std::tolower( b ) );
+                  return( std::tolower( a ) == std::tolower( b ) );
                  } ) ) {
   type = ftDat;
  } else if( std::equal( ext.begin() , ext.end() , mod.begin() ,
                         []( auto a , auto b ) {
-                         return ( std::tolower( a ) == std::tolower( b ) );
+                         return( std::tolower( a ) == std::tolower( b ) );
                         } ) ) {
   type = ftMod;
  } else {
