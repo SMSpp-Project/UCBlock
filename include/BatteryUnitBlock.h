@@ -892,6 +892,7 @@ class BatteryUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of active_power variables
 
  ColVariable * get_active_power( Index generator ) override {
@@ -901,6 +902,7 @@ class BatteryUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary_spinning_reserve variables
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -910,6 +912,7 @@ class BatteryUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary_spinning_reserve variables
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
@@ -978,6 +981,7 @@ class BatteryUnitBlock : public UnitBlock
                            c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this

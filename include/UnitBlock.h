@@ -117,6 +117,7 @@ class UnitBlock : public Block
  explicit UnitBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
+
  /// Destructor of UnitBlock
 
  virtual ~UnitBlock() override {
@@ -217,6 +218,7 @@ class UnitBlock : public Block
  Index get_time_horizon( void ) const { return f_time_horizon; }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the number of electrical generators of each unit in the problem
  /** Returns the number of electrical generators for this UnitBlock. Since in
   *  most of the cases each unit has only one electrical generator, this
@@ -229,6 +231,7 @@ class UnitBlock : public Block
  virtual Index get_number_generators( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the fixed consumption of the given generator
  /** This method returns a pointer to the array containing the fixed
   * consumption (basically, the constants to be multiplied by the commitment
@@ -248,6 +251,7 @@ class UnitBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the inertia commitment of the given generator
  /** This method returns a pointer to the array containing the contribution to
   * inertia (basically, the constants to be multiplied by the commitment
@@ -267,6 +271,7 @@ class UnitBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the inertia power of the given generator
  /** This method returns a pointer to the array of inertia power (basically,
   * the constants to be multiplied by the active power variables returned by
@@ -319,6 +324,7 @@ class UnitBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the array of primary spinning reserve variables
  /** This method returns a pointer to the array containing the primary
   * spinning reserve variables of the given \p generator at all time
@@ -338,6 +344,7 @@ class UnitBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the array of secondary spinning reserve variables
  /** This method returns a pointer to the array containing the secondary
   * spinning reserve variables of the given \p generator at all time
@@ -357,6 +364,7 @@ class UnitBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the array of active power variables
  /** This method returns a pointer to the array containing the active power
   * variables of the given \p generator at all time instants. Being P the
@@ -465,6 +473,7 @@ class UnitBlock : public Block
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /*--------------------------------------------------------------------------*/
+
  /// sets reserve vars method
  /** This method can be called *after* that deserialize() and before
   * generate_abstract_variables() and generate_abstract_constraints(). This is

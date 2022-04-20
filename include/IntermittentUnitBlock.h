@@ -263,6 +263,7 @@ class IntermittentUnitBlock : public UnitBlock
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this IntermittentUnitBlock is
@@ -419,6 +420,7 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary_spinning_reserve variables
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -428,6 +430,7 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary_spinning_reserve variables
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {

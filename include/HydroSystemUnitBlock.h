@@ -104,6 +104,7 @@ class HydroSystemUnitBlock : public UnitBlock
   UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
+
  /// Destructor of HydroSystemUnitBlock
 
  virtual ~HydroSystemUnitBlock() override;
@@ -225,6 +226,7 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of active power variables of each HydroUnitBlock
 
  ColVariable * get_active_power( Index generator ) override {
@@ -242,6 +244,7 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -259,6 +262,7 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary spinning reserve variables of each HydroUnitBlock
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {

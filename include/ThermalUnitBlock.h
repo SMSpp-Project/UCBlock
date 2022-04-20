@@ -94,6 +94,7 @@ class ThermalUnitBlock : public UnitBlock
   UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
+
  /// destructor of ThermalUnitBlock
 
  virtual ~ThermalUnitBlock() override;
@@ -738,6 +739,7 @@ class ThermalUnitBlock : public UnitBlock
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this ThermalUnitBlock is approximately
@@ -910,6 +912,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the availability of the unit at the given time \t
 
  double get_availability( Index t ) const {
@@ -920,6 +923,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary rho
  /** The returned vector contains the primary rho at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -929,6 +933,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary rho
  /** The returned vector contains the secondary rho at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -938,6 +943,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary spinning reserve costs
  /** This function returns the vector of primary spinning reserve costs. If it
   * is empty, then the costs are all zero. Otherwise, it has size
@@ -950,6 +956,7 @@ class ThermalUnitBlock : public UnitBlock
  const { return( v_primary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary spinning reserve costs
  /** This function returns the vector of secondary spinning reserve costs. If
   * it is empty, then the costs are all zero. Otherwise, it has size
@@ -962,6 +969,7 @@ class ThermalUnitBlock : public UnitBlock
  const { return( v_secondary_spinning_reserve_cost ); }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -971,6 +979,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -1224,6 +1233,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of active_power variables
 
  ColVariable * get_active_power( Index generator ) override {
@@ -1233,6 +1243,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary_spinning_reserve variables
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -1242,6 +1253,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary_spinning_reserve variables
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
@@ -1251,6 +1263,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of start_up variables, or nullptr if not defined
 
  ColVariable * get_start_up( void ) {
@@ -1260,6 +1273,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of shut_down variables, or nullptr if not defined
 
  ColVariable * get_shut_down( void ) {
@@ -1269,6 +1283,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the shut_down variable for time t, or nullptr if not defined
 
  ColVariable * get_shut_down( Index t ) {
@@ -1319,6 +1334,7 @@ class ThermalUnitBlock : public UnitBlock
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
+
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
@@ -1343,6 +1359,7 @@ class ThermalUnitBlock : public UnitBlock
                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
  // update the availability of the unit
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
@@ -1372,59 +1389,59 @@ class ThermalUnitBlock : public UnitBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_startup_costs( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_const_term( MF_dbl_it values ,
                       Subset && subset , bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_const_term( MF_dbl_it values , Range rng = INFRange ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_linear_term( MF_dbl_it values ,
                        Subset && subset , bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_linear_term( MF_dbl_it values , Range rng = INFRange ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_quad_term( MF_dbl_it values ,
                      Subset && subset , bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
@@ -1461,6 +1478,7 @@ class ThermalUnitBlock : public UnitBlock
                                            ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
  /// sets the initial power
  /** If the given \p subset contains the 0 index, this function sets the
   * initial power. If the given \p subset does not contain the index 0, this
@@ -1475,6 +1493,7 @@ class ThermalUnitBlock : public UnitBlock
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
   * power. In this case, if the first element of \p rng is 0, the initial
@@ -1744,6 +1763,7 @@ class ThermalUnitBlock : public UnitBlock
  void update_availability_dependents( Index t , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
+
  /// updates the constraints for the current initial power
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
@@ -1752,6 +1772,7 @@ class ThermalUnitBlock : public UnitBlock
  void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
  /// returns true if and only if the given availability is consistent
  /** This method checks whether the given \p availability is consistent at
   * time \p t. An availability is consistent at a given time instant if the
@@ -1775,6 +1796,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the operational minimum power
  /** This method computes the operational minimum power for the given nominal
   * minimum power and availability.
@@ -1791,6 +1813,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the operational maximum power
  /** This method computes the operational maximum power for the given nominal
   * maximum power and availability.

@@ -95,6 +95,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
  /// Auxiliary class holding basic data about the network
  /** The NetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
@@ -123,7 +124,7 @@ class NetworkBlock : public Block
   /// constructor of NetworkData, does nothing
   NetworkData();
 
-  /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
   /// construct a :NetworkData of specific type using the Block factory
   /** Use the NetworkData factory to construct a :NetworkData object of type

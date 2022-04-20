@@ -215,6 +215,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  std::vector< double > min_power = v_minimum_power;
 
 /*--------------------------------------------------------------------------*/
+
  // Initializing maximum power constraints
 
  if( f_gamma != 0 ) { // if unit produces any reserve

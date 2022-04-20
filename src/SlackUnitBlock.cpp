@@ -113,6 +113,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   return; // variables have already been generated
 
 /*--------------------------------------------------------------------------*/
+
  // Commitment Variable
  if( reserve_vars & 4u ) { // if UCBlock has inertia demand variables
   if( !v_MaxInertia.empty() ) { // if unit produces any inertia reserve
@@ -188,7 +189,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( ActivePower_Bound_Constraints ,
                         "ActivePowerBound_Slack" );
-/*--------------------------------------------------------------------------*/
+
+ /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
  if( reserve_vars & 1u ) {
@@ -212,7 +214,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                           "PrimarySpinningReserveBound_Slack" );
   }
  }
-/*--------------------------------------------------------------------------*/
+
+ /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
  if( reserve_vars & 2u ) {
@@ -235,7 +238,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                           "SecondarySpinningReserveBound_Slack" );
   }
  }
- /*-------------------------------ZOConstraint-------------------------------*/
+
+ /*------------------------------ ZOConstraint ------------------------------*/
 
  if( generate_ZOConstraint ) {
 

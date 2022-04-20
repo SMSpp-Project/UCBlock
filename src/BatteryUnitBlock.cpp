@@ -448,6 +448,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                         "ActivePower_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
+
  // Initializing ramp-up constraints
  if( !v_delta_ramp_up.empty() ) {
 

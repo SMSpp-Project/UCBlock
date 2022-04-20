@@ -6,16 +6,16 @@
  * Header file for the class ECNetworkBlock, which derives from the
  * Block, in order to define the basic interface for the
  * constraints/optimization problems which describe the behaviour of the
- * transmission network in a specific time instant in the Unit Commitment
- * (UC) problem, as represented in UCBlock.
+ * community network in a specific time instant or in a time interval, in
+ * the Unit Commitment (UC) problem, as represented in UCBlock.
  *
- * Each user is connected to the public grid through each own
- * Point-of-Delivery (PoD), and each user is billed for the energy he
+ * Each user of the community network is connected to the public grid through
+ * each own Point-of-Delivery (PoD), and each user is billed for the energy he
  * consumes and sells.
- * Each instance of this class refers to a specific time period, e.g., a
- * peak period, in the whole time horizon, i.e.,
- * \f$ \mathcal{w} \in \mathcal{W} \f$, and can span an arbitrary number of
- * sub time horizon or intervals, i.e.,
+ * Each instance of this class refers to a specific time period or to a time
+ * interval, e.g., a peak period, in the whole time horizon, i.e.,
+ * \f$ \mathcal{w} \in \mathcal{W} \f$, so it can span an arbitrary
+ * number of sub time horizon or intervals, i.e.,
  * \f$ \mathcal{\hat{t}_w} \in \mathcal{\hat{T}_w} \subseteq \mathcal{T} \f$.
  *
  * \author Antonio Frangioni \n
@@ -81,6 +81,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
  /// Auxiliary class holding basic data about the transmission network
  /** The ECNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical

@@ -104,6 +104,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
+
  /// Auxiliary class holding basic data about the transmission network
  /** The DCNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical

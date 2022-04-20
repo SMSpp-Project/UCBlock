@@ -877,7 +877,7 @@ class HydroUnitBlock : public UnitBlock
 
  const std::vector< Index > & get_end_arc( void ) const { return( v_end_arc ); }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /// returns the matrix of inertia power
 /** The returned value U = get_inertia_power() contains the contribution to
@@ -1147,7 +1147,9 @@ class HydroUnitBlock : public UnitBlock
  const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
   return( v_secondary_rho );
  }
- /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of number pieces
 /** The returned vector contains the number of pieces for each unit (arc) i.
  * There are three possible cases:
@@ -1162,7 +1164,9 @@ class HydroUnitBlock : public UnitBlock
  const std::vector< Index > & get_number_pieces( void ) const {
   return( v_number_pieces );
  }
- /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the vector of constant term
 /** The returned vector contains the constant term value of each available
  * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
@@ -1179,7 +1183,9 @@ class HydroUnitBlock : public UnitBlock
  const std::vector< double > & get_const_term( void ) const {
   return( v_const_term );
  }
+
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of linear term
 /** The returned vector contains the linear term value of each available
  * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
@@ -1197,7 +1203,9 @@ class HydroUnitBlock : public UnitBlock
  const std::vector< double > & get_linear_term( void ) const {
   return( v_linear_term );
  }
+
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of uphill delay
 /** The returned vector contains the uphill delay for each unit (arc) i.
  * There are three possible cases:
@@ -1229,6 +1237,7 @@ class HydroUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of downhill delay
 /** The returned vector contains the downhill delay for each unit (arc) i.
  * There are three possible cases:
@@ -1260,6 +1269,7 @@ class HydroUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of initial volumetric
 /** The returned vector contains the initial volumetric for each reservoir n.
  * There are three possible cases:
@@ -1279,6 +1289,7 @@ class HydroUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of initial flow rate
 /** The returned vector contains the initial flow rate for each unit (arc) i.
  * There are three possible cases:
@@ -1297,6 +1308,7 @@ class HydroUnitBlock : public UnitBlock
 
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of initial flow rate at the given \p arc
 /** This method returns the initial flow rate at the given \p arc.
  *

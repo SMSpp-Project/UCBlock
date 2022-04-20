@@ -536,6 +536,7 @@ class ThermalUnitDPSolver : public Solver
  }
 
 /*--------------------------------------------------------------------------*/
+
  // reset label and predecessor of a node
 
  static void init_node( node & nde ) {
@@ -544,6 +545,7 @@ class ThermalUnitDPSolver : public Solver
  }
 
 /*--------------------------------------------------------------------------*/
+
  // do the scanning of the forward star of a node
 
  static void process_node( node & nde ) {

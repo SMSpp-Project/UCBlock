@@ -88,6 +88,7 @@ class SlackUnitBlock : public UnitBlock
   UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
+
  /// destructor of SlackUnitBlock, it is empty
 
  virtual ~SlackUnitBlock() override;
@@ -497,14 +498,18 @@ class SlackUnitBlock : public UnitBlock
    return nullptr;
   return &( v_commitment.front() );
  }
+
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return nullptr;
   return &( v_active_power.front() );
  }
+
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
@@ -513,6 +518,7 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
