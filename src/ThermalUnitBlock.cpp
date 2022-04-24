@@ -379,21 +379,21 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    if( ! v_active_power.empty() ) {
     for( Index t = 0 ; t < init_t ; ++t ) {
      v_active_power[ t ].set_value( 0.0 );
-     v_active_power[ t ].is_fixed( true );
+     v_active_power[ t ].is_fixed( true , eNoMod );
     }
    }
 
    if( ! v_primary_spinning_reserve.empty() ) {
     for( Index t = 0 ; t < init_t ; ++t ) {
      v_primary_spinning_reserve[ t ].set_value( 0.0 );
-     v_primary_spinning_reserve[ t ].is_fixed( true );
+     v_primary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
    }
 
    if( ! v_secondary_spinning_reserve.empty() ) {
     for( Index t = 0 ; t < init_t ; ++t ) {
      v_secondary_spinning_reserve[ t ].set_value( 0.0 );
-     v_secondary_spinning_reserve[ t ].is_fixed( true );
+     v_secondary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
    }
   } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
@@ -409,7 +409,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
     // remain off or on for the first init_t time steps.
     for( Index t = 0 ; t < init_t ; ++t ) {
      v_commitment[ t ].set_value( commitment_variable_value );
-     v_commitment[ t ].is_fixed( true );
+     v_commitment[ t ].is_fixed( true , eNoMod );
     }
    }
   }
@@ -419,13 +419,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    if( f_MinDownTime < startup_shutdown_size ) {
     for( Index t = 0 ; t < f_MinDownTime ; ++t ) {
      v_start_up[ t ].set_value( 0.0 );
-     v_start_up[ t ].is_fixed( true );
+     v_start_up[ t ].is_fixed( true , eNoMod );
     }
    }
    else {
     for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
      v_start_up[ t ].set_value( 0.0 );
-     v_start_up[ t ].is_fixed( true );
+     v_start_up[ t ].is_fixed( true , eNoMod );
     }
    }
   }
@@ -433,13 +433,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    if( f_MinUpTime < startup_shutdown_size ) {
     for( Index t = 0 ; t < f_MinUpTime ; ++t ) {
      v_shut_down[ t ].set_value( 0.0 );
-     v_shut_down[ t ].is_fixed( true );
+     v_shut_down[ t ].is_fixed( true , eNoMod );
     }
    }
    else {
     for( Index t = 0 ; t < startup_shutdown_size ; ++t ) {
      v_shut_down[ t ].set_value( 0.0 );
-     v_shut_down[ t ].is_fixed( true );
+     v_shut_down[ t ].is_fixed( true , eNoMod );
     }
    }
   }
@@ -452,13 +452,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    if( f_MinDownTime < f_time_horizon ) {
     for( Index t = 0 ; t < f_MinDownTime ; ++t ) {
      v_start_up[ t ].set_value( 0.0 );
-     v_start_up[ t ].is_fixed( true );
+     v_start_up[ t ].is_fixed( true , eNoMod );
     }
    }
    else {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      v_start_up[ t ].set_value( 0.0 );
-     v_start_up[ t ].is_fixed( true );
+     v_start_up[ t ].is_fixed( true , eNoMod );
     }
    }
   }
@@ -466,13 +466,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    if( f_MinUpTime < f_time_horizon ) {
     for( Index t = 0 ; t < f_MinUpTime ; ++t ) {
      v_shut_down[ t ].set_value( 0.0 );
-     v_shut_down[ t ].is_fixed( true );
+     v_shut_down[ t ].is_fixed( true , eNoMod );
     }
    }
    else {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      v_shut_down[ t ].set_value( 0.0 );
-     v_shut_down[ t ].is_fixed( true );
+     v_shut_down[ t ].is_fixed( true , eNoMod );
     }
    }
   }
