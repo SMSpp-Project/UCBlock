@@ -69,19 +69,6 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  if( !::deserialize_dim( group , "NumberIntervals" ,
                          f_number_intervals , true ) )
   f_number_intervals = 1;
-
- // Mandatory variables
-
- if( f_number_nodes > 1 ) {
-
-  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
-
-  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
-                 true );
-
-  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
-                 true );
- }
 }
 
 /*--------------------------------------------------------------------------*/

@@ -266,20 +266,20 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
  // Initialize objective function
  if( reserve_vars & 4u ) {
   if( v_commitment.size() != f_time_horizon ) {
-   throw ( std::logic_error
+   throw( std::logic_error
     ( "SlackUnitBlock::generate_objective: v_commitment must have "
       "size equal to the time horizon." ) );
   }
  }
  if( v_active_power.size() != f_time_horizon ) {
-  throw ( std::logic_error
+  throw( std::logic_error
    ( "SlackUnitBlock::generate_objective: v_active_power must have "
      "size equal to the time horizon." ) );
  }
  if( reserve_vars & 1u ) {
   if( !v_MaxPrimaryPower.empty() ) {
    if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-    throw ( std::logic_error
+    throw( std::logic_error
      ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
        "must have size equal to the time horizon." ) );
    }
@@ -288,7 +288,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
  if( reserve_vars & 2u ) {
   if( !v_MaxSecondaryPower.empty() ) {
    if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-    throw ( std::logic_error
+    throw( std::logic_error
      ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
        "must have size equal to the time horizon." ) );
    }
@@ -384,7 +384,7 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
   else if( data.size() != 1 ) {
-   throw ( std::logic_error
+   throw( std::logic_error
     ( "SlackUnitBlock::serialize: invalid dimension for variable " +
       var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
                                                         "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );

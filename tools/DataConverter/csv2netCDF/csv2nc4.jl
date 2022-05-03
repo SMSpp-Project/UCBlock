@@ -31,9 +31,9 @@ function csvEC2nc4()
 
     # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`
     network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
-    network_block_classname = "ECNetworkBlock"
+    network_block_classname[1] = "ECNetworkBlock"
     network_data_classname = defVar(block, "NetworkDataClassname", String, ())
-    network_data_classname = "ECNetworkData"
+    network_data_classname[1] = "ECNetworkData"
 
     # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")
@@ -44,7 +44,7 @@ function csvEC2nc4()
     # Store the first index (-1 since in C++ the array's indexing starts from
     # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
     peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
-    peak_start_idx = [findfirst(x -> x == w, peak_categories) - 1
+    peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
                       for w in peak_set]
 
     # Create (sell/buy/consumption) price data arrays
@@ -78,9 +78,28 @@ function csvEC2nc4()
                    profile(market_data, "peak_tariff")[w] for w in peak_set]
 
     if allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff)
+
         # no needs to create w `(EC)NetworkBlock`(s) with the same data repeated, we create just one `NetworkData`
+        # ecnd = defGroup(block, "NetworkData", attrib=OrderedDict("type" => "ECNetworkData"))
+
+        # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
+        buy_price = defVar(block, "BuyPrice", Float64, ())
+        buy_price[:] = buy_price_data[1]
+
+        # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
+        sell_price = defVar(block, "SellPrice", Float64, ())
+        sell_price[:] = sell_price_data[1]
+
+        # `MaxTariff`, i.e., the peak tariff cost
+        max_tariff = defVar(block, "MaxTariff", Float64, ())
+        max_tariff[:] = peak_tariff[1]
+
+        # `ConstantTerm`
+        const_term = defVar(block, "ConstTerm", Float64, ())
+        const_term[:] = sum(constant_term)
 
     else
+
         # create one `(EC)NetworkBlock` for each peak period/category
         last_t = 1
         for (i_w, w) in enumerate(peak_set)
@@ -97,11 +116,11 @@ function csvEC2nc4()
 
             # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
             buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-            buy_price = buy_price_data[last_t:last_i]
+            buy_price[:] = buy_price_data[last_t:last_i]
 
             # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
             sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-            sell_price = sell_price_data[last_t:last_i]
+            sell_price[:] = sell_price_data[last_t:last_i]
 
             last_t += n_intervals
 
@@ -109,11 +128,11 @@ function csvEC2nc4()
 
             # `MaxTariff`, i.e., the peak tariff cost
             peak_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-            peak_tariff = peak_tariff[i_w]
+            peak_tariff[:] = peak_tariff[i_w]
 
             # `ConstantTerm`
-            constant_term = defVar(ecnb, "ConstTerm", Float64, ())
-            constant_term = sum(constant_term)
+            const_term = defVar(ecnb, "ConstTerm", Float64, ())
+            const_term[:] = sum(constant_term)
         end
     end
 
@@ -144,11 +163,35 @@ function csvEC2nc4()
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
+                # store the maximum power, i.e., the maximum capacity, of the pv/wind device
+                max_power = defVar(ub, "MaxPower", Float64, ())
+                max_power[:] = field_component(users_data[u], g, "max_capacity")
+
+                min_power = defVar(ub, "MinPower", Float64, ())
+                min_power[:] = 0
+
+                # Gamma is used to take into account an uncertainty on the maximal potential production. 
+                # It must be 0 <= Gamma <= 1; when Gamma == 0, the unit does not provide any reserve.
+                gamma = defVar(ub, "Gamma", Float64, ())
+                gamma[:] = 0
 
             elseif g == "batt"
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
+                # store the maximum power, i.e., the maximum capacity, of the battery
+                max_power = defVar(ub, "MaxPower", Float64, ())
+                max_power[:] = field_component(users_data[u], g, "max_capacity")
+
+                min_power = defVar(ub, "MinPower", Float64, ())
+                min_power[:] = 0
+
+                # store the minimum and maximum storage of the battery
+                min_storage = defVar(ub, "MinStorage", Float64, ())
+                min_storage[:] = field_component(users_data[u], g, "min_SOC")
+
+                max_storage = defVar(ub, "MaxStorage", Float64, ())
+                max_storage[:] = field_component(users_data[u], g, "max_SOC")
 
             end
 

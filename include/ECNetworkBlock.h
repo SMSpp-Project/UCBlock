@@ -82,10 +82,10 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Auxiliary class holding basic data about the transmission network
+ /// Auxiliary class holding basic data about the community network
  /** The ECNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
-  * characteristics) that describe the transmission network. The rationale is
+  * characteristics) that describe the community network. The rationale is
   * that while often the network does not change during the (short) time
   * horizon of UC, it makes sense to allow for this to happen. This means that
   * individual NetworkBlock objects may in principle have different
@@ -127,16 +127,10 @@ class ECNetworkBlock : public NetworkBlock
    * contain the following:
    *
    * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is optional, if it is not provided then it is
-   *   taken to be == 1.
-   *
-   * If NumberNodes == 1 (equivalently, it is not provided), the network is a
-   * "bus" formed of only one node, and therefore all the subsequent information
-   * need not to be present since it is not loaded. If NumberNodes > 1, then all
-   * the subsequent information is mandatory:
+   *   problem;
    *
    * - The dimension "NumberLines" containing the number of lines in the
-   *   transmission network.
+   *   community network;
    *
    * - The variable "StartLine", of type netCDF::NcUint and indexed over the
    *   dimension "NumberLines"; the l-th entry of the variable is the starting
@@ -151,10 +145,33 @@ class ECNetworkBlock : public NetworkBlock
    *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
    *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
    *   not allowed, but multiple lines between the same pair of nodes are. Note
-   *   that node names here go from 0 to NNodes.getSize() - 1.
-   */
+   *   that node names here go from 0 to NNodes.getSize() - 1;
+   *
+   * - The dimension "NumberIntervals" containing the number of intervals
+   *   spanned by each network block; this dimension is optional, if it is
+   *   not provided then it is taken to be == 1;
+   *
+   * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
+   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+   *   is not provided, then this variable must be of size 1). This is meant to
+   *   represent the vector BuyP[ t ] that, for each time instant t, contains
+   *   the tariff that user pay to buy electricity from the public market for
+   *   the corresponding time step. If "BuyPrice" has length 1 then BuyP[ t ]
+   *   contains the same value for all t;
+   *
+   * - The variable "SellPrice", of type netCDF::NcDouble and either of size
+   *   1 or indexed over the dimension "NumberIntervals" (if
+   *   "NumberIntervals" is not provided, then this variable must be of size
+   *   1). This is meant to represent the vector SellP[ t ] that, for each
+   *   time instant t, contains the tariff that user gain to sell electricity
+   *   to the public market for the corresponding time step. If "SellPrice"
+   *   has length 1 then SellP[ t ] contains the same value for all t;
+   *
+   * - The variable "MaxTariff", of type netCDF::NcDouble and of size
+   *   1. This is mean to represent the tariff that user pay due to the peak
+   *   power. */
 
-  virtual void deserialize( const netCDF::NcGroup & group );
+  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE ECNetworkData -----------*/
@@ -200,7 +217,7 @@ class ECNetworkBlock : public NetworkBlock
    * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
    * ) for details of the format of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup & group ) const;
+  virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -313,7 +330,7 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
  /// returns the number of nodes of the network
- /** Returns the number of nodes in the transmission network. If
+ /** Returns the number of nodes in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
 
@@ -326,7 +343,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
  /// returns the number of lines of the network
- /** Returns the number of lines in the transmission network. If
+ /** Returns the number of lines in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
 
@@ -495,26 +512,7 @@ class ECNetworkBlock : public NetworkBlock
  /// deserialize a ECNetworkBlock out of a netCDF::NcGroup
  /** Deserialize a ECNetworkBlock out of a netCDF::NcGroup, which should
   * contain all the data necessary to describe a NetworkBlock (see
-  * NetworkBlock::deserialize()).
-  * In particular, we refer to that description for the dimension
-  * "NumberIntervals". The netCDF::NcGroup must then also contain:
-  *
-  * - The variable "BuyPrice", of type double and either of size 1 or indexed
-  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable must be of size 1). This is meant to
-  *   represent the vector BuyP[ t ] that, for each time instant t, contains
-  *   the tariff that user pay to buy electricity from the public market for
-  *   the corresponding time step. If "BuyPrice" has length 1 then BuyP[ t ]
-  *   contains the same value for all t.
-  *
-  * - The variable "SellPrice", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable must be of size 1). This is meant to
-  *   represent the vector SellP[ t ] that, for each time instant t, contains
-  *   the tariff that user gain to sell electricity to the public market
-  *   for the corresponding time step. If "SellPrice" has length 1 then
-  *   SellP[ t ] contains the same value for all t.
-  * */
+  * NetworkBlock::deserialize()). */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -522,11 +520,7 @@ class ECNetworkBlock : public NetworkBlock
 
  /// loads the ECNetworkBlock instance from an input standard stream.
  /** Like load( std::istream & ), if there is any Solver attached to this
-  *  ECNetworkBlock then a NBModification (the "nuclear option") is issued.
-  *  @warning this method is not implemented yet
-  *  @param input an input stream
-  *  @param frmt the verbosity level
-  */
+  *  ECNetworkBlock then a NBModification (the "nuclear option") is issued. */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );

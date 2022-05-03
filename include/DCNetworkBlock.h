@@ -816,6 +816,7 @@ class DCNetworkBlock : public NetworkBlock
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
+
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
  }

@@ -88,7 +88,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  // Mandatory variables
 
  ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
-
+ 
  ::deserialize( group , "BuyPrice" , get_number_intervals() ,
                 v_buy_price , false , true );
 
@@ -96,6 +96,16 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                 v_sell_price , false , true );
 
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
+
+ // Optional variables
+
+ ::deserialize_dim( group , "NumberLines" , f_number_lines , true );
+
+ ::deserialize( group , "StartLine" , f_number_lines , v_start_line , true ,
+                true );
+
+ ::deserialize( group , "EndLine" , f_number_lines , v_end_line , true ,
+                true );
 }
 
 /*--------------------------------------------------------------------------*/

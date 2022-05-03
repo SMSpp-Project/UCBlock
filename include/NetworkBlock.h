@@ -141,9 +141,9 @@ class NetworkBlock : public Block
    *
    * Note that the :NetworkData returned my this method is "empty": it
    * contains no (instance) data, and therefore it has to be explicitly
-   * initialized with
-   * any of the corresponding methods (operator>>, serialize(), anything that
-   * the specific :NetworkData class provides) before it can be used.
+   * initialized with any of the corresponding methods (operator>>, serialize
+   * (), anything that the specific :NetworkData class provides) before it
+   * can be used.
    *
    * For this to work, each :NetworkData has to:
    *
@@ -219,35 +219,7 @@ class NetworkBlock : public Block
    *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
    *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
    *   not allowed, but multiple lines between the same pair of nodes are. Note
-   *   that node names here go from 0 to NNodes.getSize() - 1;
-   *
-   * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
-   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
-   *   ] that, for each line l, contains the minimum power flow at line l (note
-   *   that this is typically a negative number as lines are bi-directional, see
-   *   above).
-   *
-   * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
-   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
-   *   ] that, for each line l, contains the maximum power flow at line l (a
-   *   non-negative number).
-   *
-   * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
-   *   dimension "NumberLines". This is meant to represent the vector S[ l ]
-   *   that, for each line i contains the susceptance of the network for the
-   *   corresponding line i. Note that this variable is optional, for each line
-   *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
-   *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
-   *   model with AC lines, and when for each line l, it's not defined or S[ l ]
-   *   == 0, then it corresponds to a single connected grid composed of HVDC
-   *   lines only which is also known as the Net Transfer Capacity (NTC)
-   *   model.
-   *
-   * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over the
-   *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
-   *   that, for each line l, contains the monetary cost to exchanges between
-   *   nodes or each network. This variable is optional; if it is not provided
-   *   then it's taken to be zero. */
+   *   that node names here go from 0 to NNodes.getSize() - 1. */
 
   virtual void deserialize( const netCDF::NcGroup & group );
 
@@ -470,7 +442,7 @@ class NetworkBlock : public Block
   *   the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead.
   *
-  * - The "ActiveDemand", of type double, and of size "number of nodes". If the
+  * - The "ActiveDemand", of type double, and of size "NumberNodes". If the
   *   NetworkData object description is present in the NcGroup this is the
   *   dimension "NumberNodes", but the NetworkData object is optional and it
   *   may not be there. Thus, if "NumberNodes" is not there and "ActiveDemand"

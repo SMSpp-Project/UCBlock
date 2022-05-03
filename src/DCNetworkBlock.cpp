@@ -107,6 +107,14 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
  if( f_number_nodes > 1 ) {
 
+  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
+                 true );
+
+  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
+                 true );
+
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
                  true , true );
 
@@ -161,7 +169,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
    if( ActiveDemand.getDimCount() != 1 )
     // The active demand must be a one-dimensional array.
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "DCNetworkBlock::deserialize(): ActiveDemand should have one dimension, "
      "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
 
@@ -282,7 +290,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( get_number_nodes() > 1 ) {
 
   if( get_number_lines() <= 0 ) {
-   throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                              "number of lines of DCNetworkBlock is not set" ) );
   }
 
@@ -631,7 +639,7 @@ void DCNetworkBlock::set_active_demand
  bool identical = true;
  for( auto i : subset ) {
   if( i >= v_active_demand.size() )
-   throw ( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
+   throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
                                   "invalid value in subset" ) );
   auto demand = *( values++ );
   if( v_active_demand[ i ] != demand ) {

@@ -1295,7 +1295,7 @@ class UCBlock : public Block
  /// Used in case of no `NetworkBlock`s were given since there is just one
  /// node, i.e., the network is a bus, or all the nodes share the same data in
  /// `NetworkData`.
- std::string network_classname;
+ std::string network_block_classname;
  std::string network_data_classname;
 
  /// The number of the networks of the problem

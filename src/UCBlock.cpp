@@ -82,13 +82,13 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
   std::string sub_group_name = prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
   if( sub_group.isNull() )
-   throw ( std::invalid_argument( "UCBlock::deserialize: " +
+   throw( std::invalid_argument( "UCBlock::deserialize: " +
                                   sub_group_name + " not present" ) );
 
   if( auto bk = new_Block( sub_group , this ) )
    v_Block[ sz++ ] = bk;
   else
-   throw ( std::invalid_argument( "UCBlock::deserialize: " +
+   throw( std::invalid_argument( "UCBlock::deserialize: " +
                                   sub_group_name + " deserialize failed" ) );
  }
 }
@@ -110,7 +110,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
    ++cntr;
   else {
    delete nbi;
-   throw ( std::invalid_argument( sub_group_name +
+   throw( std::invalid_argument( sub_group_name +
                                   " not a valid NetworkBlock" ) );
   }
  }
@@ -142,8 +142,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "TotalNumberPollutantZones" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
-                                                     "NetworkBlockClassname" ,
+ static std::vector< std::string > expected_vars = { "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" ,
+                                                     "ActivePowerDemand" ,
                                                      "StartNetworkIntervals" ,
                                                      "GeneratorNode" ,
                                                      "HeatNode" ,
@@ -187,14 +188,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
- if( !::deserialize( group , network_classname ,
-                     "NetworkBlockClassname" , true ) ) {
-  network_classname = "DCNetworkBlock";
- }
+ if( !::deserialize( group , network_block_classname ,
+                     "NetworkBlockClassname" , true ) )
+  network_block_classname = "DCNetworkBlock";
  if( !::deserialize( group , network_data_classname ,
-                     "NetworkDataClassname" , true ) ) {
+                     "NetworkDataClassname" , true ) )
   network_data_classname = "DCNetworkData";
- }
 
  Index number_nodes;
  if( !::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
@@ -363,7 +362,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  deserialize_network_blocks( group );
 
  if( v_network_blocks.empty() && ( !v_active_power_demand.num_elements() ) )
-  throw ( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
+  throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
                                  "mandatory if no NetworkBlocks" ) );
 
  // if number_nodes == 1, NetworkBlocks are useless and therefore removed
@@ -398,32 +397,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  } else {  // number_nodes > 1
 
-  int sum_intervals = std::accumulate(
-   v_network_blocks.begin() , v_network_blocks.end() , 0 ,
-   []( int init , const NetworkBlock * nb ) {
-    return nb->get_number_intervals();
-   } );
-
-  // the simplest case: sum_intervals == f_time_horizon, i.e., we receive in
-  // input n `NetworkBlock`(s) and the sum of intervals spanned by each of
-  // them is equal to the time  horizon of the problem
-
-  if( sum_intervals < f_time_horizon ) {  // TODO fix here
-   // se no (allora mancano) attraverso il vettore di indici di inizio di ogni
-   // NetworkBlock in UCBlock aggiungo nuovi network block deserializzando
-   // in ognuno di essi il contenuto di NetworkData ed inserendoli nei buchi
-   // dove mancano, poi setto il `NumberIntervals' del `NetworkBlock` come:
-   // StartNetworkIntervals[ i + 1 ] - StartNetworkIntervals[ i ]
-   // for all i in `f_number_networks`
-
-
-
-  } else if( sum_intervals > f_time_horizon )
-   throw ( std::invalid_argument
-    ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
-      "each NetworkBlock should be equal (or less than) to the number of "
-      "time horizon but it is greater than." ) );
-
   // if they don't exist, create them now as (DC/EC)NetworkBlock
   if( v_network_blocks.empty() ) {
    v_network_blocks.resize( f_number_networks , nullptr );
@@ -435,14 +408,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
    auto nbi = v_network_blocks[ n ];
    if( !nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
-    nbi = dynamic_cast< NetworkBlock *>( new_Block( network_classname , this ));
+    nbi = dynamic_cast< NetworkBlock *>(
+     new_Block( network_block_classname , this ));
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
    }
 
    if( !nbi->get_NetworkData() ) {
     if( !f_NetworkData )
-     throw ( std::invalid_argument( "UCBlock::deserialize: NetworkData "
+     throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                     "missing in NetworkBlock " +
                                     std::to_string( n ) + " and in UCBlock" )
      );
@@ -455,7 +429,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
     if( !nbi->get_active_demand( i ) ) {
      if( !v_active_power_demand.num_elements() )
-      throw ( std::invalid_argument(
+      throw( std::invalid_argument(
        "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
        "NetworkBlock " + std::to_string( n ) ) );
      typedef boost::multi_array_types::index_range range;
@@ -469,10 +443,35 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
    }
   }
 
+  int sum_intervals = std::accumulate(
+   v_network_blocks.begin() , v_network_blocks.end() , 0 ,
+   []( int init , const NetworkBlock * nb ) {
+    return init + nb->get_number_intervals();
+   } );
+
+  // the simplest case: sum_intervals == f_time_horizon, i.e., we receive in
+  // input n `NetworkBlock`(s) and the sum of intervals spanned by each of
+  // them is equal to the time  horizon of the problem
+
+  if( sum_intervals < f_time_horizon ) {
+   // se no (allora mancano) attraverso il vettore di indici di inizio di ogni
+   // NetworkBlock in UCBlock aggiungo nuovi network block deserializzando
+   // in ognuno di essi il contenuto di NetworkData ed inserendoli nei buchi
+   // dove mancano, poi setto il `NumberIntervals' del `NetworkBlock` come:
+   // StartNetworkIntervals[ i + 1 ] - StartNetworkIntervals[ i ]
+   // for all i in `f_number_networks`
+
+
+
+  } else if( sum_intervals > f_time_horizon )
+   throw( std::invalid_argument
+    ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
+      "each NetworkBlock should be equal (or less than) to the number of "
+      "time horizon but it is greater than." ) );
+
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
    boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
-
  }
 
  /*!! commented away until HeatBlock are properly managed

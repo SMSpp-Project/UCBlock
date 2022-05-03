@@ -73,7 +73,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
     // The father Block is available. Take time horizon from it.
     this->set_time_horizon( f_B->get_time_horizon() );
    else
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      classname() + "::deserialize: TimeHorizon is not present in the "
                    "netCDF input and UnitBlock does not have a father." ) );
   }
@@ -84,7 +84,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
   if( f_time_horizon == 0 )
    this->set_time_horizon( th );
   else if( f_time_horizon != th )
-   throw ( std::logic_error(
+   throw( std::logic_error(
     classname() + "::deserialize: TimeHorizon is not present in the "
                   "netCDF. The (nonzero) time horizon of UnitBlock is different "
                   "from that of its father, but they should be equal." ) );
@@ -99,7 +99,7 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
   f_number_intervals = 1;
  else {
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-   throw ( std::invalid_argument( classname() + "::deserialize: " +
+   throw( std::invalid_argument( classname() + "::deserialize: " +
                                   "NumberIntervals not between 1 and TimeHorizon." ) );
  }
 
@@ -116,7 +116,7 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
    const auto t = v_change_intervals[ k ];
    if( !( ( t < f_time_horizon ) &&
           ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      classname() + "::deserialize: invalid value in ChangeIntervals: " +
      std::to_string( t ) + ". All values must be between 0 and " +
      "TimeHorizon - 1 and in strictly increasing order." ) );

@@ -153,7 +153,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
-   throw ( std::logic_error(
+   throw( std::logic_error(
     "BatteryUnitBlock::check_data_consistency: minimum "
     "power for time " + std::to_string( t ) + " is " +
     std::to_string( v_minimum_power[ t ] ) + ", which " +
@@ -170,7 +170,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( ( v_minimum_storage[ t ] > v_maximum_storage[ t ] ) ||
       ( v_minimum_storage[ t ] < 0 ) ) {
-   throw ( std::logic_error(
+   throw( std::logic_error(
     "BatteryUnitBlock::check_data_consistency: maximum "
     "and minimum storage levels must be such that "
     "maximum_storage >= minimum_storage >= 0." ) );
@@ -183,7 +183,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_storing_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_storing_battery_rho[ t ] > 1 ) {
-    throw ( std::logic_error(
+    throw( std::logic_error(
      "BatteryUnitBlock::check_data_consistency: invalid"
      " inefficiency of storing energy for time step " +
      std::to_string( t ) + ": " +
@@ -197,7 +197,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_extracting_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < 1 ) {
-    throw ( std::logic_error(
+    throw( std::logic_error(
      "BatteryUnitBlock::check_data_consistency: invalid"
      " inefficiency of extracting energy for time "
      "step " + std::to_string( t ) + ": " +
@@ -211,7 +211,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
      ( !v_extracting_battery_rho.empty() ) ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw ( std::logic_error(
+    throw( std::logic_error(
      "BatteryUnitBlock::check_data_consistency: the inefficiency of storing "
      "energy must not be greater than the inefficiency of extracting energy."
     ) );
@@ -225,7 +225,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_delta_ramp_up.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_up[ t ] < 0 )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: wrong DeltaRampUp for time "
      "step " + std::to_string( t ) + ": " +
      std::to_string( v_delta_ramp_up[ t ] ) ) );
@@ -237,7 +237,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_delta_ramp_down.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_down[ t ] < 0 )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: wrong DeltaRampDown for time "
      "step " + std::to_string( t ) + ": " +
      std::to_string( v_delta_ramp_down[ t ] ) ) );
@@ -249,7 +249,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_maximum_primary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_primary_rho[ t ] < 0 )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: the maximum power that can be"
      " used as primary reserve for time " + std::to_string( t ) + " is " +
      std::to_string( v_maximum_primary_rho[ t ] ) +
@@ -262,7 +262,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_maximum_secondary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_secondary_rho[ t ] < 0 )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: the maximum power that "
      "can be used as secondary reserve for time " +
      std::to_string( t ) + " is " +
@@ -276,7 +276,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_demand.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_demand[ t ] < 0 )
-    throw ( std::invalid_argument(
+    throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: demand for time " +
      std::to_string( t ) + " is " + std::to_string( v_demand[ t ] ) +
      ", but is must be nonnegative." ) );
@@ -285,7 +285,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  // Initial storage
 
  if( f_initial_storage < 0 ) {
-  throw ( std::invalid_argument(
+  throw( std::invalid_argument(
    "BatteryUnitBlock::check_data_consistency: initial storage is " +
    std::to_string( f_initial_storage ) + ", but it must be nonnegative." ) );
  }
@@ -381,7 +381,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   return; // constraints have already been generated
 
  if( !variables_generated() )
-  throw ( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
+  throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
                             "variables need be generated for constraints "
                             "to be." ) );
 
@@ -739,7 +739,7 @@ void BatteryUnitBlock::generate_objective( Configuration * objc ) {
   return; // Objective has already been generated
 
  if( !variables_generated() )
-  throw ( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
+  throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
                             "need be generated for constraints to be." ) );
 
  if( get_objective() != nullptr )  // an objective is there already
@@ -823,7 +823,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
   else if( data.size() != 1 ) {
-   throw ( std::logic_error
+   throw( std::logic_error
     ( "BatteryUnitBlock::serialize: invalid dimension for variable " +
       var_name + ": " + std::to_string( data.size() ) + ". Its dimension " +
       "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );

@@ -116,7 +116,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
-   throw ( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                              "minimum power at time " + std::to_string( t ) +
                              " is " + std::to_string( v_minimum_power[ t ] ) +
                              ", which is greater than the maximum power, which "
@@ -125,7 +125,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
   }
 
   if( v_minimum_power[ t ] < 0 ) {
-   throw ( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                              "minimum power at time " + std::to_string( t ) +
                              " is " + std::to_string( v_minimum_power[ t ] ) +
                              ", which is negative." ) );
@@ -135,7 +135,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
  // Gamma
 
  if( ( f_gamma < 0 ) || ( f_gamma > 1 ) ) {
-  throw ( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                             "gamma must be between 0 and 1, but it is " +
                             std::to_string( f_gamma ) + "." ) );
  }
@@ -143,7 +143,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
  // Kappa
 
  if( f_kappa < 0 ) {
-  throw ( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                             "kappa must be nonnegative, but it is" +
                             std::to_string( f_kappa ) + "." ) );
  }
@@ -152,7 +152,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
   assert( v_inertia_power.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_inertia_power[ t ] < 0 ) {
-    throw ( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+    throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                               "inertia power for time " + std::to_string( t ) +
                               " must be nonnegative, but it is" +
                               std::to_string( v_inertia_power[ t ] ) + "." ) );
@@ -421,7 +421,7 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
   else if( data.size() != 1 ) {
-   throw ( std::logic_error
+   throw( std::logic_error
     ( "IntermittentUnitBlock::serialize: invalid dimension for variable " +
       var_name + ": " + std::to_string( data.size() ) + ". Its dimension " +
       "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
@@ -507,7 +507,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  bool identical = true;
  for( auto t : subset ) {
   if( t >= v_maximum_power.size() ) {
-   throw ( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
+   throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
                                   " invalid value in subset" ) );
   }
   auto max_power = *( values++ );

@@ -550,7 +550,7 @@ class UnitBlock : public Block
    // Since the number of elements is greater than 1 and less than the time
    // horizon, it must be equal to the number of change intervals.
    if( v.size() != v_change_intervals.size() ) {
-    throw ( std::logic_error
+    throw( std::logic_error
      ( classname() + "::decompress_vector: invalid number of elements" +
        " (" + std::to_string( v.size() ) + ") for some variable. It should be " +
        "equal to the number of change intervals (" +
