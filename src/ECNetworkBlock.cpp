@@ -67,8 +67,7 @@ ECNetworkBlock::~ECNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::ECNetworkData::deserialize(
- const netCDF::NcGroup & group ) {
+void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
  NetworkBlock::NetworkData::deserialize( group );
 
@@ -88,11 +87,11 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  // Mandatory variables
 
  ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
- 
- ::deserialize( group , "BuyPrice" , get_number_intervals() ,
+
+ ::deserialize( group , "BuyPrice" , f_number_intervals ,
                 v_buy_price , false , true );
 
- ::deserialize( group , "SellPrice" , get_number_intervals() ,
+ ::deserialize( group , "SellPrice" , f_number_intervals ,
                 v_sell_price , false , true );
 
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
@@ -137,7 +136,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
+void ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  NetworkBlock::NetworkData::serialize( group );
 
@@ -190,8 +189,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_abstract_variables(
- Configuration * stvv ) {
+void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
  if( variables_generated() )
   return; // variables have already been generated
@@ -233,8 +231,7 @@ void ECNetworkBlock::generate_abstract_variables(
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_abstract_constraints(
- Configuration * stcc ) {
+void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( constraints_generated() )
   return; // constraints have already been generated
@@ -436,7 +433,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const ptr to double (?)
+ // TODO this should be a const (double) ptr to double (?)
  std::vector< double >::const_iterator values ,
  Block::Subset && subset ,
  const bool ordered ,
@@ -448,7 +445,7 @@ void ECNetworkBlock::set_active_demand(
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const ptr to double (?)
+ // TODO this should be a const (double) ptr to double (?)
  std::vector< double >::const_iterator values ,
  Block::Range rng ,
  c_ModParam issuePMod ,
