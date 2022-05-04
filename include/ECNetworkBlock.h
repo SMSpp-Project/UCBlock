@@ -207,7 +207,7 @@ class ECNetworkBlock : public NetworkBlock
   }
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- METHODS FOR SAVING THE ECNetworkData ----------------*/
+/*------------------ METHODS FOR SAVING THE ECNetworkData ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the ECNetworkData
  * @{ */
@@ -324,7 +324,7 @@ class ECNetworkBlock : public NetworkBlock
  void generate_objective( Configuration * objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*------- METHODS FOR READING THE DATA OF THE ECNetworkBlock --------*/
+/*----------- METHODS FOR READING THE DATA OF THE ECNetworkBlock -----------*/
 /*--------------------------------------------------------------------------*/
  /** @name Reading the data of the ECNetworkBlock
  * @{ */
@@ -394,7 +394,6 @@ class ECNetworkBlock : public NetworkBlock
 /*---------- METHODS FOR READING THE Variable OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
  /** @name Reading the Variable of the ECNetworkBlock
-  *
   * @{ */
 
  /// returns the vector of micro power injection variables
@@ -497,10 +496,24 @@ class ECNetworkBlock : public NetworkBlock
   * it is written in v_active_demand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand( const double * v ) override {
+ void set_ActiveDemand(
+  const std::vector< std::vector< double > > & v ) override {
   if( v_active_demand.empty() ) {
-   // TODO
+   v_active_demand.resize( boost::multi_array< double , 2 >::extent_gen()
+                           [ get_number_intervals() ][ get_number_nodes() ] );
+   auto demand = v_active_demand.data();
+   for( Index i = 0 ; i < get_number_intervals() ; i++ )
+    for( Index j = 0 ; j < get_number_nodes() ; j++ )
+     *( demand++ ) = v[ i ][ j ];
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// methods to set the number of intervals
+ void set_number_intervals( const Index i ) const override {
+  if( f_NetworkData )
+   f_NetworkData->set_number_intervals( i );
  }
 
 /**@} ----------------------------------------------------------------------*/

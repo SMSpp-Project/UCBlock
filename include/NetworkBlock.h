@@ -288,7 +288,18 @@ class NetworkBlock : public Block
    */
 
   const std::vector< Index > & get_end_line( void ) const {
-   return( v_end_line );
+   return ( v_end_line );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE NetworkData -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the NetworkData
+ * @{ */
+
+  /// methods to set the number of intervals
+  void set_number_intervals( const Index i ) {
+   f_number_intervals = i;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -570,7 +581,11 @@ class NetworkBlock : public Block
   * it is written in v_active_demand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- virtual void set_ActiveDemand( const double * v ) = 0;
+ virtual void set_ActiveDemand(
+  const std::vector< std::vector< double > > & v ) = 0;
+
+ /// methods to set the number of intervals
+ virtual void set_number_intervals( const Index i ) const = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/

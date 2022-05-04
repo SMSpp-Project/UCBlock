@@ -791,11 +791,19 @@ class DCNetworkBlock : public NetworkBlock
   * it is written in v_active_demand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand( const double * v ) override {
+ void set_ActiveDemand(
+  const std::vector< std::vector< double > > & v ) override {
   if( v_active_demand.empty() ) {
-   std::vector< double > value_vec( v , v + get_number_nodes() );
-   v_active_demand = value_vec;
+   v_active_demand = v[ 0 ];
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// methods to set the number of intervals
+ void set_number_intervals( const Index i ) const override {
+  if( f_NetworkData )
+   f_NetworkData->set_number_intervals( i );
  }
 
 /** @} ---------------------------------------------------------------------*/
