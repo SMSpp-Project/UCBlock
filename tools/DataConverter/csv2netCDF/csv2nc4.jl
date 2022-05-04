@@ -21,9 +21,14 @@ function csvEC2nc4()
 
     # `ActivePowerDemand` is a 2D variable that represent the electricity
     # demand for each node/user wrt each time step/horizon
-    power_demand = defVar(block, "ActivePowerDemand", Float64, ("NumberNodes", "TimeHorizon"))
+
+    # power_demand = defVar(block, "ActivePowerDemand", Float64, ("NumberNodes", "TimeHorizon"))
+    # power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
+    #                       for u in user_set, t in time_set]
+
+    power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes"))
     power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
-                          for u in user_set, t in time_set]
+                          for t in time_set, u in user_set]
 
     # --------------------------------------------------------------------------------------- #
 
@@ -45,7 +50,7 @@ function csvEC2nc4()
     # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
     peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
     peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
-                      for w in peak_set]
+                         for w in peak_set]
 
     # Create (sell/buy/consumption) price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
@@ -186,6 +191,9 @@ function csvEC2nc4()
                 min_power = defVar(ub, "MinPower", Float64, ())
                 min_power[:] = 0
 
+                initial_storage = defVar(ub, "InitialStorage", Float64, ())
+                initial_storage[:] = 0
+
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
                 min_storage[:] = field_component(users_data[u], g, "min_SOC")
@@ -195,7 +203,7 @@ function csvEC2nc4()
 
             end
 
-            generator_node[last_g] = i_u # assign the ownership of the current electrical generator to the respective user
+            generator_node[last_g] = i_u - 1 # assign the ownership of the current electrical generator to the respective user
             last_g += 1
         end
     end
