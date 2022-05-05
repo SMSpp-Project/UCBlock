@@ -318,7 +318,7 @@ class UnitBlock : public Block
   *        desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
-  return ( nullptr);
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/

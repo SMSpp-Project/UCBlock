@@ -608,7 +608,7 @@ class UCBlock : public Block
  *   \f$ \mathcal{B}\f$ as follow;
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,i} \geq
+ *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
  *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
  * \f]
