@@ -180,6 +180,9 @@ function csvEC2nc4()
                 gamma = defVar(ub, "Gamma", Float64, ())
                 gamma[:] = 0
 
+                oem_cost = defVar(ub, "OEMCost", Float64, ())
+                oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
+
             elseif g == "batt"
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
@@ -200,6 +203,9 @@ function csvEC2nc4()
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
                 max_storage[:] = field_component(users_data[u], g, "max_SOC")
+
+                oem_cost = defVar(ub, "OEMCost", Float64, ())
+                oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
 
             end
 

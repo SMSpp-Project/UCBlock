@@ -79,7 +79,7 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize( group , f_const_term , "ConstTerm" , true ) )
+ if( !::deserialize( group , f_const_term , "ConstTerm" ) )
   f_const_term = 0;
 }
 

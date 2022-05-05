@@ -102,7 +102,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
  // Optional variables
 
- if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes , true ) )
+ if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
   f_number_nodes = 1;
 
  if( f_number_nodes > 1 ) {

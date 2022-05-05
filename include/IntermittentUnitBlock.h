@@ -330,6 +330,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// Returns the kappa value
  double get_kappa( void ) const { return f_kappa; }
 
+ /// Returns the operation and maintenance cost
+ double get_oem_cost( void ) const { return f_oem_cost; }
+
 /*--------------------------------------------------------------------------*/
 
 /// returns the vector of minimum power
@@ -528,6 +531,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the kappa value
  double f_kappa = 0;
+
+ /// the operation and maintenance cost
+ double f_oem_cost;
 
  /// the matrix of inertia power of generators
  std::vector< double > v_inertia_power;

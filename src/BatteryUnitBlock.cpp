@@ -94,7 +94,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "StoringBatteryRho" ,
                                               "ExtractingBatteryRho" ,
                                               "InitialStorage" ,
-                                              "Cost" , "Demand" };
+                                              "Cost" , "Demand" ,
+                                              "OEMCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -119,6 +120,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "Demand" , v_demand );
  ::deserialize( group , "StoringBatteryRho" , v_storing_battery_rho );
  ::deserialize( group , "ExtractingBatteryRho" , v_extracting_battery_rho );
+
+ if( !::deserialize( group , f_oem_cost , "OEMCost" ) )
+  f_oem_cost = 0;
 
  // Deserialize data from the base class
 

@@ -598,6 +598,9 @@ class BatteryUnitBlock : public UnitBlock
  /// Returns the initial power value
  double get_initial_power( void ) const { return f_initial_power; }
 
+ /// Returns the operation and maintenance cost
+ double get_oem_cost( void ) const { return f_oem_cost; }
+
 /*--------------------------------------------------------------------------*/
 
 /// returns the vector of minimum storage
@@ -1088,6 +1091,9 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the InitialPower value
  double f_initial_power;
+
+ /// the operation and maintenance cost
+ double f_oem_cost;
 
  /// the vector of demand
  std::vector< double > v_demand;

@@ -176,11 +176,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks , true ) )
+ if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
  if( !::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
-                     v_start_network_intervals , true ) ) {
+                     v_start_network_intervals ) ) {
   v_start_network_intervals.resize( f_number_networks );
   std::iota( v_start_network_intervals.begin() ,
              v_start_network_intervals.end() , 0 );
@@ -190,14 +190,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
  if( !::deserialize( group , network_block_classname ,
-                     "NetworkBlockClassname" , true ) )
+                     "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
  if( !::deserialize( group , network_data_classname ,
-                     "NetworkDataClassname" , true ) )
+                     "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
 
  Index number_nodes;
- if( !::deserialize_dim( group , "NumberNodes" , number_nodes , true ) )
+ if( !::deserialize_dim( group , "NumberNodes" , number_nodes ) )
   number_nodes = 1;
 
  if( number_nodes > 1 ) {
@@ -209,42 +209,35 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  /*!! commented away until HeatBlock are properly managed
  if( ! ::deserialize_dim( group , "NumberHeatGenerators" ,
-                          f_number_heat_generators , true ) )
+                          f_number_heat_generators ) )
   f_number_heat_generators = 0;
  */
 
- auto ActivePowerDemand = group.getVar( "ActivePowerDemand" );
- if( !ActivePowerDemand.isNull() ) {
-  // ActivePowerDemand has been provided.
-  using index = decltype( v_active_power_demand )::index;
-  std::vector< index > shape = { number_nodes , f_time_horizon };
-  v_active_power_demand.resize( shape );
-  ActivePowerDemand.getVar( v_active_power_demand.data() );
- }
+ ::deserialize( group , "ActivePowerDemand" , v_active_power_demand );
 
  // Optional dimensions
 
  /*!! commented away until HeatBlock are properly managed
  f_number_heat_blocks = 0;
  ::deserialize_dim( group , "NumberHeatBlocks" ,
-                    f_number_heat_blocks , true );
+                    f_number_heat_blocks );
  */
 
  f_number_primary_zones = 0;
  ::deserialize_dim( group , "NumberPrimaryZones" ,
-                    f_number_primary_zones , true );
+                    f_number_primary_zones );
 
  f_number_secondary_zones = 0;
  ::deserialize_dim( group , "NumberSecondaryZones" ,
-                    f_number_secondary_zones , true );
+                    f_number_secondary_zones );
 
  f_number_inertia_zones = 0;
  ::deserialize_dim( group , "NumberInertiaZones" ,
-                    f_number_inertia_zones , true );
+                    f_number_inertia_zones );
 
  f_number_pollutants = 0;
  ::deserialize_dim( group , "NumberPollutants" ,
-                    f_number_pollutants , true );
+                    f_number_pollutants );
 
  /*!! commented away until HeatBlock are properly managed
  ::deserialize( group , "HeatSet" ,
@@ -253,28 +246,28 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  */
 
  ::deserialize( group , "PrimaryZones" , number_nodes ,
-                v_primary_zones , true , true );
+                v_primary_zones );
 
  if( ::deserialize( group , "PrimaryDemand" ,
                     v_primary_demand , true , false ) )
 
   ::deserialize( group , "SecondaryZones" , number_nodes ,
-                 v_secondary_zones , true , true );
+                 v_secondary_zones );
 
  if( ::deserialize( group , "SecondaryDemand" ,
                     v_secondary_demand , true , false ) )
 
   ::deserialize( group , "InertiaZones" , number_nodes ,
-                 v_inertia_zones , true , true );
+                 v_inertia_zones );
 
  if( ::deserialize( group , "InertiaDemand" ,
                     v_inertia_demand , true , false ) )
 
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
-                 v_number_pollutant_zones , true , true );
+                 v_number_pollutant_zones );
 
  if( !::deserialize_dim( group , "TotalNumberPollutantZones" ,
-                         f_total_number_pollutant_zones , true ) ) {
+                         f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
@@ -285,7 +278,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( f_total_number_pollutant_zones ) {
   ::deserialize( group , "PollutantZones" ,
-                 v_pollutant_zones , true , true );
+                 v_pollutant_zones );
 
   /*!! commented away until this is properly managed
   ::deserialize( group , "PollutantBudget" ,
@@ -294,11 +287,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   */
 
   ::deserialize( group , "PollutantRho" ,
-                 v_pollutant_rho , true , true );
+                 v_pollutant_rho );
 
   /*!! commented away until HeatBlock are properly managed
   ::deserialize( group , "PollutantHeatRho" ,
-                 v_pollutant_heat_rho , true , true );
+                 v_pollutant_heat_rh);
   */
  } else {
   v_pollutant_zones.resize(
@@ -314,11 +307,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  /*!! commented away until HeatBlock are properly managed
  ::deserialize( group , "PowerHeatRho" , f_number_units ,
-                v_power_heat_rho , true , true );
+                v_power_heat_rh);
 
  if( f_number_heat_blocks )
   ::deserialize( group , "HeatNode" ,
-                 f_number_heat_blocks , v_heat_node , true , true );
+                 f_number_heat_blocks , v_heat_nod);
  */
  // TODO
  /* Notice that for units into a HeatBlock that also are electrical
@@ -482,7 +475,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  }
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
-                v_generator_node , true , true );
+                v_generator_node );
 
  // finally, call the method of the base class
  Block::deserialize( group );

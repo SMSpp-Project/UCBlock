@@ -75,7 +75,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "MaxPower" ,
                                                      "InertiaPower" ,
                                                      "Gamma" ,
-                                                     "Kappa" };
+                                                     "Kappa" ,
+                                                     "OEMCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -83,16 +84,21 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
 
  // Mandatory variables
+
  ::deserialize( group , "MinPower" , v_minimum_power , false );
  ::deserialize( group , "MaxPower" , v_maximum_power , false );
  ::deserialize( group , f_gamma , "Gamma" , false );
 
  // Optional variables
+
  if( !::deserialize( group , "InertiaPower" , v_inertia_power ) )
   v_inertia_power.assign( f_time_horizon , 0 );
 
  if( !::deserialize( group , f_kappa , "Kappa" ) )
   f_kappa = 1;
+
+ if( !::deserialize( group , f_oem_cost , "OEMCost" ) )
+  f_oem_cost = 0;
 
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
