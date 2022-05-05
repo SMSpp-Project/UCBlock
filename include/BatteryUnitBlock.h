@@ -615,6 +615,23 @@ class BatteryUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
+/// returns the minimum storage at the given time instant
+/** This method returns the minimum storage at the given time instant \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The minimum storage at the given time instant \p t. */
+
+ double get_minimum_storage( Index t ) const {
+  if( v_minimum_storage.empty() )
+   return( 0 );
+  if( v_minimum_storage.size() == 1 )
+   return( v_minimum_storage.front() );
+  assert( t < v_minimum_storage.size() );
+  return( v_minimum_storage[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
 /// returns the vector of maximum storage
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum storage at time t. There are three possible cases:
@@ -629,6 +646,23 @@ class BatteryUnitBlock : public UnitBlock {
 
  const std::vector< double > & get_maximum_storage( void ) const {
   return( v_maximum_storage );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the maximum storage at the given time instant
+/** This method returns the maximum storage at the given time instant \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The maximum storage at the given time instant \p t. */
+
+ double get_maximum_storage( Index t ) const {
+  if( v_maximum_storage.empty() )
+   return( 0 );
+  if( v_maximum_storage.size() == 1 )
+   return( v_maximum_storage.front() );
+  assert( t < v_maximum_storage.size() );
+  return( v_maximum_storage[ t ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -649,6 +683,23 @@ class BatteryUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
+/// returns the minimum power at the given time instant
+/** This method returns the minimum power at the given time \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The minimum power at the given time instant \p t. */
+
+ double get_minimum_power( Index t ) const {
+  if( v_minimum_power.empty() )
+   return( 0 );
+  if( v_minimum_power.size() == 1 )
+   return( v_minimum_power.front() );
+  assert( t < v_minimum_power.size() );
+  return( v_minimum_power[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
 /// returns the vector of maximum power
 /** The method returned a std::vector< double > V and each element of V
  * contains the maximum power at time t. There are three possible cases:
@@ -666,38 +717,92 @@ class BatteryUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum primary rho
-/** The method returned a std::vector< double > V and each element of V
- * contains the maximum primary rho at time t. There are three possible cases:
+/// returns the maximum power at the given time instant
+/** This method returns the maximum power at the given time \p t.
  *
- * - if the vector is empty, then the maximum primary rho of the unit is 0;
+ * @param t A time instant between 0 and get_time_horizon() - 1.
  *
- * - if the vector has only one element, then V[ 0 ] is the maximum primary
- *   rho the unit for all time horizon;
- *
- * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the maximum primary rho value at time t. */
+ * @return The maximum power at the given time instant \p t. */
 
- const std::vector< double > & get_maximum_primary_rho( void ) const {
+ double get_maximum_power( Index t ) const {
+  if( v_maximum_power.empty() )
+   return( 0 );
+  if( v_maximum_power.size() == 1 )
+   return( v_maximum_power.front() );
+  assert( t < v_maximum_power.size() );
+  return( v_maximum_power[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum primary reserve power
+/** This method returns a vector containing the maximum active power that can
+ * be used as primary reserve. There are three possible cases:
+ *
+ * - if this vector is empty, then the maximum primary power of the unit is 0;
+ *
+ * - if this vector has only one element, then the maximum primary power is
+ *   equal to that value at all time instants;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and its t-th
+ *   element represents the maximum primary power at time t. */
+
+ const std::vector< double > & get_maximum_primary_power( void ) const {
   return( v_maximum_primary_rho );
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum secondary rho
-/** The method returned a std::vector< double > V and each element of V
- * contains the maximum secondary rho at time t. There are three possible
- * cases:
+/// returns the maximum primary reserve power at the given time instant
+/** This method returns the maximum active power that can be used as primary
+ * reserve at the given time \p t.
  *
- * - if the vector is empty, then the maximum secondary rho of the unit is 0;
+ * @param t A time instant between 0 and get_time_horizon() - 1.
  *
- * - if the vector has only one element, then V[ 0 ] is the maximum secondary
- *   rho the unit for all time horizon;
- *
- * - otherwise, the std::vector< double > V must have size get_time_horizon()
- *   and each V[ t ] represents the maximum secondary rho value at time t. */
+ * @return The maximum primary reserve power at the given time instant \p
+ * t. */
 
- const std::vector< double > & get_maximum_secondary_rho( void ) const {
+ double get_maximum_primary_power( Index t ) const {
+  if( v_maximum_primary_rho.empty() )
+   return( 0 );
+  if( v_maximum_primary_rho.size() == 1 )
+   return( v_maximum_primary_rho.front() );
+  assert( t < v_maximum_primary_rho.size() );
+  return( v_maximum_primary_rho[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the vector of maximum secondary reserve power
+/** This method returns a vector containing the maximum active power that can
+ * be used as secondary reserve. There are three possible cases:
+ *
+ * - if this vector is empty, then the maximum secondary power of the unit is 0;
+ *
+ * - if this vector has only one element, then the maximum secondary power is
+ *   equal to that value at all time instants;
+ *
+ * - otherwise, the vector must have size get_time_horizon() and its t-th
+ *   element represents the maximum secondary power at time t. */
+
+ const std::vector< double > & get_maximum_secondary_power( void ) const {
   return( v_maximum_secondary_rho );
+  }
+
+/*--------------------------------------------------------------------------*/
+/// returns the maximum secondary power at the given time instant
+/** This method returns the maximum active power that can be used as secondary
+ * reserve at the given time \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The maximum secondary reserve power at the given time instant \p
+ * t. */
+
+ double get_maximum_secondary_power( Index t ) const {
+  if( v_maximum_secondary_rho.empty() )
+   return( 0 );
+  if( v_maximum_secondary_rho.size() == 1 )
+   return( v_maximum_secondary_rho.front() );
+  assert( t < v_maximum_secondary_rho.size() );
+  return( v_maximum_secondary_rho[ t ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -908,8 +1013,8 @@ class BatteryUnitBlock : public UnitBlock {
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the types of battery unit
-/** This method returns the types of battery unit. */
+ /// returns the types of battery unit
+ /** This method returns the types of battery unit. */
 
  battery_type get_battery_type() const {
 
@@ -926,6 +1031,103 @@ class BatteryUnitBlock : public UnitBlock {
    return( NO_Binary_Variables_Constraints );
 
   return( Binary_Variables_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power output constraints
+ /** This method returns the minimum power output constraints.
+  *
+  * @param The minimum power output constraints. */
+
+ const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
+  return( active_power_lower_bound_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power output constraints
+ /** This method returns the maximum power output constraints.
+  *
+  * @param The maximum power output constraints. */
+
+ const std::vector< FRowConstraint > & get_max_power_constraints( void ) const {
+  return( active_power_upper_bound_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraints
+ /** This method returns the intake upper bound constraints.
+  *
+  * @param The intake upper bound constraints. */
+
+ const std::vector< BoxConstraint > & get_max_intake_constraints( void ) const {
+  return( intake_upper_bound_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraints with binary variables
+ /** This method returns the intake upper bound constraints with binary
+  * variables.
+  *
+  * @param The intake upper bound constraints with binary variables. */
+
+ const std::vector< FRowConstraint > &
+ get_max_intake_binary_constraints( void ) const {
+  return( intake_binary_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the outtake upper bound constraints with binary variables
+ /** This method returns the outtake upper bound constraints with binary
+  * variables.
+  *
+  * @param The outtake upper bound constraints with binary variables. */
+
+ const std::vector< FRowConstraint > &
+ get_max_outtake_binary_constraints( void ) const {
+  return( outtake_binary_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the storage level bound constraints
+ /** This method returns the storage level bound constraints.
+  *
+  * @param The storage level bound constraints. */
+
+ const std::vector< BoxConstraint > &
+ get_storage_level_bound_constraints( void ) const {
+  return( storage_level_bounds_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the primary reserve bound constraints
+ /** This method returns the primary reserve bound constraints.
+  *
+  * @param The primary reserve bound constraints. */
+
+ const std::vector< BoxConstraint > & get_primary_reserve_bounds( void ) const {
+  return( primary_upper_bound_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the secondary reserve bound constraints
+ /** This method returns the secondary reserve bound constraints.
+  *
+  * @param The secondary reserve bound constraints. */
+
+ const std::vector< BoxConstraint > &
+ get_secondary_reserve_bounds( void ) const {
+  return( secondary_upper_bound_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake/outtake binary variables
+ /** This method returns the intake/outtake binary variables.
+  *
+  * @param The intake/outtake binary variables. */
+
+ const std::vector< ColVariable > &
+ get_intake_outtake_binary_variables( void ) const {
+  return( v_battery_binary );
   }
 
 /** @} ---------------------------------------------------------------------*/
