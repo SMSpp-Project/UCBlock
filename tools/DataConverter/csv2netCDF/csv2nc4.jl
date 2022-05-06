@@ -172,14 +172,7 @@ function csvEC2nc4()
                 max_power = defVar(ub, "MaxPower", Float64, ())
                 max_power[:] = field_component(users_data[u], g, "max_capacity")
 
-                min_power = defVar(ub, "MinPower", Float64, ())
-                min_power[:] = 0
-
-                # Gamma is used to take into account an uncertainty on the maximal potential production. 
-                # It must be 0 <= Gamma <= 1; when Gamma == 0, the unit does not provide any reserve.
-                gamma = defVar(ub, "Gamma", Float64, ())
-                gamma[:] = 0
-
+                # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
                 oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
 
@@ -191,19 +184,14 @@ function csvEC2nc4()
                 max_power = defVar(ub, "MaxPower", Float64, ())
                 max_power[:] = field_component(users_data[u], g, "max_capacity")
 
-                min_power = defVar(ub, "MinPower", Float64, ())
-                min_power[:] = 0
-
-                initial_storage = defVar(ub, "InitialStorage", Float64, ())
-                initial_storage[:] = 0
-
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
                 min_storage[:] = field_component(users_data[u], g, "min_SOC")
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
                 max_storage[:] = field_component(users_data[u], g, "max_SOC")
-
+                
+                # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
                 oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
 
