@@ -158,10 +158,11 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , NumberNodes ,
-                 v_active_demand , true );
+                 v_active_demand );
  } else {
   // A DCNetworkData has not been provided. However, the active demand may still
   // have been provided.
+
   auto ActiveDemand = group.getVar( "ActiveDemand" );
 
   if( !ActiveDemand.isNull() ) {

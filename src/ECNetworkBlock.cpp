@@ -98,7 +98,7 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- ::deserialize_dim( group , "NumberLines" , f_number_lines , true );
+ ::deserialize_dim( group , "NumberLines" , f_number_lines );
 
  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , true ,
                 true );
@@ -129,7 +129,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- ::deserialize( group , "ActiveDemand" , v_active_demand , true );
+ ::deserialize( group , "ActiveDemand" , v_active_demand );
 }
 
 /*--------------------------------------------------------------------------*/

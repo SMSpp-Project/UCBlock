@@ -85,11 +85,15 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Mandatory variables
 
- ::deserialize( group , "MinPower" , v_minimum_power , false );
  ::deserialize( group , "MaxPower" , v_maximum_power , false );
- ::deserialize( group , f_gamma , "Gamma" , false );
 
  // Optional variables
+
+ if( !::deserialize( group , "MinPower" , v_minimum_power ) )
+  v_minimum_power.assign( f_time_horizon , 0 );
+
+ if( !::deserialize( group , f_gamma , "Gamma" ) )
+  f_gamma = 0;
 
  if( !::deserialize( group , "InertiaPower" , v_inertia_power ) )
   v_inertia_power.assign( f_time_horizon , 0 );

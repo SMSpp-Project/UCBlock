@@ -277,8 +277,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   f_total_number_pollutant_zones = f_number_pollutants;
 
  if( f_total_number_pollutant_zones ) {
-  ::deserialize( group , "PollutantZones" ,
-                 v_pollutant_zones );
+  ::deserialize( group , "PollutantZones" , v_pollutant_zones );
 
   /*!! commented away until this is properly managed
   ::deserialize( group , "PollutantBudget" ,

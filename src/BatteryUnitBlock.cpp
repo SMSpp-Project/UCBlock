@@ -103,11 +103,16 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , "MinStorage" , v_minimum_storage , false );
  ::deserialize( group , "MaxStorage" , v_maximum_storage , false );
- ::deserialize( group , "MinPower" , v_minimum_power , false );
  ::deserialize( group , "MaxPower" , v_maximum_power , false );
- ::deserialize( group , f_initial_storage , "InitialStorage" , false );
 
  // Optional variables
+
+ if( !::deserialize( group , "MinPower" , v_minimum_power ) )
+  v_minimum_power.assign( f_time_horizon , 0 );
+
+
+ if( !::deserialize( group , f_initial_storage , "InitialStorage" , false ) )
+  f_initial_storage = 0;
 
  if( !::deserialize( group , f_initial_power , "InitialPower" ) )
   f_initial_power = 0;

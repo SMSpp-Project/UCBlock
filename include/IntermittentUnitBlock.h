@@ -173,8 +173,9 @@ class IntermittentUnitBlock : public UnitBlock
  *
  * - The scalar variable "Gamma", of type double and not indexed over any
  *   dimension. This variable is used to take into account an uncertainty on
- *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
- *   when Gamma == 0, the unit does not provide any reserve.
+ *   the maximal potential production. Note that it must be 0 <= Gamma <= 1.
+ *   This variable is optional, if it is not provided it is taken to be Gamma
+ *   == 0, i.e., the unit does not provide any reserve.
  *
  * - The scalar variable "Kappa", of type double and not indexed over any
  *   dimension. This variable is used to multiply to the minimum and maximum
@@ -527,10 +528,10 @@ class IntermittentUnitBlock : public UnitBlock
  std::vector< double > v_maximum_power;
 
  /// the gamma value
- double f_gamma = 1;
+ double f_gamma;
 
  /// the kappa value
- double f_kappa = 0;
+ double f_kappa;
 
  /// the operation and maintenance cost
  double f_oem_cost;
