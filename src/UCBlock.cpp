@@ -213,7 +213,25 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   f_number_heat_generators = 0;
  */
 
- ::deserialize( group , "ActivePowerDemand" , v_active_power_demand );
+ if( ::deserialize( group , "ActivePowerDemand" , v_active_power_demand ) ) {
+
+  // when the network is a bus, the "ActivePowerDemand" variable in the nc4
+  // input file could be provided as a simple 1D array of `f_time_horizon`
+  // size, so we reshape `v_active_power_demand` in order to make it available
+  // in the expected shape, i.e., `number_nodes` x `f_time_horizon`
+  if( ( number_nodes == 1 ) &&
+      // ensure if is in fact provided as a 1D array, ignore if it is given
+      // in the correct shape
+      ( v_active_power_demand.shape()[ 0 ] == f_time_horizon ) ) {
+   using index = decltype( v_active_power_demand )::index;
+   std::vector< index > shape = { 1 , f_time_horizon };
+   v_active_power_demand.reshape( shape );
+  }
+
+  // always check if the demand is given in the correct shape
+  assert( ( v_active_power_demand.shape()[ 0 ] == number_nodes ) &&
+          ( v_active_power_demand.shape()[ 1 ] == f_time_horizon ) );
+ }
 
  // Optional dimensions
 
@@ -501,7 +519,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( number_nodes > 0 ) {  // well, that'd be curios, but ...
   if( number_nodes == 1 ) {
-   // special case: in a BusNetwork there are no NetworkBlocks and the node
+   // special case: in a bus network there are no NetworkBlocks and the node
    // injection constraints actually are active power demand constraints
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -632,7 +650,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( f_number_primary_zones == 1 ) {  // no need to PrimaryZones
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -701,7 +719,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_primary_zones > 1 ) {  // PrimaryZones is needed
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -802,7 +820,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( f_number_secondary_zones == 1 ) {  // no need to SecondaryZones
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      auto linear_function = new LinearFunction();
@@ -872,7 +890,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_secondary_zones > 1 ) {  // SecondaryZones is needed
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -974,7 +992,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( f_number_inertia_zones == 1 ) {  // no need to InertiaZones
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -1065,7 +1083,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
   } else if( f_number_inertia_zones > 1 ) {  // InertiaZones is needed
 
-   if( number_nodes == 1 ) {  // BusNetwork no need to GeneratorNode
+   if( number_nodes == 1 ) {  // bus network no need to GeneratorNode
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 

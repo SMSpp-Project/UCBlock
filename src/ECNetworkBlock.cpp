@@ -87,6 +87,9 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
  // Mandatory variables
 
  ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+ if( f_number_nodes == 1 )
+  throw ( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
+                                 "a community network with just one user" ) );
 
  ::deserialize( group , "BuyPrice" , f_number_intervals ,
                 v_buy_price , false , true );

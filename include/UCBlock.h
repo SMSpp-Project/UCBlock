@@ -285,41 +285,43 @@ class UCBlock : public Block
  *   which is ignored.
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_T"
- *   with T = TimeHorizon - 1, with "NetworkBlock_t" containing the
- *   constraints on the transmission network at time t. The NetworkBlocks are
- *   optional, but if any of them are missing, then
+ *   with T = NumberNetworks - 1, with "NetworkBlock_t" containing the
+ *   constraints on the transmission or community network at time t. The
+ *   NetworkBlocks are optional, but if any of them are missing, then:
  *
- *   - "ActivePowerDemand" (see above) is mandatory in UCBlock
+ *   - "ActivePowerDemand" (see above) is mandatory in UCBlock;
  *
  *   - also the NetworkData (see above) is mandatory in UCBlock, unless
- *     the transmission network is a bus (that is, "NumberNodes" is not
- *     provided or it is == 1).
+ *     the transmission network is a bus (that is, "NumberNodes" is
+ *     not provided or it is == 1).
  *
  *   In particular, when a NetworkBlock is not defined for a given time
  *   instant t then one of these happens:
  *
- *   - If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
- *     is automatically constructed for that time instant, and the entry
- *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
+ *   - If the network is a transmission network, i.e., the
+ *     "NetworkBlockClassname" is equal to "DCNetworkBlock" or is empty, then
+ *     a DCNetworkBlock is automatically constructed for that time instant,
+ *     and the row ActivePowerDemand[ ... , t ] contains the active demand of
+ *     each node at time instant t.
  *
- *   - If "NumberNodes" > 1, then a NetworkBlock is automatically constructed
- *     for that time instant, it is provided with the NetworkData object
- *     (which must be present in UCBlock) and the row
- *     ActivePowerDemand[ ... , t ] contains the active demand of each node
- *     at time instant t.
+ *   - If the network is a community network, i.e., the
+ *     "NetworkBlockClassname" is equal to "ECNetworkBlock", then a
+ *     ECNetworkBlock is automatically constructed for that time instant, and
+ *     the row ActivePowerDemand[ ... , t ] contains the active
+ *     demand of each node at time instant t.
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint() and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
- *   tells to which node of the transmission network, the specified electrical
- *   generator g belongs. Note that this means that different electrical
- *   generators in the same UnitBlock can belong to different nodes of the
- *   transmission network. This is justified e.g. by hydro cascade units where
- *   different turbines can be rather far apart geographically, but still
- *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
- *   NumberUnits (all UnitBlock have exactly one electrical generator), then
- *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
- *   is not provided at all), then this variable need not be defined, since it
- *   is not loaded.
+ *   tells to which node of the transmission or community network, the
+ *   specified electrical generator g belongs. Note that this means that
+ *   different electrical generators in the same UnitBlock can belong to
+ *   different nodes of the transmission or community network. This is
+ *   justified e.g. by hydro cascade units where different turbines can be
+ *   rather far apart geographically, but still linked by (long) stretches of
+ *   rivers. If NumberElectricalGenerators == NumberUnits (all UnitBlock have
+ *   exactly one electrical generator), then this variable is indexed over
+ *   NumberUnits. If NumberNodes == 1 (say, it is not provided at all), then
+ *   this variable need not be defined, since it is not loaded.
  *
  * - The variable "HeatNode", of type netCDF::NcUint() and indexed over the
  *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node
