@@ -601,6 +601,12 @@ class BatteryUnitBlock : public UnitBlock
  /// Returns the operation and maintenance cost
  double get_oem_cost( void ) const { return f_oem_cost; }
 
+ /// Returns the battery capital expenditure cost
+ double get_battery_capex_cost( void ) const { return f_battery_capex_cost; }
+
+ /// Returns the converter capital expenditure cost
+ double get_converter_capex_cost( void ) const { return f_battery_capex_cost; }
+
 /*--------------------------------------------------------------------------*/
 
 /// returns the vector of minimum storage
@@ -1094,6 +1100,12 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the operation and maintenance cost
  double f_oem_cost;
+
+ /// the battery capital expenditure cost
+ double f_battery_capex_cost;
+
+ /// the converter capital expenditure cost
+ double f_converter_capex_cost;
 
  /// the vector of demand
  std::vector< double > v_demand;

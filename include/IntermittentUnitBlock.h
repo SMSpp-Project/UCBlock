@@ -334,6 +334,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// Returns the operation and maintenance cost
  double get_oem_cost( void ) const { return f_oem_cost; }
 
+ /// Returns the capital expenditure cost
+ double get_capex_cost( void ) const { return f_capex_cost; }
+
 /*--------------------------------------------------------------------------*/
 
 /// returns the vector of minimum power
@@ -535,6 +538,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the operation and maintenance cost
  double f_oem_cost;
+
+ /// the capital expenditure cost
+ double f_capex_cost;
 
  /// the matrix of inertia power of generators
  std::vector< double > v_inertia_power;
