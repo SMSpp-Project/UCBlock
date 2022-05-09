@@ -9,7 +9,8 @@ include("utils.jl")
 function csvEC2nc4()
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset("../../../netCDF_files/EC_Data/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset("-with-network-blocks" in ARGS ? "../../../netCDF_files/EC_Data/EC_Test_NB.nc4" :
+                   "../../../netCDF_files/EC_Data/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
@@ -19,22 +20,13 @@ function csvEC2nc4()
     n_timesteps = length(time_set)
     defDim(block, "TimeHorizon", n_timesteps)
 
-    # `ActivePowerDemand` is a 2D variable that represent the electricity
-    # demand for each node/user wrt each time step/horizon
-
-    # power_demand = defVar(block, "ActivePowerDemand", Float64, ("NumberNodes", "TimeHorizon"))
-    # power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
-    #                       for u in user_set, t in time_set]
-
-    power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes"))
-    power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
-                          for t in time_set, u in user_set]
-
     # --------------------------------------------------------------------------------------- #
 
     # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
-    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`
+    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
+    # inform UCBlock about the specific type of network (since it deals with both transmission and 
+    # community networks)
     network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
     network_block_classname[1] = "ECNetworkBlock"
     network_data_classname = defVar(block, "NetworkDataClassname", String, ())
@@ -45,12 +37,6 @@ function csvEC2nc4()
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
-
-    # Store the first index (-1 since in C++ the array's indexing starts from
-    # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
-    peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
-    peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
-                         for w in peak_set]
 
     # Create (sell/buy/consumption) price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
@@ -82,10 +68,23 @@ function csvEC2nc4()
     peak_tariff = [profile(market_data, "peak_weight")[w] *
                    profile(market_data, "peak_tariff")[w] for w in peak_set]
 
-    if allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff)
+    if !("-with-network-blocks" in ARGS) && allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff)
 
         # no needs to create w `(EC)NetworkBlock`(s) with the same data repeated, we create just one `NetworkData`
         # ecnd = defGroup(block, "NetworkData", attrib=OrderedDict("type" => "ECNetworkData"))
+
+        # Store the first index (-1 since in C++ the array's indexing starts from
+        # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
+        peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
+        peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
+                             for w in peak_set]
+
+        # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
+        ## A T T E N T I O N: due to a `NCDatasets` bug, to store the demand in the correct shape, i.e., 
+        ##                    NumberNodes x TimeHorizon, we need to store it transposed.
+        power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes")) # ("NumberNodes", "TimeHorizon"))
+        power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
+                              for t in time_set, u in user_set] # for u in user_set, t in time_set]
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
         buy_price = defVar(block, "BuyPrice", Float64, ())
@@ -111,13 +110,20 @@ function csvEC2nc4()
 
             ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
+            # Vector variables
+
             # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
             n_intervals = count(x -> x == w, peak_categories)
             defDim(ecnb, "NumberIntervals", n_intervals)
 
-            # Vector variables
-
             last_i = findlast(x -> x == w, peak_categories)
+
+            # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
+            ## A T T E N T I O N: due to a `NCDatasets` bug, to store the demand in the correct shape, i.e., 
+            ##                    NumberIntervals x NumberNodes, we need to store it transposed.
+            power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
+            power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
+                                  for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
             # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
             buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
@@ -176,6 +182,10 @@ function csvEC2nc4()
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
                 oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
 
+                # capital expenditure cost of the component
+                capex_cost = defVar(ub, "CAPEXCost", Float64, ())
+                capex_cost[:] = field_component(users_data[u], g, "CAPEX_lin")
+
             elseif g == "batt"
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
@@ -190,10 +200,17 @@ function csvEC2nc4()
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
                 max_storage[:] = field_component(users_data[u], g, "max_SOC")
-                
+
                 # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
                 oem_cost[:] = field_component(users_data[u], g, "OEM_lin")
+
+                # capital expenditure cost of the component (both for battery and converter)
+                capex_battery_cost = defVar(ub, "BatteryCAPEXCost", Float64, ())
+                capex_battery_cost[:] = field_component(users_data[u], g, "CAPEX_lin")
+
+                capex_converter_cost = defVar(ub, "ConverterCAPEXCost", Float64, ())
+                capex_converter_cost[:] = field_component(users_data[u], "conv", "CAPEX_lin")
 
             end
 
