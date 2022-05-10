@@ -591,7 +591,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     StartUp_ShutDown_Variables_Constraints[ 0 ].set_function( l_function );
    }
 
-   for( Index t = init_t + 1 , constraint_index = 1 ; t < f_time_horizon ;
+   for( Index t = init_t + 1 , constraint_index = 1 ;
+        t < f_time_horizon ;
         ++t , ++constraint_index ) {
 
     auto linear_function = new LinearFunction();

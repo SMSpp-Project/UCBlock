@@ -319,6 +319,21 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
+ v_storage_level.resize( f_time_horizon );
+ for( auto & var : v_storage_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_storage_level , "SL_battery" );
+
+ v_intake_level.resize( f_time_horizon );
+ for( auto & var : v_intake_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_intake_level , "IL_battery" );
+
+ v_outtake_level.resize( f_time_horizon );
+ for( auto & var : v_outtake_level )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_outtake_level , "OL_battery" );
+
  int relax_binary = 0;
  auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
  if( ( ! config ) && f_BlockConfig &&
@@ -328,24 +343,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( config )
   relax_binary = config->f_value;
 
- v_storage_level.resize( f_time_horizon );
- for( auto & var : v_storage_level )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_storage_level , "SL_battery" );
-
-
- v_intake_level.resize( f_time_horizon );
- for( auto & var : v_intake_level )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_intake_level , "IL_battery" );
-
-
- v_outtake_level.resize( f_time_horizon );
- for( auto & var : v_outtake_level )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_outtake_level , "OL_battery" );
-
-
  v_battery_binary.resize( f_time_horizon );
  for( auto & var : v_battery_binary ) {
   if( relax_binary )
@@ -354,11 +351,32 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    var.set_type( ColVariable::kBinary );
  }
  if( battery_type == Binary_Variables_Constraints ) {
-
   add_static_variable( v_battery_binary , "BB_battery" );
  }
- // Active Power Variable
 
+ v_battery_design.resize( f_time_horizon );
+ for( auto & var : v_battery_design ) {
+  if( relax_binary )
+   var.set_type( ColVariable::kPosUnitary );
+  else
+   var.set_type( ColVariable::kBinary );
+ }
+ if( f_battery_capex_cost != 0 ) {
+  add_static_variable( v_battery_design , "D_battery" );
+ }
+
+ v_converter_design.resize( f_time_horizon );
+ for( auto & var : v_converter_design ) {
+  if( relax_binary )
+   var.set_type( ColVariable::kPosUnitary );
+  else
+   var.set_type( ColVariable::kBinary );
+ }
+ if( f_converter_capex_cost != 0 ) {
+  add_static_variable( v_converter_design , "D_converter" );
+ }
+
+ // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kContinuous );
@@ -486,7 +504,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   ramp_up_Constraints[ 0 ].set_function( linear_function );
 
   for( Index t = 1 , constraint_index = 1 ;
-       t < f_time_horizon ; ++t , ++constraint_index ) {
+       t < f_time_horizon ;
+       ++t , ++constraint_index ) {
 
    auto lf = new LinearFunction();
 

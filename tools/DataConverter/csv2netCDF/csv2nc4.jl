@@ -80,8 +80,10 @@ function csvEC2nc4()
                              for w in peak_set]
 
         # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
-        ## A T T E N T I O N: due to a `NCDatasets` bug, to store the demand in the correct shape, i.e., 
-        ##                    NumberNodes x TimeHorizon, we need to store it transposed.
+        ## A T T E N T I O N: since Julia is column-major, to store the demand in the correct shape, i.e., 
+        ##                    NumberNodes x TimeHorizon, we need to store it transposed, otherwise, since 
+        ##                    #TimeHorizon >> #NumberNodes, to deal with this difference efficiently, 
+        #                     the order of the dimensions is flipped.
         power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes")) # ("NumberNodes", "TimeHorizon"))
         power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
                               for t in time_set, u in user_set] # for u in user_set, t in time_set]
@@ -119,8 +121,10 @@ function csvEC2nc4()
             last_i = findlast(x -> x == w, peak_categories)
 
             # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
-            ## A T T E N T I O N: due to a `NCDatasets` bug, to store the demand in the correct shape, i.e., 
-            ##                    NumberIntervals x NumberNodes, we need to store it transposed.
+            ## A T T E N T I O N: since Julia is column-major, to store the demand in the correct shape, i.e., 
+            ##                    NumberIntervals x NumberNodes, we need to store it transposed, otherwise, since 
+            ##                    #NumberIntervals >> #NumberNodes, to deal with this difference efficiently, 
+            #                     the order of the dimensions is flipped.
             power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
             power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
                                   for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]

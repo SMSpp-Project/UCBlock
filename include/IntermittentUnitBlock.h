@@ -334,7 +334,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// Returns the operation and maintenance cost
  double get_oem_cost( void ) const { return f_oem_cost; }
 
- /// Returns the capital expenditure cost
+ /// Returns the investment cost, i.e., the capital expenditure cost
  double get_capex_cost( void ) const { return f_capex_cost; }
 
 /*--------------------------------------------------------------------------*/
@@ -399,7 +399,7 @@ class IntermittentUnitBlock : public UnitBlock
 
  double * get_inertia_power( Index generator ) override {
   if( v_inertia_power.empty() )
-   return nullptr;
+   return( nullptr );
   return &( v_inertia_power.front() );
  }
 
@@ -444,6 +444,16 @@ class IntermittentUnitBlock : public UnitBlock
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of design variables, or nullptr if not defined
+
+ ColVariable * get_design( void ) {
+  if( v_design.empty() )
+   return( nullptr );
+  return( &( v_design.front() ) );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -539,7 +549,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the operation and maintenance cost
  double f_oem_cost;
 
- /// the capital expenditure cost
+ /// the investment cost, i.e., the capital expenditure cost
  double f_capex_cost;
 
  /// the matrix of inertia power of generators
@@ -555,6 +565,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
+ /// the design binary variables
+ std::vector< ColVariable > v_design;
 
 /*------------------------------- constraints ------------------------------*/
 

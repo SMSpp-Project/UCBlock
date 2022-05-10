@@ -601,10 +601,10 @@ class BatteryUnitBlock : public UnitBlock
  /// Returns the operation and maintenance cost
  double get_oem_cost( void ) const { return f_oem_cost; }
 
- /// Returns the battery capital expenditure cost
+ /// Returns the battery investment cost, i.e., the capital expenditure cost
  double get_battery_capex_cost( void ) const { return f_battery_capex_cost; }
 
- /// Returns the converter capital expenditure cost
+ /// Returns the converter investment cost, i.e., the capital expenditure cost
  double get_converter_capex_cost( void ) const { return f_battery_capex_cost; }
 
 /*--------------------------------------------------------------------------*/
@@ -932,6 +932,26 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns the vector of battery_design variables, or nullptr if not defined
+
+ ColVariable * get_battery_design( void ) {
+  if( v_battery_design.empty() )
+   return( nullptr );
+  return( &( v_battery_design.front() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of converter_design variables, or nullptr if not defined
+
+ ColVariable * get_converter_design( void ) {
+  if( v_converter_design.empty() )
+   return( nullptr );
+  return( &( v_converter_design.front() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// returns the types of battery unit
 /** This method returns the types of battery unit. */
 
@@ -1101,10 +1121,10 @@ class BatteryUnitBlock : public UnitBlock
  /// the operation and maintenance cost
  double f_oem_cost;
 
- /// the battery capital expenditure cost
+ /// the battery investment cost, i.e., the capital expenditure cost
  double f_battery_capex_cost;
 
- /// the converter capital expenditure cost
+ /// the converter investment cost, i.e., the capital expenditure cost
  double f_converter_capex_cost;
 
  /// the vector of demand
@@ -1132,6 +1152,12 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
+ /// the battery design binary variables
+ std::vector< ColVariable > v_battery_design;
+
+ /// the converter design binary variables
+ std::vector< ColVariable > v_converter_design;
 
 /*------------------------------- constraints ------------------------------*/
 
