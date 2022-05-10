@@ -221,7 +221,7 @@ class HydroSystemUnitBlock : public UnitBlock
 
  /// Returns the PolyhedralFunctionBlock
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
-  assert( !v_Block.empty() );
+  assert( ! v_Block.empty() );
   return static_cast< PolyhedralFunctionBlock * >( v_Block.back() );
  }
 

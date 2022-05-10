@@ -94,7 +94,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
- if( !::deserialize_dim( group , "NumberIntervals" ,
+ if( ! ::deserialize_dim( group , "NumberIntervals" ,
                          f_number_intervals , true ) )
   f_number_intervals = 1;
  else {
@@ -144,7 +144,7 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
  Index solution_type = 0;
- if( ( !csolc ) && f_BlockConfig )
+ if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
@@ -162,7 +162,7 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
    sol = new ColVariableSolution;
  }
 
- if( !emptys )
+ if( ! emptys )
   sol->read( this );
 
  return( sol );

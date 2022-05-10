@@ -89,22 +89,22 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize( group , "MinPower" , v_minimum_power ) )
+ if( ! ::deserialize( group , "MinPower" , v_minimum_power ) )
   v_minimum_power.assign( f_time_horizon , 0 );
 
- if( !::deserialize( group , f_gamma , "Gamma" ) )
+ if( ! ::deserialize( group , f_gamma , "Gamma" ) )
   f_gamma = 0;
 
- if( !::deserialize( group , "InertiaPower" , v_inertia_power ) )
+ if( ! ::deserialize( group , "InertiaPower" , v_inertia_power ) )
   v_inertia_power.assign( f_time_horizon , 0 );
 
- if( !::deserialize( group , f_kappa , "Kappa" ) )
+ if( ! ::deserialize( group , f_kappa , "Kappa" ) )
   f_kappa = 1;
 
- if( !::deserialize( group , f_oem_cost , "OEMCost" ) )
+ if( ! ::deserialize( group , f_oem_cost , "OEMCost" ) )
   f_oem_cost = 0;
 
- if( !::deserialize( group , f_capex_cost , "CAPEXCost" ) )
+ if( ! ::deserialize( group , f_capex_cost , "CAPEXCost" ) )
   f_capex_cost = 0;
 
  // Deserialize data from the base class
@@ -161,7 +161,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
                             std::to_string( f_kappa ) + "." ) );
  }
 
- if( !v_inertia_power.empty() ) {
+ if( ! v_inertia_power.empty() ) {
   assert( v_inertia_power.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_inertia_power[ t ] < 0 ) {
@@ -364,7 +364,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
 
  auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
 
- if( ( !config ) && f_BlockConfig )
+ if( ( ! config ) && f_BlockConfig )
   config = dynamic_cast< SimpleConfiguration< double > * >
   ( f_BlockConfig->f_is_feasible_Configuration );
 
@@ -457,7 +457,7 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 void IntermittentUnitBlock::update_max_power_in_constraints(
  const Subset & time ,
  ModParam issueAMod ) {
- if( !MaxPower_Constraints.empty() ) {
+ if( ! MaxPower_Constraints.empty() ) {
   for( auto t : time ) {
    MaxPower_Constraints[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
@@ -465,7 +465,7 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
   }
  }
 
- if( !active_power_bounds_Constraints.empty() ) {
+ if( ! active_power_bounds_Constraints.empty() ) {
   for( auto t : time ) {
    active_power_bounds_Constraints[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
@@ -478,7 +478,7 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
  const Range & time , ModParam issueAMod ) {
- if( !MaxPower_Constraints.empty() ) {
+ if( ! MaxPower_Constraints.empty() ) {
   for( auto t = time.first ; t < time.second ; ++t ) {
    MaxPower_Constraints[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
@@ -486,7 +486,7 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
   }
  }
 
- if( !active_power_bounds_Constraints.empty() ) {
+ if( ! active_power_bounds_Constraints.empty() ) {
   for( auto t = time.first ; t < time.second ; ++t ) {
    active_power_bounds_Constraints[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
@@ -542,7 +542,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  if( !ordered ) {
+  if( ! ordered ) {
    std::sort( subset.begin() , subset.end() );
   }
 

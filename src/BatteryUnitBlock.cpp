@@ -109,14 +109,14 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize( group , "MinPower" , v_minimum_power ) )
+ if( ! ::deserialize( group , "MinPower" , v_minimum_power ) )
   v_minimum_power.assign( f_time_horizon , 0 );
 
 
- if( !::deserialize( group , f_initial_storage , "InitialStorage" , false ) )
+ if( ! ::deserialize( group , f_initial_storage , "InitialStorage" , false ) )
   f_initial_storage = 0;
 
- if( !::deserialize( group , f_initial_power , "InitialPower" ) )
+ if( ! ::deserialize( group , f_initial_power , "InitialPower" ) )
   f_initial_power = 0;
 
  ::deserialize( group , "MaxPrimaryPower" , v_maximum_primary_rho );
@@ -128,13 +128,13 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "StoringBatteryRho" , v_storing_battery_rho );
  ::deserialize( group , "ExtractingBatteryRho" , v_extracting_battery_rho );
 
- if( !::deserialize( group , f_oem_cost , "OEMCost" ) )
+ if( ! ::deserialize( group , f_oem_cost , "OEMCost" ) )
   f_oem_cost = 0;
 
- if( !::deserialize( group , f_battery_capex_cost , "BatteryCAPEXCost" ) )
+ if( ! ::deserialize( group , f_battery_capex_cost , "BatteryCAPEXCost" ) )
   f_battery_capex_cost = 0;
 
- if( !::deserialize( group , f_converter_capex_cost , "ConverterCAPEXCost" ) )
+ if( ! ::deserialize( group , f_converter_capex_cost , "ConverterCAPEXCost" ) )
   f_converter_capex_cost = 0;
 
  // Deserialize data from the base class
@@ -196,7 +196,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Inefficiency of storing and extracting energy
 
- if( !v_storing_battery_rho.empty() ) {
+ if( ! v_storing_battery_rho.empty() ) {
   assert( v_storing_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_storing_battery_rho[ t ] > 1 ) {
@@ -210,7 +210,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   }
  }
 
- if( !v_extracting_battery_rho.empty() ) {
+ if( ! v_extracting_battery_rho.empty() ) {
   assert( v_extracting_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < 1 ) {
@@ -224,8 +224,8 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   }
  }
 
- if( ( !v_storing_battery_rho.empty() ) &&
-     ( !v_extracting_battery_rho.empty() ) ) {
+ if( ( ! v_storing_battery_rho.empty() ) &&
+     ( ! v_extracting_battery_rho.empty() ) ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
     throw( std::logic_error(
@@ -238,7 +238,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Delta ramp-up
 
- if( !v_delta_ramp_up.empty() ) {
+ if( ! v_delta_ramp_up.empty() ) {
   assert( v_delta_ramp_up.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_up[ t ] < 0 )
@@ -250,7 +250,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Delta ramp-down
 
- if( !v_delta_ramp_down.empty() ) {
+ if( ! v_delta_ramp_down.empty() ) {
   assert( v_delta_ramp_down.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_down[ t ] < 0 )
@@ -262,7 +262,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Maximum active power that can be used as primary reserve
 
- if( !v_maximum_primary_rho.empty() ) {
+ if( ! v_maximum_primary_rho.empty() ) {
   assert( v_maximum_primary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_primary_rho[ t ] < 0 )
@@ -275,7 +275,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Maximum active power that can be used as secondary reserve
 
- if( !v_maximum_secondary_rho.empty() ) {
+ if( ! v_maximum_secondary_rho.empty() ) {
   assert( v_maximum_secondary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_secondary_rho[ t ] < 0 )
@@ -289,7 +289,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Demand
 
- if( !v_demand.empty() ) {
+ if( ! v_demand.empty() ) {
   assert( v_demand.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_demand[ t ] < 0 )
@@ -321,7 +321,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  int relax_binary = 0;
  auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
- if( ( !config ) && f_BlockConfig &&
+ if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
   ( f_BlockConfig->f_static_variables_Configuration );
@@ -366,7 +366,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Primary Spinning Reserve Variable
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-  if( !v_maximum_primary_rho.empty() ) { // if unit produces any primary reserve
+  if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
+   // reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve ) {
     var.set_type( ColVariable::kNonNegative );
@@ -377,7 +378,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( !v_maximum_secondary_rho.empty() ) { // if unit produces any secondary reserve
+  if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any secondary
+   // reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_secondary_spinning_reserve ) {
     var.set_type( ColVariable::kNonNegative );
@@ -397,14 +399,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( constraints_generated() )
   return; // constraints have already been generated
 
- if( !variables_generated() )
+ if( ! variables_generated() )
   throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
                             "variables need be generated for constraints "
                             "to be." ) );
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
- if( ( !config ) && f_BlockConfig &&
+ if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_constraints_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
   ( f_BlockConfig->f_static_constraints_Configuration );
@@ -420,12 +422,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   linear_function->add_variable( &v_active_power[ t ] , 1.0 );
   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-   if( !v_maximum_primary_rho.empty() ) { // if unit produces any primary reserve
+   if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
+    // reserve
     linear_function->add_variable( &v_primary_spinning_reserve[ t ] , -1.0 );
    }
   }
   if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-   if( !v_maximum_secondary_rho.empty() ) { // if unit produces any secondary reserve
+   if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any
+    // secondary reserve
     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , -1.0 );
    }
   }
@@ -447,12 +451,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   linear_function->add_variable( &v_active_power[ t ] , 1.0 );
   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-   if( !v_maximum_primary_rho.empty() ) { // if unit produces any primary reserve
+   if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
+    // reserve
     linear_function->add_variable( &v_primary_spinning_reserve[ t ] , 1.0 );
    }
   }
   if( reserve_vars & 2u ) { // if UCBlock has secondary demand variable
-   if( !v_maximum_secondary_rho.empty() ) { // if unit produces any secondary reserve
+   if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any
+    // secondary reserve
     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , 1.0 );
    }
   }
@@ -467,7 +473,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
  // Initializing ramp-up constraints
- if( !v_delta_ramp_up.empty() ) {
+ if( ! v_delta_ramp_up.empty() ) {
 
   ramp_up_Constraints.resize( f_time_horizon );
 
@@ -496,7 +502,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( ramp_up_Constraints , "RampUp_Constraints_Battery" );
 
  // Initializing ramp-down constraints
- if( !v_delta_ramp_down.empty() ) {
+ if( ! v_delta_ramp_down.empty() ) {
 
   ramp_down_Constraints.resize( f_time_horizon );
 
@@ -575,14 +581,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   auto linear_fun = new LinearFunction();
 
   linear_fun->add_variable( &v_storage_level[ 0 ] , 1.0 );
-  if( !v_storing_battery_rho.empty() ) {
+  if( ! v_storing_battery_rho.empty() ) {
    linear_fun->add_variable( &v_outtake_level[ 0 ] ,
                              -v_storing_battery_rho[ 0 ] );
   } else {
    linear_fun->add_variable( &v_outtake_level[ 0 ] , -1 );
 
   }
-  if( !v_extracting_battery_rho.empty() ) {
+  if( ! v_extracting_battery_rho.empty() ) {
 
    linear_fun->add_variable( &v_intake_level[ 0 ] ,
                              v_extracting_battery_rho[ 0 ] );
@@ -590,7 +596,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    linear_fun->add_variable( &v_intake_level[ 0 ] , 1 );
 
   }
-  if( !v_demand.empty() ) {
+  if( ! v_demand.empty() ) {
    demand_Constraints[ 0 ].set_both( ( f_initial_storage - v_demand[ 0 ] ) );
   } else {
    demand_Constraints[ 0 ].set_both( ( f_initial_storage ) );
@@ -602,14 +608,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
        t < f_time_horizon ; ++t , ++constraint_index ) {
 
    auto linear_function = new LinearFunction();
-   if( !v_extracting_battery_rho.empty() ) {
+   if( ! v_extracting_battery_rho.empty() ) {
     linear_function->add_variable( &v_intake_level[ t ] ,
                                    v_extracting_battery_rho[ t ] );
    } else {
     linear_function->add_variable( &v_intake_level[ t ] , 1 );
 
    }
-   if( !v_storing_battery_rho.empty() ) {
+   if( ! v_storing_battery_rho.empty() ) {
     linear_function->add_variable( &v_outtake_level[ t ] ,
                                    -v_storing_battery_rho[ t ] );
    } else {
@@ -619,7 +625,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    linear_function->add_variable( &v_storage_level[ t ] , 1.0 );
    linear_function->add_variable( &v_storage_level[ t - 1 ] , -1.0 );
 
-   if( !v_demand.empty() ) {
+   if( ! v_demand.empty() ) {
     demand_Constraints[ constraint_index ].set_both( -v_demand[ t ] );
    } else {
     demand_Constraints[ constraint_index ].set_both( 0.0 );
@@ -699,7 +705,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing primary_upper_bound_Constraints
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-  if( !v_maximum_primary_rho.empty() ) { // if unit produces any primary reserve
+  if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
+   // reserve
    primary_upper_bound_Constraints.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -716,7 +723,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
  // Initializing secondary_upper_bound_Constraints
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( !v_maximum_secondary_rho.empty() ) { // if unit produces any secondary reserve
+  if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any secondary
+   // reserve
    secondary_upper_bound_Constraints.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -755,7 +763,7 @@ void BatteryUnitBlock::generate_objective( Configuration * objc ) {
  if( objective_generated() )
   return; // Objective has already been generated
 
- if( !variables_generated() )
+ if( ! variables_generated() )
   throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
                             "need be generated for constraints to be." ) );
 
@@ -874,7 +882,7 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
  if( demand_Constraints.empty() )
   return;
 
- if( !v_demand.empty() )
+ if( ! v_demand.empty() )
   demand_Constraints[ 0 ].set_both( f_initial_storage - v_demand[ 0 ] ,
                                     issueAMod );
  else

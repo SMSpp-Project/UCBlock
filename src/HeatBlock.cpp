@@ -184,7 +184,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
 unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
- if( !stvv )
+ if( ! stvv )
   return 0;
 
  // informs which variables must be generated
@@ -192,7 +192,7 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
  auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
 
- if( ( !tstvv ) && f_BlockConfig &&
+ if( ( ! tstvv ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration ) {
 
   tstvv = dynamic_cast<SimpleConfiguration< int > *>
@@ -257,7 +257,7 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
 void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( !v_HeatBounds_Constraints.empty() )
+ if( ! v_HeatBounds_Constraints.empty() )
   return; // constraints have already been generated
 
  // Satisfaction Heat Bounds constraints
@@ -280,7 +280,7 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Satisfaction Heat Storage Bounds constraints
 
- if( !v_heat_available.empty() ) {
+ if( ! v_heat_available.empty() ) {
   v_HeatStorageBounds_Constraints.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_HeatStorageBounds_Constraints[ t ].set_variable( &v_heat_available[ t ] );
@@ -329,7 +329,7 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Satisfaction Heat Demand constraints
 
- if( ( !v_heat_added.empty() ) && ( !v_heat_removed.empty() ) ) {
+ if( ( ! v_heat_added.empty() ) && ( ! v_heat_removed.empty() ) ) {
 
   v_HeatDemand_Constraints.resize( f_time_horizon );
 

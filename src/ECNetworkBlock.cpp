@@ -125,14 +125,30 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- delete f_NetworkData;
- f_NetworkData = new ECNetworkData();
- f_NetworkData->deserialize( group );
- f_local_NetworkData = true;
-
  // Optional variables
 
- ::deserialize( group , "ActiveDemand" , v_active_demand );
+ Index NumberNodes;
+ if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
+  // Since the dimension "NumberNodes" has been provided, it means that an
+  // ECNetworkData has been provided. Thus, the ECNetworkData is deserialized,
+  // and it is marked as being local.
+  delete f_NetworkData;
+  f_NetworkData = new ECNetworkData();
+  f_NetworkData->deserialize( group );
+  f_local_NetworkData = true;
+  // An ECNetworkData has been provided. So, the size of the given vector of
+  // active demand must be equal to the number of nodes.
+  ::deserialize( group , "ActiveDemand" , v_active_demand );
+
+  // always check if the demand is given in the correct shape
+  assert( ( v_active_demand.shape()[ 0 ] == get_number_intervals() ) &&
+          ( v_active_demand.shape()[ 1 ] == get_number_nodes() ) );
+
+ } else {
+  // An ECNetworkData has not been provided. However, the active demand may
+  // still have been provided.
+  ::deserialize( group , "ActiveDemand" , v_active_demand );
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -164,7 +180,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   // If an ECNetworkData is present, serialize it.
   network_data->serialize( group );
 
- if( !v_active_demand.empty() ) {
+ if( ! v_active_demand.empty() ) {
   // This DCNetworkBlock has active demand, so it is serialized.
 
   auto NumberNodes = group.getDim( "NumberNodes" );

@@ -102,7 +102,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
  // Optional variables
 
- if( !::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+ if( ! ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
   f_number_nodes = 1;
 
  if( f_number_nodes > 1 ) {
@@ -165,7 +165,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
   auto ActiveDemand = group.getVar( "ActiveDemand" );
 
-  if( !ActiveDemand.isNull() ) {
+  if( ! ActiveDemand.isNull() ) {
    // The active demand has indeed been provided.
 
    if( ActiveDemand.getDimCount() != 1 )
@@ -221,7 +221,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   // If a DCNetworkData is present, serialize it.
   network_data->serialize( group );
 
- if( !v_active_demand.empty() ) {
+ if( ! v_active_demand.empty() ) {
   // This DCNetworkBlock has active demand, so it is serialized.
 
   auto NumberNodes = group.getDim( "NumberNodes" );
@@ -270,7 +270,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
    var.set_type( ColVariable::kContinuous );
   add_static_variable( v_power_flow , "F_power_flow" );
 
-  if( !f_NetworkData->get_network_cost().empty() ) {
+  if( ! f_NetworkData->get_network_cost().empty() ) {
    // the auxiliary Variable
    v_auxiliary_variable.resize( number_lines );
    for( auto & var : v_auxiliary_variable )
@@ -384,7 +384,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-   if( !f_NetworkData->get_network_cost().empty() ) {
+   if( ! f_NetworkData->get_network_cost().empty() ) {
 
     if( v_power_flow_aux_var_one_constraints.size() != get_number_lines() ) {
 
@@ -536,7 +536,7 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
 
- if( ( !config ) && f_BlockConfig )
+ if( ( ! config ) && f_BlockConfig )
   config = dynamic_cast< SimpleConfiguration< double > * >
   ( f_BlockConfig->f_is_feasible_Configuration );
 
@@ -577,7 +577,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
   auto linear_function = new LinearFunction();
 
-  if( !f_NetworkData->get_network_cost().empty() ) {
+  if( ! f_NetworkData->get_network_cost().empty() ) {
    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
     linear_function->add_variable( &v_auxiliary_variable[ line_id ] ,
                                    f_NetworkData->get_network_cost()[ line_id ] ,
@@ -677,7 +677,7 @@ void DCNetworkBlock::set_active_demand
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  if( !ordered )
+  if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< NetworkBlockSbstMod >

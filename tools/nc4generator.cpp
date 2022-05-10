@@ -620,14 +620,14 @@ int main( int argc , char ** argv ) {
  process_args( argc , argv );
 
  // // Check if input file exists
- // if (!std::filesystem::exists(input_path)) {
+ // if( ! std::filesystem::exists( input_path ) ) {
  //  std::cerr << exe << ": cannot open file " << input_path << std::endl;
  //  exit( 1 );
  // }
 
  // Check if input file can be opened
  std::ifstream input_file( input_path );
- if( !input_file.is_open() ) {
+ if( ! input_file.is_open() ) {
   std::cerr << exe << ": cannot open file " << input_path << std::endl;
   exit( 1 );
  }

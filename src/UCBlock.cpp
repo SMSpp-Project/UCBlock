@@ -176,10 +176,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
+ if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
- if( !::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
+ if( ! ::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
                      v_start_network_intervals ) ) {
   v_start_network_intervals.resize( f_number_networks );
   std::iota( v_start_network_intervals.begin() ,
@@ -189,15 +189,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
- if( !::deserialize( group , network_block_classname ,
+ if( ! ::deserialize( group , network_block_classname ,
                      "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
- if( !::deserialize( group , network_data_classname ,
+ if( ! ::deserialize( group , network_data_classname ,
                      "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
 
  Index number_nodes;
- if( !::deserialize_dim( group , "NumberNodes" , number_nodes ) )
+ if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) )
   number_nodes = 1;
 
  if( number_nodes > 1 ) {
@@ -284,14 +284,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                  v_number_pollutant_zones );
 
- if( !::deserialize_dim( group , "TotalNumberPollutantZones" ,
+ if( ! ::deserialize_dim( group , "TotalNumberPollutantZones" ,
                          f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
  }
 
- if( !f_total_number_pollutant_zones )
+ if( ! f_total_number_pollutant_zones )
   f_total_number_pollutant_zones = f_number_pollutants;
 
  if( f_total_number_pollutant_zones ) {
@@ -372,13 +372,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  // load all NetworkBlock, if any
  deserialize_network_blocks( group );
 
- if( v_network_blocks.empty() && ( !v_active_power_demand.num_elements() ) )
+ if( v_network_blocks.empty() && ( ! v_active_power_demand.num_elements() ) )
   throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
                                  "mandatory if no NetworkBlocks" ) );
 
  // if number_nodes == 1, NetworkBlocks are useless and therefore removed
  if( number_nodes == 1 ) {
-  if( !v_active_power_demand.num_elements() ) {
+  if( ! v_active_power_demand.num_elements() ) {
    // if active power demand is not defined, do it now and preload it with
    // zeros in case some NetworkBlock is not there
    v_active_power_demand.resize(
@@ -388,7 +388,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
     *( apdit++ ) = 0;
   }
 
-  if( !v_network_blocks.empty() ) {
+  if( ! v_network_blocks.empty() ) {
 
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n )
@@ -418,15 +418,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
 
    auto nbi = v_network_blocks[ n ];
-   if( !nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
+   if( ! nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
     nbi = dynamic_cast< NetworkBlock *>(
      new_Block( network_block_classname , this ));
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
    }
 
-   if( !nbi->get_NetworkData() ) {
-    if( !f_NetworkData )
+   if( ! nbi->get_NetworkData() ) {
+    if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                     "missing in NetworkBlock " +
                                     std::to_string( n ) + " and in UCBlock" )
@@ -444,8 +444,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
         i < v_network_blocks[ n ]->get_number_intervals() ;
         ++i , ++t ) {
 
-    if( !nbi->get_active_demand( i ) ) {
-     if( !v_active_power_demand.num_elements() )
+    if( ! nbi->get_active_demand( i ) ) {
+     if( ! v_active_power_demand.num_elements() )
       throw( std::invalid_argument(
        "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
        "NetworkBlock " + std::to_string( n ) ) );
@@ -483,7 +483,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   deserialize_sub_blocks( group , "HeatBlock_" , f_number_heat_blocks );
  */
 
- if( !::deserialize_dim( group , "NumberElectricalGenerators" ,
+ if( ! ::deserialize_dim( group , "NumberElectricalGenerators" ,
                          f_number_elc_generators , true ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
@@ -593,7 +593,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-       if( !unit_block )
+       if( ! unit_block )
         continue;
 
        for( Index generator = 0 ;
@@ -664,7 +664,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-      if( !unit_block )
+      if( ! unit_block )
        continue;
 
       for( Index generator = 0 ;
@@ -694,7 +694,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-       if( !unit_block )
+       if( ! unit_block )
         continue;
 
        for( Index generator = 0 ;
@@ -735,7 +735,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-        if( !unit_block )
+        if( ! unit_block )
          continue;
 
         for( Index generator = 0 ;
@@ -778,7 +778,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-         if( !unit_block )
+         if( ! unit_block )
           continue;
 
          for( Index generator = 0 ;
@@ -830,7 +830,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-      if( !unit_block )
+      if( ! unit_block )
        continue;
 
       for( Index generator = 0 ;
@@ -864,7 +864,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-       if( !unit_block )
+       if( ! unit_block )
         continue;
 
        for( Index generator = 0 ;
@@ -906,7 +906,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-        if( !unit_block )
+        if( ! unit_block )
          continue;
 
         for( Index generator = 0 ;
@@ -950,7 +950,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-         if( !unit_block )
+         if( ! unit_block )
           continue;
 
          for( Index generator = 0 ;
@@ -1006,7 +1006,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
       auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-      if( !unit_block )
+      if( ! unit_block )
        continue;
 
       for( Index generator = 0 ;
@@ -1050,7 +1050,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
        auto block = get_nested_Blocks()[ unit_id ];
        auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-       if( !unit_block )
+       if( ! unit_block )
         continue;
 
        for( Index generator = 0 ;
@@ -1098,7 +1098,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
         auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-        if( !unit_block )
+        if( ! unit_block )
          continue;
 
         for( Index generator = 0 ;
@@ -1148,7 +1148,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          auto block = get_nested_Blocks()[ unit_id ];
          auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-         if( !unit_block )
+         if( ! unit_block )
           continue;
 
          for( Index generator = 0 ;
@@ -1216,7 +1216,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
        auto unit_block = dynamic_cast<UnitBlock *>(block);
 
-       if( !unit_block )
+       if( ! unit_block )
         continue;
 
        for( Index generator = 0 ;
@@ -1303,7 +1303,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
           auto block = get_nested_Blocks()[ generator_id ];
           auto unit_block = dynamic_cast<UnitBlock *>(block);
-          if( !unit_block )
+          if( ! unit_block )
            continue;
 
           for( Index generator = 0 ;
@@ -1424,7 +1424,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
          v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
       continue; // unit_id does not belong to heat_block_id
 
-     if( !v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() ) {
+     if( ! v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() ) {
       v_power_Heat_Rho_Const[ t ][ constraint_id ].
        set_lhs( -Inf< double >() );
       v_power_Heat_Rho_Const[ t ][ constraint_id ].set_rhs( 0.0 );
@@ -1612,7 +1612,7 @@ void UCBlock::set_active_power_demand
  const auto number_nodes =
   f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
- if( !v_network_blocks.empty() ) {
+ if( ! v_network_blocks.empty() ) {
   // Update the demand of the NetworkBlocks
   // TODO Optimize
   for( auto index : subset ) {
@@ -1633,7 +1633,7 @@ void UCBlock::set_active_power_demand
 
  // Update the demand present in this UCBlock
 
- assert( !v_active_power_demand.empty() );
+ assert( ! v_active_power_demand.empty() );
 
  bool changed = false;
 
@@ -1659,7 +1659,7 @@ void UCBlock::set_active_power_demand
  }
 
  // If nothing changes, return
- if( !changed )
+ if( ! changed )
   return;
 
  if( issue_pmod( issuePMod ) ) {
@@ -1686,7 +1686,7 @@ void UCBlock::set_active_power_demand
  if( rng.first >= rng.second )
   return;
 
- if( !v_network_blocks.empty() ) {
+ if( ! v_network_blocks.empty() ) {
   // Update the demand of the NetworkBlocks
   // TODO Optimize
   for( Index index = rng.first ; index < rng.second ; ++index ) {
@@ -1707,7 +1707,7 @@ void UCBlock::set_active_power_demand
 
  // Update the demand present in this UCBlock
 
- assert( !v_active_power_demand.empty() );
+ assert( ! v_active_power_demand.empty() );
 
  bool changed = false;
 
@@ -1732,7 +1732,7 @@ void UCBlock::set_active_power_demand
  }
 
  // If nothing changes, return
- if( !changed )
+ if( ! changed )
   return;
 
  if( issue_pmod( issuePMod ) ) {

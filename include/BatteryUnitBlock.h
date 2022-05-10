@@ -945,8 +945,8 @@ class BatteryUnitBlock : public UnitBlock
                    []( double s ) { return s >= 1.0; } ) )
    return( ASSUME_POSITIVE_PRICES );
 
-  if( ( !v_storing_battery_rho.empty() ) &&
-      ( !v_extracting_battery_rho.empty() ) )
+  if( ( ! v_storing_battery_rho.empty() ) &&
+      ( ! v_extracting_battery_rho.empty() ) )
    return( NO_Binary_Variables_Constraints );
 
   return( Binary_Variables_Constraints );

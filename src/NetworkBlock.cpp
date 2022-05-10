@@ -62,11 +62,11 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize_dim( group , "NumberNodes" ,
+ if( ! ::deserialize_dim( group , "NumberNodes" ,
                          f_number_nodes , true ) )
   f_number_nodes = 1;
 
- if( !::deserialize_dim( group , "NumberIntervals" ,
+ if( ! ::deserialize_dim( group , "NumberIntervals" ,
                          f_number_intervals , true ) )
   f_number_intervals = 1;
 }
@@ -79,7 +79,7 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( !::deserialize( group , f_const_term , "ConstTerm" ) )
+ if( ! ::deserialize( group , f_const_term , "ConstTerm" ) )
   f_const_term = 0;
 }
 
@@ -89,7 +89,7 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
  Index solution_type = 0;
- if( ( !csolc ) && f_BlockConfig )
+ if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   solution_type = config->f_value;
@@ -106,7 +106,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
    sol = new ColVariableSolution;
  }
 
- if( !emptys )
+ if( ! emptys )
   sol->read( this );
 
  return( sol );
