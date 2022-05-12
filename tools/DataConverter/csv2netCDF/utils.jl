@@ -33,7 +33,6 @@ type_codes = Base.Dict(
     corr_asset::Dict{String,String} = Dict{String,String}()  # Corresponding element, when applicable: i.e. battery correspond to a converter and viceversa
     max_capacity::Dict{String,Float64} = Dict{String,Float64}()  # Estimated max capacity [base unit]
 
-
     load::Dict{Int,Float64} = Dict{Int,Float64}()  # 1D array representing the load of the user
     ren_pu::Dict{String,Dict{Int,Float64}} = Dict{String,Dict{Int,Float64}}()  # 2D array representing the available renewable production for every renewable asset
 end

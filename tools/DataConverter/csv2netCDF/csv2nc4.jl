@@ -130,20 +130,30 @@ function csvEC2nc4()
                                   for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
             # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-            buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-            buy_price[:] = buy_price_data[last_t:last_i]
+            if allequal(buy_price_data[last_t:last_i])
+                buy_price = defVar(ecnb, "BuyPrice", Float64, ())
+                buy_price[:] = buy_price_data[last_t]
+            else
+                buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
+                buy_price[:] = buy_price_data[last_t:last_i]
+            end
 
             # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-            sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-            sell_price[:] = sell_price_data[last_t:last_i]
+            if allequal(sell_price_data[last_t:last_i])
+                sell_price = defVar(ecnb, "SellPrice", Float64, ())
+                sell_price[:] = sell_price_data[last_t]
+            else
+                sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
+                sell_price[:] = sell_price_data[last_t:last_i]
+            end
 
             last_t += n_intervals
 
             # Scalar variables
 
             # `MaxTariff`, i.e., the peak tariff cost
-            peak_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-            peak_tariff[:] = peak_tariff[i_w]
+            max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
+            max_tariff[:] = peak_tariff[i_w]
 
             # `ConstantTerm`
             const_term = defVar(ecnb, "ConstTerm", Float64, ())
