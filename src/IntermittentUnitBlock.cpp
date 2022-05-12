@@ -80,8 +80,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Deserialize data that is needed for deserializing the variables
- UnitBlock::deserialize_time_horizon( group );
+ // Deserialize data from the base class
+ UnitBlock::deserialize( group );
 
  // Mandatory variables
 
@@ -106,9 +106,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( ! ::deserialize( group , f_capex_cost , "CAPEXCost" ) )
   f_capex_cost = 0;
-
- // Deserialize data from the base class
- UnitBlock::deserialize( group );
 
  // Decompress vectors
  decompress_vector( v_minimum_power );

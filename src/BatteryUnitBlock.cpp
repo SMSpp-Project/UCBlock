@@ -101,6 +101,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ // Deserialize data from the base class
+ UnitBlock::deserialize( group );
+
  // Mandatory variables
 
  ::deserialize( group , "MinStorage" , v_minimum_storage , false );
@@ -112,8 +115,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "MinPower" , v_minimum_power ) )
   v_minimum_power.assign( f_time_horizon , 0 );
 
-
- if( ! ::deserialize( group , f_initial_storage , "InitialStorage" , false ) )
+ if( ! ::deserialize( group , f_initial_storage , "InitialStorage" ) )
   f_initial_storage = 0;
 
  if( ! ::deserialize( group , f_initial_power , "InitialPower" ) )
@@ -136,10 +138,6 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( ! ::deserialize( group , f_converter_capex_cost , "ConverterCAPEXCost" ) )
   f_converter_capex_cost = 0;
-
- // Deserialize data from the base class
-
- UnitBlock::deserialize( group );
 
  // Decompress vectors
 

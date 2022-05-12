@@ -67,7 +67,8 @@ ECNetworkBlock::~ECNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
+void ECNetworkBlock::ECNetworkData::deserialize(
+ const netCDF::NcGroup & group ) {
 
  NetworkBlock::NetworkData::deserialize( group );
 
@@ -155,7 +156,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkData::serialize( netCDF::NcGroup & group ) const {
+void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  NetworkBlock::NetworkData::serialize( group );
 
