@@ -153,7 +153,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
@@ -182,7 +182,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   network_data->serialize( group );
 
  if( ! v_active_demand.empty() ) {
-  // This DCNetworkBlock has active demand, so it is serialized.
+  // This ECNetworkBlock has active demand, so it is serialized.
 
   auto NumberNodes = group.getDim( "NumberNodes" );
 
@@ -406,7 +406,33 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( power_balance_constraints ,
                         "power_balance_constraints" );
+
+ set_constraints_generated();
 }
+
+/*--------------------------------------------------------------------------*/
+
+bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance.
+
+ auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast< SimpleConfiguration< double > * >
+  ( f_BlockConfig->f_is_feasible_Configuration );
+
+ // If a tolerance has not been provided, use the default tolerance.
+ const auto tolerance = config ? config->f_value : 1.0e-8;
+
+ return NetworkBlock::is_feasible( useabstract )
+        && ::is_feasible( micro_power_balance_constraints , tolerance )
+        && ::is_feasible( power_balance_constraints , tolerance )
+        && ::is_feasible( power_flow_limit_constraints , tolerance );
+
+}  // end( ECNetworkBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
