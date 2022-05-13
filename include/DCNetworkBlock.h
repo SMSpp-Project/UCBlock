@@ -376,8 +376,8 @@ class DCNetworkBlock : public NetworkBlock
  /** Constructor of DCNetworkBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit DCNetworkBlock( Block * fblock = nullptr ) :
-  NetworkBlock( fblock ) ,
+ explicit DCNetworkBlock( Block * f_block = nullptr ) :
+  NetworkBlock( f_block ) ,
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/

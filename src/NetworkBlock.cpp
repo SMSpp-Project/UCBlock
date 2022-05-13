@@ -50,11 +50,8 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-NetworkBlock::NetworkData::NetworkData( void ) {
- f_number_lines = 0;
- f_number_nodes = 0;
- f_number_intervals = 0;
-}
+NetworkBlock::NetworkData::NetworkData( void ) :
+ f_number_lines( 0 ) , f_number_nodes( 0 ) , f_number_intervals( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
 

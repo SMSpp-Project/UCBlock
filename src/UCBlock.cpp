@@ -218,7 +218,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   // when the network is a bus, the "ActivePowerDemand" variable in the nc4
   // input file could be provided as a simple 1D array of `f_time_horizon`
   // size, so we reshape `v_active_power_demand` in order to make it available
-  // in the expected shape, i.e., `number_nodes` x `f_time_horizon`
+  // in the expected shape, i.e., `number_nodes` (= 1) x `f_time_horizon`
   if( ( number_nodes == 1 ) &&
       // ensure if is in fact provided as a 1D array, ignore if it is given
       // in the correct shape

@@ -324,6 +324,52 @@ class ECNetworkBlock : public NetworkBlock
  void generate_objective( Configuration * objc ) override;
 
 /**@} ----------------------------------------------------------------------*/
+/*---------------- Methods for checking the ECNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the ECNetworkBlock
+ * @{ */
+
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this ECNetworkBlock is approximately
+  * feasible within the given tolerance. The tolerance can be provided by
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
+  * determined as follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration.
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to a SimpleConfiguration< double >, then the
+  *     tolerance is the value present in that SimpleConfiguration.
+  *
+  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *
+  * Each Constraint of this ECNetworkBlock is a RowConstraint and a solution
+  * is considered feasible if and only if the relative violation of each
+  * RowConstraint of this ECNetworkBlock is not greater than the
+  * tolerance. See RowConstraint::rel_viol() for details about the relative
+  * violation.
+  *
+  * This function currently considers only the abstract constraints to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. Moreover, if no abstract Constraint has been generated,
+  * then this method returns true. Notice also that, before checking if the
+  * solution satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  *        value stored in that SimpleConfiguration will be the tolerance that
+  *        determines if a solution is feasible. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE ECNetworkBlock -----------*/
 /*--------------------------------------------------------------------------*/
  /** @name Reading the data of the ECNetworkBlock

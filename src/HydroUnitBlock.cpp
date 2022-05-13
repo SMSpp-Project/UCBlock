@@ -988,67 +988,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-/// verifies whether the current solution is feasible for the given constraints
-/** This function checks whether the relative violation of each RowConstraint
- * in the given group of RowConstraint is not greater than the provided
- * tolerance.
- *
- * @return This function returns true if and only if the relative violation of
- *         each RowConstraint in the given group is not greater than the given
- *         tolerance. */
-
-template< class C , auto D >
-static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
-is_feasible( boost::multi_array< C , D > & constraints , double tolerance ) {
-
- const auto num_elements = constraints.num_elements();
-
- if( num_elements == 0 )
-  // If there is no Constraint, then the solution is considered to be feasible
-  return true;
-
- auto constraint = constraints.data();
- for( Block::Index i = 0 ; i < num_elements ; ++i , ++constraint ) {
-  if( constraint->is_relaxed() )
-   continue;
-  constraint->compute();
-  if( constraint->rel_viol() > tolerance )
-   return false;
- }
- return true;
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// verifies whether the given ColVariable are feasible
-/** This function returns true if and only if each given ColVariable is
- * feasible with respect to the given tolerance (see
- * ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
-
-template< class V , auto D >
-static std::enable_if_t< std::is_base_of_v< ColVariable , V > , bool >
-is_feasible( const boost::multi_array< V , D > & variables ,
-             double tolerance ) {
-
- const auto num_elements = variables.num_elements();
-
- if( num_elements == 0 )
-  // If there is no Variable, then the solution is considered to be feasible
-  return true;
-
- auto variable = variables.data();
- for( Block::Index i = 0 ; i < num_elements ; ++i , ++variable ) {
-  if( ! variable->is_feasible( tolerance ) )
-   return false;
- }
- return true;
-}
-
-/*--------------------------------------------------------------------------*/
-
 bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  // Retrieve the tolerance.
