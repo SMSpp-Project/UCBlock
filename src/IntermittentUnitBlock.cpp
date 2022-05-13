@@ -215,7 +215,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  // Maximum power constraints
 
- if ( f_gamma != 0 ) { // if unit produces any reserve
+ if( f_gamma != 0 ) { // if unit produces any reserve
 
   if( MaxPower_Constraints.size() != f_time_horizon ) {
    // this should only happen once

@@ -1066,16 +1066,16 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the vector of generator node
- /** The method returned a std::vector< Index > V such that V[ g ] tells to
-  * which node of the transmission network n, the specified electrical
-  * generator g belongs. There are two possible cases:
+ /// returns the vector of generator node
+ /** This method returns a vector V that indicates to which node of the
+  * transmission network each electrical generator belongs. There are two
+  * possible cases:
   *
   * - if V has only one element, then the transmission network is a bus and
-  *   all the units(electrical generators) belong to that unique node;
+  *   all the units (electrical generators) belong to that unique node;
   *
-  * - otherwise, the vector must have size of number of units and V[ g ]
-  *   tells to which node n unit(electrical generators) g belongs. */
+  * - otherwise, the size of the vector V must be the number of units and
+  *   V[ g ] indicates to which node the electrical generator g belongs. */
 
  const std::vector< Index > & get_generator_node() const {
   return v_generator_node;

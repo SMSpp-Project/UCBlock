@@ -1223,13 +1223,10 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
  std::vector< Index > modified_units;
  modified_units.reserve( f_number_units );
 
- if( mod->concerns_Block() ) {
-  if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
-   mod->concerns_Block( false );
-   if( tmod->type() == UnitBlockMod::eScale ) {
-    auto unit_id = inspection::get_block_index( tmod->get_Block() );
-    modified_units.push_back( unit_id );
-   }
+ if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
+  if( tmod->type() == UnitBlockMod::eScale ) {
+   auto unit_id = inspection::get_block_index( tmod->get_Block() );
+   modified_units.push_back( unit_id );
   }
  }
 
@@ -1286,6 +1283,8 @@ void UCBlock::update_node_injection_constraints
   if( number_nodes == 1 ) { // BusNetwork
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
+    auto & constraint = v_node_injection_constraints[ t ][ 0 ];
+
     // This will store the coefficients that must be updated, i.e., those of
     // the active Variables that belong to the units that have been modified.
     LinearFunction::Vec_FunctionValue coefficients;
@@ -1315,6 +1314,10 @@ void UCBlock::update_node_injection_constraints
        // update the coefficient of the active power variable
        coefficients.push_back( scale );
        subset.push_back( active_var_index );
+
+       assert( active_var_index < constraint.get_num_active_var() );
+       assert( constraint.get_active_var( active_var_index )->get_Block()
+               == unit_block );
       }
 
       // increment due to the active power variable
@@ -1330,6 +1333,10 @@ void UCBlock::update_node_injection_constraints
           // update the coefficient of the commitment variable
           coefficients.push_back( scale );
           subset.push_back( active_var_index );
+
+          assert( active_var_index < constraint.get_num_active_var() );
+          assert( constraint.get_active_var( active_var_index )->get_Block()
+                  == unit_block );
          }
 
          // increment due to the commitment variable
@@ -1344,13 +1351,12 @@ void UCBlock::update_node_injection_constraints
     // do not concern this UCBlock.
 
     // update the RHS of the constraint (equality constraint)
-    v_node_injection_constraints[ t ][ 0 ].set_both( rhs , eNoBlck );
+    constraint.set_both( rhs , eNoBlck );
 
     // update the coefficients
     static_cast< LinearFunction * >
-     ( v_node_injection_constraints[ t ][ 0 ].get_function() )->
-     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                          true , eNoBlck );
+     ( constraint.get_function() )->modify_coefficients
+     ( std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
    }  // end( for( t ) )
   }
@@ -1359,20 +1365,22 @@ void UCBlock::update_node_injection_constraints
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    // This will store the coefficients that must be updated, i.e., those of
-    // the active Variables that belong to the units that have been modified.
-    LinearFunction::Vec_FunctionValue coefficients;
-    coefficients.reserve( 2 * total_num_generators );
-
-    // Subset that will store the indices of the active Variables whose
-    // coefficients have changed.
-    Subset subset;
-    subset.reserve( 2 * total_num_generators );
-
-    // Index of the current active Variable
-    Index active_var_index = 0;
-
     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+     // This will store the coefficients that must be updated, i.e., those of
+     // the active Variables that belong to the units that have been modified.
+     LinearFunction::Vec_FunctionValue coefficients;
+     coefficients.reserve( 2 * total_num_generators );
+
+     // Subset that will store the indices of the active Variables whose
+     // coefficients have changed.
+     Subset subset;
+     subset.reserve( 2 * total_num_generators );
+
+     // Index of the current active Variable
+     Index active_var_index = 0;
+
+     auto & constraint = v_node_injection_constraints[ t ][ node_id ];
 
      // increment due to the node injection variable
      ++active_var_index;
@@ -1399,29 +1407,36 @@ void UCBlock::update_node_injection_constraints
          // update the coefficient of the active power variable
          coefficients.push_back( scale );
          subset.push_back( active_var_index );
+
+         assert( active_var_index < constraint.get_num_active_var() );
+         assert( constraint.get_active_var( active_var_index )->get_Block()
+                 == unit_block );
         }
 
         // increment due to the active power variable
         ++active_var_index;
        }
 
-       double fixed_consumption = 0.0;
-       if( auto fc = unit_block->get_fixed_consumption( generator ) )
-        fixed_consumption = fc[ t ] * scale;
+       if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
+        if( unit_block->get_commitment( generator ) ) {
+         auto fixed_consumption = fc[ t ] * scale;
 
-       if( unit_block->get_commitment( generator ) ) {
+         if( modified ) {
+          // update the coefficient of the commitment variable
+          coefficients.push_back( - fixed_consumption );
+          subset.push_back( active_var_index );
 
-        if( modified ) {
-         // update the coefficient of the commitment variable
-         coefficients.push_back( - fixed_consumption );
-         subset.push_back( active_var_index );
+          assert( active_var_index < constraint.get_num_active_var() );
+          assert( constraint.get_active_var( active_var_index )->get_Block()
+                  == unit_block );
+         }
+
+         // increment due to the commitment variable
+         ++active_var_index;
+
+         rhs -= fixed_consumption;
         }
-
-        // increment due to the commitment variable
-        ++active_var_index;
        }
-
-       rhs -= fixed_consumption;
       }
      }
 
@@ -1431,11 +1446,10 @@ void UCBlock::update_node_injection_constraints
      // update do not concern this UCBlock.
 
      // update the RHS of the constraint (equality constraint)
-     v_node_injection_constraints[ t ][ node_id ].set_both( rhs , eNoBlck );
+     constraint.set_both( rhs , eNoBlck );
 
      // update the coefficients
-     static_cast< LinearFunction * >
-      ( v_node_injection_constraints[ t ][ node_id ].get_function() )->
+     static_cast< LinearFunction * >( constraint.get_function() )->
       modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                            true , eNoBlck );
 
@@ -1490,6 +1504,8 @@ void UCBlock::update_primary_demand_constraints
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( const auto zone_id : affected_zones ) {
 
+   auto & constraint = v_PrimaryDemand_Const[ t ][ zone_id ];
+
    // This will store the coefficients that must be updated, i.e., those of
    // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
@@ -1521,14 +1537,19 @@ void UCBlock::update_primary_demand_constraints
     std::iota( var_indices.begin() , var_indices.end() ,
                primary_var_index[ unit_id ][ zone_id ].first );
 
+    for( const auto var_index : var_indices ) {
+     assert( var_index < constraint.get_num_active_var() );
+     assert( constraint.get_active_var( var_index )->get_Block()
+             == unit_block );
+    }
+
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
     coefficients.insert( coefficients.end() , num_variables , scale );
 
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active Variables.
-   static_cast< LinearFunction * >
-    ( v_PrimaryDemand_Const[ t ][ zone_id ].get_function() )->
+   static_cast< LinearFunction * >( constraint.get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                          false , eNoBlck );
 
@@ -1581,6 +1602,8 @@ void UCBlock::update_secondary_demand_constraints
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( const auto zone_id : affected_zones ) {
 
+   auto & constraint = v_SecondaryDemand_Const[ t ][ zone_id ];
+
    // This will store the coefficients that must be updated, i.e., those of
    // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
@@ -1612,14 +1635,19 @@ void UCBlock::update_secondary_demand_constraints
     std::iota( var_indices.begin() , var_indices.end() ,
                secondary_var_index[ unit_id ][ zone_id ].first );
 
+    for( const auto var_index : var_indices ) {
+     assert( var_index < constraint.get_num_active_var() );
+     assert( constraint.get_active_var( var_index )->get_Block()
+             == unit_block );
+    }
+
     subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
     coefficients.insert( coefficients.end() , num_variables , scale );
 
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active Variables.
-   static_cast< LinearFunction * >
-    ( v_SecondaryDemand_Const[ t ][ zone_id ].get_function() )->
+   static_cast< LinearFunction * >( constraint.get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                          false , eNoBlck );
 
@@ -1674,6 +1702,8 @@ void UCBlock::update_inertia_demand_constraints
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( const auto zone_id : affected_zones ) {
 
+   auto & constraint = v_InertiaDemand_Const[ t ][ zone_id ];
+
    // This will store the coefficients that must be updated, i.e., those of
    // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
@@ -1723,6 +1753,11 @@ void UCBlock::update_inertia_demand_constraints
       auto inertia_commitment = unit_block->get_inertia_commitment( generator );
 
       if( commitment && inertia_commitment ) {
+
+       assert( next_var_index < constraint.get_num_active_var() );
+       assert( constraint.get_active_var( next_var_index )->get_Block()
+               == unit_block );
+
        const auto coefficient = scale * inertia_commitment[ t ];
        coefficients.push_back( coefficient );
        subset.push_back( next_var_index++ );
@@ -1732,6 +1767,10 @@ void UCBlock::update_inertia_demand_constraints
       const auto inertia_power = unit_block->get_inertia_power( generator );
 
       if( active_power && inertia_power ) {
+       assert( next_var_index < constraint.get_num_active_var() );
+       assert( constraint.get_active_var( next_var_index )->get_Block()
+               == unit_block );
+
        const auto coefficient = scale * inertia_power[ t ];
        coefficients.push_back( coefficient );
        subset.push_back( next_var_index++ );
@@ -1744,8 +1783,7 @@ void UCBlock::update_inertia_demand_constraints
     }  // end( for( unit_id ) )
 
     // Update the coefficients of the active Variables.
-    static_cast< LinearFunction * >
-     ( v_InertiaDemand_Const[ t ][ zone_id ].get_function() )->
+    static_cast< LinearFunction * >( constraint.get_function() )->
      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                           true , eNoBlck );
 
