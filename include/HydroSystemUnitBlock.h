@@ -210,7 +210,7 @@ class HydroSystemUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the number of hydro units of the problem
- Index get_number_hydro_units( void ) const { return f_number_hydro_units; }
+ Index get_number_hydro_units( void ) const { return( f_number_hydro_units ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -222,7 +222,7 @@ class HydroSystemUnitBlock : public UnitBlock
  /// Returns the PolyhedralFunctionBlock
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
   assert( ! v_Block.empty() );
-  return static_cast< PolyhedralFunctionBlock * >( v_Block.back() );
+  return( static_cast< PolyhedralFunctionBlock * >( v_Block.back() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -234,13 +234,13 @@ class HydroSystemUnitBlock : public UnitBlock
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() ) {
-     return unit_block->get_active_power( temp );
+     return( unit_block->get_active_power( temp ) );
     } else {
      temp = temp - unit_block->get_number_generators();
     }
    }
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -252,13 +252,13 @@ class HydroSystemUnitBlock : public UnitBlock
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() ) {
-     return unit_block->get_primary_spinning_reserve( temp );
+     return( unit_block->get_primary_spinning_reserve( temp ) );
     } else {
      temp = temp - unit_block->get_number_generators();
     }
    }
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -270,13 +270,13 @@ class HydroSystemUnitBlock : public UnitBlock
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() ) {
-     return unit_block->get_secondary_spinning_reserve( temp );
+     return( unit_block->get_secondary_spinning_reserve( temp ) );
     } else {
      temp = temp - unit_block->get_number_generators();
     }
    }
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -287,7 +287,7 @@ class HydroSystemUnitBlock : public UnitBlock
    if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ) )
     number_generators += unit_block->get_number_generators();
   }
-  return number_generators;
+  return( number_generators );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -297,13 +297,13 @@ class HydroSystemUnitBlock : public UnitBlock
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() ) {
-     return unit_block->get_inertia_power( temp );
+     return( unit_block->get_inertia_power( temp ) );
     } else {
      temp = temp - unit_block->get_number_generators();
     }
    }
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /**@} ----------------------------------------------------------------------*/

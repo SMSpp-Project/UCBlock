@@ -13,5 +13,5 @@ int main( int argc, char ** argv ) {
  auto ucb = static_cast<UCBlock *>(Block::new_Block( "UCBlock" ));
  ucb->deserialize( bg );
 
- return 0;
+ return( 0 );
 }

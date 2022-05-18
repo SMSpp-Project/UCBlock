@@ -51,10 +51,9 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkData );
 
 ECNetworkBlock::~ECNetworkBlock() {
 
- clear_constraints( micro_power_balance_constraints );
-
- clear_constraints( power_balance_constraints );
- clear_constraints( power_flow_limit_constraints );
+ Constraint::clear( micro_power_balance_const );
+ Constraint::clear( power_balance_const );
+ Constraint::clear( power_flow_limit_const );
 
  objective.clear();
 
@@ -129,7 +128,9 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  // Optional variables
 
  Index NumberNodes;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
+ Index NumberIntervals;
+ if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) &&
+     ::deserialize_dim( group , "NumberIntervals" , NumberIntervals , true ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that an
   // ECNetworkData has been provided. Thus, the ECNetworkData is deserialized,
   // and it is marked as being local.
@@ -142,8 +143,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   ::deserialize( group , "ActiveDemand" , v_active_demand );
 
   // always check if the demand is given in the correct shape
-  assert( ( v_active_demand.shape()[ 0 ] == get_number_intervals() ) &&
-          ( v_active_demand.shape()[ 1 ] == get_number_nodes() ) );
+  assert( ( v_active_demand.shape()[ 0 ] == NumberIntervals ) &&
+          ( v_active_demand.shape()[ 1 ] == NumberNodes ) );
 
  } else {
   // An ECNetworkData has not been provided. However, the active demand may
@@ -275,7 +276,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  //    P^{POD,+} = P^{P,+} + P^{M,+}
  //    P^{POD,-} = P^{P,-} + P^{M,-}
 
- power_flow_limit_constraints.resize(
+ power_flow_limit_const.resize(
   boost::multi_array< FRowConstraint , 3 >::extent_gen()
   [ number_nodes ][ number_intervals ][ 2 ] ); // 2 dims, i.e., the sign (+/-)
 
@@ -318,23 +319,23 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    vars_n.push_back( std::make_pair( &v_max_power[ node_id ] , -1.0 ) );
 
    // case (1)
-   power_flow_limit_constraints[ node_id ][ t ][ 0 ].set_rhs( 0.0 );
-   power_flow_limit_constraints[ node_id ][ t ][ 0 ].set_lhs(
+   power_flow_limit_const[ node_id ][ t ][ 0 ].set_rhs( 0.0 );
+   power_flow_limit_const[ node_id ][ t ][ 0 ].set_lhs(
     -Inf< double >() );
-   power_flow_limit_constraints[ node_id ][ t ][ 0 ].set_function(
+   power_flow_limit_const[ node_id ][ t ][ 0 ].set_function(
     new LinearFunction( std::move( vars_p ) ) );
 
    // case (2)
-   power_flow_limit_constraints[ node_id ][ t ][ 1 ].set_rhs( 0.0 );
-   power_flow_limit_constraints[ node_id ][ t ][ 1 ].set_lhs(
+   power_flow_limit_const[ node_id ][ t ][ 1 ].set_rhs( 0.0 );
+   power_flow_limit_const[ node_id ][ t ][ 1 ].set_lhs(
     -Inf< double >() );
-   power_flow_limit_constraints[ node_id ][ t ][ 1 ].set_function(
+   power_flow_limit_const[ node_id ][ t ][ 1 ].set_function(
     new LinearFunction( std::move( vars_n ) ) );
   }
  }
 
- add_static_constraint( power_flow_limit_constraints ,
-                        "power_flow_limit_constraints" );
+ add_static_constraint( power_flow_limit_const ,
+                        "power_flow_limit_const" );
 
 /*-------------------------- equality constraints --------------------------*/
 
@@ -344,9 +345,9 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  //    P^{M,+} = P^{M,-}       for all t
  // => P^{M,+} - P^{M,-} = 0   for all t
 
- if( micro_power_balance_constraints.size() != number_intervals ) {
-  assert( micro_power_balance_constraints.empty() );
-  micro_power_balance_constraints.resize( number_intervals );
+ if( micro_power_balance_const.size() != number_intervals ) {
+  assert( micro_power_balance_const.empty() );
+  micro_power_balance_const.resize( number_intervals );
  }
 
  for( Index t = 0 ; t < number_intervals ; ++t ) {
@@ -361,13 +362,13 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     std::make_pair( &v_micro_power_absorption[ node_id ] , -1.0 ) );
   }
 
-  micro_power_balance_constraints[ t ].set_both( 0.0 );
-  micro_power_balance_constraints[ t ].set_function(
+  micro_power_balance_const[ t ].set_both( 0.0 );
+  micro_power_balance_const[ t ].set_function(
    new LinearFunction( std::move( vars ) ) );
  }
 
- add_static_constraint( micro_power_balance_constraints ,
-                        "micro_power_balance_constraints" );
+ add_static_constraint( micro_power_balance_const ,
+                        "micro_power_balance_const" );
 
  // set the power balance, i.e.:
  //
@@ -378,7 +379,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  //    P^{POD,+} = P^{P,+} + P^{M,+}
  //    P^{POD,-} = P^{P,-} + P^{M,-}
 
- power_balance_constraints.resize(
+ power_balance_const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ number_nodes ][ number_intervals ] );
 
@@ -397,15 +398,15 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
                                    -1.0 ) );
    vars.push_back( std::make_pair( &v_node_injection[ t ][ node_id ] , -1.0 ) );
-   power_balance_constraints[ node_id ][ t ].set_both(
+   power_balance_const[ node_id ][ t ].set_both(
     -v_active_demand[ t ][ node_id ] );
-   power_balance_constraints[ node_id ][ t ].set_function(
+   power_balance_const[ node_id ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
  }
 
- add_static_constraint( power_balance_constraints ,
-                        "power_balance_constraints" );
+ add_static_constraint( power_balance_const ,
+                        "power_balance_const" );
 
  set_constraints_generated();
 }
@@ -423,12 +424,12 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   ( f_BlockConfig->f_is_feasible_Configuration );
 
  // If a tolerance has not been provided, use the default tolerance.
- const auto tolerance = config ? config->f_value : 1.0e-8;
+ const auto tol = config ? config->f_value : 1.0e-8;
 
- return NetworkBlock::is_feasible( useabstract )
-        && ::is_feasible( micro_power_balance_constraints , tolerance )
-        && ::is_feasible( power_balance_constraints , tolerance )
-        && ::is_feasible( power_flow_limit_constraints , tolerance );
+ return( NetworkBlock::is_feasible( useabstract )
+         && Constraint::is_feasible( micro_power_balance_const , tol )
+         && Constraint::is_feasible( power_balance_const , tol )
+         && Constraint::is_feasible( power_flow_limit_const , tol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 

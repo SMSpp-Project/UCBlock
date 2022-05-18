@@ -593,19 +593,21 @@ class BatteryUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the initial storage value
- double get_initial_storage( void ) const { return f_initial_storage; }
+ double get_initial_storage( void ) const { return( f_initial_storage ); }
 
  /// Returns the initial power value
- double get_initial_power( void ) const { return f_initial_power; }
+ double get_initial_power( void ) const { return( f_initial_power ); }
 
  /// Returns the operation and maintenance cost
- double get_oem_cost( void ) const { return f_oem_cost; }
+ double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// Returns the battery investment cost, i.e., the capital expenditure cost
- double get_battery_capex_cost( void ) const { return f_battery_capex_cost; }
+ double get_battery_capex_cost( void ) const { return( f_battery_capex_cost ); }
 
  /// Returns the converter investment cost, i.e., the capital expenditure cost
- double get_converter_capex_cost( void ) const { return f_battery_capex_cost; }
+ double get_converter_capex_cost( void ) const {
+  return( f_battery_capex_cost );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -959,10 +961,10 @@ class BatteryUnitBlock : public UnitBlock
 
   if( std::all_of( v_storing_battery_rho.cbegin() ,
                    v_storing_battery_rho.cend() ,
-                   []( double s ) { return s <= 1.0; } ) &&
+                   []( double s ) { return( s <= 1.0 ); } ) &&
       std::all_of( v_extracting_battery_rho.cbegin() ,
                    v_extracting_battery_rho.cend() ,
-                   []( double s ) { return s >= 1.0; } ) )
+                   []( double s ) { return( s >= 1.0 ); } ) )
    return( ASSUME_POSITIVE_PRICES );
 
   if( ( ! v_storing_battery_rho.empty() ) &&
@@ -1161,47 +1163,49 @@ class BatteryUnitBlock : public UnitBlock
 
 /*------------------------------- constraints ------------------------------*/
 
-/// the active power upper bound constraints
- std::vector< FRowConstraint > active_power_upper_bound_Constraints;
+ /// the active power upper bound constraints
+ std::vector< FRowConstraint > active_power_upper_bound_Const;
 
-/// the active power lower bound constraints
- std::vector< FRowConstraint > active_power_lower_bound_Constraints;
+ /// the active power lower bound constraints
+ std::vector< FRowConstraint > active_power_lower_bound_Const;
 
-/// the ramp up constraints
- std::vector< FRowConstraint > ramp_up_Constraints;
+ /// the ramp up constraints
+ std::vector< FRowConstraint > ramp_up_Const;
 
-/// the ramp down constraints
- std::vector< FRowConstraint > ramp_down_Constraints;
+ /// the ramp down constraints
+ std::vector< FRowConstraint > ramp_down_Const;
 
-/// the active power, intake and outtake relation constraints
- std::vector< FRowConstraint > power_intake_outtake_Constraints;
+ /// the active power, intake and outtake relation constraints
+ std::vector< FRowConstraint > power_intake_outtake_Const;
 
-/// the intake upper bound constraints
- std::vector< BoxConstraint > intake_upper_bound_Constraints;
+ /// the intake upper bound constraints
+ std::vector< BoxConstraint > intake_upper_bound_Const;
 
-/// the storage , intake and outtake level relation constraints
- std::vector< FRowConstraint > storage_intake_outtake_Constraints;
+ /// the storage , intake and outtake level relation constraints
+ std::vector< FRowConstraint > storage_intake_outtake_Const;
 
-/// the storage level bounds constraints
- std::vector< BoxConstraint > storage_level_bounds_Constraints;
+ /// the storage level bounds constraints
+ std::vector< BoxConstraint > storage_level_bounds_Const;
 
-/// the intake and binary variable relation constraints
- std::vector< FRowConstraint > intake_binary_Constraints;
+ /// the intake and binary variable relation constraints
+ std::vector< FRowConstraint > intake_binary_Const;
 
-/// the outtake and binary variable relation constraints
- std::vector< FRowConstraint > outtake_binary_Constraints;
+ /// the outtake and binary variable relation constraints
+ std::vector< FRowConstraint > outtake_binary_Const;
 
-/// the demand constraints
- std::vector< FRowConstraint > demand_Constraints;
+ /// the demand constraints
+ std::vector< FRowConstraint > demand_Const;
 
-/// primary upper bound constraints
- std::vector< BoxConstraint > primary_upper_bound_Constraints;
 
-/// secondary upper bound constraints
- std::vector< BoxConstraint > secondary_upper_bound_Constraints;
+ /// primary upper bound constraints
+ std::vector< BoxConstraint > primary_upper_bound_Const;
+
+ /// secondary upper bound constraints
+ std::vector< BoxConstraint > secondary_upper_bound_Const;
+
 
  /// the vector of binary variables
- std::vector< ZOConstraint > battery_binary_bound_Constraints;
+ std::vector< ZOConstraint > battery_binary_bound_Const;
 
 
  /// the objective function
@@ -1306,10 +1310,10 @@ class BatteryUnitBlock : public UnitBlock
   void print( std::ostream & output ) const override {
    output << "BatteryUnitBlockMod[" << this << "]: ";
    switch( f_type ) {
-    case ( eSetInitS ):
+    case( eSetInitS ):
      output << "set initial storage values ";
      break;
-    case ( eSetInitP ):
+    case( eSetInitP ):
      output << "set initial power values ";
      break;
    }

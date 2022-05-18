@@ -453,8 +453,8 @@ class SlackUnitBlock : public UnitBlock
 
  double * get_inertia_commitment( Index generator ) override {
   if( v_MaxInertia.empty() )
-   return nullptr;
-  return &( v_MaxInertia.front() );
+   return( nullptr );
+  return( &( v_MaxInertia.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -495,8 +495,8 @@ class SlackUnitBlock : public UnitBlock
  /// returns the vector of commitment variables
  ColVariable * get_commitment( Index generator ) override {
   if( v_commitment.empty() )
-   return nullptr;
-  return &( v_commitment.front() );
+   return( nullptr );
+  return( &( v_commitment.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -504,8 +504,8 @@ class SlackUnitBlock : public UnitBlock
  /// returns the vector of active_power variables
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
-   return nullptr;
-  return &( v_active_power.front() );
+   return( nullptr );
+  return( &( v_active_power.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -513,8 +513,8 @@ class SlackUnitBlock : public UnitBlock
  /// returns the vector of primary_spinning_reserve variables
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_primary_spinning_reserve.front() );
+   return( nullptr );
+  return( &( v_primary_spinning_reserve.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -522,8 +522,8 @@ class SlackUnitBlock : public UnitBlock
  /// returns the vector of secondary_spinning_reserve variables
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
-   return nullptr;
-  return &( v_secondary_spinning_reserve.front() );
+   return( nullptr );
+  return( &( v_secondary_spinning_reserve.front() ) );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -608,16 +608,18 @@ class SlackUnitBlock : public UnitBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the active power bound constraints
- std::vector< LB0Constraint > ActivePower_Bound_Constraints;
+ std::vector< LB0Constraint > ActivePower_Bound_Const;
 
  /// the primary spinning reserve bound constraints
- std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Constraints;
+ std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Const;
 
  /// the secondary spinning reserve bound constraints
- std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Constraints;
+ std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Const;
+
 
  /// the inertia variables bound constraints
- std::vector< ZOConstraint > Inertia_Bound_Constraints;
+ std::vector< ZOConstraint > Inertia_Bound_Const;
+
 
  /// the objective function
  FRealObjective objective;

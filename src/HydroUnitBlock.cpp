@@ -63,18 +63,18 @@ SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 
 HydroUnitBlock::~HydroUnitBlock() {
 
- clear_constraints( MaxPowerPrimarySecondary_Const );
- clear_constraints( MinPowerPrimarySecondary_Const );
- clear_constraints( ActivePowerPrimary_Const );
- clear_constraints( ActivePowerSecondary_Const );
- clear_constraints( FlowActivePower_Const );
- clear_constraints( ActivePowerBounds_Const );
- clear_constraints( RampUp_Const );
- clear_constraints( RampDown_Const );
- clear_constraints( FinalVolumeReservoir_Const );
+ Constraint::clear( MaxPowerPrimarySecondary_Const );
+ Constraint::clear( MinPowerPrimarySecondary_Const );
+ Constraint::clear( ActivePowerPrimary_Const );
+ Constraint::clear( ActivePowerSecondary_Const );
+ Constraint::clear( FlowActivePower_Const );
+ Constraint::clear( ActivePowerBounds_Const );
+ Constraint::clear( RampUp_Const );
+ Constraint::clear( RampDown_Const );
+ Constraint::clear( FinalVolumeReservoir_Const );
 
- clear_constraints( FlowRateBounds_Const );
- clear_constraints( VolumetricBounds_Const );
+ Constraint::clear( FlowRateBounds_Const );
+ Constraint::clear( VolumetricBounds_Const );
 
  objective.clear();
 }
@@ -999,29 +999,30 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   ( f_BlockConfig->f_is_feasible_Configuration );
 
  // If a tolerance has not been provided, use the default tolerance.
- const auto tolerance = config ? config->f_value : 1.0e-8;
+ const auto tol = config ? config->f_value : 1.0e-8;
 
  // Notice that there is no check for the flow rate and active power
  // variables, since they are continuous and have no bounds.
 
- return
+ return(
   UnitBlock::is_feasible( useabstract )
   // Constraints
-  && ::is_feasible( MaxPowerPrimarySecondary_Const , tolerance )
-  && ::is_feasible( MinPowerPrimarySecondary_Const , tolerance )
-  && ::is_feasible( ActivePowerPrimary_Const , tolerance )
-  && ::is_feasible( ActivePowerSecondary_Const , tolerance )
-  && ::is_feasible( FlowActivePower_Const , tolerance )
-  && ::is_feasible( ActivePowerBounds_Const , tolerance )
-  && ::is_feasible( RampUp_Const , tolerance )
-  && ::is_feasible( RampDown_Const , tolerance )
-  && ::is_feasible( FlowRateBounds_Const , tolerance )
-  && ::is_feasible( FinalVolumeReservoir_Const , tolerance )
-  && ::is_feasible( VolumetricBounds_Const , tolerance )
+  && Constraint::is_feasible( MaxPowerPrimarySecondary_Const , tol )
+  && Constraint::is_feasible( MinPowerPrimarySecondary_Const , tol )
+  && Constraint::is_feasible( ActivePowerPrimary_Const , tol )
+  && Constraint::is_feasible( ActivePowerSecondary_Const , tol )
+  && Constraint::is_feasible( FlowActivePower_Const , tol )
+  && Constraint::is_feasible( ActivePowerBounds_Const , tol )
+  && Constraint::is_feasible( RampUp_Const , tol )
+  && Constraint::is_feasible( RampDown_Const , tol )
+  && Constraint::is_feasible( FinalVolumeReservoir_Const , tol )
+  && Constraint::is_feasible( FlowRateBounds_Const , tol )
+  && Constraint::is_feasible( VolumetricBounds_Const , tol )
   // Variables
-  && ::is_feasible( v_volumetric , tolerance )
-  && ::is_feasible( v_primary_spinning_reserve , tolerance )
-  && ::is_feasible( v_secondary_spinning_reserve , tolerance );
+  && ColVariable::is_feasible( v_volumetric , tol )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
+
 }  // end( HydroUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -1032,7 +1033,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc ) {
   return; // Objective has already been generated
 
  if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
+  return;                          // cowardly (and silently) return
 
  auto linear_function = new LinearFunction();
  objective.set_function( linear_function );

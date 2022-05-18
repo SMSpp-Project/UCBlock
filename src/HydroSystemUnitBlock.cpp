@@ -99,7 +99,7 @@ Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const {
  for( Index i = 0 ; i < f_number_hydro_units ; ++i )
   if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( v_Block[ i ] ) )
    total_number_reservoirs += hydro_unit_block->get_number_reservoirs();
- return total_number_reservoirs;
+ return( total_number_reservoirs );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -201,7 +201,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
   block->generate_objective();
 
  if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
+  return;                          // cowardly (and silently) return
 
  auto linear_function = new LinearFunction();
  objective.set_function( linear_function );

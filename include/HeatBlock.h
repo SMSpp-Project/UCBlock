@@ -408,7 +408,7 @@ class HeatBlock : public Block
  * - otherwise, the vector must have size of time horizon and the t_th
  *   element of the vector gives the total heat demand at time t. */
  const std::vector< double > & get_heat_demand( void ) const {
-  return v_heat_demand;
+  return( v_heat_demand );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -427,7 +427,7 @@ class HeatBlock : public Block
  *   of vector represents the minimum heat storage at time t. */
 
  const std::vector< double > & get_min_heat_storage( void ) const {
-  return v_min_heat_storage;
+  return( v_min_heat_storage );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -446,7 +446,7 @@ class HeatBlock : public Block
  *   of vector represents the maximum heat storage at time t. */
 
  const std::vector< double > & get_max_heat_storage( void ) const {
-  return v_max_heat_storage;
+  return( v_max_heat_storage );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -469,7 +469,7 @@ class HeatBlock : public Block
 
  const boost::multi_array< double , 2 > & get_min_heat_production( void )
  const {
-  return v_min_heat_production;
+  return( v_min_heat_production );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -491,7 +491,7 @@ class HeatBlock : public Block
  *   production of each unit i at time instant t. */
  const boost::multi_array< double , 2 > & get_max_heat_production( void )
  const {
-  return v_max_heat_production;
+  return( v_max_heat_production );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -513,7 +513,7 @@ class HeatBlock : public Block
  *   cost of each unit i at time instant t. */
 
  const boost::multi_array< double , 2 > & get_cost_heat_unit( void ) const {
-  return v_cost_heat_unit;
+  return( v_cost_heat_unit );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -544,7 +544,7 @@ class HeatBlock : public Block
  *    time step t of unit i */
 
  const boost::multi_array< ColVariable , 2 > & get_heat( void ) const {
-  return v_heat;
+  return( v_heat );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -688,17 +688,19 @@ class HeatBlock : public Block
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the heat demand satisfaction constraints
- std::vector< BoxConstraint > v_HeatDemand_Constraints;
-
  /// the heat bound satisfaction constraints
- boost::multi_array< FRowConstraint , 2 > v_HeatBounds_Constraints;
-
- /// the heat storage bound satisfaction constraints
- std::vector< BoxConstraint > v_HeatStorageBounds_Constraints;
+ boost::multi_array< FRowConstraint , 2 > v_HeatBounds_Const;
 
  /// the evolution in the  stored heat constraints
- std::vector< FRowConstraint > v_EvolutionStoredHeat_Constraints;
+ std::vector< FRowConstraint > v_EvolutionStoredHeat_Const;
+
+
+ /// the heat demand satisfaction constraints
+ std::vector< BoxConstraint > v_HeatDemand_Const;
+
+ /// the heat storage bound satisfaction constraints
+ std::vector< BoxConstraint > v_HeatStorageBounds_Const;
+
 
  /// the objective function
  FRealObjective objective;
@@ -727,9 +729,9 @@ class HeatBlock : public Block
 
  unsigned int get_variables_to_be_generated( Configuration * stvv );
 
- void deserialize_time_horizon( netCDF::NcGroup & group );
+ void deserialize_time_horizon( const netCDF::NcGroup & group );
 
- void deserialize_change_intervals( netCDF::NcGroup & group );
+ void deserialize_change_intervals( const netCDF::NcGroup & group );
 
 };  // end( class( HeatBlock ) )
 

@@ -49,11 +49,11 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 SlackUnitBlock::~SlackUnitBlock() {
- clear_constraints( Secondary_Spinning_Reserve_Bound_Constraints );
- clear_constraints( Primary_Spinning_Reserve_Bound_Constraints );
- clear_constraints( ActivePower_Bound_Constraints );
+ Constraint::clear( Secondary_Spinning_Reserve_Bound_Const );
+ Constraint::clear( Primary_Spinning_Reserve_Bound_Const );
+ Constraint::clear( ActivePower_Bound_Const );
 
- clear_constraints( Inertia_Bound_Constraints );
+ Constraint::clear( Inertia_Bound_Const );
 
  objective.clear();
 }
@@ -171,24 +171,24 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   generate_ZOConstraint = config->f_value;
 
  // Initializing active power bounds constraints
- if( ActivePower_Bound_Constraints.size() != f_time_horizon ) {
+ if( ActivePower_Bound_Const.size() != f_time_horizon ) {
   // this should only happen once
-  assert( ActivePower_Bound_Constraints.empty() );
+  assert( ActivePower_Bound_Const.empty() );
 
-  ActivePower_Bound_Constraints.resize( f_time_horizon );
+  ActivePower_Bound_Const.resize( f_time_horizon );
  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
   if( ! v_MaxPower.empty() ) {
-   ActivePower_Bound_Constraints[ t ].set_rhs( v_MaxPower[ t ] );
+   ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
   } else {
-   ActivePower_Bound_Constraints[ t ].set_rhs( 0.0 );
+   ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
   }
-  ActivePower_Bound_Constraints[ t ].set_variable( &v_active_power[ t ] );
+  ActivePower_Bound_Const[ t ].set_variable( &v_active_power[ t ] );
  }
 
- add_static_constraint( ActivePower_Bound_Constraints ,
+ add_static_constraint( ActivePower_Bound_Const ,
                         "ActivePowerBound_Slack" );
 
  /*--------------------------------------------------------------------------*/
@@ -197,21 +197,21 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( reserve_vars & 1u ) {
   if( ! v_MaxPrimaryPower.empty() ) {
 
-   if( Primary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+   if( Primary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
     // this should only happen once
-    assert( Primary_Spinning_Reserve_Bound_Constraints.empty() );
+    assert( Primary_Spinning_Reserve_Bound_Const.empty() );
 
-    Primary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+    Primary_Spinning_Reserve_Bound_Const.resize( f_time_horizon );
    }
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    Primary_Spinning_Reserve_Bound_Constraints[ t ].set_rhs(
+    Primary_Spinning_Reserve_Bound_Const[ t ].set_rhs(
      v_MaxPrimaryPower[ t ] );
-    Primary_Spinning_Reserve_Bound_Constraints[ t ].set_variable(
+    Primary_Spinning_Reserve_Bound_Const[ t ].set_variable(
      &v_primary_spinning_reserve[ t ] );
    }
 
-   add_static_constraint( Primary_Spinning_Reserve_Bound_Constraints ,
+   add_static_constraint( Primary_Spinning_Reserve_Bound_Const ,
                           "PrimarySpinningReserveBound_Slack" );
   }
  }
@@ -221,21 +221,21 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // Initializing secondary spinning reserve bounds constraints
  if( reserve_vars & 2u ) {
   if( ! v_MaxSecondaryPower.empty() ) {
-   if( Secondary_Spinning_Reserve_Bound_Constraints.size() != f_time_horizon ) {
+   if( Secondary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
     // this should only happen once
-    assert( Secondary_Spinning_Reserve_Bound_Constraints.empty() );
+    assert( Secondary_Spinning_Reserve_Bound_Const.empty() );
 
-    Secondary_Spinning_Reserve_Bound_Constraints.resize( f_time_horizon );
+    Secondary_Spinning_Reserve_Bound_Const.resize( f_time_horizon );
    }
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    Secondary_Spinning_Reserve_Bound_Constraints[ t ].set_rhs(
+    Secondary_Spinning_Reserve_Bound_Const[ t ].set_rhs(
      v_MaxSecondaryPower[ t ] );
-    Secondary_Spinning_Reserve_Bound_Constraints[ t ].set_variable(
+    Secondary_Spinning_Reserve_Bound_Const[ t ].set_variable(
      &v_secondary_spinning_reserve[ t ] );
    }
 
-   add_static_constraint( Secondary_Spinning_Reserve_Bound_Constraints ,
+   add_static_constraint( Secondary_Spinning_Reserve_Bound_Const ,
                           "SecondarySpinningReserveBound_Slack" );
   }
  }
@@ -246,11 +246,11 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // the commitment bound constraints
   if( reserve_vars & 4u ) {
-   Inertia_Bound_Constraints.resize( f_time_horizon );
+   Inertia_Bound_Const.resize( f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    Inertia_Bound_Constraints[ t ].set_variable( &v_commitment[ t ] );
+    Inertia_Bound_Const[ t ].set_variable( &v_commitment[ t ] );
    }
-   add_static_constraint( Inertia_Bound_Constraints , "Inertia_bound_Slack" );
+   add_static_constraint( Inertia_Bound_Const , "Inertia_bound_Slack" );
   }
  }
 
@@ -261,8 +261,12 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
 void SlackUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
  if( get_objective() != nullptr )  // an objective is there already
-  return;                        // cowardly (and silently) return
+  return;                          // cowardly (and silently) return
 
  // Initialize objective function
  if( reserve_vars & 4u ) {

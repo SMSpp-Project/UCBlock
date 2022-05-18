@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "ThermalUnitBlock.h"
 
 using namespace SMSpp_di_unipi_it;
@@ -107,5 +108,5 @@ INSTANTIATE_TEST_SUITE_P( ThermalUnitBlockTests ,
 
 int main( int argc , char ** argv ) {
  ::testing::InitGoogleTest( &argc , argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }

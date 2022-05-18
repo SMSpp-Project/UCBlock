@@ -54,16 +54,14 @@ SMSpp_insert_in_factory_cpp_1( UCBlock );
 
 UCBlock::~UCBlock() {
 
- clear_constraints( v_node_injection_constraints );
- clear_constraints( v_PrimaryDemand_Const );
- clear_constraints( v_SecondaryDemand_Const );
- clear_constraints( v_InertiaDemand_Const );
+ Constraint::clear( v_node_injection_const );
+ Constraint::clear( v_PrimaryDemand_Const );
+ Constraint::clear( v_SecondaryDemand_Const );
+ Constraint::clear( v_InertiaDemand_Const );
  /*!! commented away until HeatBlock are properly managed
-   clear_constraints( v_power_Heat_Rho_Const );
+   Constraint::clear( v_power_Heat_Rho_Const );
  */
-
- for( auto & v : v_PollutantBudget_Const )
-  clear_constraints( v );
+ Constraint::clear( v_PollutantBudget_Const );
 
  for( auto & block : v_Block )
   delete block;
@@ -176,6 +174,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
+ // For backward compatibility reasons wrt the nc4 input data files already
+ // given, the default number of networks is equal to the time horizon since
+ // each NetworkBlock span just one interval, i.e., one time horizon
  if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
@@ -196,6 +197,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                      "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
 
+ // the number of nodes should be defined here iff UCBlock uses this
+ // dimension, e.g., to store the ActivePowerDemand, otherwise it should be
+ // defined in each NetworkBlocks
  Index number_nodes;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) )
   number_nodes = 1;
@@ -462,7 +466,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   int sum_intervals = std::accumulate(
    v_network_blocks.begin() , v_network_blocks.end() , 0 ,
    []( int init , const NetworkBlock * nb ) {
-    return init + nb->get_number_intervals();
+    return( init + nb->get_number_intervals() );
    } );
 
   // sum_intervals == f_time_horizon, i.e., we receive in input / we create n
@@ -471,7 +475,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   if( sum_intervals != f_time_horizon )
    throw( std::invalid_argument
     ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
-      "each NetworkBlock should be equal to the number of time horizon." ) );
+      "each NetworkBlock must be equal to the number of time horizon." ) );
 
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
@@ -513,7 +517,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
  const auto number_nodes =
   f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
- v_node_injection_constraints.resize(
+ v_node_injection_const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
   [ number_nodes ] );
 
@@ -558,11 +562,11 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
     }  // end( for( i ) )
 
     // set the final RHS of the constraint (equality constraint)
-    v_node_injection_constraints[ t ][ 0 ].set_both( rhs , eNoMod );
+    v_node_injection_const[ t ][ 0 ].set_both( rhs , eNoMod );
     // resize vc so that it's of the right length
     vc.resize( std::distance( vc.begin() , vcit ) );
     // construct and pass the LinearFunction to the FRowConstraint
-    v_node_injection_constraints[ t ][ 0 ].set_function(
+    v_node_injection_const[ t ][ 0 ].set_function(
      new LinearFunction( std::move( vc ) ) , eNoMod );
    }  // end( for( t ) )
   } else {  // number_nodes > 1
@@ -585,7 +589,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
       linear_function->add_variable( &node_injection[ node_id ] , -1.0 ,
                                      eNoMod );
 
-      v_node_injection_constraints[ t ][ node_id ].set_both( 0.0 );
+      v_node_injection_const[ t ][ node_id ].set_both( 0.0 );
 
       Index elc_generator = 0;
       for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
@@ -621,23 +625,23 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
         }
 
         if( fixed_consumption ) {
-         v_node_injection_constraints[ t ][ node_id ].set_both
-          ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+         v_node_injection_const[ t ][ node_id ].set_both
+          ( v_node_injection_const[ t ][ node_id ].get_rhs()
             - fixed_consumption[ t ] );
         } else {
-         v_node_injection_constraints[ t ][ node_id ].set_both
-          ( v_node_injection_constraints[ t ][ node_id ].get_rhs()
+         v_node_injection_const[ t ][ node_id ].set_both
+          ( v_node_injection_const[ t ][ node_id ].get_rhs()
             - 0.0 );
         }
        }
       }
-      v_node_injection_constraints[ t ][ node_id ].set_function(
+      v_node_injection_const[ t ][ node_id ].set_function(
        linear_function );
      }
     }
    }
   }
-  add_static_constraint( v_node_injection_constraints , "node_injection_c" );
+  add_static_constraint( v_node_injection_const , "node_injection_c" );
  }
 
  // primary demand constraints - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1391,9 +1395,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
           ++heat_block_id ) {
       if( get_heat_set()[ unit ] <
           v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
-       return true;
+       return( true );
      }
-     return false;
+     return( false );
     };
 
    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
@@ -1597,7 +1601,7 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
   }  // end( for( g ) )
  }  // end( for( i ) )
 
- v_node_injection_constraints[ time ][ node_index ].set_both( rhs );
+ v_node_injection_const[ time ][ node_index ].set_both( rhs );
 }
 
 /*--------------------------------------------------------------------------*/

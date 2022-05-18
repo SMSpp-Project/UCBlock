@@ -326,16 +326,16 @@ class IntermittentUnitBlock : public UnitBlock
  * @{ */
 
  /// Returns the gamma value
- double get_gamma( void ) const { return f_gamma; }
+ double get_gamma( void ) const { return( f_gamma ); }
 
  /// Returns the kappa value
- double get_kappa( void ) const { return f_kappa; }
+ double get_kappa( void ) const { return( f_kappa ); }
 
  /// Returns the operation and maintenance cost
- double get_oem_cost( void ) const { return f_oem_cost; }
+ double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// Returns the investment cost, i.e., the capital expenditure cost
- double get_capex_cost( void ) const { return f_capex_cost; }
+ double get_capex_cost( void ) const { return( f_capex_cost ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -400,7 +400,7 @@ class IntermittentUnitBlock : public UnitBlock
  double * get_inertia_power( Index generator ) override {
   if( v_inertia_power.empty() )
    return( nullptr );
-  return &( v_inertia_power.front() );
+  return( &( v_inertia_power.front() ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -571,14 +571,16 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*------------------------------- constraints ------------------------------*/
 
-/// the active power upper bound constraints
- std::vector< FRowConstraint > MinPower_Constraints;
+ /// the active power upper bound constraints
+ std::vector< FRowConstraint > MinPower_Const;
 
-/// the active power lower bound constraints
- std::vector< FRowConstraint > MaxPower_Constraints;
+ /// the active power lower bound constraints
+ std::vector< FRowConstraint > MaxPower_Const;
 
-/// the active power bounds constraints
- std::vector< BoxConstraint > active_power_bounds_Constraints;
+
+ /// the active power bounds constraints
+ std::vector< BoxConstraint > active_power_bounds_Const;
+
 
  /// the objective function
  FRealObjective objective;

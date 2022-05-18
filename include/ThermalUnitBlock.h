@@ -35,11 +35,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "FRowConstraint.h"
-
 #include "OneVarConstraint.h"
-
 #include "FRealObjective.h"
-
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -803,16 +800,16 @@ class ThermalUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the initial power value
- double get_initial_power( void ) const { return f_initial_power; }
+ double get_initial_power( void ) const { return( f_initial_power ); }
 
  /// returns the init up and down time value
- int get_init_up_down_time( void ) const { return f_InitUpDownTime; }
+ int get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
 
  /// returns the minimum allowed up time value
- Index get_min_up_time( void ) const { return f_MinUpTime; }
+ Index get_min_up_time( void ) const { return( f_MinUpTime ); }
 
  /// returns the minimum allowed down time value
- Index get_min_down_time( void ) const { return f_MinDownTime; }
+ Index get_min_down_time( void ) const { return( f_MinDownTime ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -824,7 +821,7 @@ class ThermalUnitBlock : public UnitBlock
   * 1}.  */
 
  const std::vector< double > & get_min_power( void ) const {
-  return v_MinPower;
+  return( v_MinPower );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -841,8 +838,8 @@ class ThermalUnitBlock : public UnitBlock
   */
  double get_operational_min_power( Index t ) const {
   assert( t < get_time_horizon() );
-  return compute_operational_min_power( v_MinPower[ t ] ,
-                                        get_availability( t ) );
+  return( compute_operational_min_power( v_MinPower[ t ] ,
+                                        get_availability( t ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -856,7 +853,7 @@ class ThermalUnitBlock : public UnitBlock
   * difference between nominal and operational maximum active power. */
 
  const std::vector< double > & get_max_power( void ) const {
-  return v_MaxPower;
+  return( v_MaxPower );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -873,8 +870,8 @@ class ThermalUnitBlock : public UnitBlock
   */
  double get_operational_max_power( Index t ) const {
   assert( t < get_time_horizon() );
-  return compute_operational_max_power( v_MaxPower[ t ] ,
-                                        get_availability( t ) );
+  return( compute_operational_max_power( v_MaxPower[ t ] ,
+                                        get_availability( t ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1229,7 +1226,7 @@ class ThermalUnitBlock : public UnitBlock
  ColVariable * get_commitment( Index generator ) override {
   if( v_commitment.empty() )
    return( nullptr );
-  return &( v_commitment.front() );
+  return( &( v_commitment.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1688,50 +1685,55 @@ class ThermalUnitBlock : public UnitBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the connection power out put constraints
- std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Constraints;
+ std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Const;
 
  /// the Start Up power out put constraints
- std::vector< FRowConstraint > Power_StartUp_Variable_Constraints;
+ std::vector< FRowConstraint > Power_StartUp_Variable_Const;
 
  /// the Shut Down power out put constraints
- std::vector< FRowConstraint > Power_ShutDown_Variable_Constraints;
+ std::vector< FRowConstraint > Power_ShutDown_Variable_Const;
 
  /// the connection min up and down time constraints
- std::vector< FRowConstraint > StartUp_ShutDown_Variables_Constraints;
+ std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
 
  /// the TURN ON min up and down time constraints
- std::vector< FRowConstraint > StartUp_Constraints;
+ std::vector< FRowConstraint > StartUp_Const;
 
  /// the SHUT DOWN min up and down time constraints
- std::vector< FRowConstraint > ShutDown_Constraints;
+ std::vector< FRowConstraint > ShutDown_Const;
 
  /// the RampUp time constraints
- std::vector< FRowConstraint > RampUp_Constraints;
+ std::vector< FRowConstraint > RampUp_Const;
 
  /// the RampDown time constraints
- std::vector< FRowConstraint > RampDown_Constraints;
+ std::vector< FRowConstraint > RampDown_Const;
 
  /// the PrimaryRho fraction constraints
- std::vector< FRowConstraint > PrimaryRho_Constraints;
+ std::vector< FRowConstraint > PrimaryRho_Const;
 
  /// the SecondaryRho fraction constraints
- std::vector< FRowConstraint > SecondaryRho_Constraints;
+ std::vector< FRowConstraint > SecondaryRho_Const;
 
- std::vector< FRowConstraint > MinPower_Constraints;
+ /// the active power upper bound constraints
+ std::vector< FRowConstraint > MinPower_Const;
 
- std::vector< FRowConstraint > MaxPower_Constraints;
+ /// the active power lower bound constraints
+ std::vector< FRowConstraint > MaxPower_Const;
+
 
  /// the commitment bound constraints
- std::vector< ZOConstraint > Commitment_bound_Constraints;
-
- /// the commitment fixed to one BoxConstraints
- std::vector< BoxConstraint > Commitment_fixed_to_One_Constraints;
+ std::vector< ZOConstraint > Commitment_bound_Const;
 
  /// the startup binary bound constraints
- std::vector< ZOConstraint > StartUp_Binary_bound_Constraints;
+ std::vector< ZOConstraint > StartUp_Binary_bound_Const;
 
  /// the shout down binary bound constraints
- std::vector< ZOConstraint > ShoutDown_Binary_bound_Constraints;
+ std::vector< ZOConstraint > ShoutDown_Binary_bound_Const;
+
+
+ /// the commitment fixed to one BoxConstraints
+ std::vector< BoxConstraint > Commitment_fixed_to_One_Const;
+
 
  /// the objective function
  FRealObjective objective;

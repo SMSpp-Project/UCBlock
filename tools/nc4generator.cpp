@@ -126,12 +126,12 @@ struct ThermalUnit
  friend std::ostream &
  operator<<( std::ostream & out , const ThermalUnit & unit ) {
   unit.print( out );
-  return out;
+  return( out );
  }
 
  friend std::istream & operator>>( std::istream & in , ThermalUnit & unit ) {
   unit.load( in );
-  return in;
+  return( in );
  }
 };
 
@@ -189,12 +189,12 @@ struct HydroUnit
  friend std::ostream &
  operator<<( std::ostream & out , const HydroUnit & unit ) {
   unit.print( out );
-  return out;
+  return( out );
  }
 
  friend std::istream & operator>>( std::istream & in , HydroUnit & unit ) {
   unit.load( in );
-  return in;
+  return( in );
  }
 };
 
@@ -325,12 +325,12 @@ struct DatFile
 
  friend std::ostream & operator<<( std::ostream & out , const DatFile & file ) {
   file.print( out );
-  return out;
+  return( out );
  }
 
  friend std::istream & operator>>( std::istream & in , DatFile & file ) {
   file.load( in );
-  return in;
+  return( in );
  }
 };
 
@@ -453,12 +453,12 @@ struct ModFile
 
  friend std::ostream & operator<<( std::ostream & out , const ModFile & file ) {
   file.print( out );
-  return out;
+  return( out );
  }
 
  friend std::istream & operator>>( std::istream & in , ModFile & file ) {
   file.load( in );
-  return in;
+  return( in );
  }
 };
 
@@ -546,7 +546,7 @@ std::string docopt_desc{};    ///< Tool description
 /// Gets the name of the executable from its full path
 std::string get_filename( const std::string & fullpath ) {
  std::size_t found = fullpath.find_last_of( "/\\" );
- return fullpath.substr( found + 1 );
+ return( fullpath.substr( found + 1 ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -650,7 +650,7 @@ int main( int argc , char ** argv ) {
  } else {
   std::cerr << "Error: Supported file formats are: dat, mod." << std::endl;
   input_file.close();
-  return 1;
+  return( 1 );
  }
 
  // Read input file
@@ -725,5 +725,5 @@ int main( int argc , char ** argv ) {
  }
 
  std::cout << "Output written on " << output_path << std::endl;
- return 0;
+ return( 0 );
 }

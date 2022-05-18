@@ -184,7 +184,7 @@ class ECNetworkBlock : public NetworkBlock
    * the public market. */
 
   const std::vector< double > & get_sell_price( void ) const {
-   return v_sell_price;
+   return( v_sell_price );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -194,7 +194,7 @@ class ECNetworkBlock : public NetworkBlock
    * time horizon from the public market. */
 
   const std::vector< double > & get_buy_price( void ) const {
-   return v_buy_price;
+   return( v_buy_price );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -203,7 +203,7 @@ class ECNetworkBlock : public NetworkBlock
   /** Method for returning the tariff that user pay due to the peak power. */
 
   const double & get_max_tariff( void ) const {
-   return f_max_tariff;
+   return( f_max_tariff );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -382,8 +382,8 @@ class ECNetworkBlock : public NetworkBlock
 
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_nodes();
-  return 0;
+   return( f_NetworkData->get_number_nodes() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -395,8 +395,8 @@ class ECNetworkBlock : public NetworkBlock
 
  Index get_number_lines( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_lines();
-  return 0;
+   return( f_NetworkData->get_number_lines() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -408,8 +408,8 @@ class ECNetworkBlock : public NetworkBlock
 
  Index get_number_intervals( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_intervals();
-  return 0;
+   return( f_NetworkData->get_number_intervals() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -418,7 +418,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Return a pointer to the ECNetworkData. */
 
  NetworkData * get_NetworkData( void ) const override {
-  return f_NetworkData;
+  return( f_NetworkData );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -432,8 +432,8 @@ class ECNetworkBlock : public NetworkBlock
 
  const double * get_active_demand( Index i = 0 ) const override {
   if( v_active_demand.empty() )
-   return nullptr;
-  return &( v_active_demand.data()[ i * get_number_nodes() ] );
+   return( nullptr );
+  return( &( v_active_demand.data()[ i * get_number_nodes() ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -447,7 +447,7 @@ class ECNetworkBlock : public NetworkBlock
   * assumed to have size get_number_nodes(). */
 
  std::vector< ColVariable > & get_micro_power_injection( void ) {
-  return v_micro_power_injection;
+  return( v_micro_power_injection );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -457,7 +457,7 @@ class ECNetworkBlock : public NetworkBlock
   * which is assumed to have size get_number_nodes(). */
 
  std::vector< ColVariable > & get_micro_power_absorption( void ) {
-  return v_micro_power_absorption;
+  return( v_micro_power_absorption );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -467,7 +467,7 @@ class ECNetworkBlock : public NetworkBlock
   * assumed to have size get_number_nodes(). */
 
  std::vector< ColVariable > & get_public_power_injection( void ) {
-  return v_public_power_injection;
+  return( v_public_power_injection );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -477,7 +477,7 @@ class ECNetworkBlock : public NetworkBlock
   * assumed to have size get_number_nodes(). */
 
  std::vector< ColVariable > & get_public_power_absorption( void ) {
-  return v_public_power_absorption;
+  return( v_public_power_absorption );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -491,8 +491,8 @@ class ECNetworkBlock : public NetworkBlock
 
  ColVariable * get_node_injection( Index t = 0 ) override {
   if( v_node_injection.empty() )
-   return nullptr;
-  return &( v_node_injection.data()[ t * get_number_nodes() ] );
+   return( nullptr );
+  return( &( v_node_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -693,14 +693,14 @@ class ECNetworkBlock : public NetworkBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the power balance constraints within the microgrid market / network
- std::vector< FRowConstraint > micro_power_balance_constraints;
+ std::vector< FRowConstraint > micro_power_balance_const;
 
  /// the power balance constraints
- boost::multi_array< FRowConstraint , 2 > power_balance_constraints;
+ boost::multi_array< FRowConstraint , 2 > power_balance_const;
 
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
- boost::multi_array< FRowConstraint , 3 > power_flow_limit_constraints;
+ boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
 
 
  /// the objective function

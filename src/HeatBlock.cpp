@@ -56,11 +56,10 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 
 HeatBlock::~HeatBlock() {
 
- clear_constraints( v_HeatBounds_Constraints );
+ Constraint::clear( v_HeatBounds_Const );
+ Constraint::clear( v_EvolutionStoredHeat_Const );
 
- clear_constraints( v_HeatStorageBounds_Constraints );
-
- clear_constraints( v_EvolutionStoredHeat_Constraints );
+ Constraint::clear( v_HeatStorageBounds_Const );
 
  objective.clear();
 }
@@ -101,7 +100,7 @@ void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
+void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
@@ -145,7 +144,7 @@ void HeatBlock::deserialize_change_intervals( netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize( netCDF::NcGroup & group ) {
+void HeatBlock::deserialize( const netCDF::NcGroup & group ) {
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
@@ -163,7 +162,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 
     ::deserialize( group, "MaxHeatProduction",
                    { f_number_intervals , f_number_heat_units },
-                   v_max_heat_production );*/
+                   v_max_heat_production ); */
 
  ::deserialize( group , "MinHeatStorage" , f_number_intervals ,
                 v_min_heat_storage );
@@ -171,10 +170,10 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxHeatStorage" , f_number_intervals ,
                 v_max_heat_storage );
 
- ::deserialize( group , "StoringHeatRho" , &f_storing_heat_rho );
- ::deserialize( group , "ExtractingHeatRho" , &f_extracting_heat_rho );
- ::deserialize( group , "KeepingHeatRho" , &f_keeping_heat_rho );
- ::deserialize( group , "InitialHeatAvailable" , &f_initial_heat_storage );
+ ::deserialize( group , f_storing_heat_rho , "StoringHeatRho" );
+ ::deserialize( group , f_extracting_heat_rho , "ExtractingHeatRho" );
+ ::deserialize( group , f_keeping_heat_rho , "KeepingHeatRho" );
+ ::deserialize( group , f_initial_heat_storage , "InitialHeatAvailable" );
 
  Block::deserialize( group );
 
@@ -185,7 +184,7 @@ void HeatBlock::deserialize( netCDF::NcGroup & group ) {
 unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
  if( ! stvv )
-  return 0;
+  return( 0 );
 
  // informs which variables must be generated
  int variables_to_be_generated = 0;
@@ -202,14 +201,14 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
  if( tstvv )
   variables_to_be_generated = tstvv->f_value;
 
- return variables_to_be_generated;
+ return( variables_to_be_generated );
 }
 
 /*--------------------------------------------------------------------------*/
 
 void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( v_heat.size() != 0 ) {
+ if( ! v_heat.empty() ) {
   // the abstract variables have already been generated
   return;
  }
@@ -221,7 +220,7 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Heat variables
 
- v_heat->resize( boost::extents[ f_time_horizon ][ f_number_heat_units ] );
+ v_heat.resize( boost::extents[ f_time_horizon ][ f_number_heat_units ] );
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   for( Index g = 0 ; t < f_number_heat_units ; ++g )
    v_heat[ t ][ g ].set_type( ColVariable::kNonNegative );
@@ -257,37 +256,37 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
 void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
- if( ! v_HeatBounds_Constraints.empty() )
+ if( ! v_HeatBounds_Const.empty() )
   return; // constraints have already been generated
 
  // Satisfaction Heat Bounds constraints
 
- v_HeatBounds_Constraints.resize
+ v_HeatBounds_Const.resize
   ( boost::multi_array< BoxConstraint , 2 >::
     extent_gen()[ f_time_horizon ][ f_number_heat_units ] );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
-   v_HeatBounds_Constraints[ t ][ unit_id ].set_variable(
+   v_HeatBounds_Const[ t ][ unit_id ].set_variable(
     &v_heat[ t ][ unit_id ] );
-   v_HeatBounds_Constraints[ t ][ unit_id ].set_lhs
+   v_HeatBounds_Const[ t ][ unit_id ].set_lhs
     ( v_min_heat_production[ t ][ unit_id ] );
-   v_HeatBounds_Constraints[ t ][ unit_id ].set_rhs
+   v_HeatBounds_Const[ t ][ unit_id ].set_rhs
     ( v_max_heat_production[ t ][ unit_id ] );
   }
  }
- add_static_constraint( v_HeatBounds_Constraints );
+ add_static_constraint( v_HeatBounds_Const );
 
  // Satisfaction Heat Storage Bounds constraints
 
  if( ! v_heat_available.empty() ) {
-  v_HeatStorageBounds_Constraints.resize( f_time_horizon );
+  v_HeatStorageBounds_Const.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_HeatStorageBounds_Constraints[ t ].set_variable( &v_heat_available[ t ] );
-   v_HeatStorageBounds_Constraints[ t ].set_lhs( v_min_heat_storage[ t ] );
-   v_HeatStorageBounds_Constraints[ t ].set_rhs( v_max_heat_storage[ t ] );
+   v_HeatStorageBounds_Const[ t ].set_variable( &v_heat_available[ t ] );
+   v_HeatStorageBounds_Const[ t ].set_lhs( v_min_heat_storage[ t ] );
+   v_HeatStorageBounds_Const[ t ].set_rhs( v_max_heat_storage[ t ] );
   }
-  add_static_constraint( v_HeatStorageBounds_Constraints );
+  add_static_constraint( v_HeatStorageBounds_Const );
  }
 
  // Evolution Stored Heat Constraints
@@ -295,7 +294,7 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( !( v_heat_available.empty() || v_heat_added.empty() ||
         v_heat_removed.empty() ) ) {
 
-  v_EvolutionStoredHeat_Constraints.resize( f_time_horizon );
+  v_EvolutionStoredHeat_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -305,9 +304,9 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( &v_heat_added[ t ] , -f_storing_heat_rho );
     linear_function->add_variable( &v_heat_removed[ t ] ,
                                    f_extracting_heat_rho );
-    v_EvolutionStoredHeat_Constraints[ t ].set_function( linear_function );
-    v_EvolutionStoredHeat_Constraints[ t ].set_lhs( 0.0 );
-    v_EvolutionStoredHeat_Constraints[ t ].set_rhs
+    v_EvolutionStoredHeat_Const[ t ].set_function( linear_function );
+    v_EvolutionStoredHeat_Const[ t ].set_lhs( 0.0 );
+    v_EvolutionStoredHeat_Const[ t ].set_rhs
      ( f_initial_heat_storage * f_keeping_heat_rho );
    } else {
     auto linear_function = new LinearFunction();
@@ -320,18 +319,18 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
     linear_function->add_variable( &v_heat_removed[ t + 1 ] ,
                                    f_extracting_heat_rho );
 
-    v_EvolutionStoredHeat_Constraints[ t ].set_function( linear_function );
-    v_EvolutionStoredHeat_Constraints[ t ].set_both( 0.0 );
+    v_EvolutionStoredHeat_Const[ t ].set_function( linear_function );
+    v_EvolutionStoredHeat_Const[ t ].set_both( 0.0 );
    }
   }
-  add_static_constraint( v_EvolutionStoredHeat_Constraints );
+  add_static_constraint( v_EvolutionStoredHeat_Const );
  }
 
  // Satisfaction Heat Demand constraints
 
  if( ( ! v_heat_added.empty() ) && ( ! v_heat_removed.empty() ) ) {
 
-  v_HeatDemand_Constraints.resize( f_time_horizon );
+  v_HeatDemand_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -341,12 +340,12 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
    for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id )
     linear_function->add_variable( &v_heat[ t ][ unit_id ] , 1.0 );
 
-   v_HeatDemand_Constraints[ t ].set_function( linear_function );
-   v_HeatDemand_Constraints[ t ].set_lhs( v_heat_demand[ t ] );
-   v_HeatDemand_Constraints[ t ].set_rhs( Inf< double >() );
+   v_HeatDemand_Const[ t ].set_function( linear_function );
+   v_HeatDemand_Const[ t ].set_lhs( v_heat_demand[ t ] );
+   v_HeatDemand_Const[ t ].set_rhs( Inf< double >() );
   }
 
-  add_static_constraint( v_HeatDemand_Constraints );
+  add_static_constraint( v_HeatDemand_Const );
  }
 
 }  // end( HeatBlock::generate_abstract_constraints )
@@ -428,7 +427,7 @@ void HeatBlock::serialize( netCDF::NcGroup & group ) const {
 
     ::serialize( group , "MaxHeatProduction" ,netCDF::NcDouble() ,
                  {NumberIntervals  , dim_number_units} ,
-                 v_max_heat_production);*/
+                 v_max_heat_production); */
 
 }  // end( HeatBlock::serialize )
 

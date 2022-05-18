@@ -831,14 +831,14 @@ class HydroUnitBlock : public UnitBlock
 
 /// returns the number of reservoirs
  Index get_number_reservoirs( void ) const {
-  return f_number_reservoirs ? f_number_reservoirs : 1;
+  return( f_number_reservoirs ? f_number_reservoirs : 1 );
  }
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the number of arcs/generators
  Index get_number_generators( void ) const override {
-  return f_number_arcs ? f_number_arcs : 1;
+  return( f_number_arcs ? f_number_arcs : 1 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -857,7 +857,7 @@ class HydroUnitBlock : public UnitBlock
  *    network. */
 
  const std::vector< Index > & get_start_arc( void ) const {
-  return v_start_arc;
+  return( v_start_arc );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -897,7 +897,7 @@ class HydroUnitBlock : public UnitBlock
  *   inertia power of arc(generator) l at time instant t. */
  double * get_inertia_power( Index generator ) override {
   if( v_inertia_power.empty() )
-   return nullptr;
+   return( nullptr );
   return( v_inertia_power.data() + generator * f_time_horizon );
  }
 
@@ -1231,7 +1231,7 @@ class HydroUnitBlock : public UnitBlock
 
  int get_uphill_delay( Index arc ) const {
   if( v_uphill_delay.empty() )
-   return 0;
+   return( 0 );
   assert( arc < v_uphill_delay.size() );
   return( v_uphill_delay[ arc ] );
  }
@@ -1263,7 +1263,7 @@ class HydroUnitBlock : public UnitBlock
 
  Index get_downhill_delay( Index arc ) const {
   if( v_downhill_delay.empty() )
-   return 0;
+   return( 0 );
   assert( arc < v_downhill_delay.size() );
   return( v_downhill_delay[ arc ] );
  }
@@ -1317,9 +1317,9 @@ class HydroUnitBlock : public UnitBlock
  * @return The initial flow rate at the given \p arc. */
  double get_initial_flow_rate( Index arc ) const {
   assert( arc < f_number_arcs );
-  return v_initial_flow_rate.empty() ? 0.0 :
-         ( ( v_initial_flow_rate.size() == 1 ) ? v_initial_flow_rate.front() :
-           v_initial_flow_rate[ arc ] );
+  return( v_initial_flow_rate.empty() ? 0.0 :
+          ( ( v_initial_flow_rate.size() == 1 ) ? v_initial_flow_rate.front() :
+            v_initial_flow_rate[ arc ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1366,7 +1366,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_volumetric.num_elements() )
     return( v_volumetric.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1390,7 +1390,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_volumetric.num_elements() )
     return( v_volumetric.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1412,7 +1412,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_active_power.num_elements() )
     return( v_active_power.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1436,7 +1436,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_active_power.num_elements() )
     return( v_active_power.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1458,7 +1458,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_flow_rate.num_elements() )
     return( v_flow_rate.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1482,7 +1482,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_flow_rate.num_elements() )
     return( v_flow_rate.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1504,7 +1504,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_primary_spinning_reserve.num_elements() )
     return( v_primary_spinning_reserve.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1528,7 +1528,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_primary_spinning_reserve.num_elements() )
     return( v_primary_spinning_reserve.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1550,7 +1550,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_secondary_spinning_reserve.num_elements() )
     return( v_secondary_spinning_reserve.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1575,7 +1575,7 @@ class HydroUnitBlock : public UnitBlock
    if( offset < v_secondary_spinning_reserve.num_elements() )
     return( v_secondary_spinning_reserve.data() + offset );
   }
-  return nullptr;
+  return( nullptr );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1842,14 +1842,16 @@ class HydroUnitBlock : public UnitBlock
  /// ramp-down constraints
  boost::multi_array< FRowConstraint , 2 > RampDown_Const;
 
- /// flow rate bounds constraints
- boost::multi_array< BoxConstraint , 2 > FlowRateBounds_Const;
-
  /// final volumes fo each reservoir constraints
  boost::multi_array< FRowConstraint , 2 > FinalVolumeReservoir_Const;
 
+
+ /// flow rate bounds constraints
+ boost::multi_array< BoxConstraint , 2 > FlowRateBounds_Const;
+
  /// volumetric bounds constraints
  boost::multi_array< BoxConstraint , 2 > VolumetricBounds_Const;
+
 
  /// the objective function
  FRealObjective objective;
@@ -1967,13 +1969,13 @@ class HydroUnitBlockMod : public Modification
  void print( std::ostream & output ) const override {
   output << "HydroUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case ( eSetInf ):
+   case( eSetInf ):
     output << "set inflow values ";
     break;
-   case ( eSetInerP ):
+   case( eSetInerP ):
     output << "set inertia power values ";
     break;
-   case ( eSetInitF ):
+   case( eSetInitF ):
     output << "set initial flow rate values ";
     break;
    default:

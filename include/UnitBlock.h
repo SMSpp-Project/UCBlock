@@ -215,7 +215,7 @@ class UnitBlock : public Block
  * @{ */
 
  /// returns the time horizon of the problem
- Index get_time_horizon( void ) const { return f_time_horizon; }
+ Index get_time_horizon( void ) const { return( f_time_horizon ); }
 
 /*--------------------------------------------------------------------------*/
 

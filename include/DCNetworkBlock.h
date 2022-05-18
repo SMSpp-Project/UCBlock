@@ -225,7 +225,7 @@ class DCNetworkBlock : public NetworkBlock
    *    network. */
 
   const std::vector< double > & get_min_power_flow( void ) const {
-   return v_min_power_flow;
+   return( v_min_power_flow );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -243,7 +243,7 @@ class DCNetworkBlock : public NetworkBlock
    *   network. */
 
   const std::vector< double > & get_max_power_flow( void ) const {
-   return v_max_power_flow;
+   return( v_max_power_flow );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -261,7 +261,7 @@ class DCNetworkBlock : public NetworkBlock
    *    network. */
 
   const std::vector< double > & get_susceptance( void ) const {
-   return v_susceptance;
+   return( v_susceptance );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -279,7 +279,7 @@ class DCNetworkBlock : public NetworkBlock
    *    network. */
 
   const std::vector< double > & get_network_cost( void ) const {
-   return v_network_cost;
+   return( v_network_cost );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -290,17 +290,17 @@ class DCNetworkBlock : public NetworkBlock
   line_type get_lines_type( void ) const {
 
    if( get_number_lines() == 0 )
-    return kNone;
+    return( kNone );
 
    if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
-                    []( double s ) { return s == 0.0; } ) )
-    return kHVDC;
+                    []( double s ) { return( s == 0.0 ); } ) )
+    return( kHVDC );
 
    if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
-                    []( double s ) { return s != 0.0; } ) )
-    return kAC;
+                    []( double s ) { return( s != 0.0 ); } ) )
+    return( kAC );
 
-   return kAC_HVDC;
+   return( kAC_HVDC );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -608,8 +608,8 @@ class DCNetworkBlock : public NetworkBlock
 
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_nodes();
-  return 0;
+   return( f_NetworkData->get_number_nodes() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -621,8 +621,8 @@ class DCNetworkBlock : public NetworkBlock
 
  Index get_number_lines( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_lines();
-  return 0;
+   return( f_NetworkData->get_number_lines() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -634,8 +634,8 @@ class DCNetworkBlock : public NetworkBlock
 
  Index get_number_intervals( void ) const override {
   if( f_NetworkData )
-   return f_NetworkData->get_number_intervals();
-  return 0;
+   return( f_NetworkData->get_number_intervals() );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -644,7 +644,7 @@ class DCNetworkBlock : public NetworkBlock
  /** Return a pointer to the DCNetworkData. */
 
  NetworkData * get_NetworkData( void ) const override {
-  return f_NetworkData;
+  return( f_NetworkData );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -655,8 +655,8 @@ class DCNetworkBlock : public NetworkBlock
 
  const double * get_active_demand( Index i = 0 ) const override {
   if( v_active_demand.empty() )
-   return nullptr;
-  return &( v_active_demand.front() );
+   return( nullptr );
+  return( &( v_active_demand.front() ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -684,8 +684,8 @@ class DCNetworkBlock : public NetworkBlock
 
  ColVariable * get_node_injection( Index t = 0 ) override {
   if( v_node_injection.empty() )
-   return nullptr;
-  return &( v_node_injection.front() );
+   return( nullptr );
+  return( &( v_node_injection.front() ) );
  }
 
  /// returns the vector of power flow variables
@@ -699,7 +699,7 @@ class DCNetworkBlock : public NetworkBlock
   *   variable for line l. */
 
  const std::vector< ColVariable > & get_power_flow( void ) const {
-  return v_power_flow;
+  return( v_power_flow );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -715,7 +715,7 @@ class DCNetworkBlock : public NetworkBlock
   *   variable for line l. */
 
  const std::vector< ColVariable > & get_auxiliary_variable( void ) const {
-  return v_auxiliary_variable;
+  return( v_auxiliary_variable );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -733,14 +733,14 @@ class DCNetworkBlock : public NetworkBlock
  get_power_flow_limit_constraints( void ) const {
   if( ! f_NetworkData )
    throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
-                             " DCNetworkData has not been set." ) );
+                            " DCNetworkData has not been set." ) );
 
   switch( f_NetworkData->get_lines_type() ) {
-   case ( kAC ):
-    return v_AC_power_flow_limit_constraints;
-   case ( kAC_HVDC ):
+   case( kAC ):
+    return( v_AC_power_flow_limit_const );
+   case( kAC_HVDC ):
    default:
-    return v_AC_HVDC_power_flow_limit_constraints;
+    return( v_AC_HVDC_power_flow_limit_const );
   }
  }
 
@@ -748,8 +748,8 @@ class DCNetworkBlock : public NetworkBlock
  get_power_flow_limit_HVDC_bounds( void ) const {
   if( ! f_NetworkData )
    throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
-                             " DCNetworkData has not been set." ) );
-  return v_HVDC_power_flow_limit_constraints;
+                            " DCNetworkData has not been set." ) );
+  return( v_HVDC_power_flow_limit_const );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -921,25 +921,27 @@ class DCNetworkBlock : public NetworkBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// AC power flow limit constraints
- std::vector< FRowConstraint > v_AC_power_flow_limit_constraints;
-
- /// HVDC power flow limit constraints
- std::vector< BoxConstraint > v_HVDC_power_flow_limit_constraints;
+ std::vector< FRowConstraint > v_AC_power_flow_limit_const;
 
  /// AC_HVDC power flow limit constraints
- std::vector< FRowConstraint > v_AC_HVDC_power_flow_limit_constraints;
+ std::vector< FRowConstraint > v_AC_HVDC_power_flow_limit_const;
 
  /// HVDC power flow and node injection constraints
- std::vector< FRowConstraint > v_power_flow_injection_constraints;
+ std::vector< FRowConstraint > v_power_flow_injection_const;
 
  /// HVDC power flow auxiliary variable 1 constraints
- std::vector< FRowConstraint > v_power_flow_aux_var_one_constraints;
+ std::vector< FRowConstraint > v_power_flow_aux_var_one_const;
 
  /// HVDC power flow auxiliary variable 2 constraints
- std::vector< FRowConstraint > v_power_flow_aux_var_two_constraints;
+ std::vector< FRowConstraint > v_power_flow_aux_var_two_const;
 
  /// AC_HVDC power flow constraints
- std::vector< FRowConstraint > v_AC_HVDC_power_flow_constraints;
+ std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
+
+
+ /// HVDC power flow limit constraints
+ std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
+
 
  /// the objective function
  FRealObjective objective;

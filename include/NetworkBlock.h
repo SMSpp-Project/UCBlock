@@ -269,7 +269,7 @@ class NetworkBlock : public Block
   */
 
   const std::vector< Index > & get_start_line( void ) const {
-   return v_start_line;
+   return( v_start_line );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -288,7 +288,7 @@ class NetworkBlock : public Block
    */
 
   const std::vector< Index > & get_end_line( void ) const {
-   return ( v_end_line );
+   return( v_end_line );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -630,7 +630,7 @@ class NetworkBlock : public Block
   * classes that only handle the "bus" case. */
 
  virtual NetworkData * get_NetworkData( void ) const {
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -653,7 +653,7 @@ class NetworkBlock : public Block
   *          returned. */
 
  virtual const double * get_active_demand( Index i = 0 ) const {
-  return nullptr;
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -661,7 +661,7 @@ class NetworkBlock : public Block
  /// returns the constant term
 
  const double & get_const_term( void ) const {
-  return f_const_term;
+  return( f_const_term );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -688,7 +688,7 @@ class NetworkBlock : public Block
   *          returned. */
 
  virtual ColVariable * get_node_injection( Index i = 0 ) {
-  return nullptr;
+  return( nullptr );
  }
 
 /**@} ----------------------------------------------------------------------*/

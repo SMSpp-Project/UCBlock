@@ -53,9 +53,10 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 IntermittentUnitBlock::~IntermittentUnitBlock() {
- clear_constraints( MinPower_Constraints );
- clear_constraints( MaxPower_Constraints );
- clear_constraints( active_power_bounds_Constraints );
+ Constraint::clear( MinPower_Const );
+ Constraint::clear( MaxPower_Const );
+
+ Constraint::clear( active_power_bounds_Const );
 
  objective.clear();
 }
@@ -248,80 +249,85 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  if( f_gamma != 0 ) { // if unit produces any reserve
 
-  if( MaxPower_Constraints.size() != f_time_horizon ) {
+  if( MaxPower_Const.size() != f_time_horizon ) {
    // this should only happen once
-   assert( MaxPower_Constraints.empty() );
+   assert( MaxPower_Const.empty() );
 
-   MaxPower_Constraints.resize( f_time_horizon );
+   MaxPower_Const.resize( f_time_horizon );
   }
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_active_power[ t ] , f_gamma );
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
    if( reserve_vars & 1u ) {
-    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , 1.0 );
+    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , 1.0 ) );
    }
    if( reserve_vars & 2u ) {
-    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , 1.0 );
+    vars.push_back(
+     std::make_pair( &v_secondary_spinning_reserve[ t ] , 1.0 ) );
    }
-   MaxPower_Constraints[ t ].set_lhs( -Inf< double >() );
-   MaxPower_Constraints[ t ].set_rhs(
+   MaxPower_Const[ t ].set_lhs( -Inf< double >() );
+   MaxPower_Const[ t ].set_rhs(
     ( f_gamma * f_kappa * ( max_power[ t ] ) ) );
-   MaxPower_Constraints[ t ].set_function( linear_function );
+   MaxPower_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
   }
 
-  add_static_constraint( MaxPower_Constraints , "MaxPower_Intermittent" );
+  add_static_constraint( MaxPower_Const , "MaxPower_Intermittent" );
 
  }
  // Initializing minimum power constraints
 
- if( MinPower_Constraints.size() != f_time_horizon ) {
+ if( MinPower_Const.size() != f_time_horizon ) {
   // this should only happen once
-  assert( MinPower_Constraints.empty() );
+  assert( MinPower_Const.empty() );
 
-  MinPower_Constraints.resize( f_time_horizon );
+  MinPower_Const.resize( f_time_horizon );
  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  auto linear_function = new LinearFunction();
+  LinearFunction::v_coeff_pair vars;
 
-  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
+  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
   if( reserve_vars & 1u ) {
    if( f_gamma != 0 ) { // if unit produces any reserve
-    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , -1.0 );
+    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , -1.0 ) );
    }
   }
   if( reserve_vars & 2u ) {
    if( f_gamma != 0 ) { // if unit produces any reserve
-    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , -1.0 );
+    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
    }
   }
 
-  MinPower_Constraints[ t ].set_lhs( f_kappa * min_power[ t ] );
-  MinPower_Constraints[ t ].set_rhs( Inf< double >() );
-  MinPower_Constraints[ t ].set_function( linear_function );
+  MinPower_Const[ t ].set_lhs( f_kappa * min_power[ t ] );
+  MinPower_Const[ t ].set_rhs( Inf< double >() );
+  MinPower_Const[ t ].set_function(
+   new LinearFunction( std::move( vars ) ) );
  }
 
- add_static_constraint( MinPower_Constraints , "MinPower_Intermittent" );
+ add_static_constraint( MinPower_Const , "MinPower_Intermittent" );
 
  // Initializing active power bounds constraints
- if( active_power_bounds_Constraints.size() != f_time_horizon ) {
+ if( active_power_bounds_Const.size() != f_time_horizon ) {
   // this should only happen once
-  assert( active_power_bounds_Constraints.empty() );
+  assert( active_power_bounds_Const.empty() );
 
-  active_power_bounds_Constraints.resize( f_time_horizon );
+  active_power_bounds_Const.resize( f_time_horizon );
  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  active_power_bounds_Constraints[ t ].set_lhs( f_kappa * min_power[ t ] );
-  active_power_bounds_Constraints[ t ].set_rhs( f_kappa * max_power[ t ] );
-  active_power_bounds_Constraints[ t ].set_variable( &v_active_power[ t ] );
+  active_power_bounds_Const[ t ].set_lhs( f_kappa * min_power[ t ] );
+  active_power_bounds_Const[ t ].set_rhs( f_kappa * max_power[ t ] );
+  active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
  }
 
- add_static_constraint( active_power_bounds_Constraints ,
+ add_static_constraint( active_power_bounds_Const ,
                         "ActivePowerBound_Intermittent" );
 
  set_constraints_generated();
@@ -341,32 +347,51 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   ( f_BlockConfig->f_is_feasible_Configuration );
 
  // If a tolerance has not been provided, use the default tolerance.
- const auto tolerance = config ? config->f_value : 1.0e-8;
+ const auto tol = config ? config->f_value : 1.0e-8;
 
- return
+ return(
   UnitBlock::is_feasible( useabstract )
   // Constraints
-  && ::is_feasible( MinPower_Constraints , tolerance )
-  && ::is_feasible( MaxPower_Constraints , tolerance )
-  && ::is_feasible( active_power_bounds_Constraints , tolerance )
+  && Constraint::is_feasible( MinPower_Const , tol )
+  && Constraint::is_feasible( MaxPower_Const , tol )
+  && Constraint::is_feasible( active_power_bounds_Const , tol )
   // Variables
-  && ::is_feasible( v_active_power , tolerance )
-  && ::is_feasible( v_primary_spinning_reserve , tolerance )
-  && ::is_feasible( v_secondary_spinning_reserve , tolerance );
+  && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
 
 }  // end( IntermittentUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
+
  if( objective_generated() )
   return; // Objective has already been generated
 
  if( get_objective() != nullptr )  // an objective is there already
   return;                          // cowardly (and silently) return
 
- auto linear_function = new LinearFunction();
- objective.set_function( linear_function );
+ LinearFunction::v_coeff_pair vars;
+
+// // TODO from here we need to M A X I M I Z E (how? change all the sign?)
+// // the investment costs occurring only at the initial year
+// vars.push_back( std::make_pair( &v_active_power[ 0 ] ,
+//                                -f_capex_cost ) );
+// for( Index y = 1 ; y < f_project_lifetime - 1 ; ++y ) {
+//
+//  // the maintenance costs are proportional to the installed capacity
+//  vars.push_back( std::make_pair( &v_active_power[ y ] , -f_oem_cost ) );
+//  // the replacement costs occurring only when a component reaches its end of
+//  // life, but they are spread over all the life of the component
+//
+// }
+// // at the end of the project evaluate the residual value of the component
+
+
+ objective.set_function( new LinearFunction( std::move( vars ) ) );
+ objective.set_sense( Objective::eMin );
+
  // Set Block objective
  this->set_objective( &objective );
 
@@ -429,17 +454,17 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 void IntermittentUnitBlock::update_max_power_in_constraints(
  const Subset & time ,
  ModParam issueAMod ) {
- if( ! MaxPower_Constraints.empty() ) {
+ if( ! MaxPower_Const.empty() ) {
   for( auto t : time ) {
-   MaxPower_Constraints[ t ].set_rhs
+   MaxPower_Const[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
   }
  }
 
- if( ! active_power_bounds_Constraints.empty() ) {
+ if( ! active_power_bounds_Const.empty() ) {
   for( auto t : time ) {
-   active_power_bounds_Constraints[ t ].set_rhs
+   active_power_bounds_Const[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
   }
@@ -450,17 +475,17 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
  const Range & time , ModParam issueAMod ) {
- if( ! MaxPower_Constraints.empty() ) {
+ if( ! MaxPower_Const.empty() ) {
   for( auto t = time.first ; t < time.second ; ++t ) {
-   MaxPower_Constraints[ t ].set_rhs
+   MaxPower_Const[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
   }
  }
 
- if( ! active_power_bounds_Constraints.empty() ) {
+ if( ! active_power_bounds_Const.empty() ) {
   for( auto t = time.first ; t < time.second ; ++t ) {
-   active_power_bounds_Constraints[ t ].set_rhs
+   active_power_bounds_Const[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
   }
