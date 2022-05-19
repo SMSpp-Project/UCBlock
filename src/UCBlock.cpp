@@ -61,7 +61,10 @@ UCBlock::~UCBlock() {
  /*!! commented away until HeatBlock are properly managed
    Constraint::clear( v_power_Heat_Rho_Const );
  */
- Constraint::clear( v_PollutantBudget_Const );
+
+ for( auto & v_constraints : v_PollutantBudget_Const )
+  Constraint::clear( v_constraints );
+ v_PollutantBudget_Const.clear();
 
  for( auto & block : v_Block )
   delete block;
@@ -518,8 +521,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
   f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
 
  v_node_injection_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
-  [ number_nodes ] );
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ number_nodes ] );
 
  if( number_nodes > 0 ) {  // well, that'd be curios, but ...
   if( number_nodes == 1 ) {
