@@ -25,6 +25,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "DQuadFunction.h"
 #include "LinearFunction.h"
 #include "ThermalUnitBlock.h"
 

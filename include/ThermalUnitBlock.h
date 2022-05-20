@@ -37,7 +37,6 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
-#include "DQuadFunction.h"
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
