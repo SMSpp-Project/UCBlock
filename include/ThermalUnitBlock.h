@@ -1971,11 +1971,6 @@ class ThermalUnitBlockMod : public UnitBlockMod {
    default:;
   }
  }
-
- ThermalUnitBlock * f_Block{};
- ///< pointer to the Block to which the Modification refers
-
- int f_type; ///< type of modification
 }; // end( class( ThermalUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
