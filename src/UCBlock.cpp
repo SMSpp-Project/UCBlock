@@ -1221,7 +1221,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
 
  std::vector< Index > modified_units;
- modified_units.reserve( f_number_units );
+
+ // TODO Handle GroupModification in order to deal with multiple UnitBlockMod
+ // at the same time.
 
  if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
   if( tmod->type() == UnitBlockMod::eScale ) {
@@ -1242,9 +1244,9 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
   // TODO Implement the following methods when their constraints have been
   // properly implemented.
 
-  // update_pollutant_budget_constraints();
-  // update_heat_constraints();
-}
+  // update_pollutant_budget_constraints( modified_units );
+  // update_heat_constraints( modified_units );
+ }
 
  Block::add_Modification( mod , chnl );
 }

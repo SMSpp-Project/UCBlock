@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- UnitBlock can be scaled.
+- UnitBlock can be scaled (replicated).
+- BatteryUnitBlock, IntermittentUnitBlock, and ThermalUnitBlock implement scale().
+- BatteryUnitBlock and IntermittentUnitBlock can have their minimum and
+  maximum power and storage levels scaled.
 
 ### Changed
 
