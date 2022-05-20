@@ -318,7 +318,7 @@ class UnitBlock : public Block
   *        desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
-  return ( nullptr);
+  return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -375,6 +375,20 @@ class UnitBlock : public Block
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the scale factor of this UnitBlock
+ /** This method returns the scale factor of this UnitBlock. Since not every
+  * UnitBlock may support the notion of scaling, this method has a default
+  * implementation that returns 1. Derived classes that support scaling must
+  * override this method. See UnitBlock::scale() for more details about the
+  * scaling of a UnitBlock.
+  *
+  * @return The sacaling factor number of this UnitBlock. */
+
+ virtual double get_scale() const { return 1; }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -418,7 +432,7 @@ class UnitBlock : public Block
 
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
-  *  UnitBlock. See UnitBlock::deserialize( netCDF::NcGroup ) for
+  *  UnitBlock. See deserialize( const netCDF::NcGroup & ) for
   *  details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
@@ -486,6 +500,117 @@ class UnitBlock : public Block
   reserve_vars = what;
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this UnitBlock
+ /** Some situations may require the presence of multiple identical units. By
+  * identical units we mean units that represent the exactly same mathematical
+  * model: they have the same type, data, variables, constraints, etc. In
+  * short, these are units that are equivalent in every aspect. An immediate
+  * way of considering multiple identical units could be simply to have
+  * multiple instances of the same unit. In particular cases, however, it may
+  * be possible to have a compact and computational efficient representation
+  * of this set of identical units. One of these cases occurs when all units
+  * behave exactly as each other, as if they were synchronized and performing
+  * the same tasks simultaneously. This case is implemented by stating that a
+  * UnitBlock can be scaled.
+  *
+  * A scaled UnitBlock must be interpreted as follows. The four sets of
+  * Variable considered by the UnitBlock (namely, active power, commitment,
+  * and primary and secondary spinning reserves) represent what happens to the
+  * UnitBlock independently of the scale factor. For instance, consider the
+  * active power variables. These variables represent the active power
+  * produced by the generators of the UnitBlock. If we denote by \f$ P(g,t)
+  * \f$ the value of the Variable representing the active power produced by
+  * generator g at time t (see get_active_power()) and by \f$ S \f$ the scale
+  * factor of this UnitBlock, then the g-th generator of this UnitBlock
+  * <b>must be interpreted</b> as if it would produce \f$ S P(g,t) \f$ at time
+  * t. That is, the scale factor does not affect the values of the Variable of
+  * the UnitBlock. Any other object that uses the values of these active power
+  * variables must explicitly multiply them by the scale factor in order to
+  * obtain the actual amount of active power produced by the unit. The
+  * treatment of the primary and secondary spinning reserves variables is
+  * similar. Notice, however, that the values of the commitment variables
+  * should not be multiplied by the scale factor, as they simply indicate
+  * whether each generator of the unit is committed or not.
+  *
+  * The Objective of the UnitBlock, on the other hand, has a different
+  * relation with the scale factor than that of Variable. If the UnitBlock has
+  * an Objective, then this Objective must take into account the scale factor.
+  * That is, differently from what happens to the Variable of the UnitBlock,
+  * no action is required on the part of an object that uses the Objective of
+  * this UnitBlock: the value of the Objective already considers the scale
+  * factor. For instance, suppose that the Objective of a UnitBlock represents
+  * the cost of that unit, say, \f$ \sum_{g,t} C(g,t) P(g,t) \f$, where \f$
+  * C(g,t) \f$ is the cost of generating one unit of power by the g-th
+  * generator at time t. Then, being \f$ S \f$ the scale factor of the
+  * UnitBlock, its Objective must actually be \f$ S \sum_{g,t} C(g,t) P(g,t)
+  * \f$.
+  *
+  * Since not every UnitBlock may support the notion of scaling, this method
+  * has a default empty implementation. Derived classes that support scaling
+  * must override this method.
+  *
+  * If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor must be set to the value
+  *        pointed by \p values. If empty, no operation must be performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ virtual void scale( std::vector< double >::const_iterator values ,
+                     Subset && subset , const bool ordered = false ,
+                     c_ModParam issuePMod = eNoBlck ,
+                     c_ModParam issueAMod = eNoBlck ) { }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this UnitBlock
+ /** This method sets the scale factor of this UnitBlock. A default
+  * implementation is provided which simply call the Subset version of this
+  * method. See UnitBlock::scale() for the semantics of scaling a
+  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param rng If non-empty, the scale factor is set to the value pointed by
+  *        \p values. If empty, no operation is performed.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ virtual void scale( std::vector< double >::const_iterator values ,
+                     Range rng = Range( 0, Inf< Index >() ) ,
+                     c_ModParam issuePMod = eNoBlck ,
+                     c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this UnitBlock
+ /** This method sets the scale factor of this UnitBlock. A default
+  * implementation is provided which simply call the Subset version of this
+  * method. See UnitBlock::scale() for the semantics of scaling a
+  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
+  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
+  *
+  * @param scale_factor The factor by which this UnitBlock should be scaled.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ virtual void scale( double scale_factor , c_ModParam issuePMod = eNoBlck ,
+                     c_ModParam issueAMod = eNoBlck );
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -543,8 +668,8 @@ class UnitBlock : public Block
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
 
+ /// bit-wise coded: which reserve variables generate
  unsigned char reserve_vars{};
- ///< bit-wise coded: which reserve variables generate
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -572,6 +697,60 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( UnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS UnitBlockMod ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from Modification for modifications to a UnitBlock
+class UnitBlockMod : public Modification {
+
+public:
+
+ /// Public enum for the types of UnitBlockMod
+ enum UB_mod_type {
+  eScale = 0 ,    ///< Set the scale factor
+                  /**< This indicates that the scale factor of the UnitBlock
+                   * has been modified. See UnitBlock::scale(). */
+  eUBModLastParam ///< first allowed parameter value for derived classes
+                  /**< Convenience value to easily allow derived classes to
+                   * extend the set of types of UnitBlockMod. */
+ };
+
+ /// Constructor, takes the UnitBlock and the type
+ UnitBlockMod( UnitBlock * const fblock, const int type )
+  : f_Block( fblock ), f_type( type ) {}
+
+ /// Destructor, default version
+ virtual ~UnitBlockMod() override = default;
+
+ /// Returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+protected:
+
+ /// prints the UnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "UnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case eScale:
+    output << "Set the scale factor";
+    break;
+   default:;
+  }
+ }
+
+ /// pointer to the Block to which the Modification refers
+ UnitBlock * f_Block{};
+
+ int f_type; ///< type of modification
+}; // end( class( UnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

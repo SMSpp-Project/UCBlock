@@ -1261,6 +1261,11 @@ class ThermalUnitBlock : public UnitBlock {
   return( &( v_shut_down[ t - init_t ] ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the scale factor of this ThermalUnitBlock
+ double get_scale() const override { return f_scale; }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -1303,7 +1308,7 @@ class ThermalUnitBlock : public UnitBlock {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
- // update the availability of the unit
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
@@ -1327,7 +1332,8 @@ class ThermalUnitBlock : public UnitBlock {
 			ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- // update the availability of the unit
+
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
@@ -1485,6 +1491,32 @@ class ThermalUnitBlock : public UnitBlock {
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this ThermalUnitBlock
+ /** This method sets the scale factor of this ThermalUnitBlock.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor is set to the value
+  *        pointed by \p values. If empty, no operation is performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ void scale( std::vector< double >::const_iterator values ,
+             Subset && subset , const bool ordered = false ,
+             c_ModParam issuePMod = eNoBlck ,
+             c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ // For the Range version, use the default implementation defined in UnitBlock
+ using UnitBlock::scale;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1556,6 +1588,9 @@ class ThermalUnitBlock : public UnitBlock {
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
+ /// the scale factor of this ThermalUnitBlock
+ double f_scale = 1;
+
 /*-----------------------------variables------------------------------------*/
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
@@ -1626,42 +1661,17 @@ class ThermalUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-  //                                      &ThermalUnitBlock::set_availability,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-  //                                      &ThermalUnitBlock::set_availability,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-  //                                      &ThermalUnitBlock::set_maximum_power,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-  //                                      &ThermalUnitBlock::set_maximum_power,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-  //                                      &ThermalUnitBlock::set_initial_power,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-  //                                      &ThermalUnitBlock::set_initial_power,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-  //                                      &ThermalUnitBlock::set_init_updown_time,
-  //                                      MS_int_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-  //                                      &ThermalUnitBlock::set_init_updown_time,
-  //                                      MS_int_rngd::args() );
+
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+   *                                      &ThermalUnitBlock::set_availability,
+   *                                      MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::set_availability" ,
    &ThermalUnitBlock::set_availability );
@@ -1693,6 +1703,12 @@ class ThermalUnitBlock : public UnitBlock {
   register_method< ThermalUnitBlock , MF_int_it , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1790,6 +1806,66 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// updates the terms of the Objective associated with the start up cost
+ /** This method updates the terms of the Objective that are associated with
+  * the start up cost.
+  *
+  * @param subset A set of time instants at which the start up costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_start_up( const Subset & subset , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the active power cost
+ /** This method updates the terms of the Objective that are associated with
+  * the active power cost.
+  *
+  * @param subset A set of time instants at which the active power costs must
+  *        be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_active_power( const Subset & subset ,
+                                     c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the fixed cost
+ /** This method updates the terms of the Objective that are associated with
+  * the fixed cost.
+  *
+  * @param subset A set of time instants at which the fixed costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_commitment( const Subset & subset ,
+                                   c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( const Subset & subset ,c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( Range rng , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
  /// verify whether the data in this ThermalUnitBlock is consistent
  /** This function checks whether the data in this ThermalUnitBlock is
   * consistent. The data is consistent if all of the following conditions are
@@ -1823,13 +1899,13 @@ private:
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a ThermalUnitBlock
-class ThermalUnitBlockMod : public Modification {
+class ThermalUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type {
-  eSetMaxP = 0      , ///< Set max power values
+  eSetMaxP = eUBModLastParam , ///< Set max power values
   eSetInitP         , ///< Set initial power values
   eSetInitUD        , ///< Set initial up/down times
   eSetAv            , ///< Set availability
@@ -1845,8 +1921,8 @@ class ThermalUnitBlockMod : public Modification {
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
+  : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;
@@ -1890,11 +1966,6 @@ class ThermalUnitBlockMod : public Modification {
    default:;
   }
  }
-
- ThermalUnitBlock * f_Block{};
- ///< pointer to the Block to which the Modification refers
-
- int f_type; ///< type of modification
 }; // end( class( ThermalUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
