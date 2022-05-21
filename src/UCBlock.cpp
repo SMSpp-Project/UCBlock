@@ -609,13 +609,19 @@ void UCBlock::generate_primary_demand_constraints() {
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
+
+        // Since all time steps have the same structure, this must be the
+        // first time step.
+        assert( t == 0 );
+
         const auto num_active_var = linear_function->get_num_active_var();
         primary_var_index[ unit_id ][ zone_id ].first = num_active_var;
         primary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
 
-       // Increment the upper bound of the range.
-       ++primary_var_index[ unit_id ][ zone_id ].second;
+       if( t == 0 )
+        // Increment the upper bound of the range.
+        ++primary_var_index[ unit_id ][ zone_id ].second;
 
        // Now we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = & primary_s_r[ t ];
@@ -691,14 +697,20 @@ void UCBlock::generate_secondary_demand_constraints() {
         // This is the first Variable of this unit to be added to the
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
-        // before this Variable is added).
+        // before this Variable is added)
+
+        // Since all time steps have the same structure, this must be the
+        // first time step.
+        assert( t == 0 );
+
         const auto num_active_var = linear_function->get_num_active_var();
         secondary_var_index[ unit_id ][ zone_id ].first = num_active_var;
         secondary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
 
-       // Increment the upper bound of the range.
-       ++secondary_var_index[ unit_id ][ zone_id ].second;
+       if( t == 0 )
+        // Increment the upper bound of the range.
+        ++secondary_var_index[ unit_id ][ zone_id ].second;
 
        // Now we add the secondary reserve variable to the LinearFunction.
        auto secondary_spinning_reserve = & secondary_s_r[ t ];
@@ -779,6 +791,11 @@ void UCBlock::generate_inertia_demand_constraints() {
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
+
+        // Since all time steps have the same structure, this must be the
+        // first time step.
+        assert( t == 0 );
+
         const auto num_active_var = linear_function->get_num_active_var();
         inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
@@ -799,6 +816,11 @@ void UCBlock::generate_inertia_demand_constraints() {
         // LinearFunction, so we store its index, which is given by the
         // current number of active Variables of the LinearFunction (right
         // before this Variable is added).
+
+        // Since all time steps have the same structure, this must be the
+        // first time step.
+        assert( t == 0 );
+
         const auto num_active_var = linear_function->get_num_active_var();
         inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
@@ -1257,8 +1279,7 @@ void UCBlock::update_node_injection_constraints
 ( const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) ||
-     ( v_node_injection_constraints.size() == 0 ) ||
-     modified_units.empty() )
+     ( v_node_injection_constraints.empty() ) || modified_units.empty() )
   return;
 
  // Lambda for determining if some unit has been modified
@@ -1466,7 +1487,7 @@ void UCBlock::update_node_injection_constraints
 void UCBlock::update_primary_demand_constraints
 ( const std::vector< Index > & modified_units ) {
 
- if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.size() == 0 ) ||
+ if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
 
@@ -1564,7 +1585,7 @@ void UCBlock::update_primary_demand_constraints
 void UCBlock::update_secondary_demand_constraints
 ( const std::vector< Index > & modified_units ) {
 
- if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.size() == 0 ) ||
+ if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
 
@@ -1662,7 +1683,7 @@ void UCBlock::update_secondary_demand_constraints
 void UCBlock::update_inertia_demand_constraints
 ( const std::vector< Index > & modified_units ) {
 
- if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.size() == 0 ) ||
+ if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
 
