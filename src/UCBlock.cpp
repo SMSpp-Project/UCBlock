@@ -36,6 +36,7 @@
 #include "BusNetworkBlock.h"
 #include "DCNetworkBlock.h"
 #include "LinearFunction.h"
+#include "Objective.h"
 #include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -1235,6 +1236,12 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  */
 
  }  // end( UCBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
+/*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
+/*--------------------------------------------------------------------------*/
+
+int UCBlock::get_objective_sense() const { return Objective::eMin; }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
