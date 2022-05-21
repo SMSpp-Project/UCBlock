@@ -983,7 +983,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     if( !v_PrimaryRho.empty())
      linear_function->add_variable( &v_active_power[t], v_PrimaryRho[t] );
-    else 
+    else
      linear_function->add_variable( &v_active_power[t], 0.0 );
 
     linear_function->add_variable( &v_primary_spinning_reserve[t], -1.0 );
@@ -1207,15 +1207,16 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
 
  for( Index t = init_t ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_start_up[ t - init_t ] ,
-                                get_start_up_cost( t ) , 0.0 );
+                                f_scale * get_start_up_cost( t ) , 0.0 );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_active_power[ t ] ,
-                                get_linear_term( t ) , get_quad_term( t ) );
+                                f_scale * get_linear_term( t ) ,
+                                f_scale * get_quad_term( t ) );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( & v_commitment[ t ] ,
-                                get_const_term( t ) , 0.0 );
+                                f_scale * get_const_term( t ) , 0.0 );
 
  // possibly add the primary and secondary spinning reserve variables - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1232,8 +1233,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
     dquad_function->add_variable( & v_primary_spinning_reserve[ t ] , 0 , 0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable( & v_primary_spinning_reserve[ t ] ,
-                                  v_primary_spinning_reserve_cost[ t ] , 0 );
+    dquad_function->add_variable
+     ( & v_primary_spinning_reserve[ t ] ,
+       f_scale * v_primary_spinning_reserve_cost[ t ] , 0 );
   }
 
  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
@@ -1248,13 +1250,10 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
     dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] , 0 , 0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable( & v_secondary_spinning_reserve[ t ] ,
-                                  v_secondary_spinning_reserve_cost[ t ] , 0 );
+    dquad_function->add_variable
+     ( & v_secondary_spinning_reserve[ t ] ,
+       f_scale * v_secondary_spinning_reserve_cost[ t ] , 0 );
   }
-
- if( f_scale != 1.0 )
-  // Update the Objective to take into account the scale factor
-  update_objective( Range( 0 , Inf<Index>() ) , eNoMod );
 
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
@@ -1552,7 +1551,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) )  // Change the physical representation
   assign( v_MaxPower , subset , values );
- 
+
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( auto t : subset )
@@ -1736,7 +1735,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) )  // Change the physical representation
   assign( v_StartUpCost , subset , values );
- 
+
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
@@ -2095,7 +2094,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
    for( auto t : subset )
     *(tmplvit++) = v_LinearTerm[ t ];
    }
-  
+
   QF( objective.get_function()
       )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
 		       un_ModBlock( issueAMod ) );
