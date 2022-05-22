@@ -88,8 +88,8 @@ void ECNetworkBlock::ECNetworkData::deserialize(
 
  ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
  if( f_number_nodes == 1 )
-  throw ( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
-                                 "a community network with just one user" ) );
+  throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
+                                "a community network with just one user" ) );
 
  ::deserialize( group , "BuyPrice" , f_number_intervals ,
                 v_buy_price , false , true );
@@ -216,6 +216,14 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
   return; // variables have already been generated
 
  auto number_nodes = get_number_nodes();
+ auto number_intervals = get_number_intervals();
+
+ // the node injection variables
+ v_node_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
+ for( Index t = 0 ; t < number_intervals ; ++t )
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+   v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
+ add_static_variable( v_node_injection , "S" );
 
  // the power injected variables
  v_micro_power_injection.resize( number_nodes );
@@ -468,7 +476,9 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
  auto lf = new LinearFunction( std::move( vars ) );
  lf->set_constant_term( f_const_term );
  objective.set_function( lf );
- objective.set_sense( Objective::eMax );
+
+ // TODO from here we need to M A X I M I Z E (how? change all signs?)
+ objective.set_sense( Objective::eMin );
 
  // set block objective
  this->set_objective( &objective );

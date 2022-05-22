@@ -138,6 +138,42 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::scale( std::vector< double >::const_iterator values ,
+                       Range rng , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset;
+
+ if( rng.second == Inf< Index >() ) {
+  // If we decide to scale the generators individually rather than the whole
+  // unit, then, when rng.second is Inf<Index>(), we could interpret it as
+  // changing the scale factor of all generators and the vector containing the
+  // scale factor would be expected to have size at least equal to the number
+  // of generators. In this case, the subset would have size equal to the
+  // number of generators. Alternatively, we could have scale_generators() and
+  // leave scale() for scaling the whole unit.
+  subset.resize( 1 , 0 );
+ }
+ else {
+  subset.resize( rng.second - rng.first );
+  std::iota( subset.begin() , subset.end() , rng.first );
+ }
+
+ scale( values , std::move( subset ) , true , issuePMod , issueAMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::scale( double scale_factor , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+ Subset subset = { 0 };
+ std::vector< double > values = { scale_factor };
+ scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
+}
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -152,10 +188,10 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
 
  Solution * sol;
  switch( solution_type ) {
-  case 1:
+  case( 1 ):
    sol = new RowConstraintSolution;
    break;
-  case 2:
+  case( 2 ):
    sol = new ColRowSolution;
    break;
   default:

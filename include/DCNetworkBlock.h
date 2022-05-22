@@ -221,7 +221,7 @@ class DCNetworkBlock : public NetworkBlock
    *    no line at network (bus network).
    *
    *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives minimum power flow of each line in the
+   *    element of the vector gives minimum power flow of each line in the
    *    network. */
 
   const std::vector< double > & get_min_power_flow( void ) const {
@@ -229,7 +229,19 @@ class DCNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
+  /// returns minimum power flow of the given \p line
+  /** This method returns the minimum power flow of the given \p line.
+   *
+   * @return the minimum power flow of the given \p line. */
 
+  double get_min_power_flow( Index line ) const {
+   assert( line < get_number_lines() );
+   if( v_min_power_flow.empty() )
+    return( 0 );
+   return( v_min_power_flow[ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
   /// returns vector of the maximum power flow
   /** Method for returning the vector of maximum power flow of each line. This
    *  vector may have empty size (bus network) or the size of number of nodes,
@@ -239,7 +251,7 @@ class DCNetworkBlock : public NetworkBlock
    *    no line at network (bus network).
    *
    *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-   *   element of the vectors gives maximum power flow of each line in the
+   *   element of the vector gives maximum power flow of each line in the
    *   network. */
 
   const std::vector< double > & get_max_power_flow( void ) const {
@@ -247,7 +259,19 @@ class DCNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
+  /// returns maximum power flow of the given \p line
+  /** This method returns the maximum power flow of the given \p line.
+   *
+   * @return the maximum power flow of the given \p line. */
 
+  double get_max_power_flow( Index line ) const {
+   assert( line < get_number_lines() );
+   if( v_max_power_flow.empty() )
+    return( 0 );
+   return( v_max_power_flow[ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
   /// returns vector of the susceptances
   /** Method for returning the vector of susceptances for each line. This vector
    * may have empty size (bus network) or the size of number of nodes, then
@@ -265,7 +289,6 @@ class DCNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns vector of the network cost
   /** Method for returning the vector of network cost for each line. This vector
    * may have empty size (bus network) or the size of number of lines, then
@@ -283,7 +306,6 @@ class DCNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the types of lines in the network
   /** This method returns the types of lines present in the network. */
 
@@ -381,13 +403,11 @@ class DCNetworkBlock : public NetworkBlock
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// destructor of DCNetworkBlock
 
  virtual ~DCNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
-
  /// generate the abstract variables of the DCNetworkBlock
  /** Depending on the susceptance for each line of the network, the
   * DCNetworkBlock class may have a power flow variable or not. In other word,
@@ -410,6 +430,125 @@ class DCNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+///generate abstract constraints of DCNetworkBlock
+/** Three different kinds of DCNetworkBlock constraints are defined as below:
+ * The topology of the transmission network is defined by a set of nodes
+ * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
+ * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
+ * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
+ * at node \f$ n \in N \f$ in the network respectively. The node injection
+ * variable of each node \f$ n \in N \f$ and the power flows variable and an
+ * auxiliary variable(which is not be defined if there is no network cost), of
+ * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
+ * \f$ V_l \f$ respectively.
+ *
+ *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
+ *    model:
+ *    In this special case the susceptance value for each line is equal to
+ *    zero. In fact, this corresponds to a model with a single connected grid
+ *    composed of HVDC lines only. In this case, the flow limit equations
+ *    define as:
+ *
+ *    \f[
+ *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
+ *                                                     \quad l \in L \quad (1)
+ *    \f]
+ *
+ *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
+ *   be the start and the end point of that respectively. Besides, the
+ *   following link between power flows and injected power at each node of the
+ *   grid:
+ *
+ *    \f[
+ *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
+ *                                                   \quad n \in N   \quad (2)
+ *    \f]
+ *
+ *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
+ *    will have an objective function which is equal to multiplying
+ *    NetworkCost by the absolute value of the power flows variable. To relax
+ *    the absolute value, an auxiliary variable and constraints as below are
+ *    needed:
+ *
+ *    \f[
+ *    F_l \leq V_l                                     \quad l \in L \quad (3)
+ *    \f]
+ *
+ *    \f[
+ *    -V_l \leq F_l                                    \quad l \in L \quad (4)
+ *    \f]
+ *
+ *  - DCNetworkBlock with just AC lines model:
+ *    By considering a \f$ |L| \times |N| \f$ matrix
+ *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
+ *    Factor matrix (PTDF-matrix) which represents the linear relationship
+ *    between power injections at each node of the grid and active power flows
+ *    through the transmission lines.
+ *
+ *  The flow limit equations can be written as follow:
+ *
+ *  \f[
+ *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
+ *   (S_n - D^{ac}_n) \leq  P^{mx}_l
+ *                                                     \quad l \in L \quad (5)
+ *  \f]
+ *
+ *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
+ *    This is the case of an hybrid grid constituted of both AC and HVDC (High
+ *    Voltage Direct Current) lines. The DC lines are characterized by the
+ *    fact that the flow passing through those lines is fully controllable.
+ *    However, this flow still has an impact on the flows passing through
+ *    connected AC lines. To use the matrix formalism, we first introduce some
+ *    additional notations:
+ *
+ *    - Lines of the grid are indexed by \f$ l = 1,···|L^{ac}| \f$ for AC
+ *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
+ *      refer to DC lines.
+ *
+ *    - For any \f$ l \in \{1,···|L^{ac}| \}\f$ and
+ *      \f$ k \in \{1,···|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
+ *      nodes related by the AC line indexed by \f$ l \f$ and
+ *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
+ *      line indexed by \f$ k+|L^{dc}| \f$.
+ *
+ *    - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
+ *      matrix induced by DC lines of the grid and the
+ *      \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
+ *      concatenation of bloc matrices as follows:
+ *
+ *     \f[
+ *
+ *       A = \left[
+ *       \begin{array}{cc}
+ *       B & -B(A^{dc})^T \\
+ *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
+ *       \end{array}\right]                                          \quad (6)
+ *
+ *     \f]
+ *
+ *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
+ *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
+ *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
+ *      identity matrix. Therefor, the flow limit equations can be transformed
+ *      into:
+ *
+ *      \f[
+ *
+ *       P^{mn} \leq A \left[
+ *       \begin{array}{c}
+ *       a \\
+ *       b
+ *       \end{array}\right]
+ *       \leq  P^{mx}                                                \quad (7)
+ *
+ *      \f]
+ *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
+ *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
+ *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
+ *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
+ *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
+ *
+ * Note that since in this class the configuration is ignored.*/
 
  ///generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below:
@@ -534,7 +673,6 @@ class DCNetworkBlock : public NetworkBlock
  override;
 
 /*--------------------------------------------------------------------------*/
-
  /// generate the objective of the DCNetworkBlock
  /** Method that generates the objective of the DCNetworkBlock.
   *
@@ -604,7 +742,9 @@ class DCNetworkBlock : public NetworkBlock
  /// returns the number of nodes
  /** Returns the number of nodes in the transmission network. If
   * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
+  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero.
+  *
+  * @return the number of nodes in the network. */
 
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
@@ -613,11 +753,12 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of lines of the network
- /** Returns the number of lines in the transmission network. If
+ /** This function returns the number of lines in the transmission network. If
   * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
+  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
+  *
+  * @return the number of lines in the network. */
 
  Index get_number_lines( void ) const override {
   if( f_NetworkData )
@@ -626,28 +767,66 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the kappa constant associated with the given \p line
+ /** This function returns the kappa constant associated with the given \p
+  * line. This is the constant that multiplies the minimum and maximum flow in
+  * the flow limit constraint associated with the given \p line.
+  *
+  * @param line The index of a line (between 0 and get_number_lines() - 1).
+  *
+  * @return The kappa constant associated with the given \p line. */
 
- /// returns the number of intervals
- /** Returns the number of intervals spanned by this NetworkBlock. If
-  * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_intervals(). Otherwise, it returns zero. */
-
- Index get_number_intervals( void ) const override {
-  if( f_NetworkData )
-   return( f_NetworkData->get_number_intervals() );
-  return( 0 );
+ double get_kappa( Index line ) const {
+  if( v_kappa.empty() )
+   return( 1 );
+  assert( line < v_kappa.size() );
+  return( v_kappa[ line ] );
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the minimum power flow on the given \p line
+ /** This function returns the minimum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the minimum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The minimum power flow on the given \p line. */
 
- /// returns a pointer to the DCNetworkData
- /** Return a pointer to the DCNetworkData. */
-
- NetworkData * get_NetworkData( void ) const override {
-  return( f_NetworkData );
+ double get_min_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return( 0 );
+  return( f_NetworkData->get_min_power_flow( line ) );
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the maximum power flow on the given \p line
+ /** This function returns the maximum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the maximum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The maximum power flow on the given \p line. */
+
+ double get_max_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return( 0 );
+  return( f_NetworkData->get_max_power_flow( line ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power flow on the given \p line
+ /** This function returns the maximum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the maximum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The maximum power flow on the given \p line. */
 
  /// returns the vector of active demands
  /** Method for returning the active demand for the given interval, which is
@@ -688,6 +867,7 @@ class DCNetworkBlock : public NetworkBlock
   return( &( v_node_injection.front() ) );
  }
 
+/*--------------------------------------------------------------------------*/
  /// returns the vector of power flow variables
  /** The returned std::vector< ColVariable >, say F, contains the power flow
   * variables and is indexed over the dimension number of lines. There are two
@@ -703,7 +883,6 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of auxiliary variables
  /** The returned std::vector< ColVariable >, say V, contains the auxiliary
   * variables and is indexed over the dimension number of lines. There are two
@@ -769,7 +948,6 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// method to set the ActiveDemand
  /** This method can be called either before or after that deserialize() is
   * called to provide the NetworkBlock with the ActiveDemand data. This allows
@@ -799,8 +977,8 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// methods to set the number of intervals
+
  void set_number_intervals( const Index i ) const override {
   if( f_NetworkData )
    f_NetworkData->set_number_intervals( i );
@@ -815,12 +993,20 @@ class DCNetworkBlock : public NetworkBlock
  /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
  /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
   * contain all the data necessary to describe a NetworkBlock (see
-  * NetworkBlock::deserialize()). */
+  * NetworkBlock::deserialize()) and possibly the following variable:
+  *
+  * - The variable "Kappa", of type netCDF::NcDouble() and either being a
+  *   scalar or indexed over the number of lines. If this variable is a
+  *   scalar, let say k, then it is assumed that Kappa[ l ] = k for each line
+  *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,
+  *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
+  *   minimum and maximum flow in the flow limit constraints. This variable is
+  *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
+  *   each line l in {0, ..., get_number_lines() - 1}. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
@@ -846,39 +1032,96 @@ class DCNetworkBlock : public NetworkBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// set the kappa constants for the lines specified by \p subset
+ /** This function sets the kappa constant of each line in the given \p
+  * subset. The kappa constant of each line whose index is specified by the
+  * i-th element in \p subset is given by the i-th element of the vector
+  * pointed by \p values, i.e., it is given by the value pointed by (values +
+  * i). The parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param subset The indices of the lines whose kappa constants are being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Subset && subset , const bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the kappa constants for the lines specified by \p rng
+ /** This function sets the kappa constants for the lines in the given Range
+  * \p rng. For each i in the given Range (up to the number of lines minus 1),
+  * the kappa constant for line i is given by the element of the vector
+  * pointed by \p values whose index is (i - rng.first), i.e., it is given by
+  * the value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param rng A Range containing the indices of the lines whose kappa
+  *        constants are being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active demand at the nodes specified by \p subset
+ /** This function sets the active demand at each node in the given \p
+  * subset. The active demand at the node whose index is specified by the i-th
+  * element in \p subset is given by the i-th element of the vector pointed by
+  * \p values, i.e., it is given by the value pointed by (values + i). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param subset The indices of the nodes at which the active demand is being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
  void set_active_demand( std::vector< double >::const_iterator values ,
-                         Subset && subset ,
-                         bool ordered = false ,
+                         Subset && subset , bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+ /// set the active demand at the nodes specified by \p rng
+ /** This function sets the active demand at each node in the given Range \p
+  * rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is given by the element of the vector pointed
+  * by \p values whose index is (i - rng.first), i.e., it is given by the
+  * value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param rng A Range containing the indices of the nodes at which the active
+  *        demand is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_active_demand( std::vector< double >::const_iterator values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
-
- static void static_initialization( void ) {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-  //                                    &DCNetworkBlock::set_active_demand,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-  //                                    &DCNetworkBlock::set_active_demand,
-  //                                    MS_dbl_rngd::args() );
-
-  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" ,
-   &DCNetworkBlock::set_active_demand );
-
-  register_method< DCNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" ,
-   &DCNetworkBlock::set_active_demand );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -890,7 +1133,26 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
 
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   *                                    &DCNetworkBlock::set_active_demand,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::set_active_demand" ,
+   &DCNetworkBlock::set_active_demand );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::set_active_demand" ,
+   &DCNetworkBlock::set_active_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -906,6 +1168,9 @@ class DCNetworkBlock : public NetworkBlock
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;
+
+ /// the kappa constant for each line
+ std::vector< double > v_kappa;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -930,10 +1195,10 @@ class DCNetworkBlock : public NetworkBlock
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
  /// HVDC power flow auxiliary variable 1 constraints
- std::vector< FRowConstraint > v_power_flow_aux_var_one_const;
+ std::vector< FRowConstraint > v_power_flow_relax_abs_1;
 
  /// HVDC power flow auxiliary variable 2 constraints
- std::vector< FRowConstraint > v_power_flow_aux_var_two_const;
+ std::vector< FRowConstraint > v_power_flow_relax_abs_2;
 
  /// AC_HVDC power flow constraints
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
@@ -968,7 +1233,130 @@ class DCNetworkBlock : public NetworkBlock
 
 };  // end( class( DCNetworkBlock ) )
 
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS DCNetworkBlockMod -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from NetworkBlockMod for modifications to a DCNetworkBlock
+class DCNetworkBlockMod : public NetworkBlockMod
+{
+
+ public:
+
+ /// Public enum for the types of DCNetworkBlockMod
+ enum DCNetB_mod_type
+ {
+  eSetKappa = eNetBModLastParam ,  ///< Set the kappa constants
+  eDCNetBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of DCNetworkBlockMod. */
+
+ };
+
+ /// Constructor, takes the DCNetworkBlock and the type
+ DCNetworkBlockMod( DCNetworkBlock * const fblock , const int type )
+  : NetworkBlockMod( fblock , type ) {}
+
+ ///< Destructor, does nothing
+ virtual ~DCNetworkBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type( void ) { return( f_type ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockMod
+ void print( std::ostream & output ) const override {
+  output << "DCNetworkBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active demand values ";
+  }
+ }
+
+ DCNetworkBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+
+};  // end( class( DCNetworkBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS DCNetworkBlockRngdMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from DCNetworkBlockMod for "ranged" modifications
+class DCNetworkBlockRngdMod : public DCNetworkBlockMod
+{
+
+ public:
+
+ /// constructor: takes the DCNetworkBlock, the type, and the range
+ DCNetworkBlockRngdMod( DCNetworkBlock * const fblock , const int type ,
+                        Block::Range rng )
+  : DCNetworkBlockMod( fblock , type ) , f_rng( rng ) {}
+
+ /// destructor, does nothing
+ virtual ~DCNetworkBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng( void ) { return( f_rng ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockRngdMod
+ void print( std::ostream & output ) const override {
+  DCNetworkBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+
+};  // end( class( DCNetworkBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS DCNetworkBlockSbstMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from DCNetworkBlockMod for "subset" modifications
+class DCNetworkBlockSbstMod : public DCNetworkBlockMod
+{
+
+ public:
+
+ /// constructor: takes the DCNetworkBlock, the type, and the subset
+ DCNetworkBlockSbstMod( DCNetworkBlock * const fblock , const int type ,
+                        Block::Subset && nms )
+  : DCNetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ virtual ~DCNetworkBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms( void ) { return( f_nms ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockSbstMod
+ void print( std::ostream & output ) const override {
+  DCNetworkBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( DCNetworkBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 }  // end( namespace SMSpp_di_unipi_it )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 #endif /* DCNetworkBlock.h included */
 

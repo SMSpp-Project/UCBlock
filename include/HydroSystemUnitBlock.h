@@ -104,7 +104,6 @@ class HydroSystemUnitBlock : public UnitBlock
   UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// Destructor of HydroSystemUnitBlock
 
  virtual ~HydroSystemUnitBlock() override;
@@ -192,7 +191,6 @@ class HydroSystemUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// generate the objective of the HydroSystemUnitBlock
 /** Method that generates the objective of the HydroSystemUnitBlock.
  *
@@ -213,20 +211,19 @@ class HydroSystemUnitBlock : public UnitBlock
  Index get_number_hydro_units( void ) const { return( f_number_hydro_units ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the i-th HydroUnitBlock
+
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the PolyhedralFunctionBlock
+
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
   assert( ! v_Block.empty() );
   return( static_cast< PolyhedralFunctionBlock * >( v_Block.back() ) );
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of active power variables of each HydroUnitBlock
 
  ColVariable * get_active_power( Index generator ) override {
@@ -244,7 +241,6 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
@@ -262,7 +258,6 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary spinning reserve variables of each HydroUnitBlock
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
@@ -392,6 +387,8 @@ class HydroSystemUnitBlock : public UnitBlock
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -399,28 +396,27 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  /// Deserialize the sub-Blocks of HydroSystemUnitBlock
+
  void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
-
  /// Deserialize the sub-Blocks of HydroSystemUnitBlock that have the given
  /// prefix name
+
  void deserialize_sub_blocks( const netCDF::NcGroup & group ,
                               const std::string & sub_group_name_prefix ,
                               Index num_sub_blocks );
 
 /*--------------------------------------------------------------------------*/
-
  /// Deserialize the PolyhedralFunctionBlock
+
  void deserialize_polyhedral_function_block
   ( const netCDF::NcGroup & group , const std::string & sub_group_name );
 
 /*--------------------------------------------------------------------------*/
-
  /// Compute the total number of reservoirs
- Index get_total_number_reservoirs( void ) const;
 
-/*--------------------------------------------------------------------------*/
+ Index get_total_number_reservoirs( void ) const;
 
 };  // end( class( HydroSystemUnitBlock ) )
 

@@ -647,18 +647,18 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
    auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
    switch( tubm->type() ) {
-    case ThermalUnitBlockMod::eSetMaxP:
+    case( ThermalUnitBlockMod::eSetMaxP ):
      max_power = b->get_max_power();
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetInitP:
+    case( ThermalUnitBlockMod::eSetInitP ):
      initial_power = b->get_initial_power();
      stage = start;
      return( false );
 
-    case ThermalUnitBlockMod::eSetInitUD:
+    case( ThermalUnitBlockMod::eSetInitUD ):
      init_up_down_time = b->get_init_up_down_time();
      min_up_time = b->get_min_up_time();
      min_down_time = b->get_min_down_time();
@@ -675,28 +675,28 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      stage = start;
      return( false );
 
-    case ThermalUnitBlockMod::eSetAv:
+    case( ThermalUnitBlockMod::eSetAv ):
      return( true );  // TODO
 
-    case ThermalUnitBlockMod::eSetSUC:
+    case( ThermalUnitBlockMod::eSetSUC ):
      startup_costs = b->get_start_up_cost();
      if( stage > edps_OK )
       stage = edps_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetLinT:
+    case( ThermalUnitBlockMod::eSetLinT ):
      retrieve_term( linear_term, b->get_linear_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetQuadT:
+    case( ThermalUnitBlockMod::eSetQuadT ):
      retrieve_term( quad_term, b->get_quad_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetConstT:
+    case( ThermalUnitBlockMod::eSetConstT ):
      retrieve_term( const_term, b->get_const_term() );
      stage = start;
      return( false );
@@ -1051,8 +1051,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    ++coeffcnt;
 
    }  // end( while( CASE 3 ) )
-
-  // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
+   // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
 
   #if( COMPUTE_DUALS )
    v[ k ] = v_bar - 1;

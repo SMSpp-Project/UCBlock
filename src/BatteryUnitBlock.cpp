@@ -81,24 +81,16 @@ BatteryUnitBlock::~BatteryUnitBlock() {
 void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                              "NumberIntervals" };
- check_dimensions( group , expected_dims , std::cerr );
+ std::vector< std::string > expected_dims =
+  { "TimeHorizon" , "NumberIntervals" };
+ check_dimensions( group, expected_dims, std::cerr );
 
- std::vector< std::string > expected_vars = { "MinStorage" , "MaxStorage" ,
-                                              "MinPower" , "MaxPower" ,
-                                              "InitialPower" ,
-                                              "MaxPrimaryPower" ,
-                                              "MaxSecondaryPower" ,
-                                              "DeltaRampUp" , "DeltaRampDown" ,
-                                              "StoringBatteryRho" ,
-                                              "ExtractingBatteryRho" ,
-                                              "InitialStorage" ,
-                                              "Cost" , "Demand" ,
-                                              "OEMCost" ,
-                                              "BatteryCAPEXCost" ,
-                                              "ConverterCAPEXCost" };
- check_variables( group , expected_vars , std::cerr );
+ std::vector< std::string > expected_vars =
+  { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
+    "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
+    "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
+    "Demand" , "Kappa",  "OEMCost" , "BatteryCAPEXCost" , "ConverterCAPEXCost"};
+ check_variables( group, expected_vars, std::cerr );
 #endif
 
  // Deserialize data from the base class
@@ -121,14 +113,19 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , f_initial_power , "InitialPower" ) )
   f_initial_power = 0;
 
+ if( ! ::deserialize( group , f_kappa , "Kappa" ) )
+  f_kappa = 1;
+
  ::deserialize( group , "MaxPrimaryPower" , v_maximum_primary_rho );
  ::deserialize( group , "MaxSecondaryPower" , v_maximum_secondary_rho );
  ::deserialize( group , "DeltaRampUp" , v_delta_ramp_up );
  ::deserialize( group , "DeltaRampDown" , v_delta_ramp_down );
- ::deserialize( group , "Cost" , v_cost );
  ::deserialize( group , "Demand" , v_demand );
  ::deserialize( group , "StoringBatteryRho" , v_storing_battery_rho );
  ::deserialize( group , "ExtractingBatteryRho" , v_extracting_battery_rho );
+
+ if( ! ::deserialize( group , "Cost" , v_cost ) )
+  v_cost.resize( 1 , 0 );
 
  if( ! ::deserialize( group , f_oem_cost , "OEMCost" ) )
   f_oem_cost = 0;
@@ -152,6 +149,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_storing_battery_rho );
  decompress_vector( v_extracting_battery_rho );
  decompress_vector( v_demand );
+ decompress_vector( v_cost );
 
  check_data_consistency();
 
@@ -168,12 +166,11 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
-   throw( std::logic_error(
-    "BatteryUnitBlock::check_data_consistency: minimum "
-    "power for time " + std::to_string( t ) + " is " +
-    std::to_string( v_minimum_power[ t ] ) + ", which " +
-    "greater than the maximum power, which is " +
-    std::to_string( v_maximum_power[ t ] ) + "." ) );
+   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
+                            "power for time " + std::to_string( t ) + " is " +
+                            std::to_string( v_minimum_power[ t ] ) + ", which "
+                            "greater than the maximum power, which is " +
+                            std::to_string( v_maximum_power[ t ] ) + "." ) );
   }
  }
 
@@ -185,10 +182,9 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( ( v_minimum_storage[ t ] > v_maximum_storage[ t ] ) ||
       ( v_minimum_storage[ t ] < 0 ) ) {
-   throw( std::logic_error(
-    "BatteryUnitBlock::check_data_consistency: maximum "
-    "and minimum storage levels must be such that "
-    "maximum_storage >= minimum_storage >= 0." ) );
+   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: maximum "
+                            "and minimum storage levels must be such that "
+                            "maximum_storage >= minimum_storage >= 0." ) );
   }
  }
 
@@ -198,12 +194,11 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_storing_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_storing_battery_rho[ t ] > 1 ) {
-    throw( std::logic_error(
-     "BatteryUnitBlock::check_data_consistency: invalid"
-     " inefficiency of storing energy for time step " +
-     std::to_string( t ) + ": " +
-     std::to_string( v_storing_battery_rho[ t ] ) +
-     ". It must not be greater than 1." ) );
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+                             " inefficiency of storing energy for time step " +
+                             std::to_string( t ) + ": " +
+                             std::to_string( v_storing_battery_rho[ t ] ) +
+                             ". It must not be greater than 1." ) );
    }
   }
  }
@@ -212,12 +207,11 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_extracting_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < 1 ) {
-    throw( std::logic_error(
-     "BatteryUnitBlock::check_data_consistency: invalid"
-     " inefficiency of extracting energy for time "
-     "step " + std::to_string( t ) + ": " +
-     std::to_string( v_extracting_battery_rho[ t ] ) +
-     ". It must not be less than 1." ) );
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+                             " inefficiency of extracting energy for time "
+                             "step " + std::to_string( t ) + ": " +
+                             std::to_string( v_extracting_battery_rho[ t ] ) +
+                             ". It must not be less than 1." ) );
    }
   }
  }
@@ -226,10 +220,9 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
      ( ! v_extracting_battery_rho.empty() ) ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw( std::logic_error(
-     "BatteryUnitBlock::check_data_consistency: the inefficiency of storing "
-     "energy must not be greater than the inefficiency of extracting energy."
-    ) );
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
+                             "inefficiency of storing energy must not be greater "
+                             "than the inefficiency of extracting energy." ) );
    }
   }
  }
@@ -240,10 +233,10 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_delta_ramp_up.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_up[ t ] < 0 )
-    throw( std::invalid_argument(
-     "BatteryUnitBlock::check_data_consistency: wrong DeltaRampUp for time "
-     "step " + std::to_string( t ) + ": " +
-     std::to_string( v_delta_ramp_up[ t ] ) ) );
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "wrong DeltaRampUp for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_delta_ramp_up[ t ] ) ) );
  }
 
  // Delta ramp-down
@@ -252,10 +245,10 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_delta_ramp_down.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_delta_ramp_down[ t ] < 0 )
-    throw( std::invalid_argument(
-     "BatteryUnitBlock::check_data_consistency: wrong DeltaRampDown for time "
-     "step " + std::to_string( t ) + ": " +
-     std::to_string( v_delta_ramp_down[ t ] ) ) );
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "wrong DeltaRampDown for time step " +
+                                  std::to_string( t ) + ": " +
+                                  std::to_string( v_delta_ramp_down[ t ] ) ) );
  }
 
  // Maximum active power that can be used as primary reserve
@@ -264,11 +257,12 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_maximum_primary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_primary_rho[ t ] < 0 )
-    throw( std::invalid_argument(
-     "BatteryUnitBlock::check_data_consistency: the maximum power that can be"
-     " used as primary reserve for time " + std::to_string( t ) + " is " +
-     std::to_string( v_maximum_primary_rho[ t ] ) +
-     ", but it must be nonnegative." ) );
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "the maximum power that can be used as "
+                                  "primary reserve for time " +
+                                  std::to_string( t ) + " is " +
+                                  std::to_string( v_maximum_primary_rho[ t ] ) +
+                                  ", but it must be nonnegative." ) );
  }
 
  // Maximum active power that can be used as secondary reserve
@@ -277,12 +271,12 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_maximum_secondary_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_maximum_secondary_rho[ t ] < 0 )
-    throw( std::invalid_argument(
-     "BatteryUnitBlock::check_data_consistency: the maximum power that "
-     "can be used as secondary reserve for time " +
-     std::to_string( t ) + " is " +
-     std::to_string( v_maximum_secondary_rho[ t ] ) +
-     ", but it must be nonnegative." ) );
+    throw( std::invalid_argument
+           ( "BatteryUnitBlock::check_data_consistency: the maximum power that "
+             "can be used as secondary reserve for time " +
+             std::to_string( t ) + " is " +
+             std::to_string( v_maximum_secondary_rho[ t ] ) +
+             ", but it must be nonnegative." ) );
  }
 
  // Demand
@@ -291,18 +285,27 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_demand.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_demand[ t ] < 0 )
-    throw( std::invalid_argument(
-     "BatteryUnitBlock::check_data_consistency: demand for time " +
-     std::to_string( t ) + " is " + std::to_string( v_demand[ t ] ) +
-     ", but is must be nonnegative." ) );
+    throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                  "demand for time " + std::to_string( t ) +
+                                  " is " + std::to_string( v_demand[ t ] ) +
+                                  ", but is must be nonnegative." ) );
  }
 
  // Initial storage
 
  if( f_initial_storage < 0 ) {
-  throw( std::invalid_argument(
-   "BatteryUnitBlock::check_data_consistency: initial storage is " +
-   std::to_string( f_initial_storage ) + ", but it must be nonnegative." ) );
+  throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
+                                "initial storage is " +
+                                std::to_string( f_initial_storage ) +
+                                ", but it must be nonnegative." ) );
+ }
+
+ // Kappa
+
+ if( f_kappa < 0 ) {
+  throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
+                           "kappa must be nonnegative, but it is" +
+                           std::to_string( f_kappa ) + "." ) );
  }
 
 }  // end( BatteryUnitBlock::check_data_consistency )
@@ -410,15 +413,15 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
- auto battery_type = get_battery_type();
+ const auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
 
  if( ! variables_generated() )
   throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
-                            "variables need be generated for constraints "
-                            "to be." ) );
+                           "variables need be generated for constraints "
+                           "to be." ) );
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
@@ -434,30 +437,32 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  LinearFunction::v_coeff_pair vars;
+  auto linear_function = new LinearFunction();
 
-  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-   if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
-    // reserve
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , -1.0 ) );
+   if( ! v_maximum_primary_rho.empty() ) {
+    // if this unit produces any primary reserve
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , -1.0 );
    }
   }
+
   if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-   if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any
-    // secondary reserve
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
+   if( ! v_maximum_secondary_rho.empty() ) {
+    // if unit produces any secondary reserve
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , -1.0 );
    }
   }
-  active_power_lower_bound_Const[ t ].set_lhs( v_minimum_power[ t ] );
+
+  active_power_lower_bound_Const[ t ].set_lhs
+   ( f_kappa * v_minimum_power[ t ] );
   active_power_lower_bound_Const[ t ].set_rhs( Inf< double >() );
-  active_power_lower_bound_Const[ t ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  active_power_lower_bound_Const[ t ].set_function( linear_function );
 
  }
+
  add_static_constraint( active_power_lower_bound_Const ,
-                        "ActivePower_LowerBound_Const_Battery" );
+                        "ActivePower_LowerBound_Constraints_Battery" );
 
  // Initializing maximum power constraints
 
@@ -465,30 +470,31 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  LinearFunction::v_coeff_pair vars;
+  auto linear_function = new LinearFunction();
 
-  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-   if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
-    // reserve
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , 1.0 ) );
+   if( ! v_maximum_primary_rho.empty() ) {
+    // if this unit produces any primary reserve
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , 1.0 );
    }
   }
+
   if( reserve_vars & 2u ) { // if UCBlock has secondary demand variable
-   if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any
-    // secondary reserve
-    vars.push_back(
-     std::make_pair( &v_secondary_spinning_reserve[ t ] , 1.0 ) );
+   if( ! v_maximum_secondary_rho.empty() ) {
+    // if this unit produces any secondary reserve
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , 1.0 );
    }
   }
+
   active_power_upper_bound_Const[ t ].set_lhs( -Inf< double >() );
-  active_power_upper_bound_Const[ t ].set_rhs( v_maximum_power[ t ] );
-  active_power_upper_bound_Const[ t ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  active_power_upper_bound_Const[ t ].set_rhs
+   ( f_kappa * v_maximum_power[ t ] );
+  active_power_upper_bound_Const[ t ].set_function( linear_function );
  }
 
  add_static_constraint( active_power_upper_bound_Const ,
-                        "ActivePower_UpperBound_Const_Battery" );
+                        "ActivePower_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -497,82 +503,76 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   ramp_up_Const.resize( f_time_horizon );
 
-  LinearFunction::v_coeff_pair vars;
+  auto linear_function = new LinearFunction();
 
-  vars.push_back( std::make_pair( &v_active_power[ 0 ] , 1.0 ) );
+  linear_function->add_variable( &v_active_power[ 0 ] , 1.0 );
 
   ramp_up_Const[ 0 ].set_lhs( -Inf< double >() );
   ramp_up_Const[ 0 ].set_rhs( v_delta_ramp_up[ 0 ] + f_initial_power );
-  ramp_up_Const[ 0 ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  ramp_up_Const[ 0 ].set_function( linear_function );
 
-  for( Index t = 1 , constraint_index = 1 ;
-       t < f_time_horizon ;
-       ++t , ++constraint_index ) {
-
-   LinearFunction::v_coeff_pair vars;
-
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
-
-   ramp_up_Const[ constraint_index ].set_lhs( -Inf< double >() );
-   ramp_up_Const[ constraint_index ].set_rhs( v_delta_ramp_up[ t ] );
-   ramp_up_Const[ constraint_index ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
- }
-
- add_static_constraint( ramp_up_Const , "RampUp_Const_Battery" );
-
- // Initializing ramp-down constraints
- if( ! v_delta_ramp_down.empty() ) {
-
-  ramp_down_Const.resize( f_time_horizon );
-
-  LinearFunction::v_coeff_pair vars;
-
-  vars.push_back( std::make_pair( &v_active_power[ 0 ] , 1.0 ) );
-
-  ramp_down_Const[ 0 ].set_lhs(
-   -v_delta_ramp_down[ 0 ] + f_initial_power );
-  ramp_down_Const[ 0 ].set_rhs( Inf< double >() );
-  ramp_down_Const[ 0 ].set_function(
-   new LinearFunction( std::move( vars ) ) );
-
-  for( Index t = 1 , constraint_index = 1 ;
-       t < f_time_horizon ; ++t , ++constraint_index ) {
+  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
 
    auto lf = new LinearFunction();
 
    lf->add_variable( &v_active_power[ t ] , 1.0 );
    lf->add_variable( &v_active_power[ t - 1 ] , -1.0 );
 
-   ramp_down_Const[ constraint_index ].set_lhs( -v_delta_ramp_down[ 0 ] );
-   ramp_down_Const[ constraint_index ].set_rhs( Inf< double >() );
-   ramp_down_Const[ constraint_index ].set_function( lf );
+   ramp_up_Const[ t ].set_lhs( -Inf< double >() );
+   ramp_up_Const[ t ].set_rhs( v_delta_ramp_up[ t ] );
+   ramp_up_Const[ t ].set_function( lf );
   }
-
  }
+
+ add_static_constraint( ramp_up_Const , "RampUp_Constraints_Battery" );
+
+ // Initializing ramp-down constraints
+
+ if( ! v_delta_ramp_down.empty() ) {
+
+  ramp_down_Const.resize( f_time_horizon );
+
+  auto linear_function = new LinearFunction();
+
+  linear_function->add_variable( &v_active_power[ 0 ] , 1.0 );
+
+  ramp_down_Const[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] +
+                                      f_initial_power );
+  ramp_down_Const[ 0 ].set_rhs( Inf< double >() );
+  ramp_down_Const[ 0 ].set_function( linear_function );
+
+  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+
+   auto lf = new LinearFunction();
+
+   lf->add_variable( &v_active_power[ t ] , 1.0 );
+   lf->add_variable( &v_active_power[ t - 1 ] , -1.0 );
+
+   ramp_down_Const[ t ].set_lhs( -v_delta_ramp_down[ 0 ] );
+   ramp_down_Const[ t ].set_rhs( Inf< double >() );
+   ramp_down_Const[ t ].set_function( lf );
+  }
+ }
+
  add_static_constraint( ramp_down_Const ,
-                        "RampDown_Const_Battery" );
+                        "RampDown_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
-// Initializing power_intake_outtake_Const
+ // Initializing power_intake_outtake_Const
 
  power_intake_outtake_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  LinearFunction::v_coeff_pair vars;
+  auto linear_function = new LinearFunction();
 
-  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-  vars.push_back( std::make_pair( &v_intake_level[ t ] , -1.0 ) );
-  vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
+  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
+  linear_function->add_variable( &v_intake_level[ t ] , -1.0 );
+  linear_function->add_variable( &v_outtake_level[ t ] , 1.0 );
 
   power_intake_outtake_Const[ t ].set_both( 0.0 );
-  power_intake_outtake_Const[ t ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  power_intake_outtake_Const[ t ].set_function( linear_function );
 
  }
 
@@ -580,86 +580,72 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                         "Power_Intake_Outtake_Const_Battery" );
 
 
-// Initializing intake_upper_bound_Const
-
+ // Initializing intake_upper_bound_Const
 
  intake_upper_bound_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
   intake_upper_bound_Const[ t ].set_lhs( 0.0 );
-  intake_upper_bound_Const[ t ].set_rhs( v_maximum_power[ t ] );
+  intake_upper_bound_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
   intake_upper_bound_Const[ t ].set_variable( &v_intake_level[ t ] );
 
  }
+
  add_static_constraint( intake_upper_bound_Const ,
-                        "Intake_UpperBound_Const_Battery" );
+                        "Intake_UpperBound_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
-// Initializing demand_Const
+ // Initializing demand_Const
 
  {
+
   demand_Const.resize( f_time_horizon );
 
+  auto linear_fun = new LinearFunction();
 
-  LinearFunction::v_coeff_pair vars;
+  linear_fun->add_variable( &v_storage_level[ 0 ] , 1.0 );
 
-  vars.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
-  if( ! v_storing_battery_rho.empty() ) {
-   vars.push_back( std::make_pair( &v_outtake_level[ 0 ] ,
-                                   -v_storing_battery_rho[ 0 ] ) );
-  } else {
-   vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , -1 ) );
+  double outtake_coeff = -1;
+  if( ! v_storing_battery_rho.empty() )
+   outtake_coeff = - v_storing_battery_rho[ 0 ];
+  linear_fun->add_variable( &v_outtake_level[ 0 ] , outtake_coeff );
 
-  }
-  if( ! v_extracting_battery_rho.empty() ) {
+  double intake_coeff = 1;
+  if( ! v_extracting_battery_rho.empty() )
+   intake_coeff = v_extracting_battery_rho[ 0 ];
+  linear_fun->add_variable( &v_intake_level[ 0 ] , intake_coeff );
 
-   vars.push_back( std::make_pair( &v_intake_level[ 0 ] ,
-                                   v_extracting_battery_rho[ 0 ] ) );
-  } else {
-   vars.push_back( std::make_pair( &v_intake_level[ 0 ] , 1 ) );
+  double rhs = f_initial_storage;
+  if( ! v_demand.empty() )
+   rhs -= v_demand[ 0 ];
+  demand_Const[ 0 ].set_both( rhs );
 
-  }
-  if( ! v_demand.empty() ) {
-   demand_Const[ 0 ].set_both( ( f_initial_storage - v_demand[ 0 ] ) );
-  } else {
-   demand_Const[ 0 ].set_both( ( f_initial_storage ) );
+  demand_Const[ 0 ].set_function( linear_fun );
 
-  }
-  demand_Const[ 0 ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
 
-  for( Index t = 1 , constraint_index = 1 ;
-       t < f_time_horizon ; ++t , ++constraint_index ) {
+   auto linear_function = new LinearFunction();
 
-   LinearFunction::v_coeff_pair vars;
+   double intake_coeff = 1;
+   if( ! v_extracting_battery_rho.empty() )
+    intake_coeff = v_extracting_battery_rho[ t ];
+   linear_function->add_variable( &v_intake_level[ t ] , intake_coeff );
 
-   if( ! v_extracting_battery_rho.empty() ) {
-    vars.push_back( std::make_pair( &v_intake_level[ t ] ,
-                                    v_extracting_battery_rho[ t ] ) );
-   } else {
-    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1 ) );
+   double outtake_coeff = -1;
+   if( ! v_storing_battery_rho.empty() )
+    outtake_coeff = - v_storing_battery_rho[ t ];
+   linear_function->add_variable( &v_outtake_level[ t ] , outtake_coeff );
 
-   }
-   if( ! v_storing_battery_rho.empty() ) {
-    vars.push_back( std::make_pair( &v_outtake_level[ t ] ,
-                                    -v_storing_battery_rho[ t ] ) );
-   } else {
-    vars.push_back( std::make_pair( &v_outtake_level[ t ] , -1 ) );
+   linear_function->add_variable( &v_storage_level[ t ] , 1.0 );
+   linear_function->add_variable( &v_storage_level[ t - 1 ] , -1.0 );
 
-   }
-   vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -1.0 ) );
+   double rhs = 0;
+   if( ! v_demand.empty() )
+    rhs = -v_demand[ t ];
+   demand_Const[ t ].set_both( rhs );
 
-   if( ! v_demand.empty() ) {
-    demand_Const[ constraint_index ].set_both( -v_demand[ t ] );
-   } else {
-    demand_Const[ constraint_index ].set_both( 0.0 );
-
-   }
-   demand_Const[ constraint_index ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   demand_Const[ t ].set_function( linear_function );
   }
  }
 
@@ -667,19 +653,21 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-// Initializing storage_level_bounds_Const
+ // Initializing storage_level_bounds_Const
 
  storage_level_bounds_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  storage_level_bounds_Const[ t ].set_lhs( v_minimum_storage[ t ] );
-  storage_level_bounds_Const[ t ].set_rhs( v_maximum_storage[ t ] );
+  storage_level_bounds_Const[ t ].set_lhs
+   ( f_kappa * v_minimum_storage[ t ] );
+  storage_level_bounds_Const[ t ].set_rhs
+   ( f_kappa * v_maximum_storage[ t ] );
   storage_level_bounds_Const[ t ].set_variable( &v_storage_level[ t ] );
-
  }
+
  add_static_constraint( storage_level_bounds_Const ,
-                        "StorageLevel_Bounds_Const_Battery" );
+                        "StorageLevel_Bounds_Constraints_Battery" );
 
 /*--------------------------------------------------------------------------*/
 
@@ -691,86 +679,89 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
+   auto linear_function = new LinearFunction();
 
-   vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                   -v_maximum_power[ t ] ) );
+   linear_function->add_variable( &v_intake_level[ t ] , 1.0 );
+   linear_function->add_variable( &v_battery_binary[ t ] ,
+                                  - f_kappa * v_maximum_power[ t ] );
 
-
-   intake_binary_Const[ t ].set_lhs( -Inf< double >() );
+   intake_binary_Const[ t ].set_lhs( -Inf<double>() );
    intake_binary_Const[ t ].set_rhs( 0.0 );
-   intake_binary_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-
+   intake_binary_Const[ t ].set_function( linear_function );
   }
 
   add_static_constraint( intake_binary_Const ,
                          "Intake_Binary_Const_Battery" );
 
-/*--------------------------------------------------------------------------*/
 
   // Initializing outtake_binary_Const
   outtake_binary_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
+   auto linear_function = new LinearFunction();
 
-   vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                   -v_minimum_power[ t ] ) );
+   linear_function->add_variable( &v_outtake_level[ t ] , 1.0 );
+   linear_function->add_variable( &v_battery_binary[ t ] ,
+                                  - f_kappa * v_minimum_power[ t ] );
 
-
-   outtake_binary_Const[ t ].set_lhs( -Inf< double >() );
-   outtake_binary_Const[ t ].set_rhs( -v_minimum_power[ t ] );
-   outtake_binary_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   outtake_binary_Const[ t ].set_lhs( -Inf<double>() );
+   outtake_binary_Const[ t ].set_rhs
+    ( - f_kappa * v_minimum_power[ t ] );
+   outtake_binary_Const[ t ].set_function( linear_function );
 
   }
+
   add_static_constraint( outtake_binary_Const ,
                          "Outtake_Binary_Const_Battery" );
- }
+ }  // end( if( battery_type == Binary_Variables_Constraints ) )
+
 /*--------------------------------------------------------------------------*/
 
  // Initializing primary_upper_bound_Const
+
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-  if( ! v_maximum_primary_rho.empty() ) { // if unit produces any primary
-   // reserve
+  if( ! v_maximum_primary_rho.empty() ) {
+   // if this unit produces any primary reserve
+
    primary_upper_bound_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     primary_upper_bound_Const[ t ].set_lhs( 0.0 );
-    primary_upper_bound_Const[ t ].set_rhs( v_maximum_primary_rho[ t ] );
-    primary_upper_bound_Const[ t ].set_variable(
-     &v_primary_spinning_reserve[ t ] );
-
+    primary_upper_bound_Const[ t ].set_rhs
+     ( f_kappa * v_maximum_primary_rho[ t ] );
+    primary_upper_bound_Const[ t ].set_variable
+     ( &v_primary_spinning_reserve[ t ] );
    }
+
    add_static_constraint( primary_upper_bound_Const ,
-                          "Primary_UpperBound_Const_Battery" );
+                          "Primary_UpperBound_Constraints_Battery" );
   }
  }
+
  // Initializing secondary_upper_bound_Const
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( ! v_maximum_secondary_rho.empty() ) { // if unit produces any secondary
-   // reserve
+  if( ! v_maximum_secondary_rho.empty() ) {
+   // if this unit produces any secondary reserve
+
    secondary_upper_bound_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     secondary_upper_bound_Const[ t ].set_lhs( 0.0 );
-    secondary_upper_bound_Const[ t ].set_rhs(
-     v_maximum_secondary_rho[ t ] );
-    secondary_upper_bound_Const[ t ].set_variable(
-     &v_secondary_spinning_reserve[ t ] );
-
+    secondary_upper_bound_Const[ t ].set_rhs
+     ( f_kappa * v_maximum_secondary_rho[ t ] );
+    secondary_upper_bound_Const[ t ].set_variable
+     ( &v_secondary_spinning_reserve[ t ] );
    }
+
    add_static_constraint( secondary_upper_bound_Const ,
-                          "Secondary_UpperBound_Const_Battery" );
+                          "Secondary_UpperBound_Constraints_Battery" );
   }
  }
-/*------------------------------ ZOConstraint ------------------------------*/
+
+/*-------------------------------ZOConstraint-------------------------------*/
 
  if( battery_type == Binary_Variables_Constraints ) {
 
@@ -778,63 +769,44 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // the battery binary bound constraints
    battery_binary_bound_Const.resize( f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    battery_binary_bound_Const[ t ].set_variable(
-     &v_battery_binary[ t ] );
+    battery_binary_bound_Const[ t ].set_variable
+     ( &v_battery_binary[ t ] );
    }
    add_static_constraint( battery_binary_bound_Const ,
                           "BB_bound_battery" );
   }
  }
+
  set_constraints_generated();
+
 }  // end( BatteryUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_objective( Configuration * objc ) {
-
+void BatteryUnitBlock::generate_objective( Configuration *objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
  if( ! variables_generated() )
   throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
-                            "need be generated for constraints to be." ) );
+                           "need be generated for constraints to be." ) );
 
  if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+  return;                         // cowardly (and silently) return
 
- // Construct the costs vector
-
- std::vector< double > cost = v_cost;
- if( cost.size() == 1 )
-  cost.resize( f_time_horizon , cost[ 0 ] );
- else if( cost.size() < f_time_horizon ) {
-  assert( cost.size() == v_change_intervals.size() );
-  cost.resize( f_time_horizon , 0 );
-  Index t = 0;
-  for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
-   auto upper_endpoint = v_change_intervals[ k ];
-   if( k == v_change_intervals.size() - 1 )
-    // The upper endpoint of the last interval must be time_horizon - 1. Since
-    // it may not be provided in v_change_intervals (the value for the last
-    // element of v_change_intervals is not required), we manually set it
-    // here.
-    upper_endpoint = f_time_horizon - 1;
-   for( ; t <= upper_endpoint ; ++t ) {
-    cost[ t ] = v_cost[ k ];
-   }
-  }
- }
-
- // initialize objective function
+ // initialize objective function - - - - - - - - - - - - - - - - - - - - - -
 
  auto linear_function = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  linear_function->add_variable( &v_intake_level[ t ] , cost[ t ] , 0.0 );
-  linear_function->add_variable( &v_outtake_level[ t ] , cost[ t ] , 0.0 );
- }
+  linear_function->add_variable( &v_intake_level[ t ] ,
+                                 f_scale * v_cost[ t ] , 0.0 );
+  linear_function->add_variable( &v_outtake_level[ t ] ,
+                                 f_scale * v_cost[ t ] , 0.0 );
+  }
 
-// // TODO from here we need to M A X I M I Z E (how? change all the sign?)
+// TODO from here we need to M A X I M I Z E (how? change all signs?)
 // // the investment costs occurring only at the initial year
 // vars.push_back( std::make_pair( &v_active_power[ 0 ] ,
 //                                -( f_battery_capex_cost +
@@ -849,7 +821,6 @@ void BatteryUnitBlock::generate_objective( Configuration * objc ) {
 // }
 // // at the end of the project evaluate the residual value of the component
 
-
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
 
@@ -858,10 +829,10 @@ void BatteryUnitBlock::generate_objective( Configuration * objc ) {
 
  set_objective_generated();
 
-}  // end( BatteryUnitBlock::generate_objective )
+ }  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*------- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ------*/
+/*--- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ---*/
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
@@ -873,6 +844,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_initial_power );
  ::serialize( group , "InitialStorage" , netCDF::NcDouble() ,
               f_initial_storage );
+ ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
 
  // Serialize one-dimensional variables.
 
@@ -897,9 +869,9 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
    dimension = NumberIntervals;
   else if( data.size() != 1 ) {
    throw( std::logic_error
-    ( "BatteryUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension " +
-      "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
+          ( "BatteryUnitBlock::serialize: invalid dimension for variable " +
+            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
   }
 
   ::serialize( group , var_name , ncType , dimension , data ,
@@ -925,14 +897,14 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::update_initial_storage_in_constraints
- ( c_ModParam issueAMod ) {
+( c_ModParam issueAMod ) {
 
  if( demand_Const.empty() )
   return;
 
  if( ! v_demand.empty() )
   demand_Const[ 0 ].set_both( f_initial_storage - v_demand[ 0 ] ,
-                              issueAMod );
+                                    issueAMod );
  else
   demand_Const[ 0 ].set_both( f_initial_storage , issueAMod );
 }  // end( BatteryUnitBlock::update_initial_storage_in_constraints )
@@ -940,8 +912,8 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::set_initial_storage
- ( std::vector< double >::const_iterator it , Block::Subset && subset ,
-   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+( std::vector< double >::const_iterator it , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -970,7 +942,7 @@ void BatteryUnitBlock::set_initial_storage
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                            ( this , BatteryUnitBlockMod::eSetInitS ) ,
+                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_storage )
@@ -978,14 +950,14 @@ void BatteryUnitBlock::set_initial_storage
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::set_initial_storage
- ( std::vector< double >::const_iterator it , Block::Range rng ,
-   c_ModParam issuePMod , c_ModParam issueAMod ) {
+( std::vector< double >::const_iterator it , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
- if( !( rng.first <= 0 && 0 < rng.second ) )
+ if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( it , -rng.first );
+ std::advance( it , - rng.first );
 
  if( f_initial_storage == *it )
   return; // nothing changes; return
@@ -1002,7 +974,7 @@ void BatteryUnitBlock::set_initial_storage
 
  if( issue_pmod( issuePMod ) ) {
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                            ( this , BatteryUnitBlockMod::eSetInitS ) ,
+                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_storage )
@@ -1010,21 +982,21 @@ void BatteryUnitBlock::set_initial_storage
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::update_initial_power_in_constraints
- ( c_ModParam issueAMod ) {
- if( !( ramp_up_Const.empty() || v_delta_ramp_up.empty() ) )
+( c_ModParam issueAMod ) {
+ if( ! ( ramp_up_Const.empty() || v_delta_ramp_up.empty() ) )
   ramp_up_Const[ 0 ].set_rhs( v_delta_ramp_up[ 0 ] + f_initial_power ,
-                              issueAMod );
+                                    issueAMod );
 
- if( !( ramp_down_Const.empty() || v_delta_ramp_down.empty() ) )
+ if( ! ( ramp_down_Const.empty() || v_delta_ramp_down.empty() ) )
   ramp_down_Const[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] +
-                                f_initial_power , issueAMod );
+                                      f_initial_power , issueAMod );
 }  // end( BatteryUnitBlock::update_initial_power_in_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::set_initial_power
- ( std::vector< double >::const_iterator it , Block::Subset && subset ,
-   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+( std::vector< double >::const_iterator it , Block::Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -1053,7 +1025,7 @@ void BatteryUnitBlock::set_initial_power
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                            ( this , BatteryUnitBlockMod::eSetInitP ) ,
+                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 
@@ -1062,14 +1034,14 @@ void BatteryUnitBlock::set_initial_power
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::set_initial_power
- ( std::vector< double >::const_iterator it , Block::Range rng ,
-   c_ModParam issuePMod , c_ModParam issueAMod ) {
+( std::vector< double >::const_iterator it , Block::Range rng ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
- if( !( rng.first <= 0 && 0 < rng.second ) )
+ if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( it , -rng.first );
+ std::advance( it , - rng.first );
 
  if( f_initial_power == *it )
   return; // nothing changes; return
@@ -1086,10 +1058,191 @@ void BatteryUnitBlock::set_initial_power
 
  if( issue_pmod( issuePMod ) ) {
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                            ( this , BatteryUnitBlockMod::eSetInitP ) ,
+                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( BatteryUnitBlock::set_initial_power )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::scale
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_scale == *values )
+  return; // The scale factor does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_scale = *values; // Update the scale factor
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( objective_generated() )
+    // Update the Objective
+    update_objective( issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UnitBlockMod >
+                           ( this , UnitBlockMod::eScale ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( BatteryUnitBlock::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
+ if( ! active_power_lower_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   active_power_lower_bound_Const[ t ].set_lhs
+    ( f_kappa * v_minimum_power[ t ] , issueAMod );
+ }
+
+ if( ! active_power_upper_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   active_power_upper_bound_Const[ t ].set_rhs
+    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+ }
+
+ if( ! intake_upper_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   intake_upper_bound_Const[ t ].set_rhs
+    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+ }
+
+ if( ! storage_level_bounds_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   storage_level_bounds_Const[ t ].set_lhs
+    ( f_kappa * v_minimum_storage[ t ] , issueAMod );
+   storage_level_bounds_Const[ t ].set_rhs
+    ( f_kappa * v_maximum_storage[ t ] , issueAMod );
+  }
+ }
+
+ if( ! intake_binary_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f = static_cast< LinearFunction * >
+    ( intake_binary_Const[ t ].get_function() );
+
+   const auto index = f->is_active( & v_battery_binary[ t ] );
+
+   if( index == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
+                             "not found in intake_binary_Const." ) );
+
+   f->modify_coefficient( index , - f_kappa * v_maximum_power[ t ] ,
+                          issueAMod );
+  }
+ }
+
+ if( ! outtake_binary_Const.empty() ) {
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f = static_cast< LinearFunction * >
+    ( outtake_binary_Const[ t ].get_function() );
+
+   const auto index = f->is_active( & v_battery_binary[ t ] );
+
+   if( index == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
+                             "not found in outtake_binary_Const." ) );
+
+   f->modify_coefficient( index , - f_kappa * v_minimum_power[ t ] ,
+                          issueAMod );
+
+   outtake_binary_Const[ t ].set_rhs( - f_kappa * v_minimum_power[ t ] ,
+                                            issueAMod );
+  }
+ }
+
+ if( ! primary_upper_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   primary_upper_bound_Const[ t ].set_rhs
+    ( f_kappa * v_maximum_primary_rho[ t ] , issueAMod );
+ }
+
+ if( ! secondary_upper_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   secondary_upper_bound_Const[ t ].set_rhs
+    ( f_kappa * v_maximum_secondary_rho[ t ] , issueAMod );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Subset && subset ,
+  const bool ordered , ModParam issuePMod , ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_kappa == *values )
+  return; // The kappa constant does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_kappa = *values; // Update the kappa constant
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( constraints_generated() ) {
+    // Update the constraints
+    update_kappa_in_constraints( issueAMod );
+   }  // end( constraints_generated )
+  }  // end( if( not_dry_run( issueAMod ) )
+ }  // end( if( not_dry_run( issuePMod ) )
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
+                           ( this , BatteryUnitBlockMod::eSetKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( BatteryUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::set_kappa
+( std::vector< double >::const_iterator values , Range rng ,
+  ModParam issuePMod , ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset( 1 , 0 );
+
+ set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
+
+}  // end( BatteryUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
+
+ if( ! objective_generated() )
+  return; // the Objective has not been generated: nothing to be done
+
+ auto function = static_cast< LinearFunction * >( objective.get_function() );
+
+ LinearFunction::Vec_FunctionValue coefficients;
+ coefficients.reserve( 2 * f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  coefficients.push_back( f_scale * v_cost[ t ] );
+  coefficients.push_back( f_scale * v_cost[ t ] );
+ }
+
+ function->modify_coefficients( std::move( coefficients ) ,
+                                Range( 0 , Inf< Index >() ) , issueAMod );
+
+}  // end( BatteryUnitBlock::update_objective )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File BatteryUnitBlock.cpp --------------------------*/

@@ -93,10 +93,10 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
 
  Solution * sol;
  switch( solution_type ) {
-  case 1:
+  case( 1 ):
    sol = new RowConstraintSolution;
    break;
-  case 2:
+  case( 2 ):
    sol = new ColRowSolution;
    break;
   default:

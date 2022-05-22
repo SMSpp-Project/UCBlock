@@ -92,6 +92,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "NumberArcs" ,
                                               "TotalNumberPieces" };
  check_dimensions( group , expected_dims , std::cerr );
+
  std::vector< std::string > expected_vars = { "StartArc" ,
                                               "EndArc" ,
                                               "MinFlow" ,
@@ -1039,7 +1040,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc ) {
  objective.set_function( linear_function );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( &objective , eNoMod );
 
  set_objective_generated();
 

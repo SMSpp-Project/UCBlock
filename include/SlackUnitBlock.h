@@ -88,7 +88,6 @@ class SlackUnitBlock : public UnitBlock
   UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// destructor of SlackUnitBlock, it is empty
 
  virtual ~SlackUnitBlock() override;
@@ -235,7 +234,6 @@ class SlackUnitBlock : public UnitBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// generate the abstract variables of the SlackUnitBlock
 /** The SlackUnitBlock class has several different variables which are:
  *
@@ -260,7 +258,6 @@ class SlackUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// Generate the static constraint of the SlackUnitBlock
 /** This method generates the abstract constraints of the SlackUnitBlock.
  *
@@ -293,7 +290,6 @@ class SlackUnitBlock : public UnitBlock
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// generate the objective of the SlackUnitBlock
 /** Method that generates the objective of the SlackUnitBlock.
  *
@@ -344,7 +340,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of maximum primary power
 /** The returned vector contains to maximum primary power at time t. There are
  * three possible cases:
@@ -362,7 +357,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of active power cost
 /** The returned vector contains to active power cost at time t. There are
  * three possible cases:
@@ -380,7 +374,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of maximum secondary power
 /** The returned vector contains to maximum secondary power at time t. There
  * are three possible cases:
@@ -399,7 +392,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of primary cost
 /** The returned vector contains to primary cost at time t. There are three
  * possible cases:
@@ -417,7 +409,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of secondary cost
 /** The returned vector contains to secondary cost at time t. There are three
  * possible cases:
@@ -435,7 +426,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of inertia commitment
 /** The returned value U = get_inertia_commitment() contains the contribution
  *  to inertia (basically, the constants to be multiplied by the commitment
@@ -458,7 +448,6 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the vector of inertia cost
 /** The returned vector contains to inertia cost at time t. There are three
  * possible cases:
@@ -500,8 +489,8 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of active_power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return( nullptr );
@@ -509,8 +498,8 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
@@ -518,8 +507,8 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
@@ -634,7 +623,15 @@ class SlackUnitBlock : public UnitBlock
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+
+
  SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+
 
 };  // end( class( SlackUnitBlock ) )
 

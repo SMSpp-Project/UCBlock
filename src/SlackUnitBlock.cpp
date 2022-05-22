@@ -49,6 +49,7 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 SlackUnitBlock::~SlackUnitBlock() {
+
  Constraint::clear( Secondary_Spinning_Reserve_Bound_Const );
  Constraint::clear( Primary_Spinning_Reserve_Bound_Const );
  Constraint::clear( ActivePower_Bound_Const );

@@ -45,7 +45,6 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register IntermittentUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
 /*--------------------------------------------------------------------------*/
@@ -53,6 +52,7 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------------------------------------------------------------*/
 
 IntermittentUnitBlock::~IntermittentUnitBlock() {
+
  Constraint::clear( MinPower_Const );
  Constraint::clear( MaxPower_Const );
 
@@ -72,12 +72,10 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "MinPower" ,
-                                                     "MaxPower" ,
-                                                     "InertiaPower" ,
-                                                     "Gamma" ,
-                                                     "Kappa" ,
-                                                     "OEMCost" , "CAPEXCost" };
+ static std::vector< std::string > expected_vars =
+  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" ,
+    "OEMCost" , "CAPEXCost" };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -181,33 +179,15 @@ IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
- int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
-
- v_design.resize( f_time_horizon );
- for( auto & var : v_design ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
- if( f_capex_cost != 0 ) {
-  add_static_variable( v_design , "D_intermittent" );
- }
-
  // Active Power Variable
+
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_active_power , "p_intermittent" );
 
  // Primary Spinning Reserve Variable
+
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
   if( f_gamma != 0 ) { // if unit produces any reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
@@ -240,90 +220,77 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  if( constraints_generated() )
   return; // constraints have already been generated
 
- std::vector< double > max_power = v_maximum_power;
- std::vector< double > min_power = v_minimum_power;
-
-/*--------------------------------------------------------------------------*/
-
- // Initializing maximum power constraints
+ // Maximum power constraints
 
  if( f_gamma != 0 ) { // if unit produces any reserve
 
   if( MaxPower_Const.size() != f_time_horizon ) {
    // this should only happen once
    assert( MaxPower_Const.empty() );
-
    MaxPower_Const.resize( f_time_horizon );
   }
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
+   auto linear_function = new LinearFunction();
+   linear_function->add_variable( &v_active_power[ t ] , f_gamma );
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
-   if( reserve_vars & 1u ) {
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , 1.0 ) );
-   }
-   if( reserve_vars & 2u ) {
-    vars.push_back(
-     std::make_pair( &v_secondary_spinning_reserve[ t ] , 1.0 ) );
-   }
+   if( reserve_vars & 1u )
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , 1.0 );
+   if( reserve_vars & 2u )
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , 1.0 );
+
    MaxPower_Const[ t ].set_lhs( -Inf< double >() );
    MaxPower_Const[ t ].set_rhs(
-    ( f_gamma * f_kappa * ( max_power[ t ] ) ) );
-   MaxPower_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+    f_gamma * f_kappa * v_maximum_power[ t ] );
+   MaxPower_Const[ t ].set_function( linear_function );
   }
 
   add_static_constraint( MaxPower_Const , "MaxPower_Intermittent" );
 
  }
- // Initializing minimum power constraints
+
+ // Minimum power constraints
 
  if( MinPower_Const.size() != f_time_horizon ) {
   // this should only happen once
   assert( MinPower_Const.empty() );
-
   MinPower_Const.resize( f_time_horizon );
  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  LinearFunction::v_coeff_pair vars;
+  auto linear_function = new LinearFunction();
 
-  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-  if( reserve_vars & 1u ) {
-   if( f_gamma != 0 ) { // if unit produces any reserve
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , -1.0 ) );
-   }
-  }
-  if( reserve_vars & 2u ) {
-   if( f_gamma != 0 ) { // if unit produces any reserve
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
-   }
+  linear_function->add_variable( &v_active_power[ t ] , 1.0 );
+
+  if( f_gamma != 0 ) { // if unit produces any reserve
+   if( reserve_vars & 1u )
+    linear_function->add_variable( &v_primary_spinning_reserve[ t ] , -1.0 );
+   if( reserve_vars & 2u )
+    linear_function->add_variable( &v_secondary_spinning_reserve[ t ] , -1.0 );
   }
 
-  MinPower_Const[ t ].set_lhs( f_kappa * min_power[ t ] );
+  MinPower_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
   MinPower_Const[ t ].set_rhs( Inf< double >() );
-  MinPower_Const[ t ].set_function(
-   new LinearFunction( std::move( vars ) ) );
+  MinPower_Const[ t ].set_function( linear_function );
  }
 
  add_static_constraint( MinPower_Const , "MinPower_Intermittent" );
 
- // Initializing active power bounds constraints
+ // Active power bound constraints
+
  if( active_power_bounds_Const.size() != f_time_horizon ) {
   // this should only happen once
   assert( active_power_bounds_Const.empty() );
-
   active_power_bounds_Const.resize( f_time_horizon );
  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-  active_power_bounds_Const[ t ].set_lhs( f_kappa * min_power[ t ] );
-  active_power_bounds_Const[ t ].set_rhs( f_kappa * max_power[ t ] );
+  active_power_bounds_Const[ t ].set_lhs(
+   f_kappa * v_minimum_power[ t ] );
+  active_power_bounds_Const[ t ].set_rhs(
+   f_kappa * v_maximum_power[ t ] );
   active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
  }
 
@@ -374,7 +341,7 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
-// // TODO from here we need to M A X I M I Z E (how? change all the sign?)
+// TODO from here we need to M A X I M I Z E (how? change all signs?)
 // // the investment costs occurring only at the initial year
 // vars.push_back( std::make_pair( &v_active_power[ 0 ] ,
 //                                -f_capex_cost ) );
@@ -433,8 +400,8 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() != 1 ) {
    throw( std::logic_error
     ( "IntermittentUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension " +
-      "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
+      var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
+                                                        "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
   }
 
   ::serialize( group , var_name , ncType , dimension , data ,
@@ -591,6 +558,100 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
                             this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 }
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::scale
+ ( std::vector< double >::const_iterator values , Subset && subset ,
+   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_scale == *values )
+  return; // The scale factor does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_scale = *values; // Update the scale factor
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UnitBlockMod >
+                            ( this , UnitBlockMod::eScale ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( IntermittentUnitBlock::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::set_kappa
+ ( std::vector< double >::const_iterator values , Subset && subset ,
+   const bool ordered , ModParam issuePMod , ModParam issueAMod ) {
+
+ if( subset.empty() )
+  return; // Since the given Subset is empty, no operation is performed
+
+ if( f_kappa == *values )
+  return; // The kappa constant does not change: nothing to do
+
+ if( not_dry_run( issuePMod ) ) {
+  f_kappa = *values; // Update the kappa constant
+
+  if( not_dry_run( issueAMod ) ) {
+   // Update the abstract representation
+   if( constraints_generated() ) {
+    // Update the constraints
+
+    if( ! active_power_bounds_Const.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      active_power_bounds_Const[ t ].set_lhs
+       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+
+      active_power_bounds_Const[ t ].set_rhs
+       ( f_kappa * v_maximum_power[ t ] , issueAMod );
+     }
+    }
+
+    if( ! MinPower_Const.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      MinPower_Const[ t ].set_lhs
+       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+     }
+    }
+
+    if( ! MaxPower_Const.empty() ) {
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      MaxPower_Const[ t ].set_rhs
+       ( f_gamma * f_kappa * v_maximum_power[ t ] , issueAMod );
+     }
+    }
+   }  // end( constraints_generated )
+  }  // end( if( not_dry_run( issueAMod ) )
+ }  // end( if( not_dry_run( issuePMod ) )
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >
+                            ( this , IntermittentUnitBlockMod::eSetKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( IntermittentUnitBlock::set_kappa )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::set_kappa
+ ( std::vector< double >::const_iterator values , Range rng ,
+   ModParam issuePMod , ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset( 1 , 0 );
+
+ set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
+
+}  // end( IntermittentUnitBlock::set_kappa )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File IntermittentUnitBlock.cpp -------------------*/

@@ -30,7 +30,6 @@
 #                             Implementation by:                             #
 #                                                                            #
 #                             Antonio Frangioni                              #
-#                         Operations Research Group                          #
 #                        Dipartimento di Informatica                         #
 #                            Universita' di Pisa                             #
 #                                                                            #

@@ -18,13 +18,9 @@
 #           $(UCBckINC) = the -I$( source directory )                        #
 #           $(UCBckLIB) = the external libraries + -L<libdirs>               #
 #                                                                            #
-#                                VERSION 1.00                                #
-#                               12 - 02 - 2019                               #
-#                                                                            #
 #                             Implementation by:                             #
 #                                                                            #
 #                             Antonio Frangioni                              #
-#                         Operations Research Group                          #
 #                        Dipartimento di Informatica                         #
 #                            Universita' di Pisa                             #
 #                                                                            #

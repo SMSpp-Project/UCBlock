@@ -279,8 +279,6 @@ class ThermalUnitDPSolver : public Solver
 
  protected:
 
-/*--------------------------------------------------------------------------*/
-
  /// builds the graph
  void build_graph( void );
 
@@ -291,7 +289,6 @@ class ThermalUnitDPSolver : public Solver
  void min_path( void );
 
  /// computes the variable values and the total cost
-
  void compute_solutions( void );
 
 /*--------------------------------------------------------------------------*/
@@ -337,7 +334,8 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 
-  EDSolver( Index h , ThermalUnitDPSolver * s ) : f_h( h ) , f_solver( s ) {}
+  EDSolver( Index h , ThermalUnitDPSolver * s )
+   : f_h( h ) , f_solver( s ) {}
 
   virtual ~EDSolver() = default;
 
@@ -603,8 +601,8 @@ class ThermalUnitDPSolver : public Solver
  // these two are identical to min_power but we keep them for readability
  std::vector< double > & bound_on = min_power;
  std::vector< double > & bound_down = min_power;
- //!! std::vector< double > & bound_on = max_power;
- //!! std::vector< double > & bound_down = max_power;
+ // TODO std::vector< double > & bound_on = max_power;
+ // TODO std::vector< double > & bound_down = max_power;
 
  std::vector< double > quad_term;
  std::vector< double > linear_term;
@@ -623,21 +621,17 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > P;          ///< power values
  std::vector< bool > U;            ///< commitment values
 
-/*--------------------------------------------------------------------------*/
-
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
+
+
 
 };  // end( class( ThermalUnitDPSolver ) )
 
-/*--------------------------------------------------------------------------*/
-
 };  // end( namespace SMSpp_di_unipi_it )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
 
 #endif  /* ThermalUnitDPSolver.h included */
 

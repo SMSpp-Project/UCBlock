@@ -286,13 +286,11 @@ class ECNetworkBlock : public NetworkBlock
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// Destructor of ECNetworkBlock
 
  virtual ~ECNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
-
  /// generates the static variables of ECNetworkBlock
  /** The base ECNetworkBlock class has just the node injection variables.
   * Since a "bus" network has just one node, and therefore a single value D for
@@ -303,7 +301,6 @@ class ECNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// Generate the static constraint of the ECNetworkBlock
  /** This method generates the abstract constraints of the ECNetworkBlock.
   * Since the node injection variable is fixed to the active demand value, it
@@ -313,7 +310,6 @@ class ECNetworkBlock : public NetworkBlock
  void generate_abstract_constraints( Configuration * stcc ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// generate the objective of the ECNetworkBlock
  /** Method that generates the objective of the ECNetworkBlock.
   *
@@ -387,7 +383,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of lines of the network
  /** Returns the number of lines in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
@@ -400,7 +395,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of intervals
  /** Returns the number of intervals spanned by this NetworkBlock. If
   * get_NetworkData() returns nullptr, this is equivalent to
@@ -413,7 +407,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns a pointer to the ECNetworkData
  /** Return a pointer to the ECNetworkData. */
 
@@ -422,7 +415,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the matrix of active demands
  /** Method for returning the active demand for the given interval, which is
   * assumed to have size get_number_intervals() per get_number_nodes().
@@ -451,7 +443,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of micro power absorption variables
  /** Method for returning vector of micro public power absorption variables,
   * which is assumed to have size get_number_nodes(). */
@@ -461,7 +452,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of public power injection variables
  /** Method for returning vector of public power injection variables, which is
   * assumed to have size get_number_nodes(). */
@@ -471,7 +461,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of public power absorption variables
  /** Method for returning vector of public power absorbed variables, which is
   * assumed to have size get_number_nodes(). */
@@ -481,7 +470,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the matrix of node injection variables
  /** Method for returning the node injection for the given interval, which is
   * assumed to have size get_number_intervals() per get_number_nodes().
@@ -520,7 +508,6 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// method to set the ActiveDemand
  /** This method can be called either before or after that deserialize() is
   * called to provide the NetworkBlock with the ActiveDemand data. This allows
@@ -555,8 +542,8 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// methods to set the number of intervals
+
  void set_number_intervals( const Index i ) const override {
   if( f_NetworkData )
    f_NetworkData->set_number_intervals( i );
@@ -576,7 +563,6 @@ class ECNetworkBlock : public NetworkBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// loads the ECNetworkBlock instance from an input standard stream.
  /** Like load( std::istream & ), if there is any Solver attached to this
   *  ECNetworkBlock then a NBModification (the "nuclear option") is issued. */
@@ -613,29 +599,6 @@ class ECNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
- static void static_initialization( void ) {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
-  //                                    &ECNetworkBlock::set_active_demand,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
-  //                                    &ECNetworkBlock::set_active_demand,
-  //                                    MS_dbl_rngd::args() );
-
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "ECNetworkBlock::set_active_demand" ,
-   &ECNetworkBlock::set_active_demand );
-
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
-   "ECNetworkBlock::set_active_demand" ,
-   &ECNetworkBlock::set_active_demand );
- }
-
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -646,7 +609,26 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
 
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
+   *                                    &ECNetworkBlock::set_active_demand,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_active_demand" ,
+   &ECNetworkBlock::set_active_demand );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_active_demand" ,
+   &ECNetworkBlock::set_active_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -728,7 +710,13 @@ class ECNetworkBlock : public NetworkBlock
 
 };  // end( class( ECNetworkBlock ) )
 
-} /* namespace SMSpp_di_unipi_it */
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+}  // end( namespace SMSpp_di_unipi_it )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 #endif /* ECNetworkBlock.h included */
 

@@ -16,13 +16,9 @@
 #   Indeed, the makefile only calls makefile-c and strips away the *H and    #  
 #   *OBJ macros. This is not even necessary, it is only made for clarity.    #
 #                                                                            #
-#                                VERSION 1.00                                #
-#                               12 - 11 - 2018                               #
-#                                                                            #
 #                             Implementation by:                             #
 #                                                                            #
 #                             Antonio Frangioni                              #
-#                         Operations Research Group                          #
 #                        Dipartimento di Informatica                         #
 #                            Universita' di Pisa                             #
 #                                                                            #

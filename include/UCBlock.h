@@ -41,9 +41,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-#include "FRowConstraint.h"
-#include "NetworkBlock.h"
 #include "UnitBlock.h"
+#include "NetworkBlock.h"
+#include "FRowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -140,16 +140,15 @@ class UCBlock : public Block
 
  /// Constructor of UCBlock, taking possibly a pointer of its father Block
 
- explicit UCBlock( Block * father = nullptr ) :
-  Block( father ) , f_time_horizon( 0 ) , f_number_units( 0 ) ,
-  f_number_networks( 0 ) , f_NetworkData( nullptr ) ,
+ explicit UCBlock( Block * father = nullptr )
+  : Block( father ) , f_time_horizon( 0 ) , f_number_units( 0 ) ,
+    f_NetworkData( nullptr ) ,
   // TODO commented away until HeatBlock are properly managed
-  //f_number_heat_blocks( 0 ) ,
-  f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
-  f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) , AR( 0 ) {}
+  // f_number_heat_blocks( 0 ) ,
+    f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
+    f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) , AR( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// Destructor of UCBlock
 
  virtual ~UCBlock() override;
@@ -182,7 +181,7 @@ class UCBlock : public Block
  *   get_number_generators() on each of the UnitBlock and summing all the
  *   results. Clearly, NumberElectricalGenerators >= NumberUnits; indeed,
  *   most of the UnitBlock can be expected to have just one electrical
- *   generator. If this happens for all the units then 
+ *   generator. If this happens for all the units then
  *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
  *   (like cascades of hydro generators or combined cycle plants) actually
  *   has more than one electrical generator, then NumberElectricalGenerators >
@@ -242,12 +241,12 @@ class UCBlock : public Block
  *     heat generator 0 = first generator of HeatBlock_0
  *     heat generator 1 = second generator of HeatBlock_0
  *     ...
- *     heat generator k = k-th generator of HeatBlock_0 
+ *     heat generator k = k-th generator of HeatBlock_0
  *                    k = HeatBlock_0->get_number_heat_units()
  *     heat generator k + 1 = first generator of HeatBlock_1
  *     heat generator k + 2 = second generator of HeatBlock_1
  *     ...
- *   which of course boils down to "h = b" when each HeatBlock has exactly 
+ *   which of course boils down to "h = b" when each HeatBlock has exactly
  *   one heat generator (but this is not assumed to happen).
  *
  * - Optionally, the dimensions and variables necessary to deserialize a
@@ -289,36 +288,34 @@ class UCBlock : public Block
  *   - "ActivePowerDemand" (see above) is mandatory in UCBlock;
  *
  *   - also the NetworkData (see above) is mandatory in UCBlock, unless
- *     the transmission network is a bus (that is, "NumberNodes" is
- *     not provided or it is == 1).
+ *     the transmission network is a bus (that is, "NumberNodes" is not
+ *     provided or it is == 1).
  *
  *   In particular, when a NetworkBlock is not defined for a given time
  *   instant t then one of these happens:
  *
- *   - If the network is a transmission network, i.e., the
- *     "NetworkBlockClassname" is equal to "DCNetworkBlock" or is empty, then
- *     a DCNetworkBlock is automatically constructed for that time instant,
- *     and the row ActivePowerDemand[ ... , t ] contains the active demand of
- *     each node at time instant t.
+ *   - If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
+ *     is automatically constructed for that time instant, and the entry
+ *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
  *
- *   - If the network is a community network, i.e., the
- *     "NetworkBlockClassname" is equal to "ECNetworkBlock", then a
- *     ECNetworkBlock is automatically constructed for that time instant, and
- *     the row ActivePowerDemand[ ... , t ] contains the active
- *     demand of each node at time instant t.
+ *   - If "NumberNodes" > 1, then a DCNetworkBlock is automatically
+ *     constructed for that time instant, it is provided with the NetworkData
+ *     object (which must be present in UCBlock) and the row
+ *     ActivePowerDemand[ ... , t ] contains the active demand of each node
+ *     at time instant t.
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint() and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
- *   tells to which node of the transmission or community network, the
- *   specified electrical generator g belongs. Note that this means that
- *   different electrical generators in the same UnitBlock can belong to
- *   different nodes of the transmission or community network. This is
- *   justified e.g. by hydro cascade units where different turbines can be
- *   rather far apart geographically, but still linked by (long) stretches of
- *   rivers. If NumberElectricalGenerators == NumberUnits (all UnitBlock have
- *   exactly one electrical generator), then this variable is indexed over
- *   NumberUnits. If NumberNodes == 1 (say, it is not provided at all), then
- *   this variable need not be defined, since it is not loaded.
+ *   tells to which node of the transmission network, the specified electrical
+ *   generator g belongs. Note that this means that different electrical
+ *   generators in the same UnitBlock can belong to different nodes of the
+ *   transmission network. This is justified e.g. by hydro cascade units where
+ *   different turbines can be rather far apart geographically, but still
+ *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
+ *   NumberUnits (all UnitBlock have exactly one electrical generator), then
+ *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
+ *   is not provided at all), then this variable need not be defined, since it
+ *   is not loaded.
  *
  * - The variable "HeatNode", of type netCDF::NcUint() and indexed over the
  *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node
@@ -492,7 +489,6 @@ class UCBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// Generates the static constraint of the UCBlock
 /** This method generates the abstract constraints of the UCBlock.
  *
@@ -610,7 +606,7 @@ class UCBlock : public Block
  *   \f$ \mathcal{B}\f$ as follow;
  *
  * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,i} \geq
+ *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
  *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
  * \f]
@@ -698,36 +694,41 @@ class UCBlock : public Block
  * @{ */
 
  /// Returns the time horizon of the problem
+
  Index get_time_horizon( void ) const { return( f_time_horizon ); }
 
 /*--------------------------------------------------------------------------*/
-
- /// Returns the number of NetworkBlock
- Index get_number_networks( void ) const { return( f_number_networks ); }
-
  /// Returns the number of UnitBlock
+
  Index get_number_units( void ) const { return( f_number_units ); }
 
+/*--------------------------------------------------------------------------*/
  /// Returns the number of primary zones of the problem
+
  Index get_number_primary_zones( void ) const {
   return( f_number_primary_zones );
  }
 
+/*--------------------------------------------------------------------------*/
  /// Returns the number of secondary zones of the problem
+
  Index get_number_secondary_zones( void ) const {
   return( f_number_secondary_zones );
  }
 
+/*--------------------------------------------------------------------------*/
  /// Returns the number of inertia zones of the problem
+
  Index get_number_inertia_zones( void ) const {
   return( f_number_inertia_zones );
  }
 
+/*--------------------------------------------------------------------------*/
  /// Returns the number of pollutants of the problem
+
  Index get_number_pollutants( void ) const { return( f_number_pollutants ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the NetworkData object
  /** Note that no NetworkData may be defined (see comments to deserialize()),
   * which means that the transmission network is a "bus"; in this case, this
@@ -738,7 +739,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the vector of (pointers to) NetworkBlock elements.
  /** Since there always is a NetworkBlock for each time instant t, this vector
   * should have size of get_time_horizon() where each element of the vector
@@ -749,20 +749,18 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the matrix of active power demand
  /** This method returns a two-dimensional boost::multi_array<> M such that,
   * if it is not empty, M[ n , t ] gives the active power demand of node n at
   * the time instant t. If it is empty, the active power demand can be found
   * in each NetworkBlock of this UCBlock. */
 
- const boost::multi_array< double , 2 > & get_active_power_demand( void )
- const {
+ const boost::multi_array< double , 2 > &
+ get_active_power_demand( void ) const {
   return( v_active_power_demand );
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the vector of primary zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which primary zone node n belongs. There are three possible cases:
@@ -784,7 +782,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the vector of secondary zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which secondary zone node n belongs. There are three possible cases:
@@ -806,7 +803,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the vector of inertia zones
  /** The method returned a std::vector< Index > V and each element of V tells
   * to which inertia zone node n belongs. There are three possible cases:
@@ -828,7 +824,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the matrix of primary demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the primary demand of the primary zone n at the time
@@ -854,7 +849,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the matrix of secondary demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the secondary demand of the secondary zone n at the time
@@ -881,7 +875,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the matrix of inertia demand
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the inertia demand of the inertia zone n at the time
@@ -907,7 +900,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of pollutant zones associated with each pollutant
  /** This method returns a vector containing the number of pollutant zones for
   * each pollutant. The i-th entry of this vector is the number of pollutant
@@ -918,7 +910,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the matrix of pollutant zones
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ p , n ] tells to which pollutant zone associated with pollutant p the
@@ -944,8 +935,8 @@ class UCBlock : public Block
  const boost::multi_array< Index , 2 > & get_pollutant_zone( void ) const {
   return( v_pollutant_zones );
  }
-/*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
  /// Returns the two-dimensional vector of pollutant budget
  /** The method returned a std::vector< std::vector< double > > V such that
   * V[ p ] contains the pollutant budget (across all the time horizon) for
@@ -965,13 +956,12 @@ class UCBlock : public Block
   *    which means that node i does not belong to any pollutant zone for
   *    pollutant p. */
 
- const std::vector< std::vector< double >> & get_pollutant_budget( void )
- const {
+ const std::vector< std::vector< double >> &
+ get_pollutant_budget( void ) const {
   return( v_pollutant_budget );
  }
 
 /*--------------------------------------------------------------------------*/
-
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of HeatSet
@@ -994,7 +984,6 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the matrix of pollutant rho
  /** The method returned a three-dimensional boost::multi_array<> M such that
   * M[ t , p , g ] gives the production of pollutant p from electrical
@@ -1021,7 +1010,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the matrix of pollutant heat rho
@@ -1058,7 +1046,6 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the u-th UnitBlock
 
  UnitBlock * get_unit_block( Index u ) const {
@@ -1068,7 +1055,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Returns the n-th NetworkBlock
 
  NetworkBlock * get_network_block( Index n ) const {
@@ -1081,7 +1067,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of (pointers to) HeatBlock elements.
@@ -1100,24 +1085,22 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
-
- /// Returns the vector of generator node
- /** The method returned a std::vector< Index > V such that V[ g ] tells to
-  * which node of the transmission network n, the specified electrical
-  * generator g belongs. There are two possible cases:
+ /// returns the vector of generator node
+ /** This method returns a vector V that indicates to which node of the
+  * transmission network each electrical generator belongs. There are two
+  * possible cases:
   *
   * - if V has only one element, then the transmission network is a bus and
-  *   all the units(electrical generators) belong to that unique node;
+  *   all the units (electrical generators) belong to that unique node;
   *
-  * - otherwise, the vector must have size of number of units and V[ g ]
-  *   tells to which node n unit(electrical generators) g belongs. */
+  * - otherwise, the size of the vector V must be the number of units and
+  *   V[ g ] indicates to which node the electrical generator g belongs. */
 
  const std::vector< Index > & get_generator_node( void ) const {
   return( v_generator_node );
  }
 
 /*--------------------------------------------------------------------------*/
-
  // TODO commented away until HeatBlock are properly managed
 
  // /// Returns the vector of electrical-power-to-heat ratio
@@ -1138,7 +1121,6 @@ class UCBlock : public Block
  //  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the node injection constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the node injection constraints. C[ t ][ n ] is the node
@@ -1150,7 +1132,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the primary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the primary demand constraints. C[ t ][ z ] is the primary
@@ -1162,7 +1143,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the secondary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the secondary demand constraints. C[ t ][ z ] is the secondary
@@ -1174,7 +1154,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the inertia demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the inertia demand constraints. C[ t ][ z ] is the inertia
@@ -1186,7 +1165,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the maximum pollutant emission constraints
  /** This method returns (a const reference to) the vector C containing the
   * maximum pollutant emission constraints. C[ p ][ z ] is the maximum
@@ -1197,6 +1175,78 @@ class UCBlock : public Block
  get_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR OBTAINING INFORMATION ABOUT THE UCBlock ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for obtaining information about the UCBlock
+ *  @{ */
+
+ /// returns true if the given node belongs to the given primary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the primary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a primary zone.
+  *
+  * @return True if and only if the given node belongs to the given primary
+  *         zone. */
+
+ bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_primary_zones > 1 ) &&
+      ( zone_id != v_primary_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given node belongs to the given secondary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the secondary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a secondary zone.
+  *
+  * @return True if and only if the given node belongs to the given secondary
+  *         zone. */
+
+ bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_secondary_zones > 1 ) &&
+      ( zone_id != v_secondary_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given node belongs to the given inertia zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the inertia zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a inertia zone.
+  *
+  * @return True if and only if the given node belongs to the given inertia
+  *         zone. */
+
+ bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_inertia_zones > 1 ) &&
+      ( zone_id != v_inertia_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given electrical generator belongs to the given node
+
+ bool generator_belongs_to_node( Index elc_generator , Index node_id ) const {
+  if( ( get_number_nodes() > 1 ) &&
+      ( node_id != v_generator_node[ elc_generator ] ) )
+   return( false );
+  return( true );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
@@ -1231,6 +1281,22 @@ class UCBlock : public Block
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// method for handling Modification
+ /** Method for handling Modification.
+  *
+  * This method has to intercept any "abstract Modification" that modifies the
+  * "abstract representation" of the UCBlock, and "translate" them into both
+  * changes of the actual data structures and corresponding "physical
+  * Modification". These Modification are those for which
+  * Modification::concerns_Block() is true. Currently, this method only
+  * handles UnitBlockMod whose modification is associated with the changing of
+  * the scale factor of a UnitBlock. */
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// update the active power demand
+
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Subset && subset = { 0 } ,
                                bool ordered = false ,
@@ -1238,23 +1304,12 @@ class UCBlock : public Block
                                ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// update the active power demand
 
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
-
- static void static_initialization( void ) {
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
-   "UCBlock::set_active_power_demand" ,
-   &UCBlock::set_active_power_demand );
-
-  register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand" ,
-   &UCBlock::set_active_power_demand );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1284,13 +1339,23 @@ class UCBlock : public Block
  /// indicates whether the Objective of the UCBlock has been generated
  bool objective_generated( void ) const { return( AR & HasObj ); }
 
+ static void static_initialization( void ) {
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_active_power_demand" ,
+   &UCBlock::set_active_power_demand );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_active_power_demand" ,
+   &UCBlock::set_active_power_demand );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*---------------------------------- data ----------------------------------*/
 
-/// The time horizon of the problem
+ /// The time horizon of the problem
  Index f_time_horizon;
 
  /// The specific classname of the networks that need to be instantiated,
@@ -1453,8 +1518,7 @@ class UCBlock : public Block
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- ///< bit-wise coded: what abstract is there
- unsigned char AR{};
+ unsigned char AR; ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed
@@ -1463,6 +1527,54 @@ class UCBlock : public Block
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
+ boost::multi_array< Range , 2 > primary_var_index;
+ ///< indices of active Variable in the primary demand constraints
+ /**< The active Variables of each LinearFunction defining a primary demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the range of indices of active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because we assume that, if a generator has primary spinning reserve for
+  * some time instant, then it has primary spinning reserve for all time
+  * instants. */
+
+ boost::multi_array< Range , 2 > secondary_var_index;
+ ///< indices of active Variable in the secondary demand constraints
+ /**< The active Variables of each LinearFunction defining a secondary demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the range of indices of active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because we assume that, if a generator has secondary spinning reserve for
+  * some time instant, then it has secondary spinning reserve for all time
+  * instants. */
+
+ boost::multi_array< Index , 2 > inertia_var_index;
+ ///< indices of active Variable in the inertia demand constraints
+ /**< The active Variables of each LinearFunction defining a inertia demand
+  * constraint are grouped by UnitBlocks. That is, all active Variables of a
+  * given UnitBlock have consecutive indices in the LinearFunction that
+  * defines each constraint. The element at position (i, z) in the multi-array
+  * will store the smallest index of an active Variable (that belong to the
+  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
+  * of the i-th UnitBlock is active in the constraint associated with zone
+  * "z", then the element at position (i, z) is Inf<Index>().
+  *
+  * Notice that these indices do not depend on the time instant. This is
+  * because we assume that, if a generator has commitment variable, inertia
+  * commitment, inertia power, or active power variable for some time instant,
+  * then it has the same thing for all time instants. */
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -1470,17 +1582,95 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  /// Deserialize the sub-blocks of UCBlock that have the given prefix name
+
  void deserialize_sub_blocks( const netCDF::NcGroup & group ,
                               const std::string & prefix ,
                               Index num_sub_blocks );
 
 /*--------------------------------------------------------------------------*/
-
  /// Deserialize the Network Blocks of UCBlock
+
  void deserialize_network_blocks( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the node injection constraints
 
+ void generate_node_injection_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the primary demand constraints
+
+ void generate_primary_demand_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the secondary demand constraints
+
+ void generate_secondary_demand_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the inertia demand constraints
+
+ void generate_inertia_demand_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the pollutant budget constraints
+
+ void generate_pollutant_budget_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the heat constraints
+
+ void generate_heat_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the node injection constraints
+ /** This function updates the node injection constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_node_injection_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the primary demand constraints
+ /** This function updates the primary demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_primary_demand_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the secondary demand constraints
+ /** This function updates the secondary demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_secondary_demand_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the inertia demand constraints
+ /** This function updates the inertia demand constraints considering that the
+  * scale factors of the given units may have been modified. The vector \p
+  * modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_inertia_demand_constraints
+ ( const std::vector< Index > & modified_units );
+
+/*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
  /** This function updates the node injection constraint at the given \p time
   * for the node whose index is \p node_index considering the given \p demand.
@@ -1489,10 +1679,62 @@ class UCBlock : public Block
   *
   * @param node_index The index of a node.
   *
-  * @param demand The demand at the given node at the given time.
-  */
+  * @param demand The demand at the given node at the given time. */
+
  void update_node_injection_constraints( Index time , Index node_index ,
                                          double demand );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of nodes
+
+ Index get_number_nodes( void ) const {
+  return( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the primary zone to which the given electrical generator belongs
+
+ Index get_primary_zone( Index elc_generator ) const {
+  if( f_number_primary_zones == 0 )
+   return( 0 );
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return( v_primary_zones[ node ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the secondary zone to which the given electrical generator belongs
+
+ Index get_secondary_zone( Index elc_generator ) const {
+  if( f_number_secondary_zones == 0 )
+   return( 0 );
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return( v_secondary_zones[ node ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the inertia zone to which the given electrical generator belongs
+
+ Index get_inertia_zone( Index elc_generator ) const {
+  if( f_number_inertia_zones == 0 )
+   return( 0 );
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return( v_inertia_zones[ node ] );
+  }
 
 };  // end( class( UCBlock ) )
 
@@ -1572,6 +1814,7 @@ class UCBlockRngdMod : public UCBlockMod
  }
 
  Block::Range f_rng; ///< the range
+
 };  // end( class( UCBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1608,9 +1851,11 @@ class UCBlockSbstMod : public UCBlockMod
 };  // end( class( UCBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
-} /* namespace SMSpp_di_unipi_it */
+}  // end( namespace SMSpp_di_unipi_it )
 
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif /* UCBlock.h included */

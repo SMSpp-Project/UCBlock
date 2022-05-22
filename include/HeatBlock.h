@@ -95,7 +95,6 @@ class HeatBlock : public Block
  explicit HeatBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
-
 /// Destructor of HeatBlock
 
  virtual ~HeatBlock() override;
@@ -274,7 +273,6 @@ class HeatBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// Generate the static variables of the HeatUnit
 /** Method that generates the abstract variables of the HeatBlock.
  * HeatBlock class has four different "groups" of variables:
@@ -316,7 +314,6 @@ class HeatBlock : public Block
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// Generate the static constraint of the HeatBlock
 /** Method that generates the static constraint of the HeatBlock.
  *
@@ -360,7 +357,6 @@ class HeatBlock : public Block
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
 /// Generate the objective of the HeatBlock
 /** Method that generates the objective of the HeatBlock.
  *
@@ -390,14 +386,12 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// Returns the number of heat units in this HeatBlock
  Index get_number_heat_generators( void ) const {
   return( f_number_heat_units );
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// Returns the vector of heat demand
 /** The returned vector implies the heat demand of each HeatBlock at time t.
  *  There are two possible cases:
@@ -407,12 +401,12 @@ class HeatBlock : public Block
  *
  * - otherwise, the vector must have size of time horizon and the t_th
  *   element of the vector gives the total heat demand at time t. */
+
  const std::vector< double > & get_heat_demand( void ) const {
   return( v_heat_demand );
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// Returns the vector of minimum heat storage
 /** The returned vector implies the minimum heat storage of each HeatBlock
  * at time t. There are three possible cases:
@@ -431,7 +425,6 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
 /// Returns the vector of maximum heat storage
 /** The returned vector implies the maximum heat storage of each HeatBlock
  * at time t. There are three possible cases:
@@ -450,7 +443,6 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
 ///Returns the matrix of minimum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the minimum heat production of unit i in time t. There
@@ -473,7 +465,6 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
-
 ///Returns the matrix of maximum heat production
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the maximum heat production of unit i in time t. There
@@ -489,13 +480,13 @@ class HeatBlock : public Block
  * - otherwise, the matrix has size get_time_horizon() per
  *   get_number_heat_units(), then the M[ t , i ] gives the maximum heat
  *   production of each unit i at time instant t. */
+
  const boost::multi_array< double , 2 > & get_max_heat_production( void )
  const {
   return( v_max_heat_production );
  }
 
 /*--------------------------------------------------------------------------*/
-
 ///Returns the matrix of production heat cost
 /** The method returns a two-dimensional boost::multi_array<> M such that
  * M[ t , i ] gives the production heat cost of unit i in time t. There
@@ -712,6 +703,10 @@ class HeatBlock : public Block
  private:
 
 /*--------------------------------------------------------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+
 
  SMSpp_insert_in_factory_h;
 
@@ -738,8 +733,9 @@ class HeatBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif /* HeatBlock.h included */
