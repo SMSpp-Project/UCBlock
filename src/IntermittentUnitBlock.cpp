@@ -597,12 +597,16 @@ void IntermittentUnitBlock::scale
   f_scale = *values; // Update the scale factor
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< UnitBlockMod >
                            ( this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );
- }
+ else if( auto f_Block = get_f_Block() )
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >
+                             ( this , UnitBlockMod::eScale ) ,
+                             Observer::par2chnl( issuePMod ) );
+
 }  // end( IntermittentUnitBlock::scale )
 
 /*--------------------------------------------------------------------------*/
