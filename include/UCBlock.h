@@ -693,6 +693,13 @@ class UCBlock : public Block
  * the related blocks to the UC problem.
  * @{ */
 
+ /// returns the sense of the Objective of this UCBlock
+ /** This function returns the sense of the Objective of this UCBlock, which
+  * is currently defined to be minimization (Objective::eMin). */
+
+ int get_objective_sense() const override;
+
+/*--------------------------------------------------------------------------*/
  /// Returns the time horizon of the problem
 
  Index get_time_horizon( void ) const { return( f_time_horizon ); }
