@@ -1917,9 +1917,6 @@ class HydroUnitBlockMod : public UnitBlockMod
  /// returns the Block to which the Modification refers
  Block * get_Block( void ) const override { return( f_Block ); }
 
- /// Accessor to the type of modification
- int type( void ) { return( f_type ); }
-
  protected:
 
  /// prints the HydroUnitBlockMod
@@ -1942,8 +1939,6 @@ class HydroUnitBlockMod : public UnitBlockMod
 
  HydroUnitBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
-
- int f_type; ///< type of modification
 
 };  // end( class( HydroUnitBlockMod ) )
 

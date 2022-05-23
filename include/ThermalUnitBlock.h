@@ -1930,9 +1930,6 @@ class ThermalUnitBlockMod : public UnitBlockMod
  /// returns the Block to which the Modification refers
  Block * get_Block( void ) const override { return( f_Block ); }
 
- /// Accessor to the type of modification
- int type( void ) { return( f_type ); }
-
  protected:
 
  /// prints the ThermalUnitBlockMod
