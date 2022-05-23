@@ -14,15 +14,8 @@ function csvEC2nc4()
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
-    n_users = length(user_set)
-    defDim(block, "NumberNodes", n_users)
-
     n_timesteps = length(time_set)
     defDim(block, "TimeHorizon", n_timesteps)
-
-    # --------------------------------------------------------------------------------------- #
-
-    # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
     # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
     # inform UCBlock about the specific type of network (since it deals with both transmission and 
@@ -31,6 +24,10 @@ function csvEC2nc4()
     network_block_classname[1] = "ECNetworkBlock"
     network_data_classname = defVar(block, "NetworkDataClassname", String, ())
     network_data_classname[1] = "ECNetworkData"
+
+    # --------------------------------------------------------------------------------------- #
+
+    # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
     # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")
@@ -70,8 +67,9 @@ function csvEC2nc4()
 
     if !("-with-network-blocks" in ARGS) && allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff)
 
-        # no needs to create w `(EC)NetworkBlock`(s) with the same data repeated, we create just one `NetworkData`
-        # ecnd = defGroup(block, "NetworkData", attrib=OrderedDict("type" => "ECNetworkData"))
+        # Store the number of nodes in the father block
+        n_users = length(user_set)
+        defDim(block, "NumberNodes", n_users)
 
         # Store the first index (-1 since in C++ the array's indexing starts from
         # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
@@ -80,10 +78,12 @@ function csvEC2nc4()
                              for w in peak_set]
 
         # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
-        ## A T T E N T I O N: since Julia is column-major, to store the demand in the correct shape, i.e., 
-        ##                    NumberNodes x TimeHorizon, we need to store it transposed, otherwise, since 
-        ##                    #TimeHorizon >> #NumberNodes, to deal with this difference efficiently, 
-        #                     the order of the dimensions is flipped.
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
+        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
+        ## will appear reversed when the data is loaded in languages or programs using row-major 
+        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
+        ## To store the demand in the correct shape, i.e., NumberNodes x TimeHorizon, we need to store 
+        ## it transposed, i.e., TimeHorizon x NumberNodes.
         power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes")) # ("NumberNodes", "TimeHorizon"))
         power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
                               for t in time_set, u in user_set] # for u in user_set, t in time_set]
@@ -111,6 +111,10 @@ function csvEC2nc4()
         for (i_w, w) in enumerate(peak_set)
 
             ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
+            
+            # Store the number of nodes in each NetworkBlock
+            n_users = length(user_set)
+            defDim(ecnb, "NumberNodes", n_users)
 
             # Vector variables
 
@@ -121,10 +125,12 @@ function csvEC2nc4()
             last_i = findlast(x -> x == w, peak_categories)
 
             # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
-            ## A T T E N T I O N: since Julia is column-major, to store the demand in the correct shape, i.e., 
-            ##                    NumberIntervals x NumberNodes, we need to store it transposed, otherwise, since 
-            ##                    #NumberIntervals >> #NumberNodes, to deal with this difference efficiently, 
-            #                     the order of the dimensions is flipped.
+            ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
+            ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
+            ## will appear reversed when the data is loaded in languages or programs using row-major 
+            ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
+            ## To store the demand in the correct shape, i.e., NumberIntervals x NumberNodes, we need to store 
+            ## it transposed, i.e., NumberNodes x NumberIntervals.
             power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
             power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
                                   for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]

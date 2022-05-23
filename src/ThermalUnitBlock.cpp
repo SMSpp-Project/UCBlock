@@ -109,40 +109,25 @@ Block::Subset subset_sbtrct( const Block::Subset & sbst , Block::Index dlt ) {
 /*--------------------------------------------------------------------------*/
 
 ThermalUnitBlock::~ThermalUnitBlock() {
- auto clear_constraints =
-  []( std::vector< FRowConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
 
- clear_constraints( Power_StartUp_ShutDown_Variables_Const );
- clear_constraints( Power_StartUp_Variable_Const );
- clear_constraints( Power_ShutDown_Variable_Const );
- clear_constraints( StartUp_ShutDown_Variables_Const );
- clear_constraints( StartUp_Const );
- clear_constraints( ShutDown_Const );
- clear_constraints( RampUp_Const );
- clear_constraints( RampDown_Const );
- clear_constraints( PrimaryRho_Const );
- clear_constraints( SecondaryRho_Const );
- clear_constraints( MinPower_Const );
- clear_constraints( MaxPower_Const );
+ Constraint::clear( Power_StartUp_ShutDown_Variables_Const );
+ Constraint::clear( Power_StartUp_Variable_Const );
+ Constraint::clear( Power_ShutDown_Variable_Const );
+ Constraint::clear( StartUp_ShutDown_Variables_Const );
+ Constraint::clear( StartUp_Const );
+ Constraint::clear( ShutDown_Const );
+ Constraint::clear( RampUp_Const );
+ Constraint::clear( RampDown_Const );
+ Constraint::clear( PrimaryRho_Const );
+ Constraint::clear( SecondaryRho_Const );
+ Constraint::clear( MinPower_Const );
+ Constraint::clear( MaxPower_Const );
 
- auto clear_ZOconstraints =
-  []( std::vector< ZOConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
- clear_ZOconstraints( Commitment_bound_Const );
- clear_ZOconstraints( StartUp_Binary_bound_Const );
- clear_ZOconstraints( ShoutDown_Binary_bound_Const );
+ Constraint::clear( Commitment_bound_Const );
+ Constraint::clear( StartUp_Binary_bound_Const );
+ Constraint::clear( ShoutDown_Binary_bound_Const );
 
- auto clear_Boxconstraints =
-  []( std::vector< BoxConstraint > & constraints ) {
-   for( auto & constraint : constraints )
-    constraint.clear();
-  };
- clear_Boxconstraints( Commitment_fixed_to_One_Const );
+ Constraint::clear( Commitment_fixed_to_One_Const );
 
  objective.clear();
 }
