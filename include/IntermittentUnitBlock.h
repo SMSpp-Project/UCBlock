@@ -53,7 +53,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for the Intermittent Generation unit
+/// Implementation of the Block concept for the Intermittent Generation unit
 /** The IntermittentUnitBlock class implements the Block concept [see Block.h]
  * for a units representing generation (be ir centralized or distributed) by
  * intermittent (= unreliable) sources in the unit commitment problem, such
@@ -94,7 +94,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name constructor and destructor
- *  @{ */
+ * @{ */
 
  /// constructor, takes the father and the time horizon
  /** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
@@ -112,7 +112,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
  /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -256,11 +256,9 @@ class IntermittentUnitBlock : public UnitBlock
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for checking the IntermittentUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for checking solution information in the
- *  IntermittentUnitBlock
- *  @{ */
+/** @name Methods for checking solution information in the IntermittentUnitBlock
+ * @{ */
 
-/*--------------------------------------------------------------------------*/
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this IntermittentUnitBlock is
@@ -409,8 +407,7 @@ class IntermittentUnitBlock : public UnitBlock
  *
  * - primary_spinning_reserve variables;
  *
- * - secondary_spinning_reserve variables;
- *
+ * - secondary_spinning_reserve variables.
  * @{ */
 
  /// returns the vector of active_power variables
@@ -478,7 +475,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the IntermittentUnitBlock
- *  @{ */
+ * @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -491,9 +488,8 @@ class IntermittentUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR INITIALIZING THE IntermittentUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the IntermittentUnitBlock
- *  @{ */
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(

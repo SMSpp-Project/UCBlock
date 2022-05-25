@@ -108,7 +108,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
 
  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , true ,
                 true );
-}
+}  // end( ECNetworkBlock::ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -151,7 +151,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   // still have been provided.
   ::deserialize( group , "ActiveDemand" , v_active_demand );
  }
-}
+}    // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
@@ -170,7 +170,7 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_sell_price );
-}
+}    // end( ECNetworkBlock::ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -204,7 +204,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_active_demand );
  }
-}
+}    // end( ECNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -256,7 +256,7 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_max_power , "max_power" );
 
  set_variables_generated();
-}
+}  // end( ECNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -417,7 +417,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                         "power_balance_const" );
 
  set_constraints_generated();
-}
+}  // end( ECNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

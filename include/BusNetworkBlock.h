@@ -73,7 +73,7 @@ class BusNetworkBlock : public NetworkBlock
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// constructor of BusNetworkBlock, taking possibly a pointer to its father
 
@@ -91,7 +91,7 @@ class BusNetworkBlock : public NetworkBlock
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
  /// loads the BusNetworkBlock instance from file - not implemented yet
 

@@ -107,7 +107,7 @@ class UnitBlock : public Block
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// Constructor, takes the father and the time horizon
  /** Constructor of UnitBlock, taking possibly a pointer of its father
@@ -129,65 +129,66 @@ class UnitBlock : public Block
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
-/// Extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the UnitBlock. Besides the mandatory "type" attribute of any :Block, the
- * group should contain the following:
- *
- * - The dimension "TimeHorizon" containing the time horizon. The dimension
- *   is optional because the same information may be passed via the method
- *   set_time_horizon(), or directly retrieved from the father if it is a
- *   UCBlock; see the comments to set_time_horizon() for details.
- *
- * - The dimension "NumberIntervals", that is provided to allow that all
- *   time-dependent data in the UnitBlock can only change at a subset of
- *   the time instants of the time interval, being therefore
- *   piecewise-constant (possibly, constant). "NumberIntervals" should
- *   therefore be <= "TimeHorizon", with four distinct cases:
- *
- *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
- *        time instants, *but not all of them*, the values of some of the
- *        relevant data are changing; the intervals are then described in
- *        variable "ChangeIntervals".
- *
- *   ii) "NumberIntervals" == 1, which means that the value of each relevant
- *        data in the UnitBlock is the same for each time instant 0, ...,
- *        "TimeHorizon" - 1 in the time horizon. In this case, the variable
- *        "ChangeIntervals" (see below) is ignored.
- *
- *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
- *        relevant data changes at every time interval (in principle; of
- *        course there is nothing preventing the same value to be repeated in
- *        the netCDF input). Also in this case the variable "ChangeIntervals"
- *        is ignored, since it is useless.
- *
- *   iv)  The dimension "NumberIntervals" is not provided, which means that
- *        the values of the relevant data may be the same for each time
- *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
- *        case iii above). Also in this case, of course, "ChangeIntervals"
- *        (see below) is ignored, and therefore it can (and should) not be
- *        present.
- *
- *   Note that this (together with "ChangeIntervals", if defined) obviously
- *   sets the "maximum frequency" at which data can change; if some data
- *   changes less frequently (say, it is constant), then the same value
- *   will have to be repeated. Individual data can also have specific
- *   provisions for the case where the data is all equal despite
- *   "NumberIntervals" saying differently.
- *
- * - The variable "ChangeIntervals", of type integer and indexed over the
- *   dimension "NumberIntervals". The time horizon is subdivided into
- *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ...  [
- *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
- *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
- *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
- *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
- *   NumberIntervals - 1 ], is ignored and does not need to be set (although
- *   the variable has actually "NumberIntervals" elements). Anyway, the whole
- *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
- *   not defined), or "NumberIntervals" >= "TimeHorizon". */
+ /// Extends Block::deserialize( netCDF::NcGroup )
+ /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+  * the UnitBlock. Besides the mandatory "type" attribute of any :Block, the
+  * group should contain the following:
+  *
+  * - The dimension "TimeHorizon" containing the time horizon. The dimension
+  *   is optional because the same information may be passed via the method
+  *   set_time_horizon(), or directly retrieved from the father if it is a
+  *   UCBlock; see the comments to set_time_horizon() for details.
+  *
+  * - The dimension "NumberIntervals", that is provided to allow that all
+  *   time-dependent data in the UnitBlock can only change at a subset of
+  *   the time instants of the time interval, being therefore
+  *   piecewise-constant (possibly, constant). "NumberIntervals" should
+  *   therefore be <= "TimeHorizon", with four distinct cases:
+  *
+  *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
+  *        time instants, *but not all of them*, the values of some of the
+  *        relevant data are changing; the intervals are then described in
+  *        variable "ChangeIntervals".
+  *
+  *   ii) "NumberIntervals" == 1, which means that the value of each relevant
+  *        data in the UnitBlock is the same for each time instant 0, ...,
+  *        "TimeHorizon" - 1 in the time horizon. In this case, the variable
+  *        "ChangeIntervals" (see below) is ignored.
+  *
+  *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
+  *        relevant data changes at every time interval (in principle; of
+  *        course there is nothing preventing the same value to be repeated in
+  *        the netCDF input). Also in this case the variable "ChangeIntervals"
+  *        is ignored, since it is useless.
+  *
+  *   iv)  The dimension "NumberIntervals" is not provided, which means that
+  *        the values of the relevant data may be the same for each time
+  *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
+  *        case iii above). Also in this case, of course, "ChangeIntervals"
+  *        (see below) is ignored, and therefore it can (and should) not be
+  *        present.
+  *
+  *   Note that this (together with "ChangeIntervals", if defined) obviously
+  *   sets the "maximum frequency" at which data can change; if some data
+  *   changes less frequently (say, it is constant), then the same value
+  *   will have to be repeated. Individual data can also have specific
+  *   provisions for the case where the data is all equal despite
+  *   "NumberIntervals" saying differently.
+  *
+  * - The variable "ChangeIntervals", of type integer and indexed over the
+  *   dimension "NumberIntervals". The time horizon is subdivided into
+  *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ...  [
+  *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
+  *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
+  *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
+  *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
+  *   NumberIntervals - 1 ], is ignored and does not need to be set (although
+  *   the variable has actually "NumberIntervals" elements). Anyway, the whole
+  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
+  *   not defined), or "NumberIntervals" >= "TimeHorizon". */
+
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -389,7 +390,8 @@ class UnitBlock : public Block
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
- *  @{ */
+ * @{ */
+
  /// returns a Solution representing the current solution of this UnitBlock
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this UnitBlock. The base
@@ -424,7 +426,7 @@ class UnitBlock : public Block
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the UnitBlock
- *  @{ */
+ * @{ */
 
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -436,8 +438,8 @@ class UnitBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Methods for modifying the UnitBlock
-  *  @{ */
+/** @name Methods for modifying the UnitBlock
+ * @{ */
 
  /// sets the time horizon method
  /** This method can be called *before* that deserialize() is called to
@@ -607,8 +609,8 @@ class UnitBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Handling the data of the UnitBlock
-    @{ */
+/** @name Handling the data of the UnitBlock
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );

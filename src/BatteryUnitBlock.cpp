@@ -355,6 +355,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   add_static_variable( v_battery_binary , "BB_battery" );
  }
 
+ // Battery Design Variable
  v_battery_design.resize( f_time_horizon );
  for( auto & var : v_battery_design ) {
   if( relax_binary )
@@ -366,6 +367,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   add_static_variable( v_battery_design , "D_battery" );
  }
 
+ // Converter Design Variable
  v_converter_design.resize( f_time_horizon );
  for( auto & var : v_converter_design ) {
   if( relax_binary )
@@ -832,7 +834,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  }  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ---*/
+/*------- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ------*/
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {

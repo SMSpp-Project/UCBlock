@@ -136,7 +136,7 @@ class UCBlock : public Block
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// Constructor of UCBlock, taking possibly a pointer of its father Block
 
@@ -157,7 +157,7 @@ class UCBlock : public Block
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
 /// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -489,198 +489,198 @@ class UCBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generates the static constraint of the UCBlock
-/** This method generates the abstract constraints of the UCBlock.
- *
- *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
- *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
- *  three partitions of the set of nodes which may or may not be identical:
- *
- *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
- *  in several zones (sets of nodes) each one being associated with one
- *  specific primary spinning reserve requirement;
- *
- *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
- *  \f$ in several zones each one being associated with one specific secondary
- *  spinning reserve requirement;
- *
- *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
- *  \f$ in several zones each one being associated with one specific inertia
- *  requirement;
- *
- *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
- *  \f$ corresponding to zones which are associated with an emissions
- *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
- *  \f$ \mathcal{P} \f$.
- *
- *  The electrical system contains a set of “units” (e.g., power plants, load
- *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
- *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
- *  \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
- *  where the set of all electrical generators is defined by
- *  \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
- *  electrical generators connected to node \f$ n \in \mathcal{N} \f$.
- *
- *  In the UCBlock there is not defined any variable but the decision
- *  variables here are present by using method get_variable() from UnitBlock,
- *  HeatBlock and NetworkBlock as follow:
- *
- * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each electrical generator
- *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_active_power()
- *   method;
- *
- * - \f$ S_{t,n} \f$ : the node injection variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
- *   called from NetworkBlock by get_node_injection() method;
- *
- * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
- *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
- *   get_primary_spinning_reserve() method;
- *
- * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
- *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
- *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
- *   get_secondary_spinning_reserve() method;
- *
- * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
- *   \f$ t \in \mathcal{T} \f$ and each electrical generator
- *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
- *   method;
- *
- * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
- *   \f$ t \in \mathcal{T} \f$ and each heat unit
- *   \f$ i \in \mathcal{I}(h)= \mathcal{I}^{ho}(h) \cup \mathcal{I}^{ec}(h)\f$
- *   is called from HeatBlock by get_heat() method, where
- *   \f$\mathcal{I}^{ho}(h)\f$  and \f$\mathcal{I}^{ec}(h)\f$ are heat-only-
- *   producing unit and electricity-producing one, respectively;
- *
- *  The global constraints of unit commitment problem, on the time horizon
- *  \f$ \mathcal{T} \f$ write as follow:
- *
- * - Node injection Constraints:
- *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
- *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
- *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
- *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the NetworkBlock::
- *   get_number_nodes() > 0, a boost::multi_array<FRowConstraint, 2>; with two
- *   dimensions which are get_time_horizon() and
- *   NetworkBlock::get_number_nodes() entries, where the entry
- *   t = 0, ..., f_time_horizon - 1 and the entry
- *   n = 1, ..., get_number_nodes() being the node injection constraints at
- *   time t and node n as follow:
- *
- * \f[
- *  \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
- *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
- * \f]
- *
- * - Primary Demand Constraints:
- *   In the unit commitment problem, the primary demand
- *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
- *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
- *   be satisfied. Therefore, if the f_number_primary_zones > 0,
- *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
- *   f_time_horizon, and f_number_primary_zones entries, where the entry
- *   t = 0, ..., f_time_horizon - 1 and the entry
- *   \f$ \mathcal{B}\f$ = 0, ..., f_number_primary_zones - 1 being the primary
- *   demand constraints at time t and primary zone \f$ \mathcal{B}\f$ as below;
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
- *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
- *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
- * \f]
- *
- * - Secondary Demand Constraints:
- *   In the unit commitment problem, the secondary demand
- *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
- *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
- *   be satisfied. So, if the f_number_secondary_zones > 0,
- *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
- *   f_time_horizon, and f_number_secondary_zones entries, which the entry
- *   t = 0, ..., f_time_horizon - 1 and the entry
- *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
- *   secondary demand constraints at time t and secondary zone
- *   \f$ \mathcal{B}\f$ as follow;
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
- *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
- *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
- * \f]
- *
- * - Inertia Demand Constraints:
- *   In the unit commitment problem, the inertia demand
- *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
- *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
- *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
- *   satisfied. Therefore, if the f_number_inertia_zones > 0,
- *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
- *   f_time_horizon, and f_number_inertia_zones entries, where the entry
- *   t = 0, ..., f_time_horizon - 1 and the entry
- *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
- *   demand constraints at time t and inertia zone \f$ \mathcal{B}\f$ as below;
- *
- * \f[
- *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
- *  u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
- *        \quad t \in \mathcal{T}
- *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
- * \f]
- *
- * - Pollutant Budget Constraints:
- *   In the unit commitment problem, the pollutant budget
- *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
- *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
- *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
- *   \f$ \rho_{t , p , g} \f$ and \f$ \gamma_{t , p , h} \f$ where considered
- *   as pollutant ratio and pollutant heat ratio respectively. So, if the
- *   f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>; with
- *   two dimensions which are f_number_pollutants and v_number_pollutant_zones
- *   entries, that the entry
- *   p = 0, ..., f_number_pollutants - 1 and the entry
- *   \f$ \mathcal{B}\f$ = 0, ..., v_number_pollutant_zones - 1 being the
- *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
- *   zones b as below;
- *
- * \f[
- *
- *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
- *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
- *  \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
- *  \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
- *  \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
- * \f]
- *
- *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
- *
- * - Heat Constraints:
- *   In the unit commitment problem, the Heat Constraints link the UCBlock
- *   variables with the HeatBlock, where for each heat block
- *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
- *   \varrho_{g} \f$ of each electrical generator \f$ g \in \mathcal{G} \f$.
- *   Therefore, if the f_number_heat_blocks > 0, a
- *   boost::multi_array<FRowConstraint, 2> with two dimensions which are
- *   f_time_horizon and the number of electrical generators that belong to
- *   some HeatBlock; the constraint at position ( t, g ) being the heat
- *   constraints at time t and heat generator M[ g ], where M maps the
- *   constraint into an electricity generator that belongs to some HeatBlock.
- *   The Heat Constraints are defined as below:
- *
- * \f[
- *  \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
- *   p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
- *                                 \quad t \in \mathcal{T} \quad           (6)
- * \f]
- *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
- *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
- *   \mathcal{G}^{ec}(h) \f$, there is the need to know which electrical
- *   generator \f$ j \f$ is representing. Thus, we need a mapping
- *   \f$ e^h : \mathcal{G}^{ec}(h) \to \mathcal{G} \f$, where \f$ \mathcal{G}
- *   \f$ is the set of electricity generators (standard electrical generators
- *   in UC parlance). */
+ /// Generates the static constraint of the UCBlock
+ /** This method generates the abstract constraints of the UCBlock.
+  *
+  *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
+  *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
+  *  three partitions of the set of nodes which may or may not be identical:
+  *
+  *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
+  *  in several zones (sets of nodes) each one being associated with one
+  *  specific primary spinning reserve requirement;
+  *
+  *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  *  \f$ in several zones each one being associated with one specific secondary
+  *  spinning reserve requirement;
+  *
+  *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  *  \f$ in several zones each one being associated with one specific inertia
+  *  requirement;
+  *
+  *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
+  *  \f$ corresponding to zones which are associated with an emissions
+  *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
+  *  \f$ \mathcal{P} \f$.
+  *
+  *  The electrical system contains a set of “units” (e.g., power plants, load
+  *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
+  *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
+  *  \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
+  *  where the set of all electrical generators is defined by
+  *  \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
+  *  electrical generators connected to node \f$ n \in \mathcal{N} \f$.
+  *
+  *  In the UCBlock there is not defined any variable but the decision
+  *  variables here are present by using method get_variable() from UnitBlock,
+  *  HeatBlock and NetworkBlock as follow:
+  *
+  * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_active_power()
+  *   method;
+  *
+  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
+  *   called from NetworkBlock by get_node_injection() method;
+  *
+  * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
+  *   get_primary_spinning_reserve() method;
+  *
+  * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
+  *   get_secondary_spinning_reserve() method;
+  *
+  * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
+  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
+  *   method;
+  *
+  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each heat unit
+  *   \f$ i \in \mathcal{I}(h)= \mathcal{I}^{ho}(h) \cup \mathcal{I}^{ec}(h)\f$
+  *   is called from HeatBlock by get_heat() method, where
+  *   \f$\mathcal{I}^{ho}(h)\f$  and \f$\mathcal{I}^{ec}(h)\f$ are heat-only-
+  *   producing unit and electricity-producing one, respectively;
+  *
+  *  The global constraints of unit commitment problem, on the time horizon
+  *  \f$ \mathcal{T} \f$ write as follow:
+  *
+  * - Node injection Constraints:
+  *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
+  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
+  *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
+  *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the NetworkBlock::
+  *   get_number_nodes() > 0, a boost::multi_array<FRowConstraint, 2>; with two
+  *   dimensions which are get_time_horizon() and
+  *   NetworkBlock::get_number_nodes() entries, where the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   n = 1, ..., get_number_nodes() being the node injection constraints at
+  *   time t and node n as follow:
+  *
+  * \f[
+  *  \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
+  *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
+  * \f]
+  *
+  * - Primary Demand Constraints:
+  *   In the unit commitment problem, the primary demand
+  *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
+  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
+  *   be satisfied. Therefore, if the f_number_primary_zones > 0,
+  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+  *   f_time_horizon, and f_number_primary_zones entries, where the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_primary_zones - 1 being the primary
+  *   demand constraints at time t and primary zone \f$ \mathcal{B}\f$ as below;
+  *
+  * \f[
+  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
+  *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+  *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
+  * \f]
+  *
+  * - Secondary Demand Constraints:
+  *   In the unit commitment problem, the secondary demand
+  *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
+  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
+  *   be satisfied. So, if the f_number_secondary_zones > 0,
+  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+  *   f_time_horizon, and f_number_secondary_zones entries, which the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
+  *   secondary demand constraints at time t and secondary zone
+  *   \f$ \mathcal{B}\f$ as follow;
+  *
+  * \f[
+  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
+  *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
+  * \f]
+  *
+  * - Inertia Demand Constraints:
+  *   In the unit commitment problem, the inertia demand
+  *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
+  *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
+  *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
+  *   satisfied. Therefore, if the f_number_inertia_zones > 0,
+  *   a boost::multi_array<FRowConstraint, 2>; with two dimensions which are
+  *   f_time_horizon, and f_number_inertia_zones entries, where the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
+  *   demand constraints at time t and inertia zone \f$ \mathcal{B}\f$ as below;
+  *
+  * \f[
+  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
+  *  u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
+  *        \quad t \in \mathcal{T}
+  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
+  * \f]
+  *
+  * - Pollutant Budget Constraints:
+  *   In the unit commitment problem, the pollutant budget
+  *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
+  *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
+  *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
+  *   \f$ \rho_{t , p , g} \f$ and \f$ \gamma_{t , p , h} \f$ where considered
+  *   as pollutant ratio and pollutant heat ratio respectively. So, if the
+  *   f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>; with
+  *   two dimensions which are f_number_pollutants and v_number_pollutant_zones
+  *   entries, that the entry
+  *   p = 0, ..., f_number_pollutants - 1 and the entry
+  *   \f$ \mathcal{B}\f$ = 0, ..., v_number_pollutant_zones - 1 being the
+  *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
+  *   zones b as below;
+  *
+  * \f[
+  *
+  *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
+  *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
+  *  \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
+  *  \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
+  *  \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
+  * \f]
+  *
+  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
+  *
+  * - Heat Constraints:
+  *   In the unit commitment problem, the Heat Constraints link the UCBlock
+  *   variables with the HeatBlock, where for each heat block
+  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
+  *   \varrho_{g} \f$ of each electrical generator \f$ g \in \mathcal{G} \f$.
+  *   Therefore, if the f_number_heat_blocks > 0, a
+  *   boost::multi_array<FRowConstraint, 2> with two dimensions which are
+  *   f_time_horizon and the number of electrical generators that belong to
+  *   some HeatBlock; the constraint at position ( t, g ) being the heat
+  *   constraints at time t and heat generator M[ g ], where M maps the
+  *   constraint into an electricity generator that belongs to some HeatBlock.
+  *   The Heat Constraints are defined as below:
+  *
+  * \f[
+  *  \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
+  *   p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
+  *                                 \quad t \in \mathcal{T} \quad           (6)
+  * \f]
+  *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
+  *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
+  *   \mathcal{G}^{ec}(h) \f$, there is the need to know which electrical
+  *   generator \f$ j \f$ is representing. Thus, we need a mapping
+  *   \f$ e^h : \mathcal{G}^{ec}(h) \to \mathcal{G} \f$, where \f$ \mathcal{G}
+  *   \f$ is the set of electricity generators (standard electrical generators
+  *   in UC parlance). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -1187,7 +1187,7 @@ class UCBlock : public Block
 /*------------ METHODS FOR OBTAINING INFORMATION ABOUT THE UCBlock ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for obtaining information about the UCBlock
- *  @{ */
+ * @{ */
 
  /// returns true if the given node belongs to the given primary zone
  /** This function returns true if and only if the node identified by \p
@@ -1259,7 +1259,7 @@ class UCBlock : public Block
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing and saving the UCBlock
- *  @{ */
+ * @{ */
 
  /// Extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -1274,11 +1274,11 @@ class UCBlock : public Block
 /** @name Handling the data of the UCBlock
     @{ */
 
-/**
- * @brief It loads a UCBlock from a input standard stream.
- * @warning This method is not implemented yet.
- * @param input an input stream
- */
+ /**
+  * @brief It loads a UCBlock from a input standard stream.
+  * @warning This method is not implemented yet.
+  * @param input an input stream
+  */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UCBlock::load() not implemented yet" ) );

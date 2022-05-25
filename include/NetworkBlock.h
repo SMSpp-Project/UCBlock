@@ -297,6 +297,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// methods to set the number of intervals
+
   void set_number_intervals( const Index i ) {
    f_number_intervals = i;
   }
@@ -333,19 +334,17 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
-
-  /** @name Protected methods for handling static fields
-   *
-   * These methods allow derived classes to partake into static initialization
-   * procedures performed once and for all at the start of the program. These
-   * are typically related with factories.
-   * @{ */
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
 
   /// method encapsulating the NetworkData factory
   /** This method returns the NetworkData factory, which is a static object.
    * The rationale for using a method is that this is the "Construct On
-   * First Use Idiom" that solves the "static initialization order problem".
-   */
+   * First Use Idiom" that solves the "static initialization order problem". */
 
   static NetworkDataFactoryMap & f_factory( void );
 
@@ -424,8 +423,7 @@ class NetworkBlock : public Block
  /** Constructor of NetworkBlock, taking possibly a pointer of its father
   * Block. */
 
- explicit NetworkBlock( Block * father = nullptr )
-  : Block( father ) {}
+ explicit NetworkBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of NetworkBlock

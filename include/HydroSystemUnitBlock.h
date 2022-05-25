@@ -94,7 +94,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// Constructor, takes the father
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
@@ -112,7 +112,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
 /// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -191,12 +191,12 @@ class HydroSystemUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the objective of the HydroSystemUnitBlock
-/** Method that generates the objective of the HydroSystemUnitBlock.
- *
- * - Objective function: the objective function of the HydroSystemUnitBlock is
- *   "empty" (a FRealObjective with a LinearFunction inside with no active
- *   variables) */
+ /// generate the objective of the HydroSystemUnitBlock
+ /** Method that generates the objective of the HydroSystemUnitBlock.
+  *
+  * - Objective function: the objective function of the HydroSystemUnitBlock is
+  *   "empty" (a FRealObjective with a LinearFunction inside with no active
+  *   variables) */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -204,7 +204,6 @@ class HydroSystemUnitBlock : public UnitBlock
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the HydroSystemUnitBlock
- *
  * @{ */
 
  /// Returns the number of hydro units of the problem
@@ -305,7 +304,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the HydroSystemUnitBlock
- *  @{ */
+ * @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -317,8 +316,8 @@ class HydroSystemUnitBlock : public UnitBlock
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR MODIFYING THE HydroSystemUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Methods for modifying the HydroSystemUnitBlock
-  *   @{ */
+/** @name Methods for modifying the HydroSystemUnitBlock
+ * @{ */
 
  /// sets reserve vars method
  /** This method can be called *after* that deserialize() and before
@@ -345,8 +344,8 @@ class HydroSystemUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
- /** @name Handling the data of the HydroSystemUnitBlock
-  *  @{ */
+/** @name Handling the data of the HydroSystemUnitBlock
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(

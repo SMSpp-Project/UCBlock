@@ -102,9 +102,6 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
  // Optional variables
 
- if( ! ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
-  f_number_nodes = 1;
-
  if( f_number_nodes > 1 ) {
 
   ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
@@ -127,7 +124,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
                  true , true );
  }
-}
+}  // end( DCNetworkBlock::DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -184,7 +181,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    ActiveDemand.getVar( v_active_demand.data() );
   }
  }
-}
+}  // end( DCNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
@@ -209,7 +206,7 @@ void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
                v_network_cost );
  }
-}
+}  // end( DCNetworkBlock::DCNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -241,7 +238,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_active_demand );
  }
-}
+}  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -278,7 +275,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  set_variables_generated();
-}
+}  // end( DCNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -463,7 +460,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  }  // end AC-HVDC constraints
 
  set_constraints_generated();
-}
+}  // end( DCNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

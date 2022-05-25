@@ -240,7 +240,7 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
- *  @{ */
+ * @{ */
 
  ThermalUnitDPSolver( void ) : Solver() {};
 
@@ -250,7 +250,7 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------- DERIVED METHODS OF BASE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public methods derived from base classes
- *  @{ */
+ * @{ */
 
  /// sets the Block that the Solver has to solve
  void set_Block( Block * block ) override;
@@ -314,14 +314,14 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS EDSolver --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// base class for the Economic Dispatch Solver
-/** EDSolver is a base classe that defines a minimal interface between the
- * ThermalUnitDPSolver and the solvers of the individual Economic Dispatch
- * Problems that give the cost of the arc in the DP. This is geared towards
- * solvers that can cheaply compute all the costs of all the arcs
- * ( h , h ), ( h , h + 1 ), ..., ( h , n ) in one blow, as the DP
- * solver does. However, it being virtual other implementations may be
- * considered. */
+ /// base class for the Economic Dispatch Solver
+ /** EDSolver is a base class that defines a minimal interface between the
+  * ThermalUnitDPSolver and the solvers of the individual Economic Dispatch
+  * Problems that give the cost of the arc in the DP. This is geared towards
+  * solvers that can cheaply compute all the costs of all the arcs
+  * ( h , h ), ( h , h + 1 ), ..., ( h , n ) in one blow, as the DP
+  * solver does. However, it being virtual other implementations may be
+  * considered. */
 
  class EDSolver
  {
@@ -412,9 +412,9 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// class solving the Economic Dispatch problem via Dynamic Programming
-/** DPEDSolver derives from EDSolver and solves the Economic Dispatch
- * problem by means of a Dynamic Programming approach. */
+ /// class solving the Economic Dispatch problem via Dynamic Programming
+ /** DPEDSolver derives from EDSolver and solves the Economic Dispatch
+  * problem by means of a Dynamic Programming approach. */
 
  class DPEDSolver : public EDSolver
  {

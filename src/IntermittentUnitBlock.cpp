@@ -179,15 +179,34 @@ IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
- // Active Power Variable
+ int relax_binary = 0;
+ auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
+ if( ( !config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_variables_Configuration )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+  ( f_BlockConfig->f_static_variables_Configuration );
+ if( config )
+  relax_binary = config->f_value;
 
+ // Design Variable
+ v_design.resize( f_time_horizon );
+ for( auto & var : v_design ) {
+  if( relax_binary )
+   var.set_type( ColVariable::kPosUnitary );
+  else
+   var.set_type( ColVariable::kBinary );
+ }
+ if( f_capex_cost != 0 ) {
+  add_static_variable( v_design , "D_intermittent" );
+ }
+
+ // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_active_power , "p_intermittent" );
 
  // Primary Spinning Reserve Variable
-
  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
   if( f_gamma != 0 ) { // if unit produces any reserve
    v_primary_spinning_reserve.resize( f_time_horizon );

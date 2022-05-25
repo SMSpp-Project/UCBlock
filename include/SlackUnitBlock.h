@@ -53,7 +53,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------------ GENERAL NOTES -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the UnitBlock concept for a "slack" unit
+/// Implementation of the UnitBlock concept for a "slack" unit
 /** The SlackUnitBlock class derives from UnitBlock and implements the concept
  * of "slack" unit; a (typically, fictitious) unit capable of producing
  * (typically, a large amount of) active power and/or primary/secondary
@@ -78,7 +78,7 @@ class SlackUnitBlock : public UnitBlock
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// constructor, takes the father and the time horizon
  /** Constructor of SlackUnitBlock, taking possibly a pointer of its
@@ -96,7 +96,7 @@ class SlackUnitBlock : public UnitBlock
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
 /// Extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -234,86 +234,86 @@ class SlackUnitBlock : public UnitBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the SlackUnitBlock
-/** The SlackUnitBlock class has several different variables which are:
- *
- *  - the commitment variables which takes the continues values between
- *    1 and zero.
- *
- *  - the primary spinning reserve variables;
- *
- *  - the secondary spinning reserve variables;
- *
- *  - the active power variables.
- *
- * Note that of these variables are optional, and it is also possible to
- * restrict which of the subsets are generated without using the parameter
- * stvv. In other word, each group of above variables as binary commitment, or
- * primary or secondary spinning reserve, or active power variables must be
- * defined if and only if the MaxInertia or MaxPrimaryPower or
- * MaxSecondaryPower or MaxPower is defined in the deserialize(netCDF::NcGroup)
- * respectively. Otherwise, the corresponding variable is not to be needed to
- * generate. */
+ /// generate the abstract variables of the SlackUnitBlock
+ /** The SlackUnitBlock class has several different variables which are:
+  *
+  *  - the commitment variables which takes the continues values between
+  *    1 and zero.
+  *
+  *  - the primary spinning reserve variables;
+  *
+  *  - the secondary spinning reserve variables;
+  *
+  *  - the active power variables.
+  *
+  * Note that of these variables are optional, and it is also possible to
+  * restrict which of the subsets are generated without using the parameter
+  * stvv. In other word, each group of above variables as binary commitment, or
+  * primary or secondary spinning reserve, or active power variables must be
+  * defined if and only if the MaxInertia or MaxPrimaryPower or
+  * MaxSecondaryPower or MaxPower is defined in the deserialize(netCDF::NcGroup)
+  * respectively. Otherwise, the corresponding variable is not to be needed to
+  * generate. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the static constraint of the SlackUnitBlock
-/** This method generates the abstract constraints of the SlackUnitBlock.
- *
- * The operations of the slack generating unit are described on a discrete
- * time horizon as dictated by the UnitBlock interface. In this description
- * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
- * This unit just contains the bounds constraint on the ActivePower, Primary
- * and Secondary spinning reserve variables as below:
- *
- *   \f[
- *      0 \leq p^{ac}_{t} \leq P^{mx}_{t} \quad t \in \mathcal{T}    \quad (1)
- *   \f]
- *
- *   \f[
- *      0 \leq p^{pr}_{t} \leq P^{mxP}_{t} \quad t \in \mathcal{T}   \quad (2)
- *   \f]
- *
- *   \f[
- *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
- *   \f]
- *
- * Note that the inertia is "produced" by the commitment variable u_t, which
- * is consider as a kPosUnitary and therefore has "implicit" lower and upper
- * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
- * variables are restricted by a BoxConstraint as defined above. The first
- * group is about active power bounds the second one is about the primary
- * spinning reserve, and the last one for the secondary spinning reserve
- * variables. */
+ /// Generate the static constraint of the SlackUnitBlock
+ /** This method generates the abstract constraints of the SlackUnitBlock.
+  *
+  * The operations of the slack generating unit are described on a discrete
+  * time horizon as dictated by the UnitBlock interface. In this description
+  * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
+  * This unit just contains the bounds constraint on the ActivePower, Primary
+  * and Secondary spinning reserve variables as below:
+  *
+  *   \f[
+  *      0 \leq p^{ac}_{t} \leq P^{mx}_{t} \quad t \in \mathcal{T}    \quad (1)
+  *   \f]
+  *
+  *   \f[
+  *      0 \leq p^{pr}_{t} \leq P^{mxP}_{t} \quad t \in \mathcal{T}   \quad (2)
+  *   \f]
+  *
+  *   \f[
+  *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
+  *   \f]
+  *
+  * Note that the inertia is "produced" by the commitment variable u_t, which
+  * is consider as a kPosUnitary and therefore has "implicit" lower and upper
+  * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
+  * variables are restricted by a BoxConstraint as defined above. The first
+  * group is about active power bounds the second one is about the primary
+  * spinning reserve, and the last one for the secondary spinning reserve
+  * variables. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the objective of the SlackUnitBlock
-/** Method that generates the objective of the SlackUnitBlock.
- *
- * - Objective function: the objective function of the SlackUnitBlock
- *   representing the total power production cost to be minimized has the
- *   form:
- *
- *   \f[
- *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } C^{ac}_{t} p^{ac}_{t} +
- *     C^{pr}_{t} p^{pr}_{t} +C^{sc}_{t} p^{sc}_{t} +
- *     (P^{MaxI}_{t} * C^{i}_{t}) u_t )
- *   \f]
- *
- *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$, \f$ C^{sc}_{t} \f$,
- *   \f$ C^{i}_{t} \f$, and \f$ P^{MaxI}_{t} \f$ for each time step t are
- *   defined as the ActivePowerCost, PrimaryCost, and SecondaryCost,
- *   InertiaCost, and the MaxInertia respectively.
- *
- *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
- *  object, there is still a nontrivial decision to be made about it, and it
- *  is also possible to restrict. If objc is not nullptr and it is a
- *  SimpleConfiguration<double> or if f_BlockConfig->f_objective_Configuration
- *  is not nullptr and it is a SimpleConfiguration<double>, then the f_value
- *  of the SimpleConfiguration<int> is taken the objective function. */
+ /// generate the objective of the SlackUnitBlock
+ /** Method that generates the objective of the SlackUnitBlock.
+  *
+  * - Objective function: the objective function of the SlackUnitBlock
+  *   representing the total power production cost to be minimized has the
+  *   form:
+  *
+  *   \f[
+  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } C^{ac}_{t} p^{ac}_{t} +
+  *     C^{pr}_{t} p^{pr}_{t} +C^{sc}_{t} p^{sc}_{t} +
+  *     (P^{MaxI}_{t} * C^{i}_{t}) u_t )
+  *   \f]
+  *
+  *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$, \f$ C^{sc}_{t} \f$,
+  *   \f$ C^{i}_{t} \f$, and \f$ P^{MaxI}_{t} \f$ for each time step t are
+  *   defined as the ActivePowerCost, PrimaryCost, and SecondaryCost,
+  *   InertiaCost, and the MaxInertia respectively.
+  *
+  *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
+  *  object, there is still a nontrivial decision to be made about it, and it
+  *  is also possible to restrict. If objc is not nullptr and it is a
+  *  SimpleConfiguration<double> or if f_BlockConfig->f_objective_Configuration
+  *  is not nullptr and it is a SimpleConfiguration<double>, then the f_value
+  *  of the SimpleConfiguration<int> is taken the objective function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -321,8 +321,8 @@ class SlackUnitBlock : public UnitBlock
 /*----------- METHODS FOR READING THE DATA OF THE SlackUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the SlackUnitBlock
- *
  * @{ */
+
 /// returns the vector of maximum power
 /** The returned vector contains to maximum power at time t. There are three
  * possible cases:
@@ -333,113 +333,113 @@ class SlackUnitBlock : public UnitBlock
  *   for all time horizon;
  *
  * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum power value at time t.   */
+ *   of vector represents the maximum power value at time t. */
 
  const std::vector< double > & get_max_power( void ) const {
   return( v_MaxPower );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum primary power
-/** The returned vector contains to maximum primary power at time t. There are
- * three possible cases:
- *
- * - if the vector is empty, then the maximum primary power of the unit is 0;
- *
- * - if the vector has only one element, then the maximum primary power of
- *   the unit for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum primary power value at time t.   */
+ /// returns the vector of maximum primary power
+ /** The returned vector contains to maximum primary power at time t. There are
+  * three possible cases:
+  *
+  * - if the vector is empty, then the maximum primary power of the unit is 0;
+  *
+  * - if the vector has only one element, then the maximum primary power of
+  *   the unit for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the maximum primary power value at time t. */
 
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of active power cost
-/** The returned vector contains to active power cost at time t. There are
- * three possible cases:
- *
- * - if the vector is empty, then the active power cost of the unit is 0;
- *
- * - if the vector has only one element, then the active power cost of the
- *   unit for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the active power cost value at time t.   */
+ /// returns the vector of active power cost
+ /** The returned vector contains to active power cost at time t. There are
+  * three possible cases:
+  *
+  * - if the vector is empty, then the active power cost of the unit is 0;
+  *
+  * - if the vector has only one element, then the active power cost of the
+  *   unit for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the active power cost value at time t. */
 
  const std::vector< double > & get_active_power_cost( void ) const {
   return( v_active_power_cost );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of maximum secondary power
-/** The returned vector contains to maximum secondary power at time t. There
- * are three possible cases:
- *
- * - if the vector is empty, then the maximum secondary power of the unit is
- *   0;
- *
- * - if the vector has only one element, then the maximum secondary power of
- *   the unit for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum secondary power value at time t.   */
+ /// returns the vector of maximum secondary power
+ /** The returned vector contains to maximum secondary power at time t. There
+  * are three possible cases:
+  *
+  * - if the vector is empty, then the maximum secondary power of the unit is
+  *   0;
+  *
+  * - if the vector has only one element, then the maximum secondary power of
+  *   the unit for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the maximum secondary power value at time t. */
 
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of primary cost
-/** The returned vector contains to primary cost at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the primary cost of the unit is 0;
- *
- * - if the vector has only one element, then the primary cost of the unit for
- *   all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the primary cost value at time t.   */
+ /// returns the vector of primary cost
+ /** The returned vector contains to primary cost at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the primary cost of the unit is 0;
+  *
+  * - if the vector has only one element, then the primary cost of the unit for
+  *   all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the primary cost value at time t. */
 
  const std::vector< double > & get_primary_cost( void ) const {
   return( v_primary_cost );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of secondary cost
-/** The returned vector contains to secondary cost at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the secondary cost of the unit is 0;
- *
- * - if the vector has only one element, then the secondary cost of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the secondary cost value at time t.   */
+ /// returns the vector of secondary cost
+ /** The returned vector contains to secondary cost at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the secondary cost of the unit is 0;
+  *
+  * - if the vector has only one element, then the secondary cost of the unit
+  *   for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the secondary cost value at time t. */
 
  const std::vector< double > & get_secondary_cost( void ) const {
   return( v_secondary_cost );
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of inertia commitment
-/** The returned value U = get_inertia_commitment() contains the contribution
- *  to inertia (basically, the constants to be multiplied by the commitment
- *  variables returned by get_commitment()) of all the generators at all time
- *  instants. There are three possible cases:
- *
- * - if the vector is empty, then the inertia commitment is always 0 and this
- *   function returns nullptr;
- *
- * - if the vector only has one element, then the inertia commitment for the
- *   fixed consumption of the unit for all t;
- *
- * - otherwise, the vector must have size get_time_horizon(), and each element
- *   of vector represents the inertia commitment at time t. */
+ /// returns the vector of inertia commitment
+ /** The returned value U = get_inertia_commitment() contains the contribution
+  *  to inertia (basically, the constants to be multiplied by the commitment
+  *  variables returned by get_commitment()) of all the generators at all time
+  *  instants. There are three possible cases:
+  *
+  * - if the vector is empty, then the inertia commitment is always 0 and this
+  *   function returns nullptr;
+  *
+  * - if the vector only has one element, then the inertia commitment for the
+  *   fixed consumption of the unit for all t;
+  *
+  * - otherwise, the vector must have size get_time_horizon(), and each element
+  *   of vector represents the inertia commitment at time t. */
 
  double * get_inertia_commitment( Index generator ) override {
   if( v_MaxInertia.empty() )
@@ -448,17 +448,17 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of inertia cost
-/** The returned vector contains to inertia cost at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the inertia cost of the unit is 0;
- *
- * - if the vector has only one element, then the inertia cost of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the inertia cost value at time t.   */
+ /// returns the vector of inertia cost
+ /** The returned vector contains to inertia cost at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the inertia cost of the unit is 0;
+  *
+  * - if the vector has only one element, then the inertia cost of the unit
+  *   for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the inertia cost value at time t. */
 
  const std::vector< double > & get_inertia_cost( void ) const {
   return( v_inertia_cost );
@@ -479,9 +479,10 @@ class SlackUnitBlock : public UnitBlock
  * - primary_spinning_reserve variables;
  *
  * - secondary_spinning_reserve variables;
- *
  * @{ */
+
  /// returns the vector of commitment variables
+
  ColVariable * get_commitment( Index generator ) override {
   if( v_commitment.empty() )
    return( nullptr );
@@ -519,12 +520,12 @@ class SlackUnitBlock : public UnitBlock
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the SlackUnitBlock
- *  @{ */
+ * @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
-/** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * SlackUnitBlock. See SlackUnitBlock::deserialize( netCDF::NcGroup ) for
- * details of the format of the created netCDF group. */
+ /// Extends Block::serialize( netCDF::NcGroup )
+ /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
+  * SlackUnitBlock. See SlackUnitBlock::deserialize( netCDF::NcGroup ) for
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -532,7 +533,7 @@ class SlackUnitBlock : public UnitBlock
 /*--------------- METHODS FOR INITIALIZING THE SlackUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the SlackUnitBlock
- *  @{ */
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "SlackUnitBlock::load() not implemented yet" ) );

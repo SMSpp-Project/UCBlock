@@ -55,7 +55,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for the BatteryUnit problem
+/// Implementation of the Block concept for the BatteryUnit problem
 /** The BatteryUnitBlock class implements the Block concept [see Block.h] for
  * a large class of units that allow direct storage of electrical energy. This
  * can be the case of actual physical batteries, either "large" (battery
@@ -157,7 +157,7 @@ public:
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
  /// constructor, takes the father and the time horizon
  /** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
@@ -175,7 +175,7 @@ public:
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
  /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
@@ -1044,9 +1044,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the type of this battery unit
- /** This method returns the type of this battery unit. */
-
  /// returns the vector of battery_design variables, or nullptr if not defined
 
  ColVariable * get_battery_design( void ) {
@@ -1065,8 +1062,8 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-/// returns the types of battery unit
-/** This method returns the types of battery unit. */
+ /// returns the type of this battery unit
+ /** This method returns the type of this battery unit. */
 
  battery_type get_battery_type( void ) const {
 
@@ -1186,7 +1183,7 @@ public:
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the BatteryUnitBlock
- *  @{ */
+ * @{ */
 
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
@@ -1199,7 +1196,7 @@ public:
 /*--------------- METHODS FOR INITIALIZING THE BatteryUnitBlock ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the BatteryUnitBlock
- *  @{ */
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );

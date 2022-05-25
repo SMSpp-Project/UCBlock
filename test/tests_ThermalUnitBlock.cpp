@@ -1,7 +1,3 @@
-//
-// Created by Niccolò Iardella on 11/03/2020.
-//
-
 #include <gtest/gtest.h>
 
 #include "ThermalUnitBlock.h"
