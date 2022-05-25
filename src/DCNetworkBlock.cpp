@@ -499,8 +499,6 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
  auto lines_type = f_NetworkData->get_lines_type();
 
-/*--------------------------------------------------------------------------*/
-
  // HVDC power flow limit
  if( lines_type == kHVDC ) {
 
@@ -534,20 +532,20 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
  //  AC and AC-HVDC lines is not ready
 
  // AC power flow limit
- if( lines_type == kAC ) {
+ else if( lines_type == kAC ) {
 
   // TODO
  }
 
  // AC-HVDC power flow limit
- if( lines_type == kAC_HVDC ) {
+ else if( lines_type == kAC_HVDC ) {
 
   // TODO
  }
 
  set_objective_generated();
 
-}
+}  // end( DCNetworkBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

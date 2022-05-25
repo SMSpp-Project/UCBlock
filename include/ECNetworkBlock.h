@@ -281,9 +281,9 @@ class ECNetworkBlock : public NetworkBlock
  /** Constructor of ECNetworkBlock, taking possibly a pointer of its father
  * Block. */
 
- explicit ECNetworkBlock( Block * f_block = nullptr ) :
-  NetworkBlock( f_block ) ,
-  f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
+ explicit ECNetworkBlock( Block * f_block = nullptr )
+  : NetworkBlock( f_block ) ,
+    f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of ECNetworkBlock

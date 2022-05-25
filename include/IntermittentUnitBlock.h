@@ -784,8 +784,8 @@ class IntermittentUnitBlockMod : public UnitBlockMod
 
  /// Constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
-                           const int type ) :
-  UnitBlockMod( fblock , type ) {}
+                           const int type )
+  : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;

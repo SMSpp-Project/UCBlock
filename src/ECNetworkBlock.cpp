@@ -482,8 +482,10 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
  // set block objective
  this->set_objective( &objective );
+
  set_objective_generated();
-}
+
+}  // end( ECNetworkBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

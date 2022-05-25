@@ -1205,7 +1205,7 @@ class UCBlock : public Block
       ( zone_id != v_primary_zones[ node_id ] ) )
    return( false );
   return( true );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the given node belongs to the given secondary zone
@@ -1224,7 +1224,7 @@ class UCBlock : public Block
       ( zone_id != v_secondary_zones[ node_id ] ) )
    return( false );
   return( true );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the given node belongs to the given inertia zone
@@ -1243,7 +1243,7 @@ class UCBlock : public Block
       ( zone_id != v_inertia_zones[ node_id ] ) )
    return( false );
   return( true );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the given electrical generator belongs to the given node
@@ -1253,7 +1253,7 @@ class UCBlock : public Block
       ( node_id != v_generator_node[ elc_generator ] ) )
    return( false );
   return( true );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
@@ -1639,7 +1639,7 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_node_injection_constraints
- ( const std::vector< Index > & modified_units );
+  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -1651,7 +1651,7 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_primary_demand_constraints
- ( const std::vector< Index > & modified_units );
+  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the secondary demand constraints
@@ -1663,7 +1663,7 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_secondary_demand_constraints
- ( const std::vector< Index > & modified_units );
+  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the inertia demand constraints
@@ -1675,7 +1675,7 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_inertia_demand_constraints
- ( const std::vector< Index > & modified_units );
+  ( const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
@@ -1696,7 +1696,7 @@ class UCBlock : public Block
 
  Index get_number_nodes( void ) const {
   return( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary zone to which the given electrical generator belongs
@@ -1711,7 +1711,7 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_primary_zones[ node ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary zone to which the given electrical generator belongs
@@ -1726,7 +1726,7 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_secondary_zones[ node ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia zone to which the given electrical generator belongs
@@ -1741,7 +1741,7 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_inertia_zones[ node ] );
-  }
+ }
 
 };  // end( class( UCBlock ) )
 

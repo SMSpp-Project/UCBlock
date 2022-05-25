@@ -87,8 +87,8 @@ class ThermalUnitBlock : public UnitBlock
  /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
   * father Block and the time horizon. */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
-  UnitBlock( f_block ) {}
+ explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 )
+  : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock

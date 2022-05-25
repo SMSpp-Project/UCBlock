@@ -205,6 +205,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 
  auto linear_function = new LinearFunction();
  objective.set_function( linear_function );
+
  // Set Block objective
  this->set_objective( &objective );
 

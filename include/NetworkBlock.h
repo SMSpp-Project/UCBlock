@@ -35,7 +35,6 @@
  #define __NetworkBlock
                       /* self-identification: #endif at the end of the file */
 
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -727,7 +726,6 @@ class NetworkBlock : public Block
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p subset
  /** This function sets the active demand at each node in the given \p
   * subset. The active demand at the node whose index is specified by the i-th

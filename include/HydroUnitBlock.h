@@ -107,8 +107,8 @@ class HydroUnitBlock : public UnitBlock
 /** Constructor of HydroUnitBlock, taking possibly a pointer of its
  * father Block. */
 
- explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
-  UnitBlock( f_block , t ) {}
+ explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0 )
+  : UnitBlock( f_block , t ) {}
 
 /*--------------------------------------------------------------------------*/
 /// destructor of HydroUnitBlock

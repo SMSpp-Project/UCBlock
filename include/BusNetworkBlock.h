@@ -77,9 +77,9 @@ class BusNetworkBlock : public NetworkBlock
 
  /// constructor of BusNetworkBlock, taking possibly a pointer to its father
 
- explicit BusNetworkBlock( Block * f_block = nullptr ) :
-  NetworkBlock( f_block ) {
-  v_node_injection.resize(1);
+ explicit BusNetworkBlock( Block * f_block = nullptr )
+  : NetworkBlock( f_block ) {
+  v_node_injection.resize( 1 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -93,38 +93,38 @@ class BusNetworkBlock : public NetworkBlock
 /** @name Other initializations
  *  @{ */
 
-/// loads the BusNetworkBlock instance from file - not implememted yet
+ /// loads the BusNetworkBlock instance from file - not implemented yet
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
-/// generates the static variables of BusNetworkBlock
-/** The base BusNetworkBlock class has just the node injection variables.
- * Since a "bus" network has just one node, and therefore a single value D for
- * the demand and a single injection variable s, which can hardly be called a
- * variable since the only possible way to satisfy the constraints is by
- * having s = D which in fact makes the variable a constant.*/
+ /// generates the static variables of BusNetworkBlock
+ /** The base BusNetworkBlock class has just the node injection variables.
+  * Since a "bus" network has just one node, and therefore a single value D for
+  * the demand and a single injection variable s, which can hardly be called a
+  * variable since the only possible way to satisfy the constraints is by
+  * having s = D which in fact makes the variable a constant. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the static constraint of the BusNetworkBlock
-/** This method generates the abstract constraints of the BusNetworkBlock.
- * Since the node injection variable is fixed to the active demand value, it
- * must be a BoxConstraint for that variable whose lower and upper bounds are
- * equal to the active demand value.
- */
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+ /// Generate the static constraint of the BusNetworkBlock
+ /** This method generates the abstract constraints of the BusNetworkBlock.
+  * Since the node injection variable is fixed to the active demand value, it
+  * must be a BoxConstraint for that variable whose lower and upper bounds are
+  * equal to the active demand value. */
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// generate the objective of the BusNetworkBlock
-/** Method that generates the objective of the BusNetworkBlock.
- *
- * - Objective function: the objective function of the BusNetworkBlock
- *   is "empty" (a FRealObjective with a LinearFunction inside with no active
- *   variables) */
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// generate the objective of the BusNetworkBlock
+ /** Method that generates the objective of the BusNetworkBlock.
+  *
+  * - Objective function: the objective function of the BusNetworkBlock
+  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
+  *   variables) */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -142,7 +142,8 @@ class BusNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
- static void static_initialization() {
+ static void static_initialization( void ) {
+
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *
@@ -173,17 +174,26 @@ class BusNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------data--------------------------------------*/
- /// the objective function
- FRealObjective objective;
+
+
+
 /*-----------------------------variables------------------------------------*/
 
+
+
 /*----------------------------constraints-----------------------------------*/
+
  /// the node injection bound constraints
  std::vector< BoxConstraint > NodeInjection_bound_Constraints;
+
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+
  private:
 
 /*--------------------------------------------------------------------------*/
@@ -197,7 +207,6 @@ class BusNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
 
-/*--------------------------------------------------------------------------*/
 
 };  // end( class( BusNetworkBlock ) )
 

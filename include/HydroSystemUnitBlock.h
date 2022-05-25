@@ -100,8 +100,8 @@ class HydroSystemUnitBlock : public UnitBlock
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit HydroSystemUnitBlock( Block * father_block = nullptr ) :
-  UnitBlock( father_block ) {}
+ explicit HydroSystemUnitBlock( Block * father_block = nullptr )
+  : UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// Destructor of HydroSystemUnitBlock
