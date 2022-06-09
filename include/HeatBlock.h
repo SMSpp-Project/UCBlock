@@ -47,13 +47,13 @@
 
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS HeatBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-/// Implementation of the Block concept for a set of "heat units"
+/// implementation of the Block concept for a set of "heat units"
 /** The HeatBlock class implements the Block concept [see Block.h] for a
  * set of "heat units" as required in the plan4res project.
  * The constraints regarding heat management in the plan4res project can be
@@ -88,21 +88,21 @@ class HeatBlock : public Block
 /** @name Constructor and Destructor
  * @{ */
 
- /// Constructor, takes the father and the time horizon
+ /// constructor, takes the father and the time horizon
  /** Constructor of HeatBlock, taking possibly a pointer of its father
   * Block and the time horizon. */
 
  explicit HeatBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of HeatBlock
+ /// destructor of HeatBlock
 
  virtual ~HeatBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Extends Block::deserialize( netCDF::NcGroup )
+ /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
   * the HeatBlock. Besides the mandatory "type" attribute of any :Block,
   * the group should contain the following:
@@ -273,7 +273,7 @@ class HeatBlock : public Block
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static variables of the HeatUnit
+ /// generate the static variables of the HeatUnit
  /** Method that generates the abstract variables of the HeatBlock.
   * HeatBlock class has four different "groups" of variables:
   *
@@ -314,7 +314,7 @@ class HeatBlock : public Block
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static constraint of the HeatBlock
+ /// generate the static constraint of the HeatBlock
  /** Method that generates the static constraint of the HeatBlock.
   *
   *  The constraints in the HeatBlock are as follows:
@@ -357,7 +357,7 @@ class HeatBlock : public Block
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the objective of the HeatBlock
+ /// generate the objective of the HeatBlock
  /** Method that generates the objective of the HeatBlock.
   *
   * - Objective Function: the objective function of HB simply reads
@@ -380,19 +380,19 @@ class HeatBlock : public Block
  * the HeatBlocks, i.e.:
  * @{ */
 
- /// Returns the time horizon of the problem
+ /// returns the time horizon of the problem
  Index get_time_horizon( void ) const {
   return( f_time_horizon );
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the number of heat units in this HeatBlock
+ /// returns the number of heat units in this HeatBlock
  Index get_number_heat_generators( void ) const {
   return( f_number_heat_units );
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the vector of heat demand
+ /// returns the vector of heat demand
  /** The returned vector implies the heat demand of each HeatBlock at time t.
   *  There are two possible cases:
   *
@@ -407,7 +407,7 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the vector of minimum heat storage
+ /// returns the vector of minimum heat storage
  /** The returned vector implies the minimum heat storage of each HeatBlock
   * at time t. There are three possible cases:
   *
@@ -425,7 +425,7 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the vector of maximum heat storage
+ /// returns the vector of maximum heat storage
  /** The returned vector implies the maximum heat storage of each HeatBlock
   * at time t. There are three possible cases:
   *
@@ -443,7 +443,7 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- ///Returns the matrix of minimum heat production
+ /// returns the matrix of minimum heat production
  /** The method returns a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the minimum heat production of unit i in time t. There
   * are three possible cases:
@@ -465,7 +465,7 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- ///Returns the matrix of maximum heat production
+ /// returns the matrix of maximum heat production
  /** The method returns a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the maximum heat production of unit i in time t. There
   * are three possible cases:
@@ -487,7 +487,7 @@ class HeatBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- ///Returns the matrix of production heat cost
+ /// returns the matrix of production heat cost
  /** The method returns a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the production heat cost of unit i in time t. There
   * are three possible cases:
@@ -522,7 +522,7 @@ class HeatBlock : public Block
  * and second dimension number of units.
  * @{ */
 
- /// Returns the matrix of heat variables
+ /// returns the matrix of heat variables
  /** The returned boost::multi_array< ColVariable , 2 >, say U, contains the
   * heat variables and is indexed over the dimensions time horizon and
   * number of unit. There are two possible cases:
@@ -543,7 +543,7 @@ class HeatBlock : public Block
 /** @name Methods for loading, printing & saving the HeatBlock
  * @{ */
 
- /// Extends Block::serialize( netCDF::NcGroup )
+ /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * HeatBlock. See HeatBlock::deserialize( netCDF::NcGroup ) for
   * details of the format of the created netCDF group. */
@@ -556,7 +556,7 @@ class HeatBlock : public Block
 /** @name Methods for modifying the HeatBlock
  * @{ */
 
- /// Set the time horizon method
+ /// set the time horizon method
  /** This method can be called *before* that deserialize() is called to
   * provide the HeatBlock with the time horizon. This allows the information
   * not to be duplicated in the netCDF group that describes the HB, since
@@ -624,7 +624,7 @@ class HeatBlock : public Block
 
  Index f_time_horizon;  ///< the time horizon of the HB
 
- Index f_number_heat_units;  ///< The number of units(generators) of the HB
+ Index f_number_heat_units;  ///< the number of units(generators) of the HB
 
  Index f_number_intervals;   ///< the number of intervals
 
@@ -651,13 +651,13 @@ class HeatBlock : public Block
   * NumberIntervals and NumberHeatUnits */
  boost::multi_array< double , 2 > v_cost_heat_unit;
 
- /// Value of storing heat rho
+ /// value of storing heat rho
  double f_storing_heat_rho;
 
- /// Value of extracting heat rho
+ /// value of extracting heat rho
  double f_extracting_heat_rho;
 
- /// Value of keeping heat rho
+ /// value of keeping heat rho
  double f_keeping_heat_rho;
 
  /// the initial amount of heat in the storage at the beginning of the time t
@@ -665,16 +665,16 @@ class HeatBlock : public Block
 
 /*-------------------------------- variables -------------------------------*/
 
- /// Matrix of Heat variables
+ /// matrix of Heat variables
  boost::multi_array< ColVariable , 2 > v_heat;
 
- /// Vector of HeatAdded variables
+ /// vector of HeatAdded variables
  std::vector< ColVariable > v_heat_added;
 
- /// Vector of HeatRemoved variables
+ /// vector of HeatRemoved variables
  std::vector< ColVariable > v_heat_removed;
 
- /// Vector of HeatAvailable variables
+ /// vector of HeatAvailable variables
  std::vector< ColVariable > v_heat_available;
 
 /*------------------------------- constraints ------------------------------*/
@@ -714,7 +714,7 @@ class HeatBlock : public Block
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Returns which variables must be generated
+ /// returns which variables must be generated
  /** This method returns an int that indicates which variables of HeatBlock
   * must be generated by the generate_abstract_variables() method. This value
   * may be given in stvv as explained in generate_abstract_variables(). If this

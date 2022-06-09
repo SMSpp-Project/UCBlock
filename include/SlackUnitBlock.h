@@ -48,12 +48,13 @@
 
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS SlackUnitBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
-/*------------------------------ GENERAL NOTES -----------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the UnitBlock concept for a "slack" unit
+/// implementation of the UnitBlock concept for a "slack" unit
 /** The SlackUnitBlock class derives from UnitBlock and implements the concept
  * of "slack" unit; a (typically, fictitious) unit capable of producing
  * (typically, a large amount of) active power and/or primary/secondary
@@ -98,7 +99,7 @@ class SlackUnitBlock : public UnitBlock
 /** @name Other initializations
  * @{ */
 
-/// Extends Block::deserialize( netCDF::NcGroup )
+/// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the SlackUnitBlock. Besides the mandatory "type" attribute of any :Block,
  * the group must contain all the data required by the base UnitBlock, as
@@ -258,7 +259,7 @@ class SlackUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static constraint of the SlackUnitBlock
+ /// generate the static constraint of the SlackUnitBlock
  /** This method generates the abstract constraints of the SlackUnitBlock.
   *
   * The operations of the slack generating unit are described on a discrete
@@ -522,7 +523,7 @@ class SlackUnitBlock : public UnitBlock
 /** @name Methods for printing & saving the SlackUnitBlock
  * @{ */
 
- /// Extends Block::serialize( netCDF::NcGroup )
+ /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * SlackUnitBlock. See SlackUnitBlock::deserialize( netCDF::NcGroup ) for
   * details of the format of the created netCDF group. */

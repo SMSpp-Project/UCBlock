@@ -46,14 +46,17 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS BusNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// A NetworkBlock with only one node, i.e., a "bus" transmission network
+/// a NetworkBlock with only one node, i.e., a "bus" transmission network
 /** The BusNetworkBlock class, which derives from NetworkBlock [see
  * NetworkBlock.h] implements the Block concept [see Block.h] in order to
  * define a "bus" transmission network in the Unit Commitment problem for a
@@ -110,7 +113,7 @@ class BusNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static constraint of the BusNetworkBlock
+ /// generate the static constraint of the BusNetworkBlock
  /** This method generates the abstract constraints of the BusNetworkBlock.
   * Since the node injection variable is fixed to the active demand value, it
   * must be a BoxConstraint for that variable whose lower and upper bounds are

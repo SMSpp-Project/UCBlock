@@ -45,7 +45,7 @@
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Namespace for the Structured Modeling System++ (SMS++)
+/// namespace for the Structured Modeling System++ (SMS++)
 
 namespace SMSpp_di_unipi_it
 {
@@ -53,9 +53,9 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BatteryUnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
-/*----------------------------- GENERAL NOTES ------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for the BatteryUnit problem
+/// implementation of the Block concept for the BatteryUnit problem
 /** The BatteryUnitBlock class implements the Block concept [see Block.h] for
  * a large class of units that allow direct storage of electrical energy. This
  * can be the case of actual physical batteries, either "large" (battery
@@ -610,19 +610,19 @@ public:
  * the kind of battery storage units
  * @{ */
 
- /// Returns the initial storage value
+ /// returns the initial storage value
  double get_initial_storage( void ) const { return( f_initial_storage ); }
 
- /// Returns the initial power value
+ /// returns the initial power value
  double get_initial_power( void ) const { return( f_initial_power ); }
 
- /// Returns the operation and maintenance cost
+ /// returns the operation and maintenance cost
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
- /// Returns the battery investment cost, i.e., the capital expenditure cost
+ /// returns the battery investment cost, i.e., the capital expenditure cost
  double get_battery_capex_cost( void ) const { return( f_battery_capex_cost ); }
 
- /// Returns the converter investment cost, i.e., the capital expenditure cost
+ /// returns the converter investment cost, i.e., the capital expenditure cost
  double get_converter_capex_cost( void ) const {
   return( f_battery_capex_cost );
  }
@@ -1382,10 +1382,10 @@ public:
 
 /*---------------------------------- data ----------------------------------*/
 
- /// The vector of minimum storage
+ /// the vector of minimum storage
  std::vector< double > v_minimum_storage;
 
- /// The vector of maximum storage
+ /// the vector of maximum storage
  std::vector< double > v_maximum_storage;
 
  /// the vector of MinPower
@@ -1600,25 +1600,25 @@ public:
 /*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a BatteryUnitBlock
+/// derived class from Modification for modifications to a BatteryUnitBlock
  class BatteryUnitBlockMod : public UnitBlockMod
  {
 
   public:
 
-  /// Public enum for the types of BatteryUnitBlockMod
+  /// public enum for the types of BatteryUnitBlockMod
   enum BUB_mod_type
   {
-   eSetInitS = eUBModLastParam , ///< Set initial storage values
-   eSetInitP ,                   ///< Set initial power values
-   eSetKappa ,                   ///< Set the kappa constant
+   eSetInitS = eUBModLastParam , ///< set initial storage values
+   eSetInitP ,                   ///< set initial power values
+   eSetKappa ,                   ///< set the kappa constant
   };
 
-  /// Constructor, takes the BatteryUnitBlock and the type
+  /// constructor, takes the BatteryUnitBlock and the type
   BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
    : UnitBlockMod( fblock , type ) {}
 
-  ///< Destructor, does nothing
+  /// destructor, does nothing
   virtual ~BatteryUnitBlockMod() override = default;
 
   /// returns the Block to which the Modification refers

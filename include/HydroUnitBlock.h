@@ -44,16 +44,17 @@
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Namespace for the Structured Modeling System++ (SMS++)
+/// namespace for the Structured Modeling System++ (SMS++)
 
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS HydroUnitBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for the hydro unit problem
+/// implementation of the Block concept for the hydro unit problem
 /** The HydroUnitBlock class implements the Block concept [see Block.h] for a
  * "reasonably standard" hydro unit of a Unit Commitment Problem. That is, the
  * class is designed in order to give mathematical formulation to describe the
@@ -1672,87 +1673,87 @@ class HydroUnitBlock : public UnitBlock
 
 /*---------------------------------- data ----------------------------------*/
 
- /// The number of reservoirs(nodes) of the problem
+ /// the number of reservoirs(nodes) of the problem
  Index f_number_reservoirs;
 
- /// The number of connecting arcs which are connecting the reservoirs in
+ /// the number of connecting arcs which are connecting the reservoirs in
  /// cascading system
  Index f_number_arcs;
 
- /// The total number of pieces
+ /// the total number of pieces
  Index f_total_number_pieces;
 
- /// The vector of UphillDelay
+ /// the vector of UphillDelay
  std::vector< int > v_uphill_delay;
 
- /// The vector of DownhillDelay
+ /// the vector of DownhillDelay
  std::vector< Index > v_downhill_delay;
 
- /// The vector of starting arc
+ /// the vector of starting arc
  std::vector< Index > v_start_arc;
 
- /// The vector of ending arcs
+ /// the vector of ending arcs
  std::vector< Index > v_end_arc;
 
- /// The vector of initial volumetric
+ /// the vector of initial volumetric
  std::vector< double > v_initial_volumetric;
 
- /// The vector of initial flow rate
+ /// the vector of initial flow rate
  std::vector< double > v_initial_flow_rate;
 
- /// The vector of NumberPieces
+ /// the vector of NumberPieces
  std::vector< Index > v_number_pieces;
 
- /// The vector of LinearTerm
+ /// the vector of LinearTerm
  std::vector< double > v_linear_term;
 
- /// The vector of ConstTerm
+ /// the vector of ConstTerm
  std::vector< double > v_const_term;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_inertia_power;
 
- /// The matrix of MinVolumetric
+ /// the matrix of MinVolumetric
  /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
  boost::multi_array< double , 2 > v_minimum_volumetric;
 
- /// The matrix of MaxVolumetric
+ /// the matrix of MaxVolumetric
  /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
  boost::multi_array< double , 2 > v_maximum_volumetric;
 
- /// The matrix of Inflows
+ /// the matrix of Inflows
  /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
  boost::multi_array< double , 2 > v_inflows;
 
- /// The matrix of MinPower
+ /// the matrix of MinPower
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_minimum_power;
 
- /// The matrix of MaxPower
+ /// the matrix of MaxPower
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_maximum_power;
 
- /// The matrix of MinFlow
+ /// the matrix of MinFlow
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_minimum_flow;
 
- /// The matrix of MaxFlow
+ /// the matrix of MaxFlow
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_maximum_flow;
 
- /// The matrix of DeltaRampUp
+ /// the matrix of DeltaRampUp
  /** Indexed over the dimensions NumberIntervals and NumberGenerators. */
  boost::multi_array< double , 2 > v_delta_ramp_up;
 
- /// The matrix of DeltaRampDown
+ /// the matrix of DeltaRampDown
  /** Indexed over the dimensions NumberIntervals and NumberGenerators. */
  boost::multi_array< double , 2 > v_delta_ramp_down;
 
- /// The matrix of PrimaryRho
+ /// the matrix of PrimaryRho
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_primary_rho;
 
- /// The matrix of SecondaryRho
+ /// the matrix of SecondaryRho
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_secondary_rho;
 
@@ -1831,7 +1832,7 @@ class HydroUnitBlock : public UnitBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Transposes a deserialized multi-array if needed.
+ /// transposes a deserialized multi-array if needed.
  /** We deal with two-dimensional arrays that have dimensions ( time horizon x
   * number of arcs ). When provided by a netCDF variable, the size of the
   * dimension associated with the time horizon is allowed to be 1 (even if the
@@ -1852,10 +1853,10 @@ class HydroUnitBlock : public UnitBlock
  template< typename T >
  void transpose( boost::multi_array< T , 2 > & a );
 
- /// Decompress a multi_array using the change intervals
+ /// decompress a multi_array using the change intervals
  void decompress_array( boost::multi_array< double , 2 > & a );
 
- /// Decompress a max/min volumetric multi_array using the change intervals
+ /// decompress a max/min volumetric multi_array using the change intervals
  void decompress_vol( boost::multi_array< double , 2 > & a );
 
 /*--------------------------------------------------------------------------*/
@@ -1891,27 +1892,27 @@ class HydroUnitBlock : public UnitBlock
 /*----------------------- CLASS HydroUnitBlockMod ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a HydroUnitBlock
+/// derived class from Modification for modifications to a HydroUnitBlock
 class HydroUnitBlockMod : public UnitBlockMod
 {
 
  public:
 
- /// Public enum for the types of HydroUnitBlockMod
+ /// public enum for the types of HydroUnitBlockMod
  enum HUB_mod_type
  {
-  eSetInf = eUBModLastParam , ///< Set inflow values
-  eSetInerP ,                 ///< Set inertia power values
-  eSetInitF ,                 ///< Set initial flow rate values
-  eSetInitV                   ///< Set initial volumetric values
+  eSetInf = eUBModLastParam , ///< set inflow values
+  eSetInerP ,                 ///< set inertia power values
+  eSetInitF ,                 ///< set initial flow rate values
+  eSetInitV                   ///< set initial volumetric values
  };
 
- /// Constructor, takes the HydroUnitBlock and the type
+ /// constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * const fblock ,
                     const int type ) :
   UnitBlockMod( fblock , type ) {}
 
- ///< Destructor, does nothing
+ /// destructor, does nothing
  virtual ~HydroUnitBlockMod( void ) override = default;
 
  /// returns the Block to which the Modification refers

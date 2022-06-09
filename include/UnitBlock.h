@@ -56,14 +56,17 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for "a generic unit" in UC
+/// implementation of the Block concept for "a generic unit" in UC
 /** The class UnitBlock, which derives from the Block, defines a base class
  * for any possible "unit" that can be attached to a UCBlock. A unit is in
  * general a set of electrical generators tied together by some technical
@@ -109,7 +112,7 @@ class UnitBlock : public Block
 /** @name Constructor and Destructor
  * @{ */
 
- /// Constructor, takes the father and the time horizon
+ /// constructor, takes the father and the time horizon
  /** Constructor of UnitBlock, taking possibly a pointer of its father
   * Block and the time horizon. By default the time horizon is initialized to
   * 0, which means "not set yet". */
@@ -117,7 +120,7 @@ class UnitBlock : public Block
  explicit UnitBlock( Block * father_block = nullptr , Index t = 0 );
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of UnitBlock
+ /// destructor of UnitBlock
 
  virtual ~UnitBlock() override {
   for( auto & block : v_Block )
@@ -131,7 +134,7 @@ class UnitBlock : public Block
 /** @name Other initializations
  * @{ */
 
- /// Extends Block::deserialize( netCDF::NcGroup )
+ /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
   * the UnitBlock. Besides the mandatory "type" attribute of any :Block, the
   * group should contain the following:
@@ -650,7 +653,7 @@ class UnitBlock : public Block
  /// indicates whether the Objective of the UnitBlock has been generated
  bool objective_generated( void ) const { return( AR & HasObj ); }
 
- /// Resizes a vector to time_horizon by using change_intervals
+ /// resizes a vector to time_horizon by using change_intervals
  template< typename T >
  void decompress_vector( std::vector< T > & v ) {
   if( v.empty() )
@@ -745,14 +748,14 @@ class UnitBlock : public Block
 /*-------------------------- CLASS UnitBlockMod ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a UnitBlock
+/// derived class from Modification for modifications to a UnitBlock
 class UnitBlockMod : public Modification {
 
 public:
 
- /// Public enum for the types of UnitBlockMod
+ /// public enum for the types of UnitBlockMod
  enum UB_mod_type {
-  eScale = 0 ,    ///< Set the scale factor
+  eScale = 0 ,    ///< set the scale factor
                   /**< This indicates that the scale factor of the UnitBlock
                    * has been modified. See UnitBlock::scale(). */
   eUBModLastParam ///< first allowed parameter value for derived classes
@@ -760,17 +763,17 @@ public:
                    * extend the set of types of UnitBlockMod. */
  };
 
- /// Constructor, takes the UnitBlock and the type
+ /// constructor, takes the UnitBlock and the type
  UnitBlockMod( UnitBlock * const fblock, const int type )
   : f_Block( fblock ), f_type( type ) {}
 
- /// Destructor, default version
+ /// destructor, default version
  virtual ~UnitBlockMod() override = default;
 
- /// Returns the Block to which the Modification refers
+ /// returns the Block to which the Modification refers
  Block * get_Block( void ) const override { return( f_Block ); }
 
- /// Accessor to the type of modification
+ /// accessor to the type of modification
  int type( void ) { return( f_type ); }
 
 protected:

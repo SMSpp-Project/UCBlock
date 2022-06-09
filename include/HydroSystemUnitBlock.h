@@ -44,6 +44,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
 
@@ -52,7 +54,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for "a collection of hydro unit" in UC
+/// implementation of the Block concept for "a collection of hydro unit" in UC
 /** The class HydroSystemUnitBlock, which derives from the Block, defines a
  * base class for any possible "hydro unit" and the linking
  * PolyhedralFunctionBlock that can be attached to a UCBlock to describe the
@@ -96,7 +98,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /** @name Constructor and Destructor
  * @{ */
 
- /// Constructor, takes the father
+ /// constructor, takes the father
  /** Constructor of HydroSystemUnitBlock, taking possibly a pointer of its
   * father Block. */
 
@@ -104,7 +106,7 @@ class HydroSystemUnitBlock : public UnitBlock
   : UnitBlock( father_block ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of HydroSystemUnitBlock
+ /// destructor of HydroSystemUnitBlock
 
  virtual ~HydroSystemUnitBlock() override;
 
@@ -114,7 +116,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /** @name Other initializations
  * @{ */
 
-/// Extends Block::deserialize( netCDF::NcGroup )
+/// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
  * the HydroSystemUnitBlock. Besides the mandatory "type" attribute of any
  * :Block, the group should contain the following:
@@ -206,16 +208,16 @@ class HydroSystemUnitBlock : public UnitBlock
 /** @name Reading the data of the HydroSystemUnitBlock
  * @{ */
 
- /// Returns the number of hydro units of the problem
+ /// returns the number of hydro units of the problem
  Index get_number_hydro_units( void ) const { return( f_number_hydro_units ); }
 
 /*--------------------------------------------------------------------------*/
- /// Returns the i-th HydroUnitBlock
+ /// returns the i-th HydroUnitBlock
 
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
- /// Returns the PolyhedralFunctionBlock
+ /// returns the PolyhedralFunctionBlock
 
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
   assert( ! v_Block.empty() );
@@ -370,8 +372,14 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*---------------------------------- data ----------------------------------*/
 
- /// The number of hydro units of the problem
+ /// the number of hydro units of the problem
  Index f_number_hydro_units;
+
+/*-------------------------------- variables -------------------------------*/
+
+
+
+/*------------------------------- constraints ------------------------------*/
 
  /// the objective function
  FRealObjective objective;
@@ -394,12 +402,12 @@ class HydroSystemUnitBlock : public UnitBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Deserialize the sub-Blocks of HydroSystemUnitBlock
+ /// deserialize the sub-Blocks of HydroSystemUnitBlock
 
  void deserialize_sub_blocks( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
- /// Deserialize the sub-Blocks of HydroSystemUnitBlock that have the given
+ /// deserialize the sub-Blocks of HydroSystemUnitBlock that have the given
  /// prefix name
 
  void deserialize_sub_blocks( const netCDF::NcGroup & group ,
@@ -407,13 +415,13 @@ class HydroSystemUnitBlock : public UnitBlock
                               Index num_sub_blocks );
 
 /*--------------------------------------------------------------------------*/
- /// Deserialize the PolyhedralFunctionBlock
+ /// deserialize the PolyhedralFunctionBlock
 
  void deserialize_polyhedral_function_block
   ( const netCDF::NcGroup & group , const std::string & sub_group_name );
 
 /*--------------------------------------------------------------------------*/
- /// Compute the total number of reservoirs
+ /// compute the total number of reservoirs
 
  Index get_total_number_reservoirs( void ) const;
 

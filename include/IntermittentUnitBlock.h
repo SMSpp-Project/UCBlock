@@ -44,16 +44,17 @@
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Namespace for the Structured Modeling System++ (SMS++)
+/// namespace for the Structured Modeling System++ (SMS++)
 
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS IntermittentUnitBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for the Intermittent Generation unit
+/// implementation of the Block concept for the Intermittent Generation unit
 /** The IntermittentUnitBlock class implements the Block concept [see Block.h]
  * for a units representing generation (be ir centralized or distributed) by
  * intermittent (= unreliable) sources in the unit commitment problem, such
@@ -93,7 +94,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name constructor and destructor
+/** @name Constructor and Destructor
  * @{ */
 
  /// constructor, takes the father and the time horizon
@@ -319,16 +320,16 @@ class IntermittentUnitBlock : public UnitBlock
  * the kind of Intermittent Generation units
  * @{ */
 
- /// Returns the gamma value
+ /// returns the gamma value
  double get_gamma( void ) const { return( f_gamma ); }
 
- /// Returns the kappa value
+ /// returns the kappa value
  double get_kappa( void ) const { return( f_kappa ); }
 
- /// Returns the operation and maintenance cost
+ /// returns the operation and maintenance cost
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
- /// Returns the investment cost, i.e., the capital expenditure cost
+ /// returns the investment cost, i.e., the capital expenditure cost
  double get_capex_cost( void ) const { return( f_capex_cost ); }
 
 /*--------------------------------------------------------------------------*/
@@ -762,28 +763,28 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- CLASS IntermittentUnitBlockMod ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a IntermittentUnitBlock
+/// derived class from Modification for modifications to a IntermittentUnitBlock
 class IntermittentUnitBlockMod : public UnitBlockMod
 {
 
  public:
 
- /// Public enum for the types of IntermittentUnitBlockMod
+ /// public enum for the types of IntermittentUnitBlockMod
  enum IUB_mod_type
  {
-  eSetMaxP = eUBModLastParam , ///< Set max power values
-  eSetKappa ,                  ///< Set the kappa constant
+  eSetMaxP = eUBModLastParam , ///< set max power values
+  eSetKappa ,                  ///< set the kappa constant
   eIUBModLastParam             ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to
    * extend the set of types of IntermittentUnitBlockMod. */
  };
 
- /// Constructor, takes the IntermittentUnitBlock and the type
+ /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )
   : UnitBlockMod( fblock , type ) {}
 
- ///< Destructor, does nothing
+ /// destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers

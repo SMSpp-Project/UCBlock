@@ -46,14 +46,17 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Block that describes the network in the UC problem
+/// block that describes the network in the UC problem
 /** The class NetworkBlock, which derives from the Block, defines the basic
  * interface for the constraints/optimization problems which describe the
  * behaviour of the network in a specific time instant in the Unit Commitment
@@ -94,8 +97,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
- /// Auxiliary class holding basic data about the network
+ /// auxiliary class holding basic data about the network
  /** The NetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
   * characteristics) that describe the network. The rationale is that while
@@ -308,7 +310,7 @@ class NetworkBlock : public Block
 /** @name Methods for loading, printing & saving the NetworkData
  * @{ */
 
-  /// Serialize a NetworkData out of a netCDF::NcGroup
+  /// serialize a NetworkData out of a netCDF::NcGroup
   /** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
    * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
    * of the format of the created netCDF group. */
@@ -386,19 +388,19 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  /// Number of nodes of the network
+  /// number of nodes of the network
   Index f_number_nodes;
 
-  /// Number of lines of the network
+  /// number of lines of the network
   Index f_number_lines;
 
-  /// Number of intervals
+  /// number of intervals
   Index f_number_intervals;
 
-  /// Vector of starting lines
+  /// vector of starting lines
   std::vector< Index > v_start_line;
 
-  /// Vector of ending lines
+  /// vector of ending lines
   std::vector< Index > v_end_line;
 
   private:
@@ -419,14 +421,14 @@ class NetworkBlock : public Block
 /** @name Constructor and Destructor
  * @{ */
 
- /// Constructor, takes the father
+ /// constructor, takes the father
  /** Constructor of NetworkBlock, taking possibly a pointer of its father
   * Block. */
 
  explicit NetworkBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of NetworkBlock
+ /// destructor of NetworkBlock
 
  virtual ~NetworkBlock() override = default;
 
@@ -838,32 +840,32 @@ class NetworkBlock : public Block
 /*------------------------- CLASS NetworkBlockMod --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a NetworkBlock
+/// derived class from Modification for modifications to a NetworkBlock
 class NetworkBlockMod : public Modification
 {
 
  public:
 
- /// Public enum for the types of NetworkBlockMod
+ /// public enum for the types of NetworkBlockMod
  enum NetB_mod_type
  {
-  eSetActD = 0 ,     ///< Set max power values
+  eSetActD = 0 ,     ///< set max power values
   eNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of NetworkBlockMod. */
  };
 
- /// Constructor, takes the NetworkBlock and the type
+ /// constructor, takes the NetworkBlock and the type
  NetworkBlockMod( NetworkBlock * const fblock , const int type )
   : f_Block( fblock ) , f_type( type ) {}
 
- ///< Destructor, does nothing
+ /// destructor, does nothing
  virtual ~NetworkBlockMod( void ) override = default;
 
  /// returns the Block to which the Modification refers
  Block * get_Block( void ) const override { return( f_Block ); }
 
- /// Accessor to the type of modification
+ /// accessor to the type of modification
  int type( void ) { return( f_type ); }
 
  protected:

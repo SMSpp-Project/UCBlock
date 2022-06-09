@@ -44,14 +44,17 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// A transmission NetworkBlock, i.e., a "DC" transmission network
+/// a transmission NetworkBlock, i.e., a "DC" transmission network
 /** The DCNetworkBlock class derives from NetworkBlock, and defines the
  * standard linear constraints corresponding to the "DC model" of the
  * transmission network in the Unit Commitment problem. Generally, there exist
@@ -104,7 +107,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Auxiliary class holding basic data about the transmission network
+ /// auxiliary class holding basic data about the transmission network
  /** The DCNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
   * characteristics) that describe the transmission network. The rationale is
@@ -330,7 +333,7 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for loading, printing & saving the DCNetworkData
  * @{ */
 
-  /// Serialize a DCNetworkData out of a netCDF::NcGroup
+  /// serialize a DCNetworkData out of a netCDF::NcGroup
   /** Serialize a DCNetworkData out of a netCDF::NcGroup to the specific
    * format of a DCNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
    * ) for details of the format of the created netCDF group. */
@@ -353,16 +356,16 @@ class DCNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  /// Vector to store the susceptance of each line of the network
+  /// vector to store the susceptance of each line of the network
   std::vector< double > v_susceptance;
 
-  /// Vector to store the minimum power flow at each line
+  /// vector to store the minimum power flow at each line
   std::vector< double > v_min_power_flow;
 
-  /// Vector to store the maximum power flow at each line
+  /// vector to store the maximum power flow at each line
   std::vector< double > v_max_power_flow;
 
-  /// Vector to store the network cost at each line
+  /// vector to store the network cost at each line
   std::vector< double > v_network_cost;
 
 /*--------------------------------------------------------------------------*/
@@ -429,7 +432,7 @@ class DCNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate abstract constraints of DCNetworkBlock
+ /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below:
   * The topology of the transmission network is defined by a set of nodes
   * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
@@ -549,7 +552,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * Note that since in this class the configuration is ignored.*/
 
-  ///generate abstract constraints of DCNetworkBlock
+  /// generate abstract constraints of DCNetworkBlock
   /** Three different kinds of DCNetworkBlock constraints are defined as below:
    * The topology of the transmission network is defined by a set of nodes
    * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
@@ -1020,7 +1023,7 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for loading, printing & saving the DCNetworkBlock
  * @{ */
 
- /// Extends Block::serialize( netCDF::NcGroup )
+ /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
   * details of the format of the created netCDF group. */
@@ -1236,27 +1239,26 @@ class DCNetworkBlock : public NetworkBlock
 /*------------------------ CLASS DCNetworkBlockMod -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from NetworkBlockMod for modifications to a DCNetworkBlock
+/// derived class from NetworkBlockMod for modifications to a DCNetworkBlock
 class DCNetworkBlockMod : public NetworkBlockMod
 {
 
  public:
 
- /// Public enum for the types of DCNetworkBlockMod
+ /// public enum for the types of DCNetworkBlockMod
  enum DCNetB_mod_type
  {
-  eSetKappa = eNetBModLastParam ,  ///< Set the kappa constants
+  eSetKappa = eNetBModLastParam ,  ///< set the kappa constants
   eDCNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of DCNetworkBlockMod. */
-
  };
 
- /// Constructor, takes the DCNetworkBlock and the type
+ /// constructor, takes the DCNetworkBlock and the type
  DCNetworkBlockMod( DCNetworkBlock * const fblock , const int type )
   : NetworkBlockMod( fblock , type ) {}
 
- ///< Destructor, does nothing
+ /// destructor, does nothing
  virtual ~DCNetworkBlockMod() override = default;
 
  /// returns the Block to which the Modification refers

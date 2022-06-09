@@ -4,10 +4,6 @@
 /** @file
  * Small main() for constructing UCBlock netCDF files out of dat and mod ones.
  *
- * \version 0.10
- *
- * \date 20 - 06 - 2019
- *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
@@ -535,11 +531,11 @@ void serialize_hydrounit( netCDF::NcGroup & g , const HydroUnit & unit ) {
 /*--------------------------------------------------------------------------*/
 
 
-std::string input_path{};     ///< Input file name
-std::string output_path{};    ///< Input file name
-bool verbose = false;         ///< If the tool should be verbose
-std::string exe{};            ///< Name of the executable file
-std::string docopt_desc{};    ///< Tool description
+std::string input_path{};     ///< input file name
+std::string output_path{};    ///< input file name
+bool verbose = false;         ///< if the tool should be verbose
+std::string exe{};            ///< name of the executable file
+std::string docopt_desc{};    ///< tool description
 
 /*--------------------------------------------------------------------------*/
 

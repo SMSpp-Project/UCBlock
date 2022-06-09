@@ -45,6 +45,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
 
@@ -301,7 +302,7 @@ class ThermalUnitDPSolver : public Solver
 /*-------------------------- PRIVATE TYPES ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Stage of the computation
+ /// stage of the computation
  enum stage_value
  {
   start = 0 ,

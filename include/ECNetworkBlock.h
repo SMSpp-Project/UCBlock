@@ -49,15 +49,17 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS ECNetworkBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
-/*----------------------------- GENERAL NOTES ------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// An energy community NetworkBlock, i.e., an "EC" network
+/// an energy community NetworkBlock, i.e., an "EC" network
 
 class ECNetworkBlock : public NetworkBlock
 {
@@ -82,7 +84,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// Auxiliary class holding basic data about the community network
+ /// auxiliary class holding basic data about the community network
  /** The ECNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
   * characteristics) that describe the community network. The rationale is
@@ -212,7 +214,7 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Methods for loading, printing & saving the ECNetworkData
  * @{ */
 
-  /// Serialize an ECNetworkData out of a netCDF::NcGroup
+  /// serialize an ECNetworkData out of a netCDF::NcGroup
   /** Serialize an ECNetworkData out of a netCDF::NcGroup to the specific
    * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
    * ) for details of the format of the created netCDF group. */
@@ -277,7 +279,7 @@ class ECNetworkBlock : public NetworkBlock
  /** @name Constructor and Destructor
  * @{ */
 
- /// Constructor, takes the father
+ /// constructor, takes the father
  /** Constructor of ECNetworkBlock, taking possibly a pointer of its father
  * Block. */
 
@@ -286,7 +288,7 @@ class ECNetworkBlock : public NetworkBlock
     f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of ECNetworkBlock
+ /// destructor of ECNetworkBlock
 
  virtual ~ECNetworkBlock() override;
 
@@ -301,7 +303,7 @@ class ECNetworkBlock : public NetworkBlock
  void generate_abstract_variables( Configuration * stvv ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static constraint of the ECNetworkBlock
+ /// generate the static constraint of the ECNetworkBlock
  /** This method generates the abstract constraints of the ECNetworkBlock.
   * Since the node injection variable is fixed to the active demand value, it
   * must be a BoxConstraint for that variable whose lower and upper bounds are
@@ -577,7 +579,7 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Methods for loading, printing & saving the ECNetworkBlock
  * @{ */
 
- /// Extends Block::serialize( netCDF::NcGroup )
+ /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
   * details of the format of the created netCDF group. */

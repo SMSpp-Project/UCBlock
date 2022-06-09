@@ -4,10 +4,6 @@
 /** @file
  * Implementation of the HydroUnitBlock class.
  *
- * \version 0.11
- *
- * \date 13 - 12 - 2021
- *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n

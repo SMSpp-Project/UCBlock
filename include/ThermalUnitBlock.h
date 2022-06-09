@@ -44,14 +44,16 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS ThermalUnitBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for a thermal unit
+/// implementation of the Block concept for a thermal unit
 /** The ThermalUnitBlock class derives from UnitBlock and implements a
  * "reasonably standard" thermal unit of a Unit Commitment Problem. That is,
  * the class is designed in order to give mathematical formulation to describe
@@ -101,7 +103,7 @@ class ThermalUnitBlock : public UnitBlock
 /** @name Other initializations
  * @{ */
 
- /// Extends Block::deserialize( netCDF::NcGroup )
+ /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
   * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
   * the group must contain all the data required by the base UnitBlock, as
@@ -309,9 +311,9 @@ class ThermalUnitBlock : public UnitBlock
   * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
   *   indexed over any dimension and indicates the initial time to generating
   *   the unit.  If InitUpDownTime > 0, this means that the unit has been on
-  *   for InitUpDownTime time stamps prior to time stamp 0 (the beginning of
+  *   for InitUpDownTime timestamps prior to timestamp 0 (the beginning of
   *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
-  *   has been off for - InitUpDownTime time stamps prior to time stamp 0; note
+  *   has been off for - InitUpDownTime timestamps prior to timestamp 0; note
   *   that InitUpDownTime == 0 means that the unit has been just shut down at
   *   the end of time instant -1, i.e., the beginning of time instant 0. This
   *   variable is optional. If it is not provided, then it is taken to be
@@ -321,13 +323,13 @@ class ThermalUnitBlock : public UnitBlock
   *   indexed over any dimension, which indicates the minimum allowed up time
   *   in this unit. This variable is optional, if it is not provided it is
   *   taken to be MinUpTime == 0, which mean that the unit can shut down in the
-  *   very same time stamp in which it starts up.
+  *   very same timestamp in which it starts up.
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
   *   time in this unit.This variable is optional, if it is not provided it is
   *   taken to be MinDownTime == 0, which mean that the unit can start up in
-  *   the very same time stamp in which it shuts down.
+  *   the very same timestamp in which it shuts down.
   *
   * - The variable "FixedConsumption", of type double and either indexed over
   *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
@@ -402,7 +404,7 @@ class ThermalUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// Generate the static constraint of the ThermalUnitBlock
+ /// generate the static constraint of the ThermalUnitBlock
  /** This method generates the abstract constraints of the ThermalUnitBlock.
   *
   * The operations of the thermal generating unit are described on a discrete
@@ -421,7 +423,7 @@ class ThermalUnitBlock : public UnitBlock
   * of first time instant which is called "init_t" is defined as below:
   *
   * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
-  *   \f$ \tau_0 \f$ time stamps prior to time stamp 0 (the beginning of the
+  *   \f$ \tau_0 \f$ timestamps prior to timestamp 0 (the beginning of the
   *   time horizon):
   *
   *   - if  \f$ \tau_0 \geq \tau_+ \f$ then init_t = 0 ;
@@ -429,7 +431,7 @@ class ThermalUnitBlock : public UnitBlock
   *   - otherwise init_t = \f$ \tau_+ \f$ - \f$ \tau_0 \f$ ;
   *
   * - If, instead, \f$ \tau_0 < 0 \f$, this means that the unit has
-  *   been off for \f$ - \tau_0 \f$ time stamps prior to time stamp 0:
+  *   been off for \f$ - \tau_0 \f$ timestamps prior to timestamp 0:
   *
   *   - if \f$ - \tau_0  \geq \tau_- \f$  then init_t = 0;
   *
@@ -1256,7 +1258,7 @@ class ThermalUnitBlock : public UnitBlock
 /** @name Methods for loading, printing & saving the ThermalUnitBlock
  * @{ */
 
-/// Extends Block::serialize( netCDF::NcGroup )
+/// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
  * ThermalUnitBlock. See ThermalUnitBlock::deserialize( netCDF::NcGroup ) for
  * details of the format of the created netCDF group. */
@@ -1885,35 +1887,36 @@ class ThermalUnitBlock : public UnitBlock
 /*----------------------- CLASS ThermalUnitBlockMod ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a ThermalUnitBlock
+/// derived class from Modification for modifications to a ThermalUnitBlock
 class ThermalUnitBlockMod : public UnitBlockMod
 {
 
  public:
 
- /// Public enum for the types of ThermalUnitBlockMod
+ /// public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type
  {
-  eSetMaxP = eUBModLastParam , ///< Set max power values
-  eSetInitP ,                  ///< Set initial power values
-  eSetInitUD ,                 ///< Set initial up/down times
-  eSetAv ,                     ///< Set availability
-  eSetSUC ,                    ///< Set startup costs
-  eSetLinT ,                   ///< Set linear term
-  eSetQuadT ,                  ///< Set quad term
-  eSetConstT ,                 ///< Set constant term
-  eSetPrSpResCost ,            ///< Set primary spinning reserve (linear) costs
-  eSetSecSpResCost ,           ///< Set secondary spinning reserve (linear) costs
+  eSetMaxP = eUBModLastParam , ///< set max power values
+  eSetInitP ,                  ///< set initial power values
+  eSetInitUD ,                 ///< set initial up/down times
+  eSetAv ,                     ///< set availability
+  eSetSUC ,                    ///< set startup costs
+  eSetLinT ,                   ///< set linear term
+  eSetQuadT ,                  ///< set quad term
+  eSetConstT ,                 ///< set constant term
+  eSetPrSpResCost ,            ///< set primary spinning reserve (linear) costs
+  eSetSecSpResCost ,
+  ///< set secondary spinning reserve (linear) costs
   eTUBBModLastParam       ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
  };
 
- /// Constructor, takes the ThermalUnitBlock and the type
+ /// constructor, takes the ThermalUnitBlock and the type
  ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
   : UnitBlockMod( fblock , type ) {}
 
- ///< Destructor, does nothing
+ /// destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;
 
  /// returns the Block to which the Modification refers

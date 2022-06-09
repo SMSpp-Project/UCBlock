@@ -610,8 +610,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing turn on constraints (start up constraints) - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- auto startup_const_size = static_cast<int>
- ( f_time_horizon - init_t - f_MinUpTime );
+
+ auto startup_const_size = static_cast<int>( f_time_horizon - init_t -
+                                             f_MinUpTime );
 
  if( startup_const_size > 0 ) {
 
@@ -2656,7 +2657,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  // split the C05FunctionModLinRngd in up to 5 physical Modification by
  // calling the appropriate set_*() methods (ranged version) for those among
  // startup, power, commitment, primary/secondary reserve variables whose
- // coefficient change. this heavily relies on the fact that variables of
+ // coefficient change. This heavily relies on the fact that variables of
  // the same type are consecutive (and ordered in the obvious way) when
  // set as coefficients in the Objective
 
@@ -2752,7 +2753,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  // split the C05FunctionModLinSbst in up to 5 physical Modification by
  // calling the appropriate set_*() methods (subset version) for those among
  // startup, power, commitment, primary/secondary reserve variables whose
- // coefficient change. this heavily relies on the fact that variables of
+ // coefficient change. This heavily relies on the fact that variables of
  // the same type are consecutive (and ordered in the obvious way) when
  // set as coefficients in the Objective
 
