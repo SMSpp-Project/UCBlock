@@ -127,7 +127,7 @@ class HeatBlock : public Block
   *        variable "ChangeIntervals".
   *
   *   ii) "NumberIntervals" == 1, which means that the value of each relevant
-  *        data in the HeatBlock (see e.g. "CostHeatUnit", "MinHeatProduction"
+  *        data in the HeatBlock (see e.g., "CostHeatUnit", "MinHeatProduction"
   *        and "MaxHeatProduction" below) is the same for each time instant 0,
   *        ..., "TimeHorizon" - 1 in the time horizon. In this case, the
   *        variable "ChangeIntervals" (see below) is ignored.

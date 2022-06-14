@@ -330,7 +330,13 @@ class IntermittentUnitBlock : public UnitBlock
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// returns the investment cost, i.e., the capital expenditure cost
- double get_capex_cost( void ) const { return( f_capex_cost ); }
+ double get_investment_cost( void ) const { return( f_investment_cost ); }
+
+ /// returns the replacement cost of the component at the end of the lifetime
+ double get_replacement_cost( void ) const { return( f_replacement_cost ); }
+
+ /// returns the residual value of the component at the end of the lifetime
+ double get_residual_value( void ) const { return( f_residual_value ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
@@ -654,23 +660,29 @@ class IntermittentUnitBlock : public UnitBlock
  /// the vector of MaxPower
  std::vector< double > v_maximum_power;
 
+ /// the matrix of inertia power of generators
+ std::vector< double > v_inertia_power;
+
  /// the gamma value
- double f_gamma;
+ double f_gamma{};
 
  /// the kappa value
- double f_kappa;
+ double f_kappa = 1;
 
  /// the scale factor of this IntermittentUnitBlock
  double f_scale = 1;
 
  /// the operation and maintenance cost
- double f_oem_cost;
+ double f_oem_cost{};
 
  /// the investment cost, i.e., the capital expenditure cost
- double f_capex_cost;
+ double f_investment_cost{};
 
- /// the matrix of inertia power of generators
- std::vector< double > v_inertia_power;
+ /// the replacement cost of the component at the end of the lifetime
+ double f_replacement_cost{};
+
+ /// the residual value of the component at the end of the lifetime
+ double f_residual_value{};
 
 /*-------------------------------- variables -------------------------------*/
 

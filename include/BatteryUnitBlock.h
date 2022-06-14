@@ -72,7 +72,7 @@ namespace SMSpp_di_unipi_it
  * units don't).
  *
  * Battery storage provide an additional flexibility to the system by shifting
- * a surplus of electric energy (e.g. due to high renewable feeding) to times
+ * a surplus of electric energy (e.g., due to high renewable feeding) to times
  * with high demand or lower renewable generation. The distributed battery
  * storage can be aggregated in the energy cells or directly placed in a
  * single node of the network. We will therefore not stress this dependency in
@@ -83,7 +83,7 @@ namespace SMSpp_di_unipi_it
  * electricity system. First, electricity demand is growing due to a higher
  * amount of electric vehicles that need to be charged. On the other hand,
  * vehicles are used only a small amount of time while being charged over a
- * much longer timespan (e.g. at night). This allows to shift the charging
+ * much longer timespan (e.g., at night). This allows to shift the charging
  * process in time and provide this flexibility to the overall energy system
  * by means of an additional generator (vehicle-to-grid) or an additional load
  * (power-to-vehicle). Two main differences between battery storages unit and
@@ -620,11 +620,33 @@ public:
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// returns the battery investment cost, i.e., the capital expenditure cost
- double get_battery_capex_cost( void ) const { return( f_battery_capex_cost ); }
+ double get_batt_investment_cost( void ) const {
+  return( f_batt_investment_cost );
+ }
 
  /// returns the converter investment cost, i.e., the capital expenditure cost
- double get_converter_capex_cost( void ) const {
-  return( f_battery_capex_cost );
+ double get_converter_investment_cost( void ) const {
+  return( f_conv_investment_cost );
+ }
+
+ /// returns the replacement cost of the battery at the end of the lifetime
+ double get_batt_replacement_cost( void ) const {
+  return( f_batt_replacement_cost );
+ }
+
+ /// returns the replacement cost of the battery at the end of the lifetime
+ double get_converter_replacement_cost( void ) const {
+  return( f_conv_replacement_cost );
+ }
+
+ /// returns the residual value of the battery at the end of the lifetime
+ double get_batt_residual_value( void ) const {
+  return( f_batt_residual_value );
+ }
+
+ /// returns the residual value of the converter at the end of the lifetime
+ double get_converter_residual_value( void ) const {
+  return( f_conv_residual_value );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1415,29 +1437,41 @@ public:
  /// the vector of Cost
  std::vector< double > v_cost;
 
+ /// the vector of demand
+ std::vector< double > v_demand;
+
  /// the InitialStorage value
- double f_initial_storage;
+ double f_initial_storage{};
 
  /// the InitialPower value
- double f_initial_power;
+ double f_initial_power{};
 
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
  /// the kappa value
- double f_kappa;
+ double f_kappa{};
 
  /// the operation and maintenance cost
- double f_oem_cost;
+ double f_oem_cost{};
 
  /// the battery investment cost, i.e., the capital expenditure cost
- double f_battery_capex_cost;
+ double f_batt_investment_cost{};
 
  /// the converter investment cost, i.e., the capital expenditure cost
- double f_converter_capex_cost;
+ double f_conv_investment_cost{};
 
- /// the vector of demand
- std::vector< double > v_demand;
+ /// the replacement cost of the battery at the end of the lifetime
+ double f_batt_replacement_cost{};
+
+ /// the replacement cost of the converter at the end of the lifetime
+ double f_conv_replacement_cost{};
+
+ /// the residual value of the battery at the end of the lifetime
+ double f_batt_residual_value{};
+
+ /// the residual value of the converter at the end of the lifetime
+ double f_conv_residual_value{};
 
 /*-------------------------------- variables -------------------------------*/
 

@@ -89,7 +89,10 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
     "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
     "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
-    "Demand" , "Kappa",  "OEMCost" , "BatteryCAPEXCost" , "ConverterCAPEXCost"};
+    "Demand" , "Kappa" , "OEMCost" ,
+    "BatteryInvestmentCost" , "ConverterInvestmentCost" ,
+    "BatteryReplacementCost" , "ConverterReplacementCost" ,
+    "BatteryResidualValue" , "ConverterResidualValue" };
  check_variables( group, expected_vars, std::cerr );
 #endif
 
@@ -127,14 +130,16 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "Cost" , v_cost ) )
   v_cost.resize( 1 , 0 );
 
- if( ! ::deserialize( group , f_oem_cost , "OEMCost" ) )
-  f_oem_cost = 0;
+ ::deserialize( group , f_oem_cost , "OEMCost" );
 
- if( ! ::deserialize( group , f_battery_capex_cost , "BatteryCAPEXCost" ) )
-  f_battery_capex_cost = 0;
+ ::deserialize( group , f_batt_investment_cost , "BatteryInvestmentCost" );
+ ::deserialize( group , f_conv_investment_cost , "ConverterInvestmentCost" );
 
- if( ! ::deserialize( group , f_converter_capex_cost , "ConverterCAPEXCost" ) )
-  f_converter_capex_cost = 0;
+ ::deserialize( group , f_batt_replacement_cost , "BatteryReplacementCost" );
+ ::deserialize( group , f_conv_replacement_cost , "ConverterReplacementCost" );
+
+ ::deserialize( group , f_batt_residual_value , "BatteryResidualValue" );
+ ::deserialize( group , f_conv_residual_value , "ConverterResidualValue" );
 
  // Decompress vectors
 
@@ -362,7 +367,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   else
    var.set_type( ColVariable::kBinary );
  }
- if( f_battery_capex_cost != 0 )
+ if( f_batt_investment_cost != 0 )
   add_static_variable( v_battery_design , "D_battery" );
 
  // Converter Design Variable
@@ -373,7 +378,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   else
    var.set_type( ColVariable::kBinary );
  }
- if( f_converter_capex_cost != 0 )
+ if( f_conv_investment_cost != 0 )
   add_static_variable( v_converter_design , "D_converter" );
 
  // Active Power Variable
@@ -437,6 +442,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   LinearFunction::v_coeff_pair vars;
 
   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
   if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
    if( ! v_maximum_primary_rho.empty() ) {
     // if this unit produces any primary reserve
@@ -471,25 +477,21 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   LinearFunction::v_coeff_pair vars;
 
   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-  if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-   if( ! v_maximum_primary_rho.empty() ) {
+
+  if( reserve_vars & 1u ) // if UCBlock has primary demand variables
+   if( ! v_maximum_primary_rho.empty() )
     // if this unit produces any primary reserve
     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                     1.0 ) );
-   }
-  }
 
-  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variable
-   if( ! v_maximum_secondary_rho.empty() ) {
+  if( reserve_vars & 2u ) // if UCBlock has secondary demand variable
+   if( ! v_maximum_secondary_rho.empty() )
     // if this unit produces any secondary reserve
     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                     1.0 ) );
-   }
-  }
 
   active_power_upper_bound_Const[ t ].set_lhs( -Inf< double >() );
-  active_power_upper_bound_Const[ t ].set_rhs
-   ( f_kappa * v_maximum_power[ t ] );
+  active_power_upper_bound_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
   active_power_upper_bound_Const[ t ].set_function(
    new LinearFunction( std::move( vars ) ) );
  }
@@ -782,8 +784,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_objective( Configuration *objc )
-{
+void BatteryUnitBlock::generate_objective( Configuration *objc ) {
+
  if( objective_generated() )
   return; // Objective has already been generated
 

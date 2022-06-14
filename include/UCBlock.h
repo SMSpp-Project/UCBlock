@@ -198,7 +198,7 @@ class UCBlock : public Block
  *   i = 0, 1, ..., NumberUnits - 1 (cf. the groups "UnitBlock_0",
  *   "UnitBlock_1", ... above), and the electrical generators into each
  *   UnitBlock also have some natural ordering (corresponding to the columns
- *   of the matrices of variables, cf. e.g. UnitBlock::get_commitment()).
+ *   of the matrices of variables, cf. e.g., UnitBlock::get_commitment()).
  *   Thus, in general the mapping is:
  *     electrical generator 0 = first generator of UnitBlock_0
  *     electrical generator 1 = second generator of UnitBlock_0
@@ -238,7 +238,7 @@ class UCBlock : public Block
  *   an ordering b = 0, 1, ..., NumberHeatBlocks - 1 (cf. the groups
  *   "HeatBlock_0", "HeatBlock_1", ... above), and the heat generators into
  *   each HeatBlock also have some natural ordering (corresponding to the
- *   columns of the matrices of variables, cf. e.g. HeatBlock::get_heat()).
+ *   columns of the matrices of variables, cf. e.g., HeatBlock::get_heat()).
  *   Thus, in general the mapping is:
  *     heat generator 0 = first generator of HeatBlock_0
  *     heat generator 1 = second generator of HeatBlock_0
@@ -311,7 +311,7 @@ class UCBlock : public Block
  *   tells to which node of the transmission network, the specified electrical
  *   generator g belongs. Note that this means that different electrical
  *   generators in the same UnitBlock can belong to different nodes of the
- *   transmission network. This is justified e.g. by hydro cascade units where
+ *   transmission network. This is justified e.g., by hydro cascade units where
  *   different turbines can be rather far apart geographically, but still
  *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
  *   NumberUnits (all UnitBlock have exactly one electrical generator), then

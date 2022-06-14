@@ -151,7 +151,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   // still have been provided.
   ::deserialize( group , "ActiveDemand" , v_active_demand );
  }
-}    // end( ECNetworkBlock::deserialize )
+}  // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
@@ -170,7 +170,7 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_sell_price );
-}    // end( ECNetworkBlock::ECNetworkData::serialize )
+}  // end( ECNetworkBlock::ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -204,7 +204,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_active_demand );
  }
-}    // end( ECNetworkBlock::serialize )
+}  // end( ECNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/

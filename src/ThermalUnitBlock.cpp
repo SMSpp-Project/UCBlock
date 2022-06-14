@@ -697,8 +697,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    RampUp_Const[ 0 ].set_lhs( -Inf< double >() );
 
    if( f_InitUpDownTime > 0 ) {
-    RampUp_Const[ 0 ].set_rhs
-     ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) + f_initial_power );
+    RampUp_Const[ 0 ].set_rhs(
+     ( v_DeltaRampUp[ 0 ] * initial_commitment ) + f_initial_power );
    } else {
     RampUp_Const[ 0 ].set_rhs
      ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) );
@@ -751,6 +751,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( f_InitUpDownTime <= 0 ) { // -f_InitUpDownTime < f_MinDownTime
 
     auto LFunction = new LinearFunction();
+
     LFunction->add_variable( &v_active_power[ init_t ] , 1.0 );
     LFunction->add_variable( &v_start_up[ 0 ] ,
                              -get_operational_min_power( init_t ) );
@@ -762,6 +763,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    } else { // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
 
     auto LFunction = new LinearFunction();
+
     LFunction->add_variable( &v_active_power[ init_t ] , 1.0 );
     LFunction->add_variable( &v_active_power[ init_t - 1 ] , -1.0 );
     LFunction->add_variable( &v_start_up[ 0 ] ,
@@ -798,7 +800,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // Initial condition
   if( init_t == 0 ) {
+
    auto linear_function = new LinearFunction();
+
    linear_function->add_variable( &v_active_power[ 0 ] , 1.0 );
    linear_function->add_variable( &v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
    linear_function->add_variable( &v_shut_down[ 0 ] ,
@@ -829,9 +833,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   if( init_t > 0 ) {
    // Initial condition
+
    auto linear_function = new LinearFunction();
+
    linear_function->add_variable( &v_active_power[ 0 ] , 1.0 );
    linear_function->add_variable( &v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
+
    if( f_InitUpDownTime > 0 ) {
     RampDown_Const[ 0 ].set_lhs( f_initial_power );
    } else {
@@ -841,6 +848,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    RampDown_Const[ 0 ].set_function( linear_function );
 
    for( Index t = 1 ; t < init_t ; ++t ) {
+
     auto lf = new LinearFunction();
 
     lf->add_variable( &v_active_power[ t - 1 ] , -1.0 );

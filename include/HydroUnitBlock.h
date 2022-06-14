@@ -613,8 +613,8 @@ class HydroUnitBlock : public UnitBlock
   *   \f]
   *
   * - primary and secondary spinning reserves relation with active power at
-  *   each time and for each turbine: the same as inequalities(1)-(2), the
-  *   inequalities(3)-(4) ensure that maximum amount of primary and secondary
+  *   each time and for each turbine: the same as inequalities (1)-(2), the
+  *   inequalities (3)-(4) ensure that maximum amount of primary and secondary
   *   spinning reserve in the problem. Each of them is a
   *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
@@ -640,7 +640,7 @@ class HydroUnitBlock : public UnitBlock
   *  used as primary and secondary reserve respectively.
   *
   * - primary and secondary spinning reserves at each time and for each pump:
-  *   these equalities(5)-(6) ensure that the primary and secondary spinning
+  *   these equalities (5)-(6) ensure that the primary and secondary spinning
   *   reserve value for each pump is equal to zero. Each of them is a
   *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
@@ -663,7 +663,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f]
   *
   * - flow to active power function at each time and for each pump: this
-  *   equality(7) gives the active power relation with flow rate for each
+  *   equality (7) gives the active power relation with flow rate for each
   *   pump at time t. This is a boost::multi_array<FRowConstraint, 2>; with two
   *   dimensions which are f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
@@ -686,7 +686,7 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f]
   *
-  * - flow rate variable bounds: This inequality(9) indicates upper and lower
+  * - flow rate variable bounds: This inequality (9) indicates upper and lower
   *   bound of flow rate at time t and for ach arc l, thus that is a
   *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
@@ -699,7 +699,7 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f]
   *
-  * - ramp-up and ramp-down constraints: These inequality(10)-(11) indicate
+  * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
   *   ramp-up and ramp-down constraints at time t and for ach arc l, so each of
   *   them is a boost::multi_array<FRowConstraint, 2>; with two dimensions
   *   which are f_time_horizon, and f_number_arcs entries, where
@@ -718,7 +718,7 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f]
   *
-  * - final volumes of each reservoir constraints: this equality(12) gives the
+  * - final volumes of each reservoir constraints: this equality (12) gives the
   *   final volumes of each reservoir r at time t. This is a
   *   boost::multi_array<FRowConstraint, 2>; with two dimensions which are
   *   f_number_reservoirs, and f_time_horizon entries, where
@@ -735,7 +735,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f$ n' \f$ are supposed to be the start and the end point of that
   *   respectively.
   *
-  * - final volumes variable bounds: This inequality(13) indicates upper and
+  * - final volumes variable bounds: This inequality (13) indicates upper and
   *   lower bound of volumetric variables of each reservoir for each time t,
   *   thus that is a boost::multi_array<FRowConstraint, 2>; with two dimensions
   *   which are f_number_reservoirs, and f_time_horizon entries, where

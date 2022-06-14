@@ -530,7 +530,7 @@ class ThermalUnitBlock : public UnitBlock
   *   According to above definition about the size of variables and since the
   *   variables commitment \f$ u_t \f$ have full size of time horizon and
   *   startup \f$ v_t \f$ variables have size (f_time_horizon - init_t).
-  *   Analyzing the left hand side of the ramp-up constraint(4), in any
+  *   Analyzing the left hand side of the ramp-up constraint (4), in any
   *   integral feasible solution we can see that
   *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
   *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ v_{t+1}\f$. Then for each
@@ -566,7 +566,7 @@ class ThermalUnitBlock : public UnitBlock
   *            \quad t \in \{t_0, ..., \mathcal{T} - 1 \}             \quad (5)
   *   \f]
   *
-  *   The sam analyzing the left hand side of the ramp-down constraint(5), in
+  *   The sam analyzing the left hand side of the ramp-down constraint (5), in
   *   any integral feasible solution we can see that
   *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
   *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ w_{t+1}\f$. Then for each
@@ -616,7 +616,7 @@ class ThermalUnitBlock : public UnitBlock
   *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (7)
   *   \f]
   *
-  *   The same as inequalities(6)-(7), the inequalities(8)-(9) ensure that
+  *   The same as inequalities (6)-(7), the inequalities (8)-(9) ensure that
   *   maximum amount of primary and secondary spinning reserve in the problem
   *   respectively. Each of them is a std::vector<FRowConstraint> with exactly
   *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:

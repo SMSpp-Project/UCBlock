@@ -74,7 +74,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  static std::vector< std::string > expected_vars =
   { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" ,
-    "OEMCost" , "CAPEXCost" };
+    "OEMCost" , "InvestmentCost", "ReplacementCost" , "ResidualValue" };
 
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -91,20 +91,20 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "MinPower" , v_minimum_power ) )
   v_minimum_power.assign( f_time_horizon , 0 );
 
- if( ! ::deserialize( group , f_gamma , "Gamma" ) )
-  f_gamma = 0;
-
  if( ! ::deserialize( group , "InertiaPower" , v_inertia_power ) )
   v_inertia_power.assign( f_time_horizon , 0 );
 
- if( ! ::deserialize( group , f_kappa , "Kappa" ) )
-  f_kappa = 1;
+ ::deserialize( group , f_gamma , "Gamma" );
 
- if( ! ::deserialize( group , f_oem_cost , "OEMCost" ) )
-  f_oem_cost = 0;
+ ::deserialize( group , f_kappa , "Kappa" );
 
- if( ! ::deserialize( group , f_capex_cost , "CAPEXCost" ) )
-  f_capex_cost = 0;
+ ::deserialize( group , f_oem_cost , "OEMCost" );
+
+ ::deserialize( group , f_investment_cost , "InvestmentCost" );
+
+ ::deserialize( group , f_replacement_cost , "ReplacementCost" );
+
+ ::deserialize( group , f_residual_value , "ResidualValue" );
 
  // Decompress vectors
  decompress_vector( v_minimum_power );
@@ -196,7 +196,7 @@ IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   else
    var.set_type( ColVariable::kBinary );
  }
- if( f_capex_cost != 0 )
+ if( f_investment_cost != 0 )
   add_static_variable( v_design , "D_intermittent" );
 
  // Active Power Variable
@@ -260,8 +260,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
                                     1.0 ) );
 
    MaxPower_Const[ t ].set_lhs( -Inf< double >() );
-   MaxPower_Const[ t ].set_rhs(
-    f_gamma * f_kappa * v_maximum_power[ t ] );
+   MaxPower_Const[ t ].set_rhs( f_gamma * f_kappa * v_maximum_power[ t ] );
    MaxPower_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
