@@ -453,31 +453,32 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
+ // ECNetworkBlock part of the NPV function, i.e., Net Present Value.
  for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
 
   for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
 
    // net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
-                                   f_NetworkData->get_sell_price()[ t ] ) );
+                                   -f_NetworkData->get_sell_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
-                                   f_NetworkData->get_sell_price()[ t ] ) );
+                                   -f_NetworkData->get_sell_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_public_power_injection[ node_id ] ,
-                                   -f_NetworkData->get_buy_price()[ t ] ) );
+                                   f_NetworkData->get_buy_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
-                                   -f_NetworkData->get_buy_price()[ t ] ) );
+                                   f_NetworkData->get_buy_price()[ t ] ) );
   }
 
-  // the costs due to the peak power
+  // C_the costs due to the peak power
   vars.push_back( std::make_pair( &v_max_power[ node_id ] ,
                                   f_NetworkData->get_max_tariff() ) );
  }
 
  auto lf = new LinearFunction( std::move( vars ) );
- lf->set_constant_term( f_const_term );
- objective.set_function( lf );
 
- // TODO from here we need to M A X I M I Z E (how? change all signs?)
+ lf->set_constant_term( f_const_term );
+
+ objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
  // set block objective

@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
  * (power-to-gas units), as well as of "logical" mechanisms that allow to
  * temporally shift production/consumption in a limited way, thereby acting
  * like an energy storage (centralized demand response, distributed load
- * management). BatteryUnitBlock provides a quite general concept of "battery"
+ * management). BatteryUnitBlock provides a quite general concept of battery
  * that covers different units which mostly fit the same mathematical
  * equations pattern. For instance, a BatteryUnitBlock may or may not have a
  * fixed demand (e-mobility has, other units have not) and it may or may not

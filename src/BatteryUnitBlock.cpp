@@ -804,20 +804,33 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
   }
 
-// TODO from here we need to M A X I M I Z E (how? change all signs?)
-// // the investment costs occurring only at the initial year
-// vars.push_back( std::make_pair( &v_active_power[ 0 ] ,
-//                                -( f_battery_capex_cost +
-//                                   f_converter_capex_cost ) ) );
-// for( Index y = 1 ; y < f_project_lifetime - 1 ; ++y ) {
-//
-//  // the maintenance costs are proportional to the installed capacity
-//  vars.push_back( std::make_pair( &v_active_power[ y ] , -f_oem_cost ) );
-//  // the replacement costs occurring only when a component reaches its end of
-//  // life, but they are spread over all the life of the component
-//
-// }
-// // at the end of the project evaluate the residual value of the component
+ // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
+ for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+  // CAPEX_{j=batt}^U, i.e., the investment cost of the battery
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 f_batt_investment_cost );
+  // CAPEX_{j=conv}^U, i.e., the investment cost of the converter
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 f_conv_investment_cost );
+
+  // C_{j=batt}^U, i.e., the operation and maintenance costs of the battery
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 f_oem_cost );
+
+  // RC_{j=batt}^U, i.e., the replacement cost of the battery
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 f_batt_replacement_cost );
+  // RC_{j=conv}^U, i.e., the replacement cost of the converter
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 f_conv_replacement_cost );
+
+  // RV_{j=batt}^U, i.e., the residual value of the battery
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 -f_batt_residual_value );
+  // RV_{j=conv}^U, i.e., the residual value of the converter
+  linear_function->add_variable( &v_active_power[ t ] ,
+                                 -f_conv_residual_value );
+ }
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
