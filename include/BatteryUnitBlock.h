@@ -616,7 +616,7 @@ public:
  /// returns the initial power value
  double get_initial_power( void ) const { return( f_initial_power ); }
 
- /// returns the operation and maintenance cost
+ /// returns the operation and maintenance costs
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// returns the battery investment cost, i.e., the capital expenditure cost
@@ -1452,7 +1452,7 @@ public:
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
- /// the operation and maintenance cost
+ /// the operation and maintenance costs
  double f_oem_cost{};
 
  /// the battery investment cost, i.e., the capital expenditure cost

@@ -326,7 +326,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the kappa value
  double get_kappa( void ) const { return( f_kappa ); }
 
- /// returns the operation and maintenance cost
+ /// returns the operation and maintenance costs
  double get_oem_cost( void ) const { return( f_oem_cost ); }
 
  /// returns the investment cost, i.e., the capital expenditure cost
@@ -672,7 +672,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the scale factor of this IntermittentUnitBlock
  double f_scale = 1;
 
- /// the operation and maintenance cost
+ /// the operation and maintenance costs
  double f_oem_cost{};
 
  /// the investment cost, i.e., the capital expenditure cost

@@ -335,6 +335,18 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( config )
   relax_binary = config->f_value;
 
+ // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ v_design.resize( f_time_horizon );
+ for( auto & var : v_design ) {
+  if( relax_binary )
+   var.set_type( ColVariable::kPosUnitary );
+  else
+   var.set_type( ColVariable::kBinary );
+ }
+ if( f_investment_cost != 0 )
+  add_static_variable( v_design , "D_thermal" );
+
  // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
@@ -1104,6 +1116,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_objective( Configuration * objc ) {
+
  if( objective_generated() )
   return;  // Objective has already been generated
 
@@ -1168,12 +1181,13 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
   if( v_primary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable( &v_primary_spinning_reserve[ t ] , 0 , 0 );
+    dquad_function->add_variable( &v_primary_spinning_reserve[ t ] ,
+                                  0.0 , 0.0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable
      ( &v_primary_spinning_reserve[ t ] ,
-       f_scale * v_primary_spinning_reserve_cost[ t ] , 0 );
+       f_scale * v_primary_spinning_reserve_cost[ t ] , 0.0 );
  }
 
  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
@@ -1185,12 +1199,32 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
   if( v_secondary_spinning_reserve_cost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable( &v_secondary_spinning_reserve[ t ] , 0 , 0 );
+    dquad_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
+                                  0.0 , 0.0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     dquad_function->add_variable
      ( &v_secondary_spinning_reserve[ t ] ,
-       f_scale * v_secondary_spinning_reserve_cost[ t ] , 0 );
+       f_scale * v_secondary_spinning_reserve_cost[ t ] , 0.0 );
+ }
+
+ // ThermalUnitBlock part of the NPV function, i.e., Net Present Value.
+ for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+  // CAPEX_{j}^U, i.e., the investment cost of the component
+  dquad_function->add_variable( &v_active_power[ t ] ,
+                                f_investment_cost , 0.0 );
+  // TODO the oem costs are proportional to the number of hours each
+  //  thermal generator has been used
+  // C_{j}^U, i.e., the operation and maintenance costs of the component
+  dquad_function->add_variable( &v_active_power[ t ] ,
+                                f_oem_cost , 0.0 );
+  // TODO add here the fuel costs (+)C_{j}^{U,F}
+  // RC_{j}^U, i.e., the replacement cost of the component
+  dquad_function->add_variable( &v_active_power[ t ] ,
+                                f_replacement_cost , 0.0 );
+  // RV_{j}^U, i.e., the residual value of the component
+  dquad_function->add_variable( &v_active_power[ t ] ,
+                                -f_residual_value , 0.0 );
  }
 
  objective.set_function( dquad_function );
