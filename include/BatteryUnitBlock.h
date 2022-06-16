@@ -1446,11 +1446,11 @@ public:
  /// the InitialPower value
  double f_initial_power{};
 
+ /// the kappa value
+ double f_kappa = 1;
+
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
-
- /// the kappa value
- double f_kappa{};
 
  /// the operation and maintenance cost
  double f_oem_cost{};
