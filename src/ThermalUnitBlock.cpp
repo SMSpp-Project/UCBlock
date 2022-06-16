@@ -1214,7 +1214,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
   dquad_function->add_variable( &v_active_power[ t ] ,
                                 f_investment_cost , 0.0 );
   // TODO the oem costs are proportional to the number of hours each
-  //  thermal generator has been used
+  //  thermal generator has been used (in the others UnitBlock they was
+  //  proportional to the installed capacity `v_active_power`)
   // C_{j}^U, i.e., the operation and maintenance costs of the component
   dquad_function->add_variable( &v_active_power[ t ] ,
                                 f_oem_cost , 0.0 );
