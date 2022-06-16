@@ -297,7 +297,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    // P^{max} vars also depends from P^{M+} and P^{M-}
    // vars as specified in the paper
-   if( true ) { // default_config
+   if( true ) { // TODO default_config
 
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
@@ -458,7 +458,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
   for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
 
-   // net economic balance wrt the public market
+   // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
                                    -f_NetworkData->get_sell_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ node_id ] ,
@@ -469,7 +469,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
                                    f_NetworkData->get_buy_price()[ t ] ) );
   }
 
-  // C_the costs due to the peak power
+  // C_{j}^{U,P}, i.e., the costs due to the peak power
   vars.push_back( std::make_pair( &v_max_power[ node_id ] ,
                                   f_NetworkData->get_max_tariff() ) );
  }
