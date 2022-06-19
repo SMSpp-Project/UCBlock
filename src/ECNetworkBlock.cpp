@@ -97,6 +97,9 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  ::deserialize( group , "SellPrice" , f_number_intervals ,
                 v_sell_price , false , true );
 
+ ::deserialize( group , "RewardPrice" , f_number_intervals ,
+                v_reward_price , false , true );
+
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
 
  // Optional variables
@@ -170,6 +173,9 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_sell_price );
+
+ ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
+              v_reward_price );
 }  // end( ECNetworkBlock::ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -467,6 +473,10 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
                                    f_NetworkData->get_buy_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ node_id ] ,
                                    f_NetworkData->get_buy_price()[ t ] ) );
+
+   // ECR_{j}, i.e., the reward awarded to the community
+   vars.push_back( std::make_pair( &v_public_power_absorption[ node_id ] ,
+                                   -f_NetworkData->get_reward_price()[ t ] ) );
   }
 
   // C_{j}^{U,P}, i.e., the costs due to the peak power

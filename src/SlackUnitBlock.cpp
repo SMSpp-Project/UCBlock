@@ -269,7 +269,6 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                          // cowardly (and silently) return
 
- // Initialize objective function
  if( reserve_vars & 4u ) {
   if( v_commitment.size() != f_time_horizon ) {
    throw( std::logic_error
@@ -300,6 +299,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
    }
   }
  }
+
  auto linear_function = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {

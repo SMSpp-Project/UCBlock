@@ -432,6 +432,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   generate_ZOConstraint = config->f_value;
 
  // Initializing minimum power constraints
+
  active_power_lower_bound_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -499,6 +500,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
  // Initializing ramp-up constraints
+
  if( ! v_delta_ramp_up.empty() ) {
 
   ramp_up_Const.resize( f_time_horizon );
@@ -694,6 +696,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 
   // Initializing outtake_binary_Const
+
   outtake_binary_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -739,6 +742,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  // Initializing secondary_upper_bound_Const
+
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
   if( ! v_maximum_secondary_rho.empty() ) {
    // if this unit produces any secondary reserve
@@ -759,7 +763,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
 
-/*-------------------------------ZOConstraint-------------------------------*/
+/*------------------------------ ZOConstraint ------------------------------*/
 
  if( battery_type == Binary_Variables_Constraints ) {
 
@@ -792,8 +796,6 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
 
  if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
-
- // initialize objective function
 
  auto linear_function = new LinearFunction();
 

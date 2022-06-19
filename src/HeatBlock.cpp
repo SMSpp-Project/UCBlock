@@ -357,8 +357,6 @@ void HeatBlock::generate_objective( Configuration * objc ) {
  if( get_objective() )  // an objective is there already
   return;               // cowardly (and silently) return
 
- // Initialize objective function
-
  if( v_heat.size() != f_time_horizon ) {
   throw( std::logic_error
    ( "HeatBlock::generate_objective: v_heat must have "

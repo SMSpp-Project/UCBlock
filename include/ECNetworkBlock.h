@@ -157,21 +157,22 @@ class ECNetworkBlock : public NetworkBlock
    *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
    *   is not provided, then this variable must be of size 1). This is meant to
    *   represent the vector BuyP[ t ] that, for each time instant t, contains
-   *   the tariff that user pay to buy electricity from the public market for
-   *   the corresponding time step. If "BuyPrice" has length 1 then BuyP[ t ]
-   *   contains the same value for all t;
+   *   the tariff that the user pays to buy electricity from the public market
+   *   for the corresponding time step. If "BuyPrice" has length 1 then BuyP[
+   *   t ] contains the same value for all t;
    *
    * - The variable "SellPrice", of type netCDF::NcDouble and either of size
    *   1 or indexed over the dimension "NumberIntervals" (if
    *   "NumberIntervals" is not provided, then this variable must be of size
    *   1). This is meant to represent the vector SellP[ t ] that, for each
-   *   time instant t, contains the tariff that user gain to sell electricity
-   *   to the public market for the corresponding time step. If "SellPrice"
-   *   has length 1 then SellP[ t ] contains the same value for all t;
+   *   time instant t, contains the tariff that the user gains to sell
+   *   electricity to the public market for the corresponding time step. If
+   *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
+   *   all t;
    *
    * - The variable "MaxTariff", of type netCDF::NcDouble and of size
-   *   1. This is mean to represent the tariff that user pay due to the peak
-   *   power. */
+   *   1. This is meant to represent the tariff that the user pays due to the
+   *   peak power. */
 
   virtual void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -182,7 +183,7 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
   /// returns the vector of sell prices
-  /** Method for returning the tariff that user gain to sell electricity to
+  /** Method for returning the tariff that the user gains to sell electricity to
    * the public market. */
 
   const std::vector< double > & get_sell_price( void ) const {
@@ -191,9 +192,20 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
+  /// returns the vector of reward prices
+  /** Method for returning the tariff that the user gains when it absorbs power
+   * from the microgrid market / network (instead of from the public grid) at
+   * each time horizon. */
+
+  const std::vector< double > & get_reward_price( void ) const {
+   return( v_reward_price );
+  }
+
+/*--------------------------------------------------------------------------*/
+
   /// returns the vector of buy prices
-  /** Method for returning the tariff that user pay to buy electricity at each
-   * time horizon from the public market. */
+  /** Method for returning the tariff that the user pays to buy electricity at
+   * each time horizon from the public market. */
 
   const std::vector< double > & get_buy_price( void ) const {
    return( v_buy_price );
@@ -202,7 +214,8 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
   /// returns the maximum tariff
-  /** Method for returning the tariff that user pay due to the peak power. */
+  /** Method for returning the tariff that the user pays due to the peak power.
+   * */
 
   const double & get_max_tariff( void ) const {
    return( f_max_tariff );
@@ -242,13 +255,17 @@ class ECNetworkBlock : public NetworkBlock
   // (the second term, i.e., the fixed tariff, is given as part of the
   // constant term)
 
-  /// tariff that user pay to buy electricity at each time horizon
+  /// tariff that the user pays to buy electricity at each time horizon
   std::vector< double > v_buy_price; // /pi^{P-,V}
 
-  /// tariff that user gain to sell electricity at each time horizon
-  std::vector< double > v_sell_price; // /pi^{P+} where /pi^{P+} < /pi^{P-,V}
+  /// tariff that the user gains to sell electricity at each time horizon
+  std::vector< double > v_sell_price; // /pi^{P+}
 
-  /// tariff that user pay due to the peak power
+  /// tariff that the user gains when it absorbs power from the microgrid
+  /// market / network (instead of from the public grid) at each time horizon
+  std::vector< double > v_reward_price; // /pi^{R}
+
+  /// tariff that the user pays due to the peak power
   double f_max_tariff;
 
 /*--------------------------------------------------------------------------*/
