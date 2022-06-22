@@ -1208,24 +1208,27 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
        f_scale * v_secondary_spinning_reserve_cost[ t ] , 0.0 );
  }
 
- // ThermalUnitBlock part of the NPV function, i.e., Net Present Value.
- for( Index t = 1 ; t < f_time_horizon ; ++t ) {
-  // CAPEX_{j}^U, i.e., the investment cost of the component
-  dquad_function->add_variable( &v_active_power[ t ] ,
-                                f_investment_cost , 0.0 );
-  // TODO the oem costs are proportional to the number of hours each
-  //  thermal generator has been used (in the others UnitBlock they was
-  //  proportional to the installed capacity `v_active_power`)
-  // C_{j}^U, i.e., the operation and maintenance costs of the component
-  dquad_function->add_variable( &v_active_power[ t ] ,
-                                f_oem_cost , 0.0 );
-  // TODO add here the fuel costs (+)C_{j}^{U,F}
-  // RC_{j}^U, i.e., the replacement cost of the component
-  dquad_function->add_variable( &v_active_power[ t ] ,
-                                f_replacement_cost , 0.0 );
-  // RV_{j}^U, i.e., the residual value of the component
-  dquad_function->add_variable( &v_active_power[ t ] ,
-                                -f_residual_value , 0.0 );
+ if( f_investment_cost != 0 ) {
+
+  // ThermalUnitBlock part of the NPV function, i.e., Net Present Value.
+  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+   // CAPEX_{j}^U, i.e., the investment cost of the component
+   dquad_function->add_variable( &v_design[ t ] ,
+                                 f_investment_cost , 0.0 );
+   // TODO the oem costs are proportional to the number of hours each
+   //  thermal generator has been used (in the others UnitBlock they was
+   //  proportional to the installed capacity `v_design`)
+   // C_{j}^U, i.e., the operation and maintenance costs of the component
+   dquad_function->add_variable( &v_design[ t ] ,
+                                 f_oem_cost , 0.0 );
+   // TODO add here the fuel costs (+)C_{j}^{U,F}
+   // RC_{j}^U, i.e., the replacement cost of the component
+   dquad_function->add_variable( &v_design[ t ] ,
+                                 f_replacement_cost , 0.0 );
+   // RV_{j}^U, i.e., the residual value of the component
+   dquad_function->add_variable( &v_design[ t ] ,
+                                 -f_residual_value , 0.0 );
+  }
  }
 
  objective.set_function( dquad_function );

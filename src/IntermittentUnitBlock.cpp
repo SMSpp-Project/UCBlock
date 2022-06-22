@@ -361,20 +361,23 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
- for( Index t = 1 ; t < f_time_horizon ; ++t ) {
-  // CAPEX_{j=pv/wind}^U, i.e., the investment cost of the component
-  vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                  f_investment_cost ) );
-  // C_{j=pv/wind}^U, i.e., the operation and maintenance costs of the component
-  vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                  f_oem_cost ) );
-  // RC_{j=pv/wind}^U, i.e., the replacement cost of the component
-  vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                  f_replacement_cost ) );
-  // RV_{j=pv/wind}^U, i.e., the residual value of the component
-  vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                  -f_residual_value ) );
+ if( f_investment_cost != 0 ) {
+
+  // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
+  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+   // CAPEX_{j=pv/wind}^U, i.e., the investment cost of the component
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   f_investment_cost ) );
+   // C_{j=pv/wind}^U, i.e., the operation and maintenance costs of the component
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   f_oem_cost ) );
+   // RC_{j=pv/wind}^U, i.e., the replacement cost of the component
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   f_replacement_cost ) );
+   // RV_{j=pv/wind}^U, i.e., the residual value of the component
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   -f_residual_value ) );
+  }
  }
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );

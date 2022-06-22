@@ -234,11 +234,15 @@ function csvEC2nc4()
 
                 # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
-                oem_cost[:] = field_component(users_data[u], g, "OEM_lin") * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                oem_cost[:] = (field_component(users_data[u], g, "OEM_lin") *
+                               field_component(users_data[u], g, "max_capacity") *
+                               sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
 
                 # capital expenditure cost of the component
                 investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                investment_cost[:] = field_component(users_data[u], g, "CAPEX_lin") * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                investment_cost[:] = (field_component(users_data[u], g, "CAPEX_lin") *
+                                      field_component(users_data[u], g, "max_capacity") *
+                                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
 
                 # replacement cost of the component
                 rep_cost = defVar(ub, "ReplacementCost", Float64, ())
@@ -269,14 +273,20 @@ function csvEC2nc4()
 
                 # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())
-                oem_cost[:] = field_component(users_data[u], g, "OEM_lin") * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                oem_cost[:] = (field_component(users_data[u], g, "OEM_lin") *
+                               field_component(users_data[u], g, "max_capacity") *
+                               sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
 
                 # capital expenditure cost of the component (both for battery and converter)
                 investment_battery_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
-                investment_battery_cost[:] = field_component(users_data[u], g, "CAPEX_lin") * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                investment_battery_cost[:] = (field_component(users_data[u], g, "CAPEX_lin") *
+                                              field_component(users_data[u], g, "max_capacity") *
+                                              sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
 
                 investment_converter_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
-                investment_converter_cost[:] = field_component(users_data[u], "conv", "CAPEX_lin") * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                investment_converter_cost[:] = (field_component(users_data[u], "conv", "CAPEX_lin") *
+                                                field_component(users_data[u], g, "max_capacity") *
+                                                sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
 
                 # replacement cost of the component (both for battery and converter)
                 rep_cost = defVar(ub, "BatteryReplacementCost", Float64, ())

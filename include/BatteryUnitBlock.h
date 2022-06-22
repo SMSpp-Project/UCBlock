@@ -1519,14 +1519,8 @@ public:
  /// the active power, intake and outtake relation constraints
  std::vector< FRowConstraint > power_intake_outtake_Const;
 
- /// the intake upper bound constraints
- std::vector< BoxConstraint > intake_upper_bound_Const;
-
  /// the storage , intake and outtake level relation constraints
  std::vector< FRowConstraint > storage_intake_outtake_Const;
-
- /// the storage level bounds constraints
- std::vector< BoxConstraint > storage_level_bounds_Const;
 
  /// the intake and binary variable relation constraints
  std::vector< FRowConstraint > intake_binary_Const;
@@ -1537,6 +1531,12 @@ public:
  /// the demand constraints
  std::vector< FRowConstraint > demand_Const;
 
+
+ /// the storage level bounds constraints
+ std::vector< BoxConstraint > storage_level_bounds_Const;
+
+ /// the intake upper bound constraints
+ std::vector< BoxConstraint > intake_upper_bound_Const;
 
  /// primary upper bound constraints
  std::vector< BoxConstraint > primary_upper_bound_Const;
