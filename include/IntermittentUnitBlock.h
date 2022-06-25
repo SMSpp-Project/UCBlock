@@ -478,6 +478,22 @@ class IntermittentUnitBlock : public UnitBlock
   return( active_power_bounds_Const );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the lower bound of the active power design constraints
+
+ const std::vector< FRowConstraint > &
+ get_active_power_lower_design_constraints( void ) const {
+  return( active_power_lower_design_Const );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the upper bound of the active power design constraints
+
+ const std::vector< FRowConstraint > &
+ get_active_power_upper_design_constraints( void ) const {
+  return( active_power_upper_design_Const );
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
@@ -709,6 +725,12 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
+
+ /// the lower bound of the active power design constraints
+ std::vector< FRowConstraint > active_power_lower_design_Const;
+
+ /// the upper bound of the active power design constraints
+ std::vector< FRowConstraint > active_power_upper_design_Const;
 
 
  /// the objective function

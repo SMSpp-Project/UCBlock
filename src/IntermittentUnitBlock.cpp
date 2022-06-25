@@ -57,6 +57,8 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
  Constraint::clear( MaxPower_Const );
 
  Constraint::clear( active_power_bounds_Const );
+ Constraint::clear( active_power_lower_design_Const );
+ Constraint::clear( active_power_upper_design_Const );
 
  objective.clear();
 }
@@ -316,6 +318,65 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  add_static_constraint( active_power_bounds_Const ,
                         "ActivePowerBound_Intermittent" );
+
+ if( f_investment_cost != 0 ) {
+
+  // Lower bound of the active power design constraints:
+  //
+  //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
+  // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
+
+  if( active_power_lower_design_Const.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( active_power_lower_design_Const.empty() );
+   active_power_lower_design_Const.resize( f_time_horizon );
+  }
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   -f_kappa * v_minimum_power[ t ] ) );
+
+   active_power_lower_design_Const[ t ].set_lhs( 0.0 );
+   active_power_lower_design_Const[ t ].set_rhs( Inf< double >() );
+   active_power_lower_design_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( active_power_lower_design_Const ,
+                         "LowerBoundActivePowerDesign_Intermittent" );
+
+  // Upper bound of the active power design constraints:
+  //
+  //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
+  // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
+
+  if( active_power_upper_design_Const.size() != f_time_horizon ) {
+   // this should only happen once
+   assert( active_power_upper_design_Const.empty() );
+   active_power_upper_design_Const.resize( f_time_horizon );
+  }
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &v_design[ t ] ,
+                                   -f_kappa * v_maximum_power[ t ] ) );
+
+   active_power_upper_design_Const[ t ].set_lhs( -Inf< double >() );
+   active_power_upper_design_Const[ t ].set_rhs( 0.0 );
+   active_power_upper_design_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( active_power_upper_design_Const ,
+                         "UpperBoundActivePowerDesign_Intermittent" );
+ }
 
  set_constraints_generated();
 
