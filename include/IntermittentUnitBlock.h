@@ -456,44 +456,6 @@ class IntermittentUnitBlock : public UnitBlock
 
  double get_scale( void ) const override { return( f_scale ); }
 
-/*--------------------------------------------------------------------------*/
- /// returns the minimum total power constraints
-
- const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
-  return( MinPower_Const );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum total power constraints
-
- const std::vector< FRowConstraint > & get_max_power_constraints( void ) const {
-  return( MaxPower_Const );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the bound constraints on the active power
-
- const std::vector< BoxConstraint > &
- get_active_power_bound_constraints( void ) const {
-  return( active_power_bounds_Const );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the lower bound of the active power design constraints
-
- const std::vector< FRowConstraint > &
- get_active_power_lower_design_constraints( void ) const {
-  return( active_power_lower_design_Const );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the upper bound of the active power design constraints
-
- const std::vector< FRowConstraint > &
- get_active_power_upper_design_constraints( void ) const {
-  return( active_power_upper_design_Const );
- }
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
 /*--------------------------------------------------------------------------*/
@@ -726,11 +688,8 @@ class IntermittentUnitBlock : public UnitBlock
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
 
- /// the lower bound of the active power design constraints
- std::vector< FRowConstraint > active_power_lower_design_Const;
-
- /// the upper bound of the active power design constraints
- std::vector< FRowConstraint > active_power_upper_design_Const;
+ /// the active power bounds design constraints
+ boost::multi_array< FRowConstraint, 2 > active_power_bounds_design_Const;
 
 
  /// the objective function

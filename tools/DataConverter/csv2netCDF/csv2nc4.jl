@@ -254,7 +254,9 @@ function csvEC2nc4()
 
                 # renewable power production of the component
                 ren_pu = defVar(ub, "PowerProduction", Float64, ("TimeHorizon",))
-                ren_pu[:] = [profile_component(users_data[u], g, "ren_pu")[t] for t in time_set]
+                ren_pu[:] = [profile_component(users_data[u], g, "ren_pu")[t] *
+                             field_component(users_data[u], g, "max_capacity")
+                             for t in time_set]
 
             elseif g == "batt" # assumption: if there is a battery there is ALWAYS also a converter
 

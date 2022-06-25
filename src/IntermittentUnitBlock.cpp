@@ -55,10 +55,11 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 
  Constraint::clear( MinPower_Const );
  Constraint::clear( MaxPower_Const );
+ Constraint::clear( PowerDispatch_Const );
 
  Constraint::clear( active_power_bounds_Const );
- Constraint::clear( active_power_lower_design_Const );
- Constraint::clear( active_power_upper_design_Const );
+
+ Constraint::clear( active_power_bounds_design_Const );
 
  objective.clear();
 }
@@ -243,7 +244,6 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  if( f_gamma != 0 ) { // if unit produces any reserve
 
   if( MaxPower_Const.size() != f_time_horizon ) {
-   // this should only happen once
    assert( MaxPower_Const.empty() );
    MaxPower_Const.resize( f_time_horizon );
   }
@@ -273,7 +273,6 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  // Minimum power constraints
 
  if( MinPower_Const.size() != f_time_horizon ) {
-  // this should only happen once
   assert( MinPower_Const.empty() );
   MinPower_Const.resize( f_time_horizon );
  }
@@ -303,7 +302,6 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  // Active power bound constraints
 
  if( active_power_bounds_Const.size() != f_time_horizon ) {
-  // this should only happen once
   assert( active_power_bounds_Const.empty() );
   active_power_bounds_Const.resize( f_time_horizon );
  }
@@ -319,63 +317,51 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  add_static_constraint( active_power_bounds_Const ,
                         "ActivePowerBound_Intermittent" );
 
+ // Active power bound design constraints
+
  if( f_investment_cost != 0 ) {
 
-  // Lower bound of the active power design constraints:
-  //
-  //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
-  // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
-
-  if( active_power_lower_design_Const.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( active_power_lower_design_Const.empty() );
-   active_power_lower_design_Const.resize( f_time_horizon );
-  }
+  active_power_bounds_design_Const.resize(
+   boost::multi_array< FRowConstraint , 2 >::extent_gen()
+   [ f_time_horizon ][ 2 ] ); // 2 dims, i.e., the lower and upper bounds
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
+   // Lower bound of the active power design constraints:
+   //
+   //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
+   // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   -f_kappa * v_minimum_power[ t ] ) );
+   LinearFunction::v_coeff_pair lower_vars;
 
-   active_power_lower_design_Const[ t ].set_lhs( 0.0 );
-   active_power_lower_design_Const[ t ].set_rhs( Inf< double >() );
-   active_power_lower_design_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   lower_vars.push_back( std::make_pair( &v_design[ t ] ,
+                                         -f_kappa * v_minimum_power[ t ] ) );
+
+   active_power_bounds_design_Const[ t ][ 0 ].set_lhs( 0.0 );
+   active_power_bounds_design_Const[ t ][ 0 ].set_rhs( Inf< double >() );
+   active_power_bounds_design_Const[ t ][ 0 ].set_function(
+    new LinearFunction( std::move( lower_vars ) ) );
+
+   // Upper bound of the active power design constraints:
+   //
+   //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
+   // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
+
+   LinearFunction::v_coeff_pair upper_vars;
+
+   upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   upper_vars.push_back( std::make_pair( &v_design[ t ] ,
+                                         -f_kappa * v_maximum_power[ t ] ) );
+
+   active_power_bounds_design_Const[ t ][ 1 ].set_lhs( -Inf< double >() );
+   active_power_bounds_design_Const[ t ][ 1 ].set_rhs( 0.0 );
+   active_power_bounds_design_Const[ t ][ 1 ].set_function(
+    new LinearFunction( std::move( upper_vars ) ) );
   }
 
-  add_static_constraint( active_power_lower_design_Const ,
-                         "LowerBoundActivePowerDesign_Intermittent" );
-
-  // Upper bound of the active power design constraints:
-  //
-  //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
-  // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
-
-  if( active_power_upper_design_Const.size() != f_time_horizon ) {
-   // this should only happen once
-   assert( active_power_upper_design_Const.empty() );
-   active_power_upper_design_Const.resize( f_time_horizon );
-  }
-
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
-
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   -f_kappa * v_maximum_power[ t ] ) );
-
-   active_power_upper_design_Const[ t ].set_lhs( -Inf< double >() );
-   active_power_upper_design_Const[ t ].set_rhs( 0.0 );
-   active_power_upper_design_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
-
-  add_static_constraint( active_power_upper_design_Const ,
-                         "UpperBoundActivePowerDesign_Intermittent" );
+  add_static_constraint( active_power_bounds_design_Const ,
+                         "ActivePowerBoundDesign_Intermittent" );
  }
 
  set_constraints_generated();
