@@ -175,8 +175,9 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void
-IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
+void IntermittentUnitBlock::generate_abstract_variables(
+ Configuration * stvv ) {
+
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -236,6 +237,7 @@ IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 void IntermittentUnitBlock::generate_abstract_constraints(
  Configuration * stcc ) {
+
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -243,10 +245,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  if( f_gamma != 0 ) { // if unit produces any reserve
 
-  if( MaxPower_Const.size() != f_time_horizon ) {
-   assert( MaxPower_Const.empty() );
-   MaxPower_Const.resize( f_time_horizon );
-  }
+  MaxPower_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -267,15 +266,11 @@ void IntermittentUnitBlock::generate_abstract_constraints(
   }
 
   add_static_constraint( MaxPower_Const , "MaxPower_Intermittent" );
-
  }
 
  // Minimum power constraints
 
- if( MinPower_Const.size() != f_time_horizon ) {
-  assert( MinPower_Const.empty() );
-  MinPower_Const.resize( f_time_horizon );
- }
+ MinPower_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -301,16 +296,11 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  // Active power bound constraints
 
- if( active_power_bounds_Const.size() != f_time_horizon ) {
-  assert( active_power_bounds_Const.empty() );
-  active_power_bounds_Const.resize( f_time_horizon );
- }
+ active_power_bounds_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  active_power_bounds_Const[ t ].set_lhs(
-   f_kappa * v_minimum_power[ t ] );
-  active_power_bounds_Const[ t ].set_rhs(
-   f_kappa * v_maximum_power[ t ] );
+  active_power_bounds_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
+  active_power_bounds_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
   active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
  }
 
@@ -389,6 +379,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && Constraint::is_feasible( MinPower_Const , tol )
   && Constraint::is_feasible( MaxPower_Const , tol )
   && Constraint::is_feasible( active_power_bounds_Const , tol )
+  && Constraint::is_feasible( active_power_bounds_design_Const , tol )
   // Variables
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )

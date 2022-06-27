@@ -245,6 +245,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
+
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -280,6 +281,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
+
  if( constraints_generated() )
   return; // constraints have already been generated
 

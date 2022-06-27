@@ -212,6 +212,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::generate_abstract_variables( Configuration * stvv ) {
+
  if( variables_generated() )
   return; // variables have already been generated
 

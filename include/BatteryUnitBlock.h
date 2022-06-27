@@ -1418,11 +1418,8 @@ public:
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the active power upper bound constraints
- std::vector< FRowConstraint > active_power_upper_bound_Const;
-
- /// the active power lower bound constraints
- std::vector< FRowConstraint > active_power_lower_bound_Const;
+ /// the active power bounds constraints
+ boost::multi_array< FRowConstraint, 2 > active_power_bounds_Const;
 
  /// the ramp up constraints
  std::vector< FRowConstraint > ramp_up_Const;

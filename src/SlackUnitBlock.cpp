@@ -159,6 +159,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
+
  if( constraints_generated() )
   return; // constraints have already been generated
 

@@ -505,6 +505,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
+
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
