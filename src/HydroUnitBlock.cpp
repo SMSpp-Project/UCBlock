@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 27 - 09 - 2021
+ * \date 13 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1106,7 +1106,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc ) {
  objective.set_function( linear_function );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( &objective , eNoMod );
 
  set_objective_generated();
 
@@ -1119,114 +1119,86 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- auto dim_time_horizon = group.getDim( "TimeHorizon" );
+ auto TimeHorizon = group.getDim( "TimeHorizon" );
+
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
+ auto TotalNumberPieces = group.addDim
+  ( "TotalNumberPieces" , f_total_number_pieces );
 
- auto dim_total_number_pieces = group.addDim( "TotalNumberPieces",
-                                              f_total_number_pieces );
+ auto NumberReservoirs = group.addDim
+  ( "NumberReservoirs" , f_number_reservoirs ? f_number_reservoirs : 1 );
 
- auto dim_number_reservoirs = group.addDim( "NumberReservoirs",
-                                            f_number_reservoirs
-                                            ? f_number_reservoirs : 1 );
+ auto NumberArcs = group.addDim
+  ( "NumberArcs" , f_number_arcs ? f_number_arcs : 1 );
 
- auto dim_number_arcs = group.addDim( "NumberArcs",
-                                      f_number_arcs ? f_number_arcs : 1 );
+ // Serialize one-dimensional variables.
 
+ ::serialize( group , "StartArc" , netCDF::NcUint() ,
+              NumberArcs , v_start_arc , false );
 
- ::serialize( group, "NumberPieces", netCDF::NcUint(),
-              dim_number_arcs, v_number_pieces, true );
+ ::serialize( group , "EndArc" , netCDF::NcUint() ,
+              NumberArcs , v_end_arc , false );
 
- ::serialize( group, "StartLine", netCDF::NcUint(),
-              dim_number_reservoirs, v_start_arc, false );
+ ::serialize( group , "NumberPieces" , netCDF::NcUint() ,
+              NumberArcs , v_number_pieces , false );
 
- ::serialize( group, "EndLine", netCDF::NcUint(),
-              dim_number_reservoirs, v_end_arc, false );
+ ::serialize( group , "LinearTerm" , netCDF::NcDouble() ,
+              TotalNumberPieces , v_linear_term , false );
 
+ ::serialize( group , "ConstantTerm" , netCDF::NcDouble() ,
+              TotalNumberPieces , v_const_term , false );
 
- if( !v_minimum_flow.empty() ) {
+ ::serialize( group , "InitialFlowRate" , netCDF::NcDouble() ,
+              NumberArcs , v_initial_flow_rate , false );
 
-  ::serialize( group, "MinFlow", netCDF::NcDouble(),
-               { NumberIntervals, dim_number_arcs },
-               v_minimum_flow, true );
- }
+ ::serialize( group , "InitialVolumetric" , netCDF::NcDouble() ,
+              NumberReservoirs , v_initial_volumetric , false );
 
- if( !v_maximum_flow.empty() ) {
+ ::serialize( group , "UphillFlow" , netCDF::NcInt() ,
+              NumberArcs , v_uphill_delay , false );
 
-  ::serialize( group, "MaxFlow", netCDF::NcDouble(),
-               { NumberIntervals, dim_number_arcs },
-               v_maximum_flow, true );
- }
+ ::serialize( group , "DownhillFlow" , netCDF::NcUint() ,
+              NumberArcs , v_downhill_delay , false );
 
- if( !v_minimum_volumetric.empty() ) {
+ // Serialize two-dimensional variables.
 
-  ::serialize( group, "MinVolumetric", netCDF::NcDouble(),
-               { dim_number_reservoirs, NumberIntervals },
-               v_minimum_volumetric, true );
- }
+ ::serialize( group , "MinFlow" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_minimum_flow );
 
- if( !v_maximum_volumetric.empty() ) {
+ ::serialize( group , "MaxFlow" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_maximum_flow );
 
-  ::serialize( group, "MaxVolumetric", netCDF::NcDouble(),
-               { dim_number_reservoirs, NumberIntervals },
-               v_maximum_volumetric, true );
- }
+ ::serialize( group , "MinVolumetric" , netCDF::NcDouble() ,
+              { NumberReservoirs , TimeHorizon } , v_minimum_volumetric );
 
- ::serialize( group, "Inflows", netCDF::NcDouble(),
-              { dim_number_reservoirs, dim_time_horizon },
-              v_inflows, false );
+ ::serialize( group , "MaxVolumetric" , netCDF::NcDouble() ,
+              { NumberReservoirs , TimeHorizon } , v_maximum_volumetric );
 
- ::serialize( group, "MinPower", netCDF::NcDouble(),
-              { NumberIntervals, dim_number_arcs },
-              v_minimum_power, true );
+ ::serialize( group , "Inflows" , netCDF::NcDouble() ,
+              { NumberReservoirs , TimeHorizon } , v_inflows );
 
- ::serialize( group, "MaxPower", netCDF::NcDouble(),
-              { NumberIntervals, dim_number_arcs },
-              v_maximum_power, true );
+ ::serialize( group , "MinPower" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_minimum_power );
 
- ::serialize( group, "DeltaRampUp", netCDF::NcDouble(),
-              { NumberIntervals, dim_number_arcs },
-              v_delta_ramp_up, true );
+ ::serialize( group , "MaxPower" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_maximum_power );
 
- ::serialize( group, "DeltaRampDown", netCDF::NcDouble(),
-              { NumberIntervals, dim_number_arcs },
-              v_delta_ramp_down, true );
+ ::serialize( group , "DeltaRampUp" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_delta_ramp_up );
 
- if( !v_primary_rho.empty() ) {
-  ::serialize( group, "PrimaryRho", netCDF::NcDouble(),
-               { NumberIntervals, dim_number_arcs },
-               v_primary_rho, true );
- }
+ ::serialize( group , "DeltaRampDown" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_delta_ramp_down );
 
- if( !v_secondary_rho.empty() ) {
+ ::serialize( group , "PrimaryRho" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_primary_rho );
 
-  ::serialize( group, "SecondaryRho", netCDF::NcDouble(),
-               { NumberIntervals, dim_number_arcs },
-               v_secondary_rho, true );
- }
+ ::serialize( group , "SecondaryRho" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_secondary_rho );
 
- ::serialize( group, "LinearTerm", netCDF::NcDouble(),
-              dim_total_number_pieces, v_linear_term, false );
+ ::serialize( group , "InertiaPower" , netCDF::NcDouble() ,
+              { TimeHorizon , NumberArcs } , v_inertia_power );
 
- ::serialize( group, "ConstantTerm", netCDF::NcDouble(),
-              dim_total_number_pieces, v_const_term, false );
-
-
- ::serialize( group, "InertiaPower", netCDF::NcDouble(),
-              { NumberIntervals, dim_number_arcs },
-              v_inertia_power, true );
-
- ::serialize( group, "InitialFlowRate", netCDF::NcDouble(),
-              dim_number_arcs, v_initial_flow_rate, false );
-
- ::serialize( group, "InitialVolumetric", netCDF::NcDouble(),
-              dim_number_reservoirs, v_initial_volumetric, false );
-
- ::serialize( group, "UphillFlow", netCDF::NcUint(),
-              dim_number_arcs, v_uphill_delay, true );
-
- ::serialize( group, "DownhillFlow", netCDF::NcUint(),
-              dim_number_arcs, v_downhill_delay, true );
 }  // end( HydroUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

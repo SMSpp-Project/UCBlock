@@ -13,17 +13,11 @@
  * modified UC would produce a "least unfeasible" solution which can be used
  * to identify the parts of the system that lack capacity/resources.
  *
- * \version 0.10
- *
- * \date 20 - 08 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -34,8 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __SlackUnitBlock
-#define __SlackUnitBlock
-
+ #define __SlackUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -55,7 +48,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS SlackUnitBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -73,8 +65,8 @@ namespace SMSpp_di_unipi_it
  * unfeasible" solution which can be used to identify the parts of the system
  * that lack capacity/resources. */
 
-class SlackUnitBlock : public UnitBlock {
-
+class SlackUnitBlock : public UnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -263,7 +255,7 @@ class SlackUnitBlock : public UnitBlock {
  * generate.
  */
 
- void generate_abstract_variables( Configuration *stvv ) override;
+ void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the SlackUnitBlock
@@ -295,7 +287,7 @@ class SlackUnitBlock : public UnitBlock {
  * spinning reserve, and the last one for the secondary spinning reserve
  * variables. */
  
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the SlackUnitBlock
@@ -324,7 +316,7 @@ class SlackUnitBlock : public UnitBlock {
  *  of the SimpleConfiguration<int> is taken the objective function.
  */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration *objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE SlackUnitBlock -----------*/
@@ -512,10 +504,10 @@ class SlackUnitBlock : public UnitBlock {
   return &( v_secondary_spinning_reserve.front() );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the SlackUnitBlock
+/** @name Methods for printing & saving the SlackUnitBlock
  *  @{ */
 
 /// Extends Block::serialize( netCDF::NcGroup )
@@ -525,18 +517,17 @@ class SlackUnitBlock : public UnitBlock {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR INITIALIZING THE SlackUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the SlackUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "SlackUnitBlock::load() not implemented yet") );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "SlackUnitBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

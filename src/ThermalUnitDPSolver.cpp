@@ -21,6 +21,8 @@
  * \copyright &copy; Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
  */
 /*--------------------------------------------------------------------------*/
+/*---------------------------- IMPLEMENTATION ------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------------------- MACROS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -69,6 +71,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
 int ThermalUnitDPSolver::compute( bool changedvars )
 {
+ lock();  // lock the mutex
+
  process_modifications();
 
  switch( stage ) {
@@ -78,6 +82,8 @@ int ThermalUnitDPSolver::compute( bool changedvars )
   case( path_OK ):  compute_solutions();
   }
 
+ unlock();  // unlock the mutex
+ 
  assert( stage == sol_OK );
  return( f_end.lab == TUDPINF ? kInfeasible : kOK );
  }
@@ -112,7 +118,7 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
   // startup at i iff the unit was off at i - 1 and it is on at i
   for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sup_it++)->set_value( U[ i ] && ( ~ U[ i - 1 ] ) ? 1 : 0 );
+   (sup_it++)->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
   }
 
  // set shut_down variables, if any, but note that start_up variables are
@@ -120,12 +126,12 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( auto sdn_it = b->get_shut_down() ) {
   // shutdown at 0 iif the unit was on at the start and it is off at 0
   if( ! t_init )
-   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ~ U[ 0 ] )
+   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] )
 			  ? 1 : 0 );
 
   // shutdown at i iff the unit was on at i - 1 and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sdn_it++)->set_value( ( ~ U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
+   (sdn_it++)->set_value( ( ! U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
   }
 
  // unlock the Block
@@ -338,7 +344,7 @@ void ThermalUnitDPSolver::build_graph( void )
    //   considering that min_down_time >= 1; note that min_down_time == 0
    //   is in fact possible, but we know that shutting down a unit only to
    //   powering it up again immediately is never a good idea, so we force
-   //   down-time periods to be at least of lenght one. Thus, the structure
+   //   down-time periods to be at least of length one. Thus, the structure
    //   of the arcs is analogous as in the ON nodes, except of course they
    //   go to the ON nodes themselves
    //
@@ -419,7 +425,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
   Index h = h_of_node( v_on_nodes[ i ].v_arcs.front().tail );
 
   // the cost of ( i , h ) is found in cost[ h - 1 ]; note that h > i,
-  // and therefore h > 0, and therefore h - 1 is well defined
+  // and therefore h > 0, and therefore h - 1 is well-defined
   --h;
 
   // set the variable costs in the arcs
@@ -487,10 +493,10 @@ void ThermalUnitDPSolver::compute_solutions( void )
   Index h = h_of_node( n );   // the current arc is ( h , k )
   if( n->DPS && k ) {
    // n is ON( h ), or the source (if h == 0) that works as an ON node
-   // the power and committment variables of this arc are these with index
+   // the power and commitment variables of this arc are these with index
    // h, ..., k - 1, comprised if n == f_start (this is why h_of_node()
    // returns 0 for it); however, one has to explicitly avoid the special
-   // case of the "empty" arc ( s , 0 ) that has no power and committment
+   // case of the "empty" arc ( s , 0 ) that has no power and commitment
    // variables
    // get optimal values of power variables out of the EDSolver
    n->DPS->compute_power_variables( k - 1 , P );
@@ -586,14 +592,6 @@ void ThermalUnitDPSolver::load_parameters( void )
 
 /*--------------------------------------------------------------------------*/
 
-double ThermalUnitDPSolver::compute_startup_costs( Index h , Index k )
-{
- // one day a time-dependent SUC formula may be easily implemented here
- return( startup_costs[ k ] );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitDPSolver::process_modifications( void )
 {
  bool reload = false;
@@ -606,8 +604,10 @@ void ThermalUnitDPSolver::process_modifications( void )
 
  // process all the Modifications
  for( auto mod : v_mod )
-  if( guts_of_process_modifications( mod.get() ) )
-   break;  // if a reset is done, ignore all the remaining Modifications 
+  if( guts_of_process_modifications( mod.get() ) ) {
+   reload = true;  // a reset must be done
+   break;          // ignore all the remaining Modifications
+   }
 
  v_mod.clear();  // all Modifications tackled, clear the list
 

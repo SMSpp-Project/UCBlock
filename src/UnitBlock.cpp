@@ -4,38 +4,27 @@
 /** @file
  * Implementation of the UnitBlock class.
  *
- * \version 0.11
- *
- * \date 19 - 08 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * \copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato
  */
-
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -57,7 +46,6 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register UnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( UnitBlock );
 
 /*--------------------------------------------------------------------------*/
@@ -65,12 +53,14 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-UnitBlock::UnitBlock( Block * father_block, UnitBlock::Index t )
- : Block( father_block ), f_time_horizon( t ) {
- f_number_intervals = 0;
-}
 
-void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
+UnitBlock::UnitBlock( Block * father_block, Index t )
+ : Block( father_block ) , f_time_horizon( t ) , f_number_intervals( 0 ) {}
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
+{
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -98,26 +88,24 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
     "UnitBlock::deserialize: TimeHorizon is not present in the "
     "netCDF. The (nonzero) time horizon of UnitBlock is different "
     "from that of its father, but they should be equal." ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
-
+void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
+{
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
   f_number_intervals = 1;
  else {
   f_number_intervals = NumberIntervals.getSize();
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-   throw ( std::invalid_argument
-    ( "UnitBlock::deserialize: invalid NumberIntervals. "
-      "It must be between 1 and TimeHorizon." ) );
- }
+   throw( std::invalid_argument( "UnitBlock::deserialize: NumberIntervals "
+				 "not between 1 and TimeHorizon." ) );
+  }
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
-
   ::deserialize( group, "ChangeIntervals", f_number_intervals,
                  v_change_intervals );
 
@@ -128,78 +116,109 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    const auto t = v_change_intervals[ k ];
-   if( ! ( ( t >= 0 ) && ( t < f_time_horizon ) &&
+   if( ! ( ( t < f_time_horizon ) &&
            ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
-    throw ( std::invalid_argument
-            ( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
+    throw ( std::invalid_argument( "UnitBlock::deserialize: invalid value in ChangeIntervals: " +
               std::to_string( t ) + ". All values must be between 0 and "
               "TimeHorizon - 1 and in strictly increasing order." ) );
+   }
   }
+ else
+  v_change_intervals.clear();
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
-  deserialize_time_horizon( group );
-  deserialize_change_intervals( group );
-
+void UnitBlock::deserialize( const netCDF::NcGroup & group )
+{
  Block::deserialize( group );
-}
+ deserialize_time_horizon( group );
+ deserialize_change_intervals( group );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::scale( std::vector< double >::const_iterator values ,
+                       Range rng , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+
+ if( rng.first >= rng.second )
+  return; // An empty Range was given: no operation is performed.
+
+ Subset subset;
+
+ if( rng.second == Inf< Index >() ) {
+  // If we decide to scale the generators individually rather than the whole
+  // unit, then, when rng.second is Inf<Index>(), we could interpret it as
+  // changing the scale factor of all generators and the vector containing the
+  // scale factor would be expected to have size at least equal to the number
+  // of generators. In this case, the subset would have size equal to the
+  // number of generators. Alternatively, we could have scale_generators() and
+  // leave scale() for scaling the whole unit.
+  subset.resize( 1 , 0 );
+ }
+ else {
+  subset.resize( rng.second - rng.first );
+  std::iota( subset.begin() , subset.end() , rng.first );
+ }
+
+ scale( values , std::move( subset ) , true , issuePMod , issueAMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::scale( double scale_factor , c_ModParam issuePMod ,
+                       c_ModParam issueAMod ) {
+ Subset subset = { 0 };
+ std::vector< double > values = { scale_factor };
+ scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
+}
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
-Solution * UnitBlock::get_Solution( Configuration * csolc, bool emptys )
+Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 {
- auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
+ Index solution_type = 0;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast<SimpleConfiguration< int > *>(
-          f_BlockConfig->f_solution_Configuration );
-
- auto solution_type = config ? config->f_value : 0;
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  solution_type = config->f_value;
 
  Solution * sol = nullptr;
  switch( solution_type ) {
-  case 1:
-   sol = new RowConstraintSolution;
-   break;
-  case 2:
-   sol = new ColRowSolution;
-   break;
-  default:
-   sol = new ColVariableSolution;
- }
+  case 1:  sol = new RowConstraintSolution; break;
+  case 2:  sol = new ColRowSolution; break;
+  default: sol = new ColVariableSolution;
+  }
 
  if( ! emptys )
   sol->read( this );
 
  return( sol );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void UnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
 
  group.addDim( "TimeHorizon", f_time_horizon );
 
- auto NumberIntervals = group.addDim( "NumberIntervals", f_number_intervals );
+ if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
+  auto NI = group.addDim( "NumberIntervals" , f_number_intervals );
 
- if( !v_change_intervals.empty() ) {
-  ::serialize( group, "ChangeInterval", netCDF::NcUint64(),
-               NumberIntervals, v_change_intervals );
+  ::serialize( group , "ChangeInterval", netCDF::NcUint64() , NI ,
+	       v_change_intervals );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/

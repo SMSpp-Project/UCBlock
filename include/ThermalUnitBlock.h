@@ -35,9 +35,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "FRowConstraint.h"
+
 #include "OneVarConstraint.h"
+
 #include "FRealObjective.h"
-#include "DQuadFunction.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -45,10 +47,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS ThermalUnitBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -89,14 +89,15 @@ class ThermalUnitBlock : public UnitBlock {
  /** Constructor of ThermalUnitBlock, taking possibly a pointer of its
   * father Block and the time horizon. */
 
- explicit ThermalUnitBlock( Block * f_block = nullptr, Index t = 0 ) :
+ explicit ThermalUnitBlock( Block * f_block = nullptr , Index t = 0 ) :
   UnitBlock( f_block ) {}
+
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock
 
  virtual ~ThermalUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -294,9 +295,10 @@ class ThermalUnitBlock : public UnitBlock {
  *
  * - The scalar variable "InitialPower", of type double and not indexed over
  *   any dimension. This variable indicates the amount of the power that the
- *   unit was producing at time instant -1, i.e., before the start of the
- *   time horizon; this is necessary to compute the ramp-up and ramp-down
- *   constraints. Clearly, it must be that MaxPower >= InitialPower >=
+ *   unit was producing at time instant -1, i.e., before the start of the time
+ *   horizon; this is necessary to compute the ramp-up and ramp-down
+ *   constraints. This variable is optional. If it is not provided, then it is
+ *   taken to be 0. Clearly, it must be that MaxPower >= InitialPower >=
  *   MinPower if the unit was "on" at time instant -1, and it would be ignored
  *   if the unit was "off" at time instant -1. The on/off status of the unit
  *   is also encoded by the scalar variable InitUpDownTime: in particular,
@@ -313,7 +315,9 @@ class ThermalUnitBlock : public UnitBlock {
  *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
  *   has been off for - InitUpDownTime time stamps prior to time stamp 0; note
  *   that InitUpDownTime == 0 means that the unit has been just shut down at
- *   the end of time instant -1, i.e., the beginning of time instant 0.
+ *   the end of time instant -1, i.e., the beginning of time instant 0. This
+ *   variable is optional. If it is not provided, then it is taken to be
+ *   -MinDownTime if InitialPower == 0, and MinUpTime if InitialPower > 0.
  *
  * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
  *   indexed over any dimension, which indicates the minimum allowed up time
@@ -663,7 +667,7 @@ class ThermalUnitBlock : public UnitBlock {
  * Note that there may be other formulations (like the DP one), which will
  * possibly be implemented in the future. */
 
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the ThermalUnitBlock
@@ -719,10 +723,9 @@ class ThermalUnitBlock : public UnitBlock {
  *  If the primary and/or secondary spinning reserve variables are included in
  *  the objective function, their coefficients can be set by the
  *  set_primary_spinning_reserve_cost() and
- *  set_secondary_spinning_reserve_cost() methods, respectively.
- */
+ *  set_secondary_spinning_reserve_cost() methods, respectively. */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/
@@ -735,7 +738,7 @@ class ThermalUnitBlock : public UnitBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this ThermalUnitBlock is approximately
   * feasible considering a given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
   * determined as follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -743,7 +746,7 @@ class ThermalUnitBlock : public UnitBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -811,7 +814,7 @@ class ThermalUnitBlock : public UnitBlock {
  /** This method returns (a const reference to) the vector containing the
   * nominal minimum active power output of the unit for all time steps. When
   * the unit is available, get_min_power()[ t ] gives the minimum active power
-  * output of the unit at time t, for each t in {0, ..., get_time_hotizon() -
+  * output of the unit at time t, for each t in {0, ..., get_time_horizon() -
   * 1}.  */
  const std::vector< double > & get_min_power() const {
   return v_MinPower;
@@ -842,7 +845,7 @@ class ThermalUnitBlock : public UnitBlock {
   * nominal maximum active power output of the unit for all time steps. When
   * the unit is fully available, get_min_power()[ t ] gives the maximum active
   * power output of the unit at time t, for each t in {0, ...,
-  * get_time_hotizon() - 1}. See get_availability() to understand the
+  * get_time_horizon() - 1}. See get_availability() to understand the
   * difference between nominal and operational maximum active power.  */
  const std::vector< double > & get_max_power() const {
   return v_MaxPower;
@@ -1258,6 +1261,11 @@ class ThermalUnitBlock : public UnitBlock {
   return( &( v_shut_down[ t - init_t ] ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the scale factor of this ThermalUnitBlock
+ double get_scale() const override { return f_scale; }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -1271,18 +1279,17 @@ class ThermalUnitBlock : public UnitBlock {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR INITIALIZING THE ThermalUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the ThermalUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "ThermalUnitBlock::load() not implemented yet") );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "ThermalUnitBlock::load() not implemented yet" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
  /** Method for handling Modification.
@@ -1301,7 +1308,7 @@ class ThermalUnitBlock : public UnitBlock {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
- // update the availability of the unit
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
   * contains a list of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
@@ -1319,15 +1326,14 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values,
-                        Subset && subset,
-                        const bool ordered = false,
-                        c_ModParam issuePMod = eNoBlck,
-                        c_ModParam issueAMod = eNoBlck );
+ void set_availability( MF_dbl_it values ,
+                        Subset && subset , bool ordered = false ,
+                        ModParam issuePMod = eNoBlck ,
+			ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- // update the availability of the unit
+ /// update the availability of the unit
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
@@ -1345,113 +1351,104 @@ class ThermalUnitBlock : public UnitBlock {
   * given availability in \p values is such that this condition does not hold,
   * an exception is thrown.  */
 
- void set_availability( std::vector< double >::const_iterator values,
-                        Range rng = Range( 0, Inf< Index >() ),
-                        c_ModParam issuePMod = eNoBlck,
-                        c_ModParam issueAMod = eNoBlck );
+ void set_availability( MF_dbl_it values , Range rng = INFRange ,
+                        ModParam issuePMod = eNoBlck ,
+                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-			 bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( MF_dbl_it values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_maximum_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_startup_costs( MF_dbl_it values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values,
-                      Subset && subset,
-		      bool ordered = false,
-                      c_ModParam issuePMod = eNoBlck,
-                      c_ModParam issueAMod = eNoBlck );
+ void set_const_term( MF_dbl_it values ,
+                      Subset && subset , bool ordered = false ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_const_term( std::vector< double >::const_iterator values,
-                      Range rng = Range( 0, Inf< Index >() ),
-                      c_ModParam issuePMod = eNoBlck,
-                      c_ModParam issueAMod = eNoBlck );
+ void set_const_term( MF_dbl_it values , Range rng = INFRange ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values,
-                       Subset && subset,
-		       bool ordered = false,
-                       c_ModParam issuePMod = eNoBlck,
-                       c_ModParam issueAMod = eNoBlck );
+ void set_linear_term( MF_dbl_it values ,
+                       Subset && subset , bool ordered = false ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_linear_term( std::vector< double >::const_iterator values,
-                       Range rng = Range( 0, Inf< Index >() ),
-                       c_ModParam issuePMod = eNoBlck,
-                       c_ModParam issueAMod = eNoBlck );
+ void set_linear_term( MF_dbl_it values , Range rng = INFRange ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values,
-                     Subset && subset,
-		     bool ordered = false,
-                     c_ModParam issuePMod = eNoBlck,
-                     c_ModParam issueAMod = eNoBlck );
+ void set_quad_term( MF_dbl_it values ,
+		     Subset && subset , bool ordered = false ,
+                     ModParam issuePMod = eNoBlck ,
+                     ModParam issueAMod = eNoBlck );
 
  /*--------------------------------------------------------------------------*/
 
- void set_quad_term( std::vector< double >::const_iterator values,
-                     Range rng = Range( 0, Inf< Index >() ),
-                     c_ModParam issuePMod = eNoBlck,
-                     c_ModParam issueAMod = eNoBlck );
+ void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
+                     ModParam issuePMod = eNoBlck ,
+		     ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost(
-	                       std::vector< double >::const_iterator values ,
-			       Subset && subset , bool ordered ,
-			       c_ModParam issuePMod = eNoBlck ,
-			       c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+					 Subset && subset ,
+					 bool ordered = false ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost(
-	   std::vector< double >::const_iterator values , Range rng ,
-           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+					 Range rng = INFRange ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost(
-			       std::vector< double >::const_iterator values ,
-			       Subset && subset , bool ordered ,
-			       c_ModParam issuePMod = eNoBlck ,
-			       c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+					   Subset && subset ,
+					   bool ordered = false ,
+					   ModParam issuePMod = eNoBlck ,
+					   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost(
-	   std::vector< double >::const_iterator values , Range rng ,
-           c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eNoBlck );
+ void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+					   Range rng = INFRange ,
+					   ModParam issuePMod = eNoBlck ,
+					   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1462,10 +1459,10 @@ class ThermalUnitBlock : public UnitBlock {
   * will be that in the vector pointed by \p it associated with this last
   * zero. */
 
- void set_initial_power( std::vector< double >::const_iterator values ,
+ void set_initial_power( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck );
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
@@ -1476,24 +1473,48 @@ class ThermalUnitBlock : public UnitBlock {
   * vector pointed by \p it if this Range contains the 0 index. If the given
   * Range \p rng does not contain the 0 index, this function does nothing. */
 
- void set_initial_power( std::vector< double >::const_iterator values ,
-                         Range rng = Range( 0, Inf< Index >() ) ,
-                         c_ModParam issuePMod = eNoBlck ,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_initial_power( MF_dbl_it values , Range rng = INFRange ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values ,
+ void set_init_updown_time( MF_int_it values ,
                             Subset && subset , bool ordered = false ,
-                            c_ModParam issuePMod = eNoBlck ,
-                            c_ModParam issueAMod = eNoBlck );
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_init_updown_time( std::vector< int >::const_iterator values ,
-                            Range rng = Range( 0, Inf< Index >() ) ,
-                            c_ModParam issuePMod = eNoBlck ,
-                            c_ModParam issueAMod = eNoBlck );
+ void set_init_updown_time( MF_int_it values , Range rng = INFRange ,
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the scale factor of this ThermalUnitBlock
+ /** This method sets the scale factor of this ThermalUnitBlock.
+  *
+  * @param values An iterator to a vector containing the scale factor.
+  *
+  * @param subset If non-empty, the scale factor is set to the value
+  *        pointed by \p values. If empty, no operation is performed.
+  *
+  * @param ordered This parameter is ignored.
+  *
+  * @param issuePMod Controls how physical Modification are issued.
+  *
+  * @param issueAMod Controls how abstract Modification are issued. */
+
+ void scale( std::vector< double >::const_iterator values ,
+             Subset && subset , const bool ordered = false ,
+             c_ModParam issuePMod = eNoBlck ,
+             c_ModParam issueAMod = eNoBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ // For the Range version, use the default implementation defined in UnitBlock
+ using UnitBlock::scale;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1567,6 +1588,9 @@ class ThermalUnitBlock : public UnitBlock {
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
+ /// the scale factor of this ThermalUnitBlock
+ double f_scale = 1;
+
 /*-----------------------------variables------------------------------------*/
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
@@ -1637,73 +1661,54 @@ class ThermalUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-  //                                      &ThermalUnitBlock::set_availability,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-  //                                      &ThermalUnitBlock::set_availability,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-  //                                      &ThermalUnitBlock::set_maximum_power,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_maximum_power",
-  //                                      &ThermalUnitBlock::set_maximum_power,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-  //                                      &ThermalUnitBlock::set_initial_power,
-  //                                      MS_dbl_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_initial_power",
-  //                                      &ThermalUnitBlock::set_initial_power,
-  //                                      MS_dbl_rngd::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-  //                                      &ThermalUnitBlock::set_init_updown_time,
-  //                                      MS_int_sbst::args() );
-  //
-  // register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_init_updown_time",
-  //                                      &ThermalUnitBlock::set_init_updown_time,
-  //                                      MS_int_rngd::args() );
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_availability",
+
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+   *                                      &ThermalUnitBlock::set_availability,
+   *                                      MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_availability" ,
    &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_availability",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_availability" ,
    &ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_maximum_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_maximum_power" ,
    &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_maximum_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_maximum_power" ,
    &ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_initial_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_initial_power" ,
    &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock, MF_dbl_it, Range >(
-   "ThermalUnitBlock::set_initial_power",
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_initial_power" ,
    &ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock, MF_int_it, Subset &&, const bool >(
-   "ThermalUnitBlock::set_init_updown_time",
+  register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
+   "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
 
-  register_method< ThermalUnitBlock, MF_int_it, Range >(
-   "ThermalUnitBlock::set_init_updown_time",
+  register_method< ThermalUnitBlock , MF_int_it , Range >(
+   "ThermalUnitBlock::set_init_updown_time" ,
    &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1801,6 +1806,85 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// updates the terms of the Objective associated with the start up cost
+ /** This method updates the terms of the Objective that are associated with
+  * the start up cost.
+  *
+  * @param subset A set of time instants at which the start up costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_start_up( const Subset & subset , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the active power cost
+ /** This method updates the terms of the Objective that are associated with
+  * the active power cost.
+  *
+  * @param subset A set of time instants at which the active power costs must
+  *        be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_active_power( const Subset & subset ,
+                                     c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the terms of the Objective associated with the fixed cost
+ /** This method updates the terms of the Objective that are associated with
+  * the fixed cost.
+  *
+  * @param subset A set of time instants at which the fixed costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective_commitment( const Subset & subset ,
+                                   c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( const Subset & subset ,c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+ void update_objective( Range rng , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this ThermalUnitBlock is consistent
+ /** This function checks whether the data in this ThermalUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The minimum power is not greater than the maximum power.
+  *
+  * - The availability is between 0 and 1.
+  *
+  * - The delta ramp-up and ramp-down are nonnegative.
+  *
+  * - The quadratic term of the objective function is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency() const;
+
+/*--------------------------------------------------------------------------*/
+
  void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
  void handle_objective_change( FunctionMod * mod , ChnlName chnl );
@@ -1815,13 +1899,13 @@ private:
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a ThermalUnitBlock
-class ThermalUnitBlockMod : public Modification {
+class ThermalUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum TUBB_mod_type {
-  eSetMaxP = 0      , ///< Set max power values
+  eSetMaxP = eUBModLastParam , ///< Set max power values
   eSetInitP         , ///< Set initial power values
   eSetInitUD        , ///< Set initial up/down times
   eSetAv            , ///< Set availability
@@ -1837,8 +1921,8 @@ class ThermalUnitBlockMod : public Modification {
  };
 
  /// Constructor, takes the ThermalUnitBlock and the type
- ThermalUnitBlockMod( ThermalUnitBlock * const fblock, const int type )
-  : f_Block( fblock ), f_type( type ) {}
+ ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
+  : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;
@@ -1882,11 +1966,6 @@ class ThermalUnitBlockMod : public Modification {
    default:;
   }
  }
-
- ThermalUnitBlock * f_Block{};
- ///< pointer to the Block to which the Modification refers
-
- int f_type; ///< type of modification
 }; // end( class( ThermalUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/

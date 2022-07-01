@@ -8,28 +8,27 @@
  * the linking PolyhedralFunctionBlock to describe the future value of water
  * function in a UCBlock.
  *
- * \version 0.11
- *
- * \date 19 - 11 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __HydroSystemUnitBlock
-#define __HydroSystemUnitBlock
+ #define __HydroSystemUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -187,7 +186,7 @@ class HydroSystemUnitBlock : public UnitBlock {
 
 /*--------------------------------------------------------------------------*/
 
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HydroSystemUnitBlock
@@ -197,7 +196,7 @@ class HydroSystemUnitBlock : public UnitBlock {
  *   "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
@@ -303,7 +302,7 @@ class HydroSystemUnitBlock : public UnitBlock {
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the HydroSystemUnitBlock
+/** @name Methods for printing & saving the HydroSystemUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
@@ -341,18 +340,18 @@ class HydroSystemUnitBlock : public UnitBlock {
    }
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
  /** @name Handling the data of the HydroSystemUnitBlock
-    @{ */
+  *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "HydroSystemUnitBlock::load() not implemented "
-                            "yet" ) );
- }
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		     "HydroSystemUnitBlock::load() not implemented  yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 

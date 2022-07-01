@@ -7,39 +7,31 @@
  * the Unit Commitment problem. There is actually precious little that this
  * class has to do that is not done already by the base NetworkBlock class.
  *
- * \version 0.11
- *
- * \date 01 - 07 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BusNetworkBlock
-#define __BusNetworkBlock
+ #define __BusNetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -50,13 +42,12 @@
 #include "OneVarConstraint.h"
 #include "FRealObjective.h"
 
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS BusNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -70,8 +61,8 @@ namespace SMSpp_di_unipi_it {
  * this class has to do that is not done already by the base NetworkBlock
  * class.*/
 
-class BusNetworkBlock : public NetworkBlock {
-
+class BusNetworkBlock : public NetworkBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -102,13 +93,10 @@ class BusNetworkBlock : public NetworkBlock {
 /** @name Other initializations
  *  @{ */
 
-/// loads the BusNetworkBlock instance from memory
-/** Like load( std::istream & ), if there is any Solver attached to this
- *  BusNetworkBlock then a NBModification (the "nuclear option") is issued.
- */
+/// loads the BusNetworkBlock instance from file - not implememted yet
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "BusNetworkBlock::load() not implemented yet" ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -119,8 +107,7 @@ class BusNetworkBlock : public NetworkBlock {
  * variable since the only possible way to satisfy the constraints is by
  * having s = D which in fact makes the variable a constant.*/
 
- void generate_abstract_variables( Configuration * stvv ) override;
-
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 /// Generate the static constraint of the BusNetworkBlock
@@ -129,7 +116,7 @@ class BusNetworkBlock : public NetworkBlock {
  * must be a BoxConstraint for that variable whose lower and upper bounds are
  * equal to the active demand value.
  */
- void generate_abstract_constraints( Configuration *stcc ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the BusNetworkBlock
@@ -139,43 +126,39 @@ class BusNetworkBlock : public NetworkBlock {
  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Subset && subset = { 0 },
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck ) final;
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Subset && subset = { 0 } , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
- void set_active_demand( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, 1 ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck ) final;
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , 1 ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-  //                                     &BusNetworkBlock::set_active_demand,
-  //                                     MS_dbl_sbst::args() );
-  //
-  // register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
-  //                                     &BusNetworkBlock::set_active_demand,
-  //                                     MS_dbl_rngd::args() );
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< BusNetworkBlock >( "BusNetworkBlock::set_active_demand",
+   *                                     &BusNetworkBlock::set_active_demand,
+   *                                     MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
 
-  register_method< BusNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-   "BusNetworkBlock::set_active_demand",
+  register_method< BusNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "BusNetworkBlock::set_active_demand" ,
    &BusNetworkBlock::set_active_demand );
 
-  register_method< BusNetworkBlock, MF_dbl_it, Range >(
-   "BusNetworkBlock::set_active_demand",
+  register_method< BusNetworkBlock , MF_dbl_it , Range >(
+   "BusNetworkBlock::set_active_demand" ,
    &BusNetworkBlock::set_active_demand );
  }
 

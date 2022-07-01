@@ -6,34 +6,27 @@
  * [see UnitBlock.h], in order to define a "reasonably standard" hydro unit
  * of a Unit Commitment Problem.
  *
- * \version 0.11
- *
- * \date 27 - 09 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
- * Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __HydroUnitBlock
-#define __HydroUnitBlock
+ #define __HydroUnitBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -54,8 +47,8 @@
 
 /// Namespace for the Structured Modeling System++ (SMS++)
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS HydroUnitBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -91,8 +84,8 @@ namespace SMSpp_di_unipi_it {
  *
  * - final volumes variable bounds. */
 
-class HydroUnitBlock : public UnitBlock {
-
+class HydroUnitBlock : public UnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -455,7 +448,7 @@ class HydroUnitBlock : public UnitBlock {
  *   multiplied to the active power variable) at time t for arc l. The
  *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
  *   time instants t and arc l. If the first dimension has size 1 then the
- *   entry IP[ 0 , l ] is assumed to contain the the inertia power value for
+ *   entry IP[ 0 , l ] is assumed to contain the inertia power value for
  *   arc l and all time instants t.  Otherwise, InertiaPower[ i , l ] is the
  *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
@@ -475,7 +468,7 @@ class HydroUnitBlock : public UnitBlock {
  *   volumes of water in reservoir r at time instant -1.
  *
  * - The negative or positive scalar variable "UphillFlow", of type
- *   netCDF::NcUint and indexed over the dimension "NumberArcs". Each entry
+ *   netCDF::NcInt and indexed over the dimension "NumberArcs". Each entry
  *   UpF[ l ] indicates the uphill flow delay for each unit (arc) l; the
  *   nontrivial concept is detailed below. This variable is optional, if it is
  *   not provided it is taken to be UpF[ l ] == 0.
@@ -550,7 +543,7 @@ class HydroUnitBlock : public UnitBlock {
  *  of the optional variables should be created. If the Configuration is not
  *  available, the default value is taken to be 0.
  * */
- void generate_abstract_variables( Configuration *stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the static constraint of the HydroUnit
@@ -756,7 +749,7 @@ class HydroUnitBlock : public UnitBlock {
  *   \f]
  *
  */
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// generate the objective of the HydroUnitBlock
@@ -766,7 +759,7 @@ class HydroUnitBlock : public UnitBlock {
  *   "empty" (a FRealObjective with a LinearFunction inside with no active
  *   variables) */
 
- void generate_objective( Configuration *objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the HydroUnitBlock -----------------*/
@@ -779,7 +772,7 @@ class HydroUnitBlock : public UnitBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this HydroUnitBlock is approximately
   * feasible considering a given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
   * determined as follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -787,7 +780,7 @@ class HydroUnitBlock : public UnitBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -1537,10 +1530,10 @@ class HydroUnitBlock : public UnitBlock {
   return nullptr;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE HydroUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the HydroUnitBlock
+/** @name Methods for printing & saving the HydroUnitBlock
  *  @{ */
 
 /// extends Block::serialize( netCDF::NcGroup )
@@ -1550,64 +1543,59 @@ class HydroUnitBlock : public UnitBlock {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR INITIALIZING THE HydroUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
-
 /** @name Handling the data of the HydroUnitBlock
-    @{ */
+ *  @{ */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "HydroUnitBlock::load() not implemented yet") );
- };
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "HydroUnitBlock::load() not implemented yet" ) );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_inflow( std::vector< double >::const_iterator values,
-                  Subset && subset,
-                  const bool ordered = false,
-                  c_ModParam issuePMod = eNoBlck,
-                  c_ModParam issueAMod = eNoBlck );
+ void set_inflow( std::vector< double >::const_iterator values ,
+                  Subset && subset , bool ordered = false ,
+                  ModParam issuePMod = eNoBlck ,
+                  ModParam issueAMod = eNoBlck );
 
- void set_inflow( std::vector< double >::const_iterator values,
-                  Range rng = Range( 0, Inf< Index >() ),
-                  c_ModParam issuePMod = eNoBlck,
-                  c_ModParam issueAMod = eNoBlck );
+ void set_inflow( std::vector< double >::const_iterator values ,
+                  Range rng = Range( 0 , Inf< Index >() ) ,
+                  ModParam issuePMod = eNoBlck ,
+                  ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values,
-                         Subset && subset,
-                         const bool ordered = false,
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_inertia_power( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values,
-                         Range rng = Range( 0, Inf< Index >() ),
-                         c_ModParam issuePMod = eNoBlck,
-                         c_ModParam issueAMod = eNoBlck );
+ void set_inertia_power( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values ,
+                          Subset && subset , bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck );
+ void set_initial_volume( std::vector< double >::const_iterator values ,
+                          Range rng = Range( 0 , Inf< Index >() ) ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values,
-                              Subset && subset,
-                              const bool ordered = false,
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                             Subset && subset , bool ordered = false ,
+                             ModParam issuePMod = eNoBlck ,
+                             ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values,
-                              Range rng = Range( 0, Inf< Index >() ),
-                              c_ModParam issuePMod = eNoBlck,
-                              c_ModParam issueAMod = eNoBlck );
+ void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             ModParam issuePMod = eNoBlck ,
+                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1758,56 +1746,39 @@ class HydroUnitBlock : public UnitBlock {
  FRealObjective objective;
 
  static void static_initialization() {
-  /*!!
-   * Not all C++ compilers enjoy the template wizardry behing the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it. !!*/
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-  //                                    &HydroUnitBlock::set_inflow,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_inertia_power",
-  //                                    &HydroUnitBlock::set_inertia_power,
-  //                                    MS_dbl_rngd::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_sbst::args() );
-  //
-  // register_method< HydroUnitBlock >( "HydroUnitBlock::set_initial_volume",
-  //                                    &HydroUnitBlock::set_initial_volume,
-  //                                    MS_dbl_rngd::args() );
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_inflow",
+
+  /* Warning: Not all C++ compilers enjoy the template wizardry behing the
+   * three-args version of register_method<> with the compact MS_*_*::args()
+   *
+   * register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
+   *                                    &HydroUnitBlock::set_inflow,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inflow" ,
    &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_inflow",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inflow" ,
    &HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_inertia_power",
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_inertia_power" ,
    &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_inertia_power",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_inertia_power" ,
    &HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Subset &&, const bool >(
-   "HydroUnitBlock::set_initial_volume",
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_initial_volume" ,
    &HydroUnitBlock::set_initial_volume );
 
-  register_method< HydroUnitBlock, MF_dbl_it, Range >(
-   "HydroUnitBlock::set_initial_volume",
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_initial_volume" ,
    &HydroUnitBlock::set_initial_volume );
  }
 
@@ -1889,22 +1860,21 @@ class HydroUnitBlock : public UnitBlock {
 /*--------------------------------------------------------------------------*/
 
 /// Derived class from Modification for modifications to a HydroUnitBlock
-class HydroUnitBlockMod : public Modification {
+class HydroUnitBlockMod : public UnitBlockMod {
 
  public:
 
  /// Public enum for the types of HydroUnitBlockMod
  enum HUB_mod_type {
-  eSetInf = 0 ,    ///< Set inflow values
-  eSetInerP    ,   ///< Set inertia power values
-  eSetInitF    ,    ///< Set initial flow rate values
-  eSetInitV        ///< Set initial volumetric values
+  eSetInf = eUBModLastParam , ///< Set inflow values
+  eSetInerP                 , ///< Set inertia power values
+  eSetInitF                 , ///< Set initial flow rate values
+  eSetInitV                   ///< Set initial volumetric values
  };
 
  /// Constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * const fblock,
-                      const int type )
-  : f_Block( fblock ), f_type( type ) {}
+                    const int type ) : UnitBlockMod( fblock , type ) {}
 
  ///< Destructor, does nothing
  virtual ~HydroUnitBlockMod() override = default;

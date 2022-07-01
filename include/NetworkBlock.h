@@ -9,39 +9,31 @@
  * specific time instant in the Unit Commitment (UC) problem, as represented
  * in UCBlock.
  *
- * \version 0.11
- *
- * \date 30 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael
- * Durbano Lobato, and Kostas Tavlaridis-Gyparakis
+ * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                  Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __NetworkBlock
-#define __NetworkBlock
+ #define __NetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -55,8 +47,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -80,8 +72,8 @@ namespace SMSpp_di_unipi_it {
  * variables, which will have to satisfy the technical constraints of the
  * transmission network. */
 
-class NetworkBlock : public Block {
-
+class NetworkBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -242,7 +234,7 @@ class NetworkBlock : public Block {
  *    defined.
  *
  *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
- *    element of the vectors gives starting point of each line in the network.
+ *    element of the vector gives starting point of each line in the network.
  */
 
   const std::vector< Index > & get_start_line() const { return v_start_line; }
@@ -258,7 +250,7 @@ class NetworkBlock : public Block {
  *    defined.
  *
  *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
- *    element of the vectors gives ending point of each line in the network.
+ *    element of the vector gives ending point of each line in the network.
  */
 
   const std::vector< Index > & get_end_line() const { return( v_end_line ); }
@@ -273,11 +265,24 @@ class NetworkBlock : public Block {
  *    no line at network (bus network).
  *
  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
- *    element of the vectors gives minimum power flow of each line in the
+ *    element of the vector gives minimum power flow of each line in the
  *    network. */
 
   const std::vector< double > & get_min_power_flow() const {
    return v_min_power_flow;
+   }
+
+/*--------------------------------------------------------------------------*/
+/// returns minimum power flow of the given \p line
+/** This method returns the minimum power flow of the given \p line.
+ *
+ * @return the minimum power flow of the given \p line. */
+
+  double get_min_power_flow( Index line ) const {
+   assert( line < get_number_lines() );
+   if( v_min_power_flow.empty() )
+    return 0;
+   return v_min_power_flow[ line ];
    }
 
 /*--------------------------------------------------------------------------*/
@@ -290,11 +295,24 @@ class NetworkBlock : public Block {
  *    no line at network (bus network).
  *
  *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
- *   element of the vectors gives maximum power flow of each line in the
+ *   element of the vector gives maximum power flow of each line in the
  *   network. */
 
   const std::vector< double > & get_max_power_flow() const {
    return v_max_power_flow;
+   }
+
+/*--------------------------------------------------------------------------*/
+/// returns maximum power flow of the given \p line
+/** This method returns the maximum power flow of the given \p line.
+ *
+ * @return the maximum power flow of the given \p line. */
+
+  double get_max_power_flow( Index line ) const {
+   assert( line < get_number_lines() );
+   if( v_max_power_flow.empty() )
+    return 0;
+   return v_max_power_flow[ line ];
    }
 
 /*--------------------------------------------------------------------------*/
@@ -468,8 +486,8 @@ class NetworkBlock : public Block {
  *   has been passed and NumberNodes > 1) then this variable has size
  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
 
- void generate_abstract_variables( Configuration * stvv ) override {
-  }
+ void generate_abstract_variables( Configuration * stvv = nullptr )
+  override { }
 
 /*--------------------------------------------------------------------------*/
 /**
@@ -478,8 +496,8 @@ class NetworkBlock : public Block {
  * @param input an input stream
  */
 
- void load( std::istream & input ) override {
-  throw ( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -571,28 +589,40 @@ class NetworkBlock : public Block {
 /** @name Reading the data of the NetworkBlock
     @{ */
 
-/// returns the number of nodes
-/** Returns the number of nodes in the transmission network. This should just
- * be equivalent to get_NetworkData()-> get_number_nodes(), but the base
- * NetworkBlock class does not handle it, and therefore it assumes the network
- * is a bus and returns 1. */
+ /// returns the number of nodes
+ /** This function returns the number of nodes in the transmission
+  * network. This should just be equivalent to
+  * get_NetworkData()->get_number_nodes(), but the base NetworkBlock class
+  * does not handle it, and therefore it assumes the network is a bus and
+  * returns 1. */
 
  virtual Index get_number_nodes( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
-/// returns the NetworkData object
-/** The method of the base class always returns nullptr, because the base
- * class does not handle the NetworkData object. This is OK for derived
- * classes that only handle the "bus" case. */
+
+ /// returns the number of lines
+ /** This function returns the number of lines in the transmission
+  * network. This should just be equivalent to
+  * get_NetworkData()->get_number_lines(), but the base NetworkBlock class
+  * does not handle it, and therefore it assumes the network has no lines and
+  * returns 0. */
+
+ virtual Index get_number_lines( void ) const { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the NetworkData object
+ /** The method of the base class always returns nullptr, because the base
+  * class does not handle the NetworkData object. This is OK for derived
+  * classes that only handle the "bus" case. */
 
  virtual NetworkData * get_NetworkData() const {
   return nullptr;
   }
 
 /*--------------------------------------------------------------------------*/
-/// returns the vector of active demands
-/** Method for returning the active demand for the given node, which is
- * assumed to have size get_number_nodes(). */
+ /// returns the vector of active demands
+ /** Method for returning the active demand for the given node, which is
+  * assumed to have size get_number_nodes(). */
 
  const std::vector< double > & get_active_demand() const {
   return v_active_demand;
@@ -667,16 +697,51 @@ class NetworkBlock : public Block {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Subset && subset,
-                                 const bool ordered,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+/*--------------------------------------------------------------------------*/
 
- virtual void set_active_demand( std::vector< double >::const_iterator values,
-                                 Range rng,
-                                 c_ModParam issuePMod,
-                                 c_ModParam issueAMod ) = 0;
+ /// set the active demand at the nodes specified by \p subset
+ /** This function sets the active demand at each node in the given \p
+  * subset. The active demand at the node whose index is specified by the i-th
+  * element in \p subset is given by the i-th element of the vector pointed by
+  * \p values, i.e., it is given by the value pointed by (values + i). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param subset The indices of the nodes at which the active demand is being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Subset && subset , bool ordered ,
+                                 ModParam issuePMod , ModParam issueAMod ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the active demand at the nodes specified by \p rng
+ /** This function sets the active demand at each node in the given Range \p
+  * rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is given by the element of the vector pointed
+  * by \p values whose index is (i - rng.first), i.e., it is given by the
+  * value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param rng A Range containing the indices of the nodes at which the active
+  *        demand is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ virtual void set_active_demand( std::vector< double >::const_iterator values ,
+                                 Range rng , ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
@@ -750,12 +815,14 @@ class NetworkBlockMod : public Modification {
 
  /// Public enum for the types of NetworkBlockMod
  enum NetB_mod_type {
-  eSetActD = 0    ///< Set max power values
+  eSetActD = 0 ,     ///< Set max power values
+  eNetBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of NetworkBlockMod. */
  };
 
  /// Constructor, takes the NetworkBlock and the type
- NetworkBlockMod( NetworkBlock * const fblock,
-                      const int type )
+ NetworkBlockMod( NetworkBlock * const fblock , const int type )
   : f_Block( fblock ), f_type( type ) {}
 
  ///< Destructor, does nothing
@@ -793,10 +860,9 @@ class NetworkBlockRngdMod : public NetworkBlockMod {
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the range
- NetworkBlockRngdMod( NetworkBlock * const fblock,
-                          const int type,
-                          Block::Range rng )
-  : NetworkBlockMod( fblock, type ), f_rng( rng ) {}
+ NetworkBlockRngdMod( NetworkBlock * const fblock , const int type ,
+                      Block::Range rng )
+  : NetworkBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockRngdMod() override = default;
@@ -825,10 +891,9 @@ class NetworkBlockSbstMod : public NetworkBlockMod {
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the subset
- NetworkBlockSbstMod( NetworkBlock * const fblock,
-                          const int type,
-                          Block::Subset && nms )
-  : NetworkBlockMod( fblock, type ), f_nms( std::move( nms ) ) {}
+ NetworkBlockSbstMod( NetworkBlock * const fblock , const int type ,
+                      Block::Subset && nms )
+  : NetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockSbstMod() override = default;

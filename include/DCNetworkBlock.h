@@ -7,28 +7,27 @@
  * defines the standard linear constraints corresponding to the "DC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \version 0.11
- *
- * \date 20 - 06 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, and Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DCNetworkBlock
-#define __DCNetworkBlock
+ #define __DCNetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -45,8 +44,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -69,22 +68,13 @@ namespace SMSpp_di_unipi_it {
  *    is a combination of first and second cases, where for some lines(not all
  *    of them) may have zero susceptance. */
 
-class DCNetworkBlock : public NetworkBlock {
-
+class DCNetworkBlock : public NetworkBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  public:
-
-/*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public types
- *
- * DCNetworkBlock defines a main public type:
- *
- @{ */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -100,30 +90,31 @@ class DCNetworkBlock : public NetworkBlock {
   f_NetworkData( nullptr ) , f_local_NetworkData( false ) { }
 
 /*--------------------------------------------------------------------------*/
-/// destructor of DCNetworkBlock
+ /// destructor of DCNetworkBlock
+
  virtual ~DCNetworkBlock() override;
 
 /*--------------------------------------------------------------------------*/
-/// generate the abstract variables of the DCNetworkBlock
-/** Depending on the susceptance for each line of the network, the
- * DCNetworkBlock class may have a power flow variable or not. In other word,
- * if the susceptance is equal to zero(or not defined), the corresponding line
- * is a HVDC line and it must have the power flow variable. It means, each
- * HVDC line correspond to a power flow variable, then for the Net Transfer
- * Capacity (NTC) model all lines must have a power flow variable. If the
- * susceptance value is a non-zero value, the corresponding line is called AC
- * and there is no needed to define the power flow variable for that line.
- * Therefor, in the case of pure AC line there is no needed to define power
- * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
- * variable must define just for HVDC lines. Similarly, depending on the
- * NetworkCost for each line of the network, the DCNetworkBlock class may have
- * an auxiliary variable or not. In other word, if the NetworkCost is equal to
- * zero(or not defined), the auxiliary variable and corresponding constraints
- * will not be defined.
- *
- * Note that since in this class the configuration is ignored.*/
+ /// generate the abstract variables of the DCNetworkBlock
+ /** Depending on the susceptance for each line of the network, the
+  * DCNetworkBlock class may have a power flow variable or not. In other word,
+  * if the susceptance is equal to zero(or not defined), the corresponding line
+  * is a HVDC line and it must have the power flow variable. It means, each
+  * HVDC line correspond to a power flow variable, then for the Net Transfer
+  * Capacity (NTC) model all lines must have a power flow variable. If the
+  * susceptance value is a non-zero value, the corresponding line is called AC
+  * and there is no needed to define the power flow variable for that line.
+  * Therefor, in the case of pure AC line there is no needed to define power
+  * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
+  * variable must define just for HVDC lines. Similarly, depending on the
+  * NetworkCost for each line of the network, the DCNetworkBlock class may have
+  * an auxiliary variable or not. In other word, if the NetworkCost is equal to
+  * zero(or not defined), the auxiliary variable and corresponding constraints
+  * will not be defined.
+  *
+  * Note that since in this class the configuration is ignored.*/
 
-  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 ///generate abstract constraints of DCNetworkBlock
@@ -138,7 +129,7 @@ class DCNetworkBlock : public NetworkBlock {
  * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
  * \f$ V_l \f$ respectively.
  *
- *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
+ *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
  *    model:
  *    In this special case the susceptance value for each line is equal to
  *    zero. In fact, this corresponds to a model with a single connected grid
@@ -146,7 +137,7 @@ class DCNetworkBlock : public NetworkBlock {
  *    define as:
  *
  *    \f[
- *    P^{mn}_l \leq F_l  \leq P^{mx}_l
+ *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
  *                                                     \quad l \in L \quad (1)
  *    \f]
  *
@@ -161,9 +152,10 @@ class DCNetworkBlock : public NetworkBlock {
  *    \f]
  *
  *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
- *    will have an objective function which is equal to multiplying NetworkCost
- *    by absolut value of power flows variable. To relaxing the absolute value,
- *    an auxiliary variable and constraints as below are needed:
+ *    will have an objective function which is equal to multiplying
+ *    NetworkCost by the absolute value of the power flows variable. To relax
+ *    the absolute value, an auxiliary variable and constraints as below are
+ *    needed:
  *
  *    \f[
  *    F_l \leq V_l                                     \quad l \in L \quad (3)
@@ -261,7 +253,7 @@ class DCNetworkBlock : public NetworkBlock {
  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
  *   variable */
 
-  void generate_objective( Configuration *objc ) override;
+  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the DCNetworkBlock -----------------*/
@@ -274,7 +266,7 @@ class DCNetworkBlock : public NetworkBlock {
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
   * feasible within the given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Congifuration and it is
+  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
   * determined as follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
@@ -282,7 +274,7 @@ class DCNetworkBlock : public NetworkBlock {
   *     in that SimpleConfiguration.
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Congifuration are not nullptr and the
+  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to a SimpleConfiguration< double >, then the
   *     tolerance is the value present in that SimpleConfiguration.
   *
@@ -319,11 +311,28 @@ class DCNetworkBlock : public NetworkBlock {
  /// returns the number of nodes
  /** Returns the number of nodes in the transmission network. If
   * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
+  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero.
+  *
+  * @return the number of nodes in the network. */
 
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
    return f_NetworkData->get_number_nodes();
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of lines
+ /** This function returns the number of lines in the transmission network. If
+  * get_NetworkData() returns nullptr, this is equivalent to
+  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
+  *
+  * @return the number of lines in the network. */
+
+ Index get_number_lines( void ) const override {
+  if( f_NetworkData )
+   return f_NetworkData->get_number_lines();
   return 0;
  }
 
@@ -335,6 +344,60 @@ class DCNetworkBlock : public NetworkBlock {
  NetworkData * get_NetworkData() const override {
   return f_NetworkData;
   }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the kappa constant associated with the given \p line
+ /** This function returns the kappa constant associated with the given \p
+  * line. This is the constant that multiplies the minimum and maximum flow in
+  * the flow limit constraint associated with the given \p line.
+  *
+  * @param line The index of a line (between 0 and get_number_lines() - 1).
+  *
+  * @return The kappa constant associated with the given \p line. */
+
+ double get_kappa( Index line ) const {
+  if( v_kappa.empty() )
+   return 1;
+  assert( line < v_kappa.size() );
+  return v_kappa[ line ];
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the minimum power flow on the given \p line
+ /** This function returns the minimum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the minimum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The minimum power flow on the given \p line. */
+
+ double get_min_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return 0;
+  return f_NetworkData->get_min_power_flow( line );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the maximum power flow on the given \p line
+ /** This function returns the maximum power flow on the given \p line. If
+  * this DCNetworkBlock has no NetworkData, thus function returns
+  * 0. Otherwise, it returns the maximum power flow specified by the
+  * NetworkData object.
+  *
+  * @param line The index of a line.
+  *
+  * @return The maximum power flow on the given \p line. */
+
+ double get_max_power_flow( Index line ) const {
+  if( ! f_NetworkData )
+   return 0;
+  return f_NetworkData->get_max_power_flow( line );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
@@ -424,56 +487,156 @@ class DCNetworkBlock : public NetworkBlock {
   f_local_NetworkData = false;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-/// loads the DCNetworkBlock instance from memory
-/** Like load( std::istream & ), if there is any Solver attached to this
- *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
- */
-  void load( std::istream & input ) override {
-   throw ( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+
+ /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
+ /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
+  * contain all the data necessary to describe a NetworkBlock (see
+  * NetworkBlock::deserialize()) and possibly the following variable:
+  *
+  * - The variable "Kappa", of type netCDF::NcDouble() and either being a
+  *   scalar or indexed over the number of lines. If this variable is a
+  *   scalar, let say k, then it is assumed that Kappa[ l ] = k for each line
+  *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,
+  *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
+  *   minimum and maximum flow in the flow limit constraints. This variable is
+  *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
+  *   each line l in {0, ..., get_number_lines() - 1}. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// loads the DCNetworkBlock instance from memory
+ /** Like load( std::istream & ), if there is any Solver attached to this
+  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued.
+  */
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Subset && subset,
-                          const bool ordered = false,
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+ /// set the kappa constants for the lines specified by \p subset
+ /** This function sets the kappa constant of each line in the given \p
+  * subset. The kappa constant of each line whose index is specified by the
+  * i-th element in \p subset is given by the i-th element of the vector
+  * pointed by \p values, i.e., it is given by the value pointed by (values +
+  * i). The parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param subset The indices of the lines whose kappa constants are being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
-  void set_active_demand( std::vector< double >::const_iterator values,
-                          Range rng = Range( 0, Inf< Index >() ),
-                          c_ModParam issuePMod = eNoBlck,
-                          c_ModParam issueAMod = eNoBlck ) final;
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Subset && subset , const bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
 
-  static void static_initialization() {
-   /*!!
-    * Not all C++ compilers enjoy the template wizardry behing the three-args
-    * version of register_method<> with the compact MS_*_*::args(), so we just
-    * use the slightly less compact one with the explicit argument and be done
-    * with it. !!*/
-   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-   //                                    &DCNetworkBlock::set_active_demand,
-   //                                    MS_dbl_sbst::args() );
-   //
-   // register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-   //                                    &DCNetworkBlock::set_active_demand,
-   //                                    MS_dbl_rngd::args() );
+/*--------------------------------------------------------------------------*/
 
-   register_method< DCNetworkBlock, MF_dbl_it, Subset &&, const bool >(
-    "DCNetworkBlock::set_active_demand",
-    &DCNetworkBlock::set_active_demand );
+ /// set the kappa constants for the lines specified by \p rng
+ /** This function sets the kappa constants for the lines in the given Range
+  * \p rng. For each i in the given Range (up to the number of lines minus 1),
+  * the kappa constant for line i is given by the element of the vector
+  * pointed by \p values whose index is (i - rng.first), i.e., it is given by
+  * the value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the kappa constants.
+  *
+  * @param rng A Range containing the indices of the lines whose kappa
+  *        constants are being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
-   register_method< DCNetworkBlock, MF_dbl_it, Range >(
-    "DCNetworkBlock::set_active_demand",
-    &DCNetworkBlock::set_active_demand );
-  }
+ void set_kappa( std::vector< double >::const_iterator values ,
+                 Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the active demand at the nodes specified by \p subset
+ /** This function sets the active demand at each node in the given \p
+  * subset. The active demand at the node whose index is specified by the i-th
+  * element in \p subset is given by the i-th element of the vector pointed by
+  * \p values, i.e., it is given by the value pointed by (values + i). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param subset The indices of the nodes at which the active demand is being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Subset && subset , bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ /// set the active demand at the nodes specified by \p rng
+ /** This function sets the active demand at each node in the given Range \p
+  * rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is given by the element of the vector pointed
+  * by \p values whose index is (i - rng.first), i.e., it is given by the
+  * value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param rng A Range containing the indices of the nodes at which the active
+  *        demand is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_active_demand( std::vector< double >::const_iterator values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization() {
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
+   *                                    &DCNetworkBlock::set_active_demand,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::set_active_demand" ,
+   &DCNetworkBlock::set_active_demand );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::set_active_demand" ,
+   &DCNetworkBlock::set_active_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -496,6 +659,9 @@ class DCNetworkBlock : public NetworkBlock {
 
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;
+
+ /// the kappa constant for each line
+ std::vector< double > v_kappa;
 
 /*-----------------------------variables------------------------------------*/
 
@@ -520,10 +686,10 @@ class DCNetworkBlock : public NetworkBlock {
  std::vector<FRowConstraint> v_power_flow_injection_constraints;
 
   /// HVDC power flow auxiliary variable 1 constraints
-  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_one_constraints;
+  std::vector<FRowConstraint> v_power_flow_relax_abs_1;
 
   /// HVDC power flow auxiliary variable 2 constraints
-  std::vector<FRowConstraint> v_power_flow_auxiliary_variable_two_constraints;
+  std::vector<FRowConstraint> v_power_flow_relax_abs_2;
 
  /// AC_HVDC power flow constraints
  std::vector<FRowConstraint> v_AC_HVDC_power_flow_constraints;
@@ -542,14 +708,117 @@ class DCNetworkBlock : public NetworkBlock {
 
   SMSpp_insert_in_factory_h;
 
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-
-/*--------------------------------------------------------------------------*/
-
  };  // end( class( DCNetworkBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS DCNetworkBlockMod -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Derived class from NetworkBlockMod for modifications to a DCNetworkBlock
+class DCNetworkBlockMod : public NetworkBlockMod {
+
+ public:
+
+ /// Public enum for the types of DCNetworkBlockMod
+ enum DCNetB_mod_type {
+  eSetKappa = eNetBModLastParam ,  ///< Set the kappa constants
+  eDCNetBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of DCNetworkBlockMod. */
+
+ };
+
+ /// Constructor, takes the DCNetworkBlock and the type
+ DCNetworkBlockMod( DCNetworkBlock * const fblock , const int type )
+  : NetworkBlockMod( fblock , type ) {}
+
+ ///< Destructor, does nothing
+ virtual ~DCNetworkBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block() const override { return ( f_Block ); }
+
+ /// Accessor to the type of modification
+ int type() { return ( f_type ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockMod
+ void print( std::ostream & output ) const override {
+  output << "DCNetworkBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active demand values ";
+  }
+ }
+
+ DCNetworkBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+ int f_type; ///< type of modification
+}; // end( class( DCNetworkBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS DCNetworkBlockRngdMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived from DCNetworkBlockMod for "ranged" modifications
+class DCNetworkBlockRngdMod : public DCNetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the DCNetworkBlock, the type, and the range
+ DCNetworkBlockRngdMod( DCNetworkBlock * const fblock , const int type ,
+                        Block::Range rng )
+  : DCNetworkBlockMod( fblock , type ) , f_rng( rng ) {}
+
+ /// destructor, does nothing
+ virtual ~DCNetworkBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng() { return( f_rng ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockRngdMod
+ void print( std::ostream & output ) const override {
+  DCNetworkBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+};  // end( class( DCNetworkBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS DCNetworkBlockSbstMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from DCNetworkBlockMod for "subset" modifications
+class DCNetworkBlockSbstMod : public DCNetworkBlockMod {
+
+ public:
+
+ /// constructor: takes the DCNetworkBlock, the type, and the subset
+ DCNetworkBlockSbstMod( DCNetworkBlock * const fblock , const int type ,
+                        Block::Subset && nms )
+  : DCNetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ virtual ~DCNetworkBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms() { return( f_nms ); }
+
+ protected:
+
+ /// prints the DCNetworkBlockSbstMod
+ void print( std::ostream &output ) const override {
+  DCNetworkBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms; ///< the subset
+
+};  // end( class( DCNetworkBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
