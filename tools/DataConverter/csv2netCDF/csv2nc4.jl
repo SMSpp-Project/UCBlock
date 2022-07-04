@@ -268,10 +268,26 @@ function csvEC2nc4()
 
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
-                min_storage[:] = field_component(users_data[u], g, "min_SOC")
+                min_storage[:] = (field_component(users_data[u], g, "min_SOC") *
+                                  field_component(users_data[u], g, "max_capacity"))
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
-                max_storage[:] = field_component(users_data[u], g, "max_SOC")
+                max_storage[:] = (field_component(users_data[u], g, "max_SOC") *
+                                  field_component(users_data[u], g, "max_capacity"))
+
+                # store the intake roundtrip efficency of the battery
+                intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ("TimeHorizon",))
+                intake_coeff[:] = [profile(market_data, "time_res")[t] /
+                                   (sqrt(field_component(users_data[u], g, "eta")) *
+                                    field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta")) # corresponding converter
+                                   for t in time_set]
+
+                # store the outtake roundtrip efficency of the battery
+                outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ("TimeHorizon",))
+                outtake_coeff[:] = [profile(market_data, "time_res")[t] *
+                                    (sqrt(field_component(users_data[u], g, "eta")) * 
+                                     field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta")) # corresponding converter
+                                    for t in time_set]
 
                 # operation and maintenance costs of the component
                 oem_cost = defVar(ub, "OEMCost", Float64, ())

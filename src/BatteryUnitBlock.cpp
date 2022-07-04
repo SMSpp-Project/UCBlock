@@ -699,7 +699,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                                    -f_kappa * v_minimum_power[ t ] ) );
 
    outtake_binary_Const[ t ].set_lhs( -Inf<double>() );
-   outtake_binary_Const[ t ].set_rhs( - f_kappa * v_minimum_power[ t ] );
+   outtake_binary_Const[ t ].set_rhs( -f_kappa * v_minimum_power[ t ] );
    outtake_binary_Const[ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
@@ -721,10 +721,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     primary_upper_bound_Const[ t ].set_lhs( 0.0 );
-    primary_upper_bound_Const[ t ].set_rhs
-     ( f_kappa * v_maximum_primary_rho[ t ] );
-    primary_upper_bound_Const[ t ].set_variable
-     ( &v_primary_spinning_reserve[ t ] );
+    primary_upper_bound_Const[ t ].set_rhs(
+     f_kappa * v_maximum_primary_rho[ t ] );
+    primary_upper_bound_Const[ t ].set_variable(
+     &v_primary_spinning_reserve[ t ] );
    }
 
    add_static_constraint( primary_upper_bound_Const ,

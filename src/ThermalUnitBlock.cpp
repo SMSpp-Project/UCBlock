@@ -712,8 +712,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Const[ 0 ].set_rhs(
      ( v_DeltaRampUp[ 0 ] * initial_commitment ) + f_initial_power );
    } else {
-    RampUp_Const[ 0 ].set_rhs
-     ( ( v_DeltaRampUp[ 0 ] * initial_commitment ) );
+    RampUp_Const[ 0 ].set_rhs( ( v_DeltaRampUp[ 0 ] * initial_commitment ) );
    }
    RampUp_Const[ 0 ].set_function( linear_function );
 
