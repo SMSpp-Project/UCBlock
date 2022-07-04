@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2022-07-01
+
 ### Added
 
 - UnitBlock can be scaled (replicated).
@@ -94,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...develop
+[0.6.1]: https://gitlab.com/smspp/ucblock/-/compare/0.6.0...0.6.1
 [0.6.0]: https://gitlab.com/smspp/ucblock/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...0.5.0
 [0.4.1]: https://gitlab.com/smspp/ucblock/-/compare/0.4.0...0.4.1
