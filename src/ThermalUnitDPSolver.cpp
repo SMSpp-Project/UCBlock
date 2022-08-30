@@ -26,7 +26,7 @@
 /*------------------------------- MACROS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define COMPUTE_DUALS 1
+#define COMPUTE_DUALS 0
 /* If COMPUTE_DUALS > 0, the ED solver allocates more memory and store more
  * information about the solution process in such a way as to make it possible
  * to reconstruct the optimal dual solution in the end. However, this is not
