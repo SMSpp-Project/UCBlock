@@ -960,6 +960,16 @@ public:
  * std::vector< ColVariable > with the dimension time horizon.
  * @{ */
 
+ /// returns the kappa factor
+ /** This function returns the kappa factor, which multiplies the minimum and
+  * maximum active power, maximum primary and secondary reserve, and the
+  * minimum and maximum storage levels.
+  *
+  * @return The kappa factor. */
+
+ double get_kappa( void ) const { return f_kappa; }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of storage level variables
  /** This method returns a vector V containing the storage level
   * variables. There are two possible cases:
