@@ -136,8 +136,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "ConstTerm" };
+ static std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -515,12 +514,10 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
                                    f_NetworkData->get_network_cost()[ line_id ] ,
                                    0.0 );
    }
-   linear_function->set_constant_term( f_const_term );
    objective.set_function( linear_function );
    objective.set_sense( Objective::eMin );
 
   } else { // empty objective function
-   linear_function->set_constant_term( f_const_term );
    objective.set_function( linear_function );
   }
   // Set Block objective

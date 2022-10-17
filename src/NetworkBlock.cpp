@@ -66,15 +66,6 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize_dim( group , "NumberIntervals" ,
                          f_number_intervals , true ) )
   f_number_intervals = 1;
-}
-
-/*--------------------------------------------------------------------------*/
-
-void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
-
- Block::deserialize( group );
-
- // Optional variables
 
  if( ! ::deserialize( group , f_const_term , "ConstTerm" ) )
   f_const_term = 0;
@@ -126,7 +117,7 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
                v_end_line );
  }
-}
+}  // end( NetworkBlock::NetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 

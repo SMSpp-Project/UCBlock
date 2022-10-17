@@ -147,7 +147,7 @@ public:
  {
   ///< when ExtractingBatteryRho >= 1 and StoringBatteryRho <=1
   ASSUME_POSITIVE_PRICES ,
-  ///< when ExtractingBatteryRho and StoringBatteryRho not defined(both == 1)
+  ///< when ExtractingBatteryRho and StoringBatteryRho not defined (both == 1)
   NO_Binary_Variables_Constraints ,
   ///< otherwise binary variables with related constraints are needed
   Binary_Variables_Constraints
@@ -616,9 +616,6 @@ public:
  /// returns the initial power value
  double get_initial_power( void ) const { return( f_initial_power ); }
 
- /// returns the operation and maintenance costs
- double get_oem_cost( void ) const { return( f_oem_cost ); }
-
  /// returns the battery investment cost, i.e., the capital expenditure cost
  double get_batt_investment_cost( void ) const {
   return( f_batt_investment_cost );
@@ -627,26 +624,6 @@ public:
  /// returns the converter investment cost, i.e., the capital expenditure cost
  double get_converter_investment_cost( void ) const {
   return( f_conv_investment_cost );
- }
-
- /// returns the replacement cost of the battery at the end of the lifetime
- double get_batt_replacement_cost( void ) const {
-  return( f_batt_replacement_cost );
- }
-
- /// returns the replacement cost of the battery at the end of the lifetime
- double get_converter_replacement_cost( void ) const {
-  return( f_conv_replacement_cost );
- }
-
- /// returns the residual value of the battery at the end of the lifetime
- double get_batt_residual_value( void ) const {
-  return( f_batt_residual_value );
- }
-
- /// returns the residual value of the converter at the end of the lifetime
- double get_converter_residual_value( void ) const {
-  return( f_conv_residual_value );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1066,21 +1043,17 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of battery_design variables, or nullptr if not defined
+ /// returns the battery design variable, or nullptr if not defined
 
  ColVariable * get_battery_design( void ) {
-  if( v_battery_design.empty() )
-   return( nullptr );
-  return( &( v_battery_design.front() ) );
+  return( &v_batt_design );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of converter_design variables, or nullptr if not defined
+ /// returns the converter design binary variable, or nullptr if not defined
 
- ColVariable * get_converter_design( void ) {
-  if( v_converter_design.empty() )
-   return( nullptr );
-  return( &( v_converter_design.front() ) );
+ ColVariable * get_conv_design( void ) {
+  return( &v_conv_design );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1366,26 +1339,11 @@ public:
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
- /// the operation and maintenance costs
- double f_oem_cost{};
-
  /// the battery investment cost, i.e., the capital expenditure cost
  double f_batt_investment_cost{};
 
  /// the converter investment cost, i.e., the capital expenditure cost
  double f_conv_investment_cost{};
-
- /// the replacement cost of the battery at the end of the lifetime
- double f_batt_replacement_cost{};
-
- /// the replacement cost of the converter at the end of the lifetime
- double f_conv_replacement_cost{};
-
- /// the residual value of the battery at the end of the lifetime
- double f_batt_residual_value{};
-
- /// the residual value of the converter at the end of the lifetime
- double f_conv_residual_value{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1410,16 +1368,19 @@ public:
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the battery design binary variables
- std::vector< ColVariable > v_battery_design;
+ /// the battery design binary variable
+ ColVariable v_batt_design;
 
- /// the converter design binary variables
- std::vector< ColVariable > v_converter_design;
+ /// the converter design binary variable
+ ColVariable v_conv_design;
 
 /*------------------------------- constraints ------------------------------*/
 
  /// the active power bounds constraints
  boost::multi_array< FRowConstraint, 2 > active_power_bounds_Const;
+
+ /// the active power bounds design constraints
+ boost::multi_array< FRowConstraint, 2 > active_power_bounds_design_Const;
 
  /// the ramp up constraints
  std::vector< FRowConstraint > ramp_up_Const;

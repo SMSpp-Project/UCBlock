@@ -42,45 +42,53 @@ function csvEC2nc4()
     sell_price_data = [profile(market_data, "energy_weight")[t] *
                        profile(market_data, "time_res")[t] *
                        profile(market_data, "sell_price")[t]
-                       for t in time_set] * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                       for t in time_set] *
+                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     buy_price_data = [profile(market_data, "energy_weight")[t] *
                       profile(market_data, "time_res")[t] *
                       profile(market_data, "buy_price")[t]
-                      for t in time_set] * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                      for t in time_set] *
+                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    consumption_price_data = [profile(market_data, "energy_weight")[t] *
-                              profile(market_data, "time_res")[t] *
-                              (
-                                  profile(market_data, "consumption_price")[t] *
-                                  sum(Float64[
-                                      profile_component(users_data[u], l, "load")[t]
-                                      for l in asset_names(users_data[u], LOAD)])
-                              )
-                              for u in user_set, t in time_set]
-    constant_term = [sum(consumption_price_data[u, t]
-                         for (u, _) in enumerate(user_set), t in time_set) *
+    constant_term = [sum(profile(market_data, "energy_weight")[t] *
+                         profile(market_data, "time_res")[t] *
+                         (
+                             profile(market_data, "consumption_price")[t] *
+                             sum(Float64[
+                                 profile_component(users_data[u], l, "load")[t]
+                                 for l in asset_names(users_data[u], LOAD)])
+                         )
+                         for u in user_set, t in time_set) *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)]
 
     peak_tariff = [profile(market_data, "peak_weight")[w] *
-                   profile(market_data, "peak_tariff")[w] for w in peak_set]
+                   profile(market_data, "peak_tariff")[w] for w in peak_set] *
+                  sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     reward_price_data = [profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
                          profile(market_data, "reward_price")[t]
-                         for t in time_set] * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                         for t in time_set] *
+                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    if !("-with-network-blocks" in ARGS) && allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff) && allequal(reward_price_data)
+    if !("-with-network-blocks" in ARGS) &&
+       allequal([count(x -> x == w, peak_categories) for w in peak_set]) &&
+       allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff) && allequal(reward_price_data)
 
         # Store the number of nodes in the father block
         n_users = length(user_set)
         defDim(block, "NumberNodes", n_users)
 
+        # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
+        n_intervals = count(x -> x == peak_set[1], peak_categories)
+        defDim(block, "NumberIntervals", n_intervals)
+
         # Store the first index (-1 since in C++ the array's indexing starts from
         # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
-        peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
-        peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
-                             for w in peak_set]
+        # peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
+        # peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
+        #                      for w in peak_set]
 
         # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
         ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
@@ -94,12 +102,16 @@ function csvEC2nc4()
                               for t in time_set, u in user_set] # for u in user_set, t in time_set]
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-        buy_price = defVar(block, "BuyPrice", Float64, ())
+        buy_price = defVar(block, "BuyPrice", Float64, ("NumberIntervals",))
         buy_price[:] = buy_price_data[1]
 
         # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-        sell_price = defVar(block, "SellPrice", Float64, ())
+        sell_price = defVar(block, "SellPrice", Float64, ("NumberIntervals",))
         sell_price[:] = sell_price_data[1]
+
+        # `RewardPrice`, i.e., the reward awarded to the community
+        reward_price = defVar(block, "RewardPrice", Float64, ("NumberIntervals",))
+        reward_price[:] = reward_price_data[1]
 
         # `MaxTariff`, i.e., the peak tariff cost
         max_tariff = defVar(block, "MaxTariff", Float64, ())
@@ -108,10 +120,6 @@ function csvEC2nc4()
         # `ConstantTerm`
         const_term = defVar(block, "ConstTerm", Float64, ())
         const_term[:] = sum(constant_term)
-
-        # `RewardPrice`, i.e., the reward awarded to the community
-        reward_price = defVar(block, "RewardPrice", Float64, ())
-        reward_price[:] = reward_price_data[1]
 
     else
 
@@ -124,8 +132,6 @@ function csvEC2nc4()
             # Store the number of nodes in each NetworkBlock
             n_users = length(user_set)
             defDim(ecnb, "NumberNodes", n_users)
-
-            # Vector variables
 
             # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
             n_intervals = count(x -> x == w, peak_categories)
@@ -145,35 +151,18 @@ function csvEC2nc4()
                                   for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
             # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-            if allequal(buy_price_data[last_t:last_i])
-                buy_price = defVar(ecnb, "BuyPrice", Float64, ())
-                buy_price[:] = buy_price_data[last_t]
-            else
-                buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-                buy_price[:] = buy_price_data[last_t:last_i]
-            end
+            buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
+            buy_price[:] = buy_price_data[last_t:last_i]
 
             # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-            if allequal(sell_price_data[last_t:last_i])
-                sell_price = defVar(ecnb, "SellPrice", Float64, ())
-                sell_price[:] = sell_price_data[last_t]
-            else
-                sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-                sell_price[:] = sell_price_data[last_t:last_i]
-            end
+            sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
+            sell_price[:] = sell_price_data[last_t:last_i]
 
             # `RewardPrice`, i.e., the reward awarded to the community
-            if allequal(reward_price_data[last_t:last_i])
-                reward_price = defVar(ecnb, "RewardPrice", Float64, ())
-                reward_price[:] = reward_price_data[last_t]
-            else
-                reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
-                reward_price[:] = reward_price_data[last_t:last_i]
-            end
+            reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
+            reward_price[:] = reward_price_data[last_t:last_i]
 
             last_t += n_intervals
-
-            # Scalar variables
 
             # `MaxTariff`, i.e., the peak tariff cost
             max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
@@ -201,28 +190,10 @@ function csvEC2nc4()
     # of each electrical generator/device
     generator_node = defVar(block, "GeneratorNode", UInt32, ("NumberElectricalGenerators",))
 
-    # Replacement cost by user and asset
-    C_REP = [[sum([(mod(y, field_component(users_data[u], a, "lifetime_y")) == 0 && y != project_lifetime) ?
-                   field_component(users_data[u], a, "CAPEX_lin") : 0.0
-                   for y in year_set]) * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-              for a in device_names(users_data[u])]
-             for u in user_set]
-
-    # Residual value by user and asset
-    C_RV = [[sum([(mod(y, field_component(users_data[u], a, "lifetime_y")) != 0 && y == project_lifetime) ?
-                  field_component(users_data[u], a, "CAPEX_lin") *
-                  (1.0 - mod(y, field_component(users_data[u], a, "lifetime_y")) /
-                         field_component(users_data[u], a, "lifetime_y")) : 0.0
-                  for y in year_set]) * sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-             for a in device_names(users_data[u])]
-            for u in user_set]
-
     last_g = 1
     for (i_u, u) in enumerate(user_set)
 
-        for (i_g, g) in enumerate(
-            intersect(device_names(users_data[u]),
-                devices))
+        for g in intersect(device_names(users_data[u]), devices)
 
             if g in ("PV", "wind")
 
@@ -232,39 +203,31 @@ function csvEC2nc4()
                 max_power = defVar(ub, "MaxPower", Float64, ())
                 max_power[:] = field_component(users_data[u], g, "max_capacity")
 
-                # operation and maintenance costs of the component
-                oem_cost = defVar(ub, "OEMCost", Float64, ())
-                oem_cost[:] = (field_component(users_data[u], g, "OEM_lin") *
-                               field_component(users_data[u], g, "max_capacity") *
-                               sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
-
-                # capital expenditure cost of the component
+                # Net Present Value of the component
                 investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                investment_cost[:] = (field_component(users_data[u], g, "CAPEX_lin") *
-                                      field_component(users_data[u], g, "max_capacity") *
-                                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
+                investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                         (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                          ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                           field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                          ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                           field_component(users_data[u], g, "CAPEX_lin") *
+                                           (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                  field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                         (1 / ((1 + field(gen_data, "d_rate"))^y))
+                                         for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
 
-                # replacement cost of the component
-                rep_cost = defVar(ub, "ReplacementCost", Float64, ())
-                rep_cost[:] = C_REP[i_u][i_g]
-
-                # residual value of the component
-                res_value = defVar(ub, "ResidualValue", Float64, ())
-                res_value[:] = C_RV[i_u][i_g]
-
-                # renewable power production of the component
-                ren_pu = defVar(ub, "PowerProduction", Float64, ("TimeHorizon",))
-                ren_pu[:] = [profile_component(users_data[u], g, "ren_pu")[t] *
-                             field_component(users_data[u], g, "max_capacity")
-                             for t in time_set]
-
-            elseif g == "batt" # assumption: if there is a battery there is ALWAYS also a converter
+            elseif g == "batt"
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
-                # store the maximum power, i.e., the maximum capacity, of the battery
-                max_power = defVar(ub, "MaxPower", Float64, ())
-                max_power[:] = field_component(users_data[u], g, "max_capacity")
+                # store the minimum and maximum power, i.e., the minimum and maximum capacity, of the converter related to the battery
+                # min_power = defVar(ub, "MinPower", Float64, ()) # related to the outtake level of the battery
+                # min_power[:] = field_component(users_data[u], g, "max_C_ch") *
+                #               field_component(users_data[u], g, "max_capacity")
+
+                max_power = defVar(ub, "MaxPower", Float64, ()) # realted to the intake level of the battery
+                max_power[:] = field_component(users_data[u], g, "max_C_dch") *
+                               field_component(users_data[u], g, "max_capacity")
 
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
@@ -275,50 +238,50 @@ function csvEC2nc4()
                 max_storage[:] = (field_component(users_data[u], g, "max_SOC") *
                                   field_component(users_data[u], g, "max_capacity"))
 
+                # ASSUMPTION: if there is a battery there is ALWAYS also a converter!
+
                 # store the intake roundtrip efficency of the battery
                 intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ("TimeHorizon",))
                 intake_coeff[:] = [profile(market_data, "time_res")[t] /
                                    (sqrt(field_component(users_data[u], g, "eta")) *
-                                    field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta")) # corresponding converter
+                                    # corresponding converter, i.e., "conv"
+                                    field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta"))
                                    for t in time_set]
 
                 # store the outtake roundtrip efficency of the battery
                 outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ("TimeHorizon",))
                 outtake_coeff[:] = [profile(market_data, "time_res")[t] *
-                                    (sqrt(field_component(users_data[u], g, "eta")) * 
-                                     field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta")) # corresponding converter
+                                    (sqrt(field_component(users_data[u], g, "eta")) *
+                                     # corresponding converter, i.e., "conv"
+                                     field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta"))
                                     for t in time_set]
 
-                # operation and maintenance costs of the component
-                oem_cost = defVar(ub, "OEMCost", Float64, ())
-                oem_cost[:] = (field_component(users_data[u], g, "OEM_lin") *
-                               field_component(users_data[u], g, "max_capacity") *
-                               sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
+                # Net Present Value of the component (both for battery and converter)
+                battery_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
+                battery_investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                 (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                  ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                   field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                  ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                   field_component(users_data[u], g, "CAPEX_lin") *
+                                                   (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                          field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                 (1 / ((1 + field(gen_data, "d_rate"))^y))
+                                                 for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
 
-                # capital expenditure cost of the component (both for battery and converter)
-                investment_battery_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
-                investment_battery_cost[:] = (field_component(users_data[u], g, "CAPEX_lin") *
-                                              field_component(users_data[u], g, "max_capacity") *
-                                              sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
+                g = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
 
-                investment_converter_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
-                investment_converter_cost[:] = (field_component(users_data[u], "conv", "CAPEX_lin") *
-                                                field_component(users_data[u], g, "max_capacity") *
-                                                sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set))
-
-                # replacement cost of the component (both for battery and converter)
-                rep_cost = defVar(ub, "BatteryReplacementCost", Float64, ())
-                rep_cost[:] = C_REP[i_u][i_g]
-
-                rep_cost = defVar(ub, "ConverterReplacementCost", Float64, ())
-                rep_cost[:] = C_REP[i_u][i_g+1] # is there always the converter after the battery in the yaml file? --> if yes, use `i_g + 1`
-
-                # redisual value of the component (both for battery and converter)
-                res_value = defVar(ub, "BatteryResidualValue", Float64, ())
-                res_value[:] = C_RV[i_u][i_g]
-
-                res_value = defVar(ub, "ConverterResidualValue", Float64, ())
-                res_value[:] = C_RV[i_u][i_g+1] # is there always the converter after the battery in the yaml file? --> if yes, use `i_g + 1`
+                converter_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
+                converter_investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                   (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                    ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                     field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                    ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                     field_component(users_data[u], g, "CAPEX_lin") *
+                                                     (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                            field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                   (1 / ((1 + field(gen_data, "d_rate"))^y))
+                                                   for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
 
             end
 

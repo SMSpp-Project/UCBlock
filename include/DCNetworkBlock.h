@@ -978,14 +978,6 @@ class DCNetworkBlock : public NetworkBlock
   }
  }
 
-/*--------------------------------------------------------------------------*/
- /// methods to set the number of intervals
-
- void set_number_intervals( const Index i ) const override {
-  if( f_NetworkData )
-   f_NetworkData->set_number_intervals( i );
- }
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/

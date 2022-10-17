@@ -55,7 +55,6 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 
  Constraint::clear( MinPower_Const );
  Constraint::clear( MaxPower_Const );
- Constraint::clear( PowerDispatch_Const );
 
  Constraint::clear( active_power_bounds_Const );
 
@@ -76,8 +75,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars =
-  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" ,
-    "OEMCost" , "InvestmentCost", "ReplacementCost" , "ResidualValue" };
+  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" , "OEMCost" ,
+    "InvestmentCost" , "ReplacementCost" , "ResidualValue" };
 
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -101,13 +100,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- ::deserialize( group , f_oem_cost , "OEMCost" );
-
  ::deserialize( group , f_investment_cost , "InvestmentCost" );
-
- ::deserialize( group , f_replacement_cost , "ReplacementCost" );
-
- ::deserialize( group , f_residual_value , "ResidualValue" );
 
  // Decompress vectors
  decompress_vector( v_minimum_power );
@@ -193,15 +186,11 @@ void IntermittentUnitBlock::generate_abstract_variables(
   relax_binary = config->f_value;
 
  // Design Variable
- v_design.resize( f_time_horizon );
- for( auto & var : v_design ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
- if( f_investment_cost != 0 )
-  add_static_variable( v_design , "D_intermittent" );
+ if( relax_binary )
+  v_design.set_type( ColVariable::kPosUnitary );
+ else
+  v_design.set_type( ColVariable::kBinary );
+ add_static_variable( v_design , "D_intermittent" );
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -305,7 +294,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  }
 
  add_static_constraint( active_power_bounds_Const ,
-                        "ActivePowerBound_Intermittent" );
+                        "ActivePower_Bounds_Intermittent" );
 
  // Active power bound design constraints
 
@@ -325,7 +314,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
    LinearFunction::v_coeff_pair lower_vars;
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   lower_vars.push_back( std::make_pair( &v_design[ t ] ,
+   lower_vars.push_back( std::make_pair( &v_design ,
                                          -f_kappa * v_minimum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 0 ].set_lhs( 0.0 );
@@ -341,7 +330,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
    LinearFunction::v_coeff_pair upper_vars;
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   upper_vars.push_back( std::make_pair( &v_design[ t ] ,
+   upper_vars.push_back( std::make_pair( &v_design ,
                                          -f_kappa * v_maximum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 1 ].set_lhs( -Inf< double >() );
@@ -351,7 +340,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
   }
 
   add_static_constraint( active_power_bounds_design_Const ,
-                         "ActivePowerBoundDesign_Intermittent" );
+                         "ActivePower_Bounds_Design_Intermittent" );
  }
 
  set_constraints_generated();
@@ -399,24 +388,8 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- if( f_investment_cost != 0 ) {
-
-  // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
-  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
-   // CAPEX_{j=pv/wind}^U, i.e., the investment cost of the component
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   f_investment_cost ) );
-   // C_{j=pv/wind}^U, i.e., the operation and maintenance costs of the component
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   f_oem_cost ) );
-   // RC_{j=pv/wind}^U, i.e., the replacement cost of the component
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   f_replacement_cost ) );
-   // RV_{j=pv/wind}^U, i.e., the residual value of the component
-   vars.push_back( std::make_pair( &v_design[ t ] ,
-                                   -f_residual_value ) );
-  }
- }
+ // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
+ vars.push_back( std::make_pair( &v_design , f_investment_cost ) );
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );

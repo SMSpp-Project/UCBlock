@@ -180,14 +180,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
- if( ! ::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
-                     v_start_network_intervals ) ) {
-  v_start_network_intervals.resize( f_number_networks );
-  std::iota( v_start_network_intervals.begin() ,
-             v_start_network_intervals.end() , 0 );
- }
- v_start_network_intervals.push_back( f_time_horizon );
-
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
  if( ! ::deserialize( group , network_block_classname ,
@@ -435,8 +427,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                     std::to_string( n ) + " and in UCBlock" )
      );
     nbi->set_NetworkData( f_NetworkData );
-    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
-                               v_start_network_intervals[ n ] );
    }
 
    std::vector< std::vector< double > > ap_v;
@@ -1002,14 +992,14 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
              i <= f_number_units; ++i ) {
 
          //auto unit_id = v_heat_only_units[ i ];
-         auto heat_id = v_heat_set[i];
+         auto heat_id = v_heat_set[ i ];
 
-         auto zone_id = get_pollutant_zone()[pollutant][h];
-         if( zone_id >= v_number_pollutant_zones[pollutant] )
+         auto zone_id = get_pollutant_zone()[pollutant][ h ];
+         if( zone_id >= v_number_pollutant_zones[ pollutant ] )
           continue; // this unit does not belong to any zone
 
-         auto heat = get_heat_block()[h]->get_heat()[t][i];
-         auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+         auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
+         auto rho = get_pollutant_heat_rho()[ t ][pollutant][ h ];
 
          auto linear_function = dynamic_cast<LinearFunction *>
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
@@ -1092,14 +1082,14 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
              i <= f_number_units; ++i ) {
 
          //auto unit_id = v_heat_only_units[ i ];
-         auto heat_id = v_heat_set[i];
+         auto heat_id = v_heat_set[ i ];
 
          auto zone_id = get_pollutant_zone()[pollutant][h];
          if( zone_id >= v_number_pollutant_zones[pollutant] )
           continue; // this unit does not belong to any zone
 
-         auto heat = get_heat_block()[h]->get_heat()[t][i];
-         auto rho = get_pollutant_heat_rho()[t][pollutant][h];
+         auto heat = get_heat_block()[h]->get_heat()[ t ][ i ];
+         auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
          auto linear_function = dynamic_cast<LinearFunction *>
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());

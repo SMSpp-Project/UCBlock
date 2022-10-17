@@ -292,17 +292,20 @@ class NetworkBlock : public Block
    return( v_end_line );
   }
 
+/*--------------------------------------------------------------------------*/
+  /// returns the constant term
+
+  const double & get_const_term( void ) const {
+   return( f_const_term );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the NetworkData
  * @{ */
 
-  /// methods to set the number of intervals
 
-  void set_number_intervals( const Index i ) {
-   f_number_intervals = i;
-  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -388,6 +391,8 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*---------------------------------- data ----------------------------------*/
+
   /// number of nodes of the network
   Index f_number_nodes;
 
@@ -403,10 +408,25 @@ class NetworkBlock : public Block
   /// vector of ending lines
   std::vector< Index > v_end_line;
 
+  /// the constant term
+  double f_const_term;
+
+/*-------------------------------- variables -------------------------------*/
+
+
+
+/*------------------------------- constraints ------------------------------*/
+
+
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
   private:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
   // Definition of State::private_name() (pure virtual)
@@ -468,7 +488,7 @@ class NetworkBlock : public Block
   *   describing the NetworkBlock to be optional [see the comments to
   *   UCBlock::deserialize()]. */
 
- void deserialize( const netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override {}
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -581,11 +601,6 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) = 0;
 
-/*--------------------------------------------------------------------------*/
- /// methods to set the number of intervals
-
- virtual void set_number_intervals( const Index i ) const = 0;
-
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -650,13 +665,6 @@ class NetworkBlock : public Block
 
  virtual const double * get_active_demand( Index i = 0 ) const {
   return( nullptr );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the constant term
-
- const double & get_const_term( void ) const {
-  return( f_const_term );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -803,8 +811,7 @@ class NetworkBlock : public Block
 
 /*---------------------------------- data ----------------------------------*/
 
- /// the constant term
- double f_const_term;
+
 
 /*-------------------------------- variables -------------------------------*/
 

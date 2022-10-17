@@ -191,7 +191,6 @@ class ECNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the vector of reward prices
   /** Method for returning the tariff that the user gains when it absorbs power
    * from the microgrid market / network (instead of from the public grid) at
@@ -202,7 +201,6 @@ class ECNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the vector of buy prices
   /** Method for returning the tariff that the user pays to buy electricity at
    * each time horizon from the public market. */
@@ -212,7 +210,6 @@ class ECNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the maximum tariff
   /** Method for returning the tariff that the user pays due to the peak power.
    * */
@@ -457,8 +454,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of micro power injection variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_micro_power_injection( void ) {
-  return( v_micro_power_injection );
+ ColVariable * get_micro_power_injection( Index t = 0 ) {
+  if( v_micro_power_injection.empty() )
+   return( nullptr );
+  return( &( v_micro_power_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -466,8 +465,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of micro public power absorption variables,
   * which is assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_micro_power_absorption( void ) {
-  return( v_micro_power_absorption );
+ ColVariable * get_micro_power_absorption( Index t = 0 ) {
+  if( v_micro_power_absorption.empty() )
+   return( nullptr );
+  return( &( v_micro_power_absorption.data()[ t * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -475,8 +476,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of public power injection variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_public_power_injection( void ) {
-  return( v_public_power_injection );
+ ColVariable * get_public_power_injection( Index t = 0 ) {
+  if( v_public_power_injection.empty() )
+   return( nullptr );
+  return( &( v_public_power_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -484,8 +487,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Method for returning vector of public power absorbed variables, which is
   * assumed to have size get_number_nodes(). */
 
- std::vector< ColVariable > & get_public_power_absorption( void ) {
-  return( v_public_power_absorption );
+ ColVariable * get_public_power_absorption( Index t = 0 ) {
+  if( v_public_power_absorption.empty() )
+   return( nullptr );
+  return( &( v_public_power_absorption.data()[ t * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -558,14 +563,6 @@ class ECNetworkBlock : public NetworkBlock
     for( Index j = 0 ; j < get_number_nodes() ; j++ )
      *( demand++ ) = v[ i ][ j ];
   }
- }
-
-/*--------------------------------------------------------------------------*/
- /// methods to set the number of intervals
-
- void set_number_intervals( const Index i ) const override {
-  if( f_NetworkData )
-   f_NetworkData->set_number_intervals( i );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -671,21 +668,21 @@ class ECNetworkBlock : public NetworkBlock
 
  /// power injected (+) at each node of the network, i.e., at each user PoD,
  /// to the microgrid market / network
- std::vector< ColVariable > v_micro_power_injection; // P^{M^+}
+ boost::multi_array< ColVariable , 2 > v_micro_power_injection; // P^{M^+}
 
  /// power absorbed (-) at each node of the network, i.e., at each user PoD,
  /// from the microgrid market / network
- std::vector< ColVariable > v_micro_power_absorption; // P^{M^-}
+ boost::multi_array< ColVariable , 2 > v_micro_power_absorption; // P^{M^-}
 
  /// power injected (+) at user PoD from the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- std::vector< ColVariable > v_public_power_injection; // P^{P^+}
+ boost::multi_array< ColVariable , 2 > v_public_power_injection; // P^{P^+}
 
  /// power absorbed (-) at user PoD from the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- std::vector< ColVariable > v_public_power_absorption; // P^{P^-}
+ boost::multi_array< ColVariable , 2 > v_public_power_absorption; // P^{P^-}
 
  /// maximum power usage at user PoD of the corresponding peak power period,
  /// i.e., a specific interval in "NumberIntervals"

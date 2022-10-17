@@ -126,16 +126,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "Cost" , v_cost ) )
   v_cost.resize( 1 , 0 );
 
- ::deserialize( group , f_oem_cost , "OEMCost" );
-
  ::deserialize( group , f_batt_investment_cost , "BatteryInvestmentCost" );
  ::deserialize( group , f_conv_investment_cost , "ConverterInvestmentCost" );
-
- ::deserialize( group , f_batt_replacement_cost , "BatteryReplacementCost" );
- ::deserialize( group , f_conv_replacement_cost , "ConverterReplacementCost" );
-
- ::deserialize( group , f_batt_residual_value , "BatteryResidualValue" );
- ::deserialize( group , f_conv_residual_value , "ConverterResidualValue" );
 
  // Decompress vectors
 
@@ -204,29 +196,29 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   }
  }
 
- if( ! v_extracting_battery_rho.empty() ) {
-  assert( v_extracting_battery_rho.size() == f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < 1 ) {
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
-                             " inefficiency of extracting energy for time "
-                             "step " + std::to_string( t ) + ": " +
-                             std::to_string( v_extracting_battery_rho[ t ] ) +
-                             ". It must not be less than 1." ) );
-   }
-  }
- }
-
- if( ( ! v_storing_battery_rho.empty() ) &&
-     ( ! v_extracting_battery_rho.empty() ) ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
-                             "inefficiency of storing energy must not be greater "
-                             "than the inefficiency of extracting energy." ) );
-   }
-  }
- }
+// if( ! v_extracting_battery_rho.empty() ) {
+//  assert( v_extracting_battery_rho.size() == f_time_horizon );
+//  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+//   if( v_extracting_battery_rho[ t ] < 1 ) {
+//    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+//                             " inefficiency of extracting energy for time "
+//                             "step " + std::to_string( t ) + ": " +
+//                             std::to_string( v_extracting_battery_rho[ t ] ) +
+//                             ". It must not be less than 1." ) );
+//   }
+//  }
+// }
+//
+// if( ( ! v_storing_battery_rho.empty() ) &&
+//     ( ! v_extracting_battery_rho.empty() ) ) {
+//  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+//   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
+//    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
+//                             "inefficiency of storing energy must not be greater "
+//                             "than the inefficiency of extracting energy." ) );
+//   }
+//  }
+// }
 
  // Delta ramp-up
 
@@ -356,27 +348,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( battery_type == Binary_Variables_Constraints )
   add_static_variable( v_battery_binary , "BB_battery" );
 
- // Battery Design Variable
- v_battery_design.resize( f_time_horizon );
- for( auto & var : v_battery_design ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
+ // Battery and Converter Design Variable
+ if( relax_binary ) {
+  v_batt_design.set_type( ColVariable::kPosUnitary );
+  v_conv_design.set_type( ColVariable::kPosUnitary );
+ } else {
+  v_batt_design.set_type( ColVariable::kBinary );
+  v_conv_design.set_type( ColVariable::kBinary );
  }
- if( f_batt_investment_cost != 0 )
-  add_static_variable( v_battery_design , "D_battery" );
-
- // Converter Design Variable
- v_converter_design.resize( f_time_horizon );
- for( auto & var : v_converter_design ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
- if( f_conv_investment_cost != 0 )
-  add_static_variable( v_converter_design , "D_converter" );
+ add_static_variable( v_batt_design , "D_battery" );
+ add_static_variable( v_conv_design , "D_converter" );
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -488,9 +469,54 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( active_power_bounds_Const ,
-                        "ActivePower_Bounds_Constraints_Battery" );
+                        "ActivePower_Bounds_Battery" );
 
-/*--------------------------------------------------------------------------*/
+ // Active power bound design constraints
+
+ if( f_batt_investment_cost != 0 ) {
+
+  active_power_bounds_design_Const.resize(
+   boost::multi_array< FRowConstraint , 2 >::extent_gen()
+   [ f_time_horizon ][ 2 ] ); // 2 dims, i.e., the lower and upper bounds
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   // Lower bound of the active power design constraints:
+   //
+   //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
+   // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
+
+   LinearFunction::v_coeff_pair lower_vars;
+
+   lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   lower_vars.push_back( std::make_pair( &v_batt_design ,
+                                         -f_kappa * v_minimum_power[ t ] ) );
+
+   active_power_bounds_design_Const[ t ][ 0 ].set_lhs( 0.0 );
+   active_power_bounds_design_Const[ t ][ 0 ].set_rhs( Inf< double >() );
+   active_power_bounds_design_Const[ t ][ 0 ].set_function(
+    new LinearFunction( std::move( lower_vars ) ) );
+
+   // Upper bound of the active power design constraints:
+   //
+   //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
+   // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
+
+   LinearFunction::v_coeff_pair upper_vars;
+
+   upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   upper_vars.push_back( std::make_pair( &v_batt_design ,
+                                         -f_kappa * v_maximum_power[ t ] ) );
+
+   active_power_bounds_design_Const[ t ][ 1 ].set_lhs( -Inf< double >() );
+   active_power_bounds_design_Const[ t ][ 1 ].set_rhs( 0.0 );
+   active_power_bounds_design_Const[ t ][ 1 ].set_function(
+    new LinearFunction( std::move( upper_vars ) ) );
+  }
+
+  add_static_constraint( active_power_bounds_design_Const ,
+                         "ActivePower_Bounds_Design_Battery" );
+ }
 
  // Initializing ramp-up constraints
 
@@ -519,7 +545,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
  }
 
- add_static_constraint( ramp_up_Const , "RampUp_Constraints_Battery" );
+ add_static_constraint( ramp_up_Const , "RampUp_Battery" );
 
  // Initializing ramp-down constraints
 
@@ -552,9 +578,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( ramp_down_Const ,
-                        "RampDown_Constraints_Battery" );
-
-/*--------------------------------------------------------------------------*/
+                        "RampDown_Battery" );
 
  // Initializing power_intake_outtake_Const
 
@@ -574,8 +598,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( power_intake_outtake_Const ,
-                        "Power_Intake_Outtake_Const_Battery" );
-
+                        "Power_Intake_Outtake_Battery" );
 
  // Initializing intake_upper_bound_Const
 
@@ -588,9 +611,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( intake_upper_bound_Const ,
-                        "Intake_UpperBound_Constraints_Battery" );
-
-/*--------------------------------------------------------------------------*/
+                        "Intake_UpperBound_Battery" );
 
  // Initializing demand_Const
 
@@ -599,6 +620,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  LinearFunction::v_coeff_pair vars_1;
 
  vars_1.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
+ vars_1.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
+                                   -1.0 ) );
 
  double outtake_coeff = -1;
  if( ! v_storing_battery_rho.empty() )
@@ -642,10 +665,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   demand_Const[ t ].set_function( new LinearFunction( std::move( vars_2 ) ) );
  }
 
- add_static_constraint( demand_Const , "demand_Const_Battery" );
+ add_static_constraint( demand_Const , "demand_Battery" );
 
-/*--------------------------------------------------------------------------*/
-
+ // Initializing storage_level_bounds_Const
  // Initializing storage_level_bounds_Const
 
  storage_level_bounds_Const.resize( f_time_horizon );
@@ -658,9 +680,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( storage_level_bounds_Const ,
-                        "StorageLevel_Bounds_Constraints_Battery" );
-
-/*--------------------------------------------------------------------------*/
+                        "StorageLevel_Bounds_Battery" );
 
  // Initializing intake_binary_Const
 
@@ -683,8 +703,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( intake_binary_Const ,
-                         "Intake_Binary_Const_Battery" );
-
+                         "Intake_Binary_Battery" );
 
   // Initializing outtake_binary_Const
 
@@ -705,10 +724,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( outtake_binary_Const ,
-                         "Outtake_Binary_Const_Battery" );
- }  // end( if( battery_type == Binary_Variables_Constraints ) )
-
-/*--------------------------------------------------------------------------*/
+                         "Outtake_Binary_Battery" );
+ }
 
  // Initializing primary_upper_bound_Const
 
@@ -728,7 +745,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
 
    add_static_constraint( primary_upper_bound_Const ,
-                          "Primary_UpperBound_Constraints_Battery" );
+                          "Primary_UpperBound_Battery" );
   }
  }
 
@@ -750,7 +767,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
 
    add_static_constraint( secondary_upper_bound_Const ,
-                          "Secondary_UpperBound_Constraints_Battery" );
+                          "Secondary_UpperBound_Battery" );
   }
  }
 
@@ -798,40 +815,9 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
  }
 
- if( f_batt_investment_cost != 0 ) {
-
-  // BatteryUnitBlock part of the NPV function, i.e., Net Present Value.
-  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
-   // CAPEX_{j=batt}^U, i.e., the investment cost of the battery
-   linear_function->add_variable( &v_battery_design[ t ] ,
-                                  f_batt_investment_cost );
-   // C_{j=batt}^U, i.e., the operation and maintenance costs of the battery
-   linear_function->add_variable( &v_battery_design[ t ] ,
-                                  f_oem_cost );
-   // RC_{j=batt}^U, i.e., the replacement cost of the battery
-   linear_function->add_variable( &v_battery_design[ t ] ,
-                                  f_batt_replacement_cost );
-   // RV_{j=batt}^U, i.e., the residual value of the battery
-   linear_function->add_variable( &v_battery_design[ t ] ,
-                                  -f_batt_residual_value );
-  }
- }
-
- if( f_conv_investment_cost != 0 ) {
-
-  // BatteryUnitBlock part of the NPV function, i.e., Net Present Value.
-  for( Index t = 1 ; t < f_time_horizon ; ++t ) {
-   // CAPEX_{j=conv}^U, i.e., the investment cost of the converter
-   linear_function->add_variable( &v_converter_design[ t ] ,
-                                  f_conv_investment_cost );
-   // RC_{j=conv}^U, i.e., the replacement cost of the converter
-   linear_function->add_variable( &v_converter_design[ t ] ,
-                                  f_conv_replacement_cost );
-   // RV_{j=conv}^U, i.e., the residual value of the converter
-   linear_function->add_variable( &v_converter_design[ t ] ,
-                                  -f_conv_residual_value );
-  }
- }
+ // BatteryUnitBlock part of the NPV function, i.e., Net Present Value.
+ linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
+ linear_function->add_variable( &v_conv_design , f_conv_investment_cost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
@@ -841,7 +827,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
 
  set_objective_generated();
 
- }  // end( BatteryUnitBlock::generate_objective )
+}  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ------*/

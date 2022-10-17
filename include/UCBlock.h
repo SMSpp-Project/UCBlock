@@ -1378,10 +1378,6 @@ class UCBlock : public Block
  /// the number of the networks of the problem
  Index f_number_networks;
 
- /// the starting index of each NetworkBlock
- // v_start_network_intervals [ n ] tells from which index network n starts
- std::vector< Index > v_start_network_intervals;
-
  /// the number of units of the problem
  Index f_number_units;
 
