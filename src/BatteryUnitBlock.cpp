@@ -620,8 +620,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  LinearFunction::v_coeff_pair vars_1;
 
  vars_1.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
- vars_1.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
-                                   -1.0 ) );
+// vars_1.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
+//                                   -1.0 ) );
 
  double outtake_coeff = -1;
  if( ! v_storing_battery_rho.empty() )
@@ -667,7 +667,6 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( demand_Const , "demand_Battery" );
 
- // Initializing storage_level_bounds_Const
  // Initializing storage_level_bounds_Const
 
  storage_level_bounds_Const.resize( f_time_horizon );
