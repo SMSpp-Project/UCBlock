@@ -646,7 +646,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( StartUp_Const ,
-                         "StartUp_Commitment_Constraints" );
+                         "StartUp_Commitment_Const" );
  }
 
  // Initializing turn off constraints (shut down constraints) - - - - - - - -
@@ -673,7 +673,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( ShutDown_Const ,
-                         "ShutDown_Commitment_Constraints" );
+                         "ShutDown_Commitment_Const" );
  }
 
  // Initializing ramp-up constraints with 3-Binary Variables- - - - - - - - -
