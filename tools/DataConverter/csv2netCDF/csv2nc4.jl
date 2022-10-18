@@ -30,7 +30,7 @@ function csvEC2nc4()
     # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
     # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
-    peak_categories = profile(market_data, "peak_categories")
+    peak_categories = profile(market_data, "peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
@@ -231,12 +231,12 @@ function csvEC2nc4()
 
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
-                min_storage[:] = (field_component(users_data[u], g, "min_SOC") *
-                                  field_component(users_data[u], g, "max_capacity"))
+                min_storage[:] = field_component(users_data[u], g, "min_SOC")
+                                  # * field_component(users_data[u], g, "max_capacity"))
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
-                max_storage[:] = (field_component(users_data[u], g, "max_SOC") *
-                                  field_component(users_data[u], g, "max_capacity"))
+                max_storage[:] = field_component(users_data[u], g, "max_SOC")
+                                  # * field_component(users_data[u], g, "max_capacity"))
 
                 # ASSUMPTION: if there is a battery there is ALWAYS also a converter!
 

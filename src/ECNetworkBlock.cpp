@@ -336,16 +336,14 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    vars_n.push_back( std::make_pair( &v_max_power[ node_id ] , 1.0 ) );
 
    // case (1)
-   power_flow_limit_const[ node_id ][ t ][ 0 ].set_rhs( 0.0 );
-   power_flow_limit_const[ node_id ][ t ][ 0 ].set_lhs(
-    -Inf< double >() );
+   power_flow_limit_const[ node_id ][ t ][ 0 ].set_rhs( Inf< double >() );
+   power_flow_limit_const[ node_id ][ t ][ 0 ].set_lhs( 0.0 );
    power_flow_limit_const[ node_id ][ t ][ 0 ].set_function(
     new LinearFunction( std::move( vars_p ) ) );
 
    // case (2)
-   power_flow_limit_const[ node_id ][ t ][ 1 ].set_rhs( 0.0 );
-   power_flow_limit_const[ node_id ][ t ][ 1 ].set_lhs(
-    -Inf< double >() );
+   power_flow_limit_const[ node_id ][ t ][ 1 ].set_rhs( Inf< double >() );
+   power_flow_limit_const[ node_id ][ t ][ 1 ].set_lhs( 0.0 );
    power_flow_limit_const[ node_id ][ t ][ 1 ].set_function(
     new LinearFunction( std::move( vars_n ) ) );
   }
