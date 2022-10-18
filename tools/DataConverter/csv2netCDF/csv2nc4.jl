@@ -214,7 +214,7 @@ function csvEC2nc4()
                                            (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                   field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                          (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                         for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
+                                         for y in append!([0], year_set))
 
             elseif g == "batt"
 
@@ -222,21 +222,22 @@ function csvEC2nc4()
 
                 # store the minimum and maximum power, i.e., the minimum and maximum capacity, of the converter related to the battery
                 # min_power = defVar(ub, "MinPower", Float64, ()) # related to the outtake level of the battery
-                # min_power[:] = field_component(users_data[u], g, "max_C_ch") *
-                #               field_component(users_data[u], g, "max_capacity")
+                # min_power[:] = (field_component(users_data[u], g, "max_C_ch") *
+                #                 field_component(users_data[u], g, "max_capacity"))
+
 
                 max_power = defVar(ub, "MaxPower", Float64, ()) # realted to the intake level of the battery
-                max_power[:] = field_component(users_data[u], g, "max_C_dch") *
-                               field_component(users_data[u], g, "max_capacity")
+                max_power[:] = (field_component(users_data[u], g, "max_C_dch") *
+                                field_component(users_data[u], g, "max_capacity"))
 
                 # store the minimum and maximum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ())
-                min_storage[:] = field_component(users_data[u], g, "min_SOC")
-                                  # * field_component(users_data[u], g, "max_capacity"))
+                min_storage[:] = (field_component(users_data[u], g, "min_SOC") *
+                                  field_component(users_data[u], g, "max_capacity"))
 
                 max_storage = defVar(ub, "MaxStorage", Float64, ())
-                max_storage[:] = field_component(users_data[u], g, "max_SOC")
-                                  # * field_component(users_data[u], g, "max_capacity"))
+                max_storage[:] = (field_component(users_data[u], g, "max_SOC") *
+                                  field_component(users_data[u], g, "max_capacity"))
 
                 # ASSUMPTION: if there is a battery there is ALWAYS also a converter!
 
@@ -267,7 +268,7 @@ function csvEC2nc4()
                                                    (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                           field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                  (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                 for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
+                                                 for y in append!([0], year_set))
 
                 g = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
 
@@ -281,7 +282,7 @@ function csvEC2nc4()
                                                      (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                    (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                   for y in append!([0], year_set)) # * field_component(users_data[u], g, "max_capacity")
+                                                   for y in append!([0], year_set))
 
             end
 
