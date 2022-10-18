@@ -186,11 +186,13 @@ void IntermittentUnitBlock::generate_abstract_variables(
   relax_binary = config->f_value;
 
  // Design Variable
- if( relax_binary )
-  v_design.set_type( ColVariable::kPosUnitary );
- else
-  v_design.set_type( ColVariable::kBinary );
- add_static_variable( v_design , "D_intermittent" );
+ if( f_investment_cost != 0 ) {
+  if( relax_binary )
+   v_design.set_type( ColVariable::kPosUnitary );
+  else
+   v_design.set_type( ColVariable::kBinary );
+  add_static_variable( v_design , "D_intermittent" );
+ }
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -388,8 +390,9 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value.
- vars.push_back( std::make_pair( &v_design , f_investment_cost ) );
+ // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value
+ if( f_investment_cost != 0 )
+  vars.push_back( std::make_pair( &v_design , f_investment_cost ) );
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );

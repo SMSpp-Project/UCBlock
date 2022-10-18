@@ -348,16 +348,23 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( battery_type == Binary_Variables_Constraints )
   add_static_variable( v_battery_binary , "BB_battery" );
 
- // Battery and Converter Design Variable
- if( relax_binary ) {
-  v_batt_design.set_type( ColVariable::kPosUnitary );
-  v_conv_design.set_type( ColVariable::kPosUnitary );
- } else {
-  v_batt_design.set_type( ColVariable::kBinary );
-  v_conv_design.set_type( ColVariable::kBinary );
+ // Battery Design Variable
+ if( f_batt_investment_cost != 0 ) {
+  if( relax_binary )
+   v_batt_design.set_type( ColVariable::kPosUnitary );
+  else
+   v_batt_design.set_type( ColVariable::kBinary );
+  add_static_variable( v_batt_design , "D_battery" );
  }
- add_static_variable( v_batt_design , "D_battery" );
- add_static_variable( v_conv_design , "D_converter" );
+
+ // Converter Design Variable
+ if( f_conv_investment_cost != 0 ) {
+  if( relax_binary )
+   v_conv_design.set_type( ColVariable::kPosUnitary );
+  else
+   v_conv_design.set_type( ColVariable::kBinary );
+  add_static_variable( v_conv_design , "D_converter" );
+ }
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -620,8 +627,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  LinearFunction::v_coeff_pair vars_1;
 
  vars_1.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
-// vars_1.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
-//                                   -1.0 ) );
+ vars_1.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
+                                   -1.0 ) );
 
  double outtake_coeff = -1;
  if( ! v_storing_battery_rho.empty() )
@@ -814,9 +821,13 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
  }
 
- // BatteryUnitBlock part of the NPV function, i.e., Net Present Value.
- linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
- linear_function->add_variable( &v_conv_design , f_conv_investment_cost );
+ // BatteryUnitBlock part of the NPV function, i.e., Net Present Value
+
+ if( f_batt_investment_cost != 0 )
+  linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
+
+ if( f_conv_investment_cost != 0 )
+  linear_function->add_variable( &v_conv_design , f_conv_investment_cost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
