@@ -312,14 +312,9 @@ function csvEC2nc4()
     close(ds)
 end
 
-function csvNC2nc4()
-
-end
-
 ## Parameters
 
 file_name = "energy_community_model.yml"
-model = "EC"
 
 ## Initialization
 
@@ -337,11 +332,4 @@ time_set = init_step:final_step
 SMSPP_DEVICES = setdiff(DEVICES, [CONV])  # devices codes in SMS++
 
 ## Data aggregation and netCDF files generation
-
-if model == "EC"
-    csvEC2nc4()
-elseif model == "NC"
-    csvNC2nc4()
-else
-    throw(TaskFailedException("model unknown"))
-end
+csvEC2nc4()

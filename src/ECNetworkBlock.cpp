@@ -501,17 +501,15 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
    // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
-                                   -f_NetworkData->get_sell_price()[ t ] ) );
+                                   f_NetworkData->get_buy_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-                                   -f_NetworkData->get_sell_price()[ t ] ) );
+                                   f_NetworkData->get_buy_price()[ t ] -
+                                   // ECR_{j}, i.e., the reward awarded to the community
+                                   f_NetworkData->get_reward_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
-                                   f_NetworkData->get_buy_price()[ t ] ) );
+                                   -f_NetworkData->get_sell_price()[ t ] ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   f_NetworkData->get_buy_price()[ t ] ) );
-
-   // ECR_{j}, i.e., the reward awarded to the community
-   vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
-                                   -f_NetworkData->get_reward_price()[ t ] ) );
+                                   -f_NetworkData->get_sell_price()[ t ] ) );
   }
 
   // C_{j}^{U,P}, i.e., the costs due to the peak power
