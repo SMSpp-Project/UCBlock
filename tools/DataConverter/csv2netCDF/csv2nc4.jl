@@ -9,10 +9,12 @@ include("utils.jl")
 function csvEC2nc4()
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset("-with-network-blocks" in ARGS ? "../../../netCDF_files/EC_Data/EC_Test_NB.nc4" :
-                   "../../../netCDF_files/EC_Data/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset("../../../netCDF_files/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+
+    n_users = length(user_set)
+    defDim(block, "NumberNodes", n_users)
 
     n_timesteps = length(time_set)
     defDim(block, "TimeHorizon", n_timesteps)
@@ -27,7 +29,7 @@ function csvEC2nc4()
 
     # --------------------------------------------------------------------------------------- #
 
-    # Let's create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
+    # Create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
 
     # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")[time_set]
@@ -72,9 +74,17 @@ function csvEC2nc4()
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    if !("-with-network-blocks" in ARGS) &&
-       allequal([count(x -> x == w, peak_categories) for w in peak_set]) &&
-       allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff) && allequal(reward_price_data)
+    ren_us_data = [sum(sum(profile_component(users_data[u], r, "ren_pu")[t] *
+                           field_component(users_data[u], r, "max_capacity")
+                           for r in asset_names(users_data[u], REN)) +
+                       reduce(+, [field_component(users_data[u], b, "max_capacity") # i.e., sum() over (possible) empty collection
+                                  for b in asset_names(users_data[u], BATT)], init=0.0)
+                       for u in user_set)
+                   for t in time_set]
+
+    if allequal([count(x -> x == w, peak_categories)
+                 for w in peak_set]) &&
+       allequal(sell_price_data) && allequal(buy_price_data) && allequal(peak_tariff) && allequal(reward_price_data) && allequal(ren_us_data)
 
         # Store the number of nodes in the father block
         n_users = length(user_set)
@@ -112,6 +122,10 @@ function csvEC2nc4()
         # `RewardPrice`, i.e., the reward awarded to the community
         reward_price = defVar(block, "RewardPrice", Float64, ("NumberIntervals",))
         reward_price[:] = reward_price_data[1]
+
+        # `RenewableProduction` to bound the node injection
+        ren_us = defVar(ecnb, "IntermittentProduction", Float64, ("NumberIntervals",))
+        ren_us[:] = ren_us_data[1]
 
         # `MaxTariff`, i.e., the peak tariff cost
         max_tariff = defVar(block, "MaxTariff", Float64, ())
@@ -161,6 +175,10 @@ function csvEC2nc4()
             # `RewardPrice`, i.e., the reward awarded to the community
             reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
             reward_price[:] = reward_price_data[last_t:last_i]
+
+            # `RenewableProduction` to bound the node injection
+            ren_us = defVar(ecnb, "IntermittentProduction", Float64, ("NumberIntervals",))
+            ren_us[:] = ren_us_data[last_t:last_i]
 
             last_t += n_intervals
 

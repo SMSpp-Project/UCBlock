@@ -84,8 +84,6 @@ DCNetworkBlock::~DCNetworkBlock() {
 void DCNetworkBlock::DCNetworkData::deserialize(
  const netCDF::NcGroup & group ) {
 
- NetworkBlock::NetworkData::deserialize( group );
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
                                                      "NumberLines" ,
@@ -93,6 +91,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "StartLine" , "EndLine" ,
+                                                     "ActiveDemand" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
@@ -100,7 +99,12 @@ void DCNetworkBlock::DCNetworkData::deserialize(
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ NetworkBlock::NetworkData::deserialize( group );
+
  // Optional variables
+
+ if( ! ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+  f_number_nodes = 1;
 
  if( f_number_nodes > 1 ) {
 
@@ -130,8 +134,6 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
- NetworkBlock::deserialize( group );
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
@@ -139,6 +141,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ NetworkBlock::deserialize( group );
 
  // Optional variables
 
@@ -153,8 +157,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes ,
-                 v_active_demand );
+  ::deserialize( group , "ActiveDemand" , NumberNodes , v_active_demand );
  } else {
   // A DCNetworkData has not been provided. However, the active demand may still
   // have been provided.

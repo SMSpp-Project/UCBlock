@@ -51,7 +51,8 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 NetworkBlock::NetworkData::NetworkData( void )
- : f_number_lines( 0 ) , f_number_nodes( 0 ) , f_number_intervals( 0 ) {}
+ : f_number_lines( 0 ) , f_number_nodes( 0 ) ,
+ f_number_intervals( 0 ) , f_const_term( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -59,12 +60,7 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- if( ! ::deserialize_dim( group , "NumberNodes" ,
-                         f_number_nodes , true ) )
-  f_number_nodes = 1;
-
- if( ! ::deserialize_dim( group , "NumberIntervals" ,
-                         f_number_intervals , true ) )
+ if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
 
  if( ! ::deserialize( group , f_const_term , "ConstTerm" ) )

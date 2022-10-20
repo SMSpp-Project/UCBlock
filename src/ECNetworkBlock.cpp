@@ -69,8 +69,6 @@ ECNetworkBlock::~ECNetworkBlock() {
 void ECNetworkBlock::ECNetworkData::deserialize(
  const netCDF::NcGroup & group ) {
 
- NetworkBlock::NetworkData::deserialize( group );
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
                                                      "NumberLines" ,
@@ -78,15 +76,21 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "StartLine" , "EndLine" ,
+                                                     "ActiveDemand" ,
                                                      "BuyPrice" ,
                                                      "SellPrice" ,
-                                                     "MaxTariff" };
+                                                     "MaxTariff" ,
+                                                     "RewardPrice" ,
+                                                     "IntermittentProduction" ,
+                                                     "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ NetworkBlock::NetworkData::deserialize( group );
+
  // Mandatory variables
 
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+ ::deserialize_dim( group , "NumberNodes" , f_number_nodes );
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "a community network with just one user" ) );
@@ -101,6 +105,9 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                 v_reward_price , false );
 
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
+
+ ::deserialize( group , "IntermittentProduction" , f_number_intervals ,
+                v_intermittent_prod , false );
 
  // Optional variables
 
@@ -117,15 +124,22 @@ void ECNetworkBlock::ECNetworkData::deserialize(
 
 void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
- NetworkBlock::deserialize( group );
-
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" };
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" };
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "BuyPrice" ,
+                                                     "SellPrice" ,
+                                                     "MaxTariff" ,
+                                                     "RewardPrice" ,
+                                                     "IntermittentProduction" ,
+                                                     "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ NetworkBlock::deserialize( group );
 
  // Optional variables
 
@@ -153,6 +167,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   // still have been provided.
   ::deserialize( group , "ActiveDemand" , v_active_demand );
  }
+
 }  // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -423,6 +438,25 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( power_balance_const ,
                         "power_balance_const" );
 
+ // node injection upper bound constraints
+
+ node_injection_upper_const.resize( number_intervals );
+
+ for( Index t = 0 ; t < number_intervals ; ++t ) {
+
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+   node_injection_upper_const[ t ].set_lhs( -Inf< double >() );
+   node_injection_upper_const[ t ].set_rhs(
+    f_NetworkData->get_intermittent_prod()[ t ] );
+   node_injection_upper_const[ t ].set_variable(
+    &v_node_injection[ t ][ node_id ] );
+  }
+ }
+
+ add_static_constraint( node_injection_upper_const ,
+                        "node_injection_upper_const" );
+
  set_constraints_generated();
 }  // end( ECNetworkBlock::generate_abstract_constraints )
 
@@ -476,10 +510,8 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
                                    f_NetworkData->get_buy_price()[ t ] ) );
 
    // ECR_{j}, i.e., the reward awarded to the community
-   // vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id
-   // ] ,
-   //                                 -f_NetworkData->get_reward_price()[ t ]
-   //                                ) );
+   vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
+                                   -f_NetworkData->get_reward_price()[ t ] ) );
   }
 
   // C_{j}^{U,P}, i.e., the costs due to the peak power

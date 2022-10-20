@@ -218,6 +218,14 @@ class ECNetworkBlock : public NetworkBlock
    return( f_max_tariff );
   }
 
+/*--------------------------------------------------------------------------*/
+  /// returns the maximum production of the renewable assets
+  /** Method for returning the maximum production of the renewable assets. */
+
+  const std::vector< double > & get_intermittent_prod( void ) const {
+   return( v_intermittent_prod );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ECNetworkData ------------------*/
 /*--------------------------------------------------------------------------*/
@@ -261,6 +269,10 @@ class ECNetworkBlock : public NetworkBlock
   /// tariff that the user gains when it absorbs power from the microgrid
   /// market / network (instead of from the public grid) at each time horizon
   std::vector< double > v_reward_price; // /pi^{R}
+
+  /// maximum production of the renewable assets used to constrain the node
+  /// injection
+  std::vector< double > v_intermittent_prod;
 
   /// tariff that the user pays due to the peak power
   double f_max_tariff;
@@ -699,6 +711,10 @@ class ECNetworkBlock : public NetworkBlock
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
+
+
+ /// the node injection upper bound constraints
+ std::vector< BoxConstraint > node_injection_upper_const;
 
 
  /// the objective function
