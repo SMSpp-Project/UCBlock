@@ -338,7 +338,7 @@ class SlackUnitBlock : public UnitBlock
   *
   *   -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this ThermalUnitBlock is not
+  *   -# the violation of each Constraint of this SlackUnitBlock is not
   *      greater than the tolerance.
   *
   * Every Constraint of this SlackUnitBlock is a RowConstraint and its
