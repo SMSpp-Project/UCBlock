@@ -771,47 +771,55 @@ class HydroUnitBlock : public UnitBlock
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this HydroUnitBlock is approximately
-  * feasible considering a given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
-  * determined as follows:
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
+  *
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this HydroUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this HydroUnitBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
   *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration.
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to a SimpleConfiguration< double >, then the
-  *     tolerance is the value present in that SimpleConfiguration.
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
   *
-  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
-  *
-  * Each Constraint of this HydroUnitBlock is a RowConstraint and a solution
-  * is considered feasible if and only if
-  *
-  *   -# the relative violation of each RowConstraint of this HydroUnitBlock
-  *      is not greater than the tolerance; and
-  *
-  *   -# each ColVariable is feasible.
-  *
-  * See RowConstraint::rel_viol() for details about the relative violation of
-  * the RowConstraint and see ColVariable::is_feasible() for details about the
-  * feasibility of ColVariable.
+  *   - Otherwise, by default, the tolerance is 1e-8 and the relative
+  *     violation is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, this
+  * currently ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
-  * set of Constraint. Notice also that, before checking if the solution
+  * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed
   * (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
-  *        value stored in that SimpleConfiguration will be the tolerance that
-  *        determines if a solution is feasible. */
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
