@@ -265,39 +265,52 @@ class DCNetworkBlock : public NetworkBlock
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
-  * feasible within the given tolerance. The tolerance can be provided by
-  * either \p fsbc or by #f_BlockConfig->f_is_feasible_Configuration and it is
-  * determined as follows:
+  * feasible within the given tolerance. This means that every ColVariable of
+  * this DCNetworkBlock must be feasible (see ColVariable::is_feasible()) and
+  * every Constraint must be approximately satisfied.
+  *
+  * Since each Constraint of this DCNetworkBlock is a RowConstraint, a
+  * solution is considered feasible only if the violation of each
+  * RowConstraint of this DCNetworkBlock is not greater than the given
+  * tolerance. The violation of a RowConstraint is given by either the
+  * relative (see RowConstraint::rel_viol()) or the absolute violation (see
+  * RowConstraint::abs_viol()), depending on the provided Configuration.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
   *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration.
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to a SimpleConfiguration< double >, then the
-  *     tolerance is the value present in that SimpleConfiguration.
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
   *
-  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
+  *   - Otherwise, by default, the tolerance is 1e-8 and the relative
+  *     violation is considered.
   *
-  * Each Constraint of this DCNetworkBlock is a RowConstraint and a solution
-  * is considered feasible if and only if the relative violation of each
-  * RowConstraint of this DCNetworkBlock is not greater than the
-  * tolerance. See RowConstraint::rel_viol() for details about the relative
-  * violation.
-  *
-  * This function currently considers only the abstract constraints to
+  * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. Moreover, if no abstract Constraint has been generated,
-  * then this method returns true. Notice also that, before checking if the
-  * solution satisfies a Constraint, the Constraint is computed
-  * (Constraint::compute()).
+  * currently ignored. Moreover, if no abstract Variable has been generated,
+  * then this function returns true. If no abstract Constraint has been
+  * generated, the constraints are considered to be satisfied. Notice also
+  * that, before checking if the solution satisfies a Constraint, the
+  * Constraint is computed (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
-  *        value stored in that SimpleConfiguration will be the tolerance that
-  *        determines if a solution is feasible. */
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
