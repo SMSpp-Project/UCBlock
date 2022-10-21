@@ -265,16 +265,18 @@ class DCNetworkBlock : public NetworkBlock
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this DCNetworkBlock is approximately
-  * feasible within the given tolerance. This means that every ColVariable of
-  * this DCNetworkBlock must be feasible (see ColVariable::is_feasible()) and
-  * every Constraint must be approximately satisfied.
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
   *
-  * Since each Constraint of this DCNetworkBlock is a RowConstraint, a
-  * solution is considered feasible only if the violation of each
-  * RowConstraint of this DCNetworkBlock is not greater than the given
-  * tolerance. The violation of a RowConstraint is given by either the
-  * relative (see RowConstraint::rel_viol()) or the absolute violation (see
-  * RowConstraint::abs_viol()), depending on the provided Configuration.
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this ThermalUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this DCNetworkBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
@@ -301,11 +303,12 @@ class DCNetworkBlock : public NetworkBlock
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. Moreover, if no abstract Variable has been generated,
-  * then this function returns true. If no abstract Constraint has been
-  * generated, the constraints are considered to be satisfied. Notice also
-  * that, before checking if the solution satisfies a Constraint, the
-  * Constraint is computed (Constraint::compute()).
+  * currently ignored. If no abstract Variable has been generated, then this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Variable only. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
