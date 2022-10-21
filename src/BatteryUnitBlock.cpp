@@ -1,8 +1,8 @@
 /*--------------------------------------------------------------------------*/
-/*----------------- File BatteryUnitBlock.cpp -----------------------*/
+/*--------------------- File BatteryUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the BatteryStorageUnitBlock class.
+ * Implementation of the BatteryUnitBlock class.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -1270,6 +1270,68 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
                                 Range( 0 , Inf< Index >() ) , issueAMod );
 
 }  // end( BatteryUnitBlock::update_objective )
+
+/*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR CHECKING THE BatteryUnitBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+
+bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+
+ double tolerance = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tolerance , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tolerance = tc->f_value;
+   return true;
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tolerance = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return true;
+  }
+  return false;
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ auto is_feasible = [ tolerance , rel_viol ]( auto & constraints ) {
+  return RowConstraint::is_feasible( constraints , tolerance , rel_viol );
+ };
+
+ return UnitBlock::is_feasible( useabstract )
+  && ColVariable::is_feasible( v_storage_level , tolerance )
+  && ColVariable::is_feasible( v_intake_level , tolerance )
+  && ColVariable::is_feasible( v_outtake_level , tolerance )
+  && ColVariable::is_feasible( v_battery_binary , tolerance )
+  && ColVariable::is_feasible( v_active_power , tolerance )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tolerance )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tolerance )
+  && is_feasible( active_power_upper_bound_Constraints )
+  && is_feasible( active_power_lower_bound_Constraints )
+  && is_feasible( ramp_up_Constraints )
+  && is_feasible( ramp_down_Constraints )
+  && is_feasible( power_intake_outtake_Constraints )
+  && is_feasible( intake_upper_bound_Constraints )
+  && is_feasible( storage_intake_outtake_Constraints )
+  && is_feasible( storage_level_bounds_Constraints )
+  && is_feasible( intake_binary_Constraints )
+  && is_feasible( outtake_binary_Constraints )
+  && is_feasible( demand_Constraints )
+  && is_feasible( primary_upper_bound_Constraints )
+  && is_feasible( secondary_upper_bound_Constraints )
+  && is_feasible( battery_binary_bound_Constraints );
+
+} // end( BatteryUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File BatteryUnitBlock.cpp --------------------------*/

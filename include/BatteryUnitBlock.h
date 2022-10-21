@@ -1047,11 +1047,11 @@ public:
  battery_type get_battery_type() const {
 
   if( std::all_of( v_storing_battery_rho.cbegin() ,
-		   v_storing_battery_rho.cend() ,
+                   v_storing_battery_rho.cend() ,
                    []( double s ) { return s <= 1.0; } ) &&
       std::all_of( v_extracting_battery_rho.cbegin() ,
-		   v_extracting_battery_rho.cend() ,
-		   []( double s ) { return s >= 1.0; } ) )
+                   v_extracting_battery_rho.cend() ,
+                   []( double s ) { return s >= 1.0; } ) )
    return( ASSUME_POSITIVE_PRICES );
 
   if( ( ! v_storing_battery_rho.empty() ) &&
@@ -1184,6 +1184,8 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the BatteryUnitBlock
+ *  @{ */
 
  void set_initial_storage( std::vector< double >::const_iterator it,
                            Subset && subset , bool ordered = false ,
@@ -1319,7 +1321,70 @@ public:
  // For the Range version, use the default implementation defined in UnitBlock
  using UnitBlock::scale;
 
+/** @} ---------------------------------------------------------------------*/
+/*--------------- Methods for checking the BatteryUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the BatteryUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this BatteryUnitBlock is approximately
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
+  *
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this BatteryUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this BatteryUnitBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
+  *
+  *   - Otherwise, by default, the tolerance is 1e-8 and the relative
+  *     violation is considered.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, then this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Variable only. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
