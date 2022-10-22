@@ -806,17 +806,8 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the minimum allowed down time value
  Index get_min_down_time( void ) const { return( f_MinDownTime ); }
 
- /// returns the operation and maintenance costs
- double get_oem_cost( void ) const { return( f_oem_cost ); }
-
  /// returns the investment cost, i.e., the capital expenditure cost
  double get_investment_cost( void ) const { return( f_investment_cost ); }
-
- /// returns the replacement cost of the component at the end of the lifetime
- double get_replacement_cost( void ) const { return( f_replacement_cost ); }
-
- /// returns the residual value of the component at the end of the lifetime
- double get_residual_value( void ) const { return( f_residual_value ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of nominal minimum active power output
@@ -1261,12 +1252,10 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of design variables, or nullptr if not defined
+ /// returns the design binary variable, or nullptr if not defined
 
  ColVariable * get_design( void ) {
-  if( v_design.empty() )
-   return( nullptr );
-  return( &( v_design.front() ) );
+  return( &v_design );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1651,17 +1640,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the scale factor of this ThermalUnitBlock
  double f_scale = 1;
 
- /// the operation and maintenance costs
- double f_oem_cost{};
-
  /// the investment cost, i.e., the capital expenditure cost
  double f_investment_cost{};
-
- /// the replacement cost of the component at the end of the lifetime
- double f_replacement_cost{};
-
- /// the residual value of the component at the end of the lifetime
- double f_residual_value{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1683,8 +1663,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the design binary variables
- std::vector< ColVariable > v_design;
+ /// the design binary variable
+ ColVariable v_design;
 
 /*------------------------------- constraints ------------------------------*/
 

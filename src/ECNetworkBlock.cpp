@@ -55,6 +55,8 @@ ECNetworkBlock::~ECNetworkBlock() {
  Constraint::clear( power_balance_const );
  Constraint::clear( power_flow_limit_const );
 
+ Constraint::clear( node_injection_upper_const );
+
  objective.clear();
 
  // Delete the ECNetworkData if it is local.
@@ -478,7 +480,8 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
  return( NetworkBlock::is_feasible( useabstract )
          && Constraint::is_feasible( micro_power_balance_const , tol )
          && Constraint::is_feasible( power_balance_const , tol )
-         && Constraint::is_feasible( power_flow_limit_const , tol ) );
+         && Constraint::is_feasible( power_flow_limit_const , tol )
+         && Constraint::is_feasible( node_injection_upper_const , tol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 

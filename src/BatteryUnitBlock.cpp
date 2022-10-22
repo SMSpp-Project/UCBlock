@@ -55,6 +55,7 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 BatteryUnitBlock::~BatteryUnitBlock() {
 
  Constraint::clear( active_power_bounds_Const );
+ Constraint::clear( active_power_bounds_design_Const );
  Constraint::clear( ramp_up_Const );
  Constraint::clear( ramp_down_Const );
  Constraint::clear( power_intake_outtake_Const );
@@ -63,8 +64,9 @@ BatteryUnitBlock::~BatteryUnitBlock() {
  Constraint::clear( outtake_binary_Const );
  Constraint::clear( demand_Const );
 
- Constraint::clear( intake_upper_bound_Const );
  Constraint::clear( storage_level_bounds_Const );
+ Constraint::clear( intake_upper_bound_Const );
+ Constraint::clear( outtake_upper_bound_Const );
  Constraint::clear( primary_upper_bound_Const );
  Constraint::clear( secondary_upper_bound_Const );
 
@@ -88,10 +90,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
     "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
     "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
-    "Demand" , "Kappa" , "OEMCost" ,
-    "BatteryInvestmentCost" , "ConverterInvestmentCost" ,
-    "BatteryReplacementCost" , "ConverterReplacementCost" ,
-    "BatteryResidualValue" , "ConverterResidualValue" };
+    "Demand" , "Kappa" , "BatteryInvestmentCost" , "ConverterInvestmentCost" };
  check_variables( group, expected_vars, std::cerr );
 #endif
 
@@ -208,17 +207,17 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 //   }
 //  }
 // }
-//
-// if( ( ! v_storing_battery_rho.empty() ) &&
-//     ( ! v_extracting_battery_rho.empty() ) ) {
-//  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-//   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-//    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
-//                             "inefficiency of storing energy must not be greater "
-//                             "than the inefficiency of extracting energy." ) );
-//   }
-//  }
-// }
+
+ if( ( ! v_storing_battery_rho.empty() ) &&
+     ( ! v_extracting_battery_rho.empty() ) ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
+                             "inefficiency of storing energy must not be greater "
+                             "than the inefficiency of extracting energy." ) );
+   }
+  }
+ }
 
  // Delta ramp-up
 
@@ -620,6 +619,19 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( intake_upper_bound_Const ,
                         "Intake_UpperBound_Battery" );
 
+ // Initializing outtake_upper_bound_Const
+
+ outtake_upper_bound_Const.resize( f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  outtake_upper_bound_Const[ t ].set_lhs( 0.0 );
+  outtake_upper_bound_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
+  outtake_upper_bound_Const[ t ].set_variable( &v_outtake_level[ t ] );
+ }
+
+ add_static_constraint( outtake_upper_bound_Const ,
+                        "Outtake_UpperBound_Battery" );
+
  // Initializing demand_Const
 
  demand_Const.resize( f_time_horizon );
@@ -821,7 +833,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
  }
 
- // BatteryUnitBlock part of the NPV function, i.e., Net Present Value
+ // BatteryUnitBlock parts of the NPV function, i.e., Net Present Value
 
  if( f_batt_investment_cost != 0 )
   linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
@@ -1122,6 +1134,12 @@ void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
  if( ! intake_upper_bound_Const.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    intake_upper_bound_Const[ t ].set_rhs(
+    f_kappa * v_maximum_power[ t ] , issueAMod );
+ }
+
+ if( ! outtake_upper_bound_Const.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   outtake_upper_bound_Const[ t ].set_rhs(
     f_kappa * v_maximum_power[ t ] , issueAMod );
  }
 

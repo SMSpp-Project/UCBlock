@@ -1053,7 +1053,7 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the battery design variable, or nullptr if not defined
+ /// returns the battery design binary variable, or nullptr if not defined
 
  ColVariable * get_battery_design( void ) {
   return( &v_batt_design );
@@ -1419,6 +1419,9 @@ public:
 
  /// the intake upper bound constraints
  std::vector< BoxConstraint > intake_upper_bound_Const;
+
+ /// the outtake upper bound constraints
+ std::vector< BoxConstraint > outtake_upper_bound_Const;
 
  /// primary upper bound constraints
  std::vector< BoxConstraint > primary_upper_bound_Const;

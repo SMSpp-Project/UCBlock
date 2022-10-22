@@ -75,8 +75,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars =
-  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" , "OEMCost" ,
-    "InvestmentCost" , "ReplacementCost" , "ResidualValue" };
+  { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" ,
+    "InvestmentCost" };
 
  check_variables( group , expected_vars , std::cerr );
 #endif
