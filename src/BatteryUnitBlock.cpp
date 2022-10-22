@@ -1308,12 +1308,14 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   return RowConstraint::is_feasible( constraints , tolerance , rel_viol );
  };
 
+ // Notice that there is no check for the active power variables, since they
+ // are continuous and have no bounds.
+
  return UnitBlock::is_feasible( useabstract )
   && ColVariable::is_feasible( v_storage_level , tolerance )
   && ColVariable::is_feasible( v_intake_level , tolerance )
   && ColVariable::is_feasible( v_outtake_level , tolerance )
   && ColVariable::is_feasible( v_battery_binary , tolerance )
-  && ColVariable::is_feasible( v_active_power , tolerance )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tolerance )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tolerance )
   && is_feasible( active_power_upper_bound_Constraints )
