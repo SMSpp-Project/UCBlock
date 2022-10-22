@@ -296,8 +296,8 @@ class IntermittentUnitBlock : public UnitBlock
   *     SimpleConfiguration<std::pair<double, int>>, then the values of the
   *     parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 1e-8 and the relative
-  *     violation is considered.
+  *   - Otherwise, by default, the tolerance is 0 and the relative violation
+  *     is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
