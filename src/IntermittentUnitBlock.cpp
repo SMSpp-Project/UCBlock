@@ -292,75 +292,51 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
-/// verifies whether the current solution is feasible for the given constraints
-/** This function checks whether the relative violation of each RowConstraint
- * in the given group of RowConstraint is not greater than the provided
- * tolerance.
- *
- * @return This function returns true if and only if the relative violation of
- *         each RowConstraint in the given group is not greater than the given
- *         tolerance. */
-
-template< class C >
-static std::enable_if_t< std::is_base_of_v< RowConstraint , C > , bool >
-is_feasible( std::vector< C > & constraints , double tolerance )
-{
- for( auto & constraint : constraints ) {
-  if( constraint.is_relaxed() )
-   continue;
-  constraint.compute();
-  if( constraint.rel_viol() > tolerance )
-   return false;
-  }
- return true;
- }
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the given ColVariable are feasible
-/** This function returns true if and only if each given ColVariable is
- * feasible with respect to the given tolerance (see
- * ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
-
-template< class V >
-static std::enable_if_t< std::is_base_of_v< ColVariable , V > , bool >
-is_feasible( const std::vector< V > & variables , double tolerance )
-{
- for( const auto & variable : variables )
-  if( ! variable.is_feasible( tolerance ) )
-   return false;
-
- return true;
- }
-
-/*--------------------------------------------------------------------------*/
 
 bool IntermittentUnitBlock::is_feasible( bool useabstract ,
                                          Configuration * fsbc )
 {
- // Retrieve the tolerance.
+ // Retrieve the tolerance and the type of violation.
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ double tolerance = 0;
+ bool rel_viol = true;
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-   ( f_BlockConfig->f_is_feasible_Configuration );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tolerance , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tolerance = tc->f_value;
+   return true;
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tolerance = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return true;
+  }
+  return false;
+ };
 
- // If a tolerance has not been provided, use the default tolerance.
- const auto tolerance = config ? config->f_value : 1.0e-8;
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ auto is_feasible = [ tolerance , rel_viol ]( auto & constraints ) {
+  return RowConstraint::is_feasible( constraints , tolerance , rel_viol );
+ };
 
  return
   UnitBlock::is_feasible( useabstract )
   // Constraints
-  && ::is_feasible( MinPower_Constraints , tolerance )
-  && ::is_feasible( MaxPower_Constraints , tolerance )
-  && ::is_feasible( active_power_bounds_Constraints , tolerance )
+  && is_feasible( MinPower_Constraints )
+  && is_feasible( MaxPower_Constraints )
+  && is_feasible( active_power_bounds_Constraints )
   // Variables
-  && ::is_feasible( v_active_power , tolerance )
-  && ::is_feasible( v_primary_spinning_reserve , tolerance )
-  && ::is_feasible( v_secondary_spinning_reserve , tolerance );
+  && ColVariable::is_feasible( v_active_power , tolerance )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tolerance )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tolerance );
 
  } // end( IntermittentUnitBlock::is_feasible )
 
