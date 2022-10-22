@@ -270,7 +270,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   *   -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this ThermalUnitBlock is not
+  *   -# the violation of each Constraint of this DCNetworkBlock is not
   *      greater than the tolerance.
   *
   * Every Constraint of this DCNetworkBlock is a RowConstraint and its
