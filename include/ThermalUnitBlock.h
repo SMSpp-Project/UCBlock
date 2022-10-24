@@ -355,7 +355,24 @@ class ThermalUnitBlock : public UnitBlock {
  *   all t, regardless to what "NumberIntervals" says. Otherwise,
  *   InertiaCommitment[ i ] is the fixed value of IC[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. */
+ *   assumption that ChangeIntervals[ - 1 ] = 0.
+ *
+ *
+ * If the extra Configuration of the BlockConfig of this ThermalUnitBlock is a
+ * non-null pointer to a SimpleConfiguration<int>, then the value, let us call
+ * it Z, stored in that Configuration will determine if spinning reserves and
+ * fixed consumption should loaded. This parameter is coded bit-wise. The
+ * first bit is associated with the spinning reserves and the second one is
+ * associated with the fixed consumption.
+ *
+ * - If the first bit of Z is 0, then the PrimaryRho and SecondaryRho netCDF
+ *   variables are ignored when this ThermalUnitBlock is deserialized. If
+ *   this bit is 1, then these variables are normally loaded if they are
+ *   provided.
+ *
+ * - If the second bit of Z is 0, then the FixedConsumption netCDF variables
+ *   are ignored when this ThermalUnitBlock is deserialized. If this bit is 1,
+ *   then this variable is normally loaded if it is provided. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

@@ -180,6 +180,12 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  UnitBlock::deserialize( group );
 
+ int load_variables = 3;
+ if( f_BlockConfig )
+  if( auto config = dynamic_cast< SimpleConfiguration< int > * >
+      ( f_BlockConfig->f_extra_Configuration ) )
+   load_variables = config->f_value;
+
  // Mandatory variables
 
  ::deserialize( group , "MinPower" , v_MinPower , false );
@@ -208,14 +214,20 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
  ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
- ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
- ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  ::deserialize( group , "LinearTerm" , v_LinearTerm );
  ::deserialize( group , "QuadTerm" , v_QuadTerm );
  ::deserialize( group , "ConstTerm" , v_ConstTerm );
  ::deserialize( group , "StartUpCost" , v_StartUpCost );
- ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
  ::deserialize( group , "InertiaCommitment" , v_inertia_commitment );
+
+ if( load_variables & 1 ) {
+  ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
+  ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
+ }
+
+ if( load_variables & 2 ) {
+  ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
+ }
 
  // Decompress vectors
  decompress_vector( v_MinPower );
