@@ -48,6 +48,10 @@ using v_coeff_pair = LinearFunction::v_coeff_pair;
 
 SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+int ThermalUnitBlock::f_ignore_netcdf_variables = 0;
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -180,12 +184,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  UnitBlock::deserialize( group );
 
- int load_variables = 3;
- if( f_BlockConfig )
-  if( auto config = dynamic_cast< SimpleConfiguration< int > * >
-      ( f_BlockConfig->f_extra_Configuration ) )
-   load_variables = config->f_value;
-
  // Mandatory variables
 
  ::deserialize( group , "MinPower" , v_MinPower , false );
@@ -220,12 +218,12 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "StartUpCost" , v_StartUpCost );
  ::deserialize( group , "InertiaCommitment" , v_inertia_commitment );
 
- if( load_variables & 1 ) {
+ if( ! ( f_ignore_netcdf_variables & 1 ) ) {
   ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
 
- if( load_variables & 2 ) {
+ if( ! ( f_ignore_netcdf_variables & 2 ) ) {
   ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
  }
 

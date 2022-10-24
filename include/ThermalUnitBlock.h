@@ -355,24 +355,7 @@ class ThermalUnitBlock : public UnitBlock {
  *   all t, regardless to what "NumberIntervals" says. Otherwise,
  *   InertiaCommitment[ i ] is the fixed value of IC[ t ] for all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0.
- *
- *
- * If the extra Configuration of the BlockConfig of this ThermalUnitBlock is a
- * non-null pointer to a SimpleConfiguration<int>, then the value, let us call
- * it Z, stored in that Configuration will determine if spinning reserves and
- * fixed consumption should loaded. This parameter is coded bit-wise. The
- * first bit is associated with the spinning reserves and the second one is
- * associated with the fixed consumption.
- *
- * - If the first bit of Z is 0, then the PrimaryRho and SecondaryRho netCDF
- *   variables are ignored when this ThermalUnitBlock is deserialized. If
- *   this bit is 1, then these variables are normally loaded if they are
- *   provided.
- *
- * - If the second bit of Z is 0, then the FixedConsumption netCDF variables
- *   are ignored when this ThermalUnitBlock is deserialized. If this bit is 1,
- *   then this variable is normally loaded if it is provided. */
+ *   assumption that ChangeIntervals[ - 1 ] = 0. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -743,6 +726,26 @@ class ThermalUnitBlock : public UnitBlock {
  *  set_secondary_spinning_reserve_cost() methods, respectively. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// define which netCDF variables must be ignored
+ /** This function allows to instruct a ThermalUnitBlock to ignore some of the
+  * netCDF variables when it is deserialized. The value of the parameter \p
+  * ignore_netcdf_variables is coded bit-wise. The first bit is associated
+  * with the spinning reserves and the second one is associated with the fixed
+  * consumption.
+  *
+  * - If the first bit is 1, then the PrimaryRho and SecondaryRho netCDF
+  *   variables are ignored when a ThermalUnitBlock is deserialized. If this
+  *   bit is 0, then these variables are normally loaded if they are provided.
+  *
+  * - If the second bit is 1, then the FixedConsumption netCDF variables are
+  *   ignored when a ThermalUnitBlock is deserialized. If this bit is 0, then
+  *   this variable is normally loaded if it is provided. */
+
+ static void set_ignore_netcdf_variables( int ignore_netcdf_variables ) {
+  f_ignore_netcdf_variables = ignore_netcdf_variables;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/
@@ -1202,6 +1205,21 @@ class ThermalUnitBlock : public UnitBlock {
   return( & ( v_inertia_commitment.front() ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the scale factor of this ThermalUnitBlock
+ double get_scale() const override { return f_scale; }
+
+/*--------------------------------------------------------------------------*/
+ /// returns an int describing which netCDF variables must be ignored
+ /** This function returns an int describing which netCDF variables must be
+  * ignored when a ThermalUnitBlock is deserialized. See
+  * set_ignore_netcdf_variables() for more details. */
+
+ static int get_ignore_netcdf_variables() {
+  return f_ignore_netcdf_variables;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
 /*--------------------------------------------------------------------------*/
@@ -1285,11 +1303,6 @@ class ThermalUnitBlock : public UnitBlock {
    return( nullptr );
   return( &( v_shut_down[ t - init_t ] ) );
   }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the scale factor of this ThermalUnitBlock
- double get_scale() const override { return f_scale; }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ThermalUnitBlock ---------------*/
@@ -1615,6 +1628,9 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// the scale factor of this ThermalUnitBlock
  double f_scale = 1;
+
+ /// this variable indicates which netCDF variables must be ignored
+ static int f_ignore_netcdf_variables;
 
 /*-----------------------------variables------------------------------------*/
  /// the start up binary variables
