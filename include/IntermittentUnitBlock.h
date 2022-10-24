@@ -252,6 +252,37 @@ class IntermittentUnitBlock : public UnitBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// setting the BlockConfig
+ /** This method sets the BlockConfig of this IntermittentUnitBlock. Besides
+  * the Configuration for the is_feasible() function, the
+  * IntermittentUnitBlock also considers the extra Configuration of the
+  * BlockConfig. If the extra Configuration is a non-null pointer to a
+  * SimpleConfiguration<double>, then the value, let us call it epsilon,
+  * stored in that Configuration will replace any zero value that may appear
+  * as maximum power at any time instant.
+  *
+  * For instance, if the maximum power provided during deserialization (see
+  * IntermittentUnitBlock::deserialize(netCDF::NcGroup)) is zero for some time
+  * instant t, then it will become epsilon for that time instant. Moreover, if
+  * any zero value is provided to set_maximum_power() for some time instant t,
+  * then the maximum power for time instant t will become epsilon.
+  *
+  * When epsilon > 0, this can be used to prevent the maximum power from being
+  * zero. Notice, however, that the actual maximum power may become zero even
+  * if epsilon > 0 if the kappa constant is zero (see set_kappa()).
+  *
+  * The reason behind this is that some Solver may not be able to handle
+  * modifications in the maximum power if it is initially zero and become
+  * nonzero after a modification. By setting epsilon > 0, this issue is
+  * avoided.
+  *
+  * Please see the comments to Block::set_BlockConfig() for more details about
+  * the BlockConfig. */
+
+ void set_BlockConfig( BlockConfig * newBC = nullptr ,
+                       bool deleteold = true ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for checking the IntermittentUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -470,9 +501,8 @@ class IntermittentUnitBlock : public UnitBlock
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * IntermittentGenerationUnitBlock. See
- * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details
- * of the format of the created netCDF group. */
+ * IntermittentUnitBlock. See IntermittentUnitBlock::deserialize(
+ * netCDF::NcGroup ) for details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -607,6 +637,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// the vector of MaxPower
  std::vector< double >  v_maximum_power;
 
+ /// the matrix of inertia power of generators
+ std::vector< double >  v_inertia_power;
+
  /// the gamma value
  double f_gamma = 1;
 
@@ -616,8 +649,8 @@ class IntermittentUnitBlock : public UnitBlock
  /// the scale factor of this IntermittentUnitBlock
  double f_scale = 1;
 
- /// the matrix of inertia power of generators
- std::vector< double >  v_inertia_power;
+ /// this is the value that will replace any zero value in maximum power
+ double f_max_power_epsilon = 0;
 
 /*-----------------------------variables------------------------------------*/
 

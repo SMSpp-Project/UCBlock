@@ -102,6 +102,11 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  decompress_vector( v_maximum_power );
  decompress_vector( v_inertia_power );
 
+ if( f_max_power_epsilon > 0 )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_maximum_power[ t ] == 0.0 )
+    v_maximum_power[ t ] = f_max_power_epsilon;
+
  check_data_consistency();
 
  } // end( IntermittentUnitBlock::deserialize )
@@ -290,6 +295,22 @@ void IntermittentUnitBlock::generate_abstract_constraints(
  set_constraints_generated();
 
 } // end( IntermittentUnitBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::set_BlockConfig( BlockConfig * newBC ,
+                                             bool deleteold )
+{
+ UnitBlock::set_BlockConfig( newBC , deleteold );
+
+ if( ! f_BlockConfig )
+  return;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< double > * >
+     ( f_BlockConfig->f_extra_Configuration ) )
+  f_max_power_epsilon = config->f_value;
+
+} // end( IntermittentUnitBlock::set_BlockConfig )
 
 /*--------------------------------------------------------------------------*/
 
@@ -490,6 +511,9 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    if( not_dry_run( issuePMod ) )
     // Change the physical representation
     v_maximum_power[ t ] = max_power;
+
+   if( ( f_max_power_epsilon > 0 ) && ( v_maximum_power[ t ] == 0.0 ) )
+    v_maximum_power[ t ] = f_max_power_epsilon;
   }
  }
  if( identical )
@@ -544,6 +568,11 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_maximum_power.begin() + rng.first );
+
+  if( f_max_power_epsilon > 0 )
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    if( v_maximum_power[ t ] == 0.0 )
+     v_maximum_power[ t ] = f_max_power_epsilon;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
