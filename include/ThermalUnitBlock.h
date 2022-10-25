@@ -728,23 +728,13 @@ class ThermalUnitBlock : public UnitBlock {
  void generate_objective( Configuration * objc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// define which netCDF variables must be ignored
- /** This function allows to instruct a ThermalUnitBlock to ignore some of the
-  * netCDF variables when it is deserialized. The value of the parameter \p
-  * ignore_netcdf_variables is coded bit-wise. The first bit is associated
-  * with the spinning reserves and the second one is associated with the fixed
-  * consumption.
-  *
-  * - If the first bit is 1, then the PrimaryRho and SecondaryRho netCDF
-  *   variables are ignored when a ThermalUnitBlock is deserialized. If this
-  *   bit is 0, then these variables are normally loaded if they are provided.
-  *
-  * - If the second bit is 1, then the FixedConsumption netCDF variables are
-  *   ignored when a ThermalUnitBlock is deserialized. If this bit is 0, then
-  *   this variable is normally loaded if it is provided. */
+ /// ignore reserve netCDF variables when a ThermalUnitBlock is deserialized
+ /** This function instructs the ThermalUnitBlock to ignore the reserve netCDF
+  * variables, namely "PrimaryRho" and "SecondaryRho", when it is
+  * deserialized. */
 
- static void set_ignore_netcdf_variables( int ignore_netcdf_variables ) {
-  f_ignore_netcdf_variables = ignore_netcdf_variables;
+ static void ignore_reserve() {
+  f_ignore_netcdf_variables |= 1;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1209,16 +1199,6 @@ class ThermalUnitBlock : public UnitBlock {
 
  /// returns the scale factor of this ThermalUnitBlock
  double get_scale() const override { return f_scale; }
-
-/*--------------------------------------------------------------------------*/
- /// returns an int describing which netCDF variables must be ignored
- /** This function returns an int describing which netCDF variables must be
-  * ignored when a ThermalUnitBlock is deserialized. See
-  * set_ignore_netcdf_variables() for more details. */
-
- static int get_ignore_netcdf_variables() {
-  return f_ignore_netcdf_variables;
- }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/

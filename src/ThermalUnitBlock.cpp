@@ -216,15 +216,12 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "QuadTerm" , v_QuadTerm );
  ::deserialize( group , "ConstTerm" , v_ConstTerm );
  ::deserialize( group , "StartUpCost" , v_StartUpCost );
+ ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
  ::deserialize( group , "InertiaCommitment" , v_inertia_commitment );
 
  if( ! ( f_ignore_netcdf_variables & 1 ) ) {
   ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
- }
-
- if( ! ( f_ignore_netcdf_variables & 2 ) ) {
-  ::deserialize( group , "FixedConsumption" , v_fixed_consumption );
  }
 
  // Decompress vectors
