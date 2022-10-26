@@ -386,16 +386,18 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
  add_static_variable( v_outtake_level , "OL_battery" );
 
 
- v_battery_binary.resize( f_time_horizon );
- for( auto & var : v_battery_binary ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
+ if( generate_binary_variables ) {
+  v_battery_binary.resize( f_time_horizon );
 
- if( generate_binary_variables )
+  for( auto & var : v_battery_binary ) {
+   if( relax_binary )
+    var.set_type( ColVariable::kPosUnitary );
+   else
+    var.set_type( ColVariable::kBinary );
+  }
+
   add_static_variable( v_battery_binary , "BB_battery" );
+ }
 
  // Active Power Variable
 
