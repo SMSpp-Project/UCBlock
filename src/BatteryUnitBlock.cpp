@@ -319,21 +319,54 @@ void BatteryUnitBlock::check_data_consistency() const {
 
 void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
- auto battery_type = get_battery_type();
-
  if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
 
- int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration<int> *>( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-   ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
+ // Check if negative prices may occur and if binary variables (if generated)
+ // must be relaxed.
+
+ bool negative_prices = false;
+ bool relax_binary = false;
+
+ auto extract_parameters = [ &negative_prices , &relax_binary ]
+  ( Configuration * c ) {
+  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( c ) ) {
+   negative_prices = config->f_value;
+   return( true );
+  }
+  if( auto config = dynamic_cast< SimpleConfiguration<
+      std::pair< int , int > > * >( c ) ) {
+   negative_prices = config->f_value.first;
+   relax_binary = config->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( stvv ) ) && f_BlockConfig )
+  extract_parameters( f_BlockConfig->f_static_variables_Configuration );
+
+ // Binary variables must be generated if negative prices may occur and if
+ // there is some t such that StoringBatteryRho[ t ] < 1 <
+ // ExtractingBatterRho[ t ].
+
+ bool generate_binary_variables = false;
+
+ if( negative_prices && ( ! v_storing_battery_rho.empty() ) &&
+     ( ! v_extracting_battery_rho.empty() ) ) {
+  assert( v_storing_battery_rho.size() == f_time_horizon );
+  assert( v_extracting_battery_rho.size() == f_time_horizon );
+  for( Index t = 0 ; t < v_storing_battery_rho.size() ; ++t ) {
+   if( v_storing_battery_rho[ t ] < 1 && v_extracting_battery_rho[ t ] > 1 ) {
+    generate_binary_variables = true;
+    break;
+   }
+  }
+ }
+
+ // Add the static variables
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
@@ -361,9 +394,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
    var.set_type( ColVariable::kBinary );
  }
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( generate_binary_variables )
   add_static_variable( v_battery_binary , "BB_battery" );
- }
 
  // Active Power Variable
 
@@ -403,7 +435,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
 
 void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- const auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
@@ -663,7 +694,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  // Initializing intake_binary_Constraints
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   intake_binary_Constraints.resize( f_time_horizon );
 
@@ -704,7 +735,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( outtake_binary_Constraints ,
                          "Outtake_Binary_Constraints_Battery" );
- } // end( if( battery_type == Binary_Variables_Constraints ) )
+ } // end( if( ! v_battery_binary.empty() ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -753,7 +784,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 /*-------------------------------ZOConstraint-------------------------------*/
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   if( generate_ZOConstraint ) {
    // the battery binary bound constraints
