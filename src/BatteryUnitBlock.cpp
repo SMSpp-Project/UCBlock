@@ -221,17 +221,6 @@ void BatteryUnitBlock::check_data_consistency() const {
   }
  }
 
- if( ( ! v_storing_battery_rho.empty() ) &&
-     ( ! v_extracting_battery_rho.empty() ) ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the ine"
-                             "fficiency of storing energy must not be greater "
-                             "than the inneficiency of extracting energy." ) );
-   }
-  }
- }
-
  // Delta ramp-up
 
  if( ! v_delta_ramp_up.empty() ) {
