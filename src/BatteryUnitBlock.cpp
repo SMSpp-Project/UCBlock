@@ -195,26 +195,15 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   }
  }
 
-// if( ! v_extracting_battery_rho.empty() ) {
-//  assert( v_extracting_battery_rho.size() == f_time_horizon );
-//  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-//   if( v_extracting_battery_rho[ t ] < 1 ) {
-//    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
-//                             " inefficiency of extracting energy for time "
-//                             "step " + std::to_string( t ) + ": " +
-//                             std::to_string( v_extracting_battery_rho[ t ] ) +
-//                             ". It must not be less than 1." ) );
-//   }
-//  }
-// }
-
- if( ( ! v_storing_battery_rho.empty() ) &&
-     ( ! v_extracting_battery_rho.empty() ) ) {
+ if( ! v_extracting_battery_rho.empty() ) {
+  assert( v_extracting_battery_rho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
-                             "inefficiency of storing energy must not be greater "
-                             "than the inefficiency of extracting energy." ) );
+   if( v_extracting_battery_rho[ t ] < 1 ) {
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+                             " inefficiency of extracting energy for time "
+                             "step " + std::to_string( t ) + ": " +
+                             std::to_string( v_extracting_battery_rho[ t ] ) +
+                             ". It must not be less than 1." ) );
    }
   }
  }
@@ -306,12 +295,53 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
 void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
- auto battery_type = get_battery_type();
-
  if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
+
+ // Check if negative prices may occur and if binary variables (if generated)
+ // must be relaxed.
+
+ bool negative_prices = false;
+ bool relax_binary = false;
+
+ auto extract_parameters = [ &negative_prices , &relax_binary ]
+  ( Configuration * c ) {
+  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( c ) ) {
+   negative_prices = config->f_value;
+   return( true );
+  }
+  if( auto config = dynamic_cast< SimpleConfiguration< std::pair< int , int > > * >( c ) ) {
+   negative_prices = config->f_value.first;
+   relax_binary = config->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( stvv ) ) && f_BlockConfig )
+  extract_parameters( f_BlockConfig->f_static_variables_Configuration );
+
+ // Binary variables must be generated if negative prices may occur and if
+ // there is some t such that StoringBatteryRho[ t ] < 1 <
+ // ExtractingBatterRho[ t ].
+
+ bool generate_binary_variables = false;
+
+ if( negative_prices && ( ! v_storing_battery_rho.empty() ) &&
+     ( ! v_extracting_battery_rho.empty() ) ) {
+  assert( v_storing_battery_rho.size() == f_time_horizon );
+  assert( v_extracting_battery_rho.size() == f_time_horizon );
+  for( Index t = 0 ; t < v_storing_battery_rho.size() ; ++t ) {
+   if( v_storing_battery_rho[ t ] < 1 && v_extracting_battery_rho[ t ] > 1 ) {
+    generate_binary_variables = true;
+    break;
+   }
+  }
+ }
+
+ // Add the static variables
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
@@ -328,24 +358,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_outtake_level , "OL_battery" );
 
- int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
-
- v_battery_binary.resize( f_time_horizon );
- for( auto & var : v_battery_binary ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
- if( battery_type == Binary_Variables_Constraints )
+ if( generate_binary_variables ) {
+  v_battery_binary.resize( f_time_horizon );
+  for( auto & var : v_battery_binary ) {
+   if( relax_binary )
+    var.set_type( ColVariable::kPosUnitary );
+   else
+    var.set_type( ColVariable::kBinary );
+  }
   add_static_variable( v_battery_binary , "BB_battery" );
+ }
 
  // Battery Design Variable
  if( f_batt_investment_cost != 0 ) {
@@ -399,8 +421,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
- const auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
@@ -702,7 +722,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing intake_binary_Const
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   intake_binary_Const.resize( f_time_horizon );
 
@@ -742,8 +762,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( outtake_binary_Const ,
-                         "Outtake_Binary_Battery" );
- }
+                         "Outtake_Binary_Const_Battery" );
+ } // end( if( ! v_battery_binary.empty() ) )
 
  // Initializing primary_upper_bound_Const
 
@@ -791,7 +811,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*------------------------------ ZOConstraint ------------------------------*/
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   if( generate_ZOConstraint ) {
 
