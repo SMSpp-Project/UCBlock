@@ -390,7 +390,6 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- // IntermittentUnitBlock part of the NPV function, i.e., Net Present Value
  if( f_investment_cost != 0 )
   vars.push_back( std::make_pair( &v_design , f_investment_cost ) );
 

@@ -83,7 +83,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                                                      "SellPrice" ,
                                                      "MaxTariff" ,
                                                      "RewardPrice" ,
-                                                     "IntermittentProduction" ,
+                                                     "MaxInjection" ,
                                                      "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -98,18 +98,21 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                                 "a community network with just one user" ) );
 
  ::deserialize( group , "BuyPrice" , f_number_intervals ,
-                v_buy_price , false );
+                v_buy_price , false , true );
+ if( v_buy_price.size() == 1 )
+  v_buy_price.resize( f_number_intervals , v_buy_price[ 0 ] );
 
  ::deserialize( group , "SellPrice" , f_number_intervals ,
-                v_sell_price , false );
+                v_sell_price , false , true );
+ if( v_sell_price.size() == 1 )
+  v_sell_price.resize( f_number_intervals , v_sell_price[ 0 ] );
 
  ::deserialize( group , "RewardPrice" , f_number_intervals ,
-                v_reward_price , false );
+                v_reward_price , false , true );
+ if( v_reward_price.size() == 1 )
+  v_reward_price.resize( f_number_intervals , v_reward_price[ 0 ] );
 
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
-
- ::deserialize( group , "IntermittentProduction" , f_number_intervals ,
-                v_intermittent_prod , false );
 
  // Optional variables
 
@@ -120,6 +123,10 @@ void ECNetworkBlock::ECNetworkData::deserialize(
 
  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , true ,
                 true );
+
+ // it is mandatory if we use a Solver that optimize each Block at a time to
+ // lower bound the node injection
+ ::deserialize( group , "MaxInjection" , v_max_injection , true );
 }  // end( ECNetworkBlock::ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -136,7 +143,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "SellPrice" ,
                                                      "MaxTariff" ,
                                                      "RewardPrice" ,
-                                                     "IntermittentProduction" ,
+                                                     "MaxInjection" ,
                                                      "ConstTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -169,7 +176,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   // still have been provided.
   ::deserialize( group , "ActiveDemand" , v_active_demand );
  }
-
 }  // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -442,16 +448,18 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // node injection upper bound constraints
 
- node_injection_upper_const.resize( number_intervals );
+ node_injection_upper_const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ number_nodes ][ number_intervals ] );
 
  for( Index t = 0 ; t < number_intervals ; ++t ) {
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   node_injection_upper_const[ t ].set_lhs( -Inf< double >() );
-   node_injection_upper_const[ t ].set_rhs(
-    f_NetworkData->get_intermittent_prod()[ t ] );
-   node_injection_upper_const[ t ].set_variable(
+   node_injection_upper_const[ node_id ][ t ].set_lhs( -Inf< double >() );
+   node_injection_upper_const[ node_id ][ t ].set_rhs(
+    f_NetworkData->get_max_injection( t )[ node_id ] );
+   node_injection_upper_const[ node_id ][ t ].set_variable(
     &v_node_injection[ t ][ node_id ] );
   }
  }
@@ -497,7 +505,6 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- // ECNetworkBlock part of the NPV function, i.e., Net Present Value.
  for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
 
   for( Index t = 0 ; t < get_number_intervals() ; ++t ) {

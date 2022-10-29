@@ -183,8 +183,8 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
   /// returns the vector of sell prices
-  /** Method for returning the tariff that the user gains to sell electricity to
-   * the public market. */
+  /** Returns the tariff that the user gains to sell electricity to the
+   * public market. */
 
   const std::vector< double > & get_sell_price( void ) const {
    return( v_sell_price );
@@ -192,9 +192,9 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
   /// returns the vector of reward prices
-  /** Method for returning the tariff that the user gains when it absorbs power
-   * from the microgrid market / network (instead of from the public grid) at
-   * each time horizon. */
+  /** Returns the tariff that the user gains when it absorbs power from the
+   * microgrid market / network (instead of from the public grid) at each
+   * time horizon. */
 
   const std::vector< double > & get_reward_price( void ) const {
    return( v_reward_price );
@@ -202,8 +202,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
   /// returns the vector of buy prices
-  /** Method for returning the tariff that the user pays to buy electricity at
-   * each time horizon from the public market. */
+  /** Returns the tariff that the user pays to buy electricity at each time
+   * horizon from the public market. */
 
   const std::vector< double > & get_buy_price( void ) const {
    return( v_buy_price );
@@ -211,19 +211,25 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
   /// returns the maximum tariff
-  /** Method for returning the tariff that the user pays due to the peak power.
-   * */
+  /** Returns the tariff that the user pays due to the peak power. */
 
   const double & get_max_tariff( void ) const {
    return( f_max_tariff );
   }
 
 /*--------------------------------------------------------------------------*/
-  /// returns the maximum production of the renewable assets
-  /** Method for returning the maximum production of the renewable assets. */
+  /// returns the matrix of maximum production of the renewable assets
+  /** Returns the maximum production of the renewable assets for the given
+   * interval, which is assumed to have size get_number_intervals() per
+   * get_number_nodes().
+   *
+   * @param i The interval wrt the vector of demands for each user is
+   *          returned. */
 
-  const std::vector< double > & get_intermittent_prod( void ) const {
-   return( v_intermittent_prod );
+  const double * get_max_injection( Index i = 0 ) const {
+   if( v_max_injection.empty() )
+    return( nullptr );
+   return( &( v_max_injection.data()[ i * get_number_nodes() ] ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -270,9 +276,8 @@ class ECNetworkBlock : public NetworkBlock
   /// market / network (instead of from the public grid) at each time horizon
   std::vector< double > v_reward_price; // /pi^{R}
 
-  /// maximum production of the renewable assets used to constrain the node
-  /// injection
-  std::vector< double > v_intermittent_prod;
+  /// maximum production of the renewable assets
+  boost::multi_array< double , 2 > v_max_injection;
 
   /// tariff that the user pays due to the peak power
   double f_max_tariff;
@@ -444,8 +449,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of active demands
- /** Method for returning the active demand for the given interval, which is
-  * assumed to have size get_number_intervals() per get_number_nodes().
+ /** Returns the active demand for the given interval, which is assumed to
+  * have size get_number_intervals() per get_number_nodes().
   *
   * @param i The interval wrt the vector of demands for each user is
   *          returned. */
@@ -463,8 +468,8 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
  /// returns the vector of micro power injection variables
- /** Method for returning vector of micro power injection variables, which is
-  * assumed to have size get_number_nodes(). */
+ /** Returns vector of micro power injection variables, which is assumed to
+  * have size get_number_nodes(). */
 
  ColVariable * get_micro_power_injection( Index t = 0 ) {
   if( v_micro_power_injection.empty() )
@@ -474,8 +479,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of micro power absorption variables
- /** Method for returning vector of micro public power absorption variables,
-  * which is assumed to have size get_number_nodes(). */
+ /** Returns the vector of micro public power absorption variables, which is
+  * assumed to have size get_number_nodes(). */
 
  ColVariable * get_micro_power_absorption( Index t = 0 ) {
   if( v_micro_power_absorption.empty() )
@@ -485,8 +490,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of public power injection variables
- /** Method for returning vector of public power injection variables, which is
-  * assumed to have size get_number_nodes(). */
+ /** Returns the vector of public power injection variables, which is assumed
+  * to have size get_number_nodes(). */
 
  ColVariable * get_public_power_injection( Index t = 0 ) {
   if( v_public_power_injection.empty() )
@@ -496,8 +501,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of public power absorption variables
- /** Method for returning vector of public power absorbed variables, which is
-  * assumed to have size get_number_nodes(). */
+ /** Returns the vector of public power absorbed variables, which is assumed
+  * to have size get_number_nodes(). */
 
  ColVariable * get_public_power_absorption( Index t = 0 ) {
   if( v_public_power_absorption.empty() )
@@ -507,8 +512,8 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of node injection variables
- /** Method for returning the node injection for the given interval, which is
-  * assumed to have size get_number_intervals() per get_number_nodes().
+ /** Returning the node injection for the given interval, which is assumed to
+  * have size get_number_intervals() per get_number_nodes().
   *
   * @param t The interval wrt the vector of node injections for each user is
   *          returned. */
@@ -714,7 +719,7 @@ class ECNetworkBlock : public NetworkBlock
 
 
  /// the node injection upper bound constraints
- std::vector< BoxConstraint > node_injection_upper_const;
+ boost::multi_array< BoxConstraint , 2 > node_injection_upper_const;
 
 
  /// the objective function

@@ -833,8 +833,6 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
  }
 
- // BatteryUnitBlock parts of the NPV function, i.e., Net Present Value
-
  if( f_batt_investment_cost != 0 )
   linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
 

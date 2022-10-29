@@ -1205,7 +1205,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
        f_scale * v_secondary_spinning_reserve_cost[ t ] , 0.0 );
  }
 
- // ThermalUnitBlock part of the NPV function, i.e., Net Present Value
  if( f_investment_cost != 0 )
   dquad_function->add_variable( &v_design , f_investment_cost , 0.0 );
 
