@@ -1071,13 +1071,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the converter design binary variable, or nullptr if not defined
-
- ColVariable * get_conv_design( void ) {
-  return( &v_conv_design );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the intake/outtake binary variables
  /** This method returns the intake/outtake binary variables.
   *
@@ -1370,9 +1363,6 @@ public:
 
  /// the battery design binary variable
  ColVariable v_batt_design;
-
- /// the converter design binary variable
- ColVariable v_conv_design;
 
 /*------------------------------- constraints ------------------------------*/
 

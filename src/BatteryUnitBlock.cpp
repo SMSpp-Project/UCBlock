@@ -378,15 +378,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   add_static_variable( v_batt_design , "D_battery" );
  }
 
- // Converter Design Variable
- if( f_conv_investment_cost != 0 ) {
-  if( relax_binary )
-   v_conv_design.set_type( ColVariable::kPosUnitary );
-  else
-   v_conv_design.set_type( ColVariable::kBinary );
-  add_static_variable( v_conv_design , "D_converter" );
- }
-
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
@@ -857,7 +848,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
   linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
 
  if( f_conv_investment_cost != 0 )
-  linear_function->add_variable( &v_conv_design , f_conv_investment_cost );
+  linear_function->add_variable( &v_batt_design , f_conv_investment_cost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );

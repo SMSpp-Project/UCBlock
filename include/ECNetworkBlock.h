@@ -511,6 +511,20 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of maximum powers
+ /** The returned std::vector< ColVariable >, say V, contains the maximum
+  * powers of the corresponding peak power period and is indexed over the
+  * dimension f_number_nodes. There are two possible cases:
+  *
+  * - if V is empty(), then this variable is not defined;
+  *
+  * - otherwise, V must have f_number_nodes rows and V[ u ] is the
+  * maximum peak power for user u. */
+ const std::vector< ColVariable > & get_max_power( void ) const {
+  return( v_max_power );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the matrix of node injection variables
  /** Returning the node injection for the given interval, which is assumed to
   * have size get_number_intervals() per get_number_nodes().
