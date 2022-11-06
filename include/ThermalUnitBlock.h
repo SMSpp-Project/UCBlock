@@ -1254,8 +1254,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the design binary variable, or nullptr if not defined
 
- ColVariable * get_design( void ) {
-  return( &v_design );
+ ColVariable & get_design( void ) {
+  return( v_design );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -372,10 +372,10 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // Battery Design Variable
  if( f_batt_investment_cost != 0 ) {
   if( relax_binary )
-   v_batt_design.set_type( ColVariable::kPosUnitary );
+   v_design.set_type( ColVariable::kPosUnitary );
   else
-   v_batt_design.set_type( ColVariable::kBinary );
-  add_static_variable( v_batt_design , "D_battery" );
+   v_design.set_type( ColVariable::kBinary );
+  add_static_variable( v_design , "D_battery" );
  }
 
  // Active Power Variable
@@ -506,7 +506,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    LinearFunction::v_coeff_pair lower_vars;
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   lower_vars.push_back( std::make_pair( &v_batt_design ,
+   lower_vars.push_back( std::make_pair( &v_design ,
                                          -f_kappa * v_minimum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 0 ].set_lhs( 0.0 );
@@ -522,7 +522,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    LinearFunction::v_coeff_pair upper_vars;
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   upper_vars.push_back( std::make_pair( &v_batt_design ,
+   upper_vars.push_back( std::make_pair( &v_design ,
                                          -f_kappa * v_maximum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 1 ].set_lhs( -Inf< double >() );
@@ -845,10 +845,10 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
  }
 
  if( f_batt_investment_cost != 0 )
-  linear_function->add_variable( &v_batt_design , f_batt_investment_cost );
+  linear_function->add_variable( &v_design , f_batt_investment_cost );
 
  if( f_conv_investment_cost != 0 )
-  linear_function->add_variable( &v_batt_design , f_conv_investment_cost );
+  linear_function->add_variable( &v_design , f_conv_investment_cost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );

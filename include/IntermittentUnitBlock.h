@@ -436,14 +436,36 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the design binary variable, or nullptr if not defined
 
- ColVariable * get_design( void ) {
-  return( &v_design );
+ ColVariable & get_design( void ) {
+  return( v_design );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this IntermittentUnitBlock
 
  double get_scale( void ) const override { return( f_scale ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum total power constraints
+
+ const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
+  return( MinPower_Const );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum total power constraints
+
+ const std::vector< FRowConstraint > & get_max_power_constraints( void ) const {
+  return( MaxPower_Const );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bound constraints on the active power
+
+ const std::vector< BoxConstraint > &
+ get_active_power_bound_constraints( void ) const {
+  return( active_power_bounds_Const );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/

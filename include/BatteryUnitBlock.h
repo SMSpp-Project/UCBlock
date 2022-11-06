@@ -628,7 +628,7 @@ public:
  double get_initial_power( void ) const { return( f_initial_power ); }
 
  /// returns the battery investment cost, i.e., the capital expenditure cost
- double get_batt_investment_cost( void ) const {
+ double get_investment_cost( void ) const {
   return( f_batt_investment_cost );
  }
 
@@ -1023,20 +1023,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of battery binary variables
- /** This method returns a vector V containing the battery binary variables.
-  * There are two possible cases:
-  *
-  * - if V is empty(), then these variables are not defined;
-  *
-  * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
-  *   battery binary variable for time step t. */
-
- const std::vector< ColVariable > & get_battery_binary( void ) const {
-  return( v_battery_binary );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
 
  ColVariable * get_active_power( Index generator ) override {
@@ -1064,10 +1050,10 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the battery design binary variable, or nullptr if not defined
+ /// returns the design binary variable, or nullptr if not defined
 
- ColVariable * get_battery_design( void ) {
-  return( &v_batt_design );
+ ColVariable & get_design( void ) {
+  return( v_design );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1362,7 +1348,7 @@ public:
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
  /// the battery design binary variable
- ColVariable v_batt_design;
+ ColVariable v_design;
 
 /*------------------------------- constraints ------------------------------*/
 
