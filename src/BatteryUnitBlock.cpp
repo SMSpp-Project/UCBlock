@@ -90,7 +90,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
     "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
     "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
-    "Demand" , "Kappa" , "BatteryInvestmentCost" , "ConverterInvestmentCost" };
+    "Demand" , "Kappa" , "InvestmentCost" };
  check_variables( group, expected_vars, std::cerr );
 #endif
 
@@ -125,8 +125,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "Cost" , v_cost ) )
   v_cost.resize( 1 , 0 );
 
- ::deserialize( group , f_batt_investment_cost , "BatteryInvestmentCost" );
- ::deserialize( group , f_conv_investment_cost , "ConverterInvestmentCost" );
+ ::deserialize( group , f_investment_cost , "InvestmentCost" );
 
  // Decompress vectors
 
@@ -370,7 +369,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  // Battery Design Variable
- if( f_batt_investment_cost != 0 ) {
+ if( f_investment_cost != 0 ) {
   if( relax_binary )
    v_design.set_type( ColVariable::kPosUnitary );
   else
@@ -490,7 +489,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Active power bound design constraints
 
- if( f_batt_investment_cost != 0 ) {
+ if( f_investment_cost != 0 ) {
 
   active_power_bounds_design_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
@@ -844,11 +843,8 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
                                  f_scale * v_cost[ t ] , eDryRun );
  }
 
- if( f_batt_investment_cost != 0 )
-  linear_function->add_variable( &v_design , f_batt_investment_cost );
-
- if( f_conv_investment_cost != 0 )
-  linear_function->add_variable( &v_design , f_conv_investment_cost );
+ if( f_investment_cost != 0 )
+  linear_function->add_variable( &v_design , f_investment_cost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );

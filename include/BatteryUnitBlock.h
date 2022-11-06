@@ -627,14 +627,9 @@ public:
  /// returns the initial power value
  double get_initial_power( void ) const { return( f_initial_power ); }
 
- /// returns the battery investment cost, i.e., the capital expenditure cost
+ /// returns the investment cost, i.e., the capital expenditure cost
  double get_investment_cost( void ) const {
-  return( f_batt_investment_cost );
- }
-
- /// returns the converter investment cost, i.e., the capital expenditure cost
- double get_converter_investment_cost( void ) const {
-  return( f_conv_investment_cost );
+  return( f_investment_cost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1318,11 +1313,8 @@ public:
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
- /// the battery investment cost, i.e., the capital expenditure cost
- double f_batt_investment_cost{};
-
- /// the converter investment cost, i.e., the capital expenditure cost
- double f_conv_investment_cost{};
+ /// the investment cost, i.e., the capital expenditure cost
+ double f_investment_cost{};
 
 /*-------------------------------- variables -------------------------------*/
 
