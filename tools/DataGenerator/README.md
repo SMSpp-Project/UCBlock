@@ -45,7 +45,6 @@ This section is not ready yet.
 ### Current Lead Authors
 
 - **Wim van Ackooij**  
-  *Operations Research Group*  
    Expert Researcher at EDF R&D
   
 

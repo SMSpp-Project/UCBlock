@@ -27,8 +27,6 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                             Implementation by:                             #
-#                                                                            #
 #                             Antonio Frangioni                              #
 #                        Dipartimento di Informatica                         #
 #                            Universita' di Pisa                             #

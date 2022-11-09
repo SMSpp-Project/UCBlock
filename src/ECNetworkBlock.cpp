@@ -334,13 +334,13 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
                                       1.0 ) );
-    vars_p.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id] ,
+    vars_p.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
                                       -1.0 ) );
 
     // case (2)
     vars_n.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
                                       -1.0 ) );
-    vars_n.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id] ,
+    vars_n.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
                                       1.0 ) );
    }
 
