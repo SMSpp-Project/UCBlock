@@ -822,6 +822,49 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
+bool BatteryUnitBlock::is_feasible( bool useabstract ,
+                                    Configuration * fsbc ) {
+ // Retrieve the tolerance.
+
+ auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+
+ if( ( ! config ) && f_BlockConfig )
+  config = dynamic_cast< SimpleConfiguration< double > * >
+  ( f_BlockConfig->f_is_feasible_Configuration );
+
+ // If a tolerance has not been provided, use the default tolerance.
+ const auto tol = config ? config->f_value : 1.0e-8;
+
+ return (
+  UnitBlock::is_feasible( useabstract )
+  // Constraints
+  && Constraint::is_feasible( active_power_bounds_Const , tol )
+  && Constraint::is_feasible( active_power_bounds_design_Const , tol )
+  && Constraint::is_feasible( ramp_up_Const , tol )
+  && Constraint::is_feasible( ramp_down_Const , tol )
+  && Constraint::is_feasible( power_intake_outtake_Const , tol )
+  && Constraint::is_feasible( storage_intake_outtake_Const , tol )
+  && Constraint::is_feasible( intake_binary_Const , tol )
+  && Constraint::is_feasible( outtake_binary_Const , tol )
+  && Constraint::is_feasible( demand_Const , tol )
+  && Constraint::is_feasible( storage_level_bounds_Const , tol )
+  && Constraint::is_feasible( intake_upper_bound_Const , tol )
+  && Constraint::is_feasible( outtake_upper_bound_Const , tol )
+  && Constraint::is_feasible( primary_upper_bound_Const , tol )
+  && Constraint::is_feasible( secondary_upper_bound_Const , tol )
+  // Variables
+  && ColVariable::is_feasible( v_storage_level , tol )
+  && ColVariable::is_feasible( v_intake_level , tol )
+  && ColVariable::is_feasible( v_outtake_level , tol )
+  && ColVariable::is_feasible( v_battery_binary , tol )
+  && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
+
+}  // end( BatteryUnitBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
+
 void BatteryUnitBlock::generate_objective( Configuration *objc ) {
 
  if( objective_generated() )
