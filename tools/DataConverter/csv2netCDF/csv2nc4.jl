@@ -290,8 +290,8 @@ function csvEC2nc4()
                                                     (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                            field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                   (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                  for y in append!([0], year_set)) +
-                                              sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
+                                                  for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity")) +
+                                             (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
                                                   (field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
                                                    ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
                                                     field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
@@ -300,7 +300,7 @@ function csvEC2nc4()
                                                     (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
                                                            field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
                                                   (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                  for y in append!([0], year_set))) * field_component(users_data[u], g_conv, "max_capacity")
+                                                  for y in append!([0], year_set)) * field_component(users_data[u], g_conv, "max_capacity"))
 
             end
 
