@@ -212,21 +212,6 @@ class ECNetworkBlock : public NetworkBlock
    return( f_max_tariff );
   }
 
-/*--------------------------------------------------------------------------*/
-  /// returns the matrix of maximum production of the renewable assets
-  /** Returns the maximum production of the renewable assets for the given
-   * interval, which is assumed to have size get_number_intervals() per
-   * get_number_nodes().
-   *
-   * @param i The interval wrt the vector of demands for each user is
-   *          returned. */
-
-  const double * get_max_injection( Index i = 0 ) const {
-   if( v_max_injection.empty() )
-    return( nullptr );
-   return( &( v_max_injection.data()[ i * get_number_nodes() ] ) );
-  }
-
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ECNetworkData ------------------*/
 /*--------------------------------------------------------------------------*/
@@ -270,9 +255,6 @@ class ECNetworkBlock : public NetworkBlock
   /// tariff that the user gains when it absorbs power from the microgrid
   /// market / network (instead of from the public grid) at each time horizon
   std::vector< double > v_reward_price; // /pi^{R}
-
-  /// maximum production of the renewable assets
-  boost::multi_array< double , 2 > v_max_injection;
 
   /// tariff that the user pays due to the peak power
   double f_max_tariff;
@@ -454,6 +436,21 @@ class ECNetworkBlock : public NetworkBlock
   if( v_active_demand.empty() )
    return( nullptr );
   return( &( v_active_demand.data()[ i * get_number_nodes() ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the matrix of maximum production of the renewable assets
+ /** Returns the maximum production of the renewable assets for the given
+  * interval, which is assumed to have size get_number_intervals() per
+  * get_number_nodes().
+  *
+  * @param i The interval wrt the vector of demands for each user is
+  *          returned. */
+
+ const double * get_max_injection( Index i = 0 ) const {
+  if( v_max_injection.empty() )
+   return( nullptr );
+  return( &( v_max_injection.data()[ i * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -693,6 +690,9 @@ class ECNetworkBlock : public NetworkBlock
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_active_demand;
+
+ /// maximum production of the renewable assets
+ boost::multi_array< double , 2 > v_max_injection;
 
  /// the constant term
  double f_const_term{};
