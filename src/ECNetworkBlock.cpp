@@ -15,6 +15,8 @@
  * \copyright &copy by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
+/*---------------------------- IMPLEMENTATION ------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -230,7 +232,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   auto NumberIntervals = group.getDim( "NumberIntervals" );
 
-  // Finally, serialize the active demand.
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_active_demand );
  }
@@ -329,10 +330,12 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    LinearFunction::v_coeff_pair vars_p;
    LinearFunction::v_coeff_pair vars_n;
 
-   // P^{max} vars also depends from P^{M+} and P^{M-}
-   // vars as specified in the paper
-   if( true ) { // TODO default_config
-
+   // P^{max} vars also depends from P^{M+} and P^{M-}, i.e., the injection
+   // and absorption from the microgrid, to give an economic benefit to users
+   // that do not contribute to the community by sharing energy since they
+   // are unable to install assets due to economic or space reasons;
+   // and on which, otherwise, all the costs of the peak powers would be borne
+   {
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
                                       1.0 ) );

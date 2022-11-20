@@ -99,7 +99,7 @@ function csvEC2nc4()
         ## it transposed, i.e., NumberNodes x NumberIntervals.
         power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
         power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
-                                for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
+                              for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
         buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
@@ -121,11 +121,11 @@ function csvEC2nc4()
         max_injection = defVar(ecnb, "MaxInjection", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
         # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
         max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
-                                            profile_component(users_data[u], r, "ren_pu")[t]
-                                            for r in asset_names(users_data[u], REN)], init=0.0) +
-                                reduce(+, [field_component(users_data[u], b, "max_capacity")
-                                            for b in asset_names(users_data[u], BATT)], init=0.0)
-                                for u in user_set, t in last_t:last_i]
+                                          profile_component(users_data[u], r, "ren_pu")[t]
+                                          for r in asset_names(users_data[u], REN)], init=0.0) +
+                               reduce(+, [field_component(users_data[u], b, "max_capacity")
+                                          for b in asset_names(users_data[u], BATT)], init=0.0)
+                               for u in user_set, t in last_t:last_i]
 
         last_t += n_intervals
 
