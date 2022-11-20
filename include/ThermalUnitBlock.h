@@ -806,9 +806,6 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the minimum allowed down time value
  Index get_min_down_time( void ) const { return( f_MinDownTime ); }
 
- /// returns the investment cost, i.e., the capital expenditure cost
- double get_investment_cost( void ) const { return( f_investment_cost ); }
-
 /*--------------------------------------------------------------------------*/
  /// returns the vector of nominal minimum active power output
  /** This method returns (a const reference to) the vector containing the
@@ -1252,14 +1249,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the design binary variable, or nullptr if not defined
-
- ColVariable & get_design( void ) {
-  return( v_design );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the scale factor of this ThermalUnitBlock
+ /// returns the scale factor
  double get_scale( void ) const override { return( f_scale ); }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1486,8 +1476,8 @@ class ThermalUnitBlock : public UnitBlock
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this ThermalUnitBlock
- /** This method sets the scale factor of this ThermalUnitBlock.
+ /// sets the scale factor
+ /** This method sets the scale factor.
   *
   * @param values An iterator to a vector containing the scale factor.
   *
@@ -1637,11 +1627,8 @@ class ThermalUnitBlock : public UnitBlock
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
- /// the scale factor of this ThermalUnitBlock
+ /// the scale factor
  double f_scale = 1;
-
- /// the investment cost, i.e., the capital expenditure cost
- double f_investment_cost{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1662,9 +1649,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
-
- /// the design binary variable
- ColVariable v_design;
 
 /*------------------------------- constraints ------------------------------*/
 

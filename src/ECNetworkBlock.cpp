@@ -152,6 +152,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
+ ::deserialize( group , f_const_term , "ConstTerm" );
+
  Index NumberNodes;
  Index NumberIntervals;
  if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) &&
@@ -446,26 +448,26 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( power_balance_const ,
                         "power_balance_const" );
 
- // node injection upper bound constraints
-
- node_injection_upper_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
-
- for( Index t = 0 ; t < number_intervals ; ++t ) {
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   node_injection_upper_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-   node_injection_upper_const[ node_id ][ t ].set_rhs(
-    f_NetworkData->get_max_injection( t )[ node_id ] );
-   node_injection_upper_const[ node_id ][ t ].set_variable(
-    &v_node_injection[ t ][ node_id ] );
-  }
- }
-
- add_static_constraint( node_injection_upper_const ,
-                        "node_injection_upper_const" );
+// // node injection upper bound constraints
+//
+// node_injection_upper_const.resize(
+//  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+//  [ number_nodes ][ number_intervals ] );
+//
+// for( Index t = 0 ; t < number_intervals ; ++t ) {
+//
+//  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+//
+//   node_injection_upper_const[ node_id ][ t ].set_lhs( -Inf< double >() );
+//   node_injection_upper_const[ node_id ][ t ].set_rhs(
+//    f_NetworkData->get_max_injection( t )[ node_id ] );
+//   node_injection_upper_const[ node_id ][ t ].set_variable(
+//    &v_node_injection[ t ][ node_id ] );
+//  }
+// }
+//
+// add_static_constraint( node_injection_upper_const ,
+//                        "node_injection_upper_const" );
 
  set_constraints_generated();
 }  // end( ECNetworkBlock::generate_abstract_constraints )
@@ -529,7 +531,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
  auto lf = new LinearFunction( std::move( vars ) );
 
- lf->set_constant_term( f_NetworkData->get_const_term() );
+ lf->set_constant_term( f_const_term );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );

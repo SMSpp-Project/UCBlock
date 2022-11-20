@@ -4,14 +4,9 @@
 /** @file
  *
  * Header file for the class ECNetworkBlock, which derives from NetworkBlock
- * and define the basic interface for the constraints/optimization problems
- * which describe the behaviour of the community network in a specific time
- * instant or in a time interval, in the Unit Commitment (UC) problem, as
- * represented in UCBlock.
+ * and describe the behaviour of the energy community network in a specific time
+ * instant or in a time interval, in the Unit Commitment problem.
  *
- * Each user of the community network is connected to the public grid through
- * each own Point-of-Delivery (PoD), and each user is billed for the energy he
- * consumes and sells.
  * Each instance of this class refers to a specific time period or to a time
  * interval, e.g., a peak period, in the whole time horizon, i.e.,
  * \f$ \mathcal{w} \in \mathcal{W} \f$, so it can span an arbitrary
@@ -461,6 +456,13 @@ class ECNetworkBlock : public NetworkBlock
   return( &( v_active_demand.data()[ i * get_number_nodes() ] ) );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the constant term
+
+ const double & get_const_term( void ) const {
+  return( f_const_term );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -691,6 +693,9 @@ class ECNetworkBlock : public NetworkBlock
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_active_demand;
+
+ /// the constant term
+ double f_const_term{};
 
 /*-------------------------------- variables -------------------------------*/
 

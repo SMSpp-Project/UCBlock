@@ -84,14 +84,14 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 #ifndef NDEBUG
  std::vector< std::string > expected_dims =
   { "TimeHorizon" , "NumberIntervals" };
- check_dimensions( group, expected_dims, std::cerr );
+ check_dimensions( group , expected_dims , std::cerr );
 
  std::vector< std::string > expected_vars =
   { "MinStorage" , "MaxStorage" , "MinPower" , "MaxPower" , "InitialPower" ,
     "MaxPrimaryPower" , "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
     "StoringBatteryRho" , "ExtractingBatteryRho" , "InitialStorage" , "Cost" ,
-    "Demand" , "Kappa" , "InvestmentCost" };
- check_variables( group, expected_vars, std::cerr );
+    "Demand" , "Kappa" , "MaxCapacity" , "InvestmentCost" };
+ check_variables( group , expected_vars , std::cerr );
 #endif
 
  // Deserialize data from the base class
@@ -127,6 +127,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , f_investment_cost , "InvestmentCost" );
 
+ ::deserialize( group , f_max_capacity , "MaxCapacity" );
+
  // Decompress vectors
 
  decompress_vector( v_minimum_power );
@@ -156,13 +158,12 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  assert( v_maximum_power.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
+  if( v_minimum_power[ t ] > v_maximum_power[ t ] )
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
                             "power for time " + std::to_string( t ) + " is " +
                             std::to_string( v_minimum_power[ t ] ) + ", which "
                             "greater than the maximum power, which is " +
                             std::to_string( v_maximum_power[ t ] ) + "." ) );
-  }
  }
 
  // Minimum and maximum storage levels
@@ -170,41 +171,35 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  assert( v_minimum_storage.size() == f_time_horizon );
  assert( v_maximum_storage.size() == f_time_horizon );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( ( v_minimum_storage[ t ] > v_maximum_storage[ t ] ) ||
-      ( v_minimum_storage[ t ] < 0 ) ) {
+      ( v_minimum_storage[ t ] < 0 ) )
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: maximum "
                             "and minimum storage levels must be such that "
                             "maximum_storage >= minimum_storage >= 0." ) );
-  }
- }
 
  // Inefficiency of storing and extracting energy
 
  if( ! v_storing_battery_rho.empty() ) {
   assert( v_storing_battery_rho.size() == f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_storing_battery_rho[ t ] > 1 ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_storing_battery_rho[ t ] > 1 )
     throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
                              " inefficiency of storing energy for time step " +
                              std::to_string( t ) + ": " +
                              std::to_string( v_storing_battery_rho[ t ] ) +
                              ". It must not be greater than 1." ) );
-   }
-  }
  }
 
  if( ! v_extracting_battery_rho.empty() ) {
   assert( v_extracting_battery_rho.size() == f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < 1 ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_extracting_battery_rho[ t ] < 1 )
     throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
                              " inefficiency of extracting energy for time "
                              "step " + std::to_string( t ) + ": " +
                              std::to_string( v_extracting_battery_rho[ t ] ) +
                              ". It must not be less than 1." ) );
-   }
-  }
  }
 
  // Delta ramp-up
@@ -273,20 +268,18 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Initial storage
 
- if( f_initial_storage < 0 ) {
+ if( f_initial_storage < 0 )
   throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
                                 "initial storage is " +
                                 std::to_string( f_initial_storage ) +
                                 ", but it must be nonnegative." ) );
- }
 
  // Kappa
 
- if( f_kappa < 0 ) {
+ if( f_kappa < 0 )
   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
                            "kappa must be nonnegative, but it is" +
                            std::to_string( f_kappa ) + "." ) );
- }
 
 }  // end( BatteryUnitBlock::check_data_consistency )
 
@@ -370,10 +363,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Battery Design Variable
  if( f_investment_cost != 0 ) {
-  if( relax_binary )
-   v_design.set_type( ColVariable::kPosUnitary );
-  else
-   v_design.set_type( ColVariable::kBinary );
+  v_design.set_type( ColVariable::kPosUnitary );
   add_static_variable( v_design , "D_battery" );
  }
 
@@ -499,8 +489,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    // Lower bound of the active power design constraints:
    //
-   //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
-   // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
+   //      v_minimum_power z <= v_active_power     z \in [0,1], for all t
+   // => 0 <= v_active_power - v_minimum_power z   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair lower_vars;
 
@@ -515,8 +505,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
-   // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
+   //      v_active_power <= v_maximum_power z     z \in [0,1], for all t
+   // => v_active_power - v_maximum_power z <= 0   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair upper_vars;
 

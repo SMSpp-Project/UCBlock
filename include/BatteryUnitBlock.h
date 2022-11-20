@@ -685,9 +685,10 @@ public:
  double get_initial_power( void ) const { return( f_initial_power ); }
 
  /// returns the investment cost, i.e., the capital expenditure cost
- double get_investment_cost( void ) const {
-  return( f_investment_cost );
- }
+ double get_investment_cost( void ) const { return ( f_investment_cost ); }
+
+ /// returns the maximum installable capacity by the user
+ double get_max_capacity( void ) const { return ( f_max_capacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum storage
@@ -1372,6 +1373,9 @@ public:
 
  /// the investment cost, i.e., the capital expenditure cost
  double f_investment_cost{};
+
+ /// the maximum installable capacity by the user
+ double f_max_capacity{};
 
 /*-------------------------------- variables -------------------------------*/
 

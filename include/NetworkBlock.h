@@ -292,13 +292,6 @@ class NetworkBlock : public Block
    return( v_end_line );
   }
 
-/*--------------------------------------------------------------------------*/
-  /// returns the constant term
-
-  const double & get_const_term( void ) const {
-   return( f_const_term );
-  }
-
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -407,9 +400,6 @@ class NetworkBlock : public Block
 
   /// vector of ending lines
   std::vector< Index > v_end_line;
-
-  /// the constant term
-  double f_const_term;
 
 /*-------------------------------- variables -------------------------------*/
 

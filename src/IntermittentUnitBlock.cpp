@@ -76,8 +76,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  static std::vector< std::string > expected_vars =
   { "MinPower" , "MaxPower" , "InertiaPower" , "Gamma" , "Kappa" ,
-    "InvestmentCost" };
-
+    "MaxCapacity" , "InvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -102,7 +101,10 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , f_investment_cost , "InvestmentCost" );
 
+ ::deserialize( group , f_max_capacity , "MaxCapacity" );
+
  // Decompress vectors
+
  decompress_vector( v_minimum_power );
  decompress_vector( v_maximum_power );
  decompress_vector( v_inertia_power );
@@ -168,29 +170,17 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::generate_abstract_variables(
- Configuration * stvv ) {
+void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
 
  if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
 
- int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
- if( ( !config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
-
  // Design Variable
  if( f_investment_cost != 0 ) {
-  if( relax_binary )
-   v_design.set_type( ColVariable::kPosUnitary );
-  else
-   v_design.set_type( ColVariable::kBinary );
+  v_design.set_type( ColVariable::kPosUnitary );
   add_static_variable( v_design , "D_intermittent" );
  }
 
@@ -310,8 +300,8 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
    // Lower bound of the active power design constraints:
    //
-   //      v_minimum_power z <= v_active_power     z \in {0,1}, for all t
-   // => 0 <= v_active_power - v_minimum_power z   z \in {0,1}, for all t
+   //      v_minimum_power z <= v_active_power     z \in [0,1], for all t
+   // => 0 <= v_active_power - v_minimum_power z   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair lower_vars;
 
@@ -326,8 +316,8 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_maximum_power z     z \in {0,1}, for all t
-   // => v_active_power - v_maximum_power z <= 0   z \in {0,1}, for all t
+   //      v_active_power <= v_maximum_power z     z \in [0,1], for all t
+   // => v_active_power - v_maximum_power z <= 0   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair upper_vars;
 

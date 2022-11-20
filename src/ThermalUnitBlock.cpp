@@ -335,16 +335,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( config )
   relax_binary = config->f_value;
 
- // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_investment_cost != 0 ) {
-  if( relax_binary )
-   v_design.set_type( ColVariable::kPosUnitary );
-  else
-   v_design.set_type( ColVariable::kBinary );
-  add_static_variable( v_design , "D_thermal" );
- }
-
  // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
@@ -1205,9 +1195,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
        f_scale * v_secondary_spinning_reserve_cost[ t ] , 0.0 );
  }
 
- if( f_investment_cost != 0 )
-  dquad_function->add_variable( &v_design , f_investment_cost , 0.0 );
-
  objective.set_function( dquad_function );
  objective.set_sense( Objective::eMin );
 
@@ -1257,8 +1244,9 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() != 1 ) {
    throw( std::logic_error
     ( "ThermalUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
-                                                        "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
+      var_name + ": " + std::to_string( data.size() ) +
+      ". Its dimension must be one of the following: TimeHorizon, "
+      "NumberIntervals, 1." ) );
   }
 
   ::serialize( group , var_name , ncType , dimension , data ,

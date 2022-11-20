@@ -8,13 +8,14 @@ include("utils.jl")
 
 function csvEC2nc4()
 
+    n_users = length(user_set)
+
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset("-with-network-blocks" in ARGS ? "../../../netCDF_files/EC_Test_NB.nc4" :
-                   "../../../netCDF_files/EC_Test.nc4", "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset("-with-network-blocks" in ARGS ? string("../../../netCDF_files/EC_Test_NB.nc4") :
+                   string("../../../netCDF_files/EC_Test.nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
-    n_users = length(user_set)
     defDim(block, "NumberNodes", n_users)
 
     n_timesteps = length(time_set)
@@ -56,14 +57,13 @@ function csvEC2nc4()
 
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
-                         (
-                             profile(market_data, "consumption_price")[t] *
-                             sum(Float64[
-                                 profile_component(users_data[u], l, "load")[t]
-                                 for l in asset_names(users_data[u], LOAD)])
-                         )
-                         for u in user_set, t in time_set) *
-                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)]
+                         (profile(market_data, "consumption_price")[t] *
+                          sum(Float64[
+                             profile_component(users_data[u], l, "load")[t]
+                             for l in asset_names(users_data[u], LOAD)]))
+                         for u in user_set)
+                     for t in time_set] *
+                    sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     peak_tariff = [profile(market_data, "peak_weight")[w] *
                    profile(market_data, "peak_tariff")[w] for w in peak_set] *
@@ -113,12 +113,11 @@ function csvEC2nc4()
         reward_price = defVar(block, "RewardPrice", Float64, ())
         reward_price[:] = reward_price_data[1]
 
-        # `RenewableProduction` to bound the node injection
+        # `MaxInjection` to bound the node injection
         max_injection = defVar(block, "MaxInjection", Float64, ("NumberNodes", "TimeHorizon")) # ("TimeHorizon", "NumberNodes"))
         # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
         max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
-                                          (profile_component(users_data[u], r, "ren_pu")[t] != 0 ?
-                                           profile_component(users_data[u], r, "ren_pu")[t] : 1.0)
+                                          profile_component(users_data[u], r, "ren_pu")[t]
                                           for r in asset_names(users_data[u], REN)], init=0.0) +
                                reduce(+, [field_component(users_data[u], b, "max_capacity")
                                           for b in asset_names(users_data[u], BATT)], init=0.0)
@@ -173,12 +172,15 @@ function csvEC2nc4()
             reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
             reward_price[:] = reward_price_data[last_t:last_i]
 
-            # `RenewableProduction` to bound the node injection
+            # `ConstantTerm`
+            const_term = defVar(ecnb, "ConstTerm", Float64, ())
+            const_term[:] = sum(constant_term[last_t:last_i])
+
+            # `MaxInjection` to bound the node injection
             max_injection = defVar(ecnb, "MaxInjection", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
             # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
             max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
-                                              (profile_component(users_data[u], r, "ren_pu")[t] != 0 ?
-                                               profile_component(users_data[u], r, "ren_pu")[t] : 1.0)
+                                              profile_component(users_data[u], r, "ren_pu")[t]
                                               for r in asset_names(users_data[u], REN)], init=0.0) +
                                    reduce(+, [field_component(users_data[u], b, "max_capacity")
                                               for b in asset_names(users_data[u], BATT)], init=0.0)
@@ -189,10 +191,6 @@ function csvEC2nc4()
             # `MaxTariff`, i.e., the peak tariff cost
             max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
             max_tariff[:] = peak_tariff[i_w]
-
-            # `ConstantTerm`
-            const_term = defVar(ecnb, "ConstTerm", Float64, ())
-            const_term[:] = sum(constant_term)
         end
     end
 
@@ -221,11 +219,14 @@ function csvEC2nc4()
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
-                # store the maximum power, i.e., the maximum capacity, of the pv/wind device
+                # store the maximum installable capacity of the pv/wind asset
+                max_capacity = defVar(ub, "MaxCapacity", Float64, ())
+                max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                # store the maximum power of the pv/wind asset
                 max_power = defVar(ub, "MaxPower", Float64, ("TimeHorizon",))
                 max_power[:] = [field_component(users_data[u], g, "max_capacity") *
-                                (profile_component(users_data[u], g, "ren_pu")[t] != 0 ?
-                                 profile_component(users_data[u], g, "ren_pu")[t] : 1.0)
+                                profile_component(users_data[u], g, "ren_pu")[t]
                                 for t in time_set]
 
                 # Net Present Value of the component
@@ -245,7 +246,11 @@ function csvEC2nc4()
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
-                # store the maximum power, i.e., the maximum capacity, of the converter related to the battery
+                # store the maximum installable capacity of the battery, the same of the related converter
+                max_capacity = defVar(ub, "MaxCapacity", Float64, ())
+                max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                # store the maximum power of the converter related to the battery
                 max_power = defVar(ub, "MaxPower", Float64, ())
                 max_power[:] = (field_component(users_data[u], g, "max_C_dch") *
                                 field_component(users_data[u], g, "max_capacity"))

@@ -329,6 +329,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the investment cost, i.e., the capital expenditure cost
  double get_investment_cost( void ) const { return( f_investment_cost ); }
 
+ /// returns the maximum installable capacity by the user
+ double get_max_capacity( void ) const { return ( f_max_capacity ); }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
  /** The method returned a std::vector< double > V and each element of V
@@ -441,7 +444,7 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor of this IntermittentUnitBlock
+ /// returns the scale factor
 
  double get_scale( void ) const override { return( f_scale ); }
 
@@ -507,8 +510,8 @@ class IntermittentUnitBlock : public UnitBlock
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this IntermittentUnitBlock
- /** This method sets the scale factor of this IntermittentUnitBlock.
+ /// sets the scale factor
+ /** This method sets the scale factor.
   *
   * @param values An iterator to a vector containing the scale factor.
   *
@@ -658,11 +661,14 @@ class IntermittentUnitBlock : public UnitBlock
  /// the kappa value
  double f_kappa = 1;
 
- /// the scale factor of this IntermittentUnitBlock
+ /// the scale factor
  double f_scale = 1;
 
  /// the investment cost, i.e., the capital expenditure cost
  double f_investment_cost{};
+
+ /// the maximum installable capacity by the user
+ double f_max_capacity{};
 
 /*-------------------------------- variables -------------------------------*/
 
