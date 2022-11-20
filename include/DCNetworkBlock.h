@@ -214,6 +214,54 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Reading the data of the DCNetworkData
  * @{ */
 
+  /// returns the number of lines of the network
+  /** Method for returning the number of lines of the network. When
+   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
+   * (no self-loops are allowed, hence there is no line to be made with a single
+   * node). */
+
+  Index get_number_lines( void ) const { return( f_number_lines ); }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the vector of start lines
+  /** Method for returning the vector of starting point of each line. This
+   *  vector may have empty size (bus network) or the size of number of lines,
+   *  then there are two possible cases:
+   *
+   *  - if f_number_nodes == 1, this vector has empty size which means there is
+   *    no line at network (bus network), and this vector is not needed to be
+   *    defined.
+   *
+   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
+   *    element of the vectors gives starting point of each line in the network.
+  */
+
+  const std::vector< Index > & get_start_line( void ) const {
+   return( v_start_line );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns vector of end lines
+  /** Method for returning the vector of ending point of each line. This vector
+   * may have empty size (bus network) or the size of number of lines, then
+   * there are two possible cases:
+   *
+   *  - if f_number_nodes == 1, this vector has empty size which means there is
+   *    no line at network (bus network), and this vector is not needed to be
+   *    defined.
+   *
+   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
+   *    element of the vectors gives ending point of each line in the network.
+   */
+
+  const std::vector< Index > & get_end_line( void ) const {
+   return( v_end_line );
+  }
+
+/*--------------------------------------------------------------------------*/
+
   /// returns vector of the minimum power flow
   /** Method for returning the vector of minimum power flow of each line. This
    *  vector may have empty size (bus network) or the size of number of nodes,
@@ -355,6 +403,15 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
+
+  /// number of lines of the network
+  Index f_number_lines{};
+
+  /// vector of starting lines
+  std::vector< Index > v_start_line;
+
+  /// vector of ending lines
+  std::vector< Index > v_end_line;
 
   /// vector to store the susceptance of each line of the network
   std::vector< double > v_susceptance;
@@ -945,7 +1002,7 @@ class DCNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
-  f_NetworkData = static_cast<DCNetworkData *>(network_data);
+  f_NetworkData = static_cast< DCNetworkData * >( network_data );
   f_local_NetworkData = false;
  }
 

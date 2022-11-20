@@ -126,24 +126,6 @@ class ECNetworkBlock : public NetworkBlock
    * - The dimension "NumberNodes" containing the number of nodes in the
    *   problem;
    *
-   * - The dimension "NumberLines" containing the number of lines in the
-   *   community network;
-   *
-   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
-   *   dimension "NumberLines"; the l-th entry of the variable is the starting
-   *   point of the line (a number in 0, ..., NumberLines - 1). Note that lines
-   *   are not oriented, but the flow of energy is; that is, a positive flow
-   *   along line l means that energy is being taken away from StartLine[ l ]
-   *   and delivered to EndLine[ l ] (see next), a negative flow means
-   *   vice-versa. Note that node names here go from 0 to NNodes.getSize() - 1;
-   *
-   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
-   *   dimension "NumberLines"; the l-th entry of the variable is the ending
-   *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
-   *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
-   *   not allowed, but multiple lines between the same pair of nodes are. Note
-   *   that node names here go from 0 to NNodes.getSize() - 1;
-   *
    * - The dimension "NumberIntervals" containing the number of intervals
    *   spanned by each network block; this dimension is optional, if it is
    *   not provided then it is taken to be == 1;
@@ -389,18 +371,6 @@ class ECNetworkBlock : public NetworkBlock
  Index get_number_nodes( void ) const override {
   if( f_NetworkData )
    return( f_NetworkData->get_number_nodes() );
-  return( 0 );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of lines of the network
- /** Returns the number of lines in the community network. If
-  * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero. */
-
- Index get_number_lines( void ) const override {
-  if( f_NetworkData )
-   return( f_NetworkData->get_number_lines() );
   return( 0 );
  }
 

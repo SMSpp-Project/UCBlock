@@ -115,16 +115,6 @@ void ECNetworkBlock::ECNetworkData::deserialize(
   v_reward_price.resize( f_number_intervals , v_reward_price[ 0 ] );
 
  ::deserialize( group , f_max_tariff , "MaxTariff" , false );
-
- // Optional variables
-
- ::deserialize_dim( group , "NumberLines" , f_number_lines );
-
- ::deserialize( group , "StartLine" , f_number_lines , v_start_line , true ,
-                true );
-
- ::deserialize( group , "EndLine" , f_number_lines , v_end_line , true ,
-                true );
 }  // end( ECNetworkBlock::ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
