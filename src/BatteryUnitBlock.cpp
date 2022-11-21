@@ -563,8 +563,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   vars_1.push_back( std::make_pair( &v_active_power[ 0 ] , 1.0 ) );
 
-  ramp_down_Const[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] +
-                                      f_initial_power );
+  ramp_down_Const[ 0 ].set_lhs( -v_delta_ramp_down[ 0 ] + f_initial_power );
   ramp_down_Const[ 0 ].set_rhs( Inf< double >() );
   ramp_down_Const[ 0 ].set_function(
    new LinearFunction( std::move( vars_1 ) ) );

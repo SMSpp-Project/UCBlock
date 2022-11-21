@@ -326,7 +326,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the kappa value
  double get_kappa( void ) const { return( f_kappa ); }
 
- /// returns the investment cost, i.e., the capital expenditure cost
+ /// returns the investment cost
  double get_investment_cost( void ) const { return( f_investment_cost ); }
 
  /// returns the maximum installable capacity by the user
@@ -664,7 +664,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale = 1;
 
- /// the investment cost, i.e., the capital expenditure cost
+ /// the investment cost
  double f_investment_cost{};
 
  /// the maximum installable capacity by the user
@@ -697,7 +697,7 @@ class IntermittentUnitBlock : public UnitBlock
  std::vector< BoxConstraint > active_power_bounds_Const;
 
  /// the active power bounds design constraints
- boost::multi_array< FRowConstraint, 2 > active_power_bounds_design_Const;
+ boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
 
 
  /// the objective function

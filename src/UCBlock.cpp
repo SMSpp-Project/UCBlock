@@ -1167,7 +1167,7 @@ void UCBlock::generate_heat_constraints( void ) {
    }
 
    v_power_Heat_Rho_Const.resize
-    ( boost::multi_array< FRowConstraint *, 2 >::
+    ( boost::multi_array< FRowConstraint * , 2 >::
       extent_gen()[ f_time_horizon ][ num_constraints_per_time ] );
   }
 
