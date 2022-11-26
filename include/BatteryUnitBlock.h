@@ -443,17 +443,17 @@ public:
   * negative prices do not occur and, therefore, the binary variables are not
   * generated. Two types of Configuration are allowed:
   *
-  *  - If the Configuration is a SimpleConfiguration<int>, then a nonzero
+  *  - If the Configuration is a SimpleConfiguration< int >, then a nonzero
   *    value stored in this Configuration indicates that negative prices may
   *    occur. The value zero indicates that negative prices do not occur.
   *
-  *  - If the Configuration is a SimpleConfiguration<std::pair<int,int>>, then
-  *    the first value is associated with the negative prices (a nonzero value
-  *    indicates that negative prices may occur and the value zero indicates
-  *    that negative prices do not occur) and the second value indicates
-  *    whether the binary variables must have their integrality constraints
-  *    relaxed (a nonzero value for relaxing and the value zero for not
-  *    relaxing the integrality constraints). */
+  *  - If the Configuration is a SimpleConfiguration< std::pair< int , int > >,
+  *    then the first value is associated with the negative prices (a nonzero
+  *    value indicates that negative prices may occur and the value zero
+  *    indicates that negative prices do not occur) and the second value
+  *    indicates whether the binary variables must have their integrality
+  *    constraints relaxed (a nonzero value for relaxing and the value zero
+  *    for not relaxing the integrality constraints). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -467,8 +467,8 @@ public:
   *
   * - maximum and minimum power output constraints according to primary and
   *   secondary spinning reserves are presented in (1)-(2). Each of them is a
-  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
-  *   the entry t = 0, ...,f_time_horizon - 1 being the maximum and minimum
+  *   std::vector< FRowConstraint >; with the dimension of f_time_horizon, where
+  *   the entry t = 0, ..., f_time_horizon - 1 being the maximum and minimum
   *   power output value according to the primary and the secondary spinning
   *   reserves at time t. these ensure the maximum(or minimum) amount of
   *   energy that unit can produce(or use) when it is on(or off).
@@ -488,8 +488,8 @@ public:
   *   \mathcal{T} \f$ respectively.
   *
   * - ramp-up and ramp-down constraints are presented in (3)-(4). Each of them
-  *   is a std::vector<FRowConstraint>; with the dimension of f_time_horizon,
-  *   where the entry t = 0, ...,f_time_horizon - 1 being the ramp up and ramp
+  *   is a std::vector< FRowConstraint >; with the dimension of f_time_horizon,
+  *   where the entry t = 0, ..., f_time_horizon - 1 being the ramp up and ramp
   *   down constraints which are presented as:
   *
   *   \f[
@@ -507,12 +507,13 @@ public:
   *   horizon \f$ \mathcal{T} \f$ respectively.
   *
   * - active power relation with intake and outtake levels constraints are
-  *   presented in (5). Each of them is a std::vector<FRowConstraint>; with
+  *   presented in (5). Each of them is a std::vector< FRowConstraint >; with
   *   the dimension of f_time_horizon, where the entry t =
-  *   0,...,f_time_horizon - 1 being the active power relation with intake and
+  *   0, ..., f_time_horizon - 1 being the active power relation with intake and
   *   outtake levels at time t.  These ensure the active power at each time
   *   should be equal to the intake and outtake difference. The equation (6)
-  *   also indicates the upper bound of intake level at each time instant t.
+  *   also indicates the upper bound of intake and outtake level at each time
+  *   instant t.
   *
   *   \f[
   *    p^{ac}_{t} = p^+_t - p^-_{t}
@@ -520,14 +521,14 @@ public:
   *   \f]
   *
   *   \f[
-  *     p^+_t \leq  P^{mx}_{t}
+  *     p^+_t , p^-_t \leq  P^{mx}_{t}
   *         \quad t \in \mathcal{T}                               \quad (6)
   *   \f]
   *
   * - storage level relation with intake and outtake levels (if any)
   *   constraints in Battery unit are presented in (7). That is a
-  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
-  *   the entry t = 0,...,f_time_horizon - 1 being the storage level relation
+  *   std::vector< FRowConstraint >; with the dimension of f_time_horizon, where
+  *   the entry t = 0, ..., f_time_horizon - 1 being the storage level relation
   *   with intake and outtake levels at time t.
   *
   *   \f[
@@ -536,8 +537,8 @@ public:
   *   \f]
   *
   *   Note that if the equation (7) will change as below which is a
-  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
-  *   the entry t = 0,...,f_time_horizon - 1 being the storage level relation
+  *   std::vector< FRowConstraint >; with the dimension of f_time_horizon, where
+  *   the entry t = 0, ..., f_time_horizon - 1 being the storage level relation
   *   with battery demand (if any) at time t.
   *
   *   \f[
@@ -560,8 +561,8 @@ public:
   *
   * - binary variable relation with storing and extracting energy level (if
   *   any) constraints are presented in (10-11). Each of them is a
-  *   std::vector<FRowConstraint>; with the dimension of f_time_horizon, where
-  *   the entry t = 0,...,f_time_horizon - 1 being the binary variable
+  *   std::vector< FRowConstraint >; with the dimension of f_time_horizon, where
+  *   the entry t = 0, ..., f_time_horizon - 1 being the binary variable
   *   relation with storing and extracting energy levels at time t.
   *
   *   \f[
@@ -579,9 +580,9 @@ public:
   *   (10-11).
   *
   * - primary and secondary reserve upper bounds (if any) are presented by the
-  *   equations (12-13). Each of them is a std::vector<FRowConstraint>; with
+  *   equations (12-13). Each of them is a std::vector< FRowConstraint >; with
   *   the dimension of f_time_horizon, where the entry
-  *   t = 0,...,f_time_horizon - 1 being the primary and secondary reserve
+  *   t = 0, ..., f_time_horizon - 1 being the primary and secondary reserve
   *   upper bounds at time t.
   *
   *   \f[
@@ -662,7 +663,7 @@ public:
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 
@@ -684,11 +685,21 @@ public:
  /// returns the initial power value
  double get_initial_power( void ) const { return( f_initial_power ); }
 
- /// returns the investment cost, i.e., the capital expenditure cost
- double get_investment_cost( void ) const { return ( f_investment_cost ); }
+ /// returns the battery investment cost
+ double get_batt_investment_cost( void ) const {
+  return( f_batt_investment_cost );
+ }
 
- /// returns the maximum installable capacity by the user
- double get_max_capacity( void ) const { return ( f_max_capacity ); }
+ /// returns the converter investment cost
+ double get_conv_investment_cost( void ) const {
+  return( f_conv_investment_cost );
+ }
+
+ /// returns the maximum battery installable capacity by the user
+ double get_batt_max_capacity( void ) const { return( f_batt_max_capacity ); }
+
+ /// returns the maximum converter installable capacity by the user
+ double get_conv_max_capacity( void ) const { return( f_conv_max_capacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum storage
@@ -804,8 +815,8 @@ public:
   * - if the vector has only one element, then V[ 0 ] is the maximum power of
   *   the unit for all time instants;
   *
-  * - otherwise, the vector V must have size get_time_horizon() and each V[ t
-  *   ] represents the maximum power value at time t. */
+  * - otherwise, the vector V must have size get_time_horizon() and each
+  *   V[ t ] represents the maximum power value at time t. */
 
  const std::vector< double > & get_maximum_power( void ) const {
   return( v_maximum_power );
@@ -1103,10 +1114,17 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the design binary variable, or nullptr if not defined
+ /// returns the battery design variable
 
- ColVariable & get_design( void ) {
-  return( v_design );
+ ColVariable & get_batt_design( void ) {
+  return( batt_design );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the converter design variable
+
+ ColVariable & get_conv_design( void ) {
+  return( conv_design );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1335,6 +1353,9 @@ public:
  /// the vector of MaxPower
  std::vector< double > v_maximum_power;
 
+ /// the vector of ConverterMaxPower
+ std::vector< double > v_conv_maximum_power;
+
  /// the vector of MaxPrimaryRho
  std::vector< double > v_maximum_primary_rho;
 
@@ -1371,11 +1392,17 @@ public:
  /// the scale factor of this BatteryUnitBlock
  double f_scale = 1;
 
- /// the investment cost, i.e., the capital expenditure cost
- double f_investment_cost{};
+ /// the battery investment cost
+ double f_batt_investment_cost{};
 
- /// the maximum installable capacity by the user
- double f_max_capacity{};
+ /// the converter investment cost
+ double f_conv_investment_cost{};
+
+ /// the maximum battery installable capacity by the user
+ double f_batt_max_capacity{};
+
+ /// the maximum converter installable capacity by the user
+ double f_conv_max_capacity{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1400,16 +1427,23 @@ public:
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the battery design binary variable
- ColVariable v_design;
+ /// the battery design variable
+ ColVariable batt_design;
+
+ /// the converter design variable
+ ColVariable conv_design;
 
 /*------------------------------- constraints ------------------------------*/
 
  /// the active power bounds constraints
- boost::multi_array< FRowConstraint, 2 > active_power_bounds_Const;
+ boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;
 
- /// the active power bounds design constraints
- boost::multi_array< FRowConstraint, 2 > active_power_bounds_design_Const;
+ /// the intake outtake upper bounds design constraints
+ boost::multi_array< FRowConstraint , 2 >
+  intake_outtake_upper_bounds_design_Const;
+
+ /// the storage level bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > storage_level_bounds_design_Const;
 
  /// the ramp up constraints
  std::vector< FRowConstraint > ramp_up_Const;
@@ -1419,9 +1453,6 @@ public:
 
  /// the active power, intake and outtake relation constraints
  std::vector< FRowConstraint > power_intake_outtake_Const;
-
- /// the storage , intake and outtake level relation constraints
- std::vector< FRowConstraint > storage_intake_outtake_Const;
 
  /// the intake and binary variable relation constraints
  std::vector< FRowConstraint > intake_binary_Const;
@@ -1433,14 +1464,11 @@ public:
  std::vector< FRowConstraint > demand_Const;
 
 
+ /// the intake outtake upper bound constraints
+ boost::multi_array< BoxConstraint , 2 > intake_outtake_bounds_Const;
+
  /// the storage level bounds constraints
  std::vector< BoxConstraint > storage_level_bounds_Const;
-
- /// the intake upper bound constraints
- std::vector< BoxConstraint > intake_upper_bound_Const;
-
- /// the outtake upper bound constraints
- std::vector< BoxConstraint > outtake_upper_bound_Const;
 
  /// primary upper bound constraints
  std::vector< BoxConstraint > primary_upper_bound_Const;

@@ -293,9 +293,9 @@ class HeatBlock : public Block
   * it is also possible to restrict which of the subsets are generated with the
   * parameter stvv.
   *
-  * If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
+  * If stvv is not nullptr and it is a SimpleConfiguration< int >, or if
   * f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  * SimpleConfiguration<int>, then the f_value (an int) indicates whether each
+  * SimpleConfiguration< int >, then the f_value (an int) indicates whether each
   * of the optional variables should be created. If the Configuration is not
   * available, the default value is taken to be 0. The value of the int is
   * interpreted bit-wise, with heat added variables being bit 0, heat removed

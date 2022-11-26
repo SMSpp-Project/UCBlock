@@ -189,12 +189,12 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
  // informs which variables must be generated
  int variables_to_be_generated = 0;
 
- auto tstvv = dynamic_cast<SimpleConfiguration< int > *>( stvv );
+ auto tstvv = dynamic_cast< SimpleConfiguration< int > * >( stvv );
 
  if( ( ! tstvv ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration ) {
 
-  tstvv = dynamic_cast<SimpleConfiguration< int > *>
+  tstvv = dynamic_cast< SimpleConfiguration< int > * >
   ( f_BlockConfig->f_static_constraints_Configuration );
  }
 
@@ -423,7 +423,7 @@ void HeatBlock::serialize( netCDF::NcGroup & group ) const {
                  {NumberIntervals  , dim_number_units} ,
                  v_min_heat_production);
 
-    ::serialize( group , "MaxHeatProduction" ,netCDF::NcDouble() ,
+    ::serialize( group , "MaxHeatProduction" , netCDF::NcDouble() ,
                  {NumberIntervals  , dim_number_units} ,
                  v_max_heat_production); */
 

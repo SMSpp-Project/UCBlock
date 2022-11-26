@@ -327,7 +327,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
              f_MinDownTime + f_InitUpDownTime );
 
  int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stvv );
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( stvv );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
@@ -520,7 +520,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   return; // constraints have already been generated
 
  int generate_ZOConstraint = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_constraints_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >
@@ -566,8 +566,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( init_t > 0 ) {
 
-  auto startup_shutdown_const_size = static_cast<int>( f_time_horizon -
-                                                       init_t );
+  auto startup_shutdown_const_size = static_cast< int >( f_time_horizon -
+                                                         init_t );
 
   if( startup_shutdown_const_size > 0 ) {
 
@@ -611,8 +611,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // Initializing turn on constraints (start up constraints) - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto startup_const_size = static_cast<int>( f_time_horizon - init_t -
-                                             f_MinUpTime );
+ auto startup_const_size = static_cast< int >( f_time_horizon - init_t -
+                                               f_MinUpTime );
 
  if( startup_const_size > 0 ) {
 
@@ -1304,8 +1304,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
   if( t == 0 )
    coefficient *= -1.0;
 
-  auto f = static_cast<LinearFunction *>( RampUp_Const[ t ].
-   get_function() );
+  auto f = static_cast< LinearFunction * >( RampUp_Const[ t ].get_function() );
   auto var_index = f->is_active( &v_start_up[ t ] );
   assert( var_index < f->get_num_active_var() );
   f->modify_coefficient( var_index , coefficient , issueAMod );
@@ -1324,8 +1323,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
    if( t == init_t )
     coefficient *= -1.0;
 
-   auto f = static_cast<LinearFunction *>( RampUp_Const[ t ].
-    get_function() );
+   auto f = static_cast< LinearFunction * >( RampUp_Const[ t ].get_function() );
    auto var_index = f->is_active( &v_start_up[ t - init_t ] );
    assert( var_index < f->get_num_active_var() );
    f->modify_coefficient( var_index , coefficient , issueAMod );
@@ -1335,8 +1333,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
  // RampDown_Const
  if( ( init_t == 0 && t == 0 ) || ( init_t > 0 && t >= init_t ) ) {
 
-  auto f = static_cast<LinearFunction *>( RampDown_Const[ t ].
-   get_function() );
+  auto f = static_cast< LinearFunction * >( RampDown_Const[ t ].get_function() );
   auto var_index = f->is_active( &v_shut_down[ t - init_t ] );
   assert( var_index < f->get_num_active_var() );
   auto coefficient = get_operational_min_power( t );
@@ -2494,7 +2491,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast<DQuadFunction *>( objective.get_function() );
+ auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;
@@ -2517,7 +2514,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast<DQuadFunction *>( objective.get_function() );
+ auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;
@@ -2538,7 +2535,7 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
- auto function = dynamic_cast<DQuadFunction *>( objective.get_function() );
+ auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 
  if( ! function )
   return;

@@ -180,8 +180,8 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  // Design Variable
  if( f_investment_cost != 0 ) {
-  v_design.set_type( ColVariable::kPosUnitary );
-  add_static_variable( v_design , "D_intermittent" );
+  design.set_type( ColVariable::kPosUnitary );
+  add_static_variable( design , "D_intermittent" );
  }
 
  // Active Power Variable
@@ -191,14 +191,13 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  add_static_variable( v_active_power , "p_intermittent" );
 
  // Primary Spinning Reserve Variable
- if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
+ if( reserve_vars & 1u ) // if UCBlock has primary demand variables
   if( f_gamma != 0 ) { // if unit produces any reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
    add_static_variable( v_primary_spinning_reserve , "pr_intermittent" );
   }
- }
 
  // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
@@ -277,19 +276,6 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  // Active power bound constraints
 
- active_power_bounds_Const.resize( f_time_horizon );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  active_power_bounds_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
-  active_power_bounds_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
-  active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
- }
-
- add_static_constraint( active_power_bounds_Const ,
-                        "ActivePower_Bounds_Intermittent" );
-
- // Active power bound design constraints
-
  if( f_investment_cost != 0 ) {
 
   active_power_bounds_design_Const.resize(
@@ -306,7 +292,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
    LinearFunction::v_coeff_pair lower_vars;
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   lower_vars.push_back( std::make_pair( &v_design ,
+   lower_vars.push_back( std::make_pair( &design ,
                                          -f_kappa * v_minimum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 0 ].set_lhs( 0.0 );
@@ -322,7 +308,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
    LinearFunction::v_coeff_pair upper_vars;
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   upper_vars.push_back( std::make_pair( &v_design ,
+   upper_vars.push_back( std::make_pair( &design ,
                                          -f_kappa * v_maximum_power[ t ] ) );
 
    active_power_bounds_design_Const[ t ][ 1 ].set_lhs( -Inf< double >() );
@@ -333,6 +319,19 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Bounds_Design_Intermittent" );
+
+ } else {
+
+  active_power_bounds_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
+   active_power_bounds_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
+  }
+
+  add_static_constraint( active_power_bounds_Const ,
+                         "ActivePower_Bounds_Intermittent" );
  }
 
  set_constraints_generated();
@@ -381,7 +380,7 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
  LinearFunction::v_coeff_pair vars;
 
  if( f_investment_cost != 0 )
-  vars.push_back( std::make_pair( &v_design , f_investment_cost ) );
+  vars.push_back( std::make_pair( &design , f_investment_cost ) );
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );

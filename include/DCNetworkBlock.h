@@ -785,7 +785,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 

@@ -392,11 +392,11 @@ class ThermalUnitBlock : public UnitBlock
   *
   *  All of these variables are optional, and it is also possible to restrict
   *  which of the subsets are generated with the parameter \p stvv. If \p stvv
-  *  is not nullptr and it is a SimpleConfiguration<int>, or if
+  *  is not nullptr and it is a SimpleConfiguration< int >, or if
   *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
-  *  of the optional variables should be created. If the Configuration is not
-  *  available, the default value is taken to be 0.
+  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
+  *  each of the optional variables should be created. If the Configuration
+  *  is not available, the default value is taken to be 0.
   *
   * Note that there may be other formulations (like the DP one), which will
   * possibly be implemented in the future. */
@@ -443,8 +443,8 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - Note: for the entry a = 0, ..., init_t - 1 when commitment variables fix
   *   to 0 then active power variables fix to 0, but when commitment variables
-  *   fix to 1 the bound constraints, a std::vector<LB0Constraint> with exactly
-  *   init_t entries, the entry a = 0, ..., init_t - 1 being the bound
+  *   fix to 1 the bound constraints, a std::vector< LB0Constraint > with
+  *   exactly init_t entries, the entry a = 0, ..., init_t - 1 being the bound
   *   constraints of the ColVariable corresponding to the active power
   *   production of the unit(put init_t := \f$ t_0 \f$).
   *
@@ -472,7 +472,7 @@ class ThermalUnitBlock : public UnitBlock
   * - since the variables commitment \f$ u_t \f$ have full size of time horizon
   *   and other two remain variables which are startup \f$ v_t \f$ and shutdown
   *   \f$ w_t \f$ have size (f_time_horizon - init_t), the equalities (1) show
-  *   a std::vector<FRowConstraint> with exactly (f_time_horizon - init_t)
+  *   a std::vector< FRowConstraint > with exactly (f_time_horizon - init_t)
   *   entries, the entry a = init_t, ...,(f_time_horizon - 1) being the startup
   *   and shutdown connecting constraints at time t. According to the concept
   *   of init_t when \f$ \tau_0 < 0 \f$  and \f$ -\tau_0 < \tau_- \f$ the
@@ -487,7 +487,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
   *
   *   Considering the above description about the size of each existing binary
-  *   variable, the inequalities (2) show a std::vector<FRowConstraint> with
+  *   variable, the inequalities (2) show a std::vector< FRowConstraint > with
   *   exactly (f_time_horizon - init_t - f_MinUpTime) entries, the entry
   *   a = init_t + f_MinUpTime, ...,(f_time_horizon - 1) being the startup
   *   constraints at time t. when unit in time t is OFF (\f$ u_t = 0 \f$), it
@@ -499,7 +499,7 @@ class ThermalUnitBlock : public UnitBlock
   *   (including t).
   *
   *   Similarly for turn off inequalities (3), where it is a
-  *   std::vector<FRowConstraint> with exactly
+  *   std::vector< FRowConstraint > with exactly
   *   (f_time_horizon - init_t - f_MinDownTime) entries, the entry
   *   a = init_t + f_MinDownTime, ...,(f_time_horizon - 1) being the shutdown
   *   constraints at time t. when unit in the time t is OFF (\f$ u_t = 0
@@ -511,7 +511,7 @@ class ThermalUnitBlock : public UnitBlock
   * - Ramp Up/Down-time Constraints:
   *
   *   Another set of constraints where each thermal unit may have are ramping
-  *   constraints. The ramp-up constraints is a std::vector<FRowConstraint>
+  *   constraints. The ramp-up constraints is a std::vector< FRowConstraint >
   *   with exactly f_time_horizon entries, which are
   *   a = 0, ..., (f_time_horizon - 1). The one possible implementation in
   *   terms of the three binary variables for ramp-up constraints is:
@@ -534,8 +534,9 @@ class ThermalUnitBlock : public UnitBlock
   *   integral feasible solution we can see that
   *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
   *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ v_{t+1}\f$. Then for each
-  *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>,
-  *   there are two possible cases for t from 0 until init_t - 1:
+  *   (0, ..., f_time_horizon - 1) entries of this
+  *   std::vector< FRowConstraint >, there are two possible cases for t from
+  *   0 until init_t - 1:
   *
   *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
@@ -570,7 +571,7 @@ class ThermalUnitBlock : public UnitBlock
   *   any integral feasible solution we can see that
   *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
   *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ w_{t+1}\f$. Then for each
-  *   (0, ..., f_time_horizon - 1) entries of this std::vector<FRowConstraint>
+  *   (0, ..., f_time_horizon - 1) entries of this std::vector< FRowConstraint >
   *   there are two possible cases for t from 0 until init_t - 1:
   *
   *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
@@ -605,7 +606,7 @@ class ThermalUnitBlock : public UnitBlock
   *   Maximum and minimum power output constraints according to active power,
   *   primary and secondary spinning reserves variables are presented in
   *   inequalities (6) and (7) respectively. Each of them is a
-  *   std::vector<FRowConstraint> with exactly f_time_horizon entries
+  *   std::vector< FRowConstraint > with exactly f_time_horizon entries
   *   (0, ..., (f_time_horizon) - 1) and ensures the maximum(or minimum) amount
   *   of energy that unit can produce(or use) when it is on(or off).
   *   \f[
@@ -618,7 +619,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   The same as inequalities (6)-(7), the inequalities (8)-(9) ensure that
   *   maximum amount of primary and secondary spinning reserve in the problem
-  *   respectively. Each of them is a std::vector<FRowConstraint> with exactly
+  *   respectively. Each of them is a std::vector< FRowConstraint > with exactly
   *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:
   *
   *   \f[
@@ -698,15 +699,15 @@ class ThermalUnitBlock : public UnitBlock
   *  generated, it is also possible to consider them in linear form in the
   *  objective function. This can be instructed by using either the parameter
   *  \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
-  *  nullptr and it is a SimpleConfiguration<int>, or if
+  *  nullptr and it is a SimpleConfiguration< int >, or if
   *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
-  *  SimpleConfiguration<int>, then the f_value of this SimpleConfiguration (an
-  *  int) indicates whether the primary and/or the secondary reserve variables
-  *  should be included in the objective function. If the Configuration is not
-  *  available, the default value is taken to be 0. If the first bit of this
-  *  int value is 1, then the primary spinning reserve variables are added to
-  *  the objective function, i.e., the following term is added to the objective
-  *  function described above:
+  *  SimpleConfiguration< int >, then the f_value of this SimpleConfiguration
+  *  (an int) indicates whether the primary and/or the secondary reserve
+  *  variables should be included in the objective function. If the
+  *  Configuration is not available, the default value is taken to be 0. If
+  *  the first bit of this int value is 1, then the primary spinning reserve
+  *  variables are added to the objective function, i.e., the following term
+  *  is added to the objective function described above:
   *
   *   \f[
   *     \sum_{ t \in \mathcal{T}  } c_t^{pr} p_t^{pr}.
@@ -774,7 +775,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 
@@ -1844,7 +1845,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective( const Subset & subset ,c_ModParam issueAMod );
+ void update_objective( const Subset & subset , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective

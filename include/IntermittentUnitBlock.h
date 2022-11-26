@@ -197,12 +197,11 @@ class IntermittentUnitBlock : public UnitBlock
   *  the sense that the model may just not have them and whenever a group of
   *  above variables is created, its size will be the time horizon. It is
   *  possible to restrict which of the subsets are generated with the parameter
-  *  stvv. If stvv is not nullptr and it is a SimpleConfiguration<int>, or if
+  *  stvv. If stvv is not nullptr and it is a SimpleConfiguration< int >, or if
   *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
-  *  of the optional variables should be created. If the Configuration is not
-  *  available, the default value is taken to be 0.
-  */
+  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
+  *  each of the optional variables should be created. If the Configuration
+  *  is not available, the default value is taken to be 0. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -213,7 +212,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * - maximum and minimum power output constraints according to primary and
   *   secondary spinning reserves are presented in (1)-(2). Each of them is a
-  *   std::vector<FRowConstraint>, with the dimension of get_time_horizon(),
+  *   std::vector< FRowConstraint >, with the dimension of get_time_horizon(),
   *   where the entry t, for t in \f$ \mathcal{T} = \f$ {0, ...,
   *   get_time_horizon() - 1}, being the maximum and minimum power output value
   *   according to the primary and the secondary spinning reserves at time
@@ -304,7 +303,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 
@@ -330,7 +329,7 @@ class IntermittentUnitBlock : public UnitBlock
  double get_investment_cost( void ) const { return( f_investment_cost ); }
 
  /// returns the maximum installable capacity by the user
- double get_max_capacity( void ) const { return ( f_max_capacity ); }
+ double get_max_capacity( void ) const { return( f_max_capacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
@@ -437,10 +436,10 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the design binary variable, or nullptr if not defined
+ /// returns the design variable
 
  ColVariable & get_design( void ) {
-  return( v_design );
+  return( design );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -681,8 +680,8 @@ class IntermittentUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the design binary variable
- ColVariable v_design;
+ /// the design variable
+ ColVariable design;
 
 /*------------------------------- constraints ------------------------------*/
 

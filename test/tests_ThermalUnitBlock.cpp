@@ -42,7 +42,7 @@ class ThermalUnitBlockTest : public ::testing::TestWithParam< TestParameters >
   netCDF::NcGroup bg = f.getGroup( "Block_0" );
   ASSERT_FALSE( bg.isNull() );
 
-  block = static_cast<ThermalUnitBlock *>(
+  block = static_cast< ThermalUnitBlock * >(
    Block::new_Block( "ThermalUnitBlock" ));
   block->deserialize( bg );
  }

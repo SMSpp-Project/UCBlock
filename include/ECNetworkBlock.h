@@ -350,7 +350,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 
@@ -527,7 +527,7 @@ class ECNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
-  f_NetworkData = static_cast<ECNetworkData *>(network_data);
+  f_NetworkData = static_cast< ECNetworkData * >(network_data);
   f_local_NetworkData = false;
  }
 

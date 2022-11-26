@@ -149,7 +149,7 @@ void UnitBlock::scale( std::vector< double >::const_iterator values ,
 
  if( rng.second == Inf< Index >() ) {
   // If we decide to scale the generators individually rather than the whole
-  // unit, then, when rng.second is Inf<Index>(), we could interpret it as
+  // unit, then, when rng.second is Inf< Index >(), we could interpret it as
   // changing the scale factor of all generators and the vector containing the
   // scale factor would be expected to have size at least equal to the number
   // of generators. In this case, the subset would have size equal to the

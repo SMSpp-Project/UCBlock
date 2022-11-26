@@ -566,8 +566,8 @@ class UCBlock : public Block
   *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
   *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
   *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the NetworkBlock::
-  *   get_number_nodes() > 0, a boost::multi_array<FRowConstraint , 2>; with two
-  *   dimensions which are get_time_horizon() and
+  *   get_number_nodes() > 0, a boost::multi_array< FRowConstraint , 2 >; with
+  *   two dimensions which are get_time_horizon() and
   *   NetworkBlock::get_number_nodes() entries, where the entry
   *   t = 0, ..., f_time_horizon - 1 and the entry
   *   n = 1, ..., get_number_nodes() being the node injection constraints at
@@ -583,7 +583,7 @@ class UCBlock : public Block
   *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
   *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
   *   be satisfied. Therefore, if the f_number_primary_zones > 0,
-  *   a boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_primary_zones entries, where the entry
   *   t = 0, ..., f_time_horizon - 1 and the entry
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_primary_zones - 1 being the primary
@@ -600,7 +600,7 @@ class UCBlock : public Block
   *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
   *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
   *   be satisfied. So, if the f_number_secondary_zones > 0,
-  *   a boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_secondary_zones entries, which the entry
   *   t = 0, ..., f_time_horizon - 1 and the entry
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
@@ -619,7 +619,7 @@ class UCBlock : public Block
   *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
   *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
   *   satisfied. Therefore, if the f_number_inertia_zones > 0,
-  *   a boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_inertia_zones entries, where the entry
   *   t = 0, ..., f_time_horizon - 1 and the entry
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
@@ -639,9 +639,9 @@ class UCBlock : public Block
   *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
   *   \f$ \rho_{t , p , g} \f$ and \f$ \gamma_{t , p , h} \f$ where considered
   *   as pollutant ratio and pollutant heat ratio respectively. So, if the
-  *   f_number_pollutants > 0, a std::vector<std::vector<FRowConstraint>>; with
-  *   two dimensions which are f_number_pollutants and v_number_pollutant_zones
-  *   entries, that the entry
+  *   f_number_pollutants > 0, a std::vector< std::vector< FRowConstraint > >;
+  *   with two dimensions which are f_number_pollutants and
+  *   v_number_pollutant_zones entries, that the entry
   *   p = 0, ..., f_number_pollutants - 1 and the entry
   *   \f$ \mathcal{B}\f$ = 0, ..., v_number_pollutant_zones - 1 being the
   *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
@@ -664,7 +664,7 @@ class UCBlock : public Block
   *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
   *   \varrho_{g} \f$ of each electrical generator \f$ g \in \mathcal{G} \f$.
   *   Therefore, if the f_number_heat_blocks > 0, a
-  *   boost::multi_array<FRowConstraint , 2> with two dimensions which are
+  *   boost::multi_array< FRowConstraint , 2 > with two dimensions which are
   *   f_time_horizon and the number of electrical generators that belong to
   *   some HeatBlock; the constraint at position ( t, g ) being the heat
   *   constraints at time t and heat generator M[ g ], where M maps the
@@ -1541,7 +1541,8 @@ class UCBlock : public Block
   * will store the range of indices of active Variable (that belong to the
   * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
   * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
+  * "z", then the element at position (i, z) is
+  * ( Inf< Index >() , Inf< Index >() ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has primary spinning reserve for
@@ -1557,7 +1558,8 @@ class UCBlock : public Block
   * will store the range of indices of active Variable (that belong to the
   * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
   * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is ( Inf<Index>() , Inf<Index>() ).
+  * "z", then the element at position (i, z) is
+  * ( Inf< Index >() , Inf< Index >() ).
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has secondary spinning reserve for
@@ -1573,7 +1575,7 @@ class UCBlock : public Block
   * will store the smallest index of an active Variable (that belong to the
   * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
   * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is Inf<Index>().
+  * "z", then the element at position (i, z) is Inf< Index >().
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has commitment variable, inertia

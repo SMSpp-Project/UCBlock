@@ -337,7 +337,7 @@ class HydroSystemUnitBlock : public UnitBlock
  void set_reserve_vars( unsigned char what ) override {
   reserve_vars = what;
   for( auto * b : v_Block ) {
-   if( auto ub = dynamic_cast<HydroUnitBlock *>(b) ) {
+   if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) ) {
     ub->set_reserve_vars( what );
    }
   }

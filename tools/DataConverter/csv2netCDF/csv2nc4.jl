@@ -64,8 +64,9 @@ function csvEC2nc4()
                      for t in time_set] *
                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    peak_tariff = [profile(market_data, "peak_weight")[w] *
-                   profile(market_data, "peak_tariff")[w] for w in peak_set] *
+    peak_tariff = [(profile(market_data, "peak_weight")[w] *
+                    profile(market_data, "peak_tariff")[w])
+                   for w in peak_set] *
                   sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     reward_price_data = [profile(market_data, "energy_weight")[t] *
@@ -186,67 +187,80 @@ function csvEC2nc4()
 
                 ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
-                # store the maximum installable capacity of the battery, the same of the related converter
-                max_capacity = defVar(ub, "MaxCapacity", Float64, ())
-                max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+                # ----------- Battery -----------
 
-                # store the maximum power of the converter related to the battery
-                max_power = defVar(ub, "MaxPower", Float64, ())
-                max_power[:] = (field_component(users_data[u], g, "max_C_dch") *
-                                field_component(users_data[u], g, "max_capacity"))
+                # store the maximum installable capacity of the battery
+                batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
+                batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                # store the maximum power of the battery
+                batt_max_power = defVar(ub, "MaxPower", Float64, ())
+                batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
 
                 # store the minimum and maximum storage of the battery
-                min_storage = defVar(ub, "MinStorage", Float64, ())
-                min_storage[:] = (field_component(users_data[u], g, "min_SOC") *
-                                  field_component(users_data[u], g, "max_capacity"))
+                min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
+                min_storage[:] = [(field_component(users_data[u], g, "min_SOC") *
+                                   field_component(users_data[u], g, "max_capacity")) /
+                                  profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                  for t in time_set]
 
-                max_storage = defVar(ub, "MaxStorage", Float64, ())
-                max_storage[:] = (field_component(users_data[u], g, "max_SOC") *
-                                  field_component(users_data[u], g, "max_capacity"))
+                max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
+                max_storage[:] = [(field_component(users_data[u], g, "max_SOC") *
+                                   field_component(users_data[u], g, "max_capacity")) /
+                                  profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                  for t in time_set]
 
-                # ASSUMPTION: if there is a battery there is ALWAYS also a converter!
+                # Net Present Value of the battery
+                batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
+                batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                               (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                 field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                 field_component(users_data[u], g, "CAPEX_lin") *
+                                                 (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                        field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                               (1 / ((1 + field(gen_data, "d_rate"))^y))
+                                               for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity"))
+
+                # ---------- Converter ----------
+
+                g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
+
+                # store the maximum installable capacity of the converter
+                conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
+                conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
+
+                # store the maximum power of the converter
+                conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
+                conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
 
                 # store the intake roundtrip efficency of the battery
                 intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ("TimeHorizon",))
-                intake_coeff[:] = [1 / # profile(market_data, "time_res")[t] /
-                                   (sqrt(field_component(users_data[u], g, "eta")) *
-                                    # corresponding converter, i.e., "conv"
-                                    field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta"))
+                intake_coeff[:] = [1 / (sqrt(field_component(users_data[u], g, "eta")) *
+                                        # corresponding converter, i.e., "conv"
+                                        field_component(users_data[u], g_conv, "eta"))
                                    for t in time_set]
 
                 # store the outtake roundtrip efficency of the battery
                 outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ("TimeHorizon",))
-                outtake_coeff[:] = [# profile(market_data, "time_res")[t] *
-                    (sqrt(field_component(users_data[u], g, "eta")) *
-                     # corresponding converter, i.e., "conv"
-                     field_component(users_data[u], field_component(users_data[u], g, "corr_asset"), "eta"))
-                    for t in time_set]
+                outtake_coeff[:] = [sqrt(field_component(users_data[u], g, "eta")) *
+                                    # corresponding converter, i.e., "conv"
+                                    field_component(users_data[u], g_conv, "eta")
+                                    for t in time_set]
 
-                g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
-
-                # Net Present Value of the component (both for battery and converter)
-                battery_investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                battery_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                                  (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                    field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                    field_component(users_data[u], g, "CAPEX_lin") *
-                                                    (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                           field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                  (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                  for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity")) +
-                                             (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
-                                                  (field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
-                                                   ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                    field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                                   ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                    field_component(users_data[u], g_conv, "CAPEX_lin") *
-                                                    (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
-                                                           field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                  (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                  for y in append!([0], year_set)) * field_component(users_data[u], g_conv, "max_capacity"))
-
+                # Net Present Value of the converter
+                conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
+                conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
+                                               (field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                                                ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                 field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                 field_component(users_data[u], g_conv, "CAPEX_lin") *
+                                                 (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
+                                                        field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                               (1 / ((1 + field(gen_data, "d_rate"))^y))
+                                               for y in append!([0], year_set)) * field_component(users_data[u], g_conv, "max_capacity"))
             end
 
             generator_node[last_g] = i_u - 1 # assign the ownership of the current electrical generator to the respective user

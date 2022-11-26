@@ -164,7 +164,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   return; // constraints have already been generated
 
  int generate_ZOConstraint = 0;
- auto config = dynamic_cast<SimpleConfiguration< int > *>( stcc );
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_constraints_Configuration )
   config = dynamic_cast< SimpleConfiguration< int > * >

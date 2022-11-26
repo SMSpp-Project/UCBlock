@@ -211,7 +211,7 @@ struct LoadCurve
  double MinSystemCapacity{};
  double MaxSystemCapacity{};
  double MaxThermalCapacity{};
- std::vector< std::vector< double>> Loads;
+ std::vector< std::vector< double > > Loads;
  std::vector< double > SpinningReserve;
 };
 

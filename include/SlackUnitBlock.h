@@ -312,9 +312,10 @@ class SlackUnitBlock : public UnitBlock
   *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
   *  object, there is still a nontrivial decision to be made about it, and it
   *  is also possible to restrict. If objc is not nullptr and it is a
-  *  SimpleConfiguration<double> or if f_BlockConfig->f_objective_Configuration
-  *  is not nullptr and it is a SimpleConfiguration<double>, then the f_value
-  *  of the SimpleConfiguration<int> is taken the objective function. */
+  *  SimpleConfiguration< double > or if
+  *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
+  *  SimpleConfiguration< double >, then the f_value of the
+  *  SimpleConfiguration< int > is taken the objective function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 

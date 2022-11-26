@@ -534,13 +534,13 @@ class HydroUnitBlock : public UnitBlock
   *  Where its' first dimension is the number of reservoirs and the second
   *  dimension is the time horizon.
   *
-  *  All of these variables are optional,and it is also possible to restrict
+  *  All of these variables are optional, and it is also possible to restrict
   *  which of the subsets are generated with the parameter stvv. If stvv is not
-  *  nullptr and it is a SimpleConfiguration<int>, or if
+  *  nullptr and it is a SimpleConfiguration< int >, or if
   *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration<int>, then the f_value (an int) indicates whether each
-  *  of the optional variables should be created. If the Configuration is not
-  *  available, the default value is taken to be 0. */
+  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
+  *  each of the optional variables should be created. If the Configuration
+  *  is not available, the default value is taken to be 0. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -590,7 +590,8 @@ class HydroUnitBlock : public UnitBlock
   *
   * - maximum and minimum power output constraints according to primary and
   *   secondary spinning reserves are are presented in (1)-(2). Each of them
-  *   is a boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   is a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
+  *   are
   *   f_time_horizon, and f_number_arcs entries, where the entry
   *   t = 0, ...,f_time_horizon - 1 and the entry l = 0, ...,f_number_arcs - 1
   *   being the maximum and minimum power output value according to the primary
@@ -616,7 +617,7 @@ class HydroUnitBlock : public UnitBlock
   *   each time and for each turbine: the same as inequalities (1)-(2), the
   *   inequalities (3)-(4) ensure that maximum amount of primary and secondary
   *   spinning reserve in the problem. Each of them is a
-  *   boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
   *
@@ -642,7 +643,7 @@ class HydroUnitBlock : public UnitBlock
   * - primary and secondary spinning reserves at each time and for each pump:
   *   these equalities (5)-(6) ensure that the primary and secondary spinning
   *   reserve value for each pump is equal to zero. Each of them is a
-  *   boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
   *
@@ -664,8 +665,8 @@ class HydroUnitBlock : public UnitBlock
   *
   * - flow to active power function at each time and for each pump: this
   *   equality (7) gives the active power relation with flow rate for each
-  *   pump at time t. This is a boost::multi_array<FRowConstraint , 2>; with two
-  *   dimensions which are f_time_horizon, and f_number_arcs entries, where
+  *   pump at time t. This is a boost::multi_array< FRowConstraint , 2 >; with
+  *   two dimensions which are f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
   *
   *   \f[
@@ -688,7 +689,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * - flow rate variable bounds: This inequality (9) indicates upper and lower
   *   bound of flow rate at time t and for ach arc l, thus that is a
-  *   boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
   *
@@ -701,7 +702,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
   *   ramp-up and ramp-down constraints at time t and for ach arc l, so each of
-  *   them is a boost::multi_array<FRowConstraint , 2>; with two dimensions
+  *   them is a boost::multi_array< FRowConstraint , 2 >; with two dimensions
   *   which are f_time_horizon, and f_number_arcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_number_arcs - 1
   *
@@ -720,7 +721,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * - final volumes of each reservoir constraints: this equality (12) gives the
   *   final volumes of each reservoir r at time t. This is a
-  *   boost::multi_array<FRowConstraint , 2>; with two dimensions which are
+  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_number_reservoirs, and f_time_horizon entries, where
   *   n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
   *   \f[
@@ -737,9 +738,9 @@ class HydroUnitBlock : public UnitBlock
   *
   * - final volumes variable bounds: This inequality (13) indicates upper and
   *   lower bound of volumetric variables of each reservoir for each time t,
-  *   thus that is a boost::multi_array<FRowConstraint , 2>; with two dimensions
-  *   which are f_number_reservoirs, and f_time_horizon entries, where
-  *   n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
+  *   thus that is a boost::multi_array< FRowConstraint , 2 >; with two
+  *   dimensions which are f_number_reservoirs, and f_time_horizon entries,
+  *   where n = 0, ...,f_number_reservoirs - 1 and t = 0, ...,f_time_horizon - 1
   *   \f[
   *
   *      v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
@@ -808,7 +809,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration<double>, then the
+  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
   *        value stored in that SimpleConfiguration will be the tolerance that
   *        determines if a solution is feasible. */
 
@@ -1327,10 +1328,10 @@ class HydroUnitBlock : public UnitBlock
  *  - the secondary spinning reserve variables;
  *
  * All these five groups of variables are (if not empty)
- * boost::multi_array<ColVariable,2>. The volumetric variables have the number
- * reservoirs as the first dimension and time horizon as the second dimension;
- * all other variables have number of arcs (generators) as the first dimension
- * and time horizon as the second one.
+ * boost::multi_array< ColVariable , 2 >. The volumetric variables have the
+ * number reservoirs as the first dimension and time horizon as the second
+ * dimension; all other variables have number of arcs (generators) as the
+ * first dimension and time horizon as the second one.
  * @{ */
 
  /// returns the array of volume variables of the given \p reservoir

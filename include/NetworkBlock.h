@@ -165,8 +165,8 @@ class NetworkBlock : public Block
    *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
    *
    * Any whitespaces that the given \p classname may contain is ignored. So,
-   * for example, to create an instance of the class MyNetworkData<int> one
-   * could pass "MyNetworkData<int>" or "MyNetworkData< int >"
+   * for example, to create an instance of the class MyNetworkData< int > one
+   * could pass "MyNetworkData< int >" or "MyNetworkData< int >"
    * (even " M y B l o c k < int > " would work).
    *
    * @param classname The name of the :NetworkData class that must be

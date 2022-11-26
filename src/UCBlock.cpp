@@ -112,7 +112,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
    new_Block( sub_group , this ) ) ) {
    v_network_blocks[ i ] = nbi;
    delete f_NetworkData;
-   f_NetworkData = static_cast<NetworkBlock::NetworkData *>(
+   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
     NetworkBlock::NetworkData::new_NetworkData( network_data_classname ));
    f_NetworkData->deserialize( sub_group );
    nbi->set_NetworkData( f_NetworkData );
@@ -360,13 +360,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   what += 4;
  }
 
- if( what > 0 ) {
-  for( auto * b : v_Block ) {
-   if( auto ub = dynamic_cast<UnitBlock *>(b) ) {
+ if( what > 0 )
+  for( auto * b : v_Block )
+   if( auto ub = dynamic_cast< UnitBlock * >(b) )
     ub->set_reserve_vars( what );
-   }
-  }
- }
 
  // load all NetworkBlock, if any
  deserialize_network_blocks( group );
@@ -414,7 +411,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
    v_Block.resize( f_number_units + f_number_networks , nullptr );
 
    delete f_NetworkData;
-   f_NetworkData = static_cast<NetworkBlock::NetworkData *>(
+   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
     NetworkBlock::NetworkData::new_NetworkData( network_data_classname ));
    f_NetworkData->deserialize( group );
   }
@@ -600,8 +597,7 @@ void UCBlock::generate_node_injection_constraints( void ) {
          i < v_network_blocks[ n ]->get_number_intervals() ;
          ++i , ++t ) {
 
-     auto node_injection =
-      v_network_blocks[ n ]->get_node_injection( i );
+     auto node_injection = v_network_blocks[ n ]->get_node_injection( i );
 
      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -1011,7 +1007,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][pollutant][ h ];
 
-         auto linear_function = dynamic_cast<LinearFunction *>
+         auto linear_function = dynamic_cast< LinearFunction * >
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
 
          linear_function->add_variable( &heat, rho );
@@ -1053,7 +1049,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          if( node_id == v_generator_node[ elc_generator ] ) {
 
           auto block = get_nested_Blocks()[ generator_id ];
-          auto unit_block = dynamic_cast<UnitBlock *>(block);
+          auto unit_block = dynamic_cast< UnitBlock * >(block);
           if( ! unit_block )
            continue;
 
@@ -1101,7 +1097,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto heat = get_heat_block()[h]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
-         auto linear_function = dynamic_cast<LinearFunction *>
+         auto linear_function = dynamic_cast< LinearFunction * >
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
 
          linear_function->add_variable( &heat, rho );
@@ -1199,7 +1195,7 @@ void UCBlock::generate_heat_constraints( void ) {
      auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][generator_id];
      auto power_heat_rho = get_power_heat_rho()[ generator_id ];
 
-     auto linear_function = dynamic_cast<LinearFunction *>
+     auto linear_function = dynamic_cast< LinearFunction * >
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
      linear_function->add_variable( &heat, 1, 0 );
      linear_function->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
