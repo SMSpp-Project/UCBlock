@@ -197,13 +197,14 @@ function csvEC2nc4()
                 batt_max_power = defVar(ub, "MaxPower", Float64, ())
                 batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
 
-                # store the minimum and maximum storage of the battery
+                # store the minimum storage of the battery
                 min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
                 min_storage[:] = [(field_component(users_data[u], g, "min_SOC") *
                                    field_component(users_data[u], g, "max_capacity")) /
                                   profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
                                   for t in time_set]
 
+                # store the maximum storage of the battery
                 max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
                 max_storage[:] = [(field_component(users_data[u], g, "max_SOC") *
                                    field_component(users_data[u], g, "max_capacity")) /
