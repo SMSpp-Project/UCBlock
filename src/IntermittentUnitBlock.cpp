@@ -423,12 +423,11 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
    dimension = TimeHorizon;
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
-  else if( data.size() != 1 ) {
+  else if( data.size() != 1 )
    throw( std::logic_error
     ( "IntermittentUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
-                                                        "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
-  }
+      var_name + ": " + std::to_string( data.size() ) + ". Its dimension must" +
+                        " be one of the following: TimeHorizon, NumberIntervals, 1." ) );
 
   ::serialize( group , var_name , ncType , dimension , data ,
                allow_scalar_var );
@@ -445,44 +444,35 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
- const Subset & time ,
- ModParam issueAMod ) {
- if( ! MaxPower_Const.empty() ) {
-  for( auto t : time ) {
+ const Subset & time , ModParam issueAMod ) {
+ if( ! MaxPower_Const.empty() )
+  for( auto t : time )
    MaxPower_Const[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
-  }
- }
 
- if( ! active_power_bounds_Const.empty() ) {
-  for( auto t : time ) {
+ if( ! active_power_bounds_Const.empty() )
+  for( auto t : time )
    active_power_bounds_Const[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
-  }
- }
 }
 
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::update_max_power_in_constraints(
  const Range & time , ModParam issueAMod ) {
- if( ! MaxPower_Const.empty() ) {
-  for( auto t = time.first ; t < time.second ; ++t ) {
+ if( ! MaxPower_Const.empty() )
+  for( auto t = time.first ; t < time.second ; ++t )
    MaxPower_Const[ t ].set_rhs
     ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
-  }
- }
 
- if( ! active_power_bounds_Const.empty() ) {
-  for( auto t = time.first ; t < time.second ; ++t ) {
+ if( ! active_power_bounds_Const.empty() )
+  for( auto t = time.first ; t < time.second ; ++t )
    active_power_bounds_Const[ t ].set_rhs
     ( f_kappa * v_maximum_power[ t ] , issueAMod );
    // FIXME: use a GroupModification
-  }
- }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -497,9 +487,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
-  }
 
   Index max_index = *std::max_element( std::begin( subset ) ,
                                        std::end( subset ) );
@@ -509,10 +498,9 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  // If nothing changes, return
  bool identical = true;
  for( auto t : subset ) {
-  if( t >= v_maximum_power.size() ) {
+  if( t >= v_maximum_power.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
                                   " invalid value in subset" ) );
-  }
   auto max_power = *( values++ );
   if( v_maximum_power[ t ] != max_power ) {
    identical = false;
@@ -525,16 +513,14 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
-     constraints_generated() ) {
+     constraints_generated() )
   // Change the abstract representation
   update_max_power_in_constraints( subset , issueAMod );
- }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
-  if( ! ordered ) {
+  if( ! ordered )
    std::sort( subset.begin() , subset.end() );
-  }
 
   Block::add_Modification( std::make_shared< IntermittentUnitBlockSbstMod >
                             ( this , IntermittentUnitBlockMod::eSetMaxP ,
@@ -554,9 +540,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
  if( v_maximum_power.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
-  }
 
   auto max_index = rng.second;
   v_maximum_power.assign( max_index , 0 );
@@ -573,10 +558,9 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_maximum_power.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_max_power_in_constraints( rng , issueAMod );
-  }
  }
 
  if( issue_pmod( issuePMod ) )
@@ -597,9 +581,8 @@ void IntermittentUnitBlock::scale
  if( f_scale == *values )
   return; // The scale factor does not change: nothing to do
 
- if( not_dry_run( issuePMod ) ) {
+ if( not_dry_run( issuePMod ) )
   f_scale = *values; // Update the scale factor
- }
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
@@ -633,39 +616,32 @@ void IntermittentUnitBlock::set_kappa
    if( constraints_generated() ) {
     // Update the constraints
 
-    if( ! active_power_bounds_Const.empty() ) {
+    if( ! active_power_bounds_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs
        ( f_kappa * v_minimum_power[ t ] , issueAMod );
-
       active_power_bounds_Const[ t ].set_rhs
        ( f_kappa * v_maximum_power[ t ] , issueAMod );
      }
-    }
 
-    if( ! MinPower_Const.empty() ) {
-     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( ! MinPower_Const.empty() )
+     for( Index t = 0 ; t < f_time_horizon ; ++t )
       MinPower_Const[ t ].set_lhs
        ( f_kappa * v_minimum_power[ t ] , issueAMod );
-     }
-    }
 
-    if( ! MaxPower_Const.empty() ) {
-     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( ! MaxPower_Const.empty() )
+     for( Index t = 0 ; t < f_time_horizon ; ++t )
       MaxPower_Const[ t ].set_rhs
        ( f_gamma * f_kappa * v_maximum_power[ t ] , issueAMod );
-     }
-    }
    }  // end( constraints_generated )
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >
                             ( this , IntermittentUnitBlockMod::eSetKappa ) ,
                            Observer::par2chnl( issuePMod ) );
- }
 }  // end( IntermittentUnitBlock::set_kappa )
 
 /*--------------------------------------------------------------------------*/

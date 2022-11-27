@@ -57,7 +57,7 @@ ECNetworkBlock::~ECNetworkBlock() {
  Constraint::clear( power_balance_const );
  Constraint::clear( power_flow_limit_const );
 
- Constraint::clear( node_injection_upper_const );
+ Constraint::clear( node_injection_upper_bound_const );
 
  objective.clear();
 
@@ -159,11 +159,10 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   assert( ( v_active_demand.shape()[ 0 ] == NumberIntervals ) &&
           ( v_active_demand.shape()[ 1 ] == NumberNodes ) );
 
- } else {
+ } else
   // An ECNetworkData has not been provided. However, the active demand may
   // still have been provided.
   ::deserialize( group , "ActiveDemand" , v_active_demand );
- }
 
  // it is mandatory if we use a Solver that optimize each Block at a time to
  // lower bound the node injection
@@ -209,7 +208,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   auto NumberNodes = group.getDim( "NumberNodes" );
 
-  if( NumberNodes.isNull() ) {
+  if( NumberNodes.isNull() )
    /* The dimension "NumberNodes" is not present in the group (which means
     * that an ECNetworkData is not present). However, the number of nodes can
     * still be obtained from the size of the active demand vector. Notice that
@@ -218,7 +217,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
     * case). Therefore, we create an alternative dimension in order to be able
     * to serialize the active demand. */
    NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
-  }
 
   auto NumberIntervals = group.getDim( "NumberIntervals" );
 
@@ -313,7 +311,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   boost::multi_array< FRowConstraint , 3 >::extent_gen()
   [ number_nodes ][ number_intervals ][ 2 ] ); // 2 dims, i.e., the sign (+/-)
 
- for( Index t = 0 ; t < number_intervals ; ++t ) {
+ for( Index t = 0 ; t < number_intervals ; ++t )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -365,10 +363,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    power_flow_limit_const[ node_id ][ t ][ 1 ].set_function(
     new LinearFunction( std::move( vars_n ) ) );
   }
- }
 
- add_static_constraint( power_flow_limit_const ,
-                        "power_flow_limit_const" );
+ add_static_constraint( power_flow_limit_const , "Power_Flow_Limit_Const" );
 
 /*-------------------------- equality constraints --------------------------*/
 
@@ -389,10 +385,10 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   vars.push_back(
-    std::make_pair( &v_micro_power_injection[ t ][ node_id ] , 1.0 ) );
-   vars.push_back(
-    std::make_pair( &v_micro_power_absorption[ t ][ node_id ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
+                                   1.0 ) );
+   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
+                                   -1.0 ) );
   }
 
   micro_power_balance_const[ t ].set_both( 0.0 );
@@ -401,7 +397,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  add_static_constraint( micro_power_balance_const ,
-                        "micro_power_balance_const" );
+                        "Micro_Power_Balance_Const" );
 
  // set the power balance, i.e.:
  //
@@ -416,7 +412,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ number_nodes ][ number_intervals ] );
 
- for( Index t = 0 ; t < number_intervals ; ++t ) {
+ for( Index t = 0 ; t < number_intervals ; ++t )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -436,33 +432,31 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    power_balance_const[ node_id ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
- }
 
- add_static_constraint( power_balance_const ,
-                        "power_balance_const" );
+ add_static_constraint( power_balance_const , "Power_Balance_Const" );
 
  // node injection upper bound constraints
 
- node_injection_upper_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
-
- for( Index t = 0 ; t < number_intervals ; ++t ) {
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   node_injection_upper_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-   node_injection_upper_const[ node_id ][ t ].set_rhs(
-    v_max_injection[ t ][ node_id ] );
-   node_injection_upper_const[ node_id ][ t ].set_variable(
-    &v_node_injection[ t ][ node_id ] );
-  }
- }
-
- add_static_constraint( node_injection_upper_const ,
-                        "node_injection_upper_const" );
+// node_injection_upper_bound_const.resize(
+//  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+//  [ number_nodes ][ number_intervals ] );
+//
+// for( Index t = 0 ; t < number_intervals ; ++t )
+//
+//  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+//
+//   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
+//    &v_node_injection[ t ][ node_id ] );
+//   node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
+//   node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
+//    v_max_injection[ t ][ node_id ] );
+//  }
+//
+// add_static_constraint( node_injection_upper_bound_const ,
+//                        "Node_Injection_Upper_Bound_Const" );
 
  set_constraints_generated();
+
 }  // end( ECNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -484,7 +478,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
          && Constraint::is_feasible( micro_power_balance_const , tol )
          && Constraint::is_feasible( power_balance_const , tol )
          && Constraint::is_feasible( power_flow_limit_const , tol )
-         && Constraint::is_feasible( node_injection_upper_const , tol ) );
+         && Constraint::is_feasible( node_injection_upper_bound_const , tol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 
@@ -541,23 +535,18 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const (double) ptr to double (?)
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
+ // TODO this should be a const ptr to double
+ std::vector< double >::const_iterator values , Block::Subset && subset ,
+ const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
  // TODO
 }
 
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const (double) ptr to double (?)
+ // TODO this should be a const ptr to double
  std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
+ Block::Range rng , c_ModParam issuePMod , c_ModParam issueAMod ) {
  // TODO
 }
 

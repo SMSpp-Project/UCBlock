@@ -225,7 +225,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
   auto NumberNodes = group.getDim( "NumberNodes" );
 
-  if( NumberNodes.isNull() ) {
+  if( NumberNodes.isNull() )
    /* The dimension "NumberNodes" is not present in the group (which means
     * that a DCNetworkData is not present). However, the number of nodes can
     * still be obtained from the size of the active demand vector. Notice that
@@ -234,7 +234,6 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
     * case). Therefore, we create an alternative dimension in order to be able
     * to serialize the active demand. */
    NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
-  }
 
   // Finally, serialize the active demand.
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,

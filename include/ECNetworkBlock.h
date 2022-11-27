@@ -2,7 +2,6 @@
 /*-------------------------- File ECNetworkBlock.h -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- *
  * Header file for the class ECNetworkBlock, which derives from NetworkBlock
  * and describe the behaviour of the energy community network in a specific time
  * instant or in a time interval, in the Unit Commitment problem.
@@ -708,7 +707,7 @@ class ECNetworkBlock : public NetworkBlock
 
 
  /// the node injection upper bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_upper_const;
+ boost::multi_array< BoxConstraint , 2 > node_injection_upper_bound_const;
 
 
  /// the objective function

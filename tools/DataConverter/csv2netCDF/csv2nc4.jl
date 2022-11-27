@@ -30,15 +30,15 @@ function csvEC2nc4()
 
     # --------------------------------------------------------------------------------------- #
 
-    # Create w `(EC)NetworkBlock`(s) for each peak period/category, each of them span t time step/horizon
+    # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time step/horizon
 
-    # Store the number of `(EC)NetworkBlock`(s), i.e., the number of peak period/category
+    # Store the number of `ECNetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Create (sell/buy/consumption) price data arrays
+    # Create sell, buy, reward, and consumption price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
 
@@ -75,7 +75,7 @@ function csvEC2nc4()
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    # create one `(EC)NetworkBlock` for each peak period/category
+    # create one `ECNetworkBlock` for each peak period
     last_t = 1
     for (i_w, w) in enumerate(peak_set)
 
@@ -114,7 +114,7 @@ function csvEC2nc4()
         reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
         reward_price[:] = reward_price_data[last_t:last_i]
 
-        # `ConstantTerm`
+        # `ConstTerm`, i.e., the consumption price
         const_term = defVar(ecnb, "ConstTerm", Float64, ())
         const_term[:] = sum(constant_term[last_t:last_i])
 
