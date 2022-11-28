@@ -437,23 +437,23 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // node injection upper bound constraints
 
-// node_injection_upper_bound_const.resize(
-//  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-//  [ number_nodes ][ number_intervals ] );
-//
-// for( Index t = 0 ; t < number_intervals ; ++t )
-//
-//  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-//
-//   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
-//    &v_node_injection[ t ][ node_id ] );
-//   node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-//   node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
-//    v_max_injection[ t ][ node_id ] );
-//  }
-//
-// add_static_constraint( node_injection_upper_bound_const ,
-//                        "Node_Injection_Upper_Bound_Const" );
+ node_injection_upper_bound_const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ number_nodes ][ number_intervals ] );
+
+ for( Index t = 0 ; t < number_intervals ; ++t )
+
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
+    &v_node_injection[ t ][ node_id ] );
+   node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
+   node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
+    v_max_injection[ t ][ node_id ] );
+  }
+
+ add_static_constraint( node_injection_upper_bound_const ,
+                        "Node_Injection_Upper_Bound_Const" );
 
  set_constraints_generated();
 

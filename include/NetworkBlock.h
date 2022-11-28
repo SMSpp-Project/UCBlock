@@ -123,7 +123,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-  NetworkData();
+  NetworkData( void ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -239,7 +239,7 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-  /// returns the number of intervals of the network
+  /// returns the number of intervals spanned by the network
   /** Method for returning the number of intervals the network refers to. */
 
   Index get_number_intervals( void ) const { return( f_number_intervals ); }
@@ -618,10 +618,10 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of intervals
- /** Returns the number of intervals spanned by this NetworkBlock. This should
-  * just be equivalent to get_NetworkData()->get_number_intervals(), but the base
-  * NetworkBlock class does not handle it, and therefore it assumes the network
-  * handle just one time horizon and returns 1. */
+ /** Returns the number of spanned intervals. This should just be equivalent
+  * to get_NetworkData()->get_number_intervals(), but the base NetworkBlock
+  * class does not handle it, and therefore it assumes the network handle
+  * just one time horizon and returns 1. */
 
  virtual Index get_number_intervals( void ) const { return( 1 ); }
 

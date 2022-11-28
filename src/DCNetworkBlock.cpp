@@ -86,8 +86,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" ,
-                                                     "NumberIntervals" };
+                                                     "NumberLines" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "StartLine" , "EndLine" ,

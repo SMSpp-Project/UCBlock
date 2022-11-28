@@ -28,31 +28,62 @@ function csvEC2nc4()
     network_data_classname = defVar(block, "NetworkDataClassname", String, ())
     network_data_classname[1] = "ECNetworkData"
 
-    # --------------------------------------------------------------------------------------- #
-
-    # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time step/horizon
-
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak period/category
     peak_categories = profile(market_data, "peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Create sell, buy, reward, and consumption price data arrays
+    # Create buy, sell, reward, and consumption price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
 
-    sell_price_data = [profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t] *
-                       profile(market_data, "sell_price")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
+    # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
     buy_price_data = [profile(market_data, "energy_weight")[t] *
                       profile(market_data, "time_res")[t] *
                       profile(market_data, "buy_price")[t]
                       for t in time_set] *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    is_buy_equal = allequal(buy_price_data)
+    if (is_buy_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
+        buy_price = defVar(block, "BuyPrice", Float64, ())
+        buy_price[:] = buy_price_data[1]
+    end
+
+    # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
+    sell_price_data = [profile(market_data, "energy_weight")[t] *
+                       profile(market_data, "time_res")[t] *
+                       profile(market_data, "sell_price")[t]
+                       for t in time_set] *
+                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    is_sell_equal = allequal(sell_price_data)
+    if (is_sell_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
+        sell_price = defVar(block, "SellPrice", Float64, ())
+        sell_price[:] = sell_price_data[1]
+    end
+
+    # `RewardPrice`, i.e., the reward awarded to the community
+    reward_price_data = [profile(market_data, "energy_weight")[t] *
+                         profile(market_data, "time_res")[t] *
+                         profile(market_data, "reward_price")[t]
+                         for t in time_set] *
+                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    is_reward_equal = allequal(reward_price_data)
+    if (is_reward_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
+        reward_price = defVar(block, "RewardPrice", Float64, ())
+        reward_price[:] = reward_price_data[1]
+    end
+
+    # `MaxTariff`, i.e., the peak tariff cost
+    peak_tariff = [(profile(market_data, "peak_weight")[w] *
+                    profile(market_data, "peak_tariff")[w])
+                   for w in peak_set] *
+                  sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    is_peak_equal = allequal(peak_tariff)
+    if (is_peak_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
+        max_tariff = defVar(block, "MaxTariff", Float64, ())
+        max_tariff[:] = peak_tariff[1]
+    end
 
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
@@ -64,18 +95,7 @@ function csvEC2nc4()
                      for t in time_set] *
                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    peak_tariff = [(profile(market_data, "peak_weight")[w] *
-                    profile(market_data, "peak_tariff")[w])
-                   for w in peak_set] *
-                  sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
-    reward_price_data = [profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t] *
-                         profile(market_data, "reward_price")[t]
-                         for t in time_set] *
-                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
-    # create one `ECNetworkBlock` for each peak period
+    # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time step/horizon
     last_t = 1
     for (i_w, w) in enumerate(peak_set)
 
@@ -103,16 +123,28 @@ function csvEC2nc4()
                               for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-        buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
-        buy_price[:] = buy_price_data[last_t:last_i]
+        if (!is_buy_equal)
+            buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
+            buy_price[:] = buy_price_data[last_t:last_i]
+        end
 
         # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-        sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
-        sell_price[:] = sell_price_data[last_t:last_i]
+        if (!is_sell_equal)
+            sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
+            sell_price[:] = sell_price_data[last_t:last_i]
+        end
 
         # `RewardPrice`, i.e., the reward awarded to the community
-        reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
-        reward_price[:] = reward_price_data[last_t:last_i]
+        if (!is_reward_equal)
+            reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
+            reward_price[:] = reward_price_data[last_t:last_i]
+        end
+
+        # `MaxTariff`, i.e., the peak tariff cost
+        if (!is_peak_equal)
+            max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
+            max_tariff[:] = peak_tariff[i_w]
+        end
 
         # `ConstTerm`, i.e., the consumption price
         const_term = defVar(ecnb, "ConstTerm", Float64, ())
@@ -129,15 +161,11 @@ function csvEC2nc4()
                                for u in user_set, t in last_t:last_i]
 
         last_t += n_intervals
-
-        # `MaxTariff`, i.e., the peak tariff cost
-        max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-        max_tariff[:] = peak_tariff[i_w]
     end
 
     # --------------------------------------------------------------------------------------- #
 
-    # Let's create g `(Battery/Intermittent)UnitBlock`(s) for each electrical generator/device
+    # Create g `(Battery/Intermittent)UnitBlock`(s) for each electrical generator/device
 
     devices = [d for u in user_set
                for d in asset_names(users_data[u], SMSPP_DEVICES)]
