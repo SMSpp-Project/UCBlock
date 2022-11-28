@@ -123,7 +123,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-  NetworkData( void ) {}
+  NetworkData( void );
 
 /*--------------------------------------------------------------------------*/
 
