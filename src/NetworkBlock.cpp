@@ -44,23 +44,6 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-NetworkBlock::NetworkData::NetworkData( void )
- : f_number_lines( 0 ) , f_number_nodes( 0 ) , f_number_intervals( 0 ) {}
-
-/*--------------------------------------------------------------------------*/
-
-void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
-
- // Optional variables
-
- if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
-  f_number_intervals = 1;
-}
-
-/*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -94,18 +77,9 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
+
  group.addDim( "NumberNodes" , f_number_nodes );
- group.addDim( "NumberIntervals" , f_number_intervals );
 
- if( f_number_nodes > 1 ) {
-  auto NumberLines = group.addDim( "NumberLines" , f_number_lines );
-
-  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
-               v_start_line );
-
-  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
-               v_end_line );
- }
 }  // end( NetworkBlock::NetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/

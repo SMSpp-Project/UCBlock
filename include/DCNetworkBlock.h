@@ -179,15 +179,15 @@ class DCNetworkBlock : public NetworkBlock
    *   that node names here go from 0 to NNodes.getSize() - 1;
    *
    * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
-   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
-   *   ] that, for each line l, contains the minimum power flow at line l (note
-   *   that this is typically a negative number as lines are bi-directional, see
-   *   above).
+   *   the dimension "NumberLines". This is meant to represent the vector
+   *   MxP[ l ] that, for each line l, contains the minimum power flow at
+   *   line l (note that this is typically a negative number as lines are
+   *   bi-directional, see above).
    *
    * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
-   *   the dimension "NumberLines". This is meant to represent the vector MxP[ l
-   *   ] that, for each line l, contains the maximum power flow at line l (a
-   *   non-negative number).
+   *   the dimension "NumberLines". This is meant to represent the vector
+   *   MxP[ l ] that, for each line l, contains the maximum power flow at
+   *   line l (a non-negative number).
    *
    * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
    *   dimension "NumberLines". This is meant to represent the vector S[ l ]
@@ -206,7 +206,7 @@ class DCNetworkBlock : public NetworkBlock
    *   nodes or each network. This variable is optional; if it is not provided
    *   then it's taken to be zero. */
 
-  virtual void deserialize( const netCDF::NcGroup & group );
+  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
@@ -360,18 +360,14 @@ class DCNetworkBlock : public NetworkBlock
   /** This method returns the types of lines present in the network. */
 
   line_type get_lines_type( void ) const {
-
    if( get_number_lines() == 0 )
     return( kNone );
-
    if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
                     []( double s ) { return( s == 0.0 ); } ) )
     return( kHVDC );
-
    if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
                     []( double s ) { return( s != 0.0 ); } ) )
     return( kAC );
-
    return( kAC_HVDC );
   }
 
@@ -819,7 +815,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @return the number of lines in the network. */
 
- Index get_number_lines( void ) const override {
+ Index get_number_lines( void ) const {
   if( f_NetworkData )
    return( f_NetworkData->get_number_lines() );
   return( 0 );

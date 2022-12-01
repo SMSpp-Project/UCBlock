@@ -44,11 +44,6 @@ function csvEC2nc4()
                       profile(market_data, "buy_price")[t]
                       for t in time_set] *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-    is_buy_equal = allequal(buy_price_data)
-    if (is_buy_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
-        buy_price = defVar(block, "BuyPrice", Float64, ())
-        buy_price[:] = buy_price_data[1]
-    end
 
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
     sell_price_data = [profile(market_data, "energy_weight")[t] *
@@ -56,11 +51,6 @@ function csvEC2nc4()
                        profile(market_data, "sell_price")[t]
                        for t in time_set] *
                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-    is_sell_equal = allequal(sell_price_data)
-    if (is_sell_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
-        sell_price = defVar(block, "SellPrice", Float64, ())
-        sell_price[:] = sell_price_data[1]
-    end
 
     # `RewardPrice`, i.e., the reward awarded to the community
     reward_price_data = [profile(market_data, "energy_weight")[t] *
@@ -68,22 +58,12 @@ function csvEC2nc4()
                          profile(market_data, "reward_price")[t]
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-    is_reward_equal = allequal(reward_price_data)
-    if (is_reward_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
-        reward_price = defVar(block, "RewardPrice", Float64, ())
-        reward_price[:] = reward_price_data[1]
-    end
 
     # `MaxTariff`, i.e., the peak tariff cost
     peak_tariff = [(profile(market_data, "peak_weight")[w] *
                     profile(market_data, "peak_tariff")[w])
                    for w in peak_set] *
                   sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-    is_peak_equal = allequal(peak_tariff)
-    if (is_peak_equal) # store just one time in the father block and deserialize into an `ECNetworkData`
-        max_tariff = defVar(block, "MaxTariff", Float64, ())
-        max_tariff[:] = peak_tariff[1]
-    end
 
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
@@ -123,28 +103,35 @@ function csvEC2nc4()
                               for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-        if (!is_buy_equal)
+        if (allequal(buy_price_data[last_t:last_i]))
+            buy_price = defVar(ecnb, "BuyPrice", Float64, ())
+            buy_price[:] = buy_price_data[last_t]
+        else
             buy_price = defVar(ecnb, "BuyPrice", Float64, ("NumberIntervals",))
             buy_price[:] = buy_price_data[last_t:last_i]
         end
 
         # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-        if (!is_sell_equal)
+        if (allequal(sell_price_data[last_t:last_i]))
+            sell_price = defVar(ecnb, "SellPrice", Float64, ())
+            sell_price[:] = sell_price_data[last_t]
+        else
             sell_price = defVar(ecnb, "SellPrice", Float64, ("NumberIntervals",))
             sell_price[:] = sell_price_data[last_t:last_i]
         end
 
         # `RewardPrice`, i.e., the reward awarded to the community
-        if (!is_reward_equal)
+        if (allequal(reward_price_data[last_t:last_i]))
+            reward_price = defVar(ecnb, "RewardPrice", Float64, ())
+            reward_price[:] = reward_price_data[last_t]
+        else
             reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
             reward_price[:] = reward_price_data[last_t:last_i]
         end
 
         # `MaxTariff`, i.e., the peak tariff cost
-        if (!is_peak_equal)
-            max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-            max_tariff[:] = peak_tariff[i_w]
-        end
+        max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
+        max_tariff[:] = peak_tariff[i_w]
 
         # `ConstTerm`, i.e., the consumption price
         const_term = defVar(ecnb, "ConstTerm", Float64, ())

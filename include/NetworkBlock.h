@@ -123,7 +123,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-  NetworkData( void );
+  NetworkData( void ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -192,37 +192,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// deserialize a NetworkData out of a netCDF::NcGroup
-  /** Deserialize a NetworkData out of a netCDF::NcGroup, which should contain
-   * the following:
-   *
-   * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is optional, if it is not provided then it is
-   *   taken to be == 1.
-   *
-   * If NumberNodes == 1 (equivalently, it is not provided), the network is a
-   * "bus" formed of only one node, and therefore all the subsequent information
-   * need not to be present since it is not loaded. If NumberNodes > 1, then all
-   * the subsequent information is mandatory:
-   *
-   * - The dimension "NumberLines" containing the number of lines in the
-   *   network.
-   *
-   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
-   *   dimension "NumberLines"; the l-th entry of the variable is the starting
-   *   point of the line (a number in 0, ..., NumberLines - 1). Note that lines
-   *   are not oriented, but the flow of energy is; that is, a positive flow
-   *   along line l means that energy is being taken away from StartLine[ l ]
-   *   and delivered to EndLine[ l ] (see next), a negative flow means
-   *   vice-versa. Note that node names here go from 0 to NNodes.getSize() - 1;
-   *
-   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
-   *   dimension "NumberLines"; the l-th entry of the variable is the ending
-   *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
-   *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop) is
-   *   not allowed, but multiple lines between the same pair of nodes are. Note
-   *   that node names here go from 0 to NNodes.getSize() - 1. */
-
-  virtual void deserialize( const netCDF::NcGroup & group );
+  virtual void deserialize( const netCDF::NcGroup & group ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -236,69 +206,6 @@ class NetworkBlock : public Block
    * the data is meaningless. */
 
   Index get_number_nodes( void ) const { return( f_number_nodes ); }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns the number of intervals spanned by the network
-  /** Method for returning the number of intervals the network refers to. */
-
-  Index get_number_intervals( void ) const { return( f_number_intervals ); }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns the number of lines of the network
-  /** Method for returning the number of lines of the network. When
-   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
-   * (no self-loops are allowed, hence there is no line to be made with a single
-   * node). */
-
-  Index get_number_lines( void ) const { return( f_number_lines ); }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns the vector of start lines
-  /** Method for returning the vector of starting point of each line. This
-   *  vector may have empty size (bus network) or the size of number of lines,
-   *  then there are two possible cases:
-   *
-   *  - if f_number_nodes == 1, this vector has empty size which means there is
-   *    no line at network (bus network), and this vector is not needed to be
-   *    defined.
-   *
-   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives starting point of each line in the network.
-  */
-
-  const std::vector< Index > & get_start_line( void ) const {
-   return( v_start_line );
-  }
-
-/*--------------------------------------------------------------------------*/
-
-  /// returns vector of end lines
-  /** Method for returning the vector of ending point of each line. This vector
-   * may have empty size (bus network) or the size of number of lines, then
-   * there are two possible cases:
-   *
-   *  - if f_number_nodes == 1, this vector has empty size which means there is
-   *    no line at network (bus network), and this vector is not needed to be
-   *    defined.
-   *
-   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives ending point of each line in the network.
-   */
-
-  const std::vector< Index > & get_end_line( void ) const {
-   return( v_end_line );
-  }
-
-/**@} ----------------------------------------------------------------------*/
-/*---------------- METHODS FOR MODIFYING THE NetworkData -----------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the NetworkData
- * @{ */
-
-
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -387,19 +294,7 @@ class NetworkBlock : public Block
 /*---------------------------------- data ----------------------------------*/
 
   /// number of nodes of the network
-  Index f_number_nodes;
-
-  /// number of lines of the network
-  Index f_number_lines;
-
-  /// number of intervals
-  Index f_number_intervals;
-
-  /// vector of starting lines
-  std::vector< Index > v_start_line;
-
-  /// vector of ending lines
-  std::vector< Index > v_end_line;
+  Index f_number_nodes{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -607,23 +502,11 @@ class NetworkBlock : public Block
  virtual Index get_number_nodes( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of lines
- /** This function returns the number of lines in the transmission
-  * network. This should just be equivalent to
-  * get_NetworkData()->get_number_lines(), but the base NetworkBlock class
-  * does not handle it, and therefore it assumes the network has no lines and
-  * returns 0. */
 
- virtual Index get_number_lines( void ) const { return( 0 ); }
+ /// returns the number of intervals spanned by the network
+ /** Method for returning the number of intervals spanned by this network. */
 
-/*--------------------------------------------------------------------------*/
- /// returns the number of intervals
- /** Returns the number of spanned intervals. This should just be equivalent
-  * to get_NetworkData()->get_number_intervals(), but the base NetworkBlock
-  * class does not handle it, and therefore it assumes the network handle
-  * just one time horizon and returns 1. */
-
- virtual Index get_number_intervals( void ) const { return( 1 ); }
+ Index get_number_intervals( void ) const { return( f_number_intervals ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
@@ -801,7 +684,8 @@ class NetworkBlock : public Block
 
 /*---------------------------------- data ----------------------------------*/
 
-
+ /// number of intervals
+ Index f_number_intervals = 1;
 
 /*-------------------------------- variables -------------------------------*/
 

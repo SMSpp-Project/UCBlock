@@ -362,7 +362,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( what > 0 )
   for( auto * b : v_Block )
-   if( auto ub = dynamic_cast< UnitBlock * >(b) )
+   if( auto ub = dynamic_cast< UnitBlock * >( b ) )
     ub->set_reserve_vars( what );
 
  // load all NetworkBlock, if any
@@ -421,8 +421,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
-    nbi = dynamic_cast< NetworkBlock *>(
-     new_Block( network_block_classname , this ));
+    nbi = dynamic_cast< NetworkBlock * >(
+     new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
    }
@@ -431,8 +431,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                     "missing in NetworkBlock " +
-                                    std::to_string( n ) + " and in UCBlock" )
-     );
+                                    std::to_string( n ) + " and in UCBlock" ) );
     nbi->set_NetworkData( f_NetworkData );
    }
 
@@ -442,7 +441,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t ) {
+        ++i , ++t )
 
     if( ! nbi->get_active_demand( i ) ) {
      if( ! v_active_power_demand.num_elements() )
@@ -454,7 +453,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
      std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
     }
-   }
    nbi->set_ActiveDemand( ap_v );
   }
 

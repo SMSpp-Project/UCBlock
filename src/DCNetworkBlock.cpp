@@ -89,16 +89,15 @@ void DCNetworkBlock::DCNetworkData::deserialize(
                                                      "NumberLines" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "StartLine" , "EndLine" ,
-                                                     "ActiveDemand" ,
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
                                                      "NetworkCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
-
- NetworkBlock::NetworkData::deserialize( group );
 
  // Optional variables
 
@@ -140,8 +139,6 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_vars = { "ActiveDemand" };
  check_variables( group , expected_vars , std::cerr );
 #endif
-
- NetworkBlock::deserialize( group );
 
  // Optional variables
 
@@ -193,7 +190,13 @@ void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
  NetworkBlock::NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
-  auto NumberLines = group.getDim( "NumberLines" );
+  auto NumberLines = group.addDim( "NumberLines" );
+
+  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
+               v_start_line );
+
+  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
+               v_end_line );
 
   ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
                v_min_power_flow );
