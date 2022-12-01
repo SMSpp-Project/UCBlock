@@ -143,12 +143,7 @@ class UCBlock : public Block
  /// constructor of UCBlock, taking possibly a pointer of its father Block
 
  explicit UCBlock( Block * father = nullptr )
-  : Block( father ) , f_time_horizon( 0 ) , f_number_units( 0 ) ,
-    f_NetworkData( nullptr ) ,
-  // TODO commented away until HeatBlock are properly managed
-  // f_number_heat_blocks( 0 ) ,
-    f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
-    f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) , AR( 0 ) {}
+  : Block( father ) , f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UCBlock
@@ -172,7 +167,7 @@ class UCBlock : public Block
  * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
  *   the problem;
  *
- * - The groups "UnitBlock_0", "UnitBlock_1", ... , "UnitBlock_n" with n ==
+ * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with n ==
  *   NumberUnits - 1, containing each one UnitBlock corresponding to one or
  *   more electricity generating unit (electrical generator). It is an error
  *   if the corresponding groups are not there. Each UnitBlock can have more
@@ -215,7 +210,7 @@ class UCBlock : public Block
  *   the problem. The dimension is optional: if it is not provided then it is
  *   taken to be 0, which means that there is no heat block in the problem.
  *
- * - The groups "HeatBlock_0", "HeatBlock_1", ... , "HeatBlock_n" with
+ * - The groups "HeatBlock_0", "HeatBlock_1", ..., "HeatBlock_n" with
  *   n == NumberHeatBlocks - 1, containing each one a HeatBlock. When
  *   NumberHeatBlocks == 0, these groups need not be there since they are not
  *   read. If, instead, NumberHeatBlocks > 0, it is an error if the
@@ -282,7 +277,7 @@ class UCBlock : public Block
  *   overrules the value in the corresponding row of "ActivePowerDemand",
  *   which is ignored.
  *
- * - The groups "NetworkBlock_0", "NetworkBlock_1", ... , "NetworkBlock_T"
+ * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
  *   with T = NumberNetworks - 1, with "NetworkBlock_t" containing the
  *   constraints on the transmission or community network at time t. The
  *   NetworkBlocks are optional, but if any of them are missing, then:
@@ -990,7 +985,7 @@ class UCBlock : public Block
 
  // const std::vector< Index > & get_heat_set( void ) const {
  //  return( v_heat_set );
- //  }
+ // }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant rho
@@ -1052,7 +1047,7 @@ class UCBlock : public Block
  // const boost::multi_array< double, 3 > & get_pollutant_heat_rho( void )
  // const {
  //  return( v_pollutant_heat_rho );
- //  }
+ // }
 
 /*--------------------------------------------------------------------------*/
  /// returns the u-th UnitBlock
@@ -1091,7 +1086,7 @@ class UCBlock : public Block
 
  // const std::vector< HeatBlock * > & get_heat_block( void ) const {
  //  return( v_heat_blocks );
- //  }
+ // }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of generator node
@@ -1127,7 +1122,7 @@ class UCBlock : public Block
 
  // const std::vector< double > & get_power_heat_rho( void ) const {
  //  return( v_power_heat_rho );
- //  }
+ // }
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
@@ -1365,7 +1360,7 @@ class UCBlock : public Block
 /*---------------------------------- data ----------------------------------*/
 
  /// the time horizon of the problem
- Index f_time_horizon;
+ Index f_time_horizon{};
 
  /// the specific classname of the networks that need to be instantiated,
  /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
@@ -1376,13 +1371,13 @@ class UCBlock : public Block
  std::string network_data_classname;
 
  /// the number of the networks of the problem
- Index f_number_networks;
+ Index f_number_networks{};
 
  /// the number of units of the problem
- Index f_number_units;
+ Index f_number_units{};
 
  /// the number of electrical generators of the problem
- Index f_number_elc_generators;
+ Index f_number_elc_generators{};
 
  /* TODO commented away until HeatBlock are properly managed
  /// the number of heat generators of the problem
@@ -1390,7 +1385,7 @@ class UCBlock : public Block
  */
 
  /// the total number of pollutant zones of the problem
- Index f_total_number_pollutant_zones;
+ Index f_total_number_pollutant_zones{};
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
@@ -1401,16 +1396,16 @@ class UCBlock : public Block
  */
 
  /// the number of nodes in primary zones of the network
- Index f_number_primary_zones;
+ Index f_number_primary_zones{};
 
  /// the number of nodes in secondary zones of the network
- Index f_number_secondary_zones;
+ Index f_number_secondary_zones{};
 
  /// the number of nodes in inertia zones of the network
- Index f_number_inertia_zones;
+ Index f_number_inertia_zones{};
 
  /// the number of pollutants
- Index f_number_pollutants;
+ Index f_number_pollutants{};
 
  /* TODO commented away until HeatBlock are properly managed
  /// the set of HeatBlock
@@ -1483,7 +1478,7 @@ class UCBlock : public Block
  */
 
  /* TODO commented away until HeatBlock are properly managed
- /// tector of heat rho
+ /// vector of heat rho
  std::vector< double > v_power_heat_rho;
  */
 
@@ -1523,7 +1518,7 @@ class UCBlock : public Block
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- unsigned char AR; ///< bit-wise coded: what abstract is there
+ unsigned char AR{}; ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed

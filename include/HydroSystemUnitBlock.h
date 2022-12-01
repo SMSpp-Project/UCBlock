@@ -124,7 +124,7 @@ class HydroSystemUnitBlock : public UnitBlock
  * - The dimension "NumberHydroUnits" containing the number of hydro units
  *   (HydroUnitBlock) in the problem.
  *
- * - The groups "HydroUnitBlock_0", "HydroUnitBlock_1", ... ,
+ * - The groups "HydroUnitBlock_0", "HydroUnitBlock_1", ...,
  *   "HydroUnitBlock_(n-1)", with n == NumberHydroUnits, containing each one
  *   HydroUnitBlock.
  *
@@ -141,7 +141,7 @@ class HydroSystemUnitBlock : public UnitBlock
  * that represent the amount of water left in each reservoir at the end of
  * the time horizon. Thus, it is necessary to specify the order of the
  * active ColVariable of the PolyhedralFunction. Let us denote by X[ 0 ],
- * X[ 1 ], ... , X[ R - 1 ] the vector of active ColVariable (i.e.,
+ * X[ 1 ], ..., X[ R - 1 ] the vector of active ColVariable (i.e.,
  * X[ i ] is the one returned by get_active_var( i ) and R =
  * get_num_active_var()). Since each HydroUnitBlock can have more than one
  * reservoir (cf. HydroUnitBlock::get_number_reservoirs()), R is just the

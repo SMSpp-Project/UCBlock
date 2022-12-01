@@ -192,6 +192,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// deserialize a NetworkData out of a netCDF::NcGroup
+
   virtual void deserialize( const netCDF::NcGroup & group ) {}
 
 /**@} ----------------------------------------------------------------------*/
