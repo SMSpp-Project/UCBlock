@@ -180,10 +180,16 @@ function csvEC2nc4()
                 max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
                 # store the maximum power of the pv/wind asset
-                max_power = defVar(ub, "MaxPower", Float64, ("TimeHorizon",))
-                max_power[:] = [field_component(users_data[u], g, "max_capacity") *
-                                profile_component(users_data[u], g, "ren_pu")[t]
-                                for t in time_set]
+                max_power_data = [field_component(users_data[u], g, "max_capacity") *
+                                  profile_component(users_data[u], g, "ren_pu")[t]
+                                  for t in time_set]
+                if (allequal(max_power_data))
+                    max_power = defVar(ub, "MaxPower", Float64, ())
+                    max_power[:] = max_power_data[1]
+                else
+                    max_power = defVar(ub, "MaxPower", Float64, ("TimeHorizon",))
+                    max_power[:] = max_power_data[:]
+                end
 
                 # Net Present Value of the component
                 investment_cost = defVar(ub, "InvestmentCost", Float64, ())
@@ -213,18 +219,30 @@ function csvEC2nc4()
                 batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
 
                 # store the minimum storage of the battery
-                min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
-                min_storage[:] = [(field_component(users_data[u], g, "min_SOC") *
-                                   field_component(users_data[u], g, "max_capacity")) /
-                                  profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
-                                  for t in time_set]
+                min_storage_data = [(field_component(users_data[u], g, "min_SOC") *
+                                     field_component(users_data[u], g, "max_capacity")) /
+                                    profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                    for t in time_set]
+                if (allequal(min_storage_data))
+                    min_storage = defVar(ub, "MinStorage", Float64, ())
+                    min_storage[:] = min_storage_data[1]
+                else
+                    min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
+                    min_storage[:] = min_storage_data[:]
+                end
 
                 # store the maximum storage of the battery
-                max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
-                max_storage[:] = [(field_component(users_data[u], g, "max_SOC") *
-                                   field_component(users_data[u], g, "max_capacity")) /
-                                  profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
-                                  for t in time_set]
+                max_storage_data = [(field_component(users_data[u], g, "max_SOC") *
+                                     field_component(users_data[u], g, "max_capacity")) /
+                                    profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                    for t in time_set]
+                if (allequal(max_storage_data))
+                    max_storage = defVar(ub, "MaxStorage", Float64, ())
+                    max_storage[:] = max_storage_data[1]
+                else
+                    max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
+                    max_storage[:] = max_storage_data[:]
+                end
 
                 # Net Present Value of the battery
                 batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
@@ -252,18 +270,30 @@ function csvEC2nc4()
                 conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
 
                 # store the intake roundtrip efficency of the battery
-                intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ("TimeHorizon",))
-                intake_coeff[:] = [1 / (sqrt(field_component(users_data[u], g, "eta")) *
-                                        # corresponding converter, i.e., "conv"
-                                        field_component(users_data[u], g_conv, "eta"))
-                                   for t in time_set]
+                intake_coeff_data = [1 / (sqrt(field_component(users_data[u], g, "eta")) *
+                                          # corresponding converter, i.e., "conv"
+                                          field_component(users_data[u], g_conv, "eta"))
+                                     for t in time_set]
+                if (allequal(intake_coeff_data))
+                    intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
+                    intake_coeff[:] = intake_coeff_data[1]
+                else
+                    intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ("TimeHorizon",))
+                    intake_coeff[:] = intake_coeff_data[:]
+                end
 
                 # store the outtake roundtrip efficency of the battery
-                outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ("TimeHorizon",))
-                outtake_coeff[:] = [sqrt(field_component(users_data[u], g, "eta")) *
-                                    # corresponding converter, i.e., "conv"
-                                    field_component(users_data[u], g_conv, "eta")
-                                    for t in time_set]
+                outtake_coeff_data = [sqrt(field_component(users_data[u], g, "eta")) *
+                                      # corresponding converter, i.e., "conv"
+                                      field_component(users_data[u], g_conv, "eta")
+                                      for t in time_set]
+                if (allequal(outtake_coeff_data))
+                    outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ())
+                    outtake_coeff[:] = outtake_coeff_data[1]
+                else
+                    outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ("TimeHorizon",))
+                    outtake_coeff[:] = outtake_coeff_data[:]
+                end
 
                 # Net Present Value of the converter
                 conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
