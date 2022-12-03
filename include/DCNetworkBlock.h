@@ -873,6 +873,14 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a pointer to the ECNetworkData
+ /** Return a pointer to the ECNetworkData. */
+
+ NetworkData * get_NetworkData( void ) const override {
+  return( f_NetworkData );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the maximum power flow on the given \p line
  /** This function returns the maximum power flow on the given \p line. If
   * this DCNetworkBlock has no NetworkData, thus function returns
@@ -1026,9 +1034,8 @@ class DCNetworkBlock : public NetworkBlock
 
  void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) override {
-  if( v_active_demand.empty() ) {
+  if( v_active_demand.empty() )
    v_active_demand = v[ 0 ];
-  }
  }
 
 /** @} ---------------------------------------------------------------------*/

@@ -346,19 +346,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Generate UnitBlock primary spinning reserve variables
  unsigned int what = 0;
- if( f_number_primary_zones > 0 ) {
+ if( f_number_primary_zones > 0 )
   what += 1;
- }
 
  // Generate UnitBlock secondary spinning reserve variables
- if( f_number_secondary_zones > 0 ) {
+ if( f_number_secondary_zones > 0 )
   what += 2;
- }
 
  // Generate UnitBlock inertia reserve variables
- if( f_number_inertia_zones > 0 ) {
+ if( f_number_inertia_zones > 0 )
   what += 4;
- }
 
  if( what > 0 )
   for( auto * b : v_Block )
@@ -534,7 +531,8 @@ void UCBlock::generate_node_injection_constraints( void ) {
   [ number_nodes ] );
 
  if( number_nodes > 0 ) {  // well, that'd be curious, but ...
-  if( number_nodes == 1 ) {
+
+  if( number_nodes == 1 ) {  // BusNetwork
    // special case: in a BusNetwork there are no NetworkBlocks and the node
    // injection constraints actually are active power demand constraints
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -585,8 +583,10 @@ void UCBlock::generate_node_injection_constraints( void ) {
     v_node_injection_const[ t ][ 0 ].set_function(
      new LinearFunction( std::move( vc ) ) , eNoMod );
    }  // end( for( t ) )
+
   } else {  // number_nodes > 1
-   // DCNetwork needs GeneratorNode
+
+   // (DC/EC)Network needs GeneratorNode
 
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n ) {
@@ -988,7 +988,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
 
       // Terms associated with heat-only generation units
       /* TODO commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) {  // TODO Do we have any HeatBlock?
 
        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
 
@@ -1023,7 +1023,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
      }
     }
    }
-  } else { // DCNetwork
+  } else {  // (DC/EC)Network
 
    for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
@@ -1078,7 +1078,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
 
       // Terms associated with heat-only generation units
       /* TODO commented away until HeatBlock are properly managed
-      if( f_number_heat_blocks > 0 ) { // TODO Do we have any HeatBlock?
+      if( f_number_heat_blocks > 0 ) {  // TODO Do we have any HeatBlock?
 
        for( Index h = 0; h < f_number_heat_blocks; ++h ) {
 
@@ -1220,9 +1220,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_NetworkData ) {
   f_NetworkData->serialize( group );
   NumberNodes = group.getDim( "NumberNodes" );
- } else {
+ } else
   NumberNodes = group.addDim( "NumberNodes" , 1 );
- }
 
  auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
  auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
@@ -1402,7 +1401,7 @@ void UCBlock::update_node_injection_constraints
 
  if( number_nodes > 0 ) {
 
-  if( number_nodes == 1 ) { // BusNetwork
+  if( number_nodes == 1 ) {  // BusNetwork
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
     auto & constraint = v_node_injection_const[ t ][ 0 ];
@@ -1484,7 +1483,7 @@ void UCBlock::update_node_injection_constraints
 
   } else {  // number_nodes > 1
 
-   // DCNetwork needs GeneratorNode
+   // (DC/EC)Network needs GeneratorNode
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 

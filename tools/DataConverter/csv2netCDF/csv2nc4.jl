@@ -221,7 +221,7 @@ function csvEC2nc4()
                 # store the minimum storage of the battery
                 min_storage_data = [(field_component(users_data[u], g, "min_SOC") *
                                      field_component(users_data[u], g, "max_capacity")) /
-                                    profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                    profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                     for t in time_set]
                 if (allequal(min_storage_data))
                     min_storage = defVar(ub, "MinStorage", Float64, ())
@@ -234,7 +234,7 @@ function csvEC2nc4()
                 # store the maximum storage of the battery
                 max_storage_data = [(field_component(users_data[u], g, "max_SOC") *
                                      field_component(users_data[u], g, "max_capacity")) /
-                                    profile(market_data, "time_res")[t] # energy, i.e., kWh, to power, i.e., kW
+                                    profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                     for t in time_set]
                 if (allequal(max_storage_data))
                     max_storage = defVar(ub, "MaxStorage", Float64, ())

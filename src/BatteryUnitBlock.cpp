@@ -387,7 +387,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_active_power , "p_battery" );
 
  // Primary Spinning Reserve Variable
- if( reserve_vars & 1u ) // if UCBlock has primary demand variables
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
   // if unit produces any primary reserve
   if( ! v_maximum_primary_rho.empty() ) {
    v_primary_spinning_reserve.resize( f_time_horizon );
@@ -397,7 +397,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   }
 
  // Secondary Spinning Reserve Variable
- if( reserve_vars & 2u ) // if UCBlock has secondary demand variables
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
   // if unit produces any secondary reserve
   if( ! v_maximum_secondary_rho.empty() ) {
    v_secondary_spinning_reserve.resize( f_time_horizon );
@@ -510,13 +510,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   if( reserve_vars & 1u ) // if UCBlock has primary demand variables
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     if( ! v_maximum_primary_rho.empty() )
      // if this unit produces any primary reserve
      lower_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                            -1.0 ) );
 
-   if( reserve_vars & 2u ) // if UCBlock has secondary demand variables
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     if( ! v_maximum_secondary_rho.empty() )
      // if unit produces any secondary reserve
      lower_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
@@ -531,13 +531,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   if( reserve_vars & 1u ) // if UCBlock has primary demand variables
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     if( ! v_maximum_primary_rho.empty() )
      // if this unit produces any primary reserve
      upper_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                            1.0 ) );
 
-   if( reserve_vars & 2u ) // if UCBlock has secondary demand variable
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
     if( ! v_maximum_secondary_rho.empty() )
      // if this unit produces any secondary reserve
      upper_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
@@ -815,7 +815,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing primary_upper_bound_Const
 
- if( reserve_vars & 1u ) // if UCBlock has primary demand variables
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
   if( ! v_maximum_primary_rho.empty() ) {
    // if this unit produces any primary reserve
 
@@ -836,7 +836,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing secondary_upper_bound_Const
 
- if( reserve_vars & 2u ) // if UCBlock has secondary demand variables
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
   if( ! v_maximum_secondary_rho.empty() ) {
    // if this unit produces any secondary reserve
 

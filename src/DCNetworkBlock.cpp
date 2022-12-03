@@ -449,7 +449,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  }  // end AC_Lines constraints
 /*--------------------------------------------------------------------------*/
 
- else if( lines_type == kAC_HVDC ) { // AC-HVDC power flow limit
+ else if( lines_type == kAC_HVDC ) {  // AC-HVDC power flow limit
 
 
 /*
@@ -513,17 +513,16 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   auto linear_function = new LinearFunction();
 
   if( ! f_NetworkData->get_network_cost().empty() ) {
-   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
+   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
     linear_function->add_variable( &v_auxiliary_variable[ line_id ] ,
                                    f_NetworkData->get_network_cost()[ line_id ] ,
                                    0.0 );
-   }
    objective.set_function( linear_function );
    objective.set_sense( Objective::eMin );
 
-  } else { // empty objective function
+  } else  // empty objective function
    objective.set_function( linear_function );
-  }
+
   // Set Block objective
   this->set_objective( &objective );
  }

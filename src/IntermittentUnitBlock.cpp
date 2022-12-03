@@ -193,8 +193,8 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  add_static_variable( v_active_power , "p_intermittent" );
 
  // Primary Spinning Reserve Variable
- if( reserve_vars & 1u ) // if UCBlock has primary demand variables
-  if( f_gamma != 0 ) { // if unit produces any reserve
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+  if( f_gamma != 0 ) {  // if unit produces any reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
@@ -202,14 +202,13 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
 
  // Secondary Spinning Reserve Variable
- if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( f_gamma != 0 ) { // if unit produces any reserve
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+  if( f_gamma != 0 ) {  // if unit produces any reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_secondary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
    add_static_variable( v_secondary_spinning_reserve , "sr_intermittent" );
   }
- }
 
  set_variables_generated();
 
@@ -225,7 +224,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
  // Maximum power constraints
 
- if( f_gamma != 0 ) { // if unit produces any reserve
+ if( f_gamma != 0 ) {  // if unit produces any reserve
 
   MaxPower_Const.resize( f_time_horizon );
 
@@ -260,7 +259,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-  if( f_gamma != 0 ) { // if unit produces any reserve
+  if( f_gamma != 0 ) {  // if unit produces any reserve
    if( reserve_vars & 1u )
     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                     -1.0 ) );
