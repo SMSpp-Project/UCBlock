@@ -504,7 +504,7 @@ void ThermalUnitDPSolver::compute_solutions( void )
    // variables
    // get optimal values of power variables out of the EDSolver
    n->DPS->compute_power_variables( k - 1 , P );
-   for( Index i = h ; i < k ; )   // set all commitment variables to true
+   for( Index i = h ; i < k ; )  // set all commitment variables to true
     U[ i++ ] = true;
    }
   // else n is OFF( h ), or the source (if h == 0) that works as an OFF

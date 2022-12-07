@@ -20,6 +20,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato
  */
@@ -177,13 +181,13 @@ public:
   *   not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinS[ t ] that,
   *   for each time instant t, contains the minimum storage level of the unit
-  *   for the corresponding time step. If "MinStorage" has length 1 then MinS[
-  *   t ] contains the same value for all t. Otherwise, MinStorage[ i ] is the
-  *   fixed value of MinS[ t ] for all t in the interval [ ChangeIntervals[ i
-  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that
-  *   ChangeIntervals[ - 1 ] = 0. Note that it must always be 0 <= MinS[ t ] <
-  *   MaxS[ t ] for all t. If NumberIntervals <= 1 or NumberIntervals >=
-  *   TimeHorizon, then the mapping clearly does not require
+  *   for the corresponding time step. If "MinStorage" has length 1 then
+  *   MinS[ t ] contains the same value for all t. Otherwise, MinStorage[ i ]
+  *   is the fixed value of MinS[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must always be
+  *   0 <= MinS[ t ] < MaxS[ t ] for all t. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
   * - The variable "MaxStorage", of type double and either of size 1 or
@@ -191,13 +195,13 @@ public:
   *   not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxS[ t ] that,
   *   for each time instant t, contains the maximum storage level of the unit
-  *   for the corresponding time step. If "MaxStorage" has length 1 then MaxS[
-  *   t ] contains the same value for all t. Otherwise, MaxStorage[ i ] is the
-  *   fixed value of MaxS[ t ] for all t in the interval [ ChangeIntervals[ i
-  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that
-  *   ChangeIntervals[ - 1 ] = 0. Note that it must always be [0 <=] MinS[ t ]
-  *   < MaxS[ t ] for all t. If NumberIntervals <= 1 or NumberIntervals >=
-  *   TimeHorizon, then the mapping clearly does not require
+  *   for the corresponding time step. If "MaxStorage" has length 1 then
+  *   MaxS[ t ] contains the same value for all t. Otherwise, MaxStorage[ i ]
+  *   is the fixed value of MaxS[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. Note that it must always be
+  *   [0 <=] MinS[ t ] < MaxS[ t ] for all t. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
   * - The variable "MinPower", of type double and either of size 1 or indexed
@@ -206,9 +210,9 @@ public:
   *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
   *   for each time instant t, contains the minimum active power output value
   *   of the unit for the corresponding time step.  If "MinPower" has length 1
-  *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
-  *   ] is the fixed value of MinP[ t ] for all t in the interval [
-  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+  *   then MinP[ t ] contains the same value for all t. Otherwise,
+  *   MinPower[ i ] is the fixed value of MinP[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
   *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] <= 0 for
   *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
   *   the mapping clearly does not require "ChangeIntervals", which in fact is
@@ -220,12 +224,12 @@ public:
   *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
   *   for each time instant t, contains the maximum active power output value
   *   of the unit for the corresponding time step.  If "MaxPower" has length 1
-  *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
-  *   ] is the fixed value of MaxP[ t ] for all t in the interval [
-  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] < MaxP[
-  *   t ] for all t. If NumberIntervals <= 1 or NumberIntervals >=
-  *   TimeHorizon, then the mapping clearly does not require
+  *   then MaxP[ t ] contains the same value for all t. Otherwise,
+  *   MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be
+  *   MinP[ t ] < MaxP[ t ] for all t. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
   * - The scalar variable "InitialPower", of type double and not indexed over
@@ -245,8 +249,8 @@ public:
   *   for each time instant t, contains the maximum active power that can be
   *   used as primary reserve of the unit for the corresponding time step. If
   *   "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
-  *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of MaxPP[
-  *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of
+  *   MaxPP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
   *   = 0. This variable is optional, if is not provided then MaxPP[ t ] == 0
   *   for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
@@ -260,8 +264,8 @@ public:
   *   for each time instant t, contains the maximum active power that can be
   *   used as secondary reserve of the unit for the corresponding time step. If
   *   "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the same value
-  *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of MaxSP[
-  *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of
+  *   MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
   *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
   *   all t. Note that MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if
@@ -306,15 +310,15 @@ public:
   * - The variable "StoringBatteryRho", of type double and to be either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector SBR[
-  *   t ] that, for each time instant t, contains the inefficiency of storing
-  *   energy of the unit for the corresponding time step. This variable is
-  *   optional; if it is not provided then it is assumed that SBR[ t ] == 1
-  *   for all t, i.e., no (significant) energy is spent just for storing it in
-  *   the battery (this simplifies the model somewhat, see below). If
-  *   "StoringBatteryRho" has length 1 then SBR[ t ] contains the same value
-  *   for all t. Otherwise, StoringBatteryRho[ i ] is the fixed value of SBR[
-  *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   SBR[ t ] that, for each time instant t, contains the inefficiency of
+  *   storing energy of the unit for the corresponding time step. This
+  *   variable is optional; if it is not provided then it is assumed that
+  *   SBR[ t ] == 1 for all t, i.e., no (significant) energy is spent just
+  *   for storing it in the battery (this simplifies the model somewhat, see
+  *   below). If "StoringBatteryRho" has length 1 then SBR[ t ] contains the
+  *   same value for all t. Otherwise, StoringBatteryRho[ i ] is the fixed
+  *   value of SBR[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ - 1 ] =
   *   0. Note that it must be always such that SBR[ t ] <= 1 for all t (as
   *   SBR[ t ] is the amount of energy actually going in the battery for each
@@ -325,8 +329,8 @@ public:
   * - The variable "ExtractingBatterRho", of type double and to be either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector EBR[
-  *   t ] that, for each time instant t, contains the inefficiency of
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   EBR[ t ] that, for each time instant t, contains the inefficiency of
   *   extracting energy of the unit for the corresponding time step. This
   *   variable is optional; if it is not provided, then it is assumed that
   *   EBR[ t ] == 1 for all t, i.e., no (significant) energy is spent just for
@@ -1129,14 +1133,86 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake/outtake binary variables
- /** This method returns the intake/outtake binary variables.
-  *
-  * @return The intake/outtake binary variables. */
 
  const std::vector< ColVariable > &
  get_intake_outtake_binary_variables( void ) const {
   return( v_battery_binary );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power output constraints
+
+ const FRowConstraint * get_min_power_constraints( void ) const {
+  if( active_power_bounds_Const[ 0 ].empty() )
+   return( nullptr );
+  return( &( active_power_bounds_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power output constraints
+
+ const FRowConstraint * get_max_power_constraints( void ) const {
+  if( active_power_bounds_Const[ 1 ].empty() )
+   return( nullptr );
+  return( &( active_power_bounds_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraints with binary variables
+
+ const FRowConstraint * get_max_intake_binary_constraints( void ) const {
+  if( intake_outtake_binary_Const[ 0 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_binary_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the outtake upper bound constraints with binary variables
+
+ const FRowConstraint * get_max_outtake_binary_constraints( void ) const {
+  if( intake_outtake_binary_Const[ 1 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the storage level bound constraints
+
+ const std::vector< BoxConstraint > & get_storage_level_bounds( void ) const {
+  return( storage_level_bounds_Const );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraints
+
+ const LB0Constraint * get_max_intake_bounds( void ) const {
+  if( intake_outtake_bounds_Const[ 0 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the outtake upper bound constraints
+
+ const LB0Constraint * get_max_outtake_bounds( void ) const {
+  if( intake_outtake_bounds_Const[ 1 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the primary reserve bound constraints
+
+ const std::vector< LB0Constraint > & get_primary_reserve_bounds( void ) const {
+  return( primary_upper_bound_Const );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the secondary reserve bound constraints
+
+ const std::vector< LB0Constraint > & get_secondary_reserve_bounds( void ) const {
+  return( secondary_upper_bound_Const );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
@@ -1439,11 +1515,16 @@ public:
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;
 
  /// the intake outtake upper bounds design constraints
- boost::multi_array< FRowConstraint , 2 >
-  intake_outtake_upper_bounds_design_Const;
+ boost::multi_array< FRowConstraint , 2 > intake_outtake_upper_bounds_design_Const;
 
  /// the storage level bounds design constraints
  boost::multi_array< FRowConstraint , 2 > storage_level_bounds_design_Const;
+
+ /// the intake and outtake binary variable relation constraints
+ boost::multi_array< FRowConstraint , 2 > intake_outtake_binary_Const;
+
+ /// the active power, intake and outtake relation constraints
+ std::vector< FRowConstraint > power_intake_outtake_Const;
 
  /// the ramp up constraints
  std::vector< FRowConstraint > ramp_up_Const;
@@ -1451,30 +1532,22 @@ public:
  /// the ramp down constraints
  std::vector< FRowConstraint > ramp_down_Const;
 
- /// the active power, intake and outtake relation constraints
- std::vector< FRowConstraint > power_intake_outtake_Const;
-
- /// the intake and binary variable relation constraints
- std::vector< FRowConstraint > intake_binary_Const;
-
- /// the outtake and binary variable relation constraints
- std::vector< FRowConstraint > outtake_binary_Const;
-
  /// the demand constraints
  std::vector< FRowConstraint > demand_Const;
 
 
- /// the intake outtake upper bound constraints
- boost::multi_array< BoxConstraint , 2 > intake_outtake_bounds_Const;
-
- /// the storage level bounds constraints
+ /// the storage level bound constraints
  std::vector< BoxConstraint > storage_level_bounds_Const;
 
+
+ /// the intake and outtake bounds constraints
+ boost::multi_array< LB0Constraint , 2 > intake_outtake_bounds_Const;
+
  /// primary upper bound constraints
- std::vector< BoxConstraint > primary_upper_bound_Const;
+ std::vector< LB0Constraint > primary_upper_bound_Const;
 
  /// secondary upper bound constraints
- std::vector< BoxConstraint > secondary_upper_bound_Const;
+ std::vector< LB0Constraint > secondary_upper_bound_Const;
 
 
  /// the vector of binary variables

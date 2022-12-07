@@ -265,16 +265,15 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
   ( boost::multi_array< BoxConstraint , 2 >::
     extent_gen()[ f_time_horizon ][ f_number_heat_units ] );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
-   v_HeatBounds_Const[ t ][ unit_id ].set_variable(
-    &v_heat[ t ][ unit_id ] );
    v_HeatBounds_Const[ t ][ unit_id ].set_lhs
     ( v_min_heat_production[ t ][ unit_id ] );
    v_HeatBounds_Const[ t ][ unit_id ].set_rhs
     ( v_max_heat_production[ t ][ unit_id ] );
+   v_HeatBounds_Const[ t ][ unit_id ].set_variable(
+    &v_heat[ t ][ unit_id ] );
   }
- }
  add_static_constraint( v_HeatBounds_Const );
 
  // Satisfaction Heat Storage Bounds constraints
@@ -282,9 +281,9 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( ! v_heat_available.empty() ) {
   v_HeatStorageBounds_Const.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_HeatStorageBounds_Const[ t ].set_variable( &v_heat_available[ t ] );
    v_HeatStorageBounds_Const[ t ].set_lhs( v_min_heat_storage[ t ] );
    v_HeatStorageBounds_Const[ t ].set_rhs( v_max_heat_storage[ t ] );
+   v_HeatStorageBounds_Const[ t ].set_variable( &v_heat_available[ t ] );
   }
   add_static_constraint( v_HeatStorageBounds_Const );
  }

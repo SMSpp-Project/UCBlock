@@ -527,8 +527,8 @@ void UCBlock::generate_node_injection_constraints( void ) {
  const auto number_nodes = get_number_nodes();
 
  v_node_injection_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ f_time_horizon ]
-  [ number_nodes ] );
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ number_nodes ] );
 
  if( number_nodes > 0 ) {  // well, that'd be curious, but ...
 
@@ -653,9 +653,9 @@ void UCBlock::generate_primary_demand_constraints( void ) {
  if( f_number_primary_zones == 0 )
   return;
 
- v_PrimaryDemand_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_number_primary_zones ] );
+ v_PrimaryDemand_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ f_number_primary_zones ] );
 
  // We assume that, if a generator has primary spinning reserve for a time
  // instant, then it has primary spinning reserve for all time instants.
@@ -742,9 +742,9 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
  if( f_number_secondary_zones == 0 )
   return;
 
- v_SecondaryDemand_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_number_secondary_zones ] );
+ v_SecondaryDemand_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ f_number_secondary_zones ] );
 
  // We assume that, if a generator has secondary spinning reserve for a time
  // instant, then it has secondary spinning reserve for all time instants.
@@ -831,9 +831,9 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
  if( f_number_inertia_zones == 0 )
   return;
 
- v_InertiaDemand_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_number_inertia_zones ] );
+ v_InertiaDemand_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ f_number_inertia_zones ] );
 
  // We assume that, if a generator has commitment variable, inertia
  // commitment, inertia power, or active power variable for some time instant,
@@ -1160,9 +1160,9 @@ void UCBlock::generate_heat_constraints( void ) {
     }
    }
 
-   v_power_Heat_Rho_Const.resize
-    ( boost::multi_array< FRowConstraint * , 2 >::
-      extent_gen()[ f_time_horizon ][ num_constraints_per_time ] );
+   v_power_Heat_Rho_Const.resize(
+    boost::multi_array< FRowConstraint * , 2 >::extent_gen()
+    [ f_time_horizon ][ num_constraints_per_time ] );
   }
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {

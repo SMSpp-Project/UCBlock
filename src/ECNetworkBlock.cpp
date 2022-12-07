@@ -418,11 +418,11 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
-    &v_node_injection[ t ][ node_id ] );
    node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
    node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
     v_max_injection[ t ][ node_id ] );
+   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
+    &v_node_injection[ t ][ node_id ] );
   }
 
  add_static_constraint( node_injection_upper_bound_const ,

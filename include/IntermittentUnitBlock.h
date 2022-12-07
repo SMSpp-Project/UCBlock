@@ -18,6 +18,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                   Rafael Durbano Lobato
  */
@@ -451,14 +455,14 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the minimum total power constraints
 
  const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
-  return( MinPower_Const );
+  return( min_power_Const );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum total power constraints
 
  const std::vector< FRowConstraint > & get_max_power_constraints( void ) const {
-  return( MaxPower_Const );
+  return( max_power_Const );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -685,18 +689,19 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the active power upper bound constraints
- std::vector< FRowConstraint > MinPower_Const;
-
  /// the active power lower bound constraints
- std::vector< FRowConstraint > MaxPower_Const;
+ std::vector< FRowConstraint > min_power_Const;
+
+ /// the active power upper bound constraints
+ std::vector< FRowConstraint > max_power_Const;
+
+
+ /// the active power bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
 
 
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
-
- /// the active power bounds design constraints
- boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
 
 
  /// the objective function

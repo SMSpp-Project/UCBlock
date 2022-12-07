@@ -356,8 +356,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 1u ) { // if UCBlock has primary demand variables
-  if( ! v_PrimaryRho.empty() ) { // if unit produces any primary reserve
+ if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
+  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
@@ -368,8 +368,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Secondary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 2u ) { // if UCBlock has secondary demand variables
-  if( ! v_SecondaryRho.empty() ) { // if unit produces any secondary reserve
+ if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
+  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_secondary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
@@ -581,10 +581,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    l_function->add_variable( &v_start_up[ 0 ] , -1.0 );
    l_function->add_variable( &v_shut_down[ 0 ] , 1.0 );
 
-   if( f_InitUpDownTime <= 0 ) { // -f_InitUpDownTime < f_MinDownTime
+   if( f_InitUpDownTime <= 0 ) {  // -f_InitUpDownTime < f_MinDownTime
     StartUp_ShutDown_Variables_Const[ 0 ].set_both( 0.0 );
     StartUp_ShutDown_Variables_Const[ 0 ].set_function( l_function );
-   } else { // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
+   } else {  // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
     StartUp_ShutDown_Variables_Const[ 0 ].set_both( 1.0 );
     StartUp_ShutDown_Variables_Const[ 0 ].set_function( l_function );
    }
@@ -747,7 +747,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Const[ t ].set_function( lf );
    }
 
-   if( f_InitUpDownTime <= 0 ) { // -f_InitUpDownTime < f_MinDownTime
+   if( f_InitUpDownTime <= 0 ) {  // -f_InitUpDownTime < f_MinDownTime
 
     auto LFunction = new LinearFunction();
 
@@ -759,7 +759,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Const[ init_t ].set_rhs( 0.0 );
     RampUp_Const[ init_t ].set_function( LFunction );
 
-   } else { // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
+   } else {  // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
 
     auto LFunction = new LinearFunction();
 
@@ -806,11 +806,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    linear_function->add_variable( &v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
    linear_function->add_variable( &v_shut_down[ 0 ] ,
                                   get_operational_min_power( 0 ) );
-   if( f_InitUpDownTime > 0 ) {
+   if( f_InitUpDownTime > 0 )
     RampDown_Const[ 0 ].set_lhs( f_initial_power );
-   } else {
+   else
     RampDown_Const[ 0 ].set_lhs( 0.0 );
-   }
    RampDown_Const[ 0 ].set_rhs( Inf< double >() );
    RampDown_Const[ 0 ].set_function( linear_function );
 
@@ -838,11 +837,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    linear_function->add_variable( &v_active_power[ 0 ] , 1.0 );
    linear_function->add_variable( &v_commitment[ 0 ] , v_DeltaRampDown[ 0 ] );
 
-   if( f_InitUpDownTime > 0 ) {
+   if( f_InitUpDownTime > 0 )
     RampDown_Const[ 0 ].set_lhs( f_initial_power );
-   } else {
+   else
     RampDown_Const[ 0 ].set_lhs( 0.0 );
-   }
    RampDown_Const[ 0 ].set_rhs( Inf< double >() );
    RampDown_Const[ 0 ].set_function( linear_function );
 
@@ -853,6 +851,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     lf->add_variable( &v_active_power[ t - 1 ] , -1.0 );
     lf->add_variable( &v_active_power[ t ] , 1.0 );
     lf->add_variable( &v_commitment[ t ] , v_DeltaRampDown[ t ] );
+
     RampDown_Const[ t ].set_lhs( 0.0 );
     RampDown_Const[ t ].set_rhs( Inf< double >() );
     RampDown_Const[ t ].set_function( lf );
@@ -951,8 +950,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  add_static_constraint( MaxPower_Const ,
                         "MaxPower_Const_Thermal" );
 
- if( reserve_vars & 1u )       // if UCBlock has primary demand variables
-  if( ! v_PrimaryRho.empty() ) { // if unit produces any primary reserve
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
    // Initializing primary rho fraction constraints - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -977,8 +976,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                           "PrimaryRho_Const_Thermal" );
   }
 
- if( reserve_vars & 2u )         // if UCBlock has secondary demand variables
-  if( ! v_SecondaryRho.empty() ) { // if unit produces any secondary reserve
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
    // Initializing secondary rho fraction constraints - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

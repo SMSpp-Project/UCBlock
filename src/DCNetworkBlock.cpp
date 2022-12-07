@@ -304,7 +304,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  const auto & end_line = f_NetworkData->get_end_line();
  const auto lines_type = f_NetworkData->get_lines_type();
 
- if( lines_type == kHVDC ) {   // HVDC power flow limit
+ if( lines_type == kHVDC ) {  // HVDC power flow limit
   //  Net Transfer Capacity (NTC) model
 
   // Flow limit constraints
@@ -403,7 +403,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 // TODO implementation of AC and AC-HVDC lines is not ready
 
- else if( lines_type == kAC ) {    // AC power flow limit
+ else if( lines_type == kAC ) {  // AC power flow limit
 /*
   if( v_AC_power_flow_limit_const.size() != get_number_lines() ) {
    // this should only happen once
@@ -428,7 +428,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
      constant_term -= coefficient * v_active_demand[node_id];
 
-    } // for each node
+    }  // for each node
 
 
     // Set the function of the constraint

@@ -500,7 +500,7 @@ void serialize_thermalunit( netCDF::NcGroup & g , const ThermalUnit & unit ) {
    serialize( g , "ConstTerm" , netCDF::NcDouble() , NumberIntervals , c );
   }
 
- } else { // type == ftMod
+ } else {  // type == ftMod
   serialize( g , "LinearTerm" , netCDF::NcDouble() , unit.LinearTerm );
   serialize( g , "ConstTerm" , netCDF::NcDouble() , unit.ConstTerm );
  }
@@ -657,7 +657,7 @@ int main( int argc , char ** argv ) {
    std::cout << dat_file;
   }
 
- } else { // type == ftMod
+ } else {  // type == ftMod
   // Read MOD file
   input_file >> mod_file;
 
@@ -683,7 +683,7 @@ int main( int argc , char ** argv ) {
   bg.addDim( "NumberIntervals" , dat_file.TimeHorizon );
   serialize_thermalunit( bg , dat_file.thermal_unit );
 
- } else { // type == ftMod
+ } else {  // type == ftMod
 
   auto bg = f.addGroup( "Block_0" );
   bg.putAtt( "type" , "UCBlock" );
