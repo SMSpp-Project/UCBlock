@@ -65,8 +65,8 @@ DCNetworkBlock::~DCNetworkBlock() {
  Constraint::clear( v_AC_HVDC_power_flow_limit_const );
  Constraint::clear( v_power_flow_injection_const );
  Constraint::clear( v_AC_HVDC_power_flow_const );
- Constraint::clear( v_power_flow_relax_abs_1 );
- Constraint::clear( v_power_flow_relax_abs_2 );
+
+ Constraint::clear( v_power_flow_relax_abs );
 
  Constraint::clear( v_HVDC_power_flow_limit_const );
 
@@ -309,10 +309,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // Flow limit constraints
 
-  if( v_HVDC_power_flow_limit_const.size() != number_lines ) {
-   assert( v_HVDC_power_flow_limit_const.empty() );
-   v_HVDC_power_flow_limit_const.resize( number_lines );
-  }
+  v_HVDC_power_flow_limit_const.resize( number_lines );
 
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
@@ -330,10 +327,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // HVDC power flow and node injection constraints
 
-  if( v_power_flow_injection_const.size() != number_nodes ) {
-   assert( v_power_flow_injection_const.empty() );
-   v_power_flow_injection_const.resize( number_nodes );
-  }
+  v_power_flow_injection_const.resize( number_nodes );
 
   for( Index n = 0 ; n < number_nodes ; ++n ) {
 
@@ -358,45 +352,39 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    // Auxiliary constraints for relaxing the absolute value
 
-   // F_l <= V_l
-
-   if( v_power_flow_relax_abs_1.size() != number_lines ) {
-    assert( v_power_flow_relax_abs_1.empty() );
-    v_power_flow_relax_abs_1.resize( number_lines );
-   }
-
-   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-    auto linear_function = new LinearFunction();
-
-    linear_function->add_variable( &v_power_flow[ line_id ] , -1.0 );
-    linear_function->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_relax_abs_1[ line_id ].set_lhs( 0.0 );
-    v_power_flow_relax_abs_1[ line_id ].set_rhs( Inf< double >() );
-
-    v_power_flow_relax_abs_1[ line_id ].set_function( linear_function );
-   }
-
-   add_static_constraint( v_power_flow_relax_abs_1 , "power_flow_relax_abs_1" );
-
-   // - F_l <= V_l
-
-   if( v_power_flow_relax_abs_2.size() != number_lines ) {
-    assert( v_power_flow_relax_abs_2.empty() );
-    v_power_flow_relax_abs_2.resize( number_lines );
-   }
+   v_power_flow_relax_abs.resize(
+    boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-    auto linear_f = new LinearFunction();
+    LinearFunction::v_coeff_pair vars_p;
 
-    linear_f->add_variable( &v_power_flow[ line_id ] , 1.0 );
-    linear_f->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_relax_abs_2[ line_id ].set_lhs( 0.0 );
-    v_power_flow_relax_abs_2[ line_id ].set_rhs( Inf< double >() );
-    v_power_flow_relax_abs_2[ line_id ].set_function( linear_f );
+    // F_l <= V_l
+
+    vars_p.push_back( std::make_pair( &v_power_flow[ line_id ] ,
+                                      -1.0 ) );
+    vars_p.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] ,
+                                      1.0 ) );
+    v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
+    v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
+    v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
+     new LinearFunction( std::move( vars_p ) ) );
+
+    LinearFunction::v_coeff_pair vars_n;
+
+    // - F_l <= V_l
+
+    vars_n.push_back( std::make_pair( &v_power_flow[ line_id ] ,
+                                      1.0 ) );
+    vars_n.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] ,
+                                      1.0 ) );
+    v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
+    v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
+    v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
+     new LinearFunction( std::move( vars_n ) ) );
    }
 
-   add_static_constraint( v_power_flow_relax_abs_2 , "power_flow_relax_abs_2" );
+   add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
   }  // end( cost not empty )
  }  // end( HVDC_Lines constraints )
 
@@ -405,11 +393,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  else if( lines_type == kAC ) {  // AC power flow limit
 /*
-  if( v_AC_power_flow_limit_const.size() != get_number_lines() ) {
-   // this should only happen once
-   assert( v_AC_power_flow_limit_const.empty() );
-   v_AC_power_flow_limit_const.resize( get_number_lines() );
-  }
+  v_AC_power_flow_limit_const.resize( get_number_lines() );
 
   // Flow limit constraints
 
@@ -451,13 +435,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  else if( lines_type == kAC_HVDC ) {  // AC-HVDC power flow limit
 
-
 /*
-  if( v_AC_HVDC_power_flow_const.size() != get_number_lines() ) {
-   // this should only happen once
-   assert( v_AC_HVDC_power_flow_const.empty() );
-   v_AC_HVDC_power_flow_const.resize( get_number_lines() );
-  }
+  v_AC_HVDC_power_flow_const.resize( get_number_lines() );
   // TODO
 
   add_static_constraint( v_AC_HVDC_power_flow_const, "AC/HVDC_power_flow_limits" );
@@ -487,8 +466,7 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
          && Constraint::is_feasible( v_AC_HVDC_power_flow_limit_const , tol )
          && Constraint::is_feasible( v_power_flow_injection_const , tol )
          && Constraint::is_feasible( v_AC_HVDC_power_flow_const , tol )
-         && Constraint::is_feasible( v_power_flow_relax_abs_1 , tol )
-         && Constraint::is_feasible( v_power_flow_relax_abs_2 , tol )
+         && Constraint::is_feasible( v_power_flow_relax_abs , tol )
          && Constraint::is_feasible( v_HVDC_power_flow_limit_const , tol ) );
 
 }  // end( DCNetworkBlock::is_feasible )
@@ -699,9 +677,8 @@ void DCNetworkBlock::set_kappa
  bool identical = true;
  for( auto i : subset ) {
   if( i >= v_kappa.size() )
-   throw( std::invalid_argument( "DCNetworkBlock::set_kappa: "
-                                 "invalid value in subset: " +
-                                 std::to_string( i ) + "." ) );
+   throw( std::invalid_argument( "DCNetworkBlock::set_kappa: invalid value in"
+                                 " subset: " + std::to_string( i ) + "." ) );
   const auto kappa = *( values++ );
   if( v_kappa[ i ] != kappa ) {
    identical = false;

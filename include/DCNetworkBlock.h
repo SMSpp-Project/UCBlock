@@ -1200,12 +1200,10 @@ class DCNetworkBlock : public NetworkBlock
    * and be done with it. */
 
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" ,
-   &DCNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" , &DCNetworkBlock::set_active_demand );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" ,
-   &DCNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" , &DCNetworkBlock::set_active_demand );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1248,14 +1246,11 @@ class DCNetworkBlock : public NetworkBlock
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
- /// HVDC power flow auxiliary variable 1 constraints
- std::vector< FRowConstraint > v_power_flow_relax_abs_1;
-
- /// HVDC power flow auxiliary variable 2 constraints
- std::vector< FRowConstraint > v_power_flow_relax_abs_2;
-
  /// AC_HVDC power flow constraints
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
+
+ /// HVDC power flow auxiliary variable constraints
+ boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
 
  /// HVDC power flow limit constraints
