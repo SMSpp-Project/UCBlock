@@ -537,9 +537,8 @@ void DCNetworkBlock::set_active_demand
 
  if( v_active_demand.empty() ) {
   if( std::all_of( values , values + subset.size() ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
-  }
 
   v_active_demand.assign( get_number_nodes() , 0 );
  }
@@ -602,24 +601,21 @@ void DCNetworkBlock::set_active_demand
    c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , get_number_nodes() );
- if( rng.second <= rng.first ) {
+ if( rng.second <= rng.first )
   return;
- }
 
  if( v_active_demand.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return( cst == 0 ); } ) ) {
+                   []( double cst ) { return( cst == 0 ); } ) )
    return;
-  }
 
   v_active_demand.assign( get_number_nodes() , 0 );
  }
 
  // If nothing changes, return
  if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_active_demand.begin() + rng.first ) ) {
+                 v_active_demand.begin() + rng.first ) )
   return;
- }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -735,24 +731,21 @@ void DCNetworkBlock::set_kappa
   c_ModParam issuePMod , c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , get_number_lines() );
- if( rng.second <= rng.first ) {
+ if( rng.second <= rng.first )
   return;
- }
 
  if( v_kappa.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
-                   []( double cst ) { return( cst == 1 ); } ) ) {
+                   []( double cst ) { return( cst == 1 ); } ) )
    return;
-  }
 
   v_kappa.assign( get_number_lines() , 1 );
  }
 
  // If nothing changes, return
  if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_kappa.begin() + rng.first ) ) {
+                 v_kappa.begin() + rng.first ) )
   return;
- }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
