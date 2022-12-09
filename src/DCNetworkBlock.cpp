@@ -295,10 +295,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  const auto number_lines = get_number_lines();
 
- if( number_lines <= 0 ) {
+ if( number_lines <= 0 )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "number of lines of DCNetworkBlock is not set" ) );
- }
 
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
@@ -331,17 +330,21 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index n = 0 ; n < number_nodes ; ++n ) {
 
-   auto linear_function = new LinearFunction();
-   linear_function->add_variable( & v_node_injection[ n ] , -1.0 );
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_node_injection[ n ] , -1.0 ) );
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+
     if( start_line[ line_id ] == n )
-     linear_function->add_variable( & v_power_flow[ line_id ] , 1.0 );
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
     if( end_line[ line_id ] == n )
-     linear_function->add_variable( & v_power_flow[ line_id ] , -1.0 );
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
    }
+
    v_power_flow_injection_const[ n ].set_both( -v_active_demand[ n ] );
-   v_power_flow_injection_const[ n ].set_function( linear_function );
+   v_power_flow_injection_const[ n ].set_function(
+    new LinearFunction( std::move( vars ) ) );
   }
 
   add_static_constraint( v_power_flow_injection_const ,
@@ -397,38 +400,38 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   // Flow limit constraints
 
-  for( Index line_id = 0; line_id < get_number_lines(); ++line_id ) {
+  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
 
-    auto linear_function = new LinearFunction();
-    double constant_term = 0;
+   LinearFunction::v_coeff_pair vars;
+   double constant_term = 0;
 
-    for( Index node_id = 0; node_id < get_number_nodes(); ++node_id ) {
+   for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
 
-     double coefficient = 0.0;
-     // Distribution Factor Matrix
+    double coefficient = 0.0;
+    // Distribution Factor Matrix
 
-     linear_function->add_variable
-             ( &v_node_injection[node_id], coefficient );
+    vars.push_back( std::make_pair( &v_node_injection[ node_id ] ,
+                                    coefficient ) );
 
-     constant_term -= coefficient * v_active_demand[node_id];
+    constant_term -= coefficient * v_active_demand[ node_id ];
 
-    }  // for each node
+   }  // for each node
 
+   // Set the function of the constraint
 
-    // Set the function of the constraint
+   v_AC_power_flow_limit_const[ line_id ].set_function(
+    new LinearFunction( std::move( vars ) ) );
 
-    v_AC_power_flow_limit_const[line_id].set_function( linear_function );
+   // Set the left- and right-hand sides
 
-    // Set the left- and right-hand sides
+   v_AC_power_flow_limit_const[ line_id ].set_lhs
+    ( get_min_power_flow( line_id ) - constant_term );
 
-    v_AC_power_flow_limit_const[line_id].set_lhs
-            ( get_min_power_flow(line_id) - constant_term );
-
-    v_AC_power_flow_limit_const[line_id].set_rhs
-            ( get_max_power_flow(line_id) - constant_term );
+   v_AC_power_flow_limit_const[ line_id ].set_rhs
+    ( get_max_power_flow( line_id ) - constant_term );
 
   }
-  add_static_constraint( v_AC_power_flow_limit_const, "AC_power_low_limits" );
+  add_static_constraint( v_AC_power_flow_limit_const , "AC_power_low_limits" );
 */
  }  // end AC_Lines constraints
 /*--------------------------------------------------------------------------*/
@@ -510,13 +513,11 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
  // AC power flow limit
  else if( lines_type == kAC ) {
-
   // TODO
  }
 
  // AC-HVDC power flow limit
  else if( lines_type == kAC_HVDC ) {
-
   // TODO
  }
 
