@@ -34,6 +34,29 @@ function csvEC2nc4()
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
+    if ("-store-demand-in-father" in ARGS)
+        # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
+        n_intervals = count(x -> x == peak_set[1], peak_categories)
+        defDim(block, "NumberIntervals", n_intervals)
+
+        # Store the first index (-1 since in C++ the array's indexing starts from
+        # zero) of each peak period/category, i.e., of each `(EC)NetworkBlock`
+        peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
+        peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
+                             for w in peak_set]
+
+        # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
+        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
+        ## will appear reversed when the data is loaded in languages or programs using row-major 
+        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
+        ## To store the demand in the correct shape, i.e., NumberNodes x TimeHorizon, we need to store 
+        ## it transposed, i.e., TimeHorizon x NumberNodes.
+        power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes")) # ("NumberNodes", "TimeHorizon"))
+        power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
+                              for t in time_set, u in user_set] # for u in user_set, t in time_set]
+    end
+
     # Create buy, sell, reward, and consumption price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
@@ -59,11 +82,11 @@ function csvEC2nc4()
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    # `MaxTariff`, i.e., the peak tariff cost
-    peak_tariff = [(profile(market_data, "peak_weight")[w] *
-                    profile(market_data, "peak_tariff")[w])
-                   for w in peak_set] *
-                  sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    # `PeakTariff`, i.e., the peak tariff cost
+    peak_tariff_data = [(profile(market_data, "peak_weight")[w] *
+                         profile(market_data, "peak_tariff")[w])
+                        for w in peak_set] *
+                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
@@ -81,26 +104,28 @@ function csvEC2nc4()
 
         ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
-        # Store the number of nodes in each NetworkBlock
-        n_users = length(user_set)
-        defDim(ecnb, "NumberNodes", n_users)
-
         # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
         n_intervals = count(x -> x == w, peak_categories)
         defDim(ecnb, "NumberIntervals", n_intervals)
 
         last_i = findlast(x -> x == w, peak_categories)
 
-        # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
-        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
-        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
-        ## will appear reversed when the data is loaded in languages or programs using row-major 
-        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
-        ## To store the demand in the correct shape, i.e., NumberIntervals x NumberNodes, we need to store 
-        ## it transposed, i.e., NumberNodes x NumberIntervals.
-        power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
-        power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
-                              for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
+        if !("-store-demand-in-father" in ARGS)
+            # Store the number of nodes in each NetworkBlock
+            n_users = length(user_set)
+            defDim(ecnb, "NumberNodes", n_users)
+
+            # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
+            ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
+            ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
+            ## will appear reversed when the data is loaded in languages or programs using row-major 
+            ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
+            ## To store the demand in the correct shape, i.e., NumberIntervals x NumberNodes, we need to store 
+            ## it transposed, i.e., NumberNodes x NumberIntervals.
+            power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
+            power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
+                                  for u in user_set, t in last_t:last_i] # for t in last_t:last_i, u in user_set]
+        end
 
         # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
         if (allequal(buy_price_data[last_t:last_i]))
@@ -129,23 +154,23 @@ function csvEC2nc4()
             reward_price[:] = reward_price_data[last_t:last_i]
         end
 
-        # `MaxTariff`, i.e., the peak tariff cost
-        max_tariff = defVar(ecnb, "MaxTariff", Float64, ())
-        max_tariff[:] = peak_tariff[i_w]
+        # `PeakTariff`, i.e., the peak tariff cost
+        peak_tariff = defVar(ecnb, "PeakTariff", Float64, ())
+        peak_tariff[:] = peak_tariff_data[i_w]
 
         # `ConstTerm`, i.e., the consumption price
         const_term = defVar(ecnb, "ConstTerm", Float64, ())
         const_term[:] = sum(constant_term[last_t:last_i])
 
-        # `MaxInjection` to bound the node injection
-        max_injection = defVar(ecnb, "MaxInjection", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
-        # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
-        max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
-                                          profile_component(users_data[u], r, "ren_pu")[t]
-                                          for r in asset_names(users_data[u], REN)], init=0.0) +
-                               reduce(+, [field_component(users_data[u], b, "max_capacity")
-                                          for b in asset_names(users_data[u], BATT)], init=0.0)
-                               for u in user_set, t in last_t:last_i]
+        # # `MaxNodeInjection` to bound the node injection
+        # max_injection = defVar(ecnb, "MaxNodeInjection", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
+        # # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
+        # max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
+        #                                   profile_component(users_data[u], r, "ren_pu")[t]
+        #                                   for r in asset_names(users_data[u], REN)], init=0.0) +
+        #                        reduce(+, [field_component(users_data[u], b, "max_capacity")
+        #                                   for b in asset_names(users_data[u], BATT)], init=0.0)
+        #                        for u in user_set, t in last_t:last_i]
 
         last_t += n_intervals
     end

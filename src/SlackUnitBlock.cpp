@@ -85,10 +85,10 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "MaxPower" , v_MaxPower );
  ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
  ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
- ::deserialize( group , "ActivePowerCost" , v_active_power_cost );
- ::deserialize( group , "PrimaryCost" , v_primary_cost );
- ::deserialize( group , "SecondaryCost" , v_secondary_cost );
- ::deserialize( group , "InertiaCost" , v_inertia_cost );
+ ::deserialize( group , "ActivePowerCost" , v_ActivePowerCost );
+ ::deserialize( group , "PrimaryCost" , v_PrimaryCost );
+ ::deserialize( group , "SecondaryCost" , v_SecondaryCost );
+ ::deserialize( group , "InertiaCost" , v_InertiaCost );
  ::deserialize( group , "MaxInertia" , v_MaxInertia );
 
  // Deserialize data from the base class
@@ -98,10 +98,10 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_MaxPower );
  decompress_vector( v_MaxPrimaryPower );
  decompress_vector( v_MaxSecondaryPower );
- decompress_vector( v_active_power_cost );
- decompress_vector( v_primary_cost );
- decompress_vector( v_secondary_cost );
- decompress_vector( v_inertia_cost );
+ decompress_vector( v_ActivePowerCost );
+ decompress_vector( v_PrimaryCost );
+ decompress_vector( v_SecondaryCost );
+ decompress_vector( v_InertiaCost );
  decompress_vector( v_MaxInertia );
 
 }  // end( SlackUnitBlock::deserialize )
@@ -306,9 +306,9 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  if( ! v_active_power_cost.empty() ) {
+  if( ! v_ActivePowerCost.empty() ) {
    linear_function->add_variable( &v_active_power[ t ] ,
-                                  v_active_power_cost[ t ] ,
+                                  v_ActivePowerCost[ t ] ,
                                   0.0 );
   } else {
    linear_function->add_variable( &v_active_power[ t ] ,
@@ -317,9 +317,9 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
   }
   if( reserve_vars & 1u ) {
    if( ! v_MaxPrimaryPower.empty() ) {
-    if( ! v_primary_cost.empty() ) {
+    if( ! v_PrimaryCost.empty() ) {
      linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
-                                    v_primary_cost[ t ] ,
+                                    v_PrimaryCost[ t ] ,
                                     0.0 );
     } else {
      linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
@@ -331,9 +331,9 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
   if( reserve_vars & 2u ) {
    if( ! v_MaxSecondaryPower.empty() ) {
 
-    if( ! v_secondary_cost.empty() ) {
+    if( ! v_SecondaryCost.empty() ) {
      linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
-                                    v_secondary_cost[ t ] ,
+                                    v_SecondaryCost[ t ] ,
                                     0.0 );
     } else {
      linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
@@ -343,9 +343,9 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
    }
   }
   if( reserve_vars & 4u ) {
-   if( ! v_inertia_cost.empty() && ! v_MaxInertia.empty() ) {
+   if( ! v_InertiaCost.empty() && ! v_MaxInertia.empty() ) {
     linear_function->add_variable( &v_commitment[ t ] ,
-                                   v_inertia_cost[ t ] * v_MaxInertia[ t ] ,
+                                   v_InertiaCost[ t ] * v_MaxInertia[ t ] ,
                                    0.0 );
    } else {
     linear_function->add_variable( &v_commitment[ t ] ,
@@ -406,10 +406,10 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "MaxPrimaryPower" , v_MaxPrimaryPower );
  serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
  serialize( "MaxInertia" , v_MaxInertia );
- serialize( "ActivePowerCost" , v_active_power_cost );
- serialize( "PrimaryCost" , v_primary_cost );
- serialize( "SecondaryCost" , v_secondary_cost );
- serialize( "InertiaCost" , v_inertia_cost );
+ serialize( "ActivePowerCost" , v_ActivePowerCost );
+ serialize( "PrimaryCost" , v_PrimaryCost );
+ serialize( "SecondaryCost" , v_SecondaryCost );
+ serialize( "InertiaCost" , v_InertiaCost );
 
 }  // end( SlackUnitBlock::serialize )
 

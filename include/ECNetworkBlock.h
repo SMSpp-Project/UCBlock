@@ -156,7 +156,7 @@ class ECNetworkBlock : public NetworkBlock
    *   corresponding time step. If "RewardPrice" has length 1 then
    *   RewardP[ t ] contains the same value for all t;
    *
-   * - The variable "MaxTariff", of type netCDF::NcDouble and of size
+   * - The variable "PeakTariff", of type netCDF::NcDouble and of size
    *   1. This is meant to represent the tariff that the user pays due to the
    *   peak power. */
 
@@ -350,9 +350,9 @@ class ECNetworkBlock : public NetworkBlock
   *          returned. */
 
  const double * get_active_demand( Index i = 0 ) const override {
-  if( v_active_demand.empty() )
+  if( v_ActiveDemand.empty() )
    return( nullptr );
-  return( &( v_active_demand.data()[ i * get_number_nodes() ] ) );
+  return( &( v_ActiveDemand.data()[ i * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -361,25 +361,7 @@ class ECNetworkBlock : public NetworkBlock
   * public market. */
 
  const std::vector< double > & get_sell_price( void ) const {
-  return( v_sell_price );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the sell price at the given time instant
- /** Returns the tariff that the user gains to sell electricity to the
-  * public market at the given time instant.
-  *
-  * @param t A time instant between 0 and get_number_intervals() - 1.
-  *
-  * @return The sell price at the given time instant \p t. */
-
- double get_sell_price( Index t ) const {
-  if( v_sell_price.empty() )
-   return( 0 );
-  if( v_sell_price.size() == 1 )
-   return( v_sell_price.front() );
-  assert( t < v_sell_price.size() );
-  return( v_sell_price[ t ] );
+  return( v_SellPrice );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -388,25 +370,7 @@ class ECNetworkBlock : public NetworkBlock
   * horizon from the public market. */
 
  const std::vector< double > & get_buy_price( void ) const {
-  return( v_buy_price );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the buy price at the given time instant
- /** Returns the tariff that the user pays to buy electricity from the
-  * public market at the given time instant.
-  *
-  * @param t A time instant between 0 and get_number_intervals() - 1.
-  *
-  * @return The buy price at the given time instant \p t. */
-
- double get_buy_price( Index t ) const {
-  if( v_buy_price.empty() )
-   return( 0 );
-  if( v_buy_price.size() == 1 )
-   return( v_buy_price.front() );
-  assert( t < v_buy_price.size() );
-  return( v_buy_price[ t ] );
+  return( v_BuyPrice );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -417,33 +381,15 @@ class ECNetworkBlock : public NetworkBlock
   * time horizon. */
 
  const std::vector< double > & get_reward_price( void ) const {
-  return( v_reward_price );
+  return( v_RewardPrice );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the reward price at the given time instant
- /** Returns the tariff that the user gains when it absorbs power from the
-  * microgrid (instead of from the public grid) at the given time instant.
-  *
-  * @param t A time instant between 0 and get_number_intervals() - 1.
-  *
-  * @return The reward price at the given time instant \p t. */
-
- double get_reward_price( Index t ) const {
-  if( v_reward_price.empty() )
-   return( 0 );
-  if( v_reward_price.size() == 1 )
-   return( v_reward_price.front() );
-  assert( t < v_reward_price.size() );
-  return( v_reward_price[ t ] );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum tariff
+ /// returns the peak tariff
  /** Returns the tariff that the user pays due to the peak power. */
 
- double get_max_tariff( void ) const {
-  return( f_max_tariff );
+ double get_peak_tariff( void ) const {
+  return( f_PeakTariff );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -455,17 +401,17 @@ class ECNetworkBlock : public NetworkBlock
   * @param i The interval wrt the vector of demands for each user is
   *          returned. */
 
- const double * get_max_injection( Index i = 0 ) const {
-  if( v_max_injection.empty() )
+ const double * get_max_node_injection( Index i = 0 ) const {
+  if( v_MaxNodeInjection.empty() )
    return( nullptr );
-  return( &( v_max_injection.data()[ i * get_number_nodes() ] ) );
+  return( &( v_MaxNodeInjection.data()[ i * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the constant term
 
  const double & get_const_term( void ) const {
-  return( f_const_term );
+  return( f_ConstTerm );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -527,8 +473,8 @@ class ECNetworkBlock : public NetworkBlock
   *
   * - otherwise, V must have f_number_nodes rows and V[ u ] is the
   * maximum peak power for user u. */
- const std::vector< ColVariable > & get_max_power( void ) const {
-  return( v_max_power );
+ const std::vector< ColVariable > & get_peak_power( void ) const {
+  return( v_peak_power );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -557,6 +503,13 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// method to set the number of intervals
+
+ void set_number_intervals( const Index i ) override {
+  f_number_intervals = i;
+ }
+
+/*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
  /** This method can be called either before or after that deserialize() is
   * called to provide the NetworkBlock with the ActiveDemand data. This allows
@@ -575,19 +528,30 @@ class ECNetworkBlock : public NetworkBlock
   *
   * When this method is called, if it is empty it is written into, otherwise
   * nothing happens. In deserialize(), if the data is there in the NcGroup then
-  * it is written in v_active_demand (which therefore is no longer empty),
+  * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) override {
-  if( v_active_demand.empty() ) {
-   v_active_demand.resize( boost::multi_array< double , 2 >::extent_gen()
-                           [ get_number_intervals() ][ get_number_nodes() ] );
-   auto demand = v_active_demand.data();
+  if( v_ActiveDemand.empty() ) {
+   v_ActiveDemand.resize( boost::multi_array< double , 2 >::extent_gen()
+                          [ get_number_intervals() ][ get_number_nodes() ] );
+   auto demand = v_ActiveDemand.data();
    for( Index i = 0 ; i < get_number_intervals() ; i++ )
     for( Index j = 0 ; j < get_number_nodes() ; j++ )
      *( demand++ ) = v[ i ][ j ];
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_MaxNodeInjection( Index interval_id , Index node_id ,
+                            const double max_injection ) override {
+  if( v_MaxNodeInjection.empty() )
+   v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxNodeInjection[ interval_id ][ node_id ] = max_injection;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -681,7 +645,7 @@ class ECNetworkBlock : public NetworkBlock
  ECNetworkData * f_NetworkData;
 
  /// matrix to store, for each interval, the demand of each node of the network
- boost::multi_array< double , 2 > v_active_demand;
+ boost::multi_array< double , 2 > v_ActiveDemand;
 
  // energy bought from the public market at the national
  // price /pi^{P-,V} + /pi^{P-,F}
@@ -689,23 +653,23 @@ class ECNetworkBlock : public NetworkBlock
  // constant term)
 
  /// tariff that the user pays to buy electricity at each time horizon
- std::vector< double > v_buy_price; // /pi^{P-,V}
+ std::vector< double > v_BuyPrice; // /pi^{P-,V}
 
  /// tariff that the user gains to sell electricity at each time horizon
- std::vector< double > v_sell_price; // /pi^{P+}
+ std::vector< double > v_SellPrice; // /pi^{P+}
 
  /// tariff that the user gains when it absorbs power from the microgrid
  /// market / network (instead of from the public grid) at each time horizon
- std::vector< double > v_reward_price; // /pi^{R}
+ std::vector< double > v_RewardPrice; // /pi^{R}
 
  /// tariff that the user pays due to the peak power
- double f_max_tariff{};
+ double f_PeakTariff{};
 
  /// maximum production of the renewable assets
- boost::multi_array< double , 2 > v_max_injection;
+ boost::multi_array< double , 2 > v_MaxNodeInjection;
 
  /// the constant term
- double f_const_term{};
+ double f_ConstTerm{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -732,7 +696,7 @@ class ECNetworkBlock : public NetworkBlock
 
  /// maximum power usage at user PoD of the corresponding peak power period,
  /// i.e., a specific interval in "NumberIntervals"
- std::vector< ColVariable > v_max_power; // P^{max}
+ std::vector< ColVariable > v_peak_power; // P^{max}
 
 /*------------------------------- constraints ------------------------------*/
 

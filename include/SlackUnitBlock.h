@@ -337,8 +337,8 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum power value at time t. */
 
- const std::vector< double > & get_max_power( void ) const {
-  return( v_MaxPower );
+ double get_max_power( Index t , Index g = 0 ) const override {
+  return( v_MaxPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -372,7 +372,7 @@ class SlackUnitBlock : public UnitBlock
   *   of vector represents the active power cost value at time t. */
 
  const std::vector< double > & get_active_power_cost( void ) const {
-  return( v_active_power_cost );
+  return( v_ActivePowerCost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -407,7 +407,7 @@ class SlackUnitBlock : public UnitBlock
   *   of vector represents the primary cost value at time t. */
 
  const std::vector< double > & get_primary_cost( void ) const {
-  return( v_primary_cost );
+  return( v_PrimaryCost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -424,7 +424,7 @@ class SlackUnitBlock : public UnitBlock
   *   of vector represents the secondary cost value at time t. */
 
  const std::vector< double > & get_secondary_cost( void ) const {
-  return( v_secondary_cost );
+  return( v_SecondaryCost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -463,7 +463,7 @@ class SlackUnitBlock : public UnitBlock
   *   of vector represents the inertia cost value at time t. */
 
  const std::vector< double > & get_inertia_cost( void ) const {
-  return( v_inertia_cost );
+  return( v_InertiaCost );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -563,25 +563,25 @@ class SlackUnitBlock : public UnitBlock
  std::vector< double > v_MaxPower;
 
  /// the vector of ActivePowerCost
- std::vector< double > v_active_power_cost;
+ std::vector< double > v_ActivePowerCost;
 
  /// the vector of MaxPrimaryPower
  std::vector< double > v_MaxPrimaryPower;
 
  /// the vector of PrimaryCost
- std::vector< double > v_primary_cost;
+ std::vector< double > v_PrimaryCost;
 
  /// the vector of MaxSecondaryPower
  std::vector< double > v_MaxSecondaryPower;
 
  /// the vector of SecondaryCost
- std::vector< double > v_secondary_cost;
+ std::vector< double > v_SecondaryCost;
 
  /// the vector of MaxInertia
  std::vector< double > v_MaxInertia;
 
  /// the vector of InertiaCost
- std::vector< double > v_inertia_cost;
+ std::vector< double > v_InertiaCost;
 
 /*-------------------------------- variables -------------------------------*/
 

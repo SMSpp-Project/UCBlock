@@ -80,7 +80,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
                                       const std::string & prefix ,
                                       Index num_sub_blocks ) {
  auto sz = v_Block.size();
- v_Block.resize( sz + num_sub_blocks , nullptr );
+ v_Block.resize( sz + num_sub_blocks );
  for( int i = 0 ; i < num_sub_blocks ; ++i ) {
   std::string sub_group_name = prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
@@ -100,7 +100,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
 
 void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
  Index cntr = 0;
- v_network_blocks.resize( f_number_networks , nullptr );
+ v_network_blocks.resize( f_number_networks );
 
  for( Index i = 0 ; i < f_number_networks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -187,6 +187,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  // each NetworkBlock span just one interval, i.e., one time horizon
  if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
+
+ if( ! ::deserialize( group , "StartNetworkIntervals" , f_number_networks ,
+                      v_start_network_intervals ) ) {
+  v_start_network_intervals.resize( f_number_networks );
+  std::iota( v_start_network_intervals.begin() ,
+             v_start_network_intervals.end() , 0 );
+ }
+ v_start_network_intervals.push_back( f_time_horizon );
 
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
@@ -404,8 +412,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
   // if they don't exist, create them now as (DC/EC)NetworkBlock
   if( v_network_blocks.empty() ) {
-   v_network_blocks.resize( f_number_networks , nullptr );
-   v_Block.resize( f_number_units + f_number_networks , nullptr );
+   v_network_blocks.resize( f_number_networks );
+   v_Block.resize( f_number_units + f_number_networks );
 
    delete f_NetworkData;
    f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
@@ -430,6 +438,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                     "missing in NetworkBlock " +
                                     std::to_string( n ) + " and in UCBlock" ) );
     nbi->set_NetworkData( f_NetworkData );
+    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
+                               v_start_network_intervals[ n ] );
    }
 
    std::vector< std::vector< double > > ap_v;
@@ -438,7 +448,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t )
+        ++i , ++t ) {
 
     if( ! nbi->get_active_demand( i ) ) {
      if( ! v_active_power_demand.num_elements() )
@@ -450,6 +460,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
      std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
     }
+   }
    nbi->set_ActiveDemand( ap_v );
   }
 
@@ -479,15 +490,52 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  */
 
  if( ! ::deserialize_dim( group , "NumberElectricalGenerators" ,
-                         f_number_elc_generators , true ) ) {
+                          f_number_elc_generators , true ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators +=
-    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
+   f_number_elc_generators += static_cast< UnitBlock * >(
+    v_Block[ i ] )->get_number_generators();
  }
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
+
+ // store the max node injection into each ECNetworkBlock
+
+ if( ! v_network_blocks.empty() ) {
+
+  Index t = 0;
+  for( Index n = 0 ; n < f_number_networks ; ++n ) {
+
+   for( Index i = 0 ;
+        i < v_network_blocks[ n ]->get_number_intervals() ;
+        ++i , ++t ) {
+
+    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+     double max_node_injection = 0.0;
+
+     Index elc_generator = 0;
+     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+
+      const auto unit_block = get_unit_block( unit_id );
+
+      for( Index generator = 0 ;
+           generator < unit_block->get_number_generators() ;
+           ++generator , ++elc_generator ) {
+
+       if( node_id != v_generator_node[ elc_generator ] )
+        continue;
+
+       max_node_injection += unit_block->get_max_power( t , generator );
+      }
+     }
+     v_network_blocks[ n ]->set_MaxNodeInjection( i , node_id ,
+                                                  max_node_injection );
+    }
+   }
+  }
+ }
 
  // finally call the method of the base class
  Block::deserialize( group );
@@ -636,8 +684,7 @@ void UCBlock::generate_node_injection_constraints( void ) {
        }
       }
       v_node_injection_const[ t ][ node_id ].set_both( rhs , eNoMod );
-      v_node_injection_const[ t ][ node_id ].set_function(
-       linear_function );
+      v_node_injection_const[ t ][ node_id ].set_function( linear_function );
      }
     }
    }

@@ -90,29 +90,29 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Mandatory variables
 
- ::deserialize( group , "MaxPower" , v_maximum_power , false );
+ ::deserialize( group , "MaxPower" , v_MaxPower , false );
 
  // Optional variables
 
- if( ! ::deserialize( group , "MinPower" , v_minimum_power ) )
-  v_minimum_power.assign( f_time_horizon , 0 );
+ if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
+  v_MinPower.assign( f_time_horizon , 0 );
 
- if( ! ::deserialize( group , "InertiaPower" , v_inertia_power ) )
-  v_inertia_power.assign( f_time_horizon , 0 );
+ if( ! ::deserialize( group , "InertiaPower" , v_InertiaPower ) )
+  v_InertiaPower.assign( f_time_horizon , 0 );
 
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- ::deserialize( group , f_investment_cost , "InvestmentCost" );
+ ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
- ::deserialize( group , f_max_capacity , "MaxCapacity" );
+ ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
  // Decompress vectors
 
- decompress_vector( v_minimum_power );
- decompress_vector( v_maximum_power );
- decompress_vector( v_inertia_power );
+ decompress_vector( v_MinPower );
+ decompress_vector( v_MaxPower );
+ decompress_vector( v_InertiaPower );
 
  check_data_consistency();
 
@@ -123,53 +123,47 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 void IntermittentUnitBlock::check_data_consistency( void ) const {
  // Minimum and maximum power
 
- assert( v_minimum_power.size() == f_time_horizon );
- assert( v_maximum_power.size() == f_time_horizon );
+ assert( v_MinPower.size() == f_time_horizon );
+ assert( v_MaxPower.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if( v_minimum_power[ t ] > v_maximum_power[ t ] ) {
+  if( v_MinPower[ t ] > v_MaxPower[ t ] )
    throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                              "minimum power at time " + std::to_string( t ) +
-                             " is " + std::to_string( v_minimum_power[ t ] ) +
+                             " is " + std::to_string( v_MinPower[ t ] ) +
                              ", which is greater than the maximum power, which "
-                             "is " + std::to_string( v_maximum_power[ t ] ) +
+                             "is " + std::to_string( v_MaxPower[ t ] ) +
                              "." ) );
-  }
 
-  if( v_minimum_power[ t ] < 0 ) {
+  if( v_MinPower[ t ] < 0 )
    throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                              "minimum power at time " + std::to_string( t ) +
-                             " is " + std::to_string( v_minimum_power[ t ] ) +
+                             " is " + std::to_string( v_MinPower[ t ] ) +
                              ", which is negative." ) );
-  }
  }
 
  // Gamma
 
- if( ( f_gamma < 0 ) || ( f_gamma > 1 ) ) {
+ if( ( f_gamma < 0 ) || ( f_gamma > 1 ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                             "gamma must be between 0 and 1, but it is " +
                             std::to_string( f_gamma ) + "." ) );
- }
 
  // Kappa
 
- if( f_kappa < 0 ) {
+ if( f_kappa < 0 )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                             "kappa must be nonnegative, but it is" +
                             std::to_string( f_kappa ) + "." ) );
- }
 
- if( ! v_inertia_power.empty() ) {
-  assert( v_inertia_power.size() == f_time_horizon );
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_inertia_power[ t ] < 0 ) {
+ if( ! v_InertiaPower.empty() ) {
+  assert( v_InertiaPower.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_InertiaPower[ t ] < 0 )
     throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                               "inertia power for time " + std::to_string( t ) +
                               " must be nonnegative, but it is" +
-                              std::to_string( v_inertia_power[ t ] ) + "." ) );
-   }
-  }
+                              std::to_string( v_InertiaPower[ t ] ) + "." ) );
  }
 }  // end( IntermittentUnitBlock::check_data_consistency )
 
@@ -184,7 +178,7 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  UnitBlock::generate_abstract_variables( stvv );
 
  // Design Variable
- if( f_investment_cost != 0 ) {
+ if( f_InvestmentCost != 0 ) {
   design.set_type( ColVariable::kPosUnitary );
   add_static_variable( design , "D_intermittent" );
  }
@@ -244,7 +238,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
                                               -1.0 ) );
   }
 
-  min_power_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
+  min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
   min_power_Const[ t ].set_rhs( Inf< double >() );
   min_power_Const[ t ].set_function(
    new LinearFunction( std::move( min_power_vars ) ) );
@@ -272,7 +266,7 @@ void IntermittentUnitBlock::generate_abstract_constraints(
                                               1.0 ) );
 
    max_power_Const[ t ].set_lhs( -Inf< double >() );
-   max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_maximum_power[ t ] );
+   max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] );
    max_power_Const[ t ].set_function(
     new LinearFunction( std::move( max_power_vars ) ) );
   }
@@ -280,15 +274,15 @@ void IntermittentUnitBlock::generate_abstract_constraints(
   add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
  }
 
- if( f_investment_cost == 0 ) {
+ if( f_InvestmentCost == 0 ) {
 
   // Active power bounds constraints
 
   active_power_bounds_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   active_power_bounds_Const[ t ].set_lhs( f_kappa * v_minimum_power[ t ] );
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_maximum_power[ t ] );
+   active_power_bounds_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] );
    active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
   }
 
@@ -307,14 +301,14 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
    // Lower bound of the active power design constraints:
    //
-   //      v_minimum_power z <= v_active_power     z \in [0,1], for all t
-   // => 0 <= v_active_power - v_minimum_power z   z \in [0,1], for all t
+   //      v_MinPower z <= v_active_power     z \in [0,1], for all t
+   // => 0 <= v_active_power - v_MinPower z   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair lower_vars;
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    lower_vars.push_back( std::make_pair( &design ,
-                                         -f_kappa * v_minimum_power[ t ] ) );
+                                         -f_kappa * v_MinPower[ t ] ) );
 
    active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
    active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
@@ -323,14 +317,14 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_maximum_power z     z \in [0,1], for all t
-   // => v_active_power - v_maximum_power z <= 0   z \in [0,1], for all t
+   //      v_active_power <= v_MaxPower z     z \in [0,1], for all t
+   // => v_active_power - v_MaxPower z <= 0   z \in [0,1], for all t
 
    LinearFunction::v_coeff_pair upper_vars;
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    upper_vars.push_back( std::make_pair( &design ,
-                                         -f_kappa * v_maximum_power[ t ] ) );
+                                         -f_kappa * v_MaxPower[ t ] ) );
 
    active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
@@ -387,8 +381,8 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
 
  LinearFunction::v_coeff_pair vars;
 
- if( f_investment_cost != 0 )
-  vars.push_back( std::make_pair( &design , f_investment_cost ) );
+ if( f_InvestmentCost != 0 )
+  vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
@@ -441,9 +435,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
                allow_scalar_var );
  };
 
- serialize( "MinPower" , v_minimum_power );
- serialize( "MaxPower" , v_maximum_power );
- serialize( "InertiaPower" , v_inertia_power );
+ serialize( "MinPower" , v_MinPower );
+ serialize( "MaxPower" , v_MaxPower );
+ serialize( "InertiaPower" , v_InertiaPower );
 
 }  // end( IntermittentUnitBlock::serialize )
 
@@ -456,13 +450,13 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
  if( ! max_power_Const.empty() )
   for( auto t : time )
    max_power_Const[ t ].set_rhs
-    ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
+    ( f_kappa * f_gamma * v_MaxPower[ t ] , issueAMod );
    // FIXME: use a GroupModification
 
  if( ! active_power_bounds_Const.empty() )
   for( auto t : time )
    active_power_bounds_Const[ t ].set_rhs
-    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+    ( f_kappa * v_MaxPower[ t ] , issueAMod );
    // FIXME: use a GroupModification
 }
 
@@ -473,13 +467,13 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
    max_power_Const[ t ].set_rhs
-    ( f_kappa * f_gamma * v_maximum_power[ t ] , issueAMod );
+    ( f_kappa * f_gamma * v_MaxPower[ t ] , issueAMod );
    // FIXME: use a GroupModification
 
  if( ! active_power_bounds_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
    active_power_bounds_Const[ t ].set_rhs
-    ( f_kappa * v_maximum_power[ t ] , issueAMod );
+    ( f_kappa * v_MaxPower[ t ] , issueAMod );
    // FIXME: use a GroupModification
 }
 
@@ -493,28 +487,28 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
- if( v_maximum_power.empty() ) {
+ if( v_MaxPower.empty() ) {
   if( std::all_of( values , values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   Index max_index = *std::max_element( std::begin( subset ) ,
                                        std::end( subset ) );
-  v_maximum_power.assign( max_index , 0 );
+  v_MaxPower.assign( max_index , 0 );
  }
 
  // If nothing changes, return
  bool identical = true;
  for( auto t : subset ) {
-  if( t >= v_maximum_power.size() )
+  if( t >= v_MaxPower.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
                                   " invalid value in subset" ) );
   auto max_power = *( values++ );
-  if( v_maximum_power[ t ] != max_power ) {
+  if( v_MaxPower[ t ] != max_power ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
     // Change the physical representation
-    v_maximum_power[ t ] = max_power;
+    v_MaxPower[ t ] = max_power;
   }
  }
  if( identical )
@@ -546,25 +540,25 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
- if( v_maximum_power.empty() ) {
+ if( v_MaxPower.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   auto max_index = rng.second;
-  v_maximum_power.assign( max_index , 0 );
+  v_MaxPower.assign( max_index , 0 );
  }
 
  // If nothing changes, return
  if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_maximum_power.begin() + rng.first ) )
+                 v_MaxPower.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
   std::copy( values , values + ( rng.second - rng.first ) ,
-             v_maximum_power.begin() + rng.first );
+             v_MaxPower.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
@@ -627,20 +621,20 @@ void IntermittentUnitBlock::set_kappa
     if( ! active_power_bounds_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs
-       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+       ( f_kappa * v_MinPower[ t ] , issueAMod );
       active_power_bounds_Const[ t ].set_rhs
-       ( f_kappa * v_maximum_power[ t ] , issueAMod );
+       ( f_kappa * v_MaxPower[ t ] , issueAMod );
      }
 
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
       min_power_Const[ t ].set_lhs
-       ( f_kappa * v_minimum_power[ t ] , issueAMod );
+       ( f_kappa * v_MinPower[ t ] , issueAMod );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
       max_power_Const[ t ].set_rhs
-       ( f_gamma * f_kappa * v_maximum_power[ t ] , issueAMod );
+       ( f_gamma * f_kappa * v_MaxPower[ t ] , issueAMod );
    }  // end( constraints_generated )
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )

@@ -796,7 +796,7 @@ class ThermalUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the initial power value
- double get_initial_power( void ) const { return( f_initial_power ); }
+ double get_initial_power( void ) const { return( f_InitialPower ); }
 
  /// returns the init up and down time value
  int get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
@@ -817,6 +817,13 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_min_power( void ) const {
   return( v_MinPower );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power of the given generator at the given timestep
+
+ double get_min_power( Index t , Index g = 0 ) const override {
+  return( v_MinPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -847,6 +854,13 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_power( void ) const {
   return( v_MaxPower );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power of the given generator at the given timestep
+
+ double get_max_power( Index t , Index g = 0 ) const override {
+  return( v_MaxPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -937,7 +951,7 @@ class ThermalUnitBlock : public UnitBlock
   * @return The vector containing the primary spinning reserve costs. */
 
  const std::vector< double > & get_primary_spinning_reserve_cost( void )
- const { return( v_primary_spinning_reserve_cost ); }
+ const { return( v_PrimarySpinningReserveCost ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary spinning reserve costs
@@ -949,7 +963,7 @@ class ThermalUnitBlock : public UnitBlock
   * @return The vector containing the secondary spinning reserve costs. */
 
  const std::vector< double > & get_secondary_spinning_reserve_cost( void )
- const { return( v_secondary_spinning_reserve_cost ); }
+ const { return( v_SecondarySpinningReserveCost ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
@@ -987,30 +1001,6 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the coefficient of the quadratic term of the power cost function
- /** This function returns the coefficient of the quadratic term of the
-  * quadratic function that represents the cost of the power produced by the
-  * unit at the given time instant.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The coefficient of the quadratic term of the quadratic function
-  *         that represents the cost of the power produced by the unit at the
-  *         given time instant. */
-
- double get_quad_term( Index t ) const {
-  if( v_QuadTerm.empty() )
-   return( 0 );
-  if( v_QuadTerm.size() == 1 )
-   return( v_QuadTerm.front() );
-  assert( v_QuadTerm.size() == f_time_horizon );
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
-  return( v_QuadTerm[ t ] );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
  /** The returned vector contains to linear term at time t. There are three
   * possible cases:
@@ -1025,30 +1015,6 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the coefficient of the linear term of the power cost function
- /** This function returns the coefficient of the linear term of the quadratic
-  * function that represents the cost of the power produced by the unit at the
-  * given time instant.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The coefficient of the linear term of the quadratic function that
-  *         represents the cost of the power produced by the unit at the given
-  *         time instant. */
-
- double get_linear_term( Index t ) const {
-  if( v_LinearTerm.empty() )
-   return( 0 );
-  if( v_LinearTerm.size() == 1 )
-   return( v_LinearTerm.front() );
-  assert( v_LinearTerm.size() == f_time_horizon );
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
-  return( v_LinearTerm[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1069,29 +1035,6 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the constant term of the power cost function
- /** This function returns the constant term of the function that represents
-  * the cost of the power produced by the unit at the given time instant. This
-  * is the fixed cost incurred when the unit is committed at time instant \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The fixed cost when the unit is committed at the given time
-  *         instant. */
-
- double get_const_term( Index t ) const {
-  if( v_ConstTerm.empty() )
-   return( 0 );
-  if( v_ConstTerm.size() == 1 )
-   return( v_ConstTerm.front() );
-  assert( v_ConstTerm.size() == f_time_horizon );
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
-  return( v_ConstTerm[ t ] );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of startup cost
  /** The returned vector contains to startup cost at time t.  There are three
   * possible cases:
@@ -1106,27 +1049,6 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the start up cost for the given time instant.
- /** This function returns the start up cost of the unit for the given time
-  * instant.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The start up cost of the unit for the given time instant. */
-
- double get_start_up_cost( Index t ) const {
-  if( v_StartUpCost.empty() )
-   return( 0 );
-  if( v_StartUpCost.size() == 1 )
-   return( v_StartUpCost.front() );
-  assert( v_StartUpCost.size() == f_time_horizon );
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_start_up_cost: Invalid "
-                            "time index: " + std::to_string( t ) ) );
-  return( v_StartUpCost[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1146,9 +1068,9 @@ class ThermalUnitBlock : public UnitBlock
   *   of vector represents the fixed consumption at time t. */
 
  double * get_fixed_consumption( Index generator ) override {
-  if( v_fixed_consumption.empty() )
+  if( v_FixedConsumption.empty() )
    return( nullptr );
-  return( &( v_fixed_consumption.front() ) );
+  return( &( v_FixedConsumption.front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1168,9 +1090,9 @@ class ThermalUnitBlock : public UnitBlock
   *   of vector represents the inertia commitment at time t. */
 
  double * get_inertia_commitment( Index generator ) override {
-  if( v_inertia_commitment.empty() )
+  if( v_InertiaCommitment.empty() )
    return( nullptr );
-  return( &( v_inertia_commitment.front() ) );
+  return( &( v_InertiaCommitment.front() ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1602,19 +1524,19 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_StartUpCost;
 
  /// the vector of primary spinning reserve linear costs
- std::vector< double > v_primary_spinning_reserve_cost;
+ std::vector< double > v_PrimarySpinningReserveCost;
 
  /// the vector of secondary spinning reserve linear costs
- std::vector< double > v_secondary_spinning_reserve_cost;
+ std::vector< double > v_SecondarySpinningReserveCost;
 
  /// the InitialPower value
- double f_initial_power{};
+ double f_InitialPower{};
 
  /// the vector of fixed consumption of generator
- std::vector< double > v_fixed_consumption;
+ std::vector< double > v_FixedConsumption;
 
  /// the vector of inertia commitment of generator
- std::vector< double > v_inertia_commitment;
+ std::vector< double > v_InertiaCommitment;
 
  /// the MinUpTime value
  Index f_MinUpTime{};

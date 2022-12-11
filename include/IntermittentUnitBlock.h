@@ -330,10 +330,10 @@ class IntermittentUnitBlock : public UnitBlock
  double get_kappa( void ) const { return( f_kappa ); }
 
  /// returns the investment cost
- double get_investment_cost( void ) const { return( f_investment_cost ); }
+ double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
  /// returns the maximum installable capacity by the user
- double get_max_capacity( void ) const { return( f_max_capacity ); }
+ double get_max_capacity( void ) const { return( f_MaxCapacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
@@ -348,8 +348,8 @@ class IntermittentUnitBlock : public UnitBlock
   * - otherwise, the std::vector< double > V must have size get_time_horizon()
   *   and each V[ t ] represents the minimum power value at time t. */
 
- const std::vector< double > & get_minimum_power( void ) const {
-  return( v_minimum_power );
+ double get_min_power( Index t , Index g = 0 ) const override {
+  return( v_MinPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -365,8 +365,8 @@ class IntermittentUnitBlock : public UnitBlock
   * - otherwise, the std::vector< double > V must have size get_time_horizon()
   *   and each V[ t ] represents the maximum power value at time t. */
 
- const std::vector< double > & get_maximum_power( void ) const {
-  return( v_maximum_power );
+ double get_max_power( Index t , Index g = 0 ) const override {
+  return( v_MaxPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -394,9 +394,9 @@ class IntermittentUnitBlock : public UnitBlock
   *   g. */
 
  double * get_inertia_power( Index generator ) override {
-  if( v_inertia_power.empty() )
+  if( v_InertiaPower.empty() )
    return( nullptr );
-  return( &( v_inertia_power.front() ) );
+  return( &( v_InertiaPower.front() ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -650,13 +650,13 @@ class IntermittentUnitBlock : public UnitBlock
 /*---------------------------------- data ----------------------------------*/
 
  /// the vector of MinPower
- std::vector< double > v_minimum_power;
+ std::vector< double > v_MinPower;
 
  /// the vector of MaxPower
- std::vector< double > v_maximum_power;
+ std::vector< double > v_MaxPower;
 
  /// the matrix of inertia power of generators
- std::vector< double > v_inertia_power;
+ std::vector< double > v_InertiaPower;
 
  /// the gamma value
  double f_gamma{};
@@ -668,10 +668,10 @@ class IntermittentUnitBlock : public UnitBlock
  double f_scale = 1;
 
  /// the investment cost
- double f_investment_cost{};
+ double f_InvestmentCost{};
 
  /// the maximum installable capacity by the user
- double f_max_capacity{};
+ double f_MaxCapacity{};
 
 /*-------------------------------- variables -------------------------------*/
 

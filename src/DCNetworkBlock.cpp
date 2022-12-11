@@ -254,6 +254,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
+
  if( number_nodes > 1 ) {
   // the node injection variables
   v_node_injection.resize( number_nodes );
@@ -569,7 +570,7 @@ void DCNetworkBlock::set_active_demand
    case( kHVDC ): {
     for( auto i : subset )
      v_power_flow_injection_const[ i ].set_both( -v_active_demand[ i ] ,
-                                                       issueAMod );
+                                                 issueAMod );
     break;
    }
    case( kAC ):

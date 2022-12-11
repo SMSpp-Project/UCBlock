@@ -1345,12 +1345,10 @@ class UCBlock : public Block
 
  static void static_initialization( void ) {
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
-   "UCBlock::set_active_power_demand" ,
-   &UCBlock::set_active_power_demand );
+   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
 
   register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand" ,
-   &UCBlock::set_active_power_demand );
+   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1407,6 +1405,9 @@ class UCBlock : public Block
  /// the number of pollutants
  Index f_number_pollutants{};
 
+ /// the starting index of each NetworkBlock
+ std::vector< Index > v_start_network_intervals;
+
  /* TODO commented away until HeatBlock are properly managed
  /// the set of HeatBlock
  std::vector< HeatBlock * > v_heat_blocks;
@@ -1419,7 +1420,7 @@ class UCBlock : public Block
  /** Indexed over the dimensions NumberPollutants and NumberNodes. */
  boost::multi_array< Index , 2 > v_pollutant_zones;
 
- /// tector of pointers to the NetworkBlock.
+ /// vector of pointers to the NetworkBlock.
  /** This vector has size f_time_horizon. So the NetworkBlock at
   *  position t in this vector refers to the network at the t-th time step.
   */

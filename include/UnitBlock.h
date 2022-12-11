@@ -289,6 +289,20 @@ class UnitBlock : public Block
   return( nullptr );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power of the given generator
+
+ virtual double get_min_power( Index t , Index g = 0 ) const {
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power of the given generator at the given timestep
+
+ virtual double get_max_power( Index t , Index g = 0 ) const {
+  return( 0 );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/

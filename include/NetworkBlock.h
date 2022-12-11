@@ -463,6 +463,11 @@ class NetworkBlock : public Block
  virtual void set_NetworkData( NetworkData * nd ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// method to set the number of intervals
+
+ virtual void set_number_intervals( const Index i ) {}
+
+/*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
  /** This method can be called either before or after that deserialize() is
   * called to provide the NetworkBlock with the ActiveDemand data. This allows
@@ -486,6 +491,12 @@ class NetworkBlock : public Block
 
  virtual void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ virtual void set_MaxNodeInjection( Index interval_id , Index node_id ,
+                                    const double max_injection ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/

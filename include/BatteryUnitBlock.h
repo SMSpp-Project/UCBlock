@@ -684,26 +684,26 @@ public:
  * @{ */
 
  /// returns the initial storage value
- double get_initial_storage( void ) const { return( f_initial_storage ); }
+ double get_initial_storage( void ) const { return( f_InitialStorage ); }
 
  /// returns the initial power value
- double get_initial_power( void ) const { return( f_initial_power ); }
+ double get_initial_power( void ) const { return( f_InitialPower ); }
 
  /// returns the battery investment cost
  double get_batt_investment_cost( void ) const {
-  return( f_batt_investment_cost );
+  return( f_BattInvestmentCost );
  }
 
  /// returns the converter investment cost
  double get_conv_investment_cost( void ) const {
-  return( f_conv_investment_cost );
+  return( f_ConvInvestmentCost );
  }
 
  /// returns the maximum battery installable capacity by the user
- double get_batt_max_capacity( void ) const { return( f_batt_max_capacity ); }
+ double get_batt_max_capacity( void ) const { return( f_BattMaxCapacity ); }
 
  /// returns the maximum converter installable capacity by the user
- double get_conv_max_capacity( void ) const { return( f_conv_max_capacity ); }
+ double get_conv_max_capacity( void ) const { return( f_ConvMaxCapacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum storage
@@ -720,26 +720,9 @@ public:
   *
   * @return The vector containing the minimum storage. */
 
- const std::vector< double > & get_minimum_storage( void ) const {
-  return( v_minimum_storage );
+ const std::vector< double > & get_min_storage( void ) const {
+  return( v_MinStorage );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum storage at the given time instant
- /** This method returns the minimum storage at the given time instant \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The minimum storage at the given time instant \p t. */
-
- double get_minimum_storage( Index t ) const {
-  if( v_minimum_storage.empty() )
-   return( 0 );
-  if( v_minimum_storage.size() == 1 )
-   return( v_minimum_storage.front() );
-  assert( t < v_minimum_storage.size() );
-  return( v_minimum_storage[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum storage
@@ -754,26 +737,9 @@ public:
   * - otherwise, the vector V must have size get_time_horizon() and each V[ t ]
   *   represents the maximum storage value at time t. */
 
- const std::vector< double > & get_maximum_storage( void ) const {
-  return( v_maximum_storage );
+ const std::vector< double > & get_max_storage( void ) const {
+  return( v_MaxStorage );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum storage at the given time instant
- /** This method returns the maximum storage at the given time instant \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The maximum storage at the given time instant \p t. */
-
- double get_maximum_storage( Index t ) const {
-  if( v_maximum_storage.empty() )
-   return( 0 );
-  if( v_maximum_storage.size() == 1 )
-   return( v_maximum_storage.front() );
-  assert( t < v_maximum_storage.size() );
-  return( v_maximum_storage[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
@@ -788,26 +754,9 @@ public:
   * - otherwise, the vector V must have size get_time_horizon() and each V[ t
   *   ] represents the minimum power value at time t. */
 
- const std::vector< double > & get_minimum_power( void ) const {
-  return( v_minimum_power );
+ double get_min_power( Index t , Index g = 0 ) const override {
+  return( v_MinPower[ t ] );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum power at the given time instant
- /** This method returns the minimum power at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The minimum power at the given time instant \p t. */
-
- double get_minimum_power( Index t ) const {
-  if( v_minimum_power.empty() )
-   return( 0 );
-  if( v_minimum_power.size() == 1 )
-   return( v_minimum_power.front() );
-  assert( t < v_minimum_power.size() );
-  return( v_minimum_power[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum power
@@ -822,26 +771,9 @@ public:
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the maximum power value at time t. */
 
- const std::vector< double > & get_maximum_power( void ) const {
-  return( v_maximum_power );
+ double get_max_power( Index t , Index g = 0 ) const override {
+  return( v_MaxPower[ t ] );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum power at the given time instant
- /** This method returns the maximum power at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The maximum power at the given time instant \p t. */
-
- double get_maximum_power( Index t ) const {
-  if( v_maximum_power.empty() )
-   return( 0 );
-  if( v_maximum_power.size() == 1 )
-   return( v_maximum_power.front() );
-  assert( t < v_maximum_power.size() );
-  return( v_maximum_power[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum primary reserve power
@@ -857,28 +789,9 @@ public:
   * - otherwise, the vector must have size get_time_horizon() and its t-th
   *   element represents the maximum primary power at time t. */
 
- const std::vector< double > & get_maximum_primary_power( void ) const {
-  return( v_maximum_primary_rho );
+ const std::vector< double > & get_max_primary_power( void ) const {
+  return( v_MaxPrimaryRho );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum primary reserve power at the given time instant
- /** This method returns the maximum active power that can be used as primary
-  * reserve at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The maximum primary reserve power at the given time instant \p
-  * t. */
-
- double get_maximum_primary_power( Index t ) const {
-  if( v_maximum_primary_rho.empty() )
-   return( 0 );
-  if( v_maximum_primary_rho.size() == 1 )
-   return( v_maximum_primary_rho.front() );
-  assert( t < v_maximum_primary_rho.size() );
-  return( v_maximum_primary_rho[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum secondary reserve power
@@ -894,28 +807,9 @@ public:
   * - otherwise, the vector must have size get_time_horizon() and its t-th
   *   element represents the maximum secondary power at time t. */
 
- const std::vector< double > & get_maximum_secondary_power( void ) const {
-  return( v_maximum_secondary_rho );
+ const std::vector< double > & get_max_secondary_power( void ) const {
+  return( v_MaxSecondaryRho );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum secondary power at the given time instant
- /** This method returns the maximum active power that can be used as
-  * secondary reserve at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @return The maximum secondary reserve power at the given time instant \p
-  * t. */
-
- double get_maximum_secondary_power( Index t ) const {
-  if( v_maximum_secondary_rho.empty() )
-   return( 0 );
-  if( v_maximum_secondary_rho.size() == 1 )
-   return( v_maximum_secondary_rho.front() );
-  assert( t < v_maximum_secondary_rho.size() );
-  return( v_maximum_secondary_rho[ t ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp up
@@ -931,7 +825,7 @@ public:
   *   V[ t ] represents the delta ramp up value at time t. */
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
-  return( v_delta_ramp_up );
+  return( v_DeltaRampUp );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -948,7 +842,7 @@ public:
   *   V[ t ] represents the delta ramp down value at time t. */
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
-  return( v_delta_ramp_down );
+  return( v_DeltaRampDown );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -966,7 +860,7 @@ public:
   *   V[ t ] represents the storing battery rho value at time t. */
 
  const std::vector< double > & get_storing_battery_rho( void ) const {
-  return( v_storing_battery_rho );
+  return( v_StoringBatteryRho );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -984,7 +878,7 @@ public:
   *   V[ t ] represents the extracting battery rho value at time t. */
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
-  return( v_extracting_battery_rho );
+  return( v_ExtractingBatteryRho );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1002,7 +896,7 @@ public:
   *   V[ t ] represents the cost of the unit at time t. */
 
  const std::vector< double > & get_cost( void ) const {
-  return( v_cost );
+  return( v_Cost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1016,7 +910,7 @@ public:
   *   V[ t ] represents the demand value at time t. */
 
  const std::vector< double > & get_demand( void ) const {
-  return( v_demand );
+  return( v_Demand );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1418,49 +1312,49 @@ public:
 /*---------------------------------- data ----------------------------------*/
 
  /// the vector of minimum storage
- std::vector< double > v_minimum_storage;
+ std::vector< double > v_MinStorage;
 
  /// the vector of maximum storage
- std::vector< double > v_maximum_storage;
+ std::vector< double > v_MaxStorage;
 
  /// the vector of MinPower
- std::vector< double > v_minimum_power;
+ std::vector< double > v_MinPower;
 
  /// the vector of MaxPower
- std::vector< double > v_maximum_power;
+ std::vector< double > v_MaxPower;
 
  /// the vector of ConverterMaxPower
- std::vector< double > v_conv_maximum_power;
+ std::vector< double > v_ConvMaxPower;
 
  /// the vector of MaxPrimaryRho
- std::vector< double > v_maximum_primary_rho;
+ std::vector< double > v_MaxPrimaryRho;
 
  /// the vector of MaxSecondaryRho
- std::vector< double > v_maximum_secondary_rho;
+ std::vector< double > v_MaxSecondaryRho;
 
  /// the vector of RampUp
- std::vector< double > v_delta_ramp_up;
+ std::vector< double > v_DeltaRampUp;
 
  /// the vector of RampDown
- std::vector< double > v_delta_ramp_down;
+ std::vector< double > v_DeltaRampDown;
 
- /// the vector of storing battery rho
- std::vector< double > v_storing_battery_rho;
+ /// the vector of StoringBatteryRho
+ std::vector< double > v_StoringBatteryRho;
 
- /// the vector of extracting battery rho
- std::vector< double > v_extracting_battery_rho;
+ /// the vector of ExtractingBatteryRho
+ std::vector< double > v_ExtractingBatteryRho;
 
  /// the vector of Cost
- std::vector< double > v_cost;
+ std::vector< double > v_Cost;
 
  /// the vector of demand
- std::vector< double > v_demand;
+ std::vector< double > v_Demand;
 
  /// the InitialStorage value
- double f_initial_storage{};
+ double f_InitialStorage{};
 
  /// the InitialPower value
- double f_initial_power{};
+ double f_InitialPower{};
 
  /// the kappa value
  double f_kappa = 1;
@@ -1469,16 +1363,16 @@ public:
  double f_scale = 1;
 
  /// the battery investment cost
- double f_batt_investment_cost{};
+ double f_BattInvestmentCost{};
 
  /// the converter investment cost
- double f_conv_investment_cost{};
+ double f_ConvInvestmentCost{};
 
  /// the maximum battery installable capacity by the user
- double f_batt_max_capacity{};
+ double f_BattMaxCapacity{};
 
  /// the maximum converter installable capacity by the user
- double f_conv_max_capacity{};
+ double f_ConvMaxCapacity{};
 
 /*-------------------------------- variables -------------------------------*/
 
