@@ -143,7 +143,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  // Optional variables
 
  Index NumberNodes;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
+ if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
   // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
   // and it is marked as being local.

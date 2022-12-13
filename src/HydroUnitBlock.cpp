@@ -111,25 +111,22 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  UnitBlock::deserialize_time_horizon( group );
  UnitBlock::deserialize_change_intervals( group );
 
- if( ! ::deserialize_dim( group , "NumberReservoirs" ,
-                         f_NumberReservoirs , true ) )
+ if( ! ::deserialize_dim( group , "NumberReservoirs" , f_NumberReservoirs ) )
   f_NumberReservoirs = 1;
 
- if( ! ::deserialize_dim( group , "NumberArcs" , f_NumberArcs , true ) )
+ if( ! ::deserialize_dim( group , "NumberArcs" , f_NumberArcs ) )
   f_NumberArcs = 1;
 
  ::deserialize( group , "NumberPieces" , f_NumberArcs ,
                 v_NumberPieces , true , true );
 
- if( ! ::deserialize_dim( group , "TotalNumberPieces" ,
-                         f_TotalNumberPieces , true ) ) {
+ if( ! ::deserialize_dim( group , "TotalNumberPieces" , f_TotalNumberPieces ) ) {
   f_TotalNumberPieces = 0;
-  for( const auto & n : v_NumberPieces ) {
+  for( const auto & n : v_NumberPieces )
    f_TotalNumberPieces += n;
-  }
  }
  f_TotalNumberPieces = f_TotalNumberPieces ?
-                         f_TotalNumberPieces : f_NumberArcs;
+                       f_TotalNumberPieces : f_NumberArcs;
 
  ::deserialize( group , "StartArc" , f_NumberArcs , v_StartArc );
  ::deserialize( group , "EndArc" , f_NumberArcs , v_EndArc );

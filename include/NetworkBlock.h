@@ -331,7 +331,8 @@ class NetworkBlock : public Block
  /** Constructor of NetworkBlock, taking possibly a pointer of its father
   * Block. */
 
- explicit NetworkBlock( Block * father = nullptr ) : Block( father ) {}
+ explicit NetworkBlock( Block * father = nullptr ) :
+  Block( father ) , f_local_NetworkData( false ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
@@ -460,12 +461,17 @@ class NetworkBlock : public Block
   * The default implementation of this method is empty, which is OK for a
   * NetworkBlock which only handles the "bus" case. */
 
- virtual void set_NetworkData( NetworkData * nd ) {}
+ virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to set the number of intervals
 
  virtual void set_number_intervals( const Index i ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the constant term
+
+ virtual void set_constant_term( const double const_term ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
@@ -698,6 +704,9 @@ class NetworkBlock : public Block
 
  /// number of intervals
  Index f_number_intervals = 1;
+
+ /// true if the NetworkData object has not been passed from outside
+ bool f_local_NetworkData;
 
 /*-------------------------------- variables -------------------------------*/
 

@@ -454,8 +454,7 @@ class DCNetworkBlock : public NetworkBlock
   * father Block. */
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) ,
-    f_NetworkData( nullptr ) , f_local_NetworkData( false ) {}
+  : NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -1000,13 +999,12 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the DCNetworkBlock
  * @{ */
 
- void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr )
- override {
+ void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
   // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete f_NetworkData;
 
-  f_NetworkData = static_cast< DCNetworkData * >( network_data );
+  f_NetworkData = static_cast< DCNetworkData * >( nd );
   f_local_NetworkData = false;
  }
 
@@ -1214,9 +1212,6 @@ class DCNetworkBlock : public NetworkBlock
 
  /// the DCNetworkData object
  DCNetworkData * f_NetworkData;
-
- /// true if the DCNetworkData object has not been passed from outside
- bool f_local_NetworkData;
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_active_demand;

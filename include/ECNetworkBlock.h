@@ -168,7 +168,32 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the data of the ECNetworkData
  * @{ */
 
+  /// returns the energy sell price
+  /** Returns the tariff that the user gains to sell electricity to the
+   * public market. */
 
+  double get_sell_price( void ) const { return( f_SellPrice ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the energy buy price
+  /** Returns the tariff that the user pays to buy electricity from the public
+   * market. */
+
+  double get_buy_price( void ) const { return( f_BuyPrice ); }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the energy reward price
+  /** Returns the tariff that the user gains when it absorbs power from the
+   * microgrid market / network (instead of from the public grid). */
+
+  double get_reward_price( void ) const { return( f_RewardPrice ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the peak tariff
+  /** Returns the tariff that the user pays due to the peak power. */
+
+  double get_peak_tariff( void ) const { return( f_PeakTariff ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE ECNetworkData ------------------*/
@@ -199,7 +224,23 @@ class ECNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+  // energy bought from the public market at the national
+  // price /pi^{P-,V} + /pi^{P-,F}
+  // (the second term, i.e., the fixed tariff, is given as part of the
+  // constant term)
 
+  /// tariff that the user pays to buy electricity at each time horizon
+  double f_BuyPrice{}; // /pi^{P-,V}
+
+  /// tariff that the user gains to sell electricity at each time horizon
+  double f_SellPrice{}; // /pi^{P+}
+
+  /// tariff that the user gains when it absorbs power from the microgrid
+  /// market / network (instead of from the public grid) at each time horizon
+  double f_RewardPrice{}; // /pi^{R}
+
+  /// tariff that the user pays due to the peak power
+  double f_PeakTariff{};
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -356,32 +397,38 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of sell prices
+ /// returns the energy sell price at interval i
  /** Returns the tariff that the user gains to sell electricity to the
-  * public market. */
+  * public market at interval i. */
 
- const std::vector< double > & get_sell_price( void ) const {
-  return( v_SellPrice );
+ double get_sell_price( Index i ) const {
+  if( ! f_NetworkData )
+   return( v_SellPrice[ i ] );
+  return( f_NetworkData->get_sell_price() );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of buy prices
- /** Returns the tariff that the user pays to buy electricity at each time
-  * horizon from the public market. */
+ /// returns the energy buy price at interval i
+ /** Returns the tariff that the user pays to buy electricity from the public
+  * market at interval i. */
 
- const std::vector< double > & get_buy_price( void ) const {
-  return( v_BuyPrice );
+ double get_buy_price( Index i ) const {
+  if( ! f_NetworkData )
+   return( v_BuyPrice[ i ] );
+  return( f_NetworkData->get_buy_price() );
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// returns the vector of reward prices
+ /// returns the energy reward price at interval i
  /** Returns the tariff that the user gains when it absorbs power from the
-  * microgrid market / network (instead of from the public grid) at each
-  * time horizon. */
+  * microgrid market / network (instead of from the public grid) at interval i.
+  */
 
- const std::vector< double > & get_reward_price( void ) const {
-  return( v_RewardPrice );
+ double get_reward_price( Index i ) const {
+  if( ! f_NetworkData )
+   return( v_BuyPrice[ i ] );
+  return( f_NetworkData->get_reward_price() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -389,7 +436,9 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the tariff that the user pays due to the peak power. */
 
  double get_peak_tariff( void ) const {
-  return( f_PeakTariff );
+  if( ! f_NetworkData )
+   return( f_PeakTariff );
+  return( f_NetworkData->get_peak_tariff() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -497,9 +546,13 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the ECNetworkBlock
  * @{ */
 
- void set_NetworkData( NetworkBlock::NetworkData * network_data = nullptr )
- override {
-  f_NetworkData = static_cast< ECNetworkData * >( network_data );
+ void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
+  // if there was a previous ECNetworkData, and it was local, delete it
+  if( f_NetworkData && f_local_NetworkData )
+   delete f_NetworkData;
+
+  f_NetworkData = static_cast< ECNetworkData * >( nd );
+  f_local_NetworkData = false;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -507,6 +560,13 @@ class ECNetworkBlock : public NetworkBlock
 
  void set_number_intervals( const Index i ) override {
   f_number_intervals = i;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the constant term
+
+ void set_constant_term( const double const_term ) override {
+  f_ConstTerm = const_term;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -627,12 +687,10 @@ class ECNetworkBlock : public NetworkBlock
    * and be done with it. */
 
   register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "ECNetworkBlock::set_active_demand" ,
-   &ECNetworkBlock::set_active_demand );
+   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
 
   register_method< ECNetworkBlock , MF_dbl_it , Range >(
-   "ECNetworkBlock::set_active_demand" ,
-   &ECNetworkBlock::set_active_demand );
+   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -94,8 +94,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
- if( ! ::deserialize_dim( group , "NumberIntervals" ,
-                         f_number_intervals , true ) )
+ if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
  else {
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )

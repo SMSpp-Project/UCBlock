@@ -70,7 +70,7 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 #endif
 
  UnitBlock::deserialize_time_horizon( group );
- ::deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units , true );
+ ::deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units );
  deserialize_sub_blocks( group );
 
  Block::deserialize( group );

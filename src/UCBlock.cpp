@@ -170,6 +170,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
                                                      "NetworkCost" ,
+                                                     "BuyPrice" ,
+                                                     "SellPrice" ,
+                                                     "RewardPrice" ,
+                                                     "PeakTariff" ,
+                                                     "StartNetworkIntervals" ,
+                                                     "NetworkConstantTerms" ,
                                                      "NetworkBlockClassname" ,
                                                      "NetworkDataClassname" };
  check_variables( group , expected_vars , std::cerr );
@@ -196,13 +202,17 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  }
  v_start_network_intervals.push_back( f_time_horizon );
 
+ if( ! ::deserialize( group , "NetworkConstantTerms" , f_number_networks ,
+                      v_network_constant_terms ) )
+  v_network_constant_terms.resize( f_number_networks );
+
  // For backward compatibility reasons wrt the nc4 input data files already
  // given, the default values are `DCNetworkBlock` and `DCNetworkData`
  if( ! ::deserialize( group , network_block_classname ,
-                     "NetworkBlockClassname" ) )
+                      "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
  if( ! ::deserialize( group , network_data_classname ,
-                     "NetworkDataClassname" ) )
+                      "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
 
  Index number_nodes;
@@ -215,7 +225,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  /* TODO commented away until HeatBlock are properly managed
  if( ! ::deserialize_dim( group , "NumberHeatGenerators" ,
-                          f_number_heat_generators , true ) )
+                          f_number_heat_generators ) )
   f_number_heat_generators = 0;
  */
 
@@ -243,25 +253,20 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  /* TODO commented away until HeatBlock are properly managed
  f_number_heat_blocks = 0;
- ::deserialize_dim( group , "NumberHeatBlocks" ,
-                    f_number_heat_blocks );
+ ::deserialize_dim( group , "NumberHeatBlocks" , f_number_heat_blocks );
  */
 
  f_number_primary_zones = 0;
- ::deserialize_dim( group , "NumberPrimaryZones" ,
-                    f_number_primary_zones );
+ ::deserialize_dim( group , "NumberPrimaryZones" , f_number_primary_zones );
 
  f_number_secondary_zones = 0;
- ::deserialize_dim( group , "NumberSecondaryZones" ,
-                    f_number_secondary_zones );
+ ::deserialize_dim( group , "NumberSecondaryZones" , f_number_secondary_zones );
 
  f_number_inertia_zones = 0;
- ::deserialize_dim( group , "NumberInertiaZones" ,
-                    f_number_inertia_zones );
+ ::deserialize_dim( group , "NumberInertiaZones" , f_number_inertia_zones );
 
  f_number_pollutants = 0;
- ::deserialize_dim( group , "NumberPollutants" ,
-                    f_number_pollutants );
+ ::deserialize_dim( group , "NumberPollutants" , f_number_pollutants );
 
  /* TODO commented away until HeatBlock are properly managed
  ::deserialize( group , "HeatSet" ,
@@ -291,7 +296,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                  v_number_pollutant_zones , true , true );
 
  if( ! ::deserialize_dim( group , "TotalNumberPollutantZones" ,
-                         f_total_number_pollutant_zones , true ) ) {
+                         f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
@@ -301,8 +306,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   f_total_number_pollutant_zones = f_number_pollutants;
 
  if( f_total_number_pollutant_zones ) {
-  ::deserialize( group , "PollutantZones" ,
-                 v_pollutant_zones , true , true );
+  ::deserialize( group , "PollutantZones" , v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
   ::deserialize( group , "PollutantBudget" ,
@@ -310,8 +314,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                  v_pollutant_budget , true , false );
   */
 
-  ::deserialize( group , "PollutantRho" ,
-                 v_pollutant_rho , true , true );
+  ::deserialize( group , "PollutantRho" , v_pollutant_rho , true , true );
 
   /* TODO commented away until HeatBlock are properly managed
   ::deserialize( group , "PollutantHeatRho" ,
@@ -430,6 +433,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
      new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
+    // since the ECNetworkBlock does not exist before, and we just created it,
+    // we need to set its "NumberIntervals" and "ConstantTerm"
+    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
+                               v_start_network_intervals[ n ] );
+    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
 
    if( ! nbi->get_NetworkData() ) {
@@ -438,8 +446,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                     "missing in NetworkBlock " +
                                     std::to_string( n ) + " and in UCBlock" ) );
     nbi->set_NetworkData( f_NetworkData );
-    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
-                               v_start_network_intervals[ n ] );
    }
 
    std::vector< std::vector< double > > ap_v;
@@ -490,7 +496,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  */
 
  if( ! ::deserialize_dim( group , "NumberElectricalGenerators" ,
-                          f_number_elc_generators , true ) ) {
+                          f_number_elc_generators ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
    f_number_elc_generators += static_cast< UnitBlock * >(

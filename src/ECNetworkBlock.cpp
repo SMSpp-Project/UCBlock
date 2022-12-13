@@ -60,6 +60,10 @@ ECNetworkBlock::~ECNetworkBlock() {
  Constraint::clear( node_injection_upper_bound_const );
 
  objective.clear();
+
+ // Delete the ECNetworkData if it is local.
+ if( f_local_NetworkData )
+  delete f_NetworkData;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -71,7 +75,12 @@ void ECNetworkBlock::ECNetworkData::deserialize(
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" };
+                                                     "NumberIntervals" ,
+                                                     // if called from UCBlock:
+                                                     "TimeHorizon" ,
+                                                     "NumberUnits" ,
+                                                     "NumberNetworks" ,
+                                                     "NumberElectricalGenerators" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
@@ -80,16 +89,28 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
                                                      "ConstTerm" ,
-                                                     "MaxNodeInjection" };
+                                                     "MaxNodeInjection" ,
+                                                     // if called from UCBlock:
+                                                     "ActivePowerDemand" ,
+                                                     "GeneratorNode" ,
+                                                     "StartNetworkIntervals" ,
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Mandatory variables
+ // Optional variables
 
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+ ::deserialize_dim( group , "NumberNodes" , f_number_nodes );
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
+
+ ::deserialize( group , f_BuyPrice , "BuyPrice" );
+ ::deserialize( group , f_SellPrice , "SellPrice" );
+ ::deserialize( group , f_RewardPrice , "RewardPrice" );
+ ::deserialize( group , f_PeakTariff , "PeakTariff" );
 }  // end( ECNetworkBlock::ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -111,42 +132,51 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Mandatory variables
-
- ::deserialize_dim( group , "NumberIntervals" , f_number_intervals , false );
-
- ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
-                false , true );
- if( v_BuyPrice.size() == 1 )
-  v_BuyPrice.resize( f_number_intervals , v_BuyPrice[ 0 ] );
-
- ::deserialize( group , "SellPrice" , f_number_intervals , v_SellPrice ,
-                false , true );
- if( v_SellPrice.size() == 1 )
-  v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
-
- ::deserialize( group , "RewardPrice" , f_number_intervals , v_RewardPrice ,
-                false , true );
- if( v_RewardPrice.size() == 1 )
-  v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
-
- ::deserialize( group , f_PeakTariff , "PeakTariff" , false );
-
  // Optional variables
 
  Index NumberNodes;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes , true ) ) {
+ if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) &&
+     ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) ) {
+  // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
+  // it means that a ECNetworkData has been provided. Thus, the ECNetworkData
+  // is deserialized, and it is marked as being local.
+  delete f_NetworkData;
+  f_NetworkData = new ECNetworkData();
+  f_NetworkData->deserialize( group );
+  f_local_NetworkData = true;
+  // An ECNetworkData has been provided. So, the size of the given vector of
+  // active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , v_ActiveDemand );
   // always check if the demand is given in the correct shape
   assert( ( v_ActiveDemand.shape()[ 0 ] == f_number_intervals ) &&
           ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
  }
 
- // it is mandatory ONLY IF we use a Solver that optimize each Block at a
- // time to lower bound the node injection; by default it is set in
- // UCBlock::generate_node_injection_constraints() as the sum of all the
+ // the max node injection is mandatory ONLY IF we use a Solver that optimize
+ // each Block at a time to lower bound the node injection; by default it is
+ // set in UCBlock::generate_node_injection_constraints() as the sum of all the
  // maximum powers of the UnitBlock of the problem
- ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection );
+ if( ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection ) )
+  // always check if the max node injection is given in the correct shape
+  assert( ( v_MaxNodeInjection.shape()[ 0 ] == f_number_intervals ) &&
+          ( v_MaxNodeInjection.shape()[ 1 ] == NumberNodes ) );
+
+ ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
+                true , true );
+ if( v_BuyPrice.size() == 1 )
+  v_BuyPrice.resize( f_number_intervals , v_BuyPrice[ 0 ] );
+
+ ::deserialize( group , "SellPrice" , f_number_intervals , v_SellPrice ,
+                true , true );
+ if( v_SellPrice.size() == 1 )
+  v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
+
+ ::deserialize( group , "RewardPrice" , f_number_intervals , v_RewardPrice ,
+                true , true );
+ if( v_RewardPrice.size() == 1 )
+  v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
+
+ ::deserialize( group , f_PeakTariff , "PeakTariff" );
 
  ::deserialize( group , f_ConstTerm , "ConstTerm" );
 }  // end( ECNetworkBlock::deserialize )
@@ -159,6 +189,10 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  NetworkBlock::NetworkData::serialize( group );
 
+ ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
+ ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );
+ ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
+ ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 }  // end( ECNetworkBlock::ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -481,18 +515,18 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
    // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
-                                   v_BuyPrice[ t ] ) );
+                                   get_buy_price( t ) ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
                                    // ECR_{j}, i.e., the reward awarded to the community
-                                   v_BuyPrice[ t ] - v_RewardPrice[ t ] ) );
+                                   get_buy_price( t ) - get_reward_price( t ) ) );
    vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
-                                   -v_SellPrice[ t ] ) );
+                                   -get_sell_price( t ) ) );
    vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   -v_SellPrice[ t ] ) );
+                                   -get_sell_price( t ) ) );
   }
 
   // C_{j}^{U,P}, i.e., the costs due to the peak power
-  vars.push_back( std::make_pair( &v_peak_power[ node_id ] , f_PeakTariff ) );
+  vars.push_back( std::make_pair( &v_peak_power[ node_id ] , get_peak_tariff() ) );
  }
 
  auto lf = new LinearFunction( std::move( vars ) );
