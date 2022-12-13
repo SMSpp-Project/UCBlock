@@ -17,8 +17,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -76,12 +80,12 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  #ifndef NDEBUG
   static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-						      "NumberIntervals" };
+                                                      "NumberIntervals" };
   check_dimensions( group , expected_dims , std::cerr );
 
   static std::vector< std::string > expected_vars ={ "MaxPower" ,
-	    "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-	    "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia" };
+            "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+            "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia" };
   check_variables( group , expected_vars , std::cerr );
  #endif
 
@@ -352,6 +356,55 @@ void SlackUnitBlock::generate_objective( Configuration *objc )
  set_objective_generated();
 
  }  // end( SlackUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------- METHODS FOR CHECKING THE SlackUnitBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
+bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+
+ double tolerance = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tolerance , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tolerance = tc->f_value;
+   return true;
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tolerance = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return true;
+  }
+  return false;
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ auto is_feasible = [ tolerance , rel_viol ]( auto & constraints ) {
+  return RowConstraint::is_feasible( constraints , tolerance , rel_viol );
+ };
+
+ return UnitBlock::is_feasible( useabstract )
+  && ColVariable::is_feasible( v_commitment , tolerance )
+  && ColVariable::is_feasible( v_active_power , tolerance )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tolerance )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tolerance )
+  && is_feasible( ActivePower_Bound_Constraints )
+  && is_feasible( Primary_Spinning_Reserve_Bound_Constraints )
+  && is_feasible( Secondary_Spinning_Reserve_Bound_Constraints )
+  && is_feasible( Inertia_Bound_Constraints );
+
+} // end( SlackUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE SlackUnitBlock --------*/
