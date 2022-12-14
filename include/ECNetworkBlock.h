@@ -362,8 +362,7 @@ class ECNetworkBlock : public NetworkBlock
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
-  * satisfies a Constraint, the Constraint is computed
-  * (Constraint::compute()).
+  * satisfies a Constraint, the Constraint is computed (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
