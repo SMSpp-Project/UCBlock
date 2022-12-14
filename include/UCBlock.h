@@ -1408,8 +1408,8 @@ class UCBlock : public Block
  /// the starting index of each NetworkBlock
  std::vector< Index > v_start_network_intervals;
 
- /// the constant term of each NetworkBlock
- std::vector< Index > v_network_constant_terms;
+ /// the constant terms of each NetworkBlock
+ std::vector< double > v_network_constant_terms;
 
  /* TODO commented away until HeatBlock are properly managed
  /// the set of HeatBlock
