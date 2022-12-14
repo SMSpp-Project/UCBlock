@@ -247,7 +247,7 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose fixed consumption is
   *        desired. */
 
- virtual double * get_fixed_consumption( Index generator ) {
+ virtual const double * get_fixed_consumption( Index generator ) const {
   return( nullptr );
  }
 
@@ -266,7 +266,7 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose inertia commitment is
   *        desired. */
 
- virtual double * get_inertia_commitment( Index generator ) {
+ virtual const double * get_inertia_commitment( Index generator ) const {
   return( nullptr );
  }
 
@@ -285,7 +285,7 @@ class UnitBlock : public Block
   * @param generator The index of the generator whose inertia power is
   *        desired. */
 
- virtual double * get_inertia_power( Index generator ) {
+ virtual const double * get_inertia_power( Index generator ) const {
   return( nullptr );
  }
 

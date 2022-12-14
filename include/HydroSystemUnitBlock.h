@@ -231,11 +231,10 @@ class HydroSystemUnitBlock : public UnitBlock
   auto temp = generator;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_active_power( temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( nullptr );
@@ -248,11 +247,10 @@ class HydroSystemUnitBlock : public UnitBlock
   auto temp = generator;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_primary_spinning_reserve( temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( nullptr );
@@ -265,11 +263,10 @@ class HydroSystemUnitBlock : public UnitBlock
   auto temp = generator;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_secondary_spinning_reserve( temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( nullptr );
@@ -288,15 +285,14 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- double * get_inertia_power( Index generator ) override {
+ const double * get_inertia_power( Index generator ) const override {
   auto temp = generator;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_inertia_power( temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( nullptr );
@@ -308,11 +304,10 @@ class HydroSystemUnitBlock : public UnitBlock
   auto temp = g;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_min_power( t, temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( 0 );
@@ -324,11 +319,10 @@ class HydroSystemUnitBlock : public UnitBlock
   auto temp = g;
   for( auto sub_block : get_nested_Blocks() ) {
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() ) {
+    if( temp < unit_block->get_number_generators() )
      return( unit_block->get_max_power( t, temp ) );
-    } else {
+    else
      temp = temp - unit_block->get_number_generators();
-    }
    }
   }
   return( 0 );

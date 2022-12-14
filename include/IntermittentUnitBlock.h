@@ -393,7 +393,7 @@ class IntermittentUnitBlock : public UnitBlock
   *   inertia power for the problem at time t for each electrical generator
   *   g. */
 
- double * get_inertia_power( Index generator ) override {
+ const double * get_inertia_power( Index generator ) const override {
   if( v_InertiaPower.empty() )
    return( nullptr );
   return( &( v_InertiaPower.front() ) );

@@ -443,7 +443,7 @@ class SlackUnitBlock : public UnitBlock
   * - otherwise, the vector must have size get_time_horizon(), and each element
   *   of vector represents the inertia commitment at time t. */
 
- double * get_inertia_commitment( Index generator ) override {
+ const double * get_inertia_commitment( Index generator ) const override {
   if( v_MaxInertia.empty() )
    return( nullptr );
   return( &( v_MaxInertia.front() ) );

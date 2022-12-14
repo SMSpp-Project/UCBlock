@@ -8,16 +8,17 @@ include("utils.jl")
 
 function csvEC2nc4()
 
-    n_users = length(user_set)
-
     # The mode "c" stands for creating a new file (clobber)
     ds = NCDataset(!("-with-network-blocks" in ARGS) ? string("../../../netCDF_files/EC_Test.nc4") :
                    string("../../../netCDF_files/EC_Test_NB.nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
+    # Store the number of nodes
+    n_users = length(user_set)
     defDim(block, "NumberNodes", n_users)
 
+    # Store the number of time steps/horizons
     n_timesteps = length(time_set)
     defDim(block, "TimeHorizon", n_timesteps)
 
@@ -29,13 +30,13 @@ function csvEC2nc4()
     network_data_classname = defVar(block, "NetworkDataClassname", String, ())
     network_data_classname[1] = "ECNetworkData"
 
-    # Store the number of `ECNetworkBlock`(s), i.e., the number of peak period/category
+    # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
     peak_categories = profile(market_data, "peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Create buy, sell, reward, and consumption price data arrays
+    # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
 
@@ -66,6 +67,7 @@ function csvEC2nc4()
                         for w in peak_set] *
                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
+    # `ConstanTerm`, i.e., the consumption price
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
                          (profile(market_data, "consumption_price")[t] *
@@ -127,21 +129,21 @@ function csvEC2nc4()
 
     else
 
-        # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time step/horizon
+        # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time steps/horizons
         last_t = 1
         for (i_w, w) in enumerate(peak_set)
 
             ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
-            # `NumberIntervals`, i.e., the number of sub time horizon spanned by each peak period, i.e., an `ECNetworkBlock`
+            # `NumberIntervals`, i.e., the number of sub time horizons spanned by each peak period, i.e., an `ECNetworkBlock`
             n_intervals = count(x -> x == w, peak_categories)
             defDim(ecnb, "NumberIntervals", n_intervals)
-
-            last_i = findlast(x -> x == w, peak_categories)
 
             # Store the number of nodes in each NetworkBlock
             n_users = length(user_set)
             defDim(ecnb, "NumberNodes", n_users)
+
+            last_i = findlast(x -> x == w, peak_categories)
 
             # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
             ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 

@@ -889,7 +889,7 @@ class HydroUnitBlock : public UnitBlock
   *   get_number_arcs(), and U[ t , l ] contains the contribution to
   *   inertia power of arc(generator) l at time instant t. */
 
- double * get_inertia_power( Index generator ) override {
+ const double * get_inertia_power( Index generator ) const override {
   if( v_InertiaPower.empty() )
    return( nullptr );
   return( v_InertiaPower.data() + generator * f_time_horizon );

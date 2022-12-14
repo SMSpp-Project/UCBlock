@@ -1067,7 +1067,7 @@ class ThermalUnitBlock : public UnitBlock
   * - otherwise, the vector must have size get_time_horizon(), and each element
   *   of vector represents the fixed consumption at time t. */
 
- double * get_fixed_consumption( Index generator ) override {
+ const double * get_fixed_consumption( Index generator ) const override {
   if( v_FixedConsumption.empty() )
    return( nullptr );
   return( &( v_FixedConsumption.front() ) );
@@ -1089,7 +1089,7 @@ class ThermalUnitBlock : public UnitBlock
   * - otherwise, the vector must have size get_time_horizon(), and each element
   *   of vector represents the inertia commitment at time t. */
 
- double * get_inertia_commitment( Index generator ) override {
+ const double * get_inertia_commitment( Index generator ) const override {
   if( v_InertiaCommitment.empty() )
    return( nullptr );
   return( &( v_InertiaCommitment.front() ) );
