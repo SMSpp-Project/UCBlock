@@ -17,8 +17,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -363,6 +367,52 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
  set_objective_generated();
 
 }  // end( SlackUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------- METHODS FOR CHECKING THE SlackUnitBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
+bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ return(
+  UnitBlock::is_feasible( useabstract )
+  // Variables
+  && ColVariable::is_feasible( v_commitment , tol )
+  && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints: notice that the ZOConstraint are not checked, since the
+  // corresponding check is made on the ColVariable
+  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Primary_Spinning_Reserve_Bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Secondary_Spinning_Reserve_Bound_Const , tol , rel_viol ) );
+} // end( SlackUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE SlackUnitBlock --------*/

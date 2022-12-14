@@ -967,40 +967,52 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
- // Retrieve the tolerance.
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
-
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
-
- // Notice that there is no check for the flow rate and active power
- // variables, since they are continuous and have no bounds.
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  return(
   UnitBlock::is_feasible( useabstract )
-  // Constraints
-  && Constraint::is_feasible( MaxPowerPrimarySecondary_Const , tol )
-  && Constraint::is_feasible( MinPowerPrimarySecondary_Const , tol )
-  && Constraint::is_feasible( ActivePowerPrimary_Const , tol )
-  && Constraint::is_feasible( ActivePowerSecondary_Const , tol )
-  && Constraint::is_feasible( FlowActivePower_Const , tol )
-  && Constraint::is_feasible( ActivePowerBounds_Const , tol )
-  && Constraint::is_feasible( RampUp_Const , tol )
-  && Constraint::is_feasible( RampDown_Const , tol )
-  && Constraint::is_feasible( FinalVolumeReservoir_Const , tol )
-  && Constraint::is_feasible( FlowRateBounds_Const , tol )
-  && Constraint::is_feasible( VolumetricBounds_Const , tol )
-  // Variables
+  // Variables: Notice that there is no check for the v_flow_rate and
+  // v_active_power variables, since they are continuous and have no bounds
   && ColVariable::is_feasible( v_volumetric , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
-  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
-
-}  // end( HydroUnitBlock::is_feasible )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints
+  && RowConstraint::is_feasible( MaxPowerPrimarySecondary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MinPowerPrimarySecondary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ActivePowerPrimary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ActivePowerSecondary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( FlowActivePower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ActivePowerBounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( FlowRateBounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol ) );
+} // end( HydroUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 

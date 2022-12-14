@@ -114,6 +114,11 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  decompress_vector( v_MaxPower );
  decompress_vector( v_InertiaPower );
 
+ if( f_max_power_epsilon > 0 )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_MaxPower[ t ] == 0.0 )
+    v_MaxPower[ t ] = f_max_power_epsilon;
+
  check_data_consistency();
 
 }  // end( IntermittentUnitBlock::deserialize )
@@ -342,31 +347,62 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
 /*--------------------------------------------------------------------------*/
 
+void IntermittentUnitBlock::set_BlockConfig( BlockConfig * newBC ,
+                                             bool deleteold )
+{
+ UnitBlock::set_BlockConfig( newBC , deleteold );
+
+ if( ! f_BlockConfig )
+  return;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< double > * >
+     ( f_BlockConfig->f_extra_Configuration ) )
+  f_max_power_epsilon = config->f_value;
+
+} // end( IntermittentUnitBlock::set_BlockConfig )
+
+/*--------------------------------------------------------------------------*/
+
 bool IntermittentUnitBlock::is_feasible( bool useabstract ,
                                          Configuration * fsbc ) {
- // Retrieve the tolerance.
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
 
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  return(
   UnitBlock::is_feasible( useabstract )
-  // Constraints
-  && Constraint::is_feasible( min_power_Const , tol )
-  && Constraint::is_feasible( max_power_Const , tol )
-  && Constraint::is_feasible( active_power_bounds_design_Const , tol )
-  && Constraint::is_feasible( active_power_bounds_Const , tol )
   // Variables
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
-  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
-
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints
+  && RowConstraint::is_feasible( min_power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
 }  // end( IntermittentUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -509,6 +545,9 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    if( not_dry_run( issuePMod ) )
     // Change the physical representation
     v_MaxPower[ t ] = max_power;
+
+   if( ( f_max_power_epsilon > 0 ) && ( v_MaxPower[ t ] == 0.0 ) )
+    v_MaxPower[ t ] = f_max_power_epsilon;
   }
  }
  if( identical )
@@ -559,6 +598,11 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_MaxPower.begin() + rng.first );
+
+  if( f_max_power_epsilon > 0 )
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    if( v_MaxPower[ t ] == 0.0 )
+     v_MaxPower[ t ] = f_max_power_epsilon;
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation

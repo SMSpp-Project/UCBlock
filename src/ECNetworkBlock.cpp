@@ -478,23 +478,46 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
- // Retrieve the tolerance.
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+   std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
-
- return( NetworkBlock::is_feasible( useabstract )
-         && Constraint::is_feasible( micro_power_balance_const , tol )
-         && Constraint::is_feasible( power_balance_const , tol )
-         && Constraint::is_feasible( power_flow_limit_const , tol )
-         && Constraint::is_feasible( node_injection_upper_bound_const , tol ) );
-
+ return(
+  NetworkBlock::is_feasible( useabstract )
+  // Variables
+  && ColVariable::is_feasible( v_node_injection )
+  && ColVariable::is_feasible( v_micro_power_injection )
+  && ColVariable::is_feasible( v_micro_power_absorption )
+  && ColVariable::is_feasible( v_public_power_injection )
+  && ColVariable::is_feasible( v_public_power_absorption )
+  && ColVariable::is_feasible( v_peak_power )
+  // Constraints
+  && RowConstraint::is_feasible( micro_power_balance_const , tol , rel_viol )
+  && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
+  && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
+  && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
 }  // end( ECNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/

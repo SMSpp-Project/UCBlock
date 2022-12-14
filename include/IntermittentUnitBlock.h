@@ -257,6 +257,37 @@ class IntermittentUnitBlock : public UnitBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// setting the BlockConfig
+ /** This method sets the BlockConfig of this IntermittentUnitBlock. Besides
+  * the Configuration for the is_feasible() function, the
+  * IntermittentUnitBlock also considers the extra Configuration of the
+  * BlockConfig. If the extra Configuration is a non-null pointer to a
+  * SimpleConfiguration<double>, then the value, let us call it epsilon,
+  * stored in that Configuration will replace any zero value that may appear
+  * as maximum power at any time instant.
+  *
+  * For instance, if the maximum power provided during deserialization (see
+  * IntermittentUnitBlock::deserialize(netCDF::NcGroup)) is zero for some time
+  * instant t, then it will become epsilon for that time instant. Moreover, if
+  * any zero value is provided to set_maximum_power() for some time instant t,
+  * then the maximum power for time instant t will become epsilon.
+  *
+  * When epsilon > 0, this can be used to prevent the maximum power from being
+  * zero. Notice, however, that the actual maximum power may become zero even
+  * if epsilon > 0 if the kappa constant is zero (see set_kappa()).
+  *
+  * The reason behind this is that some Solver may not be able to handle
+  * modifications in the maximum power if it is initially zero and become
+  * nonzero after a modification. By setting epsilon > 0, this issue is
+  * avoided.
+  *
+  * Please see the comments to Block::set_BlockConfig() for more details about
+  * the BlockConfig. */
+
+ void set_BlockConfig( BlockConfig * newBC = nullptr ,
+                       bool deleteold = true ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for checking the IntermittentUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -266,50 +297,55 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns true if the current solution is (approximately) feasible
  /** This function returns true if and only if the solution encoded in the
   * current value of the Variable of this IntermittentUnitBlock is
-  * approximately feasible considering a given tolerance. The tolerance can be
-  * provided by either \p fsbc or by
-  * #f_BlockConfig->f_is_feasible_Configuration and it is determined as
+  * approximately feasible within the given tolerance. That is, a solution is
+  * considered feasible if and only if
+  *
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this IntermittentUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this IntermittentUnitBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   *   - If \p fsbc is not a nullptr and it is a pointer to a
   *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration.
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
   *
   *   - Otherwise, if both #f_BlockConfig and
-  *     #f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to a SimpleConfiguration< double >, then the
-  *     tolerance is the value present in that SimpleConfiguration.
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
   *
-  *   - Otherwise, the tolerance is considered to be 1e-8 by default.
-  *
-  * Each Constraint of this IntermittentUnitBlock is a RowConstraint and a
-  * solution is considered feasible if and only if
-  *
-  *   -# the relative violation of each RowConstraint of this
-  *      IntermittentUnitBlock is not greater than the tolerance; and
-  *
-  *   -# the bounds on each ColVariable are satisfied considering the given
-  *      tolerance. Since every ColVariable of this IntermittentUnitBlock is
-  *      nonnegative, this means that the value of each ColVariable must be
-  *      greater than or equal to the negative value of the tolerance.
-  *
-  * See RowConstraint::rel_viol() for details about the relative violation of
-  * the RowConstraint.
+  *   - Otherwise, by default, the tolerance is 0 and the relative violation
+  *     is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, this
+  * currently ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
-  * set of Constraint. Notice also that, before checking if the solution
+  * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed
   * (Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
-  * @param fsbc If it is a pointer to a SimpleConfiguration< double >, then the
-  *        value stored in that SimpleConfiguration will be the tolerance that
-  *        determines if a solution is feasible. */
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -399,6 +435,11 @@ class IntermittentUnitBlock : public UnitBlock
   return( &( v_InertiaPower.front() ) );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the scale factor
+
+ double get_scale( void ) const override { return( f_scale ); }
+
 /**@} ----------------------------------------------------------------------*/
 /*------ METHODS FOR READING THE Variable OF THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
@@ -447,11 +488,6 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor
-
- double get_scale( void ) const override { return( f_scale ); }
-
-/*--------------------------------------------------------------------------*/
  /// returns the minimum total power constraints
 
  const std::vector< FRowConstraint > & get_min_power_constraints( void ) const {
@@ -481,9 +517,8 @@ class IntermittentUnitBlock : public UnitBlock
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- * IntermittentGenerationUnitBlock. See
- * IntermittentGenerationUnitBlock::deserialize( netCDF::NcGroup ) for details
- * of the format of the created netCDF group. */
+ * IntermittentUnitBlock. See IntermittentUnitBlock::deserialize(
+ * netCDF::NcGroup ) for details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -606,7 +641,6 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
-
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *
@@ -666,6 +700,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the scale factor
  double f_scale = 1;
+
+ /// this is the value that will replace any zero value in maximum power
+ double f_max_power_epsilon{};
 
  /// the investment cost
  double f_InvestmentCost{};

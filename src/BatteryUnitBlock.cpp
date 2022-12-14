@@ -2,7 +2,7 @@
 /*----------------------- File BatteryUnitBlock.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the BatteryStorageUnitBlock class.
+ * Implementation of the BatteryUnitBlock class.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -869,45 +869,60 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-bool BatteryUnitBlock::is_feasible( bool useabstract ,
-                                    Configuration * fsbc ) {
- // Retrieve the tolerance.
+bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+   std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
 
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  return(
   UnitBlock::is_feasible( useabstract )
-  // Constraints
-  && Constraint::is_feasible( active_power_bounds_Const , tol )
-  && Constraint::is_feasible( intake_outtake_upper_bounds_design_Const , tol )
-  && Constraint::is_feasible( storage_level_bounds_design_Const , tol )
-  && Constraint::is_feasible( intake_outtake_binary_Const , tol )
-  && Constraint::is_feasible( power_intake_outtake_Const , tol )
-  && Constraint::is_feasible( ramp_up_Const , tol )
-  && Constraint::is_feasible( ramp_down_Const , tol )
-  && Constraint::is_feasible( demand_Const , tol )
-  && Constraint::is_feasible( intake_outtake_bounds_Const , tol )
-  && Constraint::is_feasible( primary_upper_bound_Const , tol )
-  && Constraint::is_feasible( secondary_upper_bound_Const , tol )
-  && Constraint::is_feasible( storage_level_bounds_Const , tol )
-  && Constraint::is_feasible( battery_binary_bound_Const , tol )
-  // Variables
+  // Variables: Notice that there is no check for the v_active_power
+  // variables, since they continuous and have no bounds
   && ColVariable::is_feasible( v_storage_level , tol )
   && ColVariable::is_feasible( v_intake_level , tol )
   && ColVariable::is_feasible( v_outtake_level , tol )
   && ColVariable::is_feasible( v_battery_binary , tol )
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
-  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
-
-}  // end( BatteryUnitBlock::is_feasible )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints: notice that the ZOConstraint are not checked, since the
+  // corresponding check is made on the ColVariable
+  && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( intake_outtake_upper_bounds_design_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( storage_level_bounds_design_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( intake_outtake_binary_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( power_intake_outtake_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ramp_up_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ramp_down_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( demand_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( storage_level_bounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( intake_outtake_bounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( primary_upper_bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( secondary_upper_bound_Const , tol , rel_viol ) );
+} // end( BatteryUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 

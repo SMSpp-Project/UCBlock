@@ -21,7 +21,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu
+ * \author Rafael Durbano Lobato \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                   Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -259,36 +264,36 @@ class SlackUnitBlock : public UnitBlock
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// generate the static constraint of the SlackUnitBlock
- /** This method generates the abstract constraints of the SlackUnitBlock.
-  *
-  * The operations of the slack generating unit are described on a discrete
-  * time horizon as dictated by the UnitBlock interface. In this description
-  * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
-  * This unit just contains the bounds constraint on the ActivePower, Primary
-  * and Secondary spinning reserve variables as below:
-  *
-  *   \f[
-  *      0 \leq p^{ac}_{t} \leq P^{mx}_{t} \quad t \in \mathcal{T}    \quad (1)
-  *   \f]
-  *
-  *   \f[
-  *      0 \leq p^{pr}_{t} \leq P^{mxP}_{t} \quad t \in \mathcal{T}   \quad (2)
-  *   \f]
-  *
-  *   \f[
-  *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
-  *   \f]
-  *
-  * Note that the inertia is "produced" by the commitment variable u_t, which
-  * is consider as a kPosUnitary and therefore has "implicit" lower and upper
-  * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
-  * variables are restricted by a BoxConstraint as defined above. The first
-  * group is about active power bounds the second one is about the primary
-  * spinning reserve, and the last one for the secondary spinning reserve
-  * variables. */
+/// Generate the static constraint of the SlackUnitBlock
+/** This method generates the abstract constraints of the SlackUnitBlock.
+ *
+ * The operations of the slack generating unit are described on a discrete
+ * time horizon as dictated by the UnitBlock interface. In this description
+ * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
+ * This unit just contains the bounds constraint on the ActivePower, Primary
+ * and Secondary spinning reserve variables as below:
+ *
+ *   \f[
+ *      0 \leq p^{ac}_{t} \leq P^{mx}_{t} \quad t \in \mathcal{T}    \quad (1)
+ *   \f]
+ *
+ *   \f[
+ *      0 \leq p^{pr}_{t} \leq P^{mxP}_{t} \quad t \in \mathcal{T}   \quad (2)
+ *   \f]
+ *
+ *   \f[
+ *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}   \quad (3)
+ *   \f]
+ *
+ * Note that the inertia is "produced" by the commitment variable u_t, which
+ * is consider as a kPosUnitary and therefore has "implicit" lower and upper
+ * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
+ * variables are restricted by a BoxConstraint as defined above. The first
+ * group is about active power bounds the second one is about the primary
+ * spinning reserve, and the last one for the secondary spinning reserve
+ * variables. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the SlackUnitBlock
@@ -318,6 +323,69 @@ class SlackUnitBlock : public UnitBlock
   *  SimpleConfiguration< int > is taken the objective function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- Methods for checking the SlackUnitBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the SlackUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this SlackUnitBlock is approximately
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
+  *
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this SlackUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this SlackUnitBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
+  *
+  *   - Otherwise, by default, the tolerance is 0 and the relative violation
+  *     is considered.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, then this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Variable only. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE SlackUnitBlock -----------*/

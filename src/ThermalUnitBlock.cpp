@@ -45,6 +45,10 @@ using v_coeff_pair = LinearFunction::v_coeff_pair;
 
 SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+int ThermalUnitBlock::f_ignore_netcdf_variables = 0;
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -199,10 +203,13 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
  ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
- ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
- ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  ::deserialize( group , "FixedConsumption" , v_FixedConsumption );
  ::deserialize( group , "InertiaCommitment" , v_InertiaCommitment );
+
+ if( ! ( f_ignore_netcdf_variables & 1 ) ) {
+  ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
+  ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
+ }
 
  // Decompress vectors
  decompress_vector( v_MinPower );
@@ -1067,44 +1074,57 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
 bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
- // Retrieve the tolerance.
 
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
 
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
 
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
-
- // Notice that the ZOConstraint are not checked, since the corresponding
- // check is made on the ColVariable.
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  return(
   UnitBlock::is_feasible( useabstract )
-  // Constraints
-  && Constraint::is_feasible( Power_StartUp_ShutDown_Variables_Const , tol )
-  && Constraint::is_feasible( Power_StartUp_Variable_Const , tol )
-  && Constraint::is_feasible( Power_ShutDown_Variable_Const , tol )
-  && Constraint::is_feasible( StartUp_ShutDown_Variables_Const , tol )
-  && Constraint::is_feasible( StartUp_Const , tol )
-  && Constraint::is_feasible( ShutDown_Const , tol )
-  && Constraint::is_feasible( RampUp_Const , tol )
-  && Constraint::is_feasible( RampDown_Const , tol )
-  && Constraint::is_feasible( PrimaryRho_Const , tol )
-  && Constraint::is_feasible( SecondaryRho_Const , tol )
-  && Constraint::is_feasible( MinPower_Const , tol )
-  && Constraint::is_feasible( MaxPower_Const , tol )
-  && Constraint::is_feasible( Commitment_fixed_to_One_Const , tol )
   // Variables
   && ColVariable::is_feasible( v_start_up , tol )
   && ColVariable::is_feasible( v_shut_down , tol )
   && ColVariable::is_feasible( v_commitment , tol )
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
-  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol ) );
-
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints: notice that the ZOConstraint are not checked, since the
+  // corresponding check is made on the ColVariable
+  && RowConstraint::is_feasible( Power_StartUp_ShutDown_Variables_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Power_StartUp_Variable_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Power_ShutDown_Variable_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ShutDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
 }  // end( ThermalUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/

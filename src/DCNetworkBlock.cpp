@@ -452,31 +452,6 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
- // Retrieve the tolerance.
-
- auto config = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
-
- if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast< SimpleConfiguration< double > * >
-  ( f_BlockConfig->f_is_feasible_Configuration );
-
- // If a tolerance has not been provided, use the default tolerance.
- const auto tol = config ? config->f_value : 1.0e-8;
-
- return( NetworkBlock::is_feasible( useabstract )
-         && Constraint::is_feasible( v_AC_power_flow_limit_const , tol )
-         && Constraint::is_feasible( v_AC_HVDC_power_flow_limit_const , tol )
-         && Constraint::is_feasible( v_power_flow_injection_const , tol )
-         && Constraint::is_feasible( v_AC_HVDC_power_flow_const , tol )
-         && Constraint::is_feasible( v_power_flow_relax_abs , tol )
-         && Constraint::is_feasible( v_HVDC_power_flow_limit_const , tol ) );
-
-}  // end( DCNetworkBlock::is_feasible )
-
-/*--------------------------------------------------------------------------*/
-
 void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
  // Initial check on network
@@ -525,6 +500,53 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
  set_objective_generated();
 
 }  // end( DCNetworkBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------- METHODS FOR CHECKING THE DCNetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
+bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ return(
+  NetworkBlock::is_feasible( useabstract )
+  // Variables
+  && ColVariable::is_feasible( v_node_injection , tol )
+  && ColVariable::is_feasible( v_power_flow , tol )
+  && ColVariable::is_feasible( v_auxiliary_variable , tol )
+  // Constraints
+  && RowConstraint::is_feasible( v_AC_power_flow_limit_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_HVDC_power_flow_limit_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_AC_HVDC_power_flow_limit_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_power_flow_injection_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_AC_HVDC_power_flow_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol ) );
+} // end( DCNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
