@@ -905,7 +905,6 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && ColVariable::is_feasible( v_intake_level , tol )
   && ColVariable::is_feasible( v_outtake_level , tol )
   && ColVariable::is_feasible( v_battery_binary , tol )
-  && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints: notice that the ZOConstraint are not checked, since the
