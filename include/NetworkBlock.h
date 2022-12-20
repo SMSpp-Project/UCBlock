@@ -492,7 +492,7 @@ class NetworkBlock : public Block
   *
   * When this method is called, if it is empty it is written into, otherwise
   * nothing happens. In deserialize(), if the data is there in the NcGroup then
-  * it is written in v_active_demand (which therefore is no longer empty),
+  * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand(

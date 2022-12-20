@@ -910,9 +910,9 @@ class DCNetworkBlock : public NetworkBlock
   * assumed to have size get_number_nodes(). */
 
  const double * get_active_demand( Index i = 0 ) const override {
-  if( v_active_demand.empty() )
+  if( v_ActiveDemand.empty() )
    return( nullptr );
-  return( &( v_active_demand.front() ) );
+  return( &( v_ActiveDemand.front() ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1042,13 +1042,13 @@ class DCNetworkBlock : public NetworkBlock
   *
   * When this method is called, if it is empty it is written into, otherwise
   * nothing happens. In deserialize(), if the data is there in the NcGroup then
-  * it is written in v_active_demand (which therefore is no longer empty),
+  * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
  void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) override {
-  if( v_active_demand.empty() )
-   v_active_demand = v[ 0 ];
+  if( v_ActiveDemand.empty() )
+   v_ActiveDemand = v[ 0 ];
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1229,7 +1229,7 @@ class DCNetworkBlock : public NetworkBlock
  DCNetworkData * f_NetworkData;
 
  /// vector to store the demand of each node of the network
- std::vector< double > v_active_demand;
+ std::vector< double > v_ActiveDemand;
 
  /// the kappa constant for each line
  std::vector< double > v_kappa;

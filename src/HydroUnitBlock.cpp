@@ -965,6 +965,28 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
+void HydroUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                          // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+ objective.set_function( linear_function );
+
+ // Set Block objective
+ this->set_objective( &objective , eNoMod );
+
+ set_objective_generated();
+
+}  // end( HydroUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------- METHODS FOR CHECKING THE HydroUnitBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
 bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  // Retrieve the tolerance and the type of violation.
@@ -1013,26 +1035,6 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
   && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol ) );
 } // end( HydroUnitBlock::is_feasible )
-
-/*--------------------------------------------------------------------------*/
-
-void HydroUnitBlock::generate_objective( Configuration * objc ) {
-
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
-
- auto linear_function = new LinearFunction();
- objective.set_function( linear_function );
-
- // Set Block objective
- this->set_objective( &objective , eNoMod );
-
- set_objective_generated();
-
-}  // end( HydroUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/

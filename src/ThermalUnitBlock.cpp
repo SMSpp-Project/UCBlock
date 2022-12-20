@@ -1073,62 +1073,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
- // Retrieve the tolerance and the type of violation.
- double tol = 0;
- bool rel_viol = true;
-
- // Try to extract, from "c", the parameters that determine feasibility.
- // If it succeeds, it sets the values of the parameters and returns
- // true. Otherwise, it returns false.
- auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
-  -> bool {
-  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
-   tol = tc->f_value;
-   return( true );
-  }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-      std::pair< double , int > > * >( c ) ) {
-   tol = tc->f_value.first;
-   rel_viol = tc->f_value.second;
-   return( true );
-  }
-  return( false );
- };
-
- if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
-  // if the given Configuration is not valid, try the one from the BlockConfig
-  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
-
- return(
-  UnitBlock::is_feasible( useabstract )
-  // Variables
-  && ColVariable::is_feasible( v_start_up , tol )
-  && ColVariable::is_feasible( v_shut_down , tol )
-  && ColVariable::is_feasible( v_commitment , tol )
-  && ColVariable::is_feasible( v_active_power , tol )
-  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
-  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
-  // Constraints: notice that the ZOConstraint are not checked, since the
-  // corresponding check is made on the ColVariable
-  && RowConstraint::is_feasible( Power_StartUp_ShutDown_Variables_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Power_StartUp_Variable_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Power_ShutDown_Variable_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ShutDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
-}  // end( ThermalUnitBlock::is_feasible )
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
  if( objective_generated() )
@@ -1190,8 +1134,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
   // add the primary spinning reserve variables - - - - - - - - - - - - - - -
   if( v_primary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
-                             "spinning_reserve must have size equal to the "
-                             "time horizon." ) );
+                            "spinning_reserve must have size equal to the "
+                            "time horizon." ) );
 
   if( v_PrimarySpinningReserveCost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1208,8 +1152,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
   // add the secondary spinning reserve variables - - - - - - - - - - - - - -
   if( v_secondary_spinning_reserve.size() != f_time_horizon )
    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
-                             "_spinning_reserve must have size equal to the "
-                             "time horizon." ) );
+                            "_spinning_reserve must have size equal to the "
+                            "time horizon." ) );
 
   if( v_SecondarySpinningReserveCost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1231,6 +1175,64 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
  set_objective_generated();
 
 }  // end( ThermalUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR CHECKING THE ThermalUnitBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+ double tol = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ return(
+  UnitBlock::is_feasible( useabstract )
+  // Variables
+  && ColVariable::is_feasible( v_start_up , tol )
+  && ColVariable::is_feasible( v_shut_down , tol )
+  && ColVariable::is_feasible( v_commitment , tol )
+  && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  // Constraints: notice that the ZOConstraint are not checked, since the
+  // corresponding check is made on the ColVariable
+  && RowConstraint::is_feasible( Power_StartUp_ShutDown_Variables_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Power_StartUp_Variable_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Power_ShutDown_Variable_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ShutDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
+}  // end( ThermalUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/

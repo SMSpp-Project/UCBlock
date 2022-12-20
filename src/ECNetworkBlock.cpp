@@ -48,7 +48,7 @@ typedef ECNetworkBlock::ECNetworkData ECNetworkData;
 SMSpp_insert_in_factory_cpp_1( ECNetworkData );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*----------------------- METHODS OF ECNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 ECNetworkBlock::~ECNetworkBlock() {
@@ -181,67 +181,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , f_ConstTerm , "ConstTerm" );
 }  // end( ECNetworkBlock::deserialize )
 
-/*--------------------------------------------------------------------------*/
-/*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
-/*--------------------------------------------------------------------------*/
-
-void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
-
- NetworkBlock::NetworkData::serialize( group );
-
- ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
- ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );
- ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
- ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
-}  // end( ECNetworkBlock::ECNetworkData::serialize )
-
-/*--------------------------------------------------------------------------*/
-
-void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
-
- NetworkBlock::serialize( group );
-
- ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
-
- auto NumberIntervals = group.getDim( "NumberIntervals" );
-
- ::serialize( group , "BuyPrice" , netCDF::NcDouble() , NumberIntervals ,
-              v_BuyPrice );
-
- ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
-              v_SellPrice );
-
- ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
-              v_RewardPrice );
-
- if( auto network_data = get_NetworkData() )
-  // If an ECNetworkData is present, serialize it.
-  network_data->serialize( group );
-
- if( ! v_ActiveDemand.empty() ) {
-  // This ECNetworkBlock has active demand, so it is serialized.
-
-  auto NumberNodes = group.getDim( "NumberNodes" );
-
-  if( NumberNodes.isNull() )
-   /* The dimension "NumberNodes" is not present in the group (which means
-    * that an ECNetworkData is not present). However, the number of nodes can
-    * still be obtained from the size of the active demand vector. Notice that
-    * the name "NumberNodes" is not used for this new dimension, because it
-    * would indicate that an ECNetworkData is present (which is not the
-    * case). Therefore, we create an alternative dimension in order to be able
-    * to serialize the active demand. */
-   NumberNodes = group.addDim( "__NumberNodes__" , v_ActiveDemand.size() );
-
-  auto NumberIntervals = group.getDim( "NumberIntervals" );
-
-  ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
-               { NumberIntervals , NumberNodes } , v_ActiveDemand );
- }
-}  // end( ECNetworkBlock::serialize )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
@@ -476,6 +415,54 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
+void ECNetworkBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                          // cowardly (and silently) return
+
+ LinearFunction::v_coeff_pair vars;
+
+ for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
+
+  for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
+
+   // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
+   vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
+                                   get_buy_price( t ) ) );
+   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
+    // ECR_{j}, i.e., the reward awarded to the community
+                                   get_buy_price( t ) - get_reward_price( t ) ) );
+   vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
+                                   -get_sell_price( t ) ) );
+   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
+                                   -get_sell_price( t ) ) );
+  }
+
+  // C_{j}^{U,P}, i.e., the costs due to the peak power
+  vars.push_back( std::make_pair( &v_peak_power[ node_id ] , get_peak_tariff() ) );
+ }
+
+ auto lf = new LinearFunction( std::move( vars ) );
+
+ lf->set_constant_term( f_ConstTerm );
+
+ objective.set_function( lf );
+ objective.set_sense( Objective::eMin );
+
+ // set block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( ECNetworkBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------- METHODS FOR CHECKING THE ECNetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
 bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  // Retrieve the tolerance and the type of violation.
@@ -521,50 +508,66 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 }  // end( ECNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
+/*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_objective( Configuration * objc ) {
+void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
- if( objective_generated() )
-  return; // objective has already been generated
+ NetworkBlock::NetworkData::serialize( group );
 
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+ ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
+ ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );
+ ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
+ ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 
- LinearFunction::v_coeff_pair vars;
+}  // end( ECNetworkBlock::ECNetworkData::serialize )
 
- for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
+/*--------------------------------------------------------------------------*/
 
-  for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
+void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
-   // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
-   vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
-                                   get_buy_price( t ) ) );
-   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-                                   // ECR_{j}, i.e., the reward awarded to the community
-                                   get_buy_price( t ) - get_reward_price( t ) ) );
-   vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
-                                   -get_sell_price( t ) ) );
-   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   -get_sell_price( t ) ) );
-  }
+ NetworkBlock::serialize( group );
 
-  // C_{j}^{U,P}, i.e., the costs due to the peak power
-  vars.push_back( std::make_pair( &v_peak_power[ node_id ] , get_peak_tariff() ) );
+ ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
+
+ ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
+
+ auto NumberIntervals = group.getDim( "NumberIntervals" );
+
+ ::serialize( group , "BuyPrice" , netCDF::NcDouble() , NumberIntervals ,
+              v_BuyPrice );
+
+ ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
+              v_SellPrice );
+
+ ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
+              v_RewardPrice );
+
+ if( auto network_data = get_NetworkData() )
+  // If an ECNetworkData is present, serialize it.
+  network_data->serialize( group );
+
+ if( ! v_ActiveDemand.empty() ) {
+  // This ECNetworkBlock has active demand, so it is serialized.
+
+  auto NumberNodes = group.getDim( "NumberNodes" );
+
+  if( NumberNodes.isNull() )
+   /* The dimension "NumberNodes" is not present in the group (which means
+    * that an ECNetworkData is not present). However, the number of nodes can
+    * still be obtained from the size of the active demand vector. Notice that
+    * the name "NumberNodes" is not used for this new dimension, because it
+    * would indicate that an ECNetworkData is present (which is not the
+    * case). Therefore, we create an alternative dimension in order to be able
+    * to serialize the active demand. */
+   NumberNodes = group.addDim( "__NumberNodes__" , v_ActiveDemand.size() );
+
+  auto NumberIntervals = group.getDim( "NumberIntervals" );
+
+  ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
+               { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
-
- auto lf = new LinearFunction( std::move( vars ) );
-
- lf->set_constant_term( f_ConstTerm );
-
- objective.set_function( lf );
- objective.set_sense( Objective::eMin );
-
- // set block objective
- this->set_objective( &objective );
-
- set_objective_generated();
-
-}  // end( ECNetworkBlock::generate_objective )
+}  // end( ECNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

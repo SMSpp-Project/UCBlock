@@ -56,7 +56,7 @@ typedef DCNetworkBlock::DCNetworkData DCNetworkData;
 SMSpp_insert_in_factory_cpp_1( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*----------------------- METHODS OF DCNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 DCNetworkBlock::~DCNetworkBlock() {
@@ -153,7 +153,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes , v_active_demand );
+  ::deserialize( group , "ActiveDemand" , NumberNodes , v_ActiveDemand );
  } else {
   // A DCNetworkData has not been provided. However, the active demand may still
   // have been provided.
@@ -173,78 +173,14 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
 
    // Resize the vector of active demand.
-   v_active_demand.resize( number_nodes );
+   v_ActiveDemand.resize( number_nodes );
 
    // Retrieve the active demand from the netCDF variable.
-   ActiveDemand.getVar( v_active_demand.data() );
+   ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
 }  // end( DCNetworkBlock::deserialize )
 
-/*--------------------------------------------------------------------------*/
-/*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
-/*--------------------------------------------------------------------------*/
-
-void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
-
- NetworkBlock::NetworkData::serialize( group );
-
- if( f_number_nodes > 1 ) {
-  auto NumberLines = group.addDim( "NumberLines" );
-
-  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
-               v_start_line );
-
-  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
-               v_end_line );
-
-  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
-               v_min_power_flow );
-
-  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
-               v_max_power_flow );
-
-  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NumberLines ,
-               v_susceptance );
-
-  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
-               v_network_cost );
- }
-}  // end( DCNetworkBlock::DCNetworkData::serialize )
-
-/*--------------------------------------------------------------------------*/
-
-void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
-
- NetworkBlock::serialize( group );
-
- if( auto network_data = get_NetworkData() )
-  // If a DCNetworkData is present, serialize it.
-  network_data->serialize( group );
-
- if( ! v_active_demand.empty() ) {
-  // This DCNetworkBlock has active demand, so it is serialized.
-
-  auto NumberNodes = group.getDim( "NumberNodes" );
-
-  if( NumberNodes.isNull() )
-   /* The dimension "NumberNodes" is not present in the group (which means
-    * that a DCNetworkData is not present). However, the number of nodes can
-    * still be obtained from the size of the active demand vector. Notice that
-    * the name "NumberNodes" is not used for this new dimension, because it
-    * would indicate that a DCNetworkData is present (which is not the
-    * case). Therefore, we create an alternative dimension in order to be able
-    * to serialize the active demand. */
-   NumberNodes = group.addDim( "__NumberNodes__" , v_active_demand.size() );
-
-  // Finally, serialize the active demand.
-  ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
-               NumberNodes , v_active_demand );
- }
-}  // end( DCNetworkBlock::serialize )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
@@ -343,7 +279,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
    }
 
-   v_power_flow_injection_const[ n ].set_both( -v_active_demand[ n ] );
+   v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
    v_power_flow_injection_const[ n ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
@@ -414,7 +350,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     vars.push_back( std::make_pair( &v_node_injection[ node_id ] ,
                                     coefficient ) );
 
-    constant_term -= coefficient * v_active_demand[ node_id ];
+    constant_term -= coefficient * v_ActiveDemand[ node_id ];
 
    }  // for each node
 
@@ -549,6 +485,70 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 } // end( DCNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
+
+ NetworkBlock::NetworkData::serialize( group );
+
+ if( f_number_nodes > 1 ) {
+  auto NumberLines = group.addDim( "NumberLines" );
+
+  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
+               v_start_line );
+
+  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
+               v_end_line );
+
+  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
+               v_min_power_flow );
+
+  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
+               v_max_power_flow );
+
+  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NumberLines ,
+               v_susceptance );
+
+  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
+               v_network_cost );
+ }
+
+}  // end( DCNetworkBlock::DCNetworkData::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
+
+ NetworkBlock::serialize( group );
+
+ if( auto network_data = get_NetworkData() )
+  // If a DCNetworkData is present, serialize it.
+  network_data->serialize( group );
+
+ if( ! v_ActiveDemand.empty() ) {
+  // This DCNetworkBlock has active demand, so it is serialized.
+
+  auto NumberNodes = group.getDim( "NumberNodes" );
+
+  if( NumberNodes.isNull() )
+   /* The dimension "NumberNodes" is not present in the group (which means
+    * that a DCNetworkData is not present). However, the number of nodes can
+    * still be obtained from the size of the active demand vector. Notice that
+    * the name "NumberNodes" is not used for this new dimension, because it
+    * would indicate that a DCNetworkData is present (which is not the
+    * case). Therefore, we create an alternative dimension in order to be able
+    * to serialize the active demand. */
+   NumberNodes = group.addDim( "__NumberNodes__" , v_ActiveDemand.size() );
+
+  // Finally, serialize the active demand.
+  ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
+               NumberNodes , v_ActiveDemand );
+ }
+
+}  // end( DCNetworkBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -559,25 +559,25 @@ void DCNetworkBlock::set_active_demand
  if( subset.empty() )
   return;
 
- if( v_active_demand.empty() ) {
+ if( v_ActiveDemand.empty() ) {
   if( std::all_of( values , values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_active_demand.assign( get_number_nodes() , 0 );
+  v_ActiveDemand.assign( get_number_nodes() , 0 );
  }
 
  bool identical = true;
  for( auto i : subset ) {
-  if( i >= v_active_demand.size() )
+  if( i >= v_ActiveDemand.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
                                   "invalid value in subset" ) );
   auto demand = *( values++ );
-  if( v_active_demand[ i ] != demand ) {
+  if( v_ActiveDemand[ i ] != demand ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
     // Change the physical representation
-    v_active_demand[ i ] = demand;
+    v_ActiveDemand[ i ] = demand;
   }
  }
  if( identical )
@@ -591,7 +591,7 @@ void DCNetworkBlock::set_active_demand
   switch( f_NetworkData->get_lines_type() ) {
    case( kHVDC ): {
     for( auto i : subset )
-     v_power_flow_injection_const[ i ].set_both( -v_active_demand[ i ] ,
+     v_power_flow_injection_const[ i ].set_both( -v_ActiveDemand[ i ] ,
                                                  issueAMod );
     break;
    }
@@ -628,24 +628,24 @@ void DCNetworkBlock::set_active_demand
  if( rng.second <= rng.first )
   return;
 
- if( v_active_demand.empty() ) {
+ if( v_ActiveDemand.empty() ) {
   if( std::all_of( values , values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_active_demand.assign( get_number_nodes() , 0 );
+  v_ActiveDemand.assign( get_number_nodes() , 0 );
  }
 
  // If nothing changes, return
  if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_active_demand.begin() + rng.first ) )
+                 v_ActiveDemand.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
 
   std::copy( values , values + ( rng.second - rng.first ) ,
-             v_active_demand.begin() + rng.first );
+             v_ActiveDemand.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
@@ -653,7 +653,7 @@ void DCNetworkBlock::set_active_demand
    switch( f_NetworkData->get_lines_type() ) {
     case( kHVDC ): {
      for( Index i = rng.first ; i < rng.second ; ++i )
-      v_power_flow_injection_const[ i ].set_both( -v_active_demand[ i ] ,
+      v_power_flow_injection_const[ i ].set_both( -v_ActiveDemand[ i ] ,
                                                         issueAMod );
      break;
     }

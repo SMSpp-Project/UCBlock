@@ -869,6 +869,47 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
+void BatteryUnitBlock::generate_objective( Configuration *objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( ! variables_generated() )
+  throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
+                           "need be generated for constraints to be." ) );
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                         // cowardly (and silently) return
+
+ auto linear_function = new LinearFunction();
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  linear_function->add_variable( &v_intake_level[ t ] ,
+                                 f_scale * v_Cost[ t ] , eDryRun );
+  linear_function->add_variable( &v_outtake_level[ t ] ,
+                                 f_scale * v_Cost[ t ] , eDryRun );
+ }
+
+ if( f_BattInvestmentCost != 0 )
+  linear_function->add_variable( &batt_design , f_BattInvestmentCost );
+
+ if( f_ConvInvestmentCost != 0 )
+  linear_function->add_variable( &conv_design , f_ConvInvestmentCost );
+
+ objective.set_function( linear_function );
+ objective.set_sense( Objective::eMin );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( BatteryUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR CHECKING THE BatteryUnitBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+
 bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
  // Retrieve the tolerance and the type of violation.
@@ -922,45 +963,6 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( primary_upper_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( secondary_upper_bound_Const , tol , rel_viol ) );
 } // end( BatteryUnitBlock::is_feasible )
-
-/*--------------------------------------------------------------------------*/
-
-void BatteryUnitBlock::generate_objective( Configuration *objc ) {
-
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( ! variables_generated() )
-  throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
-                           "need be generated for constraints to be." ) );
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
-
- auto linear_function = new LinearFunction();
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  linear_function->add_variable( &v_intake_level[ t ] ,
-                                 f_scale * v_Cost[ t ] , eDryRun );
-  linear_function->add_variable( &v_outtake_level[ t ] ,
-                                 f_scale * v_Cost[ t ] , eDryRun );
- }
-
- if( f_BattInvestmentCost != 0 )
-  linear_function->add_variable( &batt_design , f_BattInvestmentCost );
-
- if( f_ConvInvestmentCost != 0 )
-  linear_function->add_variable( &conv_design , f_ConvInvestmentCost );
-
- objective.set_function( linear_function );
- objective.set_sense( Objective::eMin );
-
- // Set Block objective
- this->set_objective( &objective );
-
- set_objective_generated();
-
-}  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE BatteryUnitBlock ------*/
@@ -1021,6 +1023,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "ExtractingBatteryRho" , v_ExtractingBatteryRho );
  serialize( "Cost" , v_Cost );
  serialize( "Demand" , v_Demand );
+
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

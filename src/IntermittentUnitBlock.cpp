@@ -347,6 +347,31 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
 /*--------------------------------------------------------------------------*/
 
+void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
+
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                          // cowardly (and silently) return
+
+ LinearFunction::v_coeff_pair vars;
+
+ if( f_InvestmentCost != 0 )
+  vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
+
+ objective.set_function( new LinearFunction( std::move( vars ) ) );
+ objective.set_sense( Objective::eMin );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( IntermittentUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::set_BlockConfig( BlockConfig * newBC ,
                                              bool deleteold )
 {
@@ -361,6 +386,8 @@ void IntermittentUnitBlock::set_BlockConfig( BlockConfig * newBC ,
 
 } // end( IntermittentUnitBlock::set_BlockConfig )
 
+/*--------------------------------------------------------------------------*/
+/*------------- METHODS FOR CHECKING THE IntermittentUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
 
 bool IntermittentUnitBlock::is_feasible( bool useabstract ,
@@ -404,31 +431,6 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
 }  // end( IntermittentUnitBlock::is_feasible )
-
-/*--------------------------------------------------------------------------*/
-
-void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
-
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
-
- LinearFunction::v_coeff_pair vars;
-
- if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
-
- objective.set_function( new LinearFunction( std::move( vars ) ) );
- objective.set_sense( Objective::eMin );
-
- // Set Block objective
- this->set_objective( &objective );
-
- set_objective_generated();
-
-}  // end( IntermittentUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentUnitBlock -----*/
