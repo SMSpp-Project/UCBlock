@@ -755,8 +755,8 @@ public:
   * - if the vector has only one element, then V[ 0 ] is the minimum power of
   *   the unit for all time instants;
   *
-  * - otherwise, the vector V must have size get_time_horizon() and each V[ t
-  *   ] represents the minimum power value at time t. */
+  * - otherwise, the vector V must have size get_time_horizon() and each
+  * V[ t ] represents the minimum power value at time t. */
 
  double get_min_power( Index t , Index g = 0 ) const override {
   return( v_MinPower[ t ] );

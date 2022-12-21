@@ -112,10 +112,11 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower );
-
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
   v_MinPower.assign( f_time_horizon , 0 );
+
+ if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) )
+  std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_ConvMaxPower.begin() );
 
  ::deserialize( group , f_InitialStorage , "InitialStorage" );
 
