@@ -95,6 +95,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
     "DeltaRampUp" , "DeltaRampDown" ,
     "StoringBatteryRho" , "ExtractingBatteryRho" ,
     "Cost" , "Demand" , "Kappa" ,
+    "MaxCRateCharge" , "MaxCRateDischarge" ,
     "BatteryMaxCapacity" , "ConverterMaxCapacity" ,
     "MaxIntakePower" , "MaxOuttakePower" ,
     "BatteryInvestmentCost" , "ConverterInvestmentCost" };
