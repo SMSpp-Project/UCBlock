@@ -118,6 +118,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) )
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_ConvMaxPower.begin() );
 
+ ::deserialize( group , f_MaxCRateCharge , "MaxCRateCharge" );
+ ::deserialize( group , f_MaxCRateDischarge , "MaxCRateDischarge" );
+
  ::deserialize( group , f_InitialStorage , "InitialStorage" );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
@@ -442,12 +445,17 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    [ 2 ][ f_time_horizon ] ); // 2 dims, i.e., the intake outtake upper bounds
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   // set the maximum dispatch of converter not to exceed the C-rate of the
+   // battery in discharge
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] );
+    f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] );
    intake_outtake_bounds_Const[ 0 ][ t ].set_variable( &v_intake_level[ t ] );
 
+   // set the maximum dispatch of converter not to exceed the C-rate of the
+   // battery in charge
    intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] );
+    f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] );
    intake_outtake_bounds_Const[ 1 ][ t ].set_variable( &v_outtake_level[ t ] );
   }
 
@@ -524,9 +532,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    LinearFunction::v_coeff_pair intake_vars;
 
+   // set the maximum dispatch of converter not to exceed the C-rate of the
+   // battery in discharge
    intake_vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    intake_vars.push_back( std::make_pair( &batt_design ,
-                                          -f_kappa * v_MaxPower[ t ] ) );
+                                          -f_kappa * f_MaxCRateDischarge *
+                                          v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs( 0.0 );
@@ -540,9 +551,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    LinearFunction::v_coeff_pair outtake_vars;
 
+   // set the maximum dispatch of converter not to exceed the C-rate of the
+   // battery in charge
    outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    outtake_vars.push_back( std::make_pair( &batt_design ,
-                                           -f_kappa * v_MaxPower[ t ] ) );
+                                           -f_kappa * f_MaxCRateCharge *
+                                           v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );

@@ -693,6 +693,12 @@ public:
  /// returns the initial power value
  double get_initial_power( void ) const { return( f_InitialPower ); }
 
+ /// returns the maximum C-rate of the battery in charge
+ double get_max_C_rate_charge( void ) const { return( f_MaxCRateCharge ); }
+
+ /// returns the maximum C-rate of the battery in discharge
+ double get_max_C_rate_discharge( void ) const { return( f_MaxCRateDischarge ); }
+
  /// returns the battery investment cost
  double get_batt_investment_cost( void ) const {
   return( f_BattInvestmentCost );
@@ -1361,6 +1367,12 @@ public:
 
  /// the InitialPower value
  double f_InitialPower{};
+
+ /// the MaxCRateCharge value
+ double f_MaxCRateCharge = 1;
+
+ /// the MaxCRateDischarge value
+ double f_MaxCRateDischarge = 1;
 
  /// the kappa value
  double f_kappa = 1;
