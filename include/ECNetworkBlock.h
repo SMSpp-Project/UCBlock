@@ -471,13 +471,6 @@ class ECNetworkBlock : public NetworkBlock
   return( &( v_MaxNodeInjection.data()[ i * get_number_nodes() ] ) );
  }
 
-/*--------------------------------------------------------------------------*/
- /// returns the constant term
-
- const double & get_const_term( void ) const {
-  return( f_ConstTerm );
- }
-
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -575,13 +568,6 @@ class ECNetworkBlock : public NetworkBlock
 
  void set_number_intervals( const Index i ) override {
   f_number_intervals = i;
- }
-
-/*--------------------------------------------------------------------------*/
- /// method to set the constant term
-
- void set_constant_term( const double const_term ) override {
-  f_ConstTerm = const_term;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -740,9 +726,6 @@ class ECNetworkBlock : public NetworkBlock
 
  /// maximum production of the renewable assets
  boost::multi_array< double , 2 > v_MaxNodeInjection;
-
- /// the constant term
- double f_ConstTerm{};
 
 /*-------------------------------- variables -------------------------------*/
 

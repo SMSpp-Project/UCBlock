@@ -471,7 +471,9 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
 
- virtual void set_constant_term( const double const_term ) {}
+ void set_constant_term( const double const_term ) {
+  f_ConstTerm = const_term;
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
@@ -556,6 +558,13 @@ class NetworkBlock : public Block
 
  virtual const double * get_active_demand( Index i = 0 ) const {
   return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the constant term
+
+ const double & get_const_term( void ) const {
+  return( f_ConstTerm );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -707,6 +716,9 @@ class NetworkBlock : public Block
 
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;
+
+ /// the constant term
+ double f_ConstTerm{};
 
 /*-------------------------------- variables -------------------------------*/
 

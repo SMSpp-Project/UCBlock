@@ -452,7 +452,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
- // set block objective
+ // Set block objective
  this->set_objective( &objective );
 
  set_objective_generated();

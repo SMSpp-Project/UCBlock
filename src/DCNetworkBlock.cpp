@@ -390,34 +390,26 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
+ if( objective_generated() )
+  return; // Objective has already been generated
+
+ if( get_objective() != nullptr )  // an objective is there already
+  return;                          // cowardly (and silently) return
+
  // Initial check on network
 
  auto lines_type = f_NetworkData->get_lines_type();
 
+ auto linear_function = new LinearFunction();
+
  // HVDC power flow limit
  if( lines_type == kHVDC ) {
 
-  if( objective_generated() )
-   return; // Objective has already been generated
-
-  if( get_objective() != nullptr )  // an objective is there already
-   return;                          // cowardly (and silently) return
-
-  auto linear_function = new LinearFunction();
-
-  if( ! f_NetworkData->get_network_cost().empty() ) {
+  if( ! f_NetworkData->get_network_cost().empty() )
    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
     linear_function->add_variable( &v_auxiliary_variable[ line_id ] ,
                                    f_NetworkData->get_network_cost()[ line_id ] ,
                                    0.0 );
-   objective.set_function( linear_function );
-   objective.set_sense( Objective::eMin );
-
-  } else  // empty objective function
-   objective.set_function( linear_function );
-
-  // Set Block objective
-  this->set_objective( &objective );
  }
 
  // TODO The implementation of objective function for
@@ -432,6 +424,14 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
  else if( lines_type == kAC_HVDC ) {
   // TODO
  }
+
+ linear_function->set_constant_term( f_ConstTerm );
+
+ objective.set_function( linear_function );
+ objective.set_sense( Objective::eMin );
+
+ // Set Block objective
+ this->set_objective( &objective );
 
  set_objective_generated();
 
