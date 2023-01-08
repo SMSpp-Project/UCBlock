@@ -63,7 +63,8 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
 						      "NumberLines" };
   check_dimensions( group, expected_dims, std::cerr );
   static std::vector< std::string > expected_vars = { "StartLine" ,
-   "EndLine" , "MinPowerFlow" , "MaxPowerFlow" , "Susceptance" , "NetworkCost"
+   "EndLine" , "MinPowerFlow" , "MaxPowerFlow" , "Susceptance" ,
+   "NetworkCost" , "NodeName" , "LineName"
    };
   check_variables( group, expected_vars, std::cerr );
  #endif
@@ -92,6 +93,42 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
 		 true , true );
   }
+
+ const auto get_string_array =
+  [ &group ]( const std::string & var_name ,
+              std::vector< std::string > & v_string ,
+              Index size = Inf< Index >() ) {
+  v_string.clear();
+  auto netcdf_var = group.getVar( var_name );
+  if( ! netcdf_var.isNull() ) {
+   if( netcdf_var.getDimCount() != 1 )
+    throw( std::logic_error( "NetworkData::deserialize: the dimension of "
+                             "variable'" + var_name + "' must be 1." ) );
+
+   if( ( size < Inf< Index >() ) &&
+       ( netcdf_var.getDim( 0 ).getSize() != size ) )
+    throw( std::logic_error( "NetworkData::deserialize: the size of "
+                             "variable '" + var_name + "' should be " +
+                             std::to_string( size ) + "." ) );
+
+   const auto var_size = netcdf_var.getDim( 0 ).getSize();
+   v_string.reserve( var_size );
+
+   // TODO The following implementation should change when netCDF provides a
+   // better C++ interface.
+
+   for( Index i = 0 ; i < var_size ; ++i ) {
+    char * fname = nullptr;
+    netcdf_var.getVar( { i } , { 1 } , & fname );
+    v_string.push_back( fname );
+    free( fname );
+    }
+   }
+  };
+
+ get_string_array( "NodeName" , v_node_names , f_number_nodes );
+ get_string_array( "LineName" , v_line_names );
+
  }
 
 /*--------------------------------------------------------------------------*/
@@ -173,7 +210,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const
 {
- group.addDim( "NumberNodes" , f_number_nodes );
+ auto NumberNodes = group.addDim( "NumberNodes" , f_number_nodes );
 
  if( f_number_nodes > 1 ) {
   auto NL = group.addDim( "NumberLines" , f_number_lines );
@@ -193,6 +230,20 @@ void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const
 
   ::serialize( group , "NetworkCost" , netCDF::NcDouble() ,  NL ,
 	       v_network_cost );
+
+  if( ! v_line_names.empty() ) {
+   assert( v_line_names.size() == NL.getSize() );
+   auto LineName = group.addVar( "LineName" , netCDF::NcString() , NL );
+   for( Index i = 0 ; i < v_line_names.size() ; ++i )
+    LineName.putVar( { i } , v_line_names[ i ] );
+   }
+  }
+
+ if( ! v_node_names.empty() ) {
+  assert( v_node_names.size() == NumberNodes.getSize() );
+  auto NodeName = group.addVar( "NodeName" , netCDF::NcString() , NumberNodes );
+  for( Index i = 0 ; i < v_node_names.size() ; ++i )
+   NodeName.putVar( { i } , v_node_names[ i ] );
   }
  }
 

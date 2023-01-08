@@ -167,41 +167,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_NetworkData->deserialize( group );
   }
 
- const auto get_string_array =
-  [ &group ]( const std::string & var_name ,
-              std::vector< std::string > & v_string ,
-              Index size = Inf< Index >() ) {
-  v_string.clear();
-  auto netcdf_var = group.getVar( var_name );
-  if( ! netcdf_var.isNull() ) {
-   if( netcdf_var.getDimCount() != 1 )
-    throw( std::logic_error( "UCBlock::deserialize: the dimension of "
-                             "variable'" + var_name + "' must be 1." ) );
-
-   if( ( size < Inf< Index >() ) &&
-       ( netcdf_var.getDim( 0 ).getSize() != size ) )
-    throw( std::logic_error( "UCBlock::deserialize: the size of variable '"
-                             + var_name + "' should be " +
-                             std::to_string( size ) + "." ) );
-
-   const auto var_size = netcdf_var.getDim( 0 ).getSize();
-   v_string.reserve( var_size );
-
-   // TODO The following implementation should change when netCDF provides a
-   // better C++ interface.
-
-   for( Index i = 0 ; i < var_size ; ++i ) {
-    char * fname = nullptr;
-    netcdf_var.getVar( { i } , { 1 } , & fname );
-    v_string.push_back( fname );
-    free( fname );
-    }
-   }
-  };
-
- get_string_array( "NodeName" , v_node_names , number_nodes );
- get_string_array( "LineName" , v_line_names );
-
  /* TODO commented away until HeatBlock are properly managed
  if( ! ::deserialize_dim( group , "NumberHeatGenerators" ,
                           f_number_heat_generators , true ) )

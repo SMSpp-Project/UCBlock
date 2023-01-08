@@ -1239,20 +1239,6 @@ class UCBlock : public Block
   return true;
   }
 
-/*--------------------------------------------------------------------------*/
-
- /// returns the vector containing the name of the nodes
- const std::vector< std::string > & get_node_names( void ) const {
-  return v_node_names;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the vector containing the name of the lines
- const std::vector< std::string > & get_line_names( void ) const {
-  return v_line_names;
-  }
-
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR SAVING THE UCBlock --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1370,12 +1356,6 @@ class UCBlock : public Block
 
  /// The number of pollutants
  Index f_number_pollutants;
-
- /// Node names
- std::vector< std::string > v_node_names;
-
- /// Line names
- std::vector< std::string > v_line_names;
 
  /* TODO commented away until HeatBlock are properly managed
  /// The set of HeatBlock
