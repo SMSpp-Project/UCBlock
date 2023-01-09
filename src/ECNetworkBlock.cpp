@@ -513,7 +513,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 
 void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
- NetworkBlock::NetworkData::serialize( group );
+ group.addDim( "NumberNodes" , f_number_nodes );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );

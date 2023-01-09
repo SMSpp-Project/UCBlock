@@ -204,7 +204,15 @@ class DCNetworkBlock : public NetworkBlock
    *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
    *   that, for each line l, contains the monetary cost to exchanges between
    *   nodes or each network. This variable is optional; if it is not provided
-   *   then it's taken to be zero. */
+   *   then it's taken to be zero.
+   *
+   * - The variable "NodeName", of type netCDF::NcString() and indexed over the
+   *   dimension "NumberNodes". Its i-th entry, namely NodeName[ i ], contains
+   *   the name of the i-th node. This variable is optional.
+   *
+   * - The variable "LineName", of type netCDF::NcString() and indexed over the
+   *   dimension "NumberLines". Its i-th entry, namely LineName[ i ], contains
+   *   the name of the i-th transmission line. This variable is optional. */
 
   virtual void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -371,6 +379,20 @@ class DCNetworkBlock : public NetworkBlock
    return( kAC_HVDC );
   }
 
+/*--------------------------------------------------------------------------*/
+
+  /// returns the vector containing the name of the nodes
+  const std::vector< std::string > & get_node_names( void ) const {
+   return v_node_names;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// returns the vector containing the name of the lines
+  const std::vector< std::string > & get_line_names( void ) const {
+   return v_line_names;
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -420,6 +442,10 @@ class DCNetworkBlock : public NetworkBlock
 
   /// vector to store the network cost at each line
   std::vector< double > v_network_cost;
+
+  std::vector< std::string > v_node_names; ///< Node names
+
+  std::vector< std::string > v_line_names; ///< Line names
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

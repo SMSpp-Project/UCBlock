@@ -77,14 +77,6 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::NetworkData::serialize( netCDF::NcGroup & group ) const {
-
- group.addDim( "NumberNodes" , f_number_nodes );
-
-}  // end( NetworkBlock::NetworkData::serialize )
-
-/*--------------------------------------------------------------------------*/
-
 NetworkBlock::NetworkData::NetworkDataFactoryMap &
 NetworkBlock::NetworkData::f_factory( void ) {
  static NetworkDataFactoryMap s_factory;

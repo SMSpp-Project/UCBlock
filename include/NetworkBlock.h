@@ -219,7 +219,7 @@ class NetworkBlock : public Block
    * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
    * of the format of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup & group ) const;
+  virtual void serialize( netCDF::NcGroup & group ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
