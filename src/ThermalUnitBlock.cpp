@@ -906,25 +906,25 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // third term:      - primary_reserve_t (if any)
   // fourth term:     - secondary_reserve_t (if any)
 
-  auto coef = v_coeff_pair( 2 );
-  coef[ 0 ] = std::make_pair( &v_commitment[ t ] ,
-                              -get_operational_min_power( t ) );
-  coef[ 1 ] = std::make_pair( &v_active_power[ t ] , 1.0 );
+  auto coeff = v_coeff_pair( 2 );
+  coeff[ 0 ] = std::make_pair( &v_commitment[ t ] ,
+                               -get_operational_min_power( t ) );
+  coeff[ 1 ] = std::make_pair( &v_active_power[ t ] , 1.0 );
 
   // if UCBlock has primary reserve variables
   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   coef.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                   -1.0 ) );
+   coeff.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
   // if UCBlock has secondary reserve variables
   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   coef.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                   -1.0 ) );
+   coeff.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
   MinPower_Const[ t ].set_rhs( Inf< double >() );
   MinPower_Const[ t ].set_lhs( 0.0 );
   MinPower_Const[ t ].set_function(
-   new LinearFunction( std::move( coef ) ) );
+   new LinearFunction( std::move( coeff ) ) );
  }
 
  add_static_constraint( MinPower_Const ,
@@ -941,25 +941,25 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // third term:      - primary_reserve_t (if any)
   // fourth term:     - secondary_reserve_t (if any)
 
-  auto coef = v_coeff_pair( 2 );
-  coef[ 0 ] = std::make_pair( &v_commitment[ t ] ,
-                              get_operational_max_power( t ) );
-  coef[ 1 ] = std::make_pair( &v_active_power[ t ] , -1.0 );
+  auto coeff = v_coeff_pair( 2 );
+  coeff[ 0 ] = std::make_pair( &v_commitment[ t ] ,
+                               get_operational_max_power( t ) );
+  coeff[ 1 ] = std::make_pair( &v_active_power[ t ] , -1.0 );
 
   // if UCBlock has primary reserve variables
   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   coef.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                   -1.0 ) );
+   coeff.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
   // if UCBlock has secondary reserve variables
   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   coef.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                   -1.0 ) );
+   coeff.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
   MaxPower_Const[ t ].set_lhs( 0.0 );
   MaxPower_Const[ t ].set_rhs( Inf< double >() );
   MaxPower_Const[ t ].set_function(
-   new LinearFunction( std::move( coef ) ) );
+   new LinearFunction( std::move( coeff ) ) );
  }
 
  add_static_constraint( MaxPower_Const ,
@@ -1039,7 +1039,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( StartUp_Binary_bound_Const ,
                          "StartUp_binary_bound_Thermal" );
 
-  // the shut down binary bound constraints
+  // the shut-down binary bound constraints
   ShoutDown_Binary_bound_Const.resize( startup_shutdown_size );
   for( Index t = 0 ; t < startup_shutdown_size ; ++t )
    ShoutDown_Binary_bound_Const[ t ].set_variable( &v_shut_down[ t ] );
@@ -1519,7 +1519,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( auto t : subset )
-   // the committment variable is in position 0 in the LF
+   // the commitment variable is in position 0 in the LF
    LF( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) ,
                           un_ModBlock( issueAMod ) );
@@ -1564,7 +1564,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
  if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
-   // the committment variable is in position 0 in the LF
+   // the commitment variable is in position 0 in the LF
    LF( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) ,
                           un_ModBlock( issueAMod ) );

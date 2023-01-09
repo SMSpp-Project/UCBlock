@@ -163,14 +163,14 @@ class HeatBlock : public Block
   *   variable is ignored if either "NumberIntervals" <= 1 (such as if it
   *   is not defined), or "NumberIntervals" >= "TimeHorizon".
   *
-  * - The variable "TotalHeatDemand", of type double and indexed over the
-  *   dimension "TimeHorizon": entry TotalHeatDemand[ t ] is assumed to contain
-  *   the total heat demand of this heat block to be satisfied for the
-  *   corresponding time instant t. Note that this variable does *not*
+  * - The variable "TotalHeatDemand", of type netCDF::NcDouble and indexed
+  *   over the dimension "TimeHorizon": entry TotalHeatDemand[ t ] is assumed
+  *   to contain the total heat demand of this heat block to be satisfied for
+  *   the corresponding time instant t. Note that this variable does *not*
   *   use the NumberIntervals / ChangeIntervals system, as demand is
   *   usually changing from one time instant to the next.
   *
-  * - The variable "CostHeatUnit", of type double and indexed over two
+  * - The variable "CostHeatUnit", of type netCDF::NcDouble and indexed over two
   *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then the size can also be
   *   "TimeHorizon").  The second dimension has size "NumberHeatUnits". This is
@@ -182,65 +182,67 @@ class HeatBlock : public Block
   *   ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
   *   that ChangeIntervals[ - 1 ] = 0.
   *
-  * - The variable "MinHeatProduction", of type double and indexed over two
-  *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then the size can also be
-  *   "TimeHorizon").  The second dimension has size "NumberHeatUnits". This is
-  *   meant to represent the matrix MinHP[ t , i ] which is assumed to contain
-  *   the minimum heat production of heat-producing unit i for time instant
-  *   t. The variable is optional; if it is not provided at all, it is intended
-  *   MnHP[ t , i ] == 0 for all i and t. If the first dimension has size 1,
-  *   then the minimum heat production is the same for all time instants (for
-  *   the same unit). Otherwise, MinHeatProduction[ h , i ] is the fixed value
+  * - The variable "MinHeatProduction", of type netCDF::NcDouble and indexed
+  *   over two dimensions. The first dimension can have size 1 or
+  *   "NumberIntervals" (if "NumberIntervals" is not provided, then the size
+  *   can also be "TimeHorizon").  The second dimension has size
+  *   "NumberHeatUnits". This is meant to represent the matrix MinHP[ t , i ]
+  *   which is assumed to contain the minimum heat production of
+  *   heat-producing unit i for time instant t. The variable is optional; if
+  *   it is not provided at all, it is intended MnHP[ t , i ] == 0 for all i
+  *   and t. If the first dimension has size 1, then the minimum heat
+  *   production is the same for all time instants (for the same unit).
+  *   Otherwise, MinHeatProduction[ h , i ] is the fixed value
   *   of MinHP[ t , i ] for all t in the interval [ ChangeIntervals[ h - 1 ],
   *   ChangeIntervals[ h ] ], with the assumption that ChangeIntervals[ - 1 ] =
   *   0.
   *
-  * - The variable "MaxHeatProduction", of type double and indexed over two
-  *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then the size can also be
-  *   "TimeHorizon"). The second dimension has size "NumberHeatUnits". This is
-  *   meant to represent the matrix MaxHP[ t , i ] which is assumed to contain
-  *   the maximum heat production of heat-producing unit i for time instant
-  *   t. It is assumed MaxHP[ t , i ] >= MinHP[ t , i ] >= 0 for all i and t,
-  *   with strict inequality holding for at least some t for each unit i
-  *   (otherwise the production of unit i is fixed and there is nothing to
-  *   decide). The variable is optional; if it is not provided at all, it is
-  *   intended MaxHP[ t , i ] == 0 for all i and t. If the first dimension has
-  *   size 1, then the maximum heat production is the same for all time
-  *   instants (for the same unit). Otherwise, MaxHeatProduction[ h , i ] is
-  *   the fixed value of MaxHP[ t , i ] for all t in the interval [
-  *   ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0.
+  * - The variable "MaxHeatProduction", of type netCDF::NcDouble and indexed
+  *   over two dimensions. The first dimension can have size 1 or
+  *   "NumberIntervals" (if "NumberIntervals" is not provided, then the size
+  *   can also be "TimeHorizon"). The second dimension has size
+  *   "NumberHeatUnits". This is meant to represent the matrix MaxHP[ t , i ]
+  *   which is assumed to contain the maximum heat production of
+  *   heat-producing unit i for time instant t. It is assumed MaxHP[ t , i ]
+  *   >= MinHP[ t , i ] >= 0 for all i and t, with strict inequality holding
+  *   for at least some t for each unit i (otherwise the production of unit i
+  *   is fixed and there is nothing to decide). The variable is optional; if
+  *   it is not provided at all, it is intended MaxHP[ t , i ] == 0 for all i
+  *   and t. If the first dimension has size 1, then the maximum heat
+  *   production is the same for all time instants (for the same unit).
+  *   Otherwise, MaxHeatProduction[ h , i ] is the fixed value of
+  *   MaxHP[ t , i ] for all t in the interval [ ChangeIntervals[ h - 1 ],
+  *   ChangeIntervals[ h ] ], with the assumption that ChangeIntervals[ - 1 ]
+  *   = 0.
   *
-  * - The variable "MinHeatStorage", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MinHS[ t ] which,
-  *   for each time instant t, contains the minimum heat storage of this
-  *   HB. The variable is optional, if it is not provided at all it is intended
-  *   that MinHS[ t ] == 0 for all t. If the variable has size 1, then the
-  *   minimum heat storage is the same for all time instants.  Otherwise,
-  *   MinHeatStorage[ h ] is the fixed value of MinHS[ t ] for all t in the
+  * - The variable "MinHeatStorage", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   MinHS[ t ] which, for each time instant t, contains the minimum heat
+  *   storage of this HB. The variable is optional, if it is not provided at
+  *   all it is intended that MinHS[ t ] == 0 for all t. If the variable has
+  *   size 1, then the minimum heat storage is the same for all time instants.
+  *   Otherwise, MinHeatStorage[ h ] is the fixed value of MinHS[ t ] for all
+  *   t in the interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ],
+  *   with the assumption that ChangeIntervals[ - 1 ] = 0.
+  *
+  * - The variable "MaxHeatStorage", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   MxHS[ t ] which, for each time instant t, contains the maximum heat
+  *   storage of this HB. The variable is optional, if it is not provided at
+  *   all it is intended that MaxHS[ t ] == 0 for all t, and since it's
+  *   assumed that MaxHS[ t ] >= MinHS[ t ] >= 0 for all t, this means that
+  *   there is no heat storage in this HB. If the variable has size 1, then
+  *   the maximum heat storage is the same for all time instants. Otherwise,
+  *   MaxHeatStorage[ h ] is the fixed value of MaxHS[ t ] for all t in the
   *   interval [ ChangeIntervals[ h - 1 ], ChangeIntervals[ h ] ], with the
   *   assumption that ChangeIntervals[ - 1 ] = 0.
   *
-  * - The variable "MaxHeatStorage", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MxHS[ t ] which,
-  *   for each time instant t, contains the maximum heat storage of this
-  *   HB. The variable is optional, if it is not provided at all it is intended
-  *   that MaxHS[ t ] == 0 for all t, and since it's assumed that MaxHS[ t ] >=
-  *   MinHS[ t ] >= 0 for all t, this means that there is no heat storage in
-  *   this HB. If the variable has size 1, then the maximum heat storage is the
-  *   same for all time instants.  Otherwise, MaxHeatStorage[ h ] is the fixed
-  *   value of MaxHS[ t ] for all t in the interval [ ChangeIntervals[ h - 1 ],
-  *   ChangeIntervals[ h ] ], with the assumption that ChangeIntervals[ - 1 ] =
-  *   0.
-  *
-  * - The scalar variable "InitialHeatAvailable", of type double and not
-  *   indexed over any dimension, which indicates the amount of heat in
+  * - The scalar variable "InitialHeatAvailable", of type netCDF::NcDouble
+  *   and not indexed over any dimension, which indicates the amount of heat in
   *   the storage at the beginning of the first time instant in this HB. It
   *   is assumed that MaxHS[ 0 ] >= InitialHeatAvailable >= MinHS[ 0 ]. This
   *   variable is optional, if it is not provided it is taken to be
@@ -248,28 +250,30 @@ class HeatBlock : public Block
   *   MaxHeatStorage is not defined) then this variable is not read, because
   *   it is not used.
   *
-  * - The scalar variable "StoringHeatRho", of type double and not indexed
-  *   over any dimension, which indicates the inefficiency of storing heat
-  *   in the heat storage (if any) in this HB. This variable is optional and
-  *   it must always be StoringHeatRho <= 1, if it is not provided it is taken
-  *   to be StoringHeatRho == 1. If there is no heat storage (say,
+  * - The scalar variable "StoringHeatRho", of type netCDF::NcDouble and not
+  *   indexed over any dimension, which indicates the inefficiency of storing
+  *   heat in the heat storage (if any) in this HB. This variable is optional
+  *   and it must always be StoringHeatRho <= 1, if it is not provided it is
+  *   taken to be StoringHeatRho == 1. If there is no heat storage (say,
   *   MaxHeatStorage is not defined) then this variable is not read, because
   *   it is not used.
   *
-  * - The scalar variable "ExtractingHeatRho", of type double and not indexed
-  *   over any dimension, and which indicates the inefficiency of extracting
-  *   heat from the heat storage (if any) in this HB. This variable is
-  *   optional and it must always be ExtractingHeatRho >= 1, if it is not
-  *   provided it is taken to be ExtractingHeatRho == 1. If there is no heat
-  *   storage (say, MaxHeatStorage is not defined) then this variable is not
-  *   read, because it is not used.
+  * - The scalar variable "ExtractingHeatRho", of type netCDF::NcDouble and
+  *   not indexed over any dimension, and which indicates the inefficiency of
+  *   extracting heat from the heat storage (if any) in this HB. This
+  *   variable is optional and it must always be ExtractingHeatRho >= 1, if
+  *   it is not provided it is taken to be ExtractingHeatRho == 1. If there
+  *   is no heat storage (say, MaxHeatStorage is not defined) then this
+  *   variable is not read, because it is not used.
   *
-  * - The scalar variable "KeepingHeatRho", of type double and not indexed over
-  *   any dimension, which indicates the double of keeping heat in the heat
-  *   storage (if any) in this HB. This variable is optional and it must always
-  *   be KeepingHeatRho <= 1, if it is not provided it is taken to be
-  *   KeepingHeatRho == 1. If there is no heat storage (say, MaxHeatStorage is
-  *   not defined) then this variable is not read, because it is not used. */
+  * - The scalar variable "KeepingHeatRho", of type netCDF::NcDouble and not
+  *   indexed over any dimension, which indicates the double of keeping heat
+  *   in the heat storage (if any) in this HB. This variable is optional and
+  *   it must always be KeepingHeatRho <= 1, if it is not provided it is
+  *   taken to be KeepingHeatRho == 1. If there is no heat storage (say,
+  *   MaxHeatStorage is not defined) then this variable is not read, because
+  *   it is not used. */
+
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/

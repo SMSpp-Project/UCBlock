@@ -113,9 +113,9 @@ class SlackUnitBlock : public UnitBlock
  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
  * must then also contain:
  *
- * - The variable "MaxPower", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
+ * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
+ *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+ *   not provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
  *   each time instant t, contains the maximum active power output value of
  *   the unit for the corresponding time step.  If "MaxPower" has length 1
@@ -128,13 +128,13 @@ class SlackUnitBlock : public UnitBlock
  *   then the mapping clearly does not require "ChangeIntervals", which in
  *   fact is not loaded.
  *
- * - The variable "MaxPrimaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MaxPP[ t ] that,
- *   for each time instant t, contains the maximum amount of primary reserve
- *   that the unit can produce in the corresponding time step. If
- *   "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
+ * - The variable "MaxPrimaryPower", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then this variable can also be
+ *   indexed over "TimeHorizon"). This is meant to represent the vector
+ *   MaxPP[ t ] that, for each time instant t, contains the maximum amount of
+ *   primary reserve that the unit can produce in the corresponding time step.
+ *   If "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
  *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t
  *   ] for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
  *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0. This variable
@@ -142,28 +142,28 @@ class SlackUnitBlock : public UnitBlock
  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
  *   clearly does not require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "MaxSecondaryPower", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MaxSP[ t ] that,
- *   for each time instant t, contains the maximum amount of secondary reserve
- *   that the unit can produce in the corresponding time step. If
- *   "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the same value
- *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of MaxSP[
- *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ * - The variable "MaxSecondaryPower", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then this variable can also be
+ *   indexed over "TimeHorizon"). This is meant to represent the vector
+ *   MaxSP[ t ] that, for each time instant t, contains the maximum amount of
+ *   secondary reserve that the unit can produce in the corresponding time
+ *   step. If "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the
+ *   same value for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed
+ *   value of MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
  *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
  *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
  *   the mapping clearly does not require "ChangeIntervals", which in fact is
  *   not loaded.
  *
- * - The variable "MaxInertia", of type double and either of size 1 or indexed
- *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MaxI[ t ] which,
- *   for each time instant t, contains the maximum "amount of inertia"
- *   (contribution that the SlackUnit can give to the inertia constraint) at
- *   time t. The variable is optional; if it is not defined, MaxI[ t ] == 0
+ * - The variable "MaxInertia", of type netCDF::NcDouble and either of size 1
+ *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+ *   not provided, then this variable can also be indexed over "TimeHorizon").
+ *   This is meant to represent the vector MaxI[ t ] which, for each time
+ *   instant t, contains the maximum "amount of inertia" (contribution that
+ *   the SlackUnit can give to the inertia constraint) at time t. The
+ *   variable is optional; if it is not defined, MaxI[ t ] == 0
  *   for all time instants. If it has size 1, then MaxI[ t ] == MaxInertia[ 0
  *   ] for all t, regardless to what "NumberIntervals" says. Otherwise,
  *   MaxInertia[ i ] is the fixed value of MaxI[ t ] for all t in the interval
@@ -172,26 +172,26 @@ class SlackUnitBlock : public UnitBlock
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "ActivePowerCost", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector APC[ t ] that, for
- *   each time instant t, contains the cost of producing one unit of active
- *   power at the corresponding time step. This variable is optional, if it is
- *   not provided then it's taken to be zero (although this is a very strange
- *   setting, as it would typically imply that all the demand, or at least as
- *   much as possible of it, is satisfied by the fictitious SlackUnit rather
- *   than from "real" ones). If "ActivePowerCost" has length 1 then APC[ t ]
- *   contains the same value for t. Otherwise, ActivePowerCost[ i ] is the
- *   fixed value of APC[ t ] for all t in the interval [ ChangeIntervals[ i -
- *   1 ] , ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ -
- *   1 ] = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
- *   the mapping clearly does not require "ChangeIntervals", which in fact is
- *   not loaded.
+ * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then this variable can also be
+ *   indexed over "TimeHorizon"). This is meant to represent the vector
+ *   APC[ t ] that, for each time instant t, contains the cost of producing
+ *   one unit of active power at the corresponding time step. This variable
+ *   is optional, if it is not provided then it's taken to be zero (although
+ *   this is a very strange setting, as it would typically imply that all the
+ *   demand, or at least as much as possible of it, is satisfied by the
+ *   fictitious SlackUnit rather than from "real" ones). If "ActivePowerCost"
+ *   has length 1 then APC[ t ] contains the same value for t. Otherwise,
+ *   ActivePowerCost[ i ] is the fixed value of APC[ t ] for all t in the
+ *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
+ *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+ *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+ *   require "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "PrimaryCost", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
+ * - The variable "PrimaryCost", of type netCDF::NcDouble and either of size
+ *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+ *   is not provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector PC[ t ] that, for
  *   each time instant t, contains the cost of producing one unit of primary
  *   reserve at the corresponding time step.  This variable is optional; if it
@@ -204,24 +204,25 @@ class SlackUnitBlock : public UnitBlock
  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
  *   "ChangeIntervals", which in fact is not loaded.
  *
- * - The variable "SecondaryCost", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
- *   each time instant t, contains the cost of producing one unit of secondary
- *   reserve at the corresponding time step.  This variable is optional; if it
- *   is not provided then it's taken to be zero (but this is a very strange
- *   setting, cf. the discussion in ActivePowerCost). If "SecondaryCost" has
- *   length 1 then SC[ t ] contains the same value for t. Otherwise,
- *   SecondaryCost[ i ] is the fixed value of SC[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - The variable "SecondaryCost", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then this variable can also be
+ *   indexed over "TimeHorizon"). This is meant to represent the vector
+ *   SC[ t ] that, for each time instant t, contains the cost of producing
+ *   one unit of secondary reserve at the corresponding time step.  This
+ *   variable is optional; if it is not provided then it's taken to be zero
+ *   (but this is a very strange setting, cf. the discussion in
+ *   ActivePowerCost). If "SecondaryCost" has length 1 then SC[ t ] contains
+ *   the same value for t. Otherwise, SecondaryCost[ i ] is the fixed value
+ *   of SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+ *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+ *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
- * - The variable "InertiaCost", of type double and either of size 1 or
- *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then this variable can also be indexed over
+ * - The variable "InertiaCost", of type netCDF::NcDouble and either of size
+ *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+ *   is not provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector IC[ t ] that, for
  *   each time instant t, contains the "the cost of producing "one unit" of
  *   inertia. Since the inertia-producing variable is u[ t ] which is in the

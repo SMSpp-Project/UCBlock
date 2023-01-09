@@ -357,23 +357,7 @@ class NetworkBlock : public Block
   *   set_NetworkData(). Note that if set_NetworkData() is called, but
   *   the representation of a NetworkData object is found in the NcGroup, then
   *   the NetworkData passed by set_NetworkData() is ignored, and a new
-  *   NetworkData object is read from the NcGroup and used instead.
-  *
-  * - The "ActiveDemand", of type double, and of size "NumberNodes". If the
-  *   NetworkData object description is present in the NcGroup this is the
-  *   dimension "NumberNodes", but the NetworkData object is optional and it
-  *   may not be there. Thus, if "NumberNodes" is not there and "ActiveDemand"
-  *   is, then the NetworkData object must have been passed by set_NetworkData(),
-  *   and the number of nodes can be read via NetworkData::get_number_nodes().
-  *   However, "ActiveDemand" itself is optional. If it is not found in the
-  *   NcGroup, then it *must* be passed (either before or after the call to
-  *   deserialize()) by calling set_active_demand(). Since both groups of data
-  *   are optional, the NcGroup  can actually be empty which implies that all
-  *   the data will be (or have been) passed by the in-memory interface. In
-  *   this case, it would clearly be preferable to *entirely avoid the NcGroup
-  *   to be there*, and in fact UCBlock has provisions for the NcGroup
-  *   describing the NetworkBlock to be optional [see the comments to
-  *   UCBlock::deserialize()]. */
+  *   NetworkData object is read from the NcGroup and used instead. */
 
  void deserialize( const netCDF::NcGroup & group ) override {}
 

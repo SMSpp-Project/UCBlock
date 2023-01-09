@@ -128,9 +128,9 @@ class IntermittentUnitBlock : public UnitBlock
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
-  * - The variable "MinPower", of type double and either of size 1 or indexed
-  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
+  * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
+  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
   *   for each time instant t, contains the minimum potential production value
   *   of the unit for the corresponding time step.  If "MinPower" has length 1
@@ -142,9 +142,9 @@ class IntermittentUnitBlock : public UnitBlock
   *   require "ChangeIntervals", which in fact is not loaded. Note that it
   *   must be MnP[ t ] >= 0 for all t.
   *
-  * - The variable "MaxPower", of type double and either of size 1 or indexed
-  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
+  * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
+  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
   *   for each time instant t, contains the maximum potential production value
   *   of the unit for the corresponding time step.  If "MaxPower" has length 1
@@ -158,32 +158,32 @@ class IntermittentUnitBlock : public UnitBlock
   *   is possible: it means that (at time instant t) the unit cannot be
   *   curtailed and cannot provide any reserve.
   *
-  * - The variable "InertiaPower", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
-  *   not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector IP[ t ] which, for
-  *   each time instant t, contains the contribution that the unit can give to
-  *   the inertia constraint which depends on the active power that it is
-  *   currently generating (basically, the constant to be multiplied to the
-  *   active power variable) at time t for this unit. The variable is
-  *   optional; if it is not defined, IP[ t ] == 0 for each time instants
-  *   t. If it has size 1 then the entry IP[ 0 ] is assumed to contain the
-  *   inertia power value for this unit and all time instants t.  Otherwise,
-  *   InertiaPower[ i ] is the fixed value of IP[ t ] for all t in the
-  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  * - The variable "InertiaPower", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   IP[ t ] which, for each time instant t, contains the contribution that
+  *   the unit can give to the inertia constraint which depends on the active
+  *   power that it is currently generating (basically, the constant to be
+  *   multiplied to the active power variable) at time t for this unit. The
+  *   variable is optional; if it is not defined, IP[ t ] == 0 for each time
+  *   instants t. If it has size 1 then the entry IP[ 0 ] is assumed to
+  *   contain the inertia power value for this unit and all time instants t.
+  *   Otherwise, InertiaPower[ i ] is the fixed value of IP[ t ] for all t in
+  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
   *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
   *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The scalar variable "Gamma", of type double and not indexed over any
-  *   dimension. This variable is used to take into account an uncertainty on
-  *   the maximal potential production. Note that it must be 0 <= Gamma <= 1;
-  *   when Gamma == 0, the unit does not provide any reserve.
+  * - The scalar variable "Gamma", of type netCDF::NcDouble and not indexed
+  *   over any dimension. This variable is used to take into account an
+  *   uncertainty on the maximal potential production. Note that it must be
+  *   0 <= Gamma <= 1; when Gamma == 0, the unit does not provide any reserve.
   *
-  * - The scalar variable "Kappa", of type double and not indexed over any
-  *   dimension. This variable is used to multiply to the minimum and maximum
-  *   power at each time instant t. This variable is optional, if it is not
-  *   provided it is taken to be Kappa == 1. */
+  * - The scalar variable "Kappa", of type netCDF::NcDouble and not indexed
+  *   over any dimension. This variable is used to multiply to the minimum
+  *   and maximum power at each time instant t. This variable is optional, if
+  *   it is not provided it is taken to be Kappa == 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

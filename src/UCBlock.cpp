@@ -86,13 +86,13 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
   auto sub_group = group.getGroup( sub_group_name );
   if( sub_group.isNull() )
    throw( std::invalid_argument( "UCBlock::deserialize: " +
-                                  sub_group_name + " not present" ) );
+                                 sub_group_name + " not present" ) );
 
   if( auto bk = new_Block( sub_group , this ) )
    v_Block[ sz++ ] = bk;
   else
    throw( std::invalid_argument( "UCBlock::deserialize: " +
-                                  sub_group_name + " deserialize failed" ) );
+                                 sub_group_name + " deserialize failed" ) );
  }
 }
 
@@ -120,7 +120,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
   } else {
    delete nbi;
    throw( std::invalid_argument( "UCBlock::deserialize:" + sub_group_name +
-                                  " not a valid NetworkBlock" ) );
+                                 " not a valid NetworkBlock" ) );
   }
  }
 
@@ -165,19 +165,21 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "PollutantZones" ,
                                                      "PollutantBudget" ,
                                                      "PollutantRho" ,
+                                                     "StartNetworkIntervals" ,
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" ,
+                                                     // DCNetworkBlockData
                                                      "StartLine" , "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
                                                      "NetworkCost" ,
+                                                     // ECNetworkBlockData
                                                      "BuyPrice" ,
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
-                                                     "PeakTariff" ,
-                                                     "StartNetworkIntervals" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" };
+                                                     "PeakTariff" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -206,8 +208,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                       v_network_constant_terms ) )
   v_network_constant_terms.resize( f_number_networks );
 
- // For backward compatibility reasons wrt the nc4 input data files already
- // given, the default values are `DCNetworkBlock` and `DCNetworkData`
  if( ! ::deserialize( group , network_block_classname ,
                       "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
@@ -378,7 +378,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( v_network_blocks.empty() && ( ! v_active_power_demand.num_elements() ) )
   throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
-                                 "mandatory if no NetworkBlocks" ) );
+                                "mandatory if no NetworkBlocks" ) );
 
  // if number_nodes == 1, NetworkBlocks are useless and therefore removed
  if( number_nodes == 1 ) {
@@ -443,8 +443,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
-                                    "missing in NetworkBlock " +
-                                    std::to_string( n ) + " and in UCBlock" ) );
+                                   "missing in NetworkBlock " +
+                                   std::to_string( n ) + " and in UCBlock" ) );
     nbi->set_NetworkData( f_NetworkData );
    }
 
@@ -458,9 +458,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
     if( ! nbi->get_active_demand( i ) ) {
      if( ! v_active_power_demand.num_elements() )
-      throw( std::invalid_argument(
-       "UCBlock::deserialize: ActivePowerDemand missing in UCBlock and in "
-       "NetworkBlock " + std::to_string( n ) ) );
+      throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
+                                    "missing in UCBlock and in NetworkBlock "
+                                    + std::to_string( n ) ) );
      typedef boost::multi_array_types::index_range range;
      auto ap_c = v_active_power_demand[
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
@@ -480,9 +480,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   // `NetworkBlock`(s) and the sum of intervals spanned by each of
   // them is equal to the time horizon of the problem, throw exception otherwise
   if( sum_intervals != f_time_horizon )
-   throw( std::invalid_argument
-    ( "UCBlock::deserialize: The sum of the number of intervals spanned by "
-      "each NetworkBlock must be equal to the number of time horizon." ) );
+   throw( std::invalid_argument( "UCBlock::deserialize: The sum of the number "
+                                 "of intervals spanned by each NetworkBlock "
+                                 "must be equal to the number of time horizon." ) );
 
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
@@ -1278,28 +1278,29 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
  auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
+ auto NumberNetworks = group.addDim( "NumberNetworks" , f_number_networks );
  auto NumberElectricalGenerators = group.addDim( "NumberElectricalGenerators" ,
                                                  f_number_elc_generators );
 
- auto TotalNumberPollutantZones = group.addDim
-  ( "TotalNumberPollutantZones" , f_total_number_pollutant_zones );
+ auto TotalNumberPollutantZones = group.addDim( "TotalNumberPollutantZones" ,
+                                                f_total_number_pollutant_zones );
 
  /* TODO commented away until HeatBlock are properly managed
- auto NumberHeatBlocks =
-  group.addDim( "NumberHeatBlocks", f_number_heat_blocks );
+ auto NumberHeatBlocks = group.addDim( "NumberHeatBlocks" ,
+                                       f_number_heat_blocks );
 
  auto NumberHeatGenerators = group.addDim( "NumberHeatGenerators" ,
                                            f_number_heat_generators );
  */
 
- auto NumberPrimaryZones =
-  group.addDim( "NumberPrimaryZones" , f_number_primary_zones );
- auto NumberSecondaryZones =
-  group.addDim( "NumberSecondaryZones" , f_number_secondary_zones );
- auto NumberInertiaZones =
-  group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
- auto NumberPollutants =
-  group.addDim( "NumberPollutants" , f_number_pollutants );
+ auto NumberPrimaryZones = group.addDim( "NumberPrimaryZones" ,
+                                         f_number_primary_zones );
+ auto NumberSecondaryZones = group.addDim( "NumberSecondaryZones" ,
+                                           f_number_secondary_zones );
+ auto NumberInertiaZones = group.addDim( "NumberInertiaZones" ,
+                                         f_number_inertia_zones );
+ auto NumberPollutants = group.addDim( "NumberPollutants" ,
+                                       f_number_pollutants );
 
  ::serialize( group , "ActivePowerDemand" , netCDF::NcDouble() ,
               { NumberNodes , TimeHorizon } , v_active_power_demand );
@@ -1336,6 +1337,31 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
               { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
               v_pollutant_rho );
+
+ std::vector< Index > number_intervals( v_start_network_intervals.size() , 0 );
+ std::adjacent_difference( v_start_network_intervals.begin() ,
+                           v_start_network_intervals.end() ,
+                           number_intervals.begin() );
+ // the first will be zero, so we start checking from the second
+ if( std::any_of( std::next( number_intervals.begin() ) ,
+                  number_intervals.end() ,
+                  []( double cst ) { return ( cst != 1 ); } ) )
+  ::serialize( group , "StartNetworkIntervals" , netCDF::NcUint() ,
+               NumberNetworks , v_start_network_intervals );
+
+ if( std::any_of( v_network_constant_terms.begin() ,
+                  v_network_constant_terms.end() ,
+                  []( double cst ) { return ( cst != 0 ); } ) )
+  ::serialize( group , "NetworkConstantTerms" , netCDF::NcDouble() ,
+               NumberNetworks , v_network_constant_terms );
+
+ if( network_block_classname != "DCNetworkBlock" )
+  ::serialize( group , "NetworkBlockClassname" , netCDF::NcString() ,
+               network_block_classname );
+
+ if( network_data_classname != "DCNetworkData" )
+  ::serialize( group , "NetworkDataClassname" , netCDF::NcString() ,
+               network_data_classname );
 
  /* TODO commented away until HeatBlock are properly managed
  ::serialize( group, "HeatSet", netCDF::NcUint(),

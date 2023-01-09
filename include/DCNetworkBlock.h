@@ -153,7 +153,7 @@ class DCNetworkBlock : public NetworkBlock
    *
    * - The dimension "NumberNodes" containing the number of nodes in the
    *   problem; this dimension is optional, if it is not provided then it is
-   *   taken to be == 1.
+   *   taken to be equal to 1.
    *
    * If NumberNodes == 1 (equivalently, it is not provided), the network is a
    * "bus" formed of only one node, and therefore all the subsequent information
@@ -947,7 +947,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of power flow variables
  /** The returned std::vector< ColVariable >, say F, contains the power flow
-  * variables and is indexed over the dimension number of lines. There are two
+  * variables and is indexed over the dimension "NumberLines". There are two
   * possible cases:
   *
   * - if F is empty(), then this variable is not defined;
@@ -962,7 +962,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of auxiliary variables
  /** The returned std::vector< ColVariable >, say V, contains the auxiliary
-  * variables and is indexed over the dimension number of lines. There are two
+  * variables and is indexed over the dimension "NumberLines". There are two
   * possible cases:
   *
   * - if V is empty(), then this variable is not defined;
@@ -1062,7 +1062,24 @@ class DCNetworkBlock : public NetworkBlock
   * contain all the data necessary to describe a NetworkBlock (see
   * NetworkBlock::deserialize()) and possibly the following variable:
   *
-  * - The variable "Kappa", of type netCDF::NcDouble() and either being a
+  * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberNodes".
+  *   If the NetworkData object description is present in the NcGroup this is
+  *   the dimension "NumberNodes", but the NetworkData object is optional and it
+  *   may not be there. Thus, if "NumberNodes" is not there and "ActiveDemand"
+  *   is, then the NetworkData object must have been passed by set_NetworkData(),
+  *   and the number of nodes can be read via NetworkData::get_number_nodes().
+  *   However, "ActiveDemand" itself is optional. If it is not found in the
+  *   NcGroup, then it *must* be passed (either before or after the call to
+  *   deserialize()) by calling set_active_demand(). Since both groups of data
+  *   are optional, the NcGroup  can actually be empty which implies that all
+  *   the data will be (or have been) passed by the in-memory interface. In
+  *   this case, it would clearly be preferable to *entirely avoid the NcGroup
+  *   to be there*, and in fact UCBlock has provisions for the NcGroup
+  *   describing the NetworkBlock to be optional [see the comments to
+  *   UCBlock::deserialize()];
+  *
+  * - The variable "Kappa", of type netCDF::NcDouble and either being a
   *   scalar or indexed over the number of lines. If this variable is a
   *   scalar, let say k, then it is assumed that Kappa[ l ] = k for each line
   *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,

@@ -67,7 +67,7 @@ function csvEC2nc4()
                         for w in peak_set] *
                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    # `ConstanTerm`, i.e., the consumption price
+    # `ConstantTerm`, i.e., the consumption price
     constant_term = [sum(profile(market_data, "energy_weight")[t] *
                          profile(market_data, "time_res")[t] *
                          (profile(market_data, "consumption_price")[t] *
@@ -277,7 +277,7 @@ function csvEC2nc4()
                 batt_max_C_ch = defVar(ub, "MaxCRateCharge", Float64, ())
                 batt_max_C_ch[:] = field_component(users_data[u], g, "max_C_ch")
 
-                # store the maximim C-rate of the battery in discharge
+                # store the maximum C-rate of the battery in discharge
                 batt_max_C_dch = defVar(ub, "MaxCRateDischarge", Float64, ())
                 batt_max_C_dch[:] = field_component(users_data[u], g, "max_C_dch")
 
@@ -332,7 +332,7 @@ function csvEC2nc4()
                 conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
                 conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
 
-                # store the intake roundtrip efficency of the battery
+                # store the intake roundtrip efficiency of the battery
                 intake_coeff_data = [1 / (sqrt(field_component(users_data[u], g, "eta")) *
                                           # corresponding converter, i.e., "conv"
                                           field_component(users_data[u], g_conv, "eta"))
@@ -345,7 +345,7 @@ function csvEC2nc4()
                     intake_coeff[:] = intake_coeff_data[:]
                 end
 
-                # store the outtake roundtrip efficency of the battery
+                # store the outtake roundtrip efficiency of the battery
                 outtake_coeff_data = [sqrt(field_component(users_data[u], g, "eta")) *
                                       # corresponding converter, i.e., "conv"
                                       field_component(users_data[u], g_conv, "eta")

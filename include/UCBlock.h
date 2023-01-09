@@ -167,6 +167,12 @@ class UCBlock : public Block
  * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
  *   the problem;
  *
+ * - The dimension "NumberElectricalGenerators" containing the overall number
+ *   of electrical generators for each UnitBlock of the problem;
+ *
+ * - The dimension "NumberNetworks" containing the number of networks
+ *   (NetworkBlock) in the problem;
+ *
  * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with n ==
  *   NumberUnits - 1, containing each one UnitBlock corresponding to one or
  *   more electricity generating unit (electrical generator). It is an error
@@ -257,9 +263,9 @@ class UCBlock : public Block
  *   the NetworkData inside the NetworkBlock overrules that inside the
  *   UCBlock, which is ignored by that NetworkBlock.
  *
- * - The variable "ActivePowerDemand", of type netCDF::NcDouble(), and indexed
+ * - The variable "ActivePowerDemand", of type netCDF::NcDouble and indexed
  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
- *   is optional if
+ *   is optional if:
  *
  *   - a NetworkBlock is defined for each time instant (see below), and
  *
@@ -301,7 +307,7 @@ class UCBlock : public Block
  *     ActivePowerDemand[ ... , t ] contains the active demand of each node
  *     at time instant t.
  *
- * - The variable "GeneratorNode", of type netCDF::NcUint() and indexed over
+ * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
  *   tells to which node of the transmission network, the specified electrical
  *   generator g belongs. Note that this means that different electrical
@@ -314,7 +320,7 @@ class UCBlock : public Block
  *   is not provided at all), then this variable need not be defined, since it
  *   is not loaded.
  *
- * - The variable "HeatNode", of type netCDF::NcUint() and indexed over the
+ * - The variable "HeatNode", of type netCDF::NcUint and indexed over the
  *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node
  *   of the transmission network *all* the heat generators that are also
  *   electrical generators in the HeatBlock h belong. Note that this implies
@@ -336,7 +342,7 @@ class UCBlock : public Block
  *   information must agree*, otherwise the input file is ill-defined and
  *   exception is thrown.
  *
- * - The variable "HeatSet", of type netCDF::NcUint() and indexed over the set
+ * - The variable "HeatSet", of type netCDF::NcUint and indexed over the set
  *   { 0 , ... , NumberHeatGenerators - 1 }. If HeatSet[ h ] = k <
  *   NumberElectricalGenerators, then k is the unique name of the electrical
  *   generator corresponding to the heat generator h; otherwise the heat
@@ -348,7 +354,7 @@ class UCBlock : public Block
  *   corresponds to a specific electrical generator, or to no electrical
  *   generator (it is an heat-only generator).
  *
- * - The variable "PowerHeatRho", of type netCDF::NcDouble() and indexed over
+ * - The variable "PowerHeatRho", of type netCDF::NcDouble and indexed over
  *   the dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to
  *   contain the electrical-power-to-heat ratio for *all generators* within
  *   unit i (most likely, a single generator). This is only used in the
@@ -361,7 +367,7 @@ class UCBlock : public Block
  *   is not provided then it is taken to be 0, which means that no primary
  *   reserve constraints are present in the problem.
  *
- * - The variable "PrimaryZones", of type netCDF::NcUint() and indexed over
+ * - The variable "PrimaryZones", of type netCDF::NcUint and indexed over
  *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
  *   primary zone the node i belongs: if PrimaryZones[ i ] >=
  *   NumberPrimaryZones, this means that node i does not belong to any primary
@@ -372,7 +378,7 @@ class UCBlock : public Block
  *   defined, then there is only one primary zone and all the nodes belong to
  *   it.
  *
- * - The variable "PrimaryDemand", of type netCDF::NcDouble() and indexed both
+ * - The variable "PrimaryDemand", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
  *   PrimaryDemand[ i , t ] is assumed to contain the primary reserves
  *   requirement which are specified on the primary reserve zone i in the time
@@ -384,7 +390,7 @@ class UCBlock : public Block
  *   is not provided then it is taken to be 0, which means that no secondary
  *   reserve constraints are present in the problem.
  *
- * - The variable "SecondaryZones", of type netCDF::NcUint() and indexed over
+ * - The variable "SecondaryZones", of type netCDF::NcUint and indexed over
  *   the dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to which
  *   secondary zone the node i belongs. If SecondaryZones[ i ] >=
  *   NumberSecondaryZones, this means that node i does not belong to any
@@ -395,7 +401,7 @@ class UCBlock : public Block
  *   defined, then there is only one secondary zone and all the nodes belong
  *   to it.
  *
- * - The variable "SecondaryDemand", of type netCDF::NcDouble() and indexed
+ * - The variable "SecondaryDemand", of type netCDF::NcDouble and indexed
  *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon": entry
  *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
  *   requirement which are specified on the secondary reserve zone i in the
@@ -407,7 +413,7 @@ class UCBlock : public Block
  *   provided then it is taken to be 0, which means that no inertia
  *   constraints are present in the problem.
  *
- * - The variable "InertiaZones", of type netCDF::NcUint() and indexed over
+ * - The variable "InertiaZones", of type netCDF::NcUint and indexed over
  *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
  *   inertia zone the node n belongs. If InertiaZones[ n ] >=
  *   NumberInertiaZones, this means that node n does not belong to any inertia
@@ -417,7 +423,7 @@ class UCBlock : public Block
  *   loaded. If NumberInertiaZones == 1 and this variable is not defined, then
  *   there is only one inertia zone and all the nodes belong to it.
  *
- * - The variable "InertiaDemand", of type netCDF::NcDouble() and indexed both
+ * - The variable "InertiaDemand", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
  *   InertiaDemand[ i , t ] is assumed to contain the inertia reserves
  *   requirement which are specified on the inertia constraints zone i in the
@@ -429,17 +435,17 @@ class UCBlock : public Block
  *   taken to be 0, which means that no pollutants constraints are present in
  *   the problem.
  *
- * - The variable "NumberPollutantZones" of type netCDF::NcUint() and indexed
+ * - The variable "NumberPollutantZones" of type netCDF::NcUint and indexed
  *   over the dimension "NumberPollutants": the entry NumberPollutantZones[ p
  *   ] is assumed to contain the number of pollutant zones associated with
  *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then this
  *   variable need not be defined, since it is not loaded. The total number of
  *   pollutant zones is useful (cf. PollutantBudget); it will be referred to
- *   as TotalNumberPollutantZones, and it is computed simply as
+ *   as "TotalNumberPollutantZones", and it is computed simply as
  *   TotalNumberPollutantZones = NumberPollutantZone[ 0 ] + ... +
  *   NumberPollutantZone[ NumberPollutants - 1 ].
  *
- * - The variable "PollutantZones", of type netCDF::NcUint() and indexed over
+ * - The variable "PollutantZones", of type netCDF::NcUint and indexed over
  *   the dimensions "NumberPollutants" and "NumberNodes": the entry
  *   PollutantZones[ p , n ] tells to which pollutant zone associated with
  *   pollutant p the node n belongs. If PollutantZones[ p , n ] >=
@@ -449,7 +455,7 @@ class UCBlock : public Block
  *   NumberPollutants == 0 (say, it is not provided) then this variable need
  *   not be defined, since it is not loaded.
  *
- * - The variable "PollutantBudget", of type netCDF::NcDouble() and indexed
+ * - The variable "PollutantBudget", of type netCDF::NcDouble and indexed
  *   over the set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
  *   PollutantBudget[ n ] for n == 0 , ..., TotalNumberPollutantZones - 1 is
  *   assumed to contain the pollutant budget (across all the time horizon) for
@@ -471,9 +477,9 @@ class UCBlock : public Block
  *   zone 1 of pollutant 1 ...  If NumberPollutants == 0 (say, it is not
  *   provided) then this variable need not be defined, since it is not loaded.
  *
- * - The variable "PollutantRho", of type netCDF::NcDouble() and indexed over
- *   three dimensions which are TimeHorizon and NumberPollutants and the set {
- *   0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
+ * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
+ *   three dimensions which are "TimeHorizon" and "NumberPollutants" and the
+ *   set { 0 , ... , NumberElectricalGenerators - 1 } (see comments above). The
  *   first dimension can have size either 1 or TimeHorizon. In the former case
  *   the entry PollutantRho[ 0 , p , g ] is assumed to contain the conversion
  *   factor of pollutant p due to the electrical generator g which is equal
@@ -481,7 +487,32 @@ class UCBlock : public Block
  *   TimeHorizon and the entry PollutantRho[ t , p , g ] gives the conversion
  *   factor of pollutant p due to the electrical generator g for time t. If
  *   NumberPollutants == 0 (it is not provided) then this variable need not be
- *   defined, since it's not loaded. */
+ *   defined, since it's not loaded.
+ *
+ * - The variable "StartNetworkIntervals", of type netCDF::NcUint and indexed
+ *   over the dimension "NumberNetworks"; the entry StartNetworkIntervals[ n ]
+ *   tells at which time horizon w.r.t. the given dimension "TimeHorizon"
+ *   starts the NetworkBlock n, and the difference StartNetworkIntervals[ n +
+ *   1 ] - StartNetworkIntervals[ n ] indicates the number sub time horizons
+ *   spanned by the NetworkBlock n. If it is not given in input, each
+ *   NetworkBlock is supposed to span one single time horizon, so
+ *   StartNetworkIntervals[ n ] is set equal to n.
+ *
+ * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
+ *   indexed over the dimension "NumberNetworks"; the entry
+ *   NetworkConstantTerms[ n ] tells the constant term, i.e. typically the
+ *   fixed costs, of the NetworkBlock n.
+ *
+ * - The variable "NetworkBlockClassname", of type netCDF::NcString specify
+ *   the classname of the specific NetworkBlock to be instantiate if no one is
+ *   explicitly given in input. For backward compatibility reasons w.r.t. the
+ *   netCDF input data files already given, the default value is
+ *   "DCNetworkBlock".
+ *
+ * - The variable "NetworkDataClassname", of type netCDF::NcString specify
+ *   the classname of the specific NetworkData to be instantiate. For backward
+ *   compatibility reasons w.r.t. the netCDF input data files already given,
+ *   the default value is "DCNetworkData". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

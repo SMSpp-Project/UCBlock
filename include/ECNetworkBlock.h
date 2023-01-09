@@ -3,14 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class ECNetworkBlock, which derives from NetworkBlock
- * and describe the behaviour of the energy community network in a specific time
- * instant or in a time interval, in the Unit Commitment problem.
- *
- * Each instance of this class refers to a specific time period or to a time
- * interval, e.g., a peak period, in the whole time horizon, i.e.,
- * \f$ \mathcal{w} \in \mathcal{W} \f$, so it can span an arbitrary
- * number of sub time horizon or intervals, i.e.,
- * \f$ \mathcal{\hat{t}_w} \in \mathcal{\hat{T}_w} \subseteq \mathcal{T} \f$.
+ * and describe the behaviour of the energy community network at a specific time
+ * instant or in a time interval, e.g., a peak period that can span an
+ * arbitrary number of sub time horizons, in the Unit Commitment problem.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -54,6 +49,16 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an energy community NetworkBlock, i.e., an "EC" network
+/**
+ * The ECNetworkBlock class derives from NetworkBlock, and embeds the idea
+ * that a number of users with no pre-installed generation assets are joining to
+ * create an energy community. Each user is connected to the public grid
+ * through each own Point-of-Delivery (PoD), and each user is billed for the
+ * energy he consumes and sells. The aggregation of the users, under the
+ * umbrella of the formal entity Energy Community, is awarded with an
+ * economic benefit that is proportional to the energy shared among the
+ * users, which is the energy that in each time step is produced and sold by
+ * users within the community. */
 
 class ECNetworkBlock : public NetworkBlock
 {
@@ -119,46 +124,27 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
   /// deserialize an ECNetworkData out of a netCDF::NcGroup
-  /** Deserialize an ECNetworkData out of a netCDF::NcGroup, which should
-   * contain the following:
+  /** Deserialize an ECNetworkData out of a netCDF::NcGroup in case the
+   * following variables are the same for each ECNetworkBlock of the
+   * problem, so they were given just one time in the netCDF, at the head of
+   * the hierarchy, which should contain the following:
    *
    * - The dimension "NumberNodes" containing the number of nodes in the
    *   problem; this dimension is mandatory and it cannot be equals to 1
    *   since cannot exists an Energy Community with just one user;
    *
-   * - The dimension "NumberIntervals" containing the number of intervals
-   *   spanned by each network block; this dimension is optional, if it is
-   *   not provided then it is taken to be == 1;
+   * - The variable "BuyPrice", of type netCDF::NcDouble and containing the
+   *   tariff that the user pays to buy electricity from the public market;
    *
-   * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
-   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-   *   is not provided, then this variable must be of size 1). This is meant to
-   *   represent the vector BuyP[ t ] that, for each time instant t, contains
-   *   the tariff that the user pays to buy electricity from the public market
-   *   for the corresponding time step. If "BuyPrice" has length 1 then
-   *   BuyP[ t ] contains the same value for all t;
+   * - The variable "SellPrice", of type netCDF::NcDouble and containing the
+   *   tariff that the user gains to sell electricity to the public market;
    *
-   * - The variable "SellPrice", of type netCDF::NcDouble and either of size
-   *   1 or indexed over the dimension "NumberIntervals" (if
-   *   "NumberIntervals" is not provided, then this variable must be of size
-   *   1). This is meant to represent the vector SellP[ t ] that, for each
-   *   time instant t, contains the tariff that the user gains to sell
-   *   electricity to the public market for the corresponding time step. If
-   *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
-   *   all t;
+   * - The variable "RewardPrice", of type netCDF::NcDouble and containing the
+   *   reward benefit awarded to the energy community for the energy consumed
+   *   within the community itself;
    *
-   * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
-   *   1 or indexed over the dimension "NumberIntervals" (if
-   *   "NumberIntervals" is not provided, then this variable must be of size
-   *   1). This is meant to represent the vector RewardP[ t ] that, for each
-   *   time instant t, contains the reward benefit awarded to the energy
-   *   community for the energy consumed within the community itself, for the
-   *   corresponding time step. If "RewardPrice" has length 1 then
-   *   RewardP[ t ] contains the same value for all t;
-   *
-   * - The variable "PeakTariff", of type netCDF::NcDouble and of size
-   *   1. This is meant to represent the tariff that the user pays due to the
-   *   peak power. */
+   * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
+   *   tariff that the user pays due to the peak power. */
 
   virtual void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -621,10 +607,73 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Other initializations
 * @{ */
 
- /// deserialize a ECNetworkBlock out of a netCDF::NcGroup
- /** Deserialize a ECNetworkBlock out of a netCDF::NcGroup, which should
-  * contain all the data necessary to describe a NetworkBlock (see
-  * NetworkBlock::deserialize()). */
+ /// deserialize an ECNetworkBlock out of a netCDF::NcGroup
+ /** Deserialize an ECNetworkBlock out of a netCDF::NcGroup in case the
+  * following variables are different for each ECNetworkBlock of the problem,
+  * so they were explicitly given in each netCDF, each of which should contain
+  * the following:
+  *
+  * - The dimension "NumberIntervals" containing the number of intervals
+  *   spanned by this network block; this dimension is optional, if it is
+  *   not provided then it is taken to be equal to 1;
+  *
+  * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
+  *   the dimensions "NumberIntervals" and "NumberNodes".
+  *   If the NetworkData object description is present in the NcGroup this is
+  *   the dimension "NumberNodes", but the NetworkData object is optional and it
+  *   may not be there. Thus, if "NumberNodes" is not there and "ActiveDemand"
+  *   is, then the NetworkData object must have been passed by set_NetworkData(),
+  *   and the number of nodes can be read via NetworkData::get_number_nodes().
+  *   However, "ActiveDemand" itself is optional. If it is not found in the
+  *   NcGroup, then it *must* be passed (either before or after the call to
+  *   deserialize()) by calling set_active_demand(). Since both groups of data
+  *   are optional, the NcGroup  can actually be empty which implies that all
+  *   the data will be (or have been) passed by the in-memory interface. In
+  *   this case, it would clearly be preferable to *entirely avoid the NcGroup
+  *   to be there*, and in fact UCBlock has provisions for the NcGroup
+  *   describing the NetworkBlock to be optional [see the comments to
+  *   UCBlock::deserialize()];
+  *
+  * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
+  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable must be of size 1). This is meant to
+  *   represent the vector BuyP[ t ] that, for each time instant t, contains
+  *   the tariff that the user pays to buy electricity from the public market
+  *   for the corresponding time step. If "BuyPrice" has length 1 then
+  *   BuyP[ t ] contains the same value for all t;
+  *
+  * - The variable "SellPrice", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable must be of size
+  *   1). This is meant to represent the vector SellP[ t ] that, for each
+  *   time instant t, contains the tariff that the user gains to sell
+  *   electricity to the public market for the corresponding time step. If
+  *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
+  *   all t;
+  *
+  * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable must be of size
+  *   1). This is meant to represent the vector RewardP[ t ] that, for each
+  *   time instant t, contains the reward benefit awarded to the energy
+  *   community for the energy consumed within the community itself, for the
+  *   corresponding time step. If "RewardPrice" has length 1 then
+  *   RewardP[ t ] contains the same value for all t;
+  *
+  * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
+   *  tariff that the user pays due to the peak power;
+  *
+  * - The variable "ConstTerm", of type netCDF::NcDouble and containing the
+  *   constant term, i.e., typically the fixed costs;
+  *
+  * - The variable "MaxNodeInjection", of type netCDF::NcDouble and indexed over
+  *   the dimensions "NumberIntervals" and "NumberNodes". This is meant to
+  *   represent the vector MNI[ t , u ] that contains the upper bound of the
+  *   node injection variable at time instant t of the user u. If it is not
+  *   found in the NcGroup, then MNI[ t , u ] is set as the sum of the
+  *   maximum powers at the given time instant t of all the electrical
+  *   generators owned by the user u. [see the comments to
+  *   UCBlock::deserialize()]. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -654,12 +703,46 @@ class ECNetworkBlock : public NetworkBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// set the active demand at the nodes specified by \p subset
+ /** This function sets the active demand at each node in the given \p
+  * subset. The active demand at the node whose index is specified by the i-th
+  * element in \p subset is given by the i-th element of the vector pointed by
+  * \p values, i.e., it is given by the value pointed by (values + i). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param subset The indices of the nodes at which the active demand is being
+  *        modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
  void set_active_demand( std::vector< double >::const_iterator values ,
                          Subset && subset ,
                          bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
+/*--------------------------------------------------------------------------*/
+ /// set the active demand at the nodes specified by \p rng
+ /** This function sets the active demand at each node in the given Range \p
+  * rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is given by the element of the vector pointed
+  * by \p values whose index is (i - rng.first), i.e., it is given by the
+  * value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the active demand.
+  *
+  * @param rng A Range containing the indices of the nodes at which the active
+  *        demand is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
  void set_active_demand( std::vector< double >::const_iterator values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,

@@ -176,8 +176,8 @@ public:
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
-  * - The variable "MinStorage", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+  * - The variable "MinStorage", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
   *   not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinS[ t ] that,
   *   for each time instant t, contains the minimum storage level of the unit
@@ -190,8 +190,8 @@ public:
   *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "MaxStorage", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+  * - The variable "MaxStorage", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
   *   not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxS[ t ] that,
   *   for each time instant t, contains the maximum storage level of the unit
@@ -204,9 +204,9 @@ public:
   *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "MinPower", of type double and either of size 1 or indexed
-  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
+  * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
+  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
   *   for each time instant t, contains the minimum active power output value
   *   of the unit for the corresponding time step.  If "MinPower" has length 1
@@ -218,9 +218,9 @@ public:
   *   the mapping clearly does not require "ChangeIntervals", which in fact is
   *   not loaded.
   *
-  * - The variable "MaxPower", of type double and either of size 1 or indexed
-  *   over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
+  * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
+  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
   *   for each time instant t, contains the maximum active power output value
   *   of the unit for the corresponding time step.  If "MaxPower" has length 1
@@ -232,49 +232,50 @@ public:
   *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The scalar variable "InitialPower", of type double and not indexed over
-  *   any dimension. This variable indicates the amount of the power that the
-  *   unit was producing at time instant -1, i.e., before the start of the
-  *   time horizon; this is necessary to compute the ramp-up and ramp-down
-  *   constraints. This variable is optional; if "DeltaRampUp" and
+  * - The scalar variable "InitialPower", of type netCDF::NcDouble and not
+  *   indexed over any dimension. This variable indicates the amount of the
+  *   power that the unit was producing at time instant -1, i.e., before the
+  *   start of the time horizon; this is necessary to compute the ramp-up and
+  *   ramp-down constraints. This variable is optional; if "DeltaRampUp" and
   *   "DeltaRampDown" are not present, "InitialPower" should not be read,
   *   since there are no ramping constraints. If "DeltaRampUp" and
   *   "DeltaRampDown" are present but "InitialPower" is not provided, its
   *   value is taken to be 0.
   *
-  * - The variable "MaxPrimaryPower", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
-  *   not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MaxPP[ t ] that,
-  *   for each time instant t, contains the maximum active power that can be
-  *   used as primary reserve of the unit for the corresponding time step. If
-  *   "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
-  *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of
-  *   MaxPP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0. This variable is optional, if is not provided then MaxPP[ t ] == 0
-  *   for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
-  *   then the mapping clearly does not require "ChangeIntervals", which in
-  *   fact is not loaded.
+  * - The variable "MaxPrimaryPower", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   MaxPP[ t ] that, for each time instant t, contains the maximum active
+  *   power that can be used as primary reserve of the unit for the
+  *   corresponding time step. If "MaxPrimaryPower" has length 1 then
+  *   MaxPP[ t ] contains the same value for all t. Otherwise,
+  *   MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional,
+  *   if is not provided then MaxPP[ t ] == 0 for all t. If NumberIntervals
+  *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does
+  *   not require "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "MaxSecondaryPower", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is not
-  *   provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MaxSP[ t ] that,
-  *   for each time instant t, contains the maximum active power that can be
-  *   used as secondary reserve of the unit for the corresponding time step. If
-  *   "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the same value
-  *   for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed value of
-  *   MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
-  *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
-  *   all t. Note that MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if
-  *   MaxPrimaryPower is not defined then neither should MaxSecondaryPower). If
+  * - The variable "MaxSecondaryPower", of type netCDF::NcDouble and either
+  *   of size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   MaxSP[ t ] that, for each time instant t, contains the maximum active
+  *   power that can be used as secondary reserve of the unit for the
+  *   corresponding time step. If "MaxSecondaryPower" has length 1 then
+  *   MaxSP[ t ] contains the same value for all t. Otherwise,
+  *   MaxSecondaryPower[ i ] is the fixed value of MaxSP[ t ] for all t in
+  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
+  *   the assumption that ChangeIntervals[ - 1 ] = 0. This variable is
+  *   optional, if is not provided then MaxSP[ t ] == 0 for all t. Note that
+  *   MaxPP[ t ] == 0 implies MaxSP[ t ] == 0 (that is, if MaxPrimaryPower is
+  *   not defined then neither should MaxSecondaryPower). If
   *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
   *   clearly does not require "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "DeltaRampUp", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+  * - The variable "DeltaRampUp", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
   *   not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector DP[ t ] that, for
   *   each time instant t, contains the ramp-up value of the unit for the
@@ -290,25 +291,26 @@ public:
   *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
   *   require "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "DeltaRampDown", of type double and either of size 1 or
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
-  *   not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector DM[ t ] that, for
-  *   each time instant t, contains the ramp-down value of the unit for the
-  *   corresponding time step, i.e., the maximum possible decrease of active
-  *   power production w.r.t. the power that had been produced in time instant
-  *   t - 1, if any. If "DeltaRampDown" has length 1 then DM[ t ] contains the
-  *   same value for all t. Otherwise, DeltaRampDown[ i ] is the fixed value
-  *   of DM[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0. This variable is optional; if it is not provided then it is assumed
-  *   that DM[ t ] == MaxP[ t ], i.e., the unit can ramp down an arbitrary
-  *   amount, i.e., there are no ramp-down constraints. If NumberIntervals <=
-  *   1 or NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
-  *
-  * - The variable "StoringBatteryRho", of type double and to be either of
+  * - The variable "DeltaRampDown", of type netCDF::NcDouble and either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   DM[ t ] that, for each time instant t, contains the ramp-down value of
+  *   the unit for the corresponding time step, i.e., the maximum possible
+  *   decrease of active power production w.r.t. the power that had been
+  *   produced in time instant t - 1, if any. If "DeltaRampDown" has length 1
+  *   then DM[ t ] contains the same value for all t. Otherwise,
+  *   DeltaRampDown[ i ] is the fixed value of DM[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. This variable is optional;
+  *   if it is not provided then it is assumed that DM[ t ] == MaxP[ t ],
+  *   i.e., the unit can ramp down an arbitrary amount, i.e., there are no
+  *   ramp-down constraints. If NumberIntervals <= 1 or NumberIntervals >=
+  *   TimeHorizon, then the mapping clearly does not require
+  *   "ChangeIntervals", which in fact is not loaded.
+  *
+  * - The variable "StoringBatteryRho", of type netCDF::NcDouble and to be
+  *   either of size 1 or indexed over the dimension "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then this variable can also be
   *   indexed over "TimeHorizon"). This is meant to represent the vector
   *   SBR[ t ] that, for each time instant t, contains the inefficiency of
@@ -326,8 +328,8 @@ public:
   *   TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "ExtractingBatterRho", of type double and to be either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  * - The variable "ExtractingBatterRho", of type netCDF::NcDouble and to be
+  *   either of size 1 or indexed over the dimension "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then this variable can also be
   *   indexed over "TimeHorizon"). This is meant to represent the vector
   *   EBR[ t ] that, for each time instant t, contains the inefficiency of
@@ -355,35 +357,36 @@ public:
   * see the comments to generate_abstract_variables() and
   * generate_abstract_constraints().
   *
-  * - The scalar variable "InitialStorage", of type double and not indexed
-  *   over any dimension. This variable indicates the amount of the storage
-  *   level that the unit was producing at time instant -1, i.e., before the
-  *   start of the time horizon; this is necessary to compute the storage
-  *   level connection with intake and outtake constraints.
+  * - The scalar variable "InitialStorage", of type netCDF::NcDouble and not
+  *   indexed over any dimension. This variable indicates the amount of the
+  *   storage level that the unit was producing at time instant -1, i.e.,
+  *   before the start of the time horizon; this is necessary to compute the
+  *   storage level connection with intake and outtake constraints.
   *
-  * - The variable "Cost", of type double and either of size 1 or indexed over
-  *   the dimension "NumberIntervals" (if "NumberIntervals" is not provided,
-  *   then this variable can also be indexed over "TimeHorizon"). This is
-  *   meant to represent the vector C[ t ] that, for each time instant t,
-  *   contains the monetary cost of storing one unit or energy into, or
-  *   extracting it from, the battery (the cost is the same in both cases) at
-  *   the corresponding time step.  This variable is optional; if it is not
-  *   provided then it's taken to be zero. If "Cost" has length 1 then C[ t ]
-  *   contains the same value for all t. Otherwise, Cost[ i ] is the fixed
-  *   value of C[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
-  *   mapping clearly does not require "ChangeIntervals", which in fact is not
-  *   loaded.
+  * - The variable "Cost", of type netCDF::NcDouble and either of size 1 or
+  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
+  *   not provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector C[ t ] that, for
+  *   each time instant t, contains the monetary cost of storing one unit or
+  *   energy into, or extracting it from, the battery (the cost is the same
+  *   in both cases) at the corresponding time step.  This variable is
+  *   optional; if it is not provided then it's taken to be zero. If "Cost"
+  *   has length 1 then C[ t ] contains the same value for all t. Otherwise,
+  *   Cost[ i ] is the fixed value of C[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "Demand", of type double and indexed over the dimension
-  *   "TimeHorizon": the entry Demand[ t ] is assumed to contain the amount of
-  *   energy that must be discharged from the battery and "sent away for some
-  *   other purpose" (say, driving your e-car) at time t. This variable is
-  *   optional; if it isn't defined, then Demand[ t ] == 0. Otherwise the
-  *   Demand[ t ] contains the demand value for each time instant t.
+  * - The variable "Demand", of type netCDF::NcDouble and indexed over the
+  *   dimension "TimeHorizon": the entry Demand[ t ] is assumed to contain
+  *   the amount of energy that must be discharged from the battery and "sent
+  *   away for some other purpose" (say, driving your e-car) at time t. This
+  *   variable is optional; if it isn't defined, then Demand[ t ] == 0.
+  *   Otherwise the Demand[ t ] contains the demand value for each time
+  *   instant t.
   *
-  * - The scalar variable "Kappa", of type netCDF::NcDouble(). This variable
+  * - The scalar variable "Kappa", of type netCDF::NcDouble. This variable
   *   contains the factor that multiplies the minimum and maximum active
   *   power, maximum primary and secondary reserve, and the minimum and
   *   maximum storage levels, at each time instant t. This variable is
