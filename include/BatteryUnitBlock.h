@@ -477,8 +477,8 @@ public:
   *   std::vector< FRowConstraint >; with the dimension of f_time_horizon, where
   *   the entry t = 0, ..., f_time_horizon - 1 being the maximum and minimum
   *   power output value according to the primary and the secondary spinning
-  *   reserves at time t. these ensure the maximum(or minimum) amount of
-  *   energy that unit can produce(or use) when it is on(or off).
+  *   reserves at time t. these ensure the maximum (or minimum) amount of
+  *   energy that unit can produce (or use) when it is on (or off).
   *
   *   \f[
   *      p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} \leq P^{mx}_{t}

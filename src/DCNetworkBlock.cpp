@@ -86,7 +86,12 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" };
+                                                     "NumberLines" ,
+                                                     // if called from UCBlock:
+                                                     "TimeHorizon" ,
+                                                     "NumberUnits" ,
+                                                     "NumberNetworks" ,
+                                                     "NumberElectricalGenerators" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
@@ -97,7 +102,13 @@ void DCNetworkBlock::DCNetworkData::deserialize(
                                                      "Susceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
-                                                     "LineName" };
+                                                     "LineName" ,
+                                                     // if called from UCBlock:
+                                                     "ActivePowerDemand" ,
+                                                     "GeneratorNode" ,
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -163,6 +174,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
 
  get_string_array( "NodeName" , v_node_names , f_number_nodes );
  get_string_array( "LineName" , v_line_names );
+
 }  // end( DCNetworkBlock::DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -173,7 +185,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  static std::vector< std::string > expected_dims = { "NumberNodes" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" };
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -216,6 +229,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
    ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
+
+ ::deserialize( group , f_ConstTerm , "ConstantTerm" );
+
 }  // end( DCNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -225,16 +241,9 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- const auto number_nodes = get_number_nodes();
- const auto number_lines = get_number_lines();
+ NetworkBlock::generate_abstract_variables( stvv );
 
- if( number_nodes > 1 ) {
-  // the node injection variables
-  v_node_injection.resize( number_nodes );
-  for( auto & var : v_node_injection )
-   var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_node_injection , "S" );
- }
+ const auto number_lines = get_number_lines();
 
  if( number_lines > 0 ) {
   // the power flow Variable
@@ -253,6 +262,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  set_variables_generated();
+
 }  // end( DCNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -306,7 +316,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    LinearFunction::v_coeff_pair vars;
 
-   vars.push_back( std::make_pair( &v_node_injection[ n ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
@@ -384,7 +394,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     double coefficient = 0.0;
     // Distribution Factor Matrix
 
-    vars.push_back( std::make_pair( &v_node_injection[ node_id ] ,
+    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
                                     coefficient ) );
 
     constant_term -= coefficient * v_ActiveDemand[ node_id ];
@@ -421,6 +431,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  }  // end AC-HVDC constraints
 
  set_constraints_generated();
+
 }  // end( DCNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -564,6 +575,7 @@ void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
   for( Index i = 0 ; i < v_node_names.size() ; ++i )
    NodeName.putVar( { i } , v_node_names[ i ] );
  }
+
 }  // end( DCNetworkBlock::DCNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -595,6 +607,9 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
  }
+
+ if( f_ConstTerm != 0 )
+  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
 
 }  // end( DCNetworkBlock::serialize )
 

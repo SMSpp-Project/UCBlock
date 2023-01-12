@@ -187,8 +187,8 @@ function csvEC2nc4()
             peak_tariff = defVar(ecnb, "PeakTariff", Float64, ())
             peak_tariff[:] = peak_tariff_data[i_w]
 
-            # `ConstTerm`, i.e., the consumption price
-            const_term = defVar(ecnb, "ConstTerm", Float64, ())
+            # `ConstantTerm`, i.e., the consumption price
+            const_term = defVar(ecnb, "ConstantTerm", Float64, ())
             const_term[:] = sum(constant_term[last_t:last_i])
 
             # # `MaxNodeInjection` to bound the node injection

@@ -458,15 +458,18 @@ class ThermalUnitBlock : public UnitBlock
   * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
   *   time constraints and one possible representation of the constraints could
   *   be as below:
+  *
   *   \f[
   *     u_t - u_{t-1} = v_t - w_t
   *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}             \quad (1)
   *   \f]
+  *
   *   \f[
   *    \sum_{ s \in [ t - \tau_+  , t ] } v_s \leq
   *           u_t \quad t \in \{ \tau_+ + t_0, ..., \mathcal{T} - 1\}
   *                                                                   \quad (2)
   *   \f]
+  *
   *   \f[
   *    \sum_{ s \in [ t - \tau_- , t ] } w_s \leq
   *         1 - u_t \quad t \in \{ \tau_- + t_0, ...,\mathcal{T} - 1\}
@@ -519,6 +522,7 @@ class ThermalUnitBlock : public UnitBlock
   *   with exactly f_time_horizon entries, which are
   *   a = 0, ..., (f_time_horizon - 1). The one possible implementation in
   *   terms of the three binary variables for ramp-up constraints is:
+  *
   *   \f[
   *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
   *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
@@ -565,6 +569,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   Using the symmetry between ramp up and ramp down constraints, we can
   *   derive the ramp-down analogues of the ramp-up inequality as below:
+  *
   *   \f[
   *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
   *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
@@ -611,8 +616,9 @@ class ThermalUnitBlock : public UnitBlock
   *   primary and secondary spinning reserves variables are presented in
   *   inequalities (6) and (7) respectively. Each of them is a
   *   std::vector< FRowConstraint > with exactly f_time_horizon entries
-  *   (0, ..., (f_time_horizon) - 1) and ensures the maximum(or minimum) amount
-  *   of energy that unit can produce(or use) when it is on(or off).
+  *   (0, ..., (f_time_horizon) - 1) and ensures the maximum (or minimum) amount
+  *   of energy that unit can produce (or use) when it is on (or off).
+  *
   *   \f[
   *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (6)
   *   \f]
@@ -629,9 +635,11 @@ class ThermalUnitBlock : public UnitBlock
   *   \f[
   *     p_t^{pr} \leq \rho^{pr}_t p_t^{ac}                       \quad (8)
   *   \f]
+  *
   *   \f[
   *     p_t^{sc} \leq \rho^{sc}_t p_t^{ac}                        \quad (9)
   *   \f]
+  *
   *   There are two more power out put tighter formulations which make the
   *   maximum power output being a function of three binary variables
   *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ as below. More specifically in

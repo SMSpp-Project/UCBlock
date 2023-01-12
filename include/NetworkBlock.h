@@ -363,22 +363,11 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
- /** Method that generates the static variables of this NetworkBlock. The
-  * base NetworkBlock class has just the node injection variables, which are
-  * mandatory as that's how the NetworkBlock is linked to the rest of the UC
-  * model. The size of this variable is the number of nodes, which can be
-  * read
-  *
-  * - if NetworkData object is not provided (basically, "NumberNodes" is not
-  *   provided or it is == 1) then the network is taken to have only one node
-  *   (a bus) and there is only one node injection variable.
-  *
-  * - if the NetworkData object is present (either in the NcGroup or because it
-  *   has been passed and NumberNodes > 1) then this variable has size
-  *   "NumberNodes", which can be read via NetworkData::get_number_nodes(). */
+ /** The base NetworkBlock class has just the node injection variables, which
+  * are mandatory as that's how the NetworkBlock is linked to the rest of the UC
+  * model. */
 
- void generate_abstract_variables( Configuration * stvv = nullptr )
- override {}
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -497,13 +486,11 @@ class NetworkBlock : public Block
  * @{ */
 
  /// returns the number of nodes
- /** This function returns the number of nodes in the transmission
-  * network. This should just be equivalent to
-  * get_NetworkData()->get_number_nodes(), but the base NetworkBlock class
-  * does not handle it, and therefore it assumes the network is a bus and
-  * returns 1. */
+ /** This function returns the number of nodes in the network. This should
+  * just be equivalent to get_NetworkData()->get_number_nodes(), but the base
+  * NetworkBlock class does not handle it. */
 
- virtual Index get_number_nodes( void ) const { return( 1 ); }
+ virtual Index get_number_nodes( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
@@ -518,14 +505,12 @@ class NetworkBlock : public Block
   * class does not handle the NetworkData object. This is OK for derived
   * classes that only handle the "bus" case. */
 
- virtual NetworkData * get_NetworkData( void ) const {
-  return( nullptr );
- }
+ virtual NetworkData * get_NetworkData( void ) const { return( nullptr ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of active demands
  /** Method for returning the active demand for the given interval, which is
-  * assumed to have size get_number_intervals() per get_number_nodes().
+  * assumed to have size get_number_intervals() by get_number_nodes().
   * There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
@@ -547,9 +532,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the constant term
 
- const double & get_const_term( void ) const {
-  return( f_ConstTerm );
- }
+ const double & get_const_term( void ) const { return( f_ConstTerm ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -559,7 +542,7 @@ class NetworkBlock : public Block
 
  /// returns the matrix of node injection variables
  /** Method for returning the node injection variables for the given interval,
-  * which is assumed to have size get_number_intervals() per get_number_nodes().
+  * which is assumed to have size get_number_intervals() by get_number_nodes().
   * There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
@@ -574,8 +557,10 @@ class NetworkBlock : public Block
   * @param i The interval wrt the vector of node injections for each user is
   *          returned. */
 
- virtual ColVariable * get_node_injection( Index i = 0 ) {
-  return( nullptr );
+ ColVariable * get_node_injection( Index t = 0 ) {
+  if( v_node_injection.empty() )
+   return( nullptr );
+  return( &( v_node_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -706,7 +691,8 @@ class NetworkBlock : public Block
 
 /*-------------------------------- variables -------------------------------*/
 
-
+ /// power injection for each interval at each node
+ boost::multi_array< ColVariable , 2 > v_node_injection;
 
 /*------------------------------- constraints ------------------------------*/
 

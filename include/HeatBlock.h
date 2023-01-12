@@ -327,6 +327,7 @@ class HeatBlock : public Block
   *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
   *   production of unit \f$ i \in \mathcal{I} \f$ at time
   *   \f$ t \in \mathcal{T} \f$, the heat production bounds are
+  *
   *   \f[
   *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
   *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
@@ -334,6 +335,7 @@ class HeatBlock : public Block
   *
   * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
   *   at time period \f$ t \in \mathcal{T} \f$:
+  *
   *   \f[
   *     \sum_{ i \in \mathcal{I} } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
   *      \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
@@ -343,6 +345,7 @@ class HeatBlock : public Block
   *   \f$ V^{mx}_t \f$ denoting respectively the minimum and maximum heat
   *   storage . For each heat block at time \f$ t \in \mathcal{T} \f$, the heat
   *   storage bounds are
+  *
   *   \f[
   *     v^{mn}_{t} \leq v_t \leq V^{mx}_t  \quad t \in \mathcal{T}   \quad  (3)
   *   \f]
@@ -352,6 +355,7 @@ class HeatBlock : public Block
   *   inefficiencies in, respectively, storing heat in the heat storage,
   *   extracting heat from the heat storage, and keeping heat in the heat
   *   storage; then the evolution in the stored heat can be written as
+  *
   *   \f[
   *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
   *                                   \quad t \in \mathcal{T}      \quad  (4)
@@ -365,10 +369,12 @@ class HeatBlock : public Block
  /** Method that generates the objective of the HeatBlock.
   *
   * - Objective Function: the objective function of HB simply reads
+  *
   *   \f[
   *     \min \sum_{ i \in \mathcal{I}} \sum_{ t \in \mathcal{T}}
   *          C_{t,i} p^{he}_{t,i}
   *   \f]
+  *
   *   where \f$  C_{t,i} \f$ is the cost of producing one heat unit by unit
   *   \f$ i \in \mathcal{I} \f$ at time \f$ t \in \mathcal{T} \f$. Note that
   *   storing heat has no cost. */

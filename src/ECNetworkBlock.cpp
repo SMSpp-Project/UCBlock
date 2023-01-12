@@ -88,7 +88,6 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
-                                                     "ConstTerm" ,
                                                      "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
@@ -111,6 +110,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  ::deserialize( group , f_SellPrice , "SellPrice" );
  ::deserialize( group , f_RewardPrice , "RewardPrice" );
  ::deserialize( group , f_PeakTariff , "PeakTariff" );
+
 }  // end( ECNetworkBlock::ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -127,7 +127,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
-                                                     "ConstTerm" ,
+                                                     "ConstantTerm" ,
                                                      "MaxNodeInjection" };
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -178,7 +178,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , f_PeakTariff , "PeakTariff" );
 
- ::deserialize( group , f_ConstTerm , "ConstTerm" );
+ ::deserialize( group , f_ConstTerm , "ConstantTerm" );
+
 }  // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -188,38 +189,33 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
- auto number_nodes = get_number_nodes();
- auto number_intervals = get_number_intervals();
+ NetworkBlock::generate_abstract_variables( stvv );
 
- // the node injection variables
- v_node_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
- for( Index t = 0 ; t < number_intervals ; ++t )
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-   v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
- add_static_variable( v_node_injection , "S" );
+ const auto number_nodes = get_number_nodes();
+ const auto number_intervals = get_number_intervals();
 
- // the power injected variables
+ // the power injection variables
  v_micro_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_micro_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_micro_power_injection , "micro_power_injection" );
 
- // the power absorbed variables
+ // the power absorption variables
  v_micro_power_absorption.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_micro_power_absorption[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_micro_power_absorption , "micro_power_absorption" );
 
- // the power injected variables
+ // the power injection variables
  v_public_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_public_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_public_power_injection , "public_power_injection" );
 
- // the power absorbed variables
+ // the power absorption variables
  v_public_power_absorption.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
@@ -233,6 +229,7 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_peak_power , "peak_power" );
 
  set_variables_generated();
+
 }  // end( ECNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -505,6 +502,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
+
 }  // end( ECNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -530,7 +528,8 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 
- ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
+ if( f_ConstTerm != 0 )
+  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
@@ -567,6 +566,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
+
 }  // end( ECNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

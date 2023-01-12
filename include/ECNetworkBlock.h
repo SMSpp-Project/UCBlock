@@ -270,11 +270,14 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generates the static variables of ECNetworkBlock
- /** The base ECNetworkBlock class has just the node injection variables.
-  * Since a "bus" network has just one node, and therefore a single value D for
-  * the demand and a single injection variable s, which can hardly be called a
-  * variable since the only possible way to satisfy the constraints is by
-  * having s = D which in fact makes the variable a constant. */
+ /** The size of node injection variable is the number of intervals spanned
+  * by this ECNetworkBlock by the number of nodes, which can be read via the
+  * NetworkData object (either in the NcGroup or because it has been passed
+  * and NumberNodes > 1), so this variable has size "NumberNodes", which can
+  * be read via NetworkData::get_number_nodes(). The community scenario also
+  * brings with it variables to represent the energy injected (+) or absorbed
+  * (-) from both the public grid and the microgrid within the community, and
+  * the peak power variables. */
 
  void generate_abstract_variables( Configuration * stvv ) override;
 
@@ -292,8 +295,27 @@ class ECNetworkBlock : public NetworkBlock
  /** Method that generates the objective of the ECNetworkBlock.
   *
   * - Objective function: the objective function of the ECNetworkBlock
-  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  *   is given as below:
+  *
+  *   \f[
+  *     \min ( \sum_{ n \in \mathcal{N} } ( \pi^{max} P_n^{max} ) +
+  *         \sum_{ t \in \mathcal{T} }
+  *         ( \pi_t^{-,v} P_{n,t}^{P-} +
+  *         ( \pi_t^{-,v} - \pi_t^{-,r} ) P_{n,t}^{M-} -
+  *         \pi_t^+ P_{n,t}^{P+} - \pi_t^+ P_{n,t}^{M+} ) + \pi_t^{-,f} ) )
+  *   \f]
+  *
+  *   where \f$ \pi^{max} \f$ is the cost due to peak power and \f$ P_n^{max}
+  *   \f$ is the peak power variable; \f$ \pi_t^{-,v} \f$ and
+  *   \f$ \pi_t^{-,f} \f$ are the buy prices of the energy bought from the
+  *   public market, the variable and fixed costs, i.e., the constant term,
+  *   respectively, and \f$ \pi_t^{-,r} \f$ is the tariff that user gains
+  *   when it absorbs power from the microgrid market instead of from the
+  *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{M-} \f$
+  *   are the absorption variables form the public and the microgrid market
+  *   respectively; \f$ \pi_t^+ \f$ is the sell price of the energy, while
+  *   \f$ P_{n,t}^{P+} \f$ and \f$ P_{n,t}^{M+} \f$ are the injection
+  *   variables from the public and the microgrid market respectively. */
 
  void generate_objective( Configuration * objc ) override;
 
@@ -370,9 +392,11 @@ class ECNetworkBlock : public NetworkBlock
   * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
 
  Index get_number_nodes( void ) const override {
-  if( f_NetworkData )
-   return( f_NetworkData->get_number_nodes() );
-  return( 0 );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument( "ECNetworkBlock::get_number_nodes: cannot "
+                                 "create an Energy Community with just one "
+                                 "user" ) );
+  return( f_NetworkData->get_number_nodes() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -386,7 +410,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of active demands
  /** Returns the active demand for the given interval, which is assumed to
-  * have size get_number_intervals() per get_number_nodes().
+  * have size get_number_intervals() by get_number_nodes().
   *
   * @param i The interval wrt the vector of demands for each user is
   *          returned. */
@@ -516,22 +540,9 @@ class ECNetworkBlock : public NetworkBlock
   *
   * - otherwise, V must have f_number_nodes rows and V[ u ] is the
   * maximum peak power for user u. */
+
  const std::vector< ColVariable > & get_peak_power( void ) const {
   return( v_peak_power );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the matrix of node injection variables
- /** Returning the node injection for the given interval, which is assumed to
-  * have size get_number_intervals() per get_number_nodes().
-  *
-  * @param t The interval wrt the vector of node injections for each user is
-  *          returned. */
-
- ColVariable * get_node_injection( Index t = 0 ) override {
-  if( v_node_injection.empty() )
-   return( nullptr );
-  return( &( v_node_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -663,7 +674,7 @@ class ECNetworkBlock : public NetworkBlock
   * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
    *  tariff that the user pays due to the peak power;
   *
-  * - The variable "ConstTerm", of type netCDF::NcDouble and containing the
+  * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term, i.e., typically the fixed costs;
   *
   * - The variable "MaxNodeInjection", of type netCDF::NcDouble and indexed over
@@ -789,20 +800,15 @@ class ECNetworkBlock : public NetworkBlock
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_ActiveDemand;
 
- // energy bought from the public market at the national
- // price /pi^{P-,V} + /pi^{P-,F}
- // (the second term, i.e., the fixed tariff, is given as part of the
- // constant term)
-
  /// tariff that the user pays to buy electricity at each time horizon
- std::vector< double > v_BuyPrice; // /pi^{P-,V}
+ std::vector< double > v_BuyPrice;
 
  /// tariff that the user gains to sell electricity at each time horizon
- std::vector< double > v_SellPrice; // /pi^{P+}
+ std::vector< double > v_SellPrice;
 
  /// tariff that the user gains when it absorbs power from the microgrid
  /// market / network (instead of from the public grid) at each time horizon
- std::vector< double > v_RewardPrice; // /pi^{R}
+ std::vector< double > v_RewardPrice;
 
  /// tariff that the user pays due to the peak power
  double f_PeakTariff{};
@@ -812,30 +818,27 @@ class ECNetworkBlock : public NetworkBlock
 
 /*-------------------------------- variables -------------------------------*/
 
- /// power injection for each interval at each node
- boost::multi_array< ColVariable , 2 > v_node_injection;
-
  /// power injected (+) at each node of the network, i.e., at each user PoD,
  /// to the microgrid market / network
- boost::multi_array< ColVariable , 2 > v_micro_power_injection; // P^{M^+}
+ boost::multi_array< ColVariable , 2 > v_micro_power_injection;
 
  /// power absorbed (-) at each node of the network, i.e., at each user PoD,
  /// from the microgrid market / network
- boost::multi_array< ColVariable , 2 > v_micro_power_absorption; // P^{M^-}
+ boost::multi_array< ColVariable , 2 > v_micro_power_absorption;
 
  /// power injected (+) at user PoD from the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- boost::multi_array< ColVariable , 2 > v_public_power_injection; // P^{P^+}
+ boost::multi_array< ColVariable , 2 > v_public_power_injection;
 
  /// power absorbed (-) at user PoD from the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- boost::multi_array< ColVariable , 2 > v_public_power_absorption; // P^{P^-}
+ boost::multi_array< ColVariable , 2 > v_public_power_absorption;
 
  /// maximum power usage at user PoD of the corresponding peak power period,
  /// i.e., a specific interval in "NumberIntervals"
- std::vector< ColVariable > v_peak_power; // P^{max}
+ std::vector< ColVariable > v_peak_power;
 
 /*------------------------------- constraints ------------------------------*/
 

@@ -44,6 +44,25 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::generate_abstract_variables( Configuration * stvv ) {
+
+ const auto number_nodes = get_number_nodes();
+ const auto number_intervals = get_number_intervals();
+
+ if( number_nodes > 1 ) {
+  // the node injection variables
+  v_node_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index t = 0 ; t < number_intervals ; ++t )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
+  add_static_variable( v_node_injection , "S" );
+ }
+}  // end( NetworkBlock::generate_abstract_variables )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 

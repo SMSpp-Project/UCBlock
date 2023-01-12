@@ -152,15 +152,15 @@ void HeatBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "TotalHeatDemand" , f_time_horizon ,
                 v_heat_demand );
 /*
-    ::deserialize( group, "CostHeatUnit",
+    ::deserialize( group , "CostHeatUnit",
                    { f_number_intervals , f_number_heat_units },
                    v_cost_heat_unit );
 
-    ::deserialize( group, "MinHeatProduction",
+    ::deserialize( group , "MinHeatProduction",
                    { f_number_intervals , f_number_heat_units },
                    v_min_heat_production );
 
-    ::deserialize( group, "MaxHeatProduction",
+    ::deserialize( group , "MaxHeatProduction",
                    { f_number_intervals , f_number_heat_units },
                    v_max_heat_production ); */
 

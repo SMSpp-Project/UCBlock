@@ -489,23 +489,32 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the DCNetworkBlock
- /** Depending on the susceptance for each line of the network, the
+ /** The size of node injection variable is the  number of intervals spanned
+  * this DCNetworkBlock, i.e., 1, by the number of nodes, which can be read:
+  *
+  * - if NetworkData object is not provided (basically, "NumberNodes" is not
+  *   provided or it is == 1) then the network is taken to have only one node
+  *   (a bus) and there is only one node injection variable.
+  *
+  * - if the NetworkData object is present (either in the NcGroup or because it
+  *   has been passed and NumberNodes > 1) then this variable has size
+  *   "NumberNodes", which can be read via NetworkData::get_number_nodes().
+  *
+  * Depending on the susceptance for each line of the network, the
   * DCNetworkBlock class may have a power flow variable or not. In other word,
-  * if the susceptance is equal to zero(or not defined), the corresponding line
+  * if the susceptance is equal to zero (or not defined), the corresponding line
   * is a HVDC line and it must have the power flow variable. It means, each
   * HVDC line correspond to a power flow variable, then for the Net Transfer
   * Capacity (NTC) model all lines must have a power flow variable. If the
   * susceptance value is a non-zero value, the corresponding line is called AC
   * and there is no needed to define the power flow variable for that line.
-  * Therefor, in the case of pure AC line there is no needed to define power
+  * Therefore, in the case of pure AC line there is no needed to define power
   * flow variables. Consequently, for the mixed case AC-HVDC, the power flow
   * variable must define just for HVDC lines. Similarly, depending on the
   * NetworkCost for each line of the network, the DCNetworkBlock class may have
   * an auxiliary variable or not. In other word, if the NetworkCost is equal to
-  * zero(or not defined), the auxiliary variable and corresponding constraints
-  * will not be defined.
-  *
-  * Note that since in this class the configuration is ignored. */
+  * zero (or not defined), the auxiliary variable and corresponding constraints
+  * will not be defined. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -518,7 +527,7 @@ class DCNetworkBlock : public NetworkBlock
   * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
   * at node \f$ n \in N \f$ in the network respectively. The node injection
   * variable of each node \f$ n \in N \f$ and the power flows variable and an
-  * auxiliary variable(which is not be defined if there is no network cost), of
+  * auxiliary variable (which is not be defined if there is no network cost), of
   * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
   * \f$ V_l \f$ respectively.
   *
@@ -597,157 +606,33 @@ class DCNetworkBlock : public NetworkBlock
   *      concatenation of bloc matrices as follows:
   *
   *     \f[
-  *
   *       A = \left[
   *       \begin{array}{cc}
   *       B & -B(A^{dc})^T \\
   *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
   *       \end{array}\right]                                          \quad (6)
-  *
   *     \f]
   *
   *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
   *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
   *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
-  *      identity matrix. Therefor, the flow limit equations can be transformed
+  *      identity matrix. Therefore, the flow limit equations can be transformed
   *      into:
   *
   *      \f[
-  *
   *       P^{mn} \leq A \left[
   *       \begin{array}{c}
   *       a \\
   *       b
   *       \end{array}\right]
   *       \leq  P^{mx}                                                \quad (7)
-  *
   *      \f]
+  *
   *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
   *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
   *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
   *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
-  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
-  *
-  * Note that since in this class the configuration is ignored.*/
-
-  /// generate abstract constraints of DCNetworkBlock
-  /** Three different kinds of DCNetworkBlock constraints are defined as below:
-   * The topology of the transmission network is defined by a set of nodes
-   * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
-   * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
-   * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
-   * at node \f$ n \in N \f$ in the network respectively. The node injection
-   * variable of each node \f$ n \in N \f$ and the power flows variable and an
-   * auxiliary variable (which is not be defined if there is no network cost), of
-   * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
-   * \f$ V_l \f$ respectively.
-   *
-   *  - DCNetworkBlock with just HVCD lines or the Net Transfer Capacity (NTC)
-   *    model:
-   *    In this special case the susceptance value for each line is equal to
-   *    zero. In fact, this corresponds to a model with a single connected grid
-   *    composed of HVDC lines only. In this case, the flow limit equations
-   *    define as:
-   *
-   *    \f[
-   *    P^{mn}_l \leq F_l  \leq P^{mx}_l
-   *                                                     \quad l \in L \quad (1)
-   *    \f]
-   *
-   *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
-   *   be the start and the end point of that respectively. Besides, the
-   *   following link between power flows and injected power at each node of the
-   *   grid:
-   *
-   *    \f[
-   *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
-   *                                                   \quad n \in N   \quad (2)
-   *    \f]
-   *
-   *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
-   *    will have an objective function which is equal to multiplying NetworkCost
-   *    by absolut value of power flows variable. To relaxing the absolute value,
-   *    an auxiliary variable and constraints as below are needed:
-   *
-   *    \f[
-   *    F_l \leq V_l                                     \quad l \in L \quad (3)
-   *    \f]
-   *
-   *    \f[
-   *    -V_l \leq F_l                                    \quad l \in L \quad (4)
-   *    \f]
-   *
-   *  - DCNetworkBlock with just AC lines model:
-   *    By considering a \f$ |L| \times |N| \f$ matrix
-   *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
-   *    Factor matrix (PTDF-matrix) which represents the linear relationship
-   *    between power injections at each node of the grid and active power flows
-   *    through the transmission lines.
-   *
-   *  The flow limit equations can be written as follow:
-   *
-   *  \f[
-   *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
-   *   (S_n - D^{ac}_n) \leq  P^{mx}_l
-   *                                                     \quad l \in L \quad (5)
-   *  \f]
-   *
-   *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
-   *    This is the case of an hybrid grid constituted of both AC and HVDC (High
-   *    Voltage Direct Current) lines. The DC lines are characterized by the
-   *    fact that the flow passing through those lines is fully controllable.
-   *    However, this flow still has an impact on the flows passing through
-   *    connected AC lines. To use the matrix formalism, we first introduce some
-   *    additional notations:
-   *
-   *    - Lines of the grid are indexed by \f$ l = 1,···|L^{ac}| \f$ for AC
-   *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
-   *      refer to DC lines.
-   *
-   *    - For any \f$ l \in \{1,···|L^{ac}| \}\f$ and
-   *      \f$ k \in \{1,···|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
-   *      nodes related by the AC line indexed by \f$ l \f$ and
-   *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
-   *      line indexed by \f$ k+|L^{dc}| \f$.
-   *
-   *    - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
-   *      matrix induced by DC lines of the grid and the
-   *      \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
-   *      concatenation of bloc matrices as follows:
-   *
-   *     \f[
-   *
-   *       A = \left[
-   *       \begin{array}{cc}
-   *       B & -B(A^{dc})^T \\
-   *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
-   *       \end{array}\right]                                          \quad (6)
-   *
-   *     \f]
-   *
-   *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
-   *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
-   *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
-   *      identity matrix. Therefor, the flow limit equations can be transformed
-   *      into:
-   *
-   *      \f[
-   *
-   *       P^{mn} \leq A \left[
-   *       \begin{array}{c}
-   *       a \\
-   *       b
-   *       \end{array}\right]
-   *       \leq  P^{mx}                                                \quad (7)
-   *
-   *      \f]
-   *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
-   *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
-   *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
-   *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
-   *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
-   *
-   * Note that since in this class the configuration is ignored. */
+  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
  override;
@@ -760,10 +645,11 @@ class DCNetworkBlock : public NetworkBlock
   *   is given as below:
   *
   *   \f[
-  *     \min ( \sum_{ l \in L } ( NC_l V_l )
+  *     \min ( \sum_{ l \in \mathcal{L} } ( NC_l V_l ) )
   *   \f]
+  *
   *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
-  *   variable */
+  *   variable. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -837,14 +723,15 @@ class DCNetworkBlock : public NetworkBlock
  /// returns the number of nodes
  /** Returns the number of nodes in the transmission network. If
   * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero.
+  * get_NetworkData()->get_number_nodes(). Otherwise, it assumes the network
+  * is a bus and returns 1.
   *
   * @return the number of nodes in the network. */
 
  Index get_number_nodes( void ) const override {
-  if( f_NetworkData )
-   return( f_NetworkData->get_number_nodes() );
-  return( 0 );
+  if( ! f_NetworkData )
+   return( 1 );
+  return( f_NetworkData->get_number_nodes() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -856,9 +743,9 @@ class DCNetworkBlock : public NetworkBlock
   * @return the number of lines in the network. */
 
  Index get_number_lines( void ) const {
-  if( f_NetworkData )
-   return( f_NetworkData->get_number_lines() );
-  return( 0 );
+  if( ! f_NetworkData )
+   return( 0 );
+  return( f_NetworkData->get_number_lines() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -913,8 +800,8 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns a pointer to the ECNetworkData
- /** Return a pointer to the ECNetworkData. */
+ /// returns a pointer to the DCNetworkData
+ /** Return a pointer to the DCNetworkData. */
 
  NetworkData * get_NetworkData( void ) const override {
   return( f_NetworkData );
@@ -947,30 +834,6 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Reading the Variable of the DCNetworkBlock
  * @{ */
 
- /// returns the matrix of node injection variables
- /** Method for returning the node injection variables for the given interval,
-  * which is assumed to have size get_number_intervals() per get_number_nodes().
-  * There are two possible cases:
-  *
-  * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the node injection for each user u is I[ 0 , u ] for all intervals t,
-  *   which means that the second dimension has size get_number_nodes().
-  *   This will be the default case;
-  *
-  * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the I[ t , u ] represents the node injection
-  *   for the problem at time t for each user u, e.g., ECNetwork case;
-  *
-  * @param t The interval wrt the vector of node injections for each user is
-  *          returned. */
-
- ColVariable * get_node_injection( Index t = 0 ) override {
-  if( v_node_injection.empty() )
-   return( nullptr );
-  return( &( v_node_injection.front() ) );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of power flow variables
  /** The returned std::vector< ColVariable >, say F, contains the power flow
   * variables and is indexed over the dimension "NumberLines". There are two
@@ -1112,7 +975,10 @@ class DCNetworkBlock : public NetworkBlock
   *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
   *   minimum and maximum flow in the flow limit constraints. This variable is
   *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
-  *   each line l in {0, ..., get_number_lines() - 1}. */
+  *   each line l in {0, ..., get_number_lines() - 1};
+  *
+  * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
+  *   constant term. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1278,9 +1144,6 @@ class DCNetworkBlock : public NetworkBlock
  std::vector< double > v_kappa;
 
 /*-------------------------------- variables -------------------------------*/
-
- /// power injection at each node
- std::vector< ColVariable > v_node_injection;
 
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;

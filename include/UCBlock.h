@@ -702,6 +702,7 @@ class UCBlock : public Block
   *   p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
   *                                 \quad t \in \mathcal{T} \quad           (6)
   * \f]
+  *
   *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
   *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
   *   \mathcal{G}^{ec}(h) \f$, there is the need to know which electrical
