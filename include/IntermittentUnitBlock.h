@@ -225,12 +225,12 @@ class IntermittentUnitBlock : public UnitBlock
   *
   *   \f[
   *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
-  *          \quad t \in \mathcal{T}                              \quad (1)
+  *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
   *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
-  *          \quad t \in \mathcal{T}                              \quad (2)
+  *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
   *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
@@ -241,7 +241,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   *   \f[
   *    p^{ac}_{t} \in [ \kappa * P^{mn}_{t} , \kappa * P^{mx}_{t}]
-  *                              \quad t \in \mathcal{T}          \quad (3)
+  *                                           \quad t \in \mathcal{T} \quad (3)
   *   \f]
   */
 

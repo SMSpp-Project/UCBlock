@@ -218,6 +218,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 /*--------------------------------------------------------------------------*/
 
 void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
+
  Block::serialize( group );
 
  auto dim_number_hydro_units = group.addDim( "NumberHydroUnits" ,

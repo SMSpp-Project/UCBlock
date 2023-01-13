@@ -461,7 +461,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   \f[
   *     u_t - u_{t-1} = v_t - w_t
-  *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}             \quad (1)
+  *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}               \quad (1)
   *   \f]
   *
   *   \f[
@@ -526,7 +526,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f[
   *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
   *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
-  *            \quad t \in \{ t_0, ..., \mathcal{T} - 1 \} \quad (4)
+  *                       \quad t \in \{ t_0, ..., \mathcal{T} - 1 \} \quad (4)
   *   \f]
   *
   *   where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants
@@ -573,7 +573,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f[
   *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
   *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
-  *            \quad t \in \{t_0, ..., \mathcal{T} - 1 \}             \quad (5)
+  *                        \quad t \in \{t_0, ..., \mathcal{T} - 1 \} \quad (5)
   *   \f]
   *
   *   The sam analyzing the left hand side of the ramp-down constraint (5), in
@@ -620,11 +620,11 @@ class ThermalUnitBlock : public UnitBlock
   *   of energy that unit can produce (or use) when it is on (or off).
   *
   *   \f[
-  *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t          \quad (6)
+  *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t            \quad (6)
   *   \f]
   *
   *   \f[
-  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}   \quad (7)
+  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}       \quad (7)
   *   \f]
   *
   *   The same as inequalities (6)-(7), the inequalities (8)-(9) ensure that
@@ -633,11 +633,11 @@ class ThermalUnitBlock : public UnitBlock
   *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:
   *
   *   \f[
-  *     p_t^{pr} \leq \rho^{pr}_t p_t^{ac}                       \quad (8)
+  *     p_t^{pr} \leq \rho^{pr}_t p_t^{ac}                            \quad (8)
   *   \f]
   *
   *   \f[
-  *     p_t^{sc} \leq \rho^{sc}_t p_t^{ac}                        \quad (9)
+  *     p_t^{sc} \leq \rho^{sc}_t p_t^{ac}                            \quad (9)
   *   \f]
   *
   *   There are two more power out put tighter formulations which make the
@@ -689,8 +689,8 @@ class ThermalUnitBlock : public UnitBlock
   *  cost to be minimized has the form:
   *
   *  \f[
-  *    \sum_{ t \in  [t_0 , \mathcal{|T|} - 1]  } s_t v_t +
-  *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t)
+  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1]  } s_t v_t +
+  *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
   *  \f]
   *
   *  where \f$ v_t \f$ indicates that the unit is starting up at time t, u_t

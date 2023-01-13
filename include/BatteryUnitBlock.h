@@ -482,12 +482,12 @@ public:
   *
   *   \f[
   *      p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} \leq P^{mx}_{t}
-  *          \quad t \in \mathcal{T}                              \quad (1)
+  *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
   *     P^{mn}_{t} \leq p^{ac}_{t} - p^{pr}_{t} - p^{sc}_{t}
-  *         \quad t \in \mathcal{T}                               \quad (2)
+  *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
   *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
@@ -501,12 +501,12 @@ public:
   *
   *   \f[
   *    p^{ac}_{t} - p^{ac}_{t-1} \leq \Delta^{up}_{t}
-  *         \quad t \in \mathcal{T}                               \quad (3)
+  *                                           \quad t \in \mathcal{T} \quad (3)
   *   \f]
   *
   *   \f[
   *    p^{ac}_{t} - p^{ac}_{t-1} \geq - \Delta^{dn}_{t}
-  *         \quad t \in \mathcal{T}                               \quad (4)
+  *                                           \quad t \in \mathcal{T} \quad (4)
   *   \f]
   *
   *   where \f$ \Delta^{up}_{t} \f$ and \f$ \Delta^{dn}_{t} \f$ are the delta
@@ -524,12 +524,12 @@ public:
   *
   *   \f[
   *    p^{ac}_{t} = p^+_t - p^-_{t}
-  *         \quad t \in \mathcal{T}                               \quad (5)
+  *                                           \quad t \in \mathcal{T} \quad (5)
   *   \f]
   *
   *   \f[
   *     p^+_t , p^-_t \leq  P^{mx}_{t}
-  *         \quad t \in \mathcal{T}                               \quad (6)
+  *                                           \quad t \in \mathcal{T} \quad (6)
   *   \f]
   *
   * - storage level relation with intake and outtake levels (if any)
@@ -540,7 +540,8 @@ public:
   *
   *   \f[
   *    v^{ba}_{t} = v^{ba}_{t-1} - \rho^+_{t}p^+_{t} +
-  *    \rho^-_{t}p^-_{t}-d^{ba}_t      \quad t \in \mathcal{T}    \quad (7)
+  *    \rho^-_{t}p^-_{t}-d^{ba}_t
+  *                                           \quad t \in \mathcal{T} \quad (7)
   *   \f]
   *
   *   Note that if the equation (7) will change as below which is a
@@ -550,7 +551,7 @@ public:
   *
   *   \f[
   *    v^{ba}_{t} = v^{ba}_{t-1} - p^{ac}_{t} - d^{ba}_t
-  *               \quad t \in \mathcal{T}          \quad (8)
+  *                                           \quad t \in \mathcal{T} \quad (8)
   *   \f]
   *
   *   The equation (9) gives the storage levels upper bound and lower bound at
@@ -558,7 +559,7 @@ public:
   *
   *   \f[
   *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
-  *                              \quad t \in \mathcal{T}          \quad (9)
+  *                                           \quad t \in \mathcal{T} \quad (9)
   *   \f]
   *
   *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the
@@ -574,12 +575,12 @@ public:
   *
   *   \f[
   *    p^+_{t} \leq u^+_t P^{mx}_{t}
-  *                              \quad t \in \mathcal{T}          \quad (10)
+  *                                          \quad t \in \mathcal{T} \quad (10)
   *   \f]
   *
   *   \f[
   *    p^-_{t} \leq -(1 - u^+_t) P^{mn}_{t}
-  *                              \quad t \in \mathcal{T}         \quad (11)
+  *                                          \quad t \in \mathcal{T} \quad (11)
   *   \f]
   *
   *   Note that when \f$ \rho^+_t = \rho^-_t = 1 \f$, the binary variable \f$
@@ -594,12 +595,12 @@ public:
   *
   *   \f[
   *     p^{pr}_{t} \leq P^{mx, pr}_{t}
-  *                              \quad t \in \mathcal{T}          \quad (12)
+  *                                          \quad t \in \mathcal{T} \quad (12)
   *   \f]
   *
   *   \f[
   *     p^{sc}_{t} \leq P^{mx, sc}_{t}
-  *                              \quad t \in \mathcal{T}          \quad (13)
+  *                                          \quad t \in \mathcal{T} \quad (13)
   *   \f]
   */
 

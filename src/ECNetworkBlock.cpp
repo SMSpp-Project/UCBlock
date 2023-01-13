@@ -239,13 +239,13 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( constraints_generated() )
   return; // constraints have already been generated
 
- auto number_nodes = get_number_nodes();
- auto number_intervals = get_number_intervals();
+ const auto number_nodes = get_number_nodes();
+ const auto number_intervals = get_number_intervals();
 
 /*------------------------- inequality constraints -------------------------*/
 
- // set that the hourly dispatch cannot go beyond the maximum dispatch
- // of the corresponding peak power period, i.e.:
+ // set that the dispatch cannot go beyond the maximum dispatch of the
+ // corresponding peak power period, i.e.:
  //
  //    P^{max} >= P^{POD,+} - P^{POD,-}       for all u, t       (1)
  // => P^{POD,+} - P^{POD,-} - P^{max} <= 0   for all u, t
@@ -322,8 +322,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  // set the power balance within the microgrid market/network, i.e., the
  // flows within the microgrid to have sum equal to zero:
  //
- //    P^{M,+} = P^{M,-}       for all t
- // => P^{M,+} - P^{M,-} = 0   for all t
+ //    P^{M,+} = P^{M,-}       for all u, t
+ // => P^{M,+} - P^{M,-} = 0   for all u, t
 
  if( micro_power_balance_const.size() != number_intervals ) {
   assert( micro_power_balance_const.empty() );
@@ -352,7 +352,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // set the power balance, i.e.:
  //
- //    P^{POD,+} - P^{POD,-} - node_injection = - active_demand   for all t, u
+ //    P^{POD,+} - P^{POD,-} - node_injection = - active_demand   for all u, t
  //
  // where:
  //
@@ -426,11 +426,9 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
   for( Index t = 0 ; t < get_number_intervals() ; ++t ) {
 
-   // R_{j}^{U,P}, i.e., the net economic balance wrt the public market
    vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
                                    get_buy_price( t ) ) );
    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-    // ECR_{j}, i.e., the reward awarded to the community
                                    get_buy_price( t ) - get_reward_price( t ) ) );
    vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
                                    -get_sell_price( t ) ) );
@@ -438,7 +436,6 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
                                    -get_sell_price( t ) ) );
   }
 
-  // C_{j}^{U,P}, i.e., the costs due to the peak power
   vars.push_back( std::make_pair( &v_peak_power[ node_id ] , get_peak_tariff() ) );
  }
 
@@ -526,11 +523,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
  NetworkBlock::serialize( group );
 
- ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
-
- if( f_ConstTerm != 0 )
-  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , NumberIntervals ,
@@ -546,10 +538,10 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   // If an ECNetworkData is present, serialize it.
   network_data->serialize( group );
 
+ auto NumberNodes = group.getDim( "NumberNodes" );
+
  if( ! v_ActiveDemand.empty() ) {
   // This ECNetworkBlock has active demand, so it is serialized.
-
-  auto NumberNodes = group.getDim( "NumberNodes" );
 
   if( NumberNodes.isNull() )
    /* The dimension "NumberNodes" is not present in the group (which means
@@ -566,6 +558,14 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
+
+ ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
+
+ if( f_ConstTerm != 0 )
+  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
+
+ ::serialize( group , "MaxNodeInjection" , netCDF::NcDouble() ,
+              { NumberIntervals , NumberNodes } , v_MaxNodeInjection );
 
 }  // end( ECNetworkBlock::serialize )
 

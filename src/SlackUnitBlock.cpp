@@ -117,8 +117,6 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( variables_generated() )
   return; // variables have already been generated
 
-/*--------------------------------------------------------------------------*/
-
  // Commitment Variable
  if( reserve_vars & 4u ) {  // if UCBlock has inertia demand variables
   if( ! v_MaxInertia.empty() ) {  // if unit produces any inertia reserve
@@ -129,6 +127,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    add_static_variable( v_commitment , "u_inertia_slack" );
   }
  }
+
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
@@ -145,6 +144,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    add_static_variable( v_primary_spinning_reserve , "pr_slack" );
   }
  }
+
  // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
   if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary
@@ -156,6 +156,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    add_static_variable( v_secondary_spinning_reserve , "sr_slack" );
   }
  }
+
  set_variables_generated();
 
 }  // end( SlackUnitBlock::generate_abstract_variables )

@@ -993,8 +993,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  // Serialize scalar variables.
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
- ::serialize( group , "InitialStorage" , netCDF::NcDouble() ,
-              f_InitialStorage );
+ ::serialize( group , "InitialStorage" , netCDF::NcDouble() , f_InitialStorage );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
 
  // Serialize one-dimensional variables.

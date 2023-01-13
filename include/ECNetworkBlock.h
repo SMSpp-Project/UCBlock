@@ -279,16 +279,51 @@ class ECNetworkBlock : public NetworkBlock
   * (-) from both the public grid and the microgrid within the community, and
   * the peak power variables. */
 
- void generate_abstract_variables( Configuration * stvv ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the ECNetworkBlock
- /** This method generates the abstract constraints of the ECNetworkBlock.
-  * Since the node injection variable is fixed to the active demand value, it
-  * must be a BoxConstraint for that variable whose lower and upper bounds are
-  * equal to the active demand value. */
+ /** The constraints of an ECNetworkBlock are defined as below:
+  *
+  *  - The power dispatch cannot go beyond the peak power at the user PoD, and
+  *    is calculated as:
+  *
+  *    \f[
+  *     P_n^{mx} \geq ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
+  *                    ( P_{n,t}^{P-} - P_{n,t}^{M-} )
+  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (1)
+  *    \f]
+  *
+  *    \f[
+  *     P_n^{mx} \geq - [ ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
+  *                        ( P_{n,t}^{P-} - P_{n,t}^{M-} ) ]
+  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (2)
+  *    \f]
+  *
+  *   The \f$ P_n^{mx} \f$ variables also depends from \f$ P_{n,t}^{M+} \f$
+  *   and \f$ P_{n,t}^{M-} \f$ variables, i.e., the injection and absorption
+  *   from the microgrid, to give an economic benefit to users that do not
+  *   contribute to the community by sharing energy since they are unable to
+  *   install assets due to economic or space reasons; and on which,
+  *   otherwise, all the costs of the peak powers would be borne.
+  *
+  *  - The power balance within the microgrid:
+  *
+  *    \f[
+  *     P_{n,t}^{M+} = P_{n,t}^{M-}
+  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (3)
+  *    \f]
+  *
+  *  - The power balance w.r.t. the load demand:
+  *
+  *    \f[
+  *     ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
+  *     ( P_{n,t}^{P-} - P_{n,t}^{M-} ) = = S_n - D_n
+  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (4)
+  *    \f]
+  * */
 
- void generate_abstract_constraints( Configuration * stcc ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the ECNetworkBlock
@@ -298,14 +333,14 @@ class ECNetworkBlock : public NetworkBlock
   *   is given as below:
   *
   *   \f[
-  *     \min ( \sum_{ n \in \mathcal{N} } ( \pi^{max} P_n^{max} ) +
+  *     \min ( \sum_{ n \in \mathcal{N} } ( \pi^{mx} P_n^{mx} ) +
   *         \sum_{ t \in \mathcal{T} }
   *         ( \pi_t^{-,v} P_{n,t}^{P-} +
   *         ( \pi_t^{-,v} - \pi_t^{-,r} ) P_{n,t}^{M-} -
   *         \pi_t^+ P_{n,t}^{P+} - \pi_t^+ P_{n,t}^{M+} ) + \pi_t^{-,f} ) )
   *   \f]
   *
-  *   where \f$ \pi^{max} \f$ is the cost due to peak power and \f$ P_n^{max}
+  *   where \f$ \pi^{mx} \f$ is the cost due to peak power and \f$ P_n^{mx}
   *   \f$ is the peak power variable; \f$ \pi_t^{-,v} \f$ and
   *   \f$ \pi_t^{-,f} \f$ are the buy prices of the energy bought from the
   *   public market, the variable and fixed costs, i.e., the constant term,

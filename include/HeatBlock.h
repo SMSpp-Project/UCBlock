@@ -330,7 +330,7 @@ class HeatBlock : public Block
   *
   *   \f[
   *     P^{mn}_{t,i} \leq p^{he}_{t,i} \leq P^{mx}_{t,i}
-  *         \quad i \in \mathcal{I}    \quad t \in \mathcal{T}   \quad     (2)
+  *         \quad i \in \mathcal{I}           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
   * - Demand Constraints: with \f$ D_t \f$ denoting the heat demand of the HB
@@ -338,7 +338,7 @@ class HeatBlock : public Block
   *
   *   \f[
   *     \sum_{ i \in \mathcal{I} } ( p^{he}_{t,i} - s^{h}_{t,+} + s^{h}_{t,-}
-  *      \geq D_t                     \quad t \in \mathcal{T}     \quad     (1)
+  *      \geq D_t                             \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   * - Heat storage bounds Constraints: with \f$ V^{mn}_t \f$ and
@@ -347,7 +347,7 @@ class HeatBlock : public Block
   *   storage bounds are
   *
   *   \f[
-  *     v^{mn}_{t} \leq v_t \leq V^{mx}_t  \quad t \in \mathcal{T}   \quad  (3)
+  *     v^{mn}_{t} \leq v_t \leq V^{mx}_t     \quad t \in \mathcal{T} \quad (3)
   *   \f]
   *
   * - Evolution in the stored heat Constraints. Let three constants
@@ -358,7 +358,7 @@ class HeatBlock : public Block
   *
   *   \f[
   *    v_t = \rho v_{t-1} + \rho_+ s_{t,+} - \rho_- s^{h}_{t,-}
-  *                                   \quad t \in \mathcal{T}      \quad  (4)
+  *                                           \quad t \in \mathcal{T} \quad (4)
   *   \f]
   */
 
@@ -732,7 +732,7 @@ class HeatBlock : public Block
   * according to what is specified in the generate_abstract_variables() method.
   */
 
- unsigned int get_variables_to_be_generated( Configuration * stvv );
+ unsigned int get_variables_to_be_generated( Configuration * stvv = nullptr );
 
  void deserialize_time_horizon( const netCDF::NcGroup & group );
 

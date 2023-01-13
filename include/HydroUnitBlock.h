@@ -603,12 +603,12 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f[
   *      p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l}
-  *          \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy}          \quad (1)
+  *                   \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (1)
   *   \f]
   *
   *   \f[
   *     P^{mn}_{t,l} \leq p^{ac}_{t,l} - p^{pr}_{t,l} - p^{sc}_{t,l}
-  *         \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy}           \quad (2)
+  *                   \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (2)
   *   \f]
   *
   * - primary and secondary spinning reserves relation with active power at

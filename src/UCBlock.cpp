@@ -190,9 +190,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
- // For backward compatibility reasons wrt the nc4 input data files already
- // given, the default number of networks is equal to the time horizon since
- // each NetworkBlock span just one interval, i.e., one time horizon
  if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 

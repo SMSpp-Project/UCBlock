@@ -520,15 +520,15 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
- /** Three different kinds of DCNetworkBlock constraints are defined as below:
+ /** Three different kinds of DCNetworkBlock constraints are defined as below.
   * The topology of the transmission network is defined by a set of nodes
   * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
   * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
-  * at each line \f$ l \in L \f$ and \f$ D^{ac}_{n} \f$ is active power demand
+  * at each line \f$ l \in L \f$ and \f$ D^{ac}_n \f$ is active power demand
   * at node \f$ n \in N \f$ in the network respectively. The node injection
   * variable of each node \f$ n \in N \f$ and the power flows variable and an
   * auxiliary variable (which is not be defined if there is no network cost), of
-  * each line \f$ l \in L \f$ are defined as \f$S_{n}\f$, \f$ F_l \f$ and
+  * each line \f$ l \in L \f$ are defined as \f$S_n\f$, \f$ F_l \f$ and
   * \f$ V_l \f$ respectively.
   *
   *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
@@ -540,7 +540,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   *    \f[
   *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
-  *                                                     \quad l \in L \quad (1)
+  *                                           \quad l \in \mathcal{L} \quad (1)
   *    \f]
   *
   *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
@@ -549,8 +549,8 @@ class DCNetworkBlock : public NetworkBlock
   *   grid:
   *
   *    \f[
-  *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_{n} - D_{n}
-  *                                                   \quad n \in N   \quad (2)
+  *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_n - D_n
+  *                                           \quad n \in \mathcal{N} \quad (2)
   *    \f]
   *
   *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
@@ -560,11 +560,11 @@ class DCNetworkBlock : public NetworkBlock
   *    needed:
   *
   *    \f[
-  *    F_l \leq V_l                                     \quad l \in L \quad (3)
+  *     F_l \leq V_l                          \quad l \in \mathcal{L} \quad (3)
   *    \f]
   *
   *    \f[
-  *    -V_l \leq F_l                                    \quad l \in L \quad (4)
+  *     -V_l \leq F_l                         \quad l \in \mathcal{L} \quad (4)
   *    \f]
   *
   *  - DCNetworkBlock with just AC lines model:
@@ -579,7 +579,7 @@ class DCNetworkBlock : public NetworkBlock
   *  \f[
   *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
   *   (S_n - D^{ac}_n) \leq  P^{mx}_l
-  *                                                     \quad l \in L \quad (5)
+  *                                           \quad l \in \mathcal{L} \quad (5)
   *  \f]
   *
   *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
@@ -634,8 +634,7 @@ class DCNetworkBlock : public NetworkBlock
   *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
   *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
- override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock

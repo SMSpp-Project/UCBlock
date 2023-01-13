@@ -601,7 +601,7 @@ class UCBlock : public Block
   *
   * \f[
   *  \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
-  *     = S_{t,n} \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad     (1)
+  *     = S_{t,n}     \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   * \f]
   *
   * - Primary Demand Constraints:
