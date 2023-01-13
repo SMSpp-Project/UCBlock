@@ -693,9 +693,10 @@ class ThermalUnitBlock : public UnitBlock
   *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
   *  \f]
   *
-  *  where \f$ v_t \f$ indicates that the unit is starting up at time t, u_t
-  *  indicates that the unit is committed at time t, p_t is the active power
-  *  produced at time t, \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t
+  *  where \f$ v_t \f$ indicates that the unit is starting up at time
+  *  \f$ t \f$, \f$ u_t \f$ indicates that the unit is committed at time
+  *  \f$ t \f$, \f$ p_t \f$ is the active power produced at time \f$ t \f$,
+  *  \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t
   *  \f$ is the start-up cost of the unit, which we assume to be
   *  time-independent
   *
@@ -806,7 +807,7 @@ class ThermalUnitBlock : public UnitBlock
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *        and the type of violation that must be considered. */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -1433,8 +1434,8 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param values An iterator to a vector containing the scale factor.
   *
-  * @param subset If non-empty, the scale factor is set to the value
-  *        pointed by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the scale factor is set to the value pointed
+  *               by \p values. If empty, no operation is performed.
   *
   * @param ordered This parameter is ignored.
   *

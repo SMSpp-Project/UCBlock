@@ -344,7 +344,7 @@ class IntermittentUnitBlock : public UnitBlock
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *        and the type of violation that must be considered. */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -552,8 +552,8 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * @param values An iterator to a vector containing the scale factor.
   *
-  * @param subset If non-empty, the scale factor is set to the value
-  *        pointed by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the scale factor is set to the value pointed
+  *               by \p values. If empty, no operation is performed.
   *
   * @param ordered This parameter is ignored.
   *
@@ -574,7 +574,7 @@ class IntermittentUnitBlock : public UnitBlock
   * @param values An iterator to a vector containing the kappa constants.
   *
   * @param subset If non-empty, the kappa constant is set to the value pointed
-  *        by \p values. If empty, no operation is performed.
+  *               by \p values. If empty, no operation is performed.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -595,7 +595,7 @@ class IntermittentUnitBlock : public UnitBlock
   * @param values An iterator to a vector containing the kappa constants.
   *
   * @param rng If non-empty, the kappa constant is set to the value pointed by
-  *        \p values. If empty, no operation is performed.
+  *            \p values. If empty, no operation is performed.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *

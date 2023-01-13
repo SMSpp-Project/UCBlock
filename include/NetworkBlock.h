@@ -373,8 +373,11 @@ class NetworkBlock : public Block
 
  /**
   * Loads a NetworkBlock from a input standard stream.
+  *
   * @warning This method is not implemented yet.
+  *
   * @param input an input stream
+  *
   * @param frmt the verbosity level
   */
 
@@ -522,8 +525,8 @@ class NetworkBlock : public Block
   *   get_number_nodes(), then the D[ i , u ] represents the active demand
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
-  * @param i The interval wrt the vector of demands for each user is
-  *          returned. */
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
 
  virtual const double * get_active_demand( Index i = 0 ) const {
   return( nullptr );
@@ -613,7 +616,7 @@ class NetworkBlock : public Block
   * @param values An iterator to a vector containing the active demand.
   *
   * @param subset The indices of the nodes at which the active demand is being
-  *        modified.
+  *               modified.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -636,7 +639,7 @@ class NetworkBlock : public Block
   * @param values An iterator to a vector containing the active demand.
   *
   * @param rng A Range containing the indices of the nodes at which the active
-  *        demand is being modified.
+  *            demand is being modified.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *

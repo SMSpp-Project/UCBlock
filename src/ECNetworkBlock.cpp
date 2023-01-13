@@ -88,6 +88,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
+                                                     "ConstantTerm" ,
                                                      "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,

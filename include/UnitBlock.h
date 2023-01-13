@@ -245,7 +245,7 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose fixed consumption is
-  *        desired. */
+  *                  desired. */
 
  virtual const double * get_fixed_consumption( Index generator ) const {
   return( nullptr );
@@ -264,7 +264,7 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose inertia commitment is
-  *        desired. */
+  *                  desired. */
 
  virtual const double * get_inertia_commitment( Index generator ) const {
   return( nullptr );
@@ -283,7 +283,7 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose inertia power is
-  *        desired. */
+  *                  desired. */
 
  virtual const double * get_inertia_power( Index generator ) const {
   return( nullptr );
@@ -330,7 +330,7 @@ class UnitBlock : public Block
   * classes will have to handle the commitment variable (if any).
   *
   * @param generator The index of the generator whose commitment variables are
-  *        desired. */
+  *                  desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
   return( nullptr );
@@ -349,7 +349,7 @@ class UnitBlock : public Block
   * any).
   *
   * @param generator The index of the generator whose primary spinning reserve
-  *        variables are desired. */
+  *                  variables are desired. */
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
@@ -368,7 +368,7 @@ class UnitBlock : public Block
   * any).
   *
   * @param generator The index of the generator whose secondary spinning
-  *        reserve variables are desired. */
+  *                  reserve variables are desired. */
 
  virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
   return( nullptr );
@@ -385,7 +385,7 @@ class UnitBlock : public Block
   * classes will have to handle the active power variable (if any).
   *
   * @param generator The index of the generator whose active power variables
-  *        are desired. */
+  *                  are desired. */
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
@@ -571,7 +571,8 @@ class UnitBlock : public Block
   * @param values An iterator to a vector containing the scale factor.
   *
   * @param subset If non-empty, the scale factor must be set to the value
-  *        pointed by \p values. If empty, no operation must be performed.
+  *               pointed by \p values. If empty, no operation must be
+  *               performed.
   *
   * @param ordered This parameter is ignored.
   *
@@ -595,7 +596,7 @@ class UnitBlock : public Block
   * @param values An iterator to a vector containing the scale factor.
   *
   * @param rng If non-empty, the scale factor is set to the value pointed by
-  *        \p values. If empty, no operation is performed.
+  *            \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modification are issued.
   *

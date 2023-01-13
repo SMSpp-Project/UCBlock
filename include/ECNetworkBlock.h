@@ -4,7 +4,7 @@
 /** @file
  * Header file for the class ECNetworkBlock, which derives from NetworkBlock
  * and describe the behaviour of the energy community network at a specific time
- * instant or in a time interval, e.g., a peak period that can span an
+ * instant or in a time interval, i.e., a peak period that can span an
  * arbitrary number of sub time horizons, in the Unit Commitment problem.
  *
  * \author Antonio Frangioni \n
@@ -210,20 +210,15 @@ class ECNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  // energy bought from the public market at the national
-  // price /pi^{P-,V} + /pi^{P-,F}
-  // (the second term, i.e., the fixed tariff, is given as part of the
-  // constant term)
-
   /// tariff that the user pays to buy electricity at each time horizon
-  double f_BuyPrice{}; // /pi^{P-,V}
+  double f_BuyPrice{};
 
   /// tariff that the user gains to sell electricity at each time horizon
-  double f_SellPrice{}; // /pi^{P+}
+  double f_SellPrice{};
 
   /// tariff that the user gains when it absorbs power from the microgrid
   /// market / network (instead of from the public grid) at each time horizon
-  double f_RewardPrice{}; // /pi^{R}
+  double f_RewardPrice{};
 
   /// tariff that the user pays due to the peak power
   double f_PeakTariff{};
@@ -290,13 +285,13 @@ class ECNetworkBlock : public NetworkBlock
   *
   *    \f[
   *     P_n^{mx} \geq ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
-  *                    ( P_{n,t}^{P-} - P_{n,t}^{M-} )
+  *                   ( P_{n,t}^{P-} - P_{n,t}^{M-} )
   *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (1)
   *    \f]
   *
   *    \f[
   *     P_n^{mx} \geq - [ ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
-  *                        ( P_{n,t}^{P-} - P_{n,t}^{M-} ) ]
+  *                       ( P_{n,t}^{P-} - P_{n,t}^{M-} ) ]
   *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (2)
   *    \f]
   *
@@ -336,7 +331,7 @@ class ECNetworkBlock : public NetworkBlock
   *     \min ( \sum_{ n \in \mathcal{N} } ( \pi^{mx} P_n^{mx} ) +
   *         \sum_{ t \in \mathcal{T} }
   *         ( \pi_t^{-,v} P_{n,t}^{P-} +
-  *         ( \pi_t^{-,v} - \pi_t^{-,r} ) P_{n,t}^{M-} -
+  *         ( \pi_t^{-,v} - \pi_t^r ) P_{n,t}^{M-} -
   *         \pi_t^+ P_{n,t}^{P+} - \pi_t^+ P_{n,t}^{M+} ) + \pi_t^{-,f} ) )
   *   \f]
   *
@@ -344,7 +339,7 @@ class ECNetworkBlock : public NetworkBlock
   *   \f$ is the peak power variable; \f$ \pi_t^{-,v} \f$ and
   *   \f$ \pi_t^{-,f} \f$ are the buy prices of the energy bought from the
   *   public market, the variable and fixed costs, i.e., the constant term,
-  *   respectively, and \f$ \pi_t^{-,r} \f$ is the tariff that user gains
+  *   respectively, and \f$ \pi_t^r \f$ is the tariff that user gains
   *   when it absorbs power from the microgrid market instead of from the
   *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{M-} \f$
   *   are the absorption variables form the public and the microgrid market
@@ -410,7 +405,7 @@ class ECNetworkBlock : public NetworkBlock
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *        and the type of violation that must be considered. */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -424,7 +419,8 @@ class ECNetworkBlock : public NetworkBlock
  /// returns the number of nodes of the network
  /** Returns the number of nodes in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_nodes(). Otherwise, it returns zero. */
+  * get_NetworkData()->get_number_nodes(). Otherwise, it throws an exception
+  * since cannot exists an Energy Community with just one user. */
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
@@ -447,8 +443,8 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the active demand for the given interval, which is assumed to
   * have size get_number_intervals() by get_number_nodes().
   *
-  * @param i The interval wrt the vector of demands for each user is
-  *          returned. */
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
 
  const double * get_active_demand( Index i = 0 ) const override {
   if( v_ActiveDemand.empty() )
@@ -459,7 +455,9 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the energy sell price at interval i
  /** Returns the tariff that the user gains to sell electricity to the
-  * public market at interval i. */
+  * public market at interval i.
+  *
+  * @param i The interval wrt the sell price of the energy is returned. */
 
  double get_sell_price( Index i ) const {
   if( ! f_NetworkData )
@@ -470,7 +468,9 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the energy buy price at interval i
  /** Returns the tariff that the user pays to buy electricity from the public
-  * market at interval i. */
+  * market at interval i.
+  *
+  * @param i The interval wrt the buy price of the energy is returned. */
 
  double get_buy_price( Index i ) const {
   if( ! f_NetworkData )
@@ -483,7 +483,8 @@ class ECNetworkBlock : public NetworkBlock
  /// returns the energy reward price at interval i
  /** Returns the tariff that the user gains when it absorbs power from the
   * microgrid market / network (instead of from the public grid) at interval i.
-  */
+  *
+  * @param i The interval wrt the reward price of the energy is returned. */
 
  double get_reward_price( Index i ) const {
   if( ! f_NetworkData )
@@ -507,8 +508,8 @@ class ECNetworkBlock : public NetworkBlock
   * interval, which is assumed to have size get_number_intervals() per
   * get_number_nodes().
   *
-  * @param i The interval wrt the vector of demands for each user is
-  *          returned. */
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
 
  const double * get_max_node_injection( Index i = 0 ) const {
   if( v_MaxNodeInjection.empty() )
@@ -759,7 +760,7 @@ class ECNetworkBlock : public NetworkBlock
   * @param values An iterator to a vector containing the active demand.
   *
   * @param subset The indices of the nodes at which the active demand is being
-  *        modified.
+  *               modified.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *

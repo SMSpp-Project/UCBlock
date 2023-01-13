@@ -798,7 +798,7 @@ class HydroUnitBlock : public UnitBlock
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *        and the type of violation that must be considered. */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -1327,7 +1327,7 @@ class HydroUnitBlock : public UnitBlock
   * 1}.
   *
   * @param reservoir The index of a reservoir (a number between 0 and
-  *        get_number_reservoirs() - 1).
+  *                  get_number_reservoirs() - 1).
   *
   * @return The array of ColVariable representing the volumes of the given \p
   *         reservoir. */
@@ -1347,10 +1347,10 @@ class HydroUnitBlock : public UnitBlock
   * \p reservoir at the given \p time.
   *
   * @param reservoir The index of the reservoir whose volume is desired (a
-  *        number between 0 and get_number_reservoirs() - 1).
+  *                  number between 0 and get_number_reservoirs() - 1).
   *
   * @param time The time at which the volume is desired (a number between 0
-  *        and get_time_horizon() - 1).
+  *             and get_time_horizon() - 1).
   *
   * @return A pointer to the ColVariable representing the volume of the given
   *         \p reservoir at the given \p time. */
@@ -1371,7 +1371,7 @@ class HydroUnitBlock : public UnitBlock
   * time_horizon - 1}.
   *
   * @param generator The index of a generator (a number between 0 and
-  *        get_number_generators() - 1).
+  *                  get_number_generators() - 1).
   *
   * @return The array of ColVariable representing the active power of the
   *         given \p generator. */
@@ -1391,10 +1391,10 @@ class HydroUnitBlock : public UnitBlock
   * given \p generator at the given \p time.
   *
   * @param generator The index of the generator whose active power is desired
-  *        (a number between 0 and get_number_generators() - 1).
+  *                  (a number between 0 and get_number_generators() - 1).
   *
   * @param time The time at which the active power is desired (a number
-  *        between 0 and get_time_horizon() - 1).
+  *             between 0 and get_time_horizon() - 1).
   *
   * @return A pointer to the ColVariable representing the active power of the
   *         given \p generator at the given \p time. */
@@ -1415,7 +1415,7 @@ class HydroUnitBlock : public UnitBlock
   * 1}.
   *
   * @param arc The index of an arc (a number between 0 and
-  *        get_number_generators() - 1).
+  *            get_number_generators() - 1).
   *
   * @return The array of ColVariable representing the flow rate along the
   *         given \p arc. */
@@ -1435,10 +1435,10 @@ class HydroUnitBlock : public UnitBlock
   * given \p arc at the given \p time.
   *
   * @param arc The index of the arc whose flow rate is desired (a number
-  *        between 0 and get_number_generators() - 1).
+  *            between 0 and get_number_generators() - 1).
   *
   * @param time The time at which the flow rate is desired (a number
-  *        between 0 and get_time_horizon() - 1).
+  *             between 0 and get_time_horizon() - 1).
   *
   * @return A pointer to the ColVariable representing the flow rate along the
   *         given \p arc at the given \p time. */
@@ -1459,7 +1459,7 @@ class HydroUnitBlock : public UnitBlock
   * ..., time_horizon - 1}.
   *
   * @param generator The index of a generator (a number between 0 and
-  *        get_number_generators() - 1).
+  *                  get_number_generators() - 1).
   *
   * @return The array of ColVariable representing the primary spinning
   *         reserve of the given \p generator. */
@@ -1479,10 +1479,11 @@ class HydroUnitBlock : public UnitBlock
   * reserve of the given \p generator at the given \p time.
   *
   * @param generator The index of the generator whose primary spinning reserve
-  *        is desired (a number between 0 and get_number_generators() - 1).
+  *                  is desired (a number between 0 and
+  *                  get_number_generators() - 1).
   *
   * @param time The time at which the primary spinning reserve is desired (a
-  *        number between 0 and get_time_horizon() - 1).
+  *             number between 0 and get_time_horizon() - 1).
   *
   * @return A pointer to the ColVariable representing the primary spinning
   *         reserve of the given \p generator at the given \p time. */

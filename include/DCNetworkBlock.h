@@ -708,7 +708,7 @@ class DCNetworkBlock : public NetworkBlock
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *        and the type of violation that must be considered. */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -887,6 +887,10 @@ class DCNetworkBlock : public NetworkBlock
     return( v_AC_HVDC_power_flow_limit_const );
   }
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the vector of power flow limit HVDC bounds
 
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds( void ) const {
