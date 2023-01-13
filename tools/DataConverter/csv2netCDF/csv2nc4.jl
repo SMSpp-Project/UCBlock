@@ -9,8 +9,8 @@ include("utils.jl")
 function csvEC2nc4()
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(!("-with-network-blocks" in ARGS) ? string("../../../netCDF_files/EC_Test.nc4") : # EC_NA_Test.nc4
-                   string("../../../netCDF_files/EC_Test_NB.nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1)) # EC_NA_Test_NB.nc4
+    ds = NCDataset(!("-with-network-blocks" in ARGS) ? string("../../../netCDF_files/EC_Test.nc4") : # EC_NA_Test.nc4 EC_NC_Test.nc4
+                   string("../../../netCDF_files/EC_Test_NB.nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1)) # EC_NA_Test_NB.nc4 EC_NC_Test_NB.nc4
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
@@ -109,9 +109,11 @@ function csvEC2nc4()
         buy_price = defVar(block, "BuyPrice", Float64, ())
         buy_price[:] = buy_price_data[1]
 
-        # `RewardPrice`, i.e., the reward awarded to the community
-        reward_price = defVar(block, "RewardPrice", Float64, ())
-        reward_price[:] = reward_price_data[1]
+        # `RewardPrice`, i.e., the reward awarded to the community, if any
+        if reward_price_data[1] > 0
+            reward_price = defVar(block, "RewardPrice", Float64, ())
+            reward_price[:] = reward_price_data[1]
+        end
 
         # `PeakTariff`, i.e., the peak tariff cost
         peak_tariff = defVar(block, "PeakTariff", Float64, ())
@@ -174,10 +176,12 @@ function csvEC2nc4()
                 sell_price[:] = sell_price_data[last_t:last_i]
             end
 
-            # `RewardPrice`, i.e., the reward awarded to the community
+            # `RewardPrice`, i.e., the reward awarded to the community...
             if (allequal(reward_price_data[last_t:last_i]))
-                reward_price = defVar(ecnb, "RewardPrice", Float64, ())
-                reward_price[:] = reward_price_data[last_t]
+                if reward_price_data[last_t] > 0 # ... if any
+                    reward_price = defVar(ecnb, "RewardPrice", Float64, ())
+                    reward_price[:] = reward_price_data[last_t]
+                end
             else
                 reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
                 reward_price[:] = reward_price_data[last_t:last_i]
@@ -277,12 +281,18 @@ function csvEC2nc4()
                     batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
 
                     # store the maximum C-rate of the battery in charge
-                    batt_max_C_ch = defVar(ub, "MaxCRateCharge", Float64, ())
-                    batt_max_C_ch[:] = field_component(users_data[u], g, "max_C_ch")
+                    max_C_ch = field_component(users_data[u], g, "max_C_ch")
+                    if max_C_ch > 1
+                        batt_max_C_ch = defVar(ub, "MaxCRateCharge", Float64, ())
+                        batt_max_C_ch[:] = max_C_ch
+                    end
 
                     # store the maximum C-rate of the battery in discharge
-                    batt_max_C_dch = defVar(ub, "MaxCRateDischarge", Float64, ())
-                    batt_max_C_dch[:] = field_component(users_data[u], g, "max_C_dch")
+                    max_C_dch = field_component(users_data[u], g, "max_C_dch")
+                    if max_C_dch > 1
+                        batt_max_C_dch = defVar(ub, "MaxCRateDischarge", Float64, ())
+                        batt_max_C_dch[:] = max_C_dch
+                    end
 
                     # store the minimum storage of the battery
                     min_storage_data = [(field_component(users_data[u], g, "min_SOC") *

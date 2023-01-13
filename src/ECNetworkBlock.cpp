@@ -172,9 +172,10 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
  if( v_SellPrice.size() == 1 )
   v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
 
- ::deserialize( group , "RewardPrice" , f_number_intervals , v_RewardPrice ,
-                true , true );
- if( v_RewardPrice.size() == 1 )
+ if( ! ::deserialize( group , "RewardPrice" , f_number_intervals ,
+                     v_RewardPrice , true , true ) )
+  v_RewardPrice.resize( f_number_intervals , 0 );
+ else if( v_RewardPrice.size() == 1 )
   v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
 
  ::deserialize( group , f_PeakTariff , "PeakTariff" );
@@ -513,9 +514,10 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );
- ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
  ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 
+ if( f_RewardPrice != 0 )
+  ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
 }  // end( ECNetworkBlock::ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -532,8 +534,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_SellPrice );
 
- ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
-              v_RewardPrice );
+ ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 
  if( auto network_data = get_NetworkData() )
   // If an ECNetworkData is present, serialize it.
@@ -560,7 +561,10 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
                { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
 
- ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
+ if( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
+                  []( double cst ) { return ( cst != 0 ); } ) )
+  ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
+               v_RewardPrice );
 
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );

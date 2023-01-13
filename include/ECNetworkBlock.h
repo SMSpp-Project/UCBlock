@@ -488,7 +488,7 @@ class ECNetworkBlock : public NetworkBlock
 
  double get_reward_price( Index i ) const {
   if( ! f_NetworkData )
-   return( v_BuyPrice[ i ] );
+   return( v_RewardPrice[ i ] );
   return( f_NetworkData->get_reward_price() );
  }
 
