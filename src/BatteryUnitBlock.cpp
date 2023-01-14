@@ -379,13 +379,19 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Battery Design Variable
  if( f_BattInvestmentCost != 0 ) {
-  batt_design.set_type( ColVariable::kPosUnitary );
+  if( f_BattMaxCapacity != 0 )
+   batt_design.set_type( ColVariable::kPosUnitary );
+  else
+   batt_design.set_type( ColVariable::kBinary );
   add_static_variable( batt_design , "D_battery" );
  }
 
  // Converter Design Variable
  if( f_ConvInvestmentCost != 0 ) {
-  conv_design.set_type( ColVariable::kPosUnitary );
+  if( f_ConvMaxCapacity != 0 )
+   conv_design.set_type( ColVariable::kPosUnitary );
+  else
+   conv_design.set_type( ColVariable::kBinary );
   add_static_variable( conv_design , "D_converter" );
  }
 

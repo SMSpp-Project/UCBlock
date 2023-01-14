@@ -184,7 +184,10 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  // Design Variable
  if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kPosUnitary );
+  if( f_MaxCapacity != 0 )
+   design.set_type( ColVariable::kPosUnitary );
+  else
+   design.set_type( ColVariable::kBinary );
   add_static_variable( design , "D_intermittent" );
  }
 
