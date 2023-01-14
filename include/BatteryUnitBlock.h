@@ -441,6 +441,14 @@ public:
   *    (which can be informed via a Configuration; see below) and there exists
   *    t such that StoringBatteryRho[ t ] < 1 and ExtractingBatterRho[ t ] > 1.
   *
+  * Notice that despite the BatteryUnitBlock being a single logical unit, in
+  * fact a battery is made up of the battery itself responsible for the
+  * energy storage, and the converter responsible for the intake and outtake
+  * of the energy from the battery. For this reason, in the design scenario
+  * of the UC problem, i.e., if an investment cost is given for both the
+  * battery and the converter, additional two binary variables are needed in
+  * order to let the model infer how much capacity to install of either.
+  *
   * The parameter \p stvv and the Configuration for this function presented in
   * the BlockConfig (namely, #f_BlockConfig->f_static_variables_Configuration)
   * can be used to indicate whether negative prices may occur. The parameter
@@ -481,16 +489,16 @@ public:
   *   energy that unit can produce (or use) when it is on (or off).
   *
   *   \f[
-  *      p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} \leq P^{mx}_{t}
+  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq P^{mx,b}_t
   *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
-  *     P^{mn}_{t} \leq p^{ac}_{t} - p^{pr}_{t} - p^{sc}_{t}
+  *     P^{mn,b}_t \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
   *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
-  *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
+  *   where \f$ P^{mx,b}_t \f$ and \f$ P^{mn,b}_t \f$ are the maximum and
   *   minimum power output parameters for each time t of the time horizon \f$
   *   \mathcal{T} \f$ respectively.
   *
@@ -500,16 +508,16 @@ public:
   *   down constraints which are presented as:
   *
   *   \f[
-  *    p^{ac}_{t} - p^{ac}_{t-1} \leq \Delta^{up}_{t}
+  *    p^{ac}_t - p^{ac}_{t-1} \leq \Delta^{up}_t
   *                                           \quad t \in \mathcal{T} \quad (3)
   *   \f]
   *
   *   \f[
-  *    p^{ac}_{t} - p^{ac}_{t-1} \geq - \Delta^{dn}_{t}
+  *    p^{ac}_t - p^{ac}_{t-1} \geq - \Delta^{dn}_t
   *                                           \quad t \in \mathcal{T} \quad (4)
   *   \f]
   *
-  *   where \f$ \Delta^{up}_{t} \f$ and \f$ \Delta^{dn}_{t} \f$ are the delta
+  *   where \f$ \Delta^{up}_t \f$ and \f$ \Delta^{dn}_t \f$ are the delta
   *   ramp-up and delta ramp down threshold for each time t of the time
   *   horizon \f$ \mathcal{T} \f$ respectively.
   *
@@ -518,19 +526,48 @@ public:
   *   the dimension of f_time_horizon, where the entry t =
   *   0, ..., f_time_horizon - 1 being the active power relation with intake and
   *   outtake levels at time t.  These ensure the active power at each time
-  *   should be equal to the intake and outtake difference. The equation (6)
-  *   also indicates the upper bound of intake and outtake level at each time
-  *   instant t.
+  *   should be equal to the intake and outtake difference, i.e.:
   *
   *   \f[
-  *    p^{ac}_{t} = p^+_t - p^-_{t}
+  *    p^{ac}_t = p^+_t - p^-_t
   *                                           \quad t \in \mathcal{T} \quad (5)
   *   \f]
   *
+  *   The equations (6.1-6.2) also indicates the upper bound of intake and
+  *   outtake level at each time instant t:
+  *
   *   \f[
-  *     p^+_t , p^-_t \leq  P^{mx}_{t}
-  *                                           \quad t \in \mathcal{T} \quad (6)
+  *     p^+_t \leq \kappa C^- P^{mx,b}_t
+  *                                         \quad t \in \mathcal{T} \quad (6.1)
   *   \f]
+  *
+  *   \f[
+  *     p^-_t \leq \kappa C^+ P^{mx,b}_t
+  *                                         \quad t \in \mathcal{T} \quad (6.2)
+  *   \f]
+  *
+  *   where \f$ C^+ \f$ and \f$ C^- \f$ are the C-rate of the battery in
+  *   charge and discharge respectively and which, in the design scenario of
+  *   the UC problem, become:
+  *
+  *   \f[
+  *     p^+_t \leq \kappa z_b ( C^- P^{mx,b}_t )
+  *                                         \quad t \in \mathcal{T} \quad (6.3)
+  *   \f]
+  *
+  *   \f[
+  *     p^-_t \leq \kappa z_b ( C^+ P^{mx,b}_t )
+  *                                         \quad t \in \mathcal{T} \quad (6.4)
+  *   \f]
+  *
+  *   \f[
+  *     p^+_t + p^-_t \leq z_c ( \kappa P^{mx,c}_t )
+  *                                         \quad t \in \mathcal{T} \quad (6.5)
+  *   \f]
+  *
+  *   where \f$ P^{mx,c}_t \f$ is the maximum power of the converter, and
+  *   \f$ z_b \f$ and \f$ z_c \f$ are the design binary variable the battery
+  *   and the converter respectively.
   *
   * - storage level relation with intake and outtake levels (if any)
   *   constraints in Battery unit are presented in (7). That is a
@@ -539,8 +576,8 @@ public:
   *   with intake and outtake levels at time t.
   *
   *   \f[
-  *    v^{ba}_{t} = v^{ba}_{t-1} - \rho^+_{t}p^+_{t} +
-  *    \rho^-_{t}p^-_{t}-d^{ba}_t
+  *    v^{ba}_t = v^{ba}_{t-1} - \rho^+_tp^+_t +
+  *    \rho^-_tp^-_t-d^{ba}_t
   *                                           \quad t \in \mathcal{T} \quad (7)
   *   \f]
   *
@@ -550,22 +587,30 @@ public:
   *   with battery demand (if any) at time t.
   *
   *   \f[
-  *    v^{ba}_{t} = v^{ba}_{t-1} - p^{ac}_{t} - d^{ba}_t
+  *    v^{ba}_t = v^{ba}_{t-1} - p^{ac}_t - d^{ba}_t
   *                                           \quad t \in \mathcal{T} \quad (8)
   *   \f]
   *
-  *   The equation (9) gives the storage levels upper bound and lower bound at
+  *   The equation (9a) gives the storage levels upper bound and lower bound at
   *   each time instant t.
   *
   *   \f[
-  *    v^{ba}_{t} \in [ V^{mn}_{t} , V^{mx}_{t}]
-  *                                           \quad t \in \mathcal{T} \quad (9)
+  *    v^{ba}_t \in [ \kappa V^{mn}_t , \kappa V^{mx}_t]
+  *                                           \quad t \in \mathcal{T} \quad (9a)
   *   \f]
   *
-  *   where \f$ \rho^+_{t} \f$ and \f$ \rho^-_{t} \f$ are the
-  *   ExtractingBatteryRho and StoringBatteryRho, and \f$ V^{mn}_t\f$ and \f$
-  *   V^{mx}_t\f$ are the minimum and maximum storage level for each time t of
-  *   the time horizon \f$ \mathcal{T} \f$ respectively.
+  *   which, in the design scenario of the UC problem, become:
+  *
+  *   \f[
+  *    z_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq z_b ( \kappa V^{mx}_t )
+  *                                           \quad t \in \mathcal{T} \quad (9b)
+  *   \f]
+  *
+  *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are the
+  *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t\f$ and
+  *   \f$ V^{mx}_t\f$ are the minimum and maximum storage level for each time
+  *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ z_b \f$
+  *   is the design binary variable of the battery.
   *
   * - binary variable relation with storing and extracting energy level (if
   *   any) constraints are presented in (10-11). Each of them is a
@@ -574,12 +619,12 @@ public:
   *   relation with storing and extracting energy levels at time t.
   *
   *   \f[
-  *    p^+_{t} \leq u^+_t P^{mx}_{t}
+  *    p^+_t \leq u^+_t P^{mx,b}_t
   *                                          \quad t \in \mathcal{T} \quad (10)
   *   \f]
   *
   *   \f[
-  *    p^-_{t} \leq -(1 - u^+_t) P^{mn}_{t}
+  *    p^-_t \leq -(1 - u^+_t) P^{mn,b}_t
   *                                          \quad t \in \mathcal{T} \quad (11)
   *   \f]
   *
@@ -594,12 +639,12 @@ public:
   *   upper bounds at time t.
   *
   *   \f[
-  *     p^{pr}_{t} \leq P^{mx, pr}_{t}
+  *     p^{pr}_t \leq P^{mx, pr}_t
   *                                          \quad t \in \mathcal{T} \quad (12)
   *   \f]
   *
   *   \f[
-  *     p^{sc}_{t} \leq P^{mx, sc}_{t}
+  *     p^{sc}_t \leq P^{mx, sc}_t
   *                                          \quad t \in \mathcal{T} \quad (13)
   *   \f]
   */
@@ -613,11 +658,14 @@ public:
   *   is given as follow:
   *
   *   \f[
-  *     \min ( \sum_{ t \in  [0 , \mathcal{T}]  }
-  *     ( C_t (p^+_t +  p^-_t) )
+  *     \min ( I_b z_b + I_c z_c +
+  *     \sum_{ t \in  [0 , \mathcal{T}] } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
-  *   where \f$ C_t \f$, is a certain proportion cost function. */
+  *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
+  *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c
+  *   \f$ are the design binary variable the battery and the converter
+  *   respectively; and \f$ C_t \f$ is a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 

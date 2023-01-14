@@ -16,8 +16,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, and Rafael Durbano
- * Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 
 /*--------------------------------------------------------------------------*/

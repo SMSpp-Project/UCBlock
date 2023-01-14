@@ -16,7 +16,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
+ * \copyright &copy; by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/

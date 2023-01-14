@@ -19,8 +19,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                  Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -347,7 +347,7 @@ class HeatBlock : public Block
   *   storage bounds are
   *
   *   \f[
-  *     v^{mn}_{t} \leq v_t \leq V^{mx}_t     \quad t \in \mathcal{T} \quad (3)
+  *     v^{mn}_t \leq v_t \leq V^{mx}_t       \quad t \in \mathcal{T} \quad (3)
   *   \f]
   *
   * - Evolution in the stored heat Constraints. Let three constants

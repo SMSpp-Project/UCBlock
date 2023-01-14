@@ -23,7 +23,7 @@
  *         Universita' di Pisa \n
  *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                   Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -205,7 +205,11 @@ class IntermittentUnitBlock : public UnitBlock
   *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
   *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
   *  each of the optional variables should be created. If the Configuration
-  *  is not available, the default value is taken to be 0. */
+  *  is not available, the default value is taken to be 0.
+  *
+  *  In the design scenario of the UC problem, i.e., if an investment cost
+  *  is given for this IntermittentUnitBlock, an additional binary variable
+  *  is needed in order to let the model infer how much capacity to install. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -224,26 +228,34 @@ class IntermittentUnitBlock : public UnitBlock
   *   that unit can produce (or use) when it is on (or off).
   *
   *   \f[
-  *       p^{pr}_{t} + p^{sc}_{t} \leq \gamma(\kappa * P^{mx}_{t} - p^{ac}_{t} )
+  *       p^{pr}_t + p^{sc}_t \leq \gamma ( \kappa P^{mx}_t - p^{ac}_t )
   *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
-  *       p^{pr}_{t} + p^{sc}_{t} \leq  p^{ac}_{t} - (\kappa * P^{mn}_{t})
+  *       p^{pr}_t + p^{sc}_t \leq  p^{ac}_t - ( \kappa P^{mn}_t)
   *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
-  *   where \f$ P^{mx}_{t} \f$ and \f$ P^{mn}_{t} \f$ are the maximum and
+  *   where \f$ P^{mx}_t \f$ and \f$ P^{mn}_t \f$ are the maximum and
   *   minimum power output parameters for each time t in \f$ \mathcal{T} \f$,
   *   respectively.
   *
-  * - the active power bounds.
+  * - the active power bounds:
   *
   *   \f[
-  *    p^{ac}_{t} \in [ \kappa * P^{mn}_{t} , \kappa * P^{mx}_{t}]
-  *                                           \quad t \in \mathcal{T} \quad (3)
+  *    p^{ac}_t \in [ \kappa P^{mn}_t , \kappa P^{mx}_t]
+  *                                           \quad t \in \mathcal{T} \quad (3a)
   *   \f]
-  */
+  *
+  *   which, in the design scenario of the UC problem, become:
+  *
+  *   \f[
+  *    z ( \kappa P^{mn}_t ) \leq p^{ac}_t \leq z ( \kappa P^{mx}_t )
+  *                                           \quad t \in \mathcal{T} \quad (3b)
+  *   \f]
+  *
+  *   where \f$ z \f$ is the design binary variable. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -252,8 +264,17 @@ class IntermittentUnitBlock : public UnitBlock
  /** Method that generates the objective of the IntermittentUnitBlock.
   *
   * - Objective function: the objective function of the IntermittentUnitBlock
-  *   is "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  *   in the design scenario of the UC problem is given as follow:
+  *
+  *   \f[
+  *     \min ( I z )
+  *   \f]
+  *
+  *   where \f$ I \f$, is the investment cost and \f$ z \f$ is the design
+  *   binary variable.
+  *   Otherwise, the objective function of the IntermittentUnitBlock is
+  *   "empty" (a FRealObjective with a LinearFunction inside with no active
+  *   variables). */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 

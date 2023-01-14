@@ -26,7 +26,7 @@
  *         Universita' di Pisa \n
  *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                   Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -275,15 +275,15 @@ class SlackUnitBlock : public UnitBlock
  * and Secondary spinning reserve variables as below:
  *
  *   \f[
- *      0 \leq p^{ac}_{t} \leq P^{mx}_{t} \quad t \in \mathcal{T}     \quad (1)
+ *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}     \quad (1)
  *   \f]
  *
  *   \f[
- *      0 \leq p^{pr}_{t} \leq P^{mxP}_{t} \quad t \in \mathcal{T}    \quad (2)
+ *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}    \quad (2)
  *   \f]
  *
  *   \f[
- *      0 \leq p^{sc}_{t} \leq P^{mxS}_{t} \quad t \in \mathcal{T}    \quad (3)
+ *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}    \quad (3)
  *   \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which
@@ -305,13 +305,13 @@ class SlackUnitBlock : public UnitBlock
   *   form:
   *
   *   \f[
-  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}]  } C^{ac}_{t} p^{ac}_{t} +
-  *     C^{pr}_{t} p^{pr}_{t} +C^{sc}_{t} p^{sc}_{t} +
-  *     (P^{MaxI}_{t} * C^{i}_{t}) u_t )
+  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}] } C^{ac}_t p^{ac}_t +
+  *     C^{pr}_t p^{pr}_t +C^{sc}_t p^{sc}_t +
+  *     (P^{MaxI}_t * C^{i}_t) u_t )
   *   \f]
   *
-  *   where \f$ C^{ac}_{t} \f$, \f$ C^{pr}_{t} \f$, \f$ C^{sc}_{t} \f$,
-  *   \f$ C^{i}_{t} \f$, and \f$ P^{MaxI}_{t} \f$ for each time step t are
+  *   where \f$ C^{ac}_t \f$, \f$ C^{pr}_t \f$, \f$ C^{sc}_t \f$,
+  *   \f$ C^{i}_t \f$, and \f$ P^{MaxI}_t \f$ for each time step t are
   *   defined as the ActivePowerCost, PrimaryCost, and SecondaryCost,
   *   InertiaCost, and the MaxInertia respectively.
   *

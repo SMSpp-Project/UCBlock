@@ -36,7 +36,7 @@
  *         Universita' di Pisa \n
  *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                   Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

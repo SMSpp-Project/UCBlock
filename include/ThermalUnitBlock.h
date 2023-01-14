@@ -19,8 +19,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu,
- *                    Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -541,30 +541,30 @@ class ThermalUnitBlock : public UnitBlock
   *   Analyzing the left hand side of the ramp-up constraint (4), in any
   *   integral feasible solution we can see that
   *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ v_{t+1}\f$. Then for each
+  *   values of \f$ u_{t+1}\f$, \f$ u_t\f$ and \f$ v_{t+1}\f$. Then for each
   *   (0, ..., f_time_horizon - 1) entries of this
   *   std::vector< FRowConstraint >, there are two possible cases for t from
   *   0 until init_t - 1:
   *
-  *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0\f$, and \f$ u_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 1\f$, and \f$ u_{t+1} = 1 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
   *
   *   and four possible cases for each t from init_t until
   *   \f$ \mathcal{T} - 1\f$:
   *
-  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq 0 \f$.
   *
-  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
   *
   *   Using the symmetry between ramp up and ramp down constraints, we can
@@ -579,36 +579,36 @@ class ThermalUnitBlock : public UnitBlock
   *   The sam analyzing the left hand side of the ramp-down constraint (5), in
   *   any integral feasible solution we can see that
   *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_{t}\f$ and \f$ w_{t+1}\f$. Then for each
+  *   values of \f$ u_{t+1}\f$, \f$ u_t\f$ and \f$ w_{t+1}\f$. Then for each
   *   (0, ..., f_time_horizon - 1) entries of this std::vector< FRowConstraint >
   *   there are two possible cases for t from 0 until init_t - 1:
   *
-  *   - when \f$ u_{t} = 0\f$, and \f$ u_{t+1} = 0 \f$ then
-  *     \f$ p_{t}^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
+  *   - when \f$ u_t = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+  *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, and \f$ u_{t+1} = 1 \f$ then
-  *     \f$ p_{t}^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
+  *   - when \f$ u_t = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+  *     \f$ p_t^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
   *
   *   and four possible cases for each t from init_t until
   *   \f$ \mathcal{T} - 1\f$:
   *
-  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_{t} = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \underline{p}_t \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq - \underline{p}_t \f$.
   *
-  *   - when \f$ u_{t} = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \Delta^-_t \f$.
   *
   * - Power output Constraints:
-  *   Since commitment variable \f$ u_{t} \f$ is fixed to one or zero
+  *   Since commitment variable \f$ u_t \f$ is fixed to one or zero
   *   for "init_t" time steps(look above comments), because of power output
   *   constraint (look constraint (6)) when for the (0, ..., init_t - 1) time
-  *   steps, commitment variable \f$ u_{t} \f$ is fixed to zero we must fix
+  *   steps, commitment variable \f$ u_t \f$ is fixed to zero we must fix
   *   \f$ p_t^{ac} \f$, \f$ p_t^{pr} \f$, and \f$ p_t^{sc}\f$ to zero for the same
   *   time steps.
   *
@@ -689,7 +689,7 @@ class ThermalUnitBlock : public UnitBlock
   *  cost to be minimized has the form:
   *
   *  \f[
-  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1]  } s_t v_t +
+  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
   *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
   *  \f]
   *

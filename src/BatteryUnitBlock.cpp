@@ -736,9 +736,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( demand_Const , "Demand_Battery" );
 
- // Storage level bound constraints
-
  if( f_BattInvestmentCost == 0 ) {
+
+  // Storage level bound constraints
 
   storage_level_bounds_Const.resize( f_time_horizon );
 
@@ -751,6 +751,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   add_static_constraint( storage_level_bounds_Const , "StorageLevel_Battery" );
 
  } else {
+
+  // Storage level bound design constraints
 
   storage_level_bounds_design_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
@@ -1001,6 +1003,14 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "InitialStorage" , netCDF::NcDouble() , f_InitialStorage );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
+
+ if( f_MaxCRateCharge != 1 )
+  ::serialize( group , "MaxCRateCharge" , netCDF::NcDouble() ,
+               f_MaxCRateCharge );
+
+ if( f_MaxCRateDischarge != 1 )
+  ::serialize( group , "MaxCRateDischarge" , netCDF::NcDouble() ,
+               f_MaxCRateDischarge );
 
  // Serialize one-dimensional variables.
 
