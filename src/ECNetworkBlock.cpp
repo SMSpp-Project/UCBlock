@@ -196,28 +196,28 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
 
- // the power injection variables
+ // the microgrid power injection variables
  v_micro_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_micro_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_micro_power_injection , "micro_power_injection" );
 
- // the power absorption variables
+ // the microgrid power absorption variables
  v_micro_power_absorption.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_micro_power_absorption[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_micro_power_absorption , "micro_power_absorption" );
 
- // the power injection variables
+ // the public power injection variables
  v_public_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_public_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_public_power_injection , "public_power_injection" );
 
- // the power absorption variables
+ // the public power absorption variables
  v_public_power_absorption.resize( boost::extents[ number_intervals ][ number_nodes ] );
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
