@@ -221,8 +221,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
   number_nodes = 1;
  if( ( network_block_classname == "ECNetworkBlock" ) &&
      ( number_nodes == 1 ) )
-  throw ( std::invalid_argument( "UCBlock::deserialize: cannot create "
-                                 "a community network with just one user" ) );
+  throw( std::invalid_argument( "UCBlock::deserialize: cannot create "
+                                "a community network with just one user" ) );
 
  /* TODO commented away until HeatBlock are properly managed
  if( ! ::deserialize_dim( group , "NumberHeatGenerators" ,
@@ -1346,13 +1346,13 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  // the first will be zero, so we start checking from the second
  if( std::any_of( std::next( number_intervals.begin() ) ,
                   number_intervals.end() ,
-                  []( double cst ) { return ( cst != 1 ); } ) )
+                  []( double cst ) { return( cst != 1 ); } ) )
   ::serialize( group , "StartNetworkIntervals" , netCDF::NcUint() ,
                NumberNetworks , v_start_network_intervals );
 
  if( std::any_of( v_network_constant_terms.begin() ,
                   v_network_constant_terms.end() ,
-                  []( double cst ) { return ( cst != 0 ); } ) )
+                  []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "NetworkConstantTerms" , netCDF::NcDouble() ,
                NumberNetworks , v_network_constant_terms );
 

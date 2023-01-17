@@ -562,7 +562,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
  }
 
  if( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
-                  []( double cst ) { return ( cst != 0 ); } ) )
+                  []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
                v_RewardPrice );
 

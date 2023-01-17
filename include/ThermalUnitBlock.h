@@ -1709,7 +1709,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param availability A number between 0 and 1.
   *
-  * @return true if and only if the given \p availability is consistent at
+  * @return True if and only if the given \p availability is consistent at
   *         time \p t. */
 
  bool availability_is_consistent( Index t , double availability ) const {
