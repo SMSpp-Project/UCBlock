@@ -81,8 +81,7 @@ DCNetworkBlock::~DCNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::DCNetworkData::deserialize(
- const netCDF::NcGroup & group ) {
+void DCNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
@@ -175,7 +174,7 @@ void DCNetworkBlock::DCNetworkData::deserialize(
  get_string_array( "NodeName" , v_node_names , f_number_nodes );
  get_string_array( "LineName" , v_line_names );
 
-}  // end( DCNetworkBlock::DCNetworkData::deserialize )
+}  // end( DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -536,7 +535,7 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
+void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  auto NumberNodes = group.addDim( "NumberNodes" , f_number_nodes );
 
@@ -576,7 +575,7 @@ void DCNetworkBlock::DCNetworkData::serialize( netCDF::NcGroup & group ) const {
    NodeName.putVar( { i } , v_node_names[ i ] );
  }
 
-}  // end( DCNetworkBlock::DCNetworkData::serialize )
+}  // end( DCNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 

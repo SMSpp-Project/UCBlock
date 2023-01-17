@@ -70,8 +70,7 @@ ECNetworkBlock::~ECNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::ECNetworkData::deserialize(
- const netCDF::NcGroup & group ) {
+void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
@@ -112,7 +111,7 @@ void ECNetworkBlock::ECNetworkData::deserialize(
  ::deserialize( group , f_RewardPrice , "RewardPrice" );
  ::deserialize( group , f_PeakTariff , "PeakTariff" );
 
-}  // end( ECNetworkBlock::ECNetworkData::deserialize )
+}  // end( ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -508,7 +507,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
+void ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  group.addDim( "NumberNodes" , f_number_nodes );
 
@@ -518,7 +517,7 @@ void ECNetworkBlock::ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  if( f_RewardPrice != 0 )
   ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
-}  // end( ECNetworkBlock::ECNetworkData::serialize )
+}  // end( ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 
