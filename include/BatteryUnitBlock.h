@@ -607,8 +607,8 @@ public:
   *   \f]
   *
   *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are the
-  *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t\f$ and
-  *   \f$ V^{mx}_t\f$ are the minimum and maximum storage level for each time
+  *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t \f$ and
+  *   \f$ V^{mx}_t \f$ are the minimum and maximum storage level for each time
   *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ z_b \f$
   *   is the design binary variable of the battery.
   *

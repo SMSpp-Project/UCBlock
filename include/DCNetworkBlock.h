@@ -528,7 +528,7 @@ class DCNetworkBlock : public NetworkBlock
   * at node \f$ n \in N \f$ in the network respectively. The node injection
   * variable of each node \f$ n \in N \f$ and the power flows variable and an
   * auxiliary variable (which is not be defined if there is no network cost), of
-  * each line \f$ l \in L \f$ are defined as \f$S_n\f$, \f$ F_l \f$ and
+  * each line \f$ l \in L \f$ are defined as \f$ S_n \f$, \f$ F_l \f$ and
   * \f$ V_l \f$ respectively.
   *
   *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)

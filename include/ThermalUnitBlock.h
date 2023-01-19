@@ -441,7 +441,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   - otherwise init_t = \f$ \tau_- \f$ + \f$ \tau_0 \f$;
   *
-  * - If the \f$ \tau_0 == 0\f$ means that the unit has been just shutdown at
+  * - If the \f$ \tau_0 == 0 \f$ means that the unit has been just shutdown at
   *   the end of time instant -1, i.e., the beginning of time instant 0 and
   *   init_t == 0.
   *
@@ -453,7 +453,7 @@ class ThermalUnitBlock : public UnitBlock
   *   production of the unit(put init_t := \f$ t_0 \f$).
   *
   * Then the main thermal unit constraints with three 3 binary variables
-  * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$are are presented as following:
+  * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are are presented as following:
   *
   * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
   *   time constraints and one possible representation of the constraints could
@@ -489,7 +489,8 @@ class ThermalUnitBlock : public UnitBlock
   *   to one for init_t time steps(starting from zero till init_t - 1). Since
   *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
   *   can ensure (for all periods \f$ t \in \{ t_0, ..., \mathcal{T} -1 \} \f$)
-  *   that \f$ v_t = 1\f$ if and only if \f$ u_t = 1\f$ and \f$ u_{t-1} = 0\f$.
+  *   that \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and
+  *   \f$ u_{t-1} = 0 \f$.
   *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
   *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
   *
@@ -541,30 +542,30 @@ class ThermalUnitBlock : public UnitBlock
   *   Analyzing the left hand side of the ramp-up constraint (4), in any
   *   integral feasible solution we can see that
   *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_t\f$ and \f$ v_{t+1}\f$. Then for each
+  *   values of \f$ u_{t+1}\f$, \f$ u_t \f$ and \f$ v_{t+1}\f$. Then for each
   *   (0, ..., f_time_horizon - 1) entries of this
   *   std::vector< FRowConstraint >, there are two possible cases for t from
   *   0 until init_t - 1:
   *
-  *   - when \f$ u_t = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0 \f$, and \f$ u_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_t = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 1 \f$, and \f$ u_{t+1} = 1 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
   *
   *   and four possible cases for each t from init_t until
-  *   \f$ \mathcal{T} - 1\f$:
+  *   \f$ \mathcal{T} - 1 \f$:
   *
-  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq 0 \f$.
   *
-  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
   *
-  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
   *
-  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
   *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
   *
   *   Using the symmetry between ramp up and ramp down constraints, we can
@@ -579,29 +580,29 @@ class ThermalUnitBlock : public UnitBlock
   *   The sam analyzing the left hand side of the ramp-down constraint (5), in
   *   any integral feasible solution we can see that
   *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_t\f$ and \f$ w_{t+1}\f$. Then for each
+  *   values of \f$ u_{t+1}\f$, \f$ u_t \f$ and \f$ w_{t+1}\f$. Then for each
   *   (0, ..., f_time_horizon - 1) entries of this std::vector< FRowConstraint >
   *   there are two possible cases for t from 0 until init_t - 1:
   *
-  *   - when \f$ u_t = 0\f$, and \f$ u_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0 \f$, and \f$ u_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_t = 1\f$, and \f$ u_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 1 \f$, and \f$ u_{t+1} = 1 \f$ then
   *     \f$ p_t^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
   *
   *   and four possible cases for each t from init_t until
-  *   \f$ \mathcal{T} - 1\f$:
+  *   \f$ \mathcal{T} - 1 \f$:
   *
-  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
   *
-  *   - when \f$ u_t = 0\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \underline{p}_t \f$.
   *
-  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
+  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq - \underline{p}_t \f$.
   *
-  *   - when \f$ u_t = 1\f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
+  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
   *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \Delta^-_t \f$.
   *
   * - Power output Constraints:
@@ -669,7 +670,7 @@ class ThermalUnitBlock : public UnitBlock
   *   unit is ON or OFF. More precisely, the unit generation limits taking into
   *   account its maximum \f$ \bar{p}_t \f$ and minimum \f$ \underline{p}_t \f$
   *   production, as well as its startup and shutdown capabilities(here both of
-  *   them are assumed be equal with minimum production \f$ \underline{p}_t\f$)
+  *   them are assumed be equal with minimum production \f$ \underline{p}_t \f$)
   *   in each time step t. Be aware that (10) may be infeasible in the event
   *   that the unit is online for just one period. That is,
   *   \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can be negative.
