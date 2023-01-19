@@ -255,7 +255,7 @@ class IntermittentUnitBlock : public UnitBlock
   *                                           \quad t \in \mathcal{T} \quad (3b)
   *   \f]
   *
-  *   where \f$ z \f$ is the design binary variable. */
+  *   where \f$ z \f$ is the design variable. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 

@@ -157,7 +157,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "InitialPower" , "MinUpTime" ,
                                               "MinDownTime" ,
                                               "InitUpDownTime" ,
-                                              "Availability" };
+                                              "Availability" , "MaxCapacity" ,
+                                              "InvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -165,10 +166,13 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Mandatory variables
 
- ::deserialize( group , "MinPower" , v_MinPower , false );
  ::deserialize( group , "MaxPower" , v_MaxPower , false );
 
  // Optional variables
+
+ ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+
+ ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
  if( ! ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = 0;
@@ -185,6 +189,9 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   else
    f_InitUpDownTime = f_MinUpTime;
  }
+
+ if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
+  v_MinPower.assign( f_time_horizon , 0 );
 
  if( ! ::deserialize( group , "Availability" , v_Availability ) )
   v_Availability.resize( get_time_horizon() , 1.0 );
@@ -415,6 +422,16 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
     var.set_type( ColVariable::kBinary );
 
   add_static_variable( v_shut_down , "w" );
+ }
+
+ // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_InvestmentCost != 0 ) {
+  if( f_MaxCapacity != 0 )
+   design.set_type( ColVariable::kPosUnitary );
+  else
+   design.set_type( ColVariable::kBinary );
+  add_static_variable( design , "D_thermal" );
  }
 
  // POSSIBLY FIXING THE COMMITMENT VARIABLES TO 0 OR 1- - - - - - - - - - - -
@@ -1232,6 +1249,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
+
 }  // end( ThermalUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -1242,14 +1260,21 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- // Serialize scalar variables.
+ // Serialize scalar variables
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
  ::serialize( group , "MinDownTime" , netCDF::NcUint() , f_MinDownTime );
  ::serialize( group , "InitUpDownTime" , netCDF::NcInt() , f_InitUpDownTime );
 
- // Serialize one-dimensional variables.
+ if( f_InvestmentCost != 0 )
+  ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
+               f_InvestmentCost );
+
+ if( f_MaxCapacity != 0 )
+  ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
+
+ // Serialize one-dimensional variables
 
  auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
@@ -1295,7 +1320,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "StartUpCost" , v_StartUpCost );
  serialize( "FixedConsumption" , v_FixedConsumption );
  serialize( "InertiaCommitment" , v_InertiaCommitment );
-}
+
+}  // end( ThermalUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/

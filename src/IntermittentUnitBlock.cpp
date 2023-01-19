@@ -433,6 +433,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
+
 }  // end( IntermittentUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -442,11 +443,20 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
 void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
  UnitBlock::serialize( group );
 
- // Serialize scalar variables.
+ // Serialize scalar variables
+
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
 
- // Serialize one-dimensional variables.
+ if( f_InvestmentCost != 0 )
+  ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
+               f_InvestmentCost );
+
+ if( f_MaxCapacity != 0 )
+  ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
+
+ // Serialize one-dimensional variables
+
  auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
@@ -469,8 +479,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() != 1 )
    throw( std::logic_error
     ( "IntermittentUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension must" +
-                        " be one of the following: TimeHorizon, NumberIntervals, 1." ) );
+      var_name + ": " + std::to_string( data.size() ) +
+      ". Its dimension must be one of the following: TimeHorizon, "
+      "NumberIntervals, 1." ) );
 
   ::serialize( group , var_name , ncType , dimension , data ,
                allow_scalar_var );

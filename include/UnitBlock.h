@@ -509,7 +509,7 @@ class UnitBlock : public Block
   * - 4 the unit could have inertia reserve variables.
   *
   * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there.*/
+  * reserve variables; it cannot create them if they are not there. */
 
  virtual void set_reserve_vars( unsigned char what ) {
   reserve_vars = what;

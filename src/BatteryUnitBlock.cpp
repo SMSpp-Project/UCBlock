@@ -988,6 +988,7 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( intake_outtake_bounds_Const , tol , rel_viol )
   && RowConstraint::is_feasible( primary_upper_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( secondary_upper_bound_Const , tol , rel_viol ) );
+
 } // end( BatteryUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -998,11 +999,27 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  UnitBlock::serialize( group );
 
- // Serialize scalar variables.
+ // Serialize scalar variables
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "InitialStorage" , netCDF::NcDouble() , f_InitialStorage );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
+
+ if( f_BattInvestmentCost != 0 )
+  ::serialize( group , "BattInvestmentCost" , netCDF::NcDouble() ,
+               f_BattInvestmentCost );
+
+ if( f_ConvInvestmentCost != 0 )
+  ::serialize( group , "ConvInvestmentCost" , netCDF::NcDouble() ,
+               f_ConvInvestmentCost );
+
+ if( f_BattMaxCapacity != 0 )
+  ::serialize( group , "BattMaxCapacity" , netCDF::NcDouble() ,
+               f_BattMaxCapacity );
+
+ if( f_ConvMaxCapacity != 0 )
+  ::serialize( group , "ConvMaxCapacity" , netCDF::NcDouble() ,
+               f_ConvMaxCapacity );
 
  if( f_MaxCRateCharge != 1 )
   ::serialize( group , "MaxCRateCharge" , netCDF::NcDouble() ,
@@ -1012,7 +1029,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "MaxCRateDischarge" , netCDF::NcDouble() ,
                f_MaxCRateDischarge );
 
- // Serialize one-dimensional variables.
+ // Serialize one-dimensional variables
 
  auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );

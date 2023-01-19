@@ -413,6 +413,7 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Primary_Spinning_Reserve_Bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Secondary_Spinning_Reserve_Bound_Const , tol , rel_viol ) );
+
 } // end( SlackUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -422,7 +423,7 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
  UnitBlock::serialize( group );
 
- // Serialize one-dimensional variables.
+ // Serialize one-dimensional variables
  auto TimeHorizon = group.getDim( "TimeHorizon" );
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 

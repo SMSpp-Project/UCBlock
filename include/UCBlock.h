@@ -908,7 +908,7 @@ class UCBlock : public Block
   *  - otherwise the two-dimensional boost::multi_array<> M must have
   *    get_number_secondary_zones() row where each row must have size of
   *    get_time_horizon() and each element of M[ n , t ] gives the secondary
-  *    demand of secondary zone n at time instant t.*/
+  *    demand of secondary zone n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_secondary_demand( void ) const {
   return( v_secondary_demand );

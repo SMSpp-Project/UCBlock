@@ -566,8 +566,8 @@ public:
   *   \f]
   *
   *   where \f$ P^{mx,c}_t \f$ is the maximum power of the converter, and
-  *   \f$ z_b \f$ and \f$ z_c \f$ are the design binary variable the battery
-  *   and the converter respectively.
+  *   \f$ z_b \f$ and \f$ z_c \f$ are the design variable the battery and the
+  *   converter respectively.
   *
   * - storage level relation with intake and outtake levels (if any)
   *   constraints in Battery unit are presented in (7). That is a
@@ -610,7 +610,7 @@ public:
   *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t \f$ and
   *   \f$ V^{mx}_t \f$ are the minimum and maximum storage level for each time
   *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ z_b \f$
-  *   is the design binary variable of the battery.
+  *   is the design variable of the battery.
   *
   * - binary variable relation with storing and extracting energy level (if
   *   any) constraints are presented in (10-11). Each of them is a
@@ -664,8 +664,8 @@ public:
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
   *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c
-  *   \f$ are the design binary variable the battery and the converter
-  *   respectively; and \f$ C_t \f$ is a certain proportion cost function. */
+  *   \f$ are the design variable the battery and the converter respectively;
+  *   and \f$ C_t \f$ is a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1040,7 +1040,7 @@ public:
   * - if V is empty(), then these variables are not defined;
   *
   * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
-  *   outtake level variable for time step t.*/
+  *   outtake level variable for time step t. */
 
  const std::vector< ColVariable > & get_outtake_level( void ) const {
   return( v_outtake_level );

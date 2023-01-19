@@ -697,9 +697,8 @@ class ThermalUnitBlock : public UnitBlock
   *  where \f$ v_t \f$ indicates that the unit is starting up at time
   *  \f$ t \f$, \f$ u_t \f$ indicates that the unit is committed at time
   *  \f$ t \f$, \f$ p_t \f$ is the active power produced at time \f$ t \f$,
-  *  \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t
-  *  \f$ is the start-up cost of the unit, which we assume to be
-  *  time-independent
+  *  \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t \f$ is the start-up
+  *  cost of the unit, which we assume to be time-independent
   *
   *  Note: time-independent means here start-up cost is "independent from how
   *        long the unit has been off", and it is not meaning "always should
@@ -837,6 +836,12 @@ class ThermalUnitBlock : public UnitBlock
 
  /// returns the minimum allowed down time value
  Index get_min_down_time( void ) const { return( f_MinDownTime ); }
+
+ /// returns the investment cost
+ double get_investment_cost( void ) const { return( f_InvestmentCost ); }
+
+ /// returns the maximum installable capacity by the user
+ double get_max_capacity( void ) const { return( f_MaxCapacity ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of nominal minimum active power output
@@ -1204,6 +1209,13 @@ class ThermalUnitBlock : public UnitBlock
   if( v_shut_down.empty() || ( t < init_t ) )
    return( nullptr );
   return( &( v_shut_down[ t - init_t ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the design variable
+
+ ColVariable & get_design( void ) {
+  return( design );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1587,6 +1599,12 @@ class ThermalUnitBlock : public UnitBlock
  /// this variable indicates which netCDF variables must be ignored
  static int f_ignore_netcdf_variables;
 
+ /// the investment cost
+ double f_InvestmentCost{};
+
+ /// the maximum installable capacity by the user
+ double f_MaxCapacity{};
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the start up binary variables
@@ -1606,6 +1624,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
+
+ /// the design variable
+ ColVariable design;
 
 /*------------------------------- constraints ------------------------------*/
 

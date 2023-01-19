@@ -1034,6 +1034,7 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( FlowRateBounds_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
   && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol ) );
+
 } // end( HydroUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
@@ -1057,7 +1058,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
  auto NumberArcs = group.addDim
   ( "NumberArcs" , f_NumberArcs ? f_NumberArcs : 1 );
 
- // Serialize one-dimensional variables.
+ // Serialize one-dimensional variables
 
  ::serialize( group , "StartArc" , netCDF::NcUint() ,
               NumberArcs , v_StartArc , false );
@@ -1086,7 +1087,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "DownhillFlow" , netCDF::NcUint() ,
               NumberArcs , v_DownhillDelay , false );
 
- // Serialize two-dimensional variables.
+ // Serialize two-dimensional variables
 
  ::serialize( group , "MinFlow" , netCDF::NcDouble() ,
               { TimeHorizon , NumberArcs } , v_MinFlow );

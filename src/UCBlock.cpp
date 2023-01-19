@@ -1750,7 +1750,7 @@ void UCBlock::update_primary_demand_constraints
 
    }  // end( for( modified_units ) )
 
-   // Update the coefficients of the active Variables.
+   // Update the coefficients of the active variables
    static_cast< LinearFunction * >( constraint.get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                          false , eNoBlck );
@@ -1849,7 +1849,7 @@ void UCBlock::update_secondary_demand_constraints
 
    }  // end( for( modified_units ) )
 
-   // Update the coefficients of the active Variables.
+   // Update the coefficients of the active variables
    static_cast< LinearFunction * >( constraint.get_function() )->
     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                          false , eNoBlck );
@@ -1986,7 +1986,7 @@ void UCBlock::update_inertia_demand_constraints
 
     }  // end( for( unit_id ) )
 
-    // Update the coefficients of the active Variables.
+    // Update the coefficients of the active variables
     static_cast< LinearFunction * >( constraint.get_function() )->
      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
                           true , eNoBlck );

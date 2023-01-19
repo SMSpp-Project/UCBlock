@@ -358,7 +358,7 @@ class HydroSystemUnitBlock : public UnitBlock
   * - 2 the unit could have secondary spinning reserve variables
   *
   * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there.*/
+  * reserve variables; it cannot create them if they are not there. */
 
  void set_reserve_vars( unsigned char what ) override {
   reserve_vars = what;

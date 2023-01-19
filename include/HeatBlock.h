@@ -313,7 +313,7 @@ class HeatBlock : public Block
   * horizon.
   *
   * Note that derived classes are free to use the other bits of the int to
-  * similarly encode for creation of their own specific groups of variables.*/
+  * similarly encode for creation of their own specific groups of variables. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 

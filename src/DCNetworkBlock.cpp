@@ -529,6 +529,7 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( v_power_flow_injection_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_AC_HVDC_power_flow_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol ) );
+
 } // end( DCNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
