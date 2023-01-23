@@ -1037,6 +1037,30 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+/// returns the coefficient of the quadratic term of the power cost function
+/** This function returns the coefficient of the quadratic term of the
+ * quadratic function that represents the cost of the power produced by the
+ * unit at the given time instant.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The coefficient of the quadratic term of the quadratic function
+ *         that represents the cost of the power produced by the unit at the
+ *         given time instant. */
+
+ double get_quad_term( Index t ) const {
+  if( v_QuadTerm.empty() )
+   return( 0 );
+  if( v_QuadTerm.size() == 1 )
+   return( v_QuadTerm.front() );
+  assert( v_QuadTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_QuadTerm[ t ] );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
  /** The returned vector contains to linear term at time t. There are three
   * possible cases:
@@ -1054,6 +1078,30 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+/// returns the coefficient of the linear term of the power cost function
+/** This function returns the coefficient of the linear term of the quadratic
+ * function that represents the cost of the power produced by the unit at the
+ * given time instant.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The coefficient of the linear term of the quadratic function that
+ *         represents the cost of the power produced by the unit at the given
+ *         time instant. */
+
+ double get_linear_term( Index t ) const {
+  if( v_LinearTerm.empty() )
+   return( 0 );
+  if( v_LinearTerm.size() == 1 )
+   return( v_LinearTerm.front() );
+  assert( v_LinearTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_LinearTerm[ t ] );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
  /** The returned vector contains to constant term at time t. There are three
   * possible cases:
@@ -1068,6 +1116,29 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// returns the constant term of the power cost function
+/** This function returns the constant term of the function that represents
+ * the cost of the power produced by the unit at the given time instant. This
+ * is the fixed cost incurred when the unit is committed at time instant \p t.
+ *
+ * @param t A time instant between 0 and get_time_horizon() - 1.
+ *
+ * @return The fixed cost when the unit is committed at the given time
+ *         instant. */
+
+ double get_const_term( Index t ) const {
+  if( v_ConstTerm.empty() )
+   return( 0 );
+  if( v_ConstTerm.size() == 1 )
+   return( v_ConstTerm.front() );
+  assert( v_ConstTerm.size() == f_time_horizon );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
+                            "time index: " + std::to_string( t ) ) );
+  return( v_ConstTerm[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
