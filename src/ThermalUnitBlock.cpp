@@ -431,6 +431,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    design.set_type( ColVariable::kPosUnitary );
   else
    design.set_type( ColVariable::kBinary );
+
   add_static_variable( design , "D_thermal" );
  }
 
