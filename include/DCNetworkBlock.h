@@ -404,7 +404,7 @@ class DCNetworkBlock : public NetworkBlock
    * format of a DCNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
    * ) for details of the format of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup & group ) const;
+  virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
