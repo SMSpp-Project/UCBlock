@@ -60,7 +60,7 @@ SMSpp_insert_in_factory_cpp_1( UCBlock );
 
 UCBlock::~UCBlock() {
 
- Constraint::clear( v_node_injection_const );
+ Constraint::clear( v_node_injection_Const );
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
  Constraint::clear( v_InertiaDemand_Const );
@@ -581,7 +581,7 @@ void UCBlock::generate_node_injection_constraints( void ) {
 
  const auto number_nodes = get_number_nodes();
 
- v_node_injection_const.resize(
+ v_node_injection_Const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ f_time_horizon ][ number_nodes ] );
 
@@ -631,11 +631,11 @@ void UCBlock::generate_node_injection_constraints( void ) {
     }  // end( for( i ) )
 
     // set the final RHS of the constraint (equality constraint)
-    v_node_injection_const[ t ][ 0 ].set_both( rhs , eNoMod );
+    v_node_injection_Const[ t ][ 0 ].set_both( rhs , eNoMod );
     // resize vc so that it's of the right length
     vc.resize( std::distance( vc.begin() , vcit ) );
     // construct and pass the LinearFunction to the FRowConstraint
-    v_node_injection_const[ t ][ 0 ].set_function(
+    v_node_injection_Const[ t ][ 0 ].set_function(
      new LinearFunction( std::move( vc ) ) , eNoMod );
    }  // end( for( t ) )
 
@@ -690,13 +690,13 @@ void UCBlock::generate_node_injection_constraints( void ) {
         }
        }
       }
-      v_node_injection_const[ t ][ node_id ].set_both( rhs , eNoMod );
-      v_node_injection_const[ t ][ node_id ].set_function( linear_function );
+      v_node_injection_Const[ t ][ node_id ].set_both( rhs , eNoMod );
+      v_node_injection_Const[ t ][ node_id ].set_function( linear_function );
      }
     }
    }
   }
-  add_static_constraint( v_node_injection_const , "node_injection_c" );
+  add_static_constraint( v_node_injection_Const , "node_injection_c" );
  }
 }  // end( UCBlock::generate_node_injection_constraints )
 
@@ -1456,7 +1456,7 @@ void UCBlock::update_node_injection_constraints
  ( const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) ||
-     ( v_node_injection_const.empty() ) || modified_units.empty() )
+     ( v_node_injection_Const.empty() ) || modified_units.empty() )
   return;
 
  // Lambda for determining if some unit has been modified
@@ -1484,7 +1484,7 @@ void UCBlock::update_node_injection_constraints
   if( number_nodes == 1 ) {  // BusNetwork
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
-    auto & constraint = v_node_injection_const[ t ][ 0 ];
+    auto & constraint = v_node_injection_Const[ t ][ 0 ];
 
     // This will store the coefficients that must be updated, i.e., those of
     // the active Variables that belong to the units that have been modified.
@@ -1582,7 +1582,7 @@ void UCBlock::update_node_injection_constraints
      // Index of the current active Variable
      Index active_var_index = 0;
 
-     auto & constraint = v_node_injection_const[ t ][ node_id ];
+     auto & constraint = v_node_injection_Const[ t ][ node_id ];
 
      // increment due to the node injection variable
      ++active_var_index;
@@ -2015,7 +2015,7 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
   }  // end( for( g ) )
  }  // end( for( i ) )
 
- v_node_injection_const[ time ][ node_index ].set_both( rhs , eNoBlck );
+ v_node_injection_Const[ time ][ node_index ].set_both( rhs , eNoBlck );
 }
 
 /*--------------------------------------------------------------------------*/

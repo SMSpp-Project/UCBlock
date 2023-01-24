@@ -1168,7 +1168,7 @@ class UCBlock : public Block
 
  const boost::multi_array< FRowConstraint , 2 > &
  get_node_injection_constraints( void ) const {
-  return( v_node_injection_const );
+  return( v_node_injection_Const );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1529,7 +1529,7 @@ class UCBlock : public Block
 /*------------------------------- constraints ------------------------------*/
 
  /// node injection constraints for each time and node
- boost::multi_array< FRowConstraint , 2 > v_node_injection_const;
+ boost::multi_array< FRowConstraint , 2 > v_node_injection_Const;
 
  /// primary demand constraints for each time and primary zone
  boost::multi_array< FRowConstraint , 2 > v_PrimaryDemand_Const;
