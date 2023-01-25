@@ -147,12 +147,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group ) {
    auto netcdf_var = group.getVar( var_name );
    if( ! netcdf_var.isNull() ) {
     if( netcdf_var.getDimCount() != 1 )
-     throw( std::logic_error( "NetworkData::deserialize: the dimension of "
+     throw( std::logic_error( "DCNetworkData::deserialize: the dimension of "
                               "variable'" + var_name + "' must be 1." ) );
 
     if( ( size < Inf< Index >() ) &&
         ( netcdf_var.getDim( 0 ).getSize() != size ) )
-     throw( std::logic_error( "NetworkData::deserialize: the size of "
+     throw( std::logic_error( "DCNetworkData::deserialize: the size of "
                               "variable '" + var_name + "' should be " +
                               std::to_string( size ) + "." ) );
 

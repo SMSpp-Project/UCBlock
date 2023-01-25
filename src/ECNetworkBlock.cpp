@@ -152,10 +152,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
           ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
  }
 
- // the max node injection is mandatory ONLY IF we use a Solver that optimize
- // each Block at a time to lower bound the node injection; by default it is
- // set in UCBlock::generate_node_injection_constraints() as the sum of all the
- // maximum powers of the UnitBlock of the problem
  if( ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection ) )
   // always check if the max node injection is given in the correct shape
   assert( ( v_MaxNodeInjection.shape()[ 0 ] == f_number_intervals ) &&
