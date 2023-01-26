@@ -383,14 +383,14 @@ class DCNetworkBlock : public NetworkBlock
 
   /// returns the vector containing the name of the nodes
   const std::vector< std::string > & get_node_names( void ) const {
-   return v_node_names;
+   return( v_node_names );
   }
 
 /*--------------------------------------------------------------------------*/
 
   /// returns the vector containing the name of the lines
   const std::vector< std::string > & get_line_names( void ) const {
-   return v_line_names;
+   return( v_line_names );
   }
 
 /**@} ----------------------------------------------------------------------*/

@@ -1002,7 +1002,7 @@ public:
   *
   * @return The kappa factor. */
 
- double get_kappa( void ) const { return f_kappa; }
+ double get_kappa( void ) const { return( f_kappa ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of storage level variables

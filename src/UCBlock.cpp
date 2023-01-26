@@ -1411,7 +1411,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
 /*--------------------------------------------------------------------------*/
 
-int UCBlock::get_objective_sense( void ) const { return Objective::eMin; }
+int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
