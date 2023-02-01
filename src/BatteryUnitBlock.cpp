@@ -545,7 +545,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // battery in discharge
    intake_vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    intake_vars.push_back( std::make_pair( &batt_design ,
-                                          -f_kappa * f_MaxCRateDischarge *
+                                          - f_kappa * f_MaxCRateDischarge *
                                           v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
@@ -564,7 +564,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // battery in charge
    outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    outtake_vars.push_back( std::make_pair( &batt_design ,
-                                           -f_kappa * f_MaxCRateCharge *
+                                           - f_kappa * f_MaxCRateCharge *
                                            v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
@@ -585,7 +585,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    intake_outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] ,
                                                   1.0 ) );
    intake_outtake_vars.push_back( std::make_pair( &conv_design ,
-                                                  -f_kappa *
+                                                  - f_kappa *
                                                   v_ConvMaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs( -Inf< double >() );
@@ -769,7 +769,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    lower_vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    lower_vars.push_back( std::make_pair( &batt_design ,
-                                         -f_kappa * v_MinStorage[ t ] ) );
+                                         - f_kappa * v_MinStorage[ t ] ) );
 
    storage_level_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
    storage_level_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
@@ -785,7 +785,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    upper_vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    upper_vars.push_back( std::make_pair( &batt_design ,
-                                         -f_kappa * v_MaxStorage[ t ] ) );
+                                         - f_kappa * v_MaxStorage[ t ] ) );
 
    storage_level_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    storage_level_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
@@ -811,7 +811,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    intake_vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    intake_vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                          -f_kappa * v_MaxPower[ t ] ) );
+                                          - f_kappa * v_MaxPower[ t ] ) );
 
    intake_outtake_binary_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_binary_Const[ 0 ][ t ].set_rhs( 0.0 );
@@ -822,10 +822,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    outtake_vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                           -f_kappa * v_MinPower[ t ] ) );
+                                           - f_kappa * v_MinPower[ t ] ) );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( -f_kappa * v_MinPower[ t ] );
+   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( - f_kappa * v_MinPower[ t ] );
    intake_outtake_binary_Const[ 1 ][ t ].set_function(
     new LinearFunction( std::move( outtake_vars ) ) );
   }
@@ -1117,16 +1117,17 @@ void BatteryUnitBlock::set_initial_storage
   // Change the physical representation
   f_InitialStorage = *it;
 
-  if( not_dry_run( issueAMod ) && constraints_generated() )
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
    update_initial_storage_in_constraints( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
+
 }  // end( BatteryUnitBlock::set_initial_storage )
 
 /*--------------------------------------------------------------------------*/
@@ -1148,16 +1149,17 @@ void BatteryUnitBlock::set_initial_storage
   // Change the physical representation
   f_InitialStorage = *it;
 
-  if( not_dry_run( issueAMod ) && constraints_generated() )
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
    update_initial_storage_in_constraints( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                           ( this , BatteryUnitBlockMod::eSetInitS ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
- }
+
 }  // end( BatteryUnitBlock::set_initial_storage )
 
 /*--------------------------------------------------------------------------*/
@@ -1197,17 +1199,16 @@ void BatteryUnitBlock::set_initial_power
   // Change the physical representation
   f_InitialPower = *it;
 
-  if( not_dry_run( issueAMod ) && constraints_generated() )
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
    update_initial_power_in_constraints( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
- }
 
 }  // end( BatteryUnitBlock::set_initial_power )
 
@@ -1230,16 +1231,17 @@ void BatteryUnitBlock::set_initial_power
   // Change the physical representation
   f_InitialPower = *it;
 
-  if( not_dry_run( issueAMod ) && constraints_generated() )
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
    update_initial_power_in_constraints( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                           ( this , BatteryUnitBlockMod::eSetInitP ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
- }
+
 }  // end( BatteryUnitBlock::set_initial_power )
 
 /*--------------------------------------------------------------------------*/
@@ -1267,12 +1269,12 @@ void BatteryUnitBlock::scale
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< UnitBlockMod >
-                           ( this , UnitBlockMod::eScale ) ,
+  Block::add_Modification( std::make_shared< UnitBlockMod >(
+                            this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );
  else if( auto f_Block = get_f_Block() )
-  f_Block->add_Modification( std::make_shared< UnitBlockMod >
-                             ( this , UnitBlockMod::eScale ) ,
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
+                              this , UnitBlockMod::eScale ) ,
                              Observer::par2chnl( issuePMod ) );
 
 }  // end( BatteryUnitBlock::scale )
@@ -1318,7 +1320,7 @@ void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in intake_binary_Const." ) );
 
-   f->modify_coefficient( index , -f_kappa * v_MaxPower[ t ] , issueAMod );
+   f->modify_coefficient( index , - f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
  if( ! intake_outtake_binary_Const[ 1 ].empty() )
@@ -1334,10 +1336,10 @@ void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in outtake_binary_Const." ) );
 
-   f->modify_coefficient( index , -f_kappa * v_MinPower[ t ] , issueAMod );
+   f->modify_coefficient( index , - f_kappa * v_MinPower[ t ] , issueAMod );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-    -f_kappa * v_MinPower[ t ] , issueAMod );
+    - f_kappa * v_MinPower[ t ] , issueAMod );
   }
 
  if( ! primary_upper_bound_Const.empty() )
@@ -1375,9 +1377,10 @@ void BatteryUnitBlock::set_kappa
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >
-                           ( this , BatteryUnitBlockMod::eSetKappa ) ,
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetKappa ) ,
                            Observer::par2chnl( issuePMod ) );
+
 }  // end( BatteryUnitBlock::set_kappa )
 
 /*--------------------------------------------------------------------------*/

@@ -185,7 +185,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  if( ! ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) ) {
   if( f_InitialPower == 0 )
-   f_InitUpDownTime = -f_MinDownTime;
+   f_InitUpDownTime = - f_MinDownTime;
   else
    f_InitUpDownTime = f_MinUpTime;
  }
@@ -345,7 +345,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   init_t = ( f_InitUpDownTime >= f_MinUpTime ? 0 :
              f_MinUpTime - f_InitUpDownTime );
  else
-  init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
+  init_t = ( - f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
  int relax_binary = 0;
@@ -441,7 +441,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( init_t > 0 ) {
   double commitment_variable_value = -1.0;
 
-  if( f_InitUpDownTime <= 0 && -f_InitUpDownTime < f_MinDownTime ) {
+  if( ( f_InitUpDownTime <= 0 ) && ( - f_InitUpDownTime < f_MinDownTime ) ) {
 
    commitment_variable_value = 0.0;
 
@@ -468,7 +468,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
      v_secondary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
    }
-  } else if( f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime )
+  } else if( ( f_InitUpDownTime > 0 ) && ( f_InitUpDownTime < f_MinUpTime ) )
    // This unit must remain on from time 0 to init_t - 1.
    commitment_variable_value = 1.0;
 
@@ -614,7 +614,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    l_function->add_variable( &v_start_up[ 0 ] , -1.0 );
    l_function->add_variable( &v_shut_down[ 0 ] , 1.0 );
 
-   if( f_InitUpDownTime <= 0 ) {  // -f_InitUpDownTime < f_MinDownTime
+   if( f_InitUpDownTime <= 0 ) {  // - f_InitUpDownTime < f_MinDownTime
     StartUp_ShutDown_Variables_Const[ 0 ].set_both( 0.0 );
     StartUp_ShutDown_Variables_Const[ 0 ].set_function( l_function );
    } else {  // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
@@ -699,7 +699,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Initializing ramp-up constraints with 3-Binary Variables- - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! v_DeltaRampUp.empty() && ! v_DeltaRampDown.empty() )
+ if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) )
   if( f_InitUpDownTime > 0 )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     if( f_InitialPower + v_DeltaRampUp[ 0 ] < get_operational_min_power( 0 ) ||
@@ -780,7 +780,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     RampUp_Const[ t ].set_function( lf );
    }
 
-   if( f_InitUpDownTime <= 0 ) {  // -f_InitUpDownTime < f_MinDownTime
+   if( f_InitUpDownTime <= 0 ) {  // - f_InitUpDownTime < f_MinDownTime
 
     auto LFunction = new LinearFunction();
 
@@ -1068,7 +1068,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // BoxConstraint - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( init_t > 0 && f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime ) {
+ if( ( init_t > 0 ) && ( f_InitUpDownTime > 0 ) &&
+     ( f_InitUpDownTime < f_MinUpTime )
+  ) {
 
   // the commitment fixed to one BoxConstraints
   Commitment_fixed_to_One_Const.resize( f_time_horizon );
@@ -1369,7 +1371,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
   auto depends_on_min_power = ( t > init_t );
   depends_on_min_power |= ( t == init_t ) &&
                           ( ( f_InitUpDownTime < 0 &&
-                              -f_InitUpDownTime < f_MinDownTime ) ||
+                              - f_InitUpDownTime < f_MinDownTime ) ||
                             ( f_InitUpDownTime > 0 &&
                               f_InitUpDownTime < f_MinUpTime ) );
 
@@ -1406,7 +1408,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
   return;
 
  if( v_Availability.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 1.0 ); } ) )
    return;
 
@@ -1438,7 +1441,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
  }
 
  if( identical )
-  return; // nothing changes
+  return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -1447,16 +1450,15 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
    v_Availability[ t ] = *( availability++ );
  }
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
+ if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
   for( auto t : subset )
    update_availability_dependents( t , un_ModBlock( issueAMod ) );
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetAv ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetAv , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_availability )
@@ -1471,7 +1473,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
   return;
 
  if( v_Availability.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values ,
+                   values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 1.0 ); } ) )
    return;
 
@@ -1479,7 +1482,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
  }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values ,
+                 values + ( rng.second - rng.first ) ,
                  v_Availability.begin() + rng.first ) )
   return;
 
@@ -1496,19 +1500,20 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values ,
+             values + ( rng.second - rng.first ) ,
              v_Availability.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
+ if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
    update_availability_dependents( t , un_ModBlock( issueAMod ) );
 
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetAv ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetAv , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_availability )
@@ -1523,7 +1528,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;
 
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1540,7 +1546,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( identical( v_MaxPower , subset , values ) )  // if nothing changes
   return;                                         // return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_MaxPower , subset , values );
 
  if( not_dry_run( issueAMod ) && constraints_generated() )
@@ -1551,11 +1558,10 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
    )->modify_coefficient( 0 , get_operational_max_power( t ) ,
                           un_ModBlock( issueAMod ) );
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetMaxP ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetMaxP , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_maximum_power )
@@ -1570,7 +1576,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
   return;
 
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values ,
+                   values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1578,17 +1585,19 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
  }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values ,
+                 values + ( rng.second - rng.first ) ,
                  v_MaxPower.begin() + rng.first ) )
   return;
 
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values ,
+             values + ( rng.second - rng.first ) ,
              v_MaxPower.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
+ if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
    // the commitment variable is in position 0 in the LF
@@ -1597,9 +1606,9 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
                           un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetMaxP ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetMaxP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_maximum_power )
@@ -1639,16 +1648,18 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
  if( f_InitialPower == *values )
   return; // nothing changes; return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   f_InitialPower = *values;
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
+ if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
   update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
-                                                                    ThermalUnitBlockMod::eSetInitP ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                            this , ThermalUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_initial_power )
@@ -1667,16 +1678,18 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
  if( f_InitialPower == *values )
   return; // nothing changes; return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   f_InitialPower = *values;
 
- if( not_dry_run( issueAMod ) && constraints_generated() )
+ if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
   update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
-                                                                    ThermalUnitBlockMod::eSetInitP ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                            this , ThermalUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_initial_power )
@@ -1691,7 +1704,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   return;
 
  if( v_StartUpCost.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1721,10 +1735,11 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   throw( std::invalid_argument(
    "ThermalUnitBlock::set_startup_costs: invalid starting index in subset" ) );
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_StartUpCost , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -1733,11 +1748,10 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetSUC ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetSUC , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_startup_costs( subset ) )
@@ -1753,7 +1767,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
 
  c_Index sz = rng.second - rng.first;
  if( v_StartUpCost.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1777,10 +1792,13 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
   throw( std::invalid_argument(
    "ThermalUnitBlock::set_startup_costs: invalid starting index in range" ) );
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
-  std::copy( values , values + sz , v_StartUpCost.begin() + rng.first );
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  std::copy( values ,
+             values + sz ,
+             v_StartUpCost.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
@@ -1791,9 +1809,9 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetSUC ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetSUC , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_startup_costs( range ) )
@@ -1807,7 +1825,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
   return;
 
  if( v_ConstTerm.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1824,10 +1843,11 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
  if( identical( v_ConstTerm , subset , values ) )  // if nothing changes
   return;                                          // return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_ConstTerm , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1850,11 +1870,10 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetConstT ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetConstT , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_const_term( subset ) )
@@ -1870,7 +1889,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
 
  c_Index sz = rng.second - rng.first;
  if( v_ConstTerm.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1881,10 +1901,13 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
  if( std::equal( values , values + sz , v_ConstTerm.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
-  std::copy( values , values + sz , v_ConstTerm.begin() + rng.first );
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  std::copy( values ,
+             values + sz ,
+             v_ConstTerm.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1909,9 +1932,9 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetConstT ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetConstT , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_const_term( range ) )
@@ -1925,7 +1948,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
   return;
 
  if( v_LinearTerm.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1942,10 +1966,11 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
  if( identical( v_LinearTerm , subset , values ) )  // if nothing changes
   return;                                           // return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_LinearTerm , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1966,11 +1991,10 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetLinT ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetLinT , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_linear_term( subset ) )
@@ -1986,7 +2010,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
 
  c_Index sz = rng.second - rng.first;
  if( v_LinearTerm.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1997,10 +2022,11 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
  if( std::equal( values , values + sz , v_LinearTerm.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   std::copy( values , values + sz , v_LinearTerm.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2023,9 +2049,9 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetLinT ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetLinT , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_linear_term( range ) )
@@ -2039,7 +2065,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
   return;
 
  if( v_QuadTerm.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2056,10 +2083,11 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
  if( identical( v_QuadTerm , subset , values ) )  // if nothing changes
   return;                                         // return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_QuadTerm , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the DQuadFunction is:
   //
@@ -2088,11 +2116,10 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
                    un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetQuadT ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetQuadT , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_quad_term( subset ) )
@@ -2108,7 +2135,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
 
  c_Index sz = rng.second - rng.first;
  if( v_QuadTerm.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2119,10 +2147,11 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
  if( std::equal( values , values + sz , v_QuadTerm.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   std::copy( values , values + sz , v_QuadTerm.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the DQuadFunction is:
   //
@@ -2150,9 +2179,9 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetQuadT ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetQuadT , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_quad_term( range ) )
@@ -2172,7 +2201,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
  if( v_PrimarySpinningReserveCost.empty() ) {
   // The primary spinning reserve costs are currently all zero.
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. Nothing to do.
 
@@ -2190,10 +2220,11 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  if( identical( v_PrimarySpinningReserveCost , subset , values ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_PrimarySpinningReserveCost , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2219,11 +2250,10 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetPrSpResCost ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetPrSpResCost , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
@@ -2244,7 +2274,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  c_Index sz = rng.second - rng.first;
  if( v_PrimarySpinningReserveCost.empty() ) {
   // The primary spinning reserve costs are currently all zero.
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. So, there is nothing to be changed.
 
@@ -2252,15 +2283,18 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  }
 
  // If nothing changes, return
- if( std::equal( values , values + sz ,
+ if( std::equal( values ,
+                 values + sz ,
                  v_PrimarySpinningReserveCost.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
-  std::copy( values , values + sz ,
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  std::copy( values ,
+             values + sz ,
              v_PrimarySpinningReserveCost.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2288,9 +2322,9 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetPrSpResCost ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetPrSpResCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
@@ -2308,7 +2342,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
 
  if( v_SecondarySpinningReserveCost.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. Nothing to do.
 
@@ -2325,10 +2360,11 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  if( identical( v_SecondarySpinningReserveCost , subset , values ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   assign( v_SecondarySpinningReserveCost , subset , values );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2360,11 +2396,10 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  }
 
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetSecSpResCost ,
-                                                                        std::move(
-                                                                         subset ) ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetSecSpResCost , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
@@ -2384,7 +2419,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  c_Index sz = rng.second - rng.first;
  if( v_SecondarySpinningReserveCost.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values ,
+                   values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return; // The given values are zero. So, there is nothing to be changed.
 
@@ -2392,15 +2428,18 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  }
 
  // If nothing changes, return
- if( std::equal( values , values + sz ,
+ if( std::equal( values ,
+                 values + sz ,
                  v_SecondarySpinningReserveCost.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
-  std::copy( values , values + sz ,
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  std::copy( values ,
+             values + sz ,
              v_SecondarySpinningReserveCost.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && objective_generated() ) {
+ if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2433,9 +2472,9 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
  }
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >( this ,
-                                                                        ThermalUnitBlockMod::eSetSecSpResCost ,
-                                                                        rng ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetSecSpResCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
@@ -2460,7 +2499,8 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
  if( f_InitUpDownTime == *values )
   return; // nothing changes; return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   f_InitUpDownTime = *values;
 
  if( not_dry_run( issueAMod ) && variables_generated() )  // TODO
@@ -2468,9 +2508,10 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
                             "currently not possible to update the abstract "
                             "representation." ) );
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
-                                                                    ThermalUnitBlockMod::eSetInitUD ) ,
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                            this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_init_updown_time )
@@ -2489,7 +2530,8 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values , Range rng ,
  if( f_InitUpDownTime == *values )
   return; // nothing changes; return
 
- if( not_dry_run( issuePMod ) )  // Change the physical representation
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
   f_InitUpDownTime = *values;
 
  if( not_dry_run( issueAMod ) && variables_generated() )  // TODO
@@ -2498,8 +2540,9 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values , Range rng ,
                             "representation." ) );
 
  if( issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >( this ,
-                                                                    ThermalUnitBlockMod::eSetInitUD ) ,
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                            this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_init_updown_time )
@@ -2529,12 +2572,12 @@ void ThermalUnitBlock::scale
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< UnitBlockMod >
-                            ( this , UnitBlockMod::eScale ) ,
+  Block::add_Modification( std::make_shared< UnitBlockMod >(
+                            this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );
  else if( auto f_Block = get_f_Block() )
-  f_Block->add_Modification( std::make_shared< UnitBlockMod >
-                             ( this , UnitBlockMod::eScale ) ,
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
+                              this , UnitBlockMod::eScale ) ,
                              Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::scale )
@@ -2695,8 +2738,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl ) {
 
   std::ostringstream em;
   em << *mod;
-  throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str()
-  ) );
+  throw( std::invalid_argument( "ThermalUnitBlock: unsupported " + em.str() ) );
   return;
  }
 

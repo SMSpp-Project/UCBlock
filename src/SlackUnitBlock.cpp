@@ -348,7 +348,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
    }
   }
   if( reserve_vars & 4u ) {
-   if( ! v_InertiaCost.empty() && ! v_MaxInertia.empty() ) {
+   if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) ) {
     linear_function->add_variable( &v_commitment[ t ] ,
                                    v_InertiaCost[ t ] * v_MaxInertia[ t ] ,
                                    0.0 );

@@ -624,7 +624,7 @@ void UCBlock::generate_node_injection_constraints( void ) {
         if( auto u = unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
-         *( vcit++ ) = std::pair( &u[ t ] , -fixed_consumption );
+         *( vcit++ ) = std::pair( &u[ t ] , - fixed_consumption );
          rhs -= fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
@@ -683,7 +683,7 @@ void UCBlock::generate_node_injection_constraints( void ) {
          if( auto c = unit_block->get_commitment( generator ) ) {
           auto fixed_consumption = fc[ t ] * scale;
           auto commitment = &c[ t ];
-          linear_function->add_variable( commitment , -fixed_consumption ,
+          linear_function->add_variable( commitment , - fixed_consumption ,
                                          eNoMod );
           rhs -= fixed_consumption;
          }
@@ -1625,7 +1625,7 @@ void UCBlock::update_node_injection_constraints
 
          if( modified ) {
           // update the coefficient of the commitment variable
-          coefficients.push_back( -fixed_consumption );
+          coefficients.push_back( - fixed_consumption );
           subset.push_back( active_var_index );
 
           assert( active_var_index < constraint.get_num_active_var() );
@@ -2020,9 +2020,12 @@ void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand
- ( std::vector< double >::const_iterator values , Block::Subset && subset ,
-   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+void UCBlock::set_active_power_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -2063,14 +2066,12 @@ void UCBlock::set_active_power_demand
    changed = true;
 
    if( not_dry_run( issuePMod ) ) {
-
     // Change the physical representation
     v_active_power_demand[ node_index ][ time ] = demand;
 
-    if( not_dry_run( issueAMod ) && constraints_generated() ) {
+    if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
  }
@@ -2079,21 +2080,21 @@ void UCBlock::set_active_power_demand
  if( ! changed )
   return;
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >(
+                            this , UCBlockMod::eSetActD , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
 
-  Block::add_Modification(
-   std::make_shared< UCBlockSbstMod >( this , UCBlockMod::eSetActD ,
-                                       std::move( subset ) ) ,
-   Observer::par2chnl( issuePMod ) );
- }
-}
+}  // end( UCBlock::set_active_power_demand )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand
- ( std::vector< double >::const_iterator values , Block::Range rng ,
-   c_ModParam issuePMod , c_ModParam issueAMod ) {
+void UCBlock::set_active_power_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Range rng ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
 
  const auto number_nodes = get_number_nodes();
 
@@ -2139,10 +2140,9 @@ void UCBlock::set_active_power_demand
     // Change the physical representation
     v_active_power_demand[ node_index ][ time ] = demand;
 
-    if( not_dry_run( issueAMod ) && constraints_generated() ) {
+    if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
  }
@@ -2151,14 +2151,13 @@ void UCBlock::set_active_power_demand
  if( ! changed )
   return;
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< UCBlockRngdMod >(
+                            this , UCBlockMod::eSetActD , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
 
-  Block::add_Modification(
-   std::make_shared< UCBlockRngdMod >( this , UCBlockMod::eSetActD , rng ) ,
-   Observer::par2chnl( issuePMod ) );
- }
-}
+}  // end( UCBlock::set_active_power_demand )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/

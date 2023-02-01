@@ -135,7 +135,7 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
   // shutdown at i iff the unit was on at i - 1 and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sdn_it++)->set_value( ( ! U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
+   (sdn_it++)->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
   }
 
  // unlock the Block

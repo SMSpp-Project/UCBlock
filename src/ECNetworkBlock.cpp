@@ -574,20 +574,23 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const ptr to double
- std::vector< double >::const_iterator values , Block::Subset && subset ,
- const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
  // TODO
-}
+}  // end( ECNetworkBlock::set_active_demand )
 
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::set_active_demand(
- // TODO this should be a const ptr to double
  std::vector< double >::const_iterator values ,
- Block::Range rng , c_ModParam issuePMod , c_ModParam issueAMod ) {
+ Block::Range rng ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
  // TODO
-}
+}  // end( ECNetworkBlock::set_active_demand )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/

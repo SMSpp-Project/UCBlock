@@ -208,15 +208,13 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
 void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
- if( ! v_heat.empty() ) {
+ if( ! v_heat.empty() )
   // the abstract variables have already been generated
   return;
- }
 
- if( f_time_horizon == 0 ) {
+ if( f_time_horizon == 0 )
   // there are no variables to be generated
   return;
- }
 
  // Heat variables
 
@@ -300,7 +298,7 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( t == 0 ) {
     auto linear_function = new LinearFunction();
     linear_function->add_variable( &v_heat_available[ t ] , 1.0 );
-    linear_function->add_variable( &v_heat_added[ t ] , -f_storing_heat_rho );
+    linear_function->add_variable( &v_heat_added[ t ] , - f_storing_heat_rho );
     linear_function->add_variable( &v_heat_removed[ t ] ,
                                    f_extracting_heat_rho );
     v_EvolutionStoredHeat_Const[ t ].set_function( linear_function );
@@ -312,9 +310,9 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
     // TODO t+1 is not defined for t = time_horizon - 1
     linear_function->add_variable( &v_heat_available[ t + 1 ] , 1.0 );
     linear_function->add_variable( &v_heat_available[ t ] ,
-                                   -f_keeping_heat_rho );
+                                   - f_keeping_heat_rho );
     linear_function->add_variable( &v_heat_added[ t + 1 ] ,
-                                   -f_storing_heat_rho );
+                                   - f_storing_heat_rho );
     linear_function->add_variable( &v_heat_removed[ t + 1 ] ,
                                    f_extracting_heat_rho );
 
@@ -356,11 +354,10 @@ void HeatBlock::generate_objective( Configuration * objc ) {
  if( get_objective() )  // an objective is there already
   return;               // cowardly (and silently) return
 
- if( v_heat.size() != f_time_horizon ) {
+ if( v_heat.size() != f_time_horizon )
   throw( std::logic_error
    ( "HeatBlock::generate_objective: v_heat must have "
      "size equal to the time horizon." ) );
- }
 
  auto linear_function = new LinearFunction();
 

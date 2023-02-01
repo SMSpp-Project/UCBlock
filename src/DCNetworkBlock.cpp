@@ -617,9 +617,12 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand
- ( std::vector< double >::const_iterator values , Block::Subset && subset ,
-   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+void DCNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -648,8 +651,9 @@ void DCNetworkBlock::set_active_demand
  if( identical )
   return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
-     constraints_generated() ) {
+ if( ( not_dry_run( issuePMod ) ) &&
+     ( not_dry_run( issueAMod ) ) &&
+     ( constraints_generated() ) ) {
 
   // Change the abstract representation
 
@@ -676,12 +680,11 @@ void DCNetworkBlock::set_active_demand
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
-  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >
-                            ( this , NetworkBlockMod::eSetActD ,
-                              std::move( subset ) ) ,
+  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >(
+                            this , NetworkBlockMod::eSetActD , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( DCNetworkData::set_active_demand )
 
 /*--------------------------------------------------------------------------*/
 
@@ -708,11 +711,11 @@ void DCNetworkBlock::set_active_demand
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values ,
+             values + ( rng.second - rng.first ) ,
              v_ActiveDemand.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) ) {
    // Change the abstract representation
 
    switch( f_NetworkData->get_lines_type() ) {
@@ -734,19 +737,22 @@ void DCNetworkBlock::set_active_demand
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< NetworkBlockRngdMod >
-                            ( this , NetworkBlockMod::eSetActD , rng ) ,
+  Block::add_Modification( std::make_shared< NetworkBlockRngdMod >(
+                            this , NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
- }
-}
+
+}  // end( DCNetworkData::set_active_demand )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa
-( std::vector< double >::const_iterator values , Block::Subset && subset ,
-  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+void DCNetworkBlock::set_kappa(
+ std::vector< double >::const_iterator values ,
+ Block::Subset && subset ,
+ const bool ordered ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -775,8 +781,9 @@ void DCNetworkBlock::set_kappa
  if( identical )
   return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
-     constraints_generated() ) {
+ if( ( not_dry_run( issuePMod ) ) &&
+     ( not_dry_run( issueAMod ) ) &&
+     ( constraints_generated() ) ) {
 
   // Change the abstract representation
 
@@ -806,12 +813,11 @@ void DCNetworkBlock::set_kappa
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
-  Block::add_Modification( std::make_shared< DCNetworkBlockSbstMod >
-                           ( this , DCNetworkBlockMod::eSetKappa ,
-                             std::move( subset ) ) ,
+  Block::add_Modification( std::make_shared< DCNetworkBlockSbstMod >(
+                            this , DCNetworkBlockMod::eSetKappa , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}
+}  // end( DCNetworkData::set_kappa )
 
 /*--------------------------------------------------------------------------*/
 
@@ -838,11 +844,11 @@ void DCNetworkBlock::set_kappa
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values ,
+             values + ( rng.second - rng.first ) ,
              v_kappa.begin() + rng.first );
 
-  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) ) {
    // Change the abstract representation
 
    switch( f_NetworkData->get_lines_type() ) {
@@ -867,13 +873,13 @@ void DCNetworkBlock::set_kappa
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >
-                           ( this , DCNetworkBlockMod::eSetKappa , rng ) ,
+  Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >(
+                            this , DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
- }
-}
+
+}  // end( DCNetworkData::set_kappa )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/
