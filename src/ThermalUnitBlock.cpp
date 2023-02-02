@@ -427,10 +427,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InvestmentCost != 0 ) {
-  if( f_MaxCapacity != 0 )
-   design.set_type( ColVariable::kPosUnitary );
-  else
-   design.set_type( ColVariable::kBinary );
+  design.set_type( ColVariable::kPosUnitary );
 
   add_static_variable( design , "D_thermal" );
  }
