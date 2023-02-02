@@ -125,10 +125,11 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
  ( new_Block( class_name , this ) );
 
  if( ! polyhedral_function_block )
-  throw( std::logic_error
-   ( "HydroSystemUnitBlock::deserialize: the type attribute of group " +
-     sub_group_name + " must be either 'PolyhedralFunctionBlock' or "
-                      "the name of a class derived from PolyhedralFunctionBlock." ) );
+  throw( std::logic_error( "HydroSystemUnitBlock::deserialize: the type "
+                           "attribute of group " + sub_group_name +
+                           " must be either 'PolyhedralFunctionBlock' or the "
+                           "name of a class derived from "
+                           "PolyhedralFunctionBlock." ) );
 
  // Deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
@@ -149,9 +150,9 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
   auto sub_block = new_Block( sub_group , this );
 
   if( ! sub_block )
-   throw( std::invalid_argument
-    ( "HydroSystemUnitBlock::deserialize: error when creating "
-      "Block from group " + sub_group_name ) );
+   throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: error "
+                                 "when creating Block from group " +
+                                 sub_group_name + "." ) );
 
   v_Block.push_back( sub_block );
  }

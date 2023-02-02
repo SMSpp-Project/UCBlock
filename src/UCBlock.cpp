@@ -1452,8 +1452,8 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_node_injection_constraints
- ( const std::vector< Index > & modified_units ) {
+void UCBlock::update_node_injection_constraints(
+ const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) ||
      ( v_node_injection_Const.empty() ) || modified_units.empty() )
@@ -1663,8 +1663,8 @@ void UCBlock::update_node_injection_constraints
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_primary_demand_constraints
- ( const std::vector< Index > & modified_units ) {
+void UCBlock::update_primary_demand_constraints(
+ const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1761,8 +1761,8 @@ void UCBlock::update_primary_demand_constraints
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_secondary_demand_constraints
- ( const std::vector< Index > & modified_units ) {
+void UCBlock::update_secondary_demand_constraints(
+ const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1860,8 +1860,8 @@ void UCBlock::update_secondary_demand_constraints
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_inertia_demand_constraints
- ( const std::vector< Index > & modified_units ) {
+void UCBlock::update_inertia_demand_constraints(
+ const std::vector< Index > & modified_units ) {
 
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1998,7 +1998,8 @@ void UCBlock::update_inertia_demand_constraints
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_node_injection_constraints( Index time , Index node_index ,
+void UCBlock::update_node_injection_constraints( Index time ,
+                                                 Index node_index ,
                                                  double demand ) {
  auto rhs = demand;
  for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit

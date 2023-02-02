@@ -276,36 +276,30 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                          // cowardly (and silently) return
 
- if( reserve_vars & 4u ) {
-  if( v_commitment.size() != f_time_horizon ) {
-   throw( std::logic_error
-    ( "SlackUnitBlock::generate_objective: v_commitment must have "
-      "size equal to the time horizon." ) );
-  }
- }
- if( v_active_power.size() != f_time_horizon ) {
-  throw( std::logic_error
-   ( "SlackUnitBlock::generate_objective: v_active_power must have "
-     "size equal to the time horizon." ) );
- }
- if( reserve_vars & 1u ) {
-  if( ! v_MaxPrimaryPower.empty() ) {
-   if( v_primary_spinning_reserve.size() != f_time_horizon ) {
-    throw( std::logic_error
-     ( "SlackUnitBlock::generate_objective: v_primary_spinning_reserve "
-       "must have size equal to the time horizon." ) );
-   }
-  }
- }
- if( reserve_vars & 2u ) {
-  if( ! v_MaxSecondaryPower.empty() ) {
-   if( v_secondary_spinning_reserve.size() != f_time_horizon ) {
-    throw( std::logic_error
-     ( "SlackUnitBlock::generate_objective: v_secondary_spinning_reserve"
-       "must have size equal to the time horizon." ) );
-   }
-  }
- }
+ if( reserve_vars & 4u )
+  if( v_commitment.size() != f_time_horizon )
+   throw( std::logic_error(
+    "SlackUnitBlock::generate_objective: v_commitment must have "
+    "size equal to the time horizon." ) );
+
+ if( v_active_power.size() != f_time_horizon )
+  throw( std::logic_error( "SlackUnitBlock::generate_objective: "
+                           "v_active_power must have size equal to the time "
+                           "horizon." ) );
+
+ if( reserve_vars & 1u )
+  if( ! v_MaxPrimaryPower.empty() )
+   if( v_primary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "SlackUnitBlock::generate_objective: "
+                             "v_primary_spinning_reserve must have size equal"
+                             " to the time horizon." ) );
+
+ if( reserve_vars & 2u )
+  if( ! v_MaxSecondaryPower.empty() )
+   if( v_secondary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "SlackUnitBlock::generate_objective: "
+                             "v_secondary_spinning_reserve must have size "
+                             "equal to the time horizon." ) );
 
  auto linear_function = new LinearFunction();
 
@@ -320,6 +314,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
                                   0.0 ,
                                   0.0 );
   }
+
   if( reserve_vars & 1u ) {
    if( ! v_MaxPrimaryPower.empty() ) {
     if( ! v_PrimaryCost.empty() ) {
@@ -333,9 +328,9 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
     }
    }
   }
+
   if( reserve_vars & 2u ) {
    if( ! v_MaxSecondaryPower.empty() ) {
-
     if( ! v_SecondaryCost.empty() ) {
      linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
                                     v_SecondaryCost[ t ] ,
@@ -347,6 +342,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
     }
    }
   }
+
   if( reserve_vars & 4u ) {
    if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) ) {
     linear_function->add_variable( &v_commitment[ t ] ,
@@ -359,6 +355,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
    }
   }
  }
+
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
 
@@ -443,12 +440,11 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
    dimension = TimeHorizon;
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
-  else if( data.size() != 1 ) {
-   throw( std::logic_error
-    ( "SlackUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
-                                                        "must be one of the following: TimeHorizon, NumberIntervals, 1." ) );
-  }
+  else if( data.size() != 1 )
+   throw( std::logic_error(
+    "SlackUnitBlock::serialize: invalid dimension for variable " + var_name +
+    ": " + std::to_string( data.size() ) + ". Its dimension must be one of " +
+    "the following: TimeHorizon, NumberIntervals, 1." ) );
 
   ::serialize( group , var_name , ncType , dimension , data ,
                allow_scalar_var );

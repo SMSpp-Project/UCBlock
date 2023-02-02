@@ -137,8 +137,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
                              "minimum power at time " + std::to_string( t ) +
                              " is " + std::to_string( v_MinPower[ t ] ) +
                              ", which is greater than the maximum power, which "
-                             "is " + std::to_string( v_MaxPower[ t ] ) +
-                             "." ) );
+                             "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
 
   if( v_MinPower[ t ] < 0 )
    throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
@@ -477,11 +476,11 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
   else if( data.size() != 1 )
-   throw( std::logic_error
-    ( "IntermittentUnitBlock::serialize: invalid dimension for variable " +
-      var_name + ": " + std::to_string( data.size() ) +
-      ". Its dimension must be one of the following: TimeHorizon, "
-      "NumberIntervals, 1." ) );
+   throw( std::logic_error(
+    "IntermittentUnitBlock::serialize: invalid dimension for variable " +
+    var_name + ": " + std::to_string( data.size() ) +
+    ". Its dimension must be one of the following: TimeHorizon, "
+    "NumberIntervals, 1." ) );
 
   ::serialize( group , var_name , ncType , dimension , data ,
                allow_scalar_var );
@@ -557,7 +556,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  for( auto t : subset ) {
   if( t >= v_MaxPower.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
-                                  " invalid value in subset" ) );
+                                  " invalid value in subset." ) );
   auto max_power = *( values++ );
   if( v_MaxPower[ t ] != max_power ) {
    identical = false;

@@ -639,7 +639,7 @@ void DCNetworkBlock::set_active_demand(
  for( auto i : subset ) {
   if( i >= v_ActiveDemand.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
-                                  "invalid value in subset" ) );
+                                  "invalid value in subset." ) );
   auto demand = *( values++ );
   if( v_ActiveDemand[ i ] != demand ) {
    identical = false;

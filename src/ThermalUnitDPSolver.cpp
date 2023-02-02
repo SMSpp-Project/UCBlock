@@ -65,8 +65,7 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
  if( block ) {
   if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
-   throw( std::runtime_error( "ThermalUnitDPSolver requires ThermalUnitBlock"
-			      ) );
+   throw( std::runtime_error( "ThermalUnitDPSolver requires ThermalUnitBlock." ) );
   load_parameters();
   }
  }
@@ -478,8 +477,7 @@ void ThermalUnitDPSolver::min_path( void )
 void ThermalUnitDPSolver::compute_solutions( void )
 {
  if( stage < edps_OK )
-  throw( std::logic_error( "compute_solutions: graph and/or path not ready"
-			   ) );
+  throw( std::logic_error( "compute_solutions: graph and/or path not ready.") );
 
  std::fill( P.begin() , P.end() , 0 );
  std::fill( U.begin() , U.end() , false );
@@ -488,8 +486,8 @@ void ThermalUnitDPSolver::compute_solutions( void )
  auto n = f_end.pred;
 
  if( ! n )
-  throw( std::logic_error(
-     "compute_solutions: called when has_var_solution() == false" ) );
+  throw( std::logic_error( "ThermalUnitDPSolver::compute_solutions: called "
+                           "when has_var_solution() == false" ) );
 
  // compute the solution by visiting the optimal path backward from f_end
 
@@ -536,12 +534,12 @@ void ThermalUnitDPSolver::load_parameters( void )
 
  // sanity checks
  if( ! b->get_primary_rho().empty() )
-  throw( std::invalid_argument(
-	     "ThermalUnitDPSolver does not handle primary reserve yet" ) );
+  throw( std::invalid_argument( "ThermalUnitDPSolver does not handle primary "
+                                "reserve yet" ) );
  
  if( ! b->get_secondary_rho().empty() )
-  throw( std::invalid_argument(
-	   "ThermalUnitDPSolver does not handle secondary reserve yet" ) );
+  throw( std::invalid_argument( "ThermalUnitDPSolver does not handle "
+                                "secondary reserve yet" ) );
 
  // scalar values
  time_horizon = b->get_time_horizon();

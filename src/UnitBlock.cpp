@@ -96,11 +96,11 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
  if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
- else {
+ else
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-   throw( std::invalid_argument( classname() + "::deserialize: " +
-                                  "NumberIntervals not between 1 and TimeHorizon." ) );
- }
+   throw( std::invalid_argument(
+    classname() + "::deserialize: NumberIntervals not between 1 and "
+                  "TimeHorizon." ) );
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
   ::deserialize( group , "ChangeIntervals" , f_number_intervals ,
@@ -113,8 +113,8 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
    const auto t = v_change_intervals[ k ];
-   if( !( ( t < f_time_horizon ) &&
-          ( k == 0 || t > v_change_intervals[ k - 1 ] ) ) )
+   if( ! ( ( t < f_time_horizon ) &&
+           ( ( k == 0 ) || ( t > v_change_intervals[ k - 1 ] ) ) ) )
     throw( std::invalid_argument(
      classname() + "::deserialize: invalid value in ChangeIntervals: " +
      std::to_string( t ) + ". All values must be between 0 and " +

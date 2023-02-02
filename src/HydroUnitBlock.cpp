@@ -338,67 +338,47 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // maximum power output according to primary-secondary reserves constraints
 
  // Initial data check
- if( ( ! v_MinPower.empty() ) && ( ! v_MaxPower.empty() ) ) {
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( v_MinPower[ t ][ arc ] > v_MaxPower[ t ][ arc ] ) {
-     throw( std::logic_error
-      ( "HydroUnitBlock::maximum and minimum power output constraints: "
-        "it must be that v_MaxPower >= v_MinPower." ) );
-    }
-   }
-  }
- }
+ if( ( ! v_MinPower.empty() ) && ( ! v_MaxPower.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( v_MinPower[ t ][ arc ] > v_MaxPower[ t ][ arc ] )
+     throw( std::logic_error( "HydroUnitBlock::maximum and minimum power "
+                              "output constraints: it must be that v_MaxPower"
+                              " >= v_MinPower." ) );
 
  // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
     if( v_MaxFlow[ t ][ arc ] <= 0 &&
         v_MinFlow[ t ][ arc ] < 0 &&
-        v_NumberPieces[ arc ] > 1 ) {
-     throw( std::logic_error
-      ( "HydroUnitBlock::Data Error: it must be that for each pump"
-        "when v_MinPower < 0, then v_NumberPieces == 1." ) );
-    }
-   }
-  }
- }
+        v_NumberPieces[ arc ] > 1 )
+     throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
+                              "for each pump when v_MinPower < 0, then "
+                              "v_NumberPieces == 1." ) );
 
  // Initial data check
 
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ! v_PrimaryRho.empty() ) {
+ if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( ! v_PrimaryRho.empty() )
      if( v_MaxFlow[ t ][ arc ] <= 0 &&
          v_MinFlow[ t ][ arc ] < 0 &&
-         v_PrimaryRho[ t ][ arc ] != 0 ) {
-      throw( std::logic_error
-       ( "HydroUnitBlock::Data Error: it must be that for each pump"
-         " v_PrimaryRho == 0." ) );
-     }
-    }
-   }
-  }
- }
+         v_PrimaryRho[ t ][ arc ] != 0 )
+      throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
+                               "for each pump v_PrimaryRho == 0." ) );
 
  // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ! v_SecondaryRho.empty() ) {
+ if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( ! v_SecondaryRho.empty() )
      if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
          ( v_MinFlow[ t ][ arc ] < 0 ) &&
-         ( v_SecondaryRho[ t ][ arc ] != 0 ) ) {
-      throw( std::logic_error
-       ( "HydroUnitBlock::Data Error: it must be that for each pump "
-         " then v_SecondaryRho == 0." ) );
-     }
-    }
-   }
-  }
- }
+         ( v_SecondaryRho[ t ][ arc ] != 0 ) )
+      throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
+                               "for each pump then v_SecondaryRho == 0." ) );
 
  assert( MaxPowerPrimarySecondary_Const.empty() );
 
@@ -788,18 +768,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  {
   // Initial data check
-  if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
-   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     if( v_MinFlow[ t ][ arc ] > v_MaxFlow[ t ][ arc ] ) {
-      throw( std::logic_error
-       ( "HydroUnitBlock::flow rate variable bounds: "
-         "it must be that v_MaxFlow >= v_MinFlow." ) );
-     }
-    }
-   }
-  }
-
+  if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     if( v_MinFlow[ t ][ arc ] > v_MaxFlow[ t ][ arc ] )
+      throw( std::logic_error( "HydroUnitBlock::flow rate variable bounds: "
+                               "it must be that v_MaxFlow >= v_MinFlow." ) );
 
   assert( FlowRateBounds_Const.empty() );
 
@@ -916,22 +890,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // volumetric bounds constraints
 
  // Initial data check
- if( ( ! v_MinVolumetric.empty() ) &&
-     ( ! v_MaxVolumetric.empty() ) ) {
-  for( Index node = 0 ; node < f_NumberReservoirs ; ++node ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ( v_MinVolumetric[ node ][ t ] >
-          v_MaxVolumetric[ node ][ t ] ) ||
+ if( ( ! v_MinVolumetric.empty() ) && ( ! v_MaxVolumetric.empty() ) )
+  for( Index node = 0 ; node < f_NumberReservoirs ; ++node )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( ( v_MinVolumetric[ node ][ t ] > v_MaxVolumetric[ node ][ t ] ) ||
         ( v_MinVolumetric[ node ][ t ] < 0 ) ||
-        ( v_MaxVolumetric[ node ][ t ] < 0 ) ) {
-     throw( std::logic_error
-      ( "HydroUnitBlock::Volumetric Bounds Constraint: "
-        "it must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] ." ) );
-    }
-   }
-  }
- }
-
+        ( v_MaxVolumetric[ node ][ t ] < 0 ) )
+     throw( std::logic_error( "HydroUnitBlock::Volumetric Bounds Constraint: "
+                              "it must be that 0 <= MinV[ r , t ] <= "
+                              "MaxV[ r , t ] ." ) );
 
  assert( VolumetricBounds_Const.empty() );
 
@@ -1049,14 +1016,15 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
 
- auto TotalNumberPieces = group.addDim
-  ( "TotalNumberPieces" , f_TotalNumberPieces );
+ auto TotalNumberPieces = group.addDim( "TotalNumberPieces" ,
+                                        f_TotalNumberPieces );
 
- auto NumberReservoirs = group.addDim
-  ( "NumberReservoirs" , f_NumberReservoirs ? f_NumberReservoirs : 1 );
+ auto NumberReservoirs = group.addDim( "NumberReservoirs" ,
+                                       f_NumberReservoirs ? f_NumberReservoirs
+                                                          : 1 );
 
- auto NumberArcs = group.addDim
-  ( "NumberArcs" , f_NumberArcs ? f_NumberArcs : 1 );
+ auto NumberArcs = group.addDim( "NumberArcs" ,
+                                 f_NumberArcs ? f_NumberArcs : 1 );
 
  // Serialize one-dimensional variables
 
@@ -1151,13 +1119,13 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
  // If nothing changes, return
  bool identical = true;
  for( auto i : subset ) {
-  if( i >= v_inflows.size() ) {
-   throw( std::invalid_argument( "invalid value in subset" ) );
-  }
-  if( *( v_inflows.data() + i ) != *( values++ ) ) {
+  if( i >= v_inflows.size() )
+   throw( std::invalid_argument( "invalid value in subset." ) );
+
+  if( *( v_inflows.data() + i ) != *( values++ ) )
    identical = false;
-  }
  }
+
  if( identical )
   return;
 
@@ -1170,22 +1138,20 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
    v_inflows[ r ][ t ] = *( values++ );
   }
 
-  if( constraints_generated() ) {
+  if( constraints_generated() )
    // Change the abstract representation
 
    for( auto i : subset ) {
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 ) {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
-    } else {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_inflows[ r ][ t ] , issueAMod );
-    }
+    if( t == 0 )
+     FinalVolumeReservoir_Const[ t ][ r ].set_both(
+      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+    else
+     FinalVolumeReservoir_Const[ t ][ r ].set_both(
+      v_inflows[ r ][ t ] , issueAMod );
    }
-  }
  }
 
  if( issue_pmod( issuePMod ) ) {
@@ -1281,7 +1247,7 @@ void HydroUnitBlock::set_inertia_power(
  bool identical = true;
  for( auto i : subset ) {
   if( i >= v_InertiaPower.size() )
-   throw( std::invalid_argument( "invalid value in subset" ) );
+   throw( std::invalid_argument( "invalid value in subset." ) );
 
   if( *( v_InertiaPower.data() + i ) != *( values++ ) )
    identical = false;
@@ -1489,14 +1455,14 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
   return;
 
  // ramp-up constraints
- if( !( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
+ if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( auto arc : arcs )
    RampUp_Const[ 0 ][ arc ].set_rhs
     ( get_initial_flow_rate( arc ) + v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints
- if( !( RampDown_Const.empty() || v_DeltaRampDown.empty() ) ) {
+ if( ! ( RampDown_Const.empty() || v_DeltaRampDown.empty() ) ) {
   for( auto arc : arcs )
    RampDown_Const[ 0 ][ arc ].set_lhs
     ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
@@ -1514,14 +1480,14 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
   return;
 
  // ramp-up constraints
- if( !( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
+ if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampUp_Const[ 0 ][ arc ].set_rhs
     ( get_initial_flow_rate( arc ) + v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints
- if( !( RampDown_Const.empty() || v_DeltaRampDown.empty() ) ) {
+ if( ! ( RampDown_Const.empty() || v_DeltaRampDown.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampDown_Const[ 0 ][ arc ].set_lhs
     ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
@@ -1556,7 +1522,7 @@ void HydroUnitBlock::set_initial_flow_rate(
  for( auto i : subset ) {
   if( i >= v_InitialFlowRate.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
-                                  "invalid value in subset" ) );
+                                  "invalid value in subset." ) );
   auto flow_rate = *( values++ );
   if( v_InitialFlowRate[ i ] != flow_rate ) {
    identical = false;
@@ -1675,11 +1641,11 @@ void HydroUnitBlock::decompress_array(
   // Since the number of rows is greater than 1 and less than the time
   // horizon, it must be equal to the number of change intervals.
   if( num_rows != v_change_intervals.size() )
-   throw( std::logic_error
-    ( "HydroUnitBlock::decompress_array: invalid number of rows (" +
-      std::to_string( num_rows ) + ") for some variable. It should "
-                                   "be equal to the number of change intervals (" +
-      std::to_string( v_change_intervals.size() ) + ")" ) );
+   throw( std::logic_error(
+    "HydroUnitBlock::decompress_array: invalid number of rows (" +
+    std::to_string( num_rows ) + ") for some variable. It should " +
+    "be equal to the number of change intervals (" +
+    std::to_string( v_change_intervals.size() ) + ")" ) );
 
   // For time instant t and arc r, the value for arc r at time t is equal to
   // given_array[ k ][ r ], where k is such that t belongs to the closed
@@ -1735,13 +1701,12 @@ void HydroUnitBlock::decompress_vol(
  } else if( num_columns < f_time_horizon ) {
   // Since the number of columns is greater than 1 and less than the time
   // horizon, it must be equal to the number of change intervals.
-  if( num_columns != v_change_intervals.size() ) {
-   throw( std::logic_error
-    ( "HydroUnitBlock::decompress_vol: invalid number of columns (" +
-      std::to_string( num_columns ) + ") for the maximum or minimum " +
-      "volume variable. It should be equal to the number of change intervals"
-      " (" + std::to_string( v_change_intervals.size() ) + ")" ) );
-  }
+  if( num_columns != v_change_intervals.size() )
+   throw( std::logic_error(
+    "HydroUnitBlock::decompress_vol: invalid number of columns (" +
+    std::to_string( num_columns ) + ") for the maximum or minimum " +
+    "volume variable. It should be equal to the number of change intervals"
+    " (" + std::to_string( v_change_intervals.size() ) + ")" ) );
 
   // For each reservatory r and time instant t, the maximum or minimum volume
   // of reservatory r at time t is equal to given_array[ r ][ k ], where k is

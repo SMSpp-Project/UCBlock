@@ -264,12 +264,11 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   assert( v_MaxSecondaryRho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_MaxSecondaryRho[ t ] < 0 )
-    throw( std::invalid_argument
-           ( "BatteryUnitBlock::check_data_consistency: the maximum power that "
-             "can be used as secondary reserve for time " +
-             std::to_string( t ) + " is " +
-             std::to_string( v_MaxSecondaryRho[ t ] ) +
-             ", but it must be nonnegative." ) );
+    throw( std::invalid_argument(
+     "BatteryUnitBlock::check_data_consistency: the maximum power that "
+     "can be used as secondary reserve for time " + std::to_string( t ) +
+     " is " + std::to_string( v_MaxSecondaryRho[ t ] ) +
+     ", but it must be nonnegative." ) );
  }
 
  // Demand
@@ -433,8 +432,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( ! variables_generated() )
   throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
-                           "variables need be generated for constraints "
-                           "to be." ) );
+                           "variables need be generated for constraints to be." ) );
 
  int generate_ZOConstraint = 0;
  auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
@@ -1050,12 +1048,12 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
    dimension = TimeHorizon;
   else if( data.size() == NumberIntervals.getSize() )
    dimension = NumberIntervals;
-  else if( data.size() != 1 ) {
-   throw( std::logic_error
-          ( "BatteryUnitBlock::serialize: invalid dimension for variable " +
-            var_name + ": " + std::to_string( data.size() ) + ". Its dimension "
-            "must be one of the following: TimeHorizon, NumberIntervals, 1.") );
-  }
+  else if( data.size() != 1 )
+   throw( std::logic_error(
+    "BatteryUnitBlock::serialize: invalid dimension for variable " +
+    var_name + ": " + std::to_string( data.size() ) +
+    ". Its dimension must be one of the following: TimeHorizon, "
+    "NumberIntervals, 1." ) );
 
   ::serialize( group , var_name , ncType , dimension , data ,
                allow_scalar_var );

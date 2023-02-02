@@ -80,9 +80,9 @@ void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
     // The father Block is available. Take time horizon from it.
     this->set_time_horizon( f_B->get_time_horizon() );
    else
-    throw( std::invalid_argument
-     ( "HeatBlock::deserialize: TimeHorizon is not present in the "
-       "netCDF input and HeatBlock does not have a father." ) );
+    throw( std::invalid_argument(
+     "HeatBlock::deserialize: TimeHorizon is not present in the "
+     "netCDF input and HeatBlock does not have a father." ) );
   }
  } else {
   // dimension TimeHorizon is present in the netCDF input
@@ -91,10 +91,10 @@ void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
   if( f_time_horizon == 0 )
    this->set_time_horizon( th );
   else if( f_time_horizon != th )
-   throw( std::logic_error
-    ( "HeatBlock::deserialize: TimeHorizon is not present in the "
-      "netCDF. The (nonzero) time horizon of HeatBlock is different "
-      "from that of its father, but they should be equal." ) );
+   throw( std::logic_error(
+    "HeatBlock::deserialize: TimeHorizon is not present in the "
+    "netCDF. The (nonzero) time horizon of HeatBlock is different "
+    "from that of its father, but they should be equal." ) );
  }
 }
 
@@ -108,9 +108,9 @@ void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
  else {
   f_number_intervals = NumberIntervals.getSize();
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
-   throw( std::invalid_argument
-    ( "HeatBlock::deserialize: invalid NumberIntervals. "
-      "It must be between 1 and TimeHorizon." ) );
+   throw( std::invalid_argument(
+    "HeatBlock::deserialize: invalid NumberIntervals. "
+    "It must be between 1 and TimeHorizon." ) );
  }
 
  if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
@@ -122,20 +122,19 @@ void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
   // the last number is == f_time_horizon, and that they are ordered
   // in increasing sense
 
-  if( v_change_intervals.back() != f_time_horizon ) {
-   throw( std::invalid_argument
-    ( "HeatBlock::deserialize: invalid value in ChangeIntervals: "
-      "the last element must be TimeHorizon." ) );
-  }
+  if( v_change_intervals.back() != f_time_horizon )
+   throw( std::invalid_argument(
+    "HeatBlock::deserialize: invalid value in ChangeIntervals: "
+    "the last element must be TimeHorizon." ) );
 
   Index previous_t = 0;
 
   for( auto t : v_change_intervals ) {
-   if( !( t > previous_t && t < f_time_horizon - 1 ) )
-    throw( std::invalid_argument
-     ( "HeatBlock::deserialize: invalid value in ChangeIntervals: " +
-       std::to_string( t ) + ". All values must be between 1 and "
-                             "TimeHorizon and in strictly increasing order." ) );
+   if( ! ( t > previous_t && t < f_time_horizon - 1 ) )
+    throw( std::invalid_argument(
+     "HeatBlock::deserialize: invalid value in ChangeIntervals: " +
+     std::to_string( t ) + ". All values must be between 1 and " +
+     "TimeHorizon and in strictly increasing order." ) );
 
    previous_t = t;
   }
@@ -288,8 +287,8 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // Evolution Stored Heat Constraints
 
- if( !( v_heat_available.empty() || v_heat_added.empty() ||
-        v_heat_removed.empty() ) ) {
+ if( ! ( v_heat_available.empty() || v_heat_added.empty() ||
+         v_heat_removed.empty() ) ) {
 
   v_EvolutionStoredHeat_Const.resize( f_time_horizon );
 
@@ -355,9 +354,8 @@ void HeatBlock::generate_objective( Configuration * objc ) {
   return;               // cowardly (and silently) return
 
  if( v_heat.size() != f_time_horizon )
-  throw( std::logic_error
-   ( "HeatBlock::generate_objective: v_heat must have "
-     "size equal to the time horizon." ) );
+  throw( std::logic_error( "HeatBlock::generate_objective: v_heat must have "
+                           "size equal to the time horizon." ) );
 
  auto linear_function = new LinearFunction();
 
