@@ -1388,10 +1388,10 @@ void HydroUnitBlock::set_initial_volume(
 
  bool identical = true;
  for( auto r : subset ) {
-  if( r >= v_InitialVolumetric.size() ) {
-   throw( "HydroUnitBlock::set_initial_volume: invalid index in subset: "
-           + std::to_string( r ) );
-  }
+  if( r >= v_InitialVolumetric.size() )
+   throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: invalid "
+                                 "index in subset: " + std::to_string( r ) ) );
+
   const auto volume = *( values++ );
   if( v_InitialVolumetric[ r ] != volume ) {
    identical = false;
