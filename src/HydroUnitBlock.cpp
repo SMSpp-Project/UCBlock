@@ -1120,7 +1120,8 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
  bool identical = true;
  for( auto i : subset ) {
   if( i >= v_inflows.size() )
-   throw( std::invalid_argument( "invalid value in subset." ) );
+   throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
+                                 "invalid value in subset." ) );
 
   if( *( v_inflows.data() + i ) != *( values++ ) )
    identical = false;
@@ -1163,7 +1164,7 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
                             this , HydroUnitBlockMod::eSetInf , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( HydroUnitBlock::set_maximum_power )
+}  // end( HydroUnitBlock::set_inflow )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1247,7 +1248,8 @@ void HydroUnitBlock::set_inertia_power(
  bool identical = true;
  for( auto i : subset ) {
   if( i >= v_InertiaPower.size() )
-   throw( std::invalid_argument( "invalid value in subset." ) );
+   throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: "
+                                 "invalid value in subset." ) );
 
   if( *( v_InertiaPower.data() + i ) != *( values++ ) )
    identical = false;

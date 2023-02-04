@@ -579,7 +579,62 @@ void ECNetworkBlock::set_active_demand(
  const bool ordered ,
  c_ModParam issuePMod ,
  c_ModParam issueAMod ) {
- // TODO
+
+ if( subset.empty() )
+  return;
+
+ if( v_ActiveDemand.empty() ) {
+  if( std::all_of( values ,
+                   values + subset.size() ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ActiveDemand.resize(
+   boost::extents[ f_number_intervals ][ get_number_nodes() ] );
+ }
+
+ bool identical = true;
+ for( auto i : subset ) {
+  if( i >= v_ActiveDemand.size() )
+   throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
+                                 "invalid value in subset." ) );
+
+  auto demand = *( values++ );
+  if( *( v_ActiveDemand.data() + i ) != demand ) {
+   identical = false;
+
+   if( not_dry_run( issuePMod ) )
+    // Change the physical representation
+    *( v_ActiveDemand.data() + i ) = demand;
+  }
+ }
+
+ if( identical )
+  return;  // nothing changes; return
+
+ if( ( not_dry_run( issuePMod ) ) &&
+     ( not_dry_run( issueAMod ) ) &&
+     ( constraints_generated() ) ) {
+  // Change the abstract representation
+
+  for( auto i : subset ) {
+   Index t = i % get_number_nodes();
+   Index n = i / get_number_nodes();
+
+   power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
+                                           issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  // Issue a Physical Modification
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >(
+                            this , NetworkBlockMod::eSetActD , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
 }  // end( ECNetworkBlock::set_active_demand )
 
 /*--------------------------------------------------------------------------*/
@@ -589,7 +644,53 @@ void ECNetworkBlock::set_active_demand(
  Block::Range rng ,
  c_ModParam issuePMod ,
  c_ModParam issueAMod ) {
- // TODO
+
+ rng.second = std::min( rng.second , f_number_intervals * get_number_nodes() );
+ if( rng.second <= rng.first )
+  return;
+
+ if( v_ActiveDemand.empty() ) {
+  if( std::all_of( values ,
+                   values + ( rng.second - rng.first ) ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ActiveDemand.resize(
+   boost::extents[ f_number_intervals ][ get_number_nodes() ] );
+ }
+
+ // If nothing changes, return
+ if( std::equal( values ,
+                 values + ( rng.second - rng.first ) ,
+                 v_ActiveDemand.data() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  std::copy( values ,
+             values + ( rng.second - rng.first ) ,
+             v_ActiveDemand.data() + rng.first );
+
+  if( ( not_dry_run( issueAMod ) ) &&
+      ( constraints_generated() ) ) {
+   // Change the abstract representation
+
+   for( Index i = rng.first ; i < rng.second ; ++i ) {
+    Index t = i % get_number_nodes();
+    Index n = i / get_number_nodes();
+
+    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
+                                            issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< NetworkBlockRngdMod >(
+                            this , NetworkBlockMod::eSetActD , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
 }  // end( ECNetworkBlock::set_active_demand )
 
 /*--------------------------------------------------------------------------*/

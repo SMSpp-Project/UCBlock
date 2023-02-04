@@ -639,22 +639,24 @@ void DCNetworkBlock::set_active_demand(
  for( auto i : subset ) {
   if( i >= v_ActiveDemand.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
-                                  "invalid value in subset." ) );
+                                 "invalid value in subset." ) );
+
   auto demand = *( values++ );
   if( v_ActiveDemand[ i ] != demand ) {
    identical = false;
+
    if( not_dry_run( issuePMod ) )
     // Change the physical representation
     v_ActiveDemand[ i ] = demand;
   }
  }
+
  if( identical )
   return;  // nothing changes; return
 
  if( ( not_dry_run( issuePMod ) ) &&
      ( not_dry_run( issueAMod ) ) &&
      ( constraints_generated() ) ) {
-
   // Change the abstract representation
 
   switch( f_NetworkData->get_lines_type() ) {
@@ -717,7 +719,6 @@ void DCNetworkBlock::set_active_demand
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) ) {
    // Change the abstract representation
-
    switch( f_NetworkData->get_lines_type() ) {
     case( kHVDC ): {
      for( Index i = rng.first ; i < rng.second ; ++i )
