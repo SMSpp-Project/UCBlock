@@ -690,9 +690,11 @@ void DCNetworkBlock::set_active_demand(
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand
- ( std::vector< double >::const_iterator values , Block::Range rng ,
-   c_ModParam issuePMod , c_ModParam issueAMod ) {
+void DCNetworkBlock::set_active_demand(
+ std::vector< double >::const_iterator values ,
+ Block::Range rng ,
+ c_ModParam issuePMod ,
+ c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , get_number_nodes() );
  if( rng.second <= rng.first )
@@ -748,12 +750,11 @@ void DCNetworkBlock::set_active_demand
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
+void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                Block::Subset && subset ,
+                                const bool ordered ,
+                                c_ModParam issuePMod ,
+                                c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return;
@@ -822,9 +823,10 @@ void DCNetworkBlock::set_kappa(
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa
-( std::vector< double >::const_iterator values , Block::Range rng ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
+void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                Block::Range rng ,
+                                c_ModParam issuePMod ,
+                                c_ModParam issueAMod ) {
 
  rng.second = std::min( rng.second , get_number_lines() );
  if( rng.second <= rng.first )
