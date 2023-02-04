@@ -740,7 +740,7 @@ class NetworkBlockMod : public Modification
  /// public enum for the types of NetworkBlockMod
  enum NetB_mod_type
  {
-  eSetActD = 0 ,     ///< set max power values
+  eSetActD = 0 ,     ///< set active demand values
   eNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of NetworkBlockMod. */
@@ -780,6 +780,7 @@ class NetworkBlockMod : public Modification
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
 /*--------------------------------------------------------------------------*/
+
 /// derived from NetworkBlockMod for "ranged" modifications
 class NetworkBlockRngdMod : public NetworkBlockMod
 {

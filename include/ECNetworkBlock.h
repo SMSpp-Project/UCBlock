@@ -919,6 +919,115 @@ class ECNetworkBlock : public NetworkBlock
 };  // end( class( ECNetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
+/*------------------------ CLASS ECNetworkBlockMod -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived class from NetworkBlockMod for modifications to an ECNetworkBlock
+class ECNetworkBlockMod : public NetworkBlockMod
+{
+
+ public:
+
+ /// public enum for the types of NetworkBlockMod
+ enum NetB_mod_type
+ {
+  eSetActD = 0 , ///< set active demand values
+  eSetBuyP ,     ///< set buy price values
+  eSetSellP ,    ///< set sell price values
+  eSetRewardP ,  ///< set reward price values
+  eSetPeakT ,    ///< set peak tariff value
+  eNetBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of ECNetworkBlockMod. */
+ };
+
+ /// constructor, takes the ECNetworkBlock and the type
+ ECNetworkBlockMod( ECNetworkBlock * const fblock , const int type )
+  : NetworkBlockMod( fblock , type ) {}
+
+ /// destructor, does nothing
+ virtual ~ECNetworkBlockMod( void ) override = default;
+
+ protected:
+
+ /// prints the NetworkBlockMod
+ void print( std::ostream & output ) const override {
+  output << "ECNetworkBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   default:
+    output << "Set active demand values ";
+  }
+ }
+
+};  // end( class( ECNetworkBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS ECNetworkBlockRngdMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from ECNetworkBlockMod for "ranged" modifications
+class ECNetworkBlockRngdMod : public ECNetworkBlockMod
+{
+
+ public:
+
+ /// constructor: takes the ECNetworkBlock, the type, and the range
+ ECNetworkBlockRngdMod( ECNetworkBlock * const fblock , const int type ,
+                        Block::Range rng )
+  : ECNetworkBlockMod( fblock , type ) , f_rng( rng ) {}
+
+ /// destructor, does nothing
+ virtual ~ECNetworkBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng( void ) { return( f_rng ); }
+
+ protected:
+
+ /// prints the ECNetworkBlockRngdMod
+ void print( std::ostream & output ) const override {
+  ECNetworkBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
+
+ Block::Range f_rng; ///< the range
+
+};  // end( class( ECNetworkBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS ECNetworkBlockSbstMod ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from ECNetworkBlockMod for "subset" modifications
+class ECNetworkBlockSbstMod : public ECNetworkBlockMod
+{
+
+ public:
+
+ /// constructor: takes the ECNetworkBlock, the type, and the subset
+ ECNetworkBlockSbstMod( ECNetworkBlock * const fblock , const int type ,
+                        Block::Subset && nms )
+  : ECNetworkBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ virtual ~ECNetworkBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms( void ) { return( f_nms ); }
+
+ protected:
+
+ /// prints the ECNetworkBlockSbstMod
+ void print( std::ostream & output ) const override {
+  ECNetworkBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
+
+ Block::Subset f_nms;  ///< the subset
+
+};  // end( class( ECNetworkBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
