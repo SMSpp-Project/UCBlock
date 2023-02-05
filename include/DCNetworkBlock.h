@@ -136,7 +136,7 @@ class DCNetworkBlock : public NetworkBlock
   DCNetworkData( void ) : NetworkBlock::NetworkData() {}
 
   /// copy constructor of DCNetworkData, does nothing
-  DCNetworkData( NetworkData * network_data ) {}
+  DCNetworkData( NetworkData * dc_network_data ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
   virtual ~DCNetworkData() = default;

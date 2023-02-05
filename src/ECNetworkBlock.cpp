@@ -191,19 +191,25 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
 
- // the microgrid power injection variables
- v_micro_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
- for( Index t = 0 ; t < number_intervals ; ++t )
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-   v_micro_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_micro_power_injection , "M_injection" );
+ if( is_cooperative() ) {
+  // the microgrid power injection variables
+  v_micro_power_injection.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index t = 0 ; t < number_intervals ; ++t )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_micro_power_injection[ t ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_micro_power_injection , "M_injection" );
 
- // the microgrid power absorption variables
- v_micro_power_absorption.resize( boost::extents[ number_intervals ][ number_nodes ] );
- for( Index t = 0 ; t < number_intervals ; ++t )
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-   v_micro_power_absorption[ t ][ node_id ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_micro_power_absorption , "M_absorption" );
+  // the microgrid power absorption variables
+  v_micro_power_absorption.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index t = 0 ; t < number_intervals ; ++t )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_micro_power_absorption[ t ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_micro_power_absorption , "M_absorption" );
+ }
 
  // the public power injection variables
  v_public_power_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
@@ -239,6 +245,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
 
+ const auto is_coop = is_cooperative();
+
 /*------------------------- inequality constraints -------------------------*/
 
  // set that the dispatch cannot go beyond the maximum dispatch of the
@@ -271,7 +279,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    // that do not contribute to the community by sharing energy since they
    // are unable to install assets due to economic or space reasons;
    // and on which, otherwise, all the costs of the peak powers would be borne
-   {
+   if( is_coop ) {
     // case (1)
     vars_p.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
                                       1.0 ) );
@@ -322,30 +330,33 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  //    P^{M,+} = P^{M,-}       for all u, t
  // => P^{M,+} - P^{M,-} = 0   for all u, t
 
- if( micro_power_balance_const.size() != number_intervals ) {
-  assert( micro_power_balance_const.empty() );
-  micro_power_balance_const.resize( number_intervals );
- }
+ if( is_coop ) {
 
- for( Index t = 0 ; t < number_intervals ; ++t ) {
-
-  LinearFunction::v_coeff_pair vars;
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   1.0 ) );
-   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-                                   -1.0 ) );
+  if( micro_power_balance_const.size() != number_intervals ) {
+   assert( micro_power_balance_const.empty() );
+   micro_power_balance_const.resize( number_intervals );
   }
 
-  micro_power_balance_const[ t ].set_both( 0.0 );
-  micro_power_balance_const[ t ].set_function(
-   new LinearFunction( std::move( vars ) ) );
- }
+  for( Index t = 0 ; t < number_intervals ; ++t ) {
 
- add_static_constraint( micro_power_balance_const ,
-                        "Micro_Power_Balance_Const" );
+   LinearFunction::v_coeff_pair vars;
+
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+    vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
+                                    1.0 ) );
+    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
+                                    -1.0 ) );
+   }
+
+   micro_power_balance_const[ t ].set_both( 0.0 );
+   micro_power_balance_const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( micro_power_balance_const ,
+                         "Micro_Power_Balance_Const" );
+ }
 
  // set the power balance, i.e.:
  //
@@ -368,12 +379,16 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
                                    1.0 ) );
-   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   1.0 ) );
    vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
                                    -1.0 ) );
-   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-                                   -1.0 ) );
+
+   if( is_coop ) {
+    vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
+                                    1.0 ) );
+    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
+                                    -1.0 ) );
+   }
+
    vars.push_back( std::make_pair( &v_node_injection[ t ][ node_id ] , -1.0 ) );
    power_balance_const[ node_id ][ t ].set_both(
     -v_ActiveDemand[ t ][ node_id ] );
@@ -417,6 +432,8 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                          // cowardly (and silently) return
 
+ const auto is_coop = is_cooperative();
+
  LinearFunction::v_coeff_pair vars;
 
  for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
@@ -425,12 +442,15 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 
    vars.push_back( std::make_pair( &v_public_power_absorption[ t ][ node_id ] ,
                                    get_buy_price( t ) ) );
-   vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
-                                   get_buy_price( t ) - get_reward_price( t ) ) );
    vars.push_back( std::make_pair( &v_public_power_injection[ t ][ node_id ] ,
                                    -get_sell_price( t ) ) );
-   vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
-                                   -get_sell_price( t ) ) );
+
+   if( is_coop ) {
+    vars.push_back( std::make_pair( &v_micro_power_injection[ t ][ node_id ] ,
+                                    -get_sell_price( t ) ) );
+    vars.push_back( std::make_pair( &v_micro_power_absorption[ t ][ node_id ] ,
+                                    get_buy_price( t ) - get_reward_price( t ) ) );
+   }
   }
 
   vars.push_back( std::make_pair( &v_peak_power[ node_id ] , get_peak_tariff() ) );

@@ -112,7 +112,7 @@ class ECNetworkBlock : public NetworkBlock
   ECNetworkData( void ) : NetworkBlock::NetworkData() {}
 
   /// copy constructor of ECNetworkData, does nothing
-  ECNetworkData( NetworkData * network_data ) {}
+  ECNetworkData( NetworkData * ec_network_data ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
   virtual ~ECNetworkData() = default;
@@ -168,7 +168,6 @@ class ECNetworkBlock : public NetworkBlock
   double get_buy_price( void ) const { return( f_BuyPrice ); }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the energy reward price
   /** Returns the tariff that the user gains when it absorbs power from the
    * microgrid market / network (instead of from the public grid). */
@@ -409,6 +408,16 @@ class ECNetworkBlock : public NetworkBlock
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the the energy is shared between users in the community
+
+ bool is_cooperative( void ) {
+  if( ! f_NetworkData )
+   return( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
+                        []( double cst ) { return( cst != 0 ); } ) );
+  return( f_NetworkData->get_reward_price() != 0 );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE ECNetworkBlock -----------*/
