@@ -651,8 +651,9 @@ void ECNetworkBlock::set_active_demand(
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
-  Block::add_Modification( std::make_shared< NetworkBlockSbstMod >(
-                            this , NetworkBlockMod::eSetActD , std::move( subset ) ) ,
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetActD ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( ECNetworkBlock::set_active_demand )
@@ -707,8 +708,8 @@ void ECNetworkBlock::set_active_demand(
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< NetworkBlockRngdMod >(
-                            this , NetworkBlockMod::eSetActD , rng ) ,
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ECNetworkBlock::set_active_demand )

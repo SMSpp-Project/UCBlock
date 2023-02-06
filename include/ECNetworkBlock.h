@@ -938,13 +938,9 @@ class ECNetworkBlockMod : public NetworkBlockMod
  public:
 
  /// public enum for the types of NetworkBlockMod
- enum NetB_mod_type
+ enum ECNetB_mod_type
  {
   eSetActD = 0 , ///< set active demand values
-  eSetBuyP ,     ///< set buy price values
-  eSetSellP ,    ///< set sell price values
-  eSetRewardP ,  ///< set reward price values
-  eSetPeakT ,    ///< set peak tariff value
   eNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ECNetworkBlockMod. */
@@ -955,11 +951,14 @@ class ECNetworkBlockMod : public NetworkBlockMod
   : NetworkBlockMod( fblock , type ) {}
 
  /// destructor, does nothing
- virtual ~ECNetworkBlockMod( void ) override = default;
+ virtual ~ECNetworkBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
 
  protected:
 
- /// prints the NetworkBlockMod
+ /// prints the ECNetworkBlockMod
  void print( std::ostream & output ) const override {
   output << "ECNetworkBlockMod[" << this << "]: ";
   switch( f_type ) {

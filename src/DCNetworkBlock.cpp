@@ -794,7 +794,6 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
     for( auto i : subset ) {
      v_HVDC_power_flow_limit_const[ i ].set_lhs
       ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
-
      v_HVDC_power_flow_limit_const[ i ].set_rhs
       ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
     }
@@ -859,7 +858,6 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
      for( Index i = rng.first ; i < rng.second ; ++i ) {
       v_HVDC_power_flow_limit_const[ i ].set_lhs
        ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
-
       v_HVDC_power_flow_limit_const[ i ].set_rhs
        ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
      }
