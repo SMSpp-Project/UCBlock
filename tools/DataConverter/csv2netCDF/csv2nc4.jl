@@ -403,8 +403,7 @@ end
 
 ## Parameters
 
-file_name = !isempty(ARGS) ? ARGS[1] : "energy_community_model.yml"
-file_name = endswith(file_name, ".yml") ? file_name : string(file_name, ".yml")
+file_name = !isempty(ARGS) ? string(ARGS[1], endswith(ARGS[1], ".yml") ? "" : ".yml") : "energy_community_model.yml"
 
 ## Initialization
 
