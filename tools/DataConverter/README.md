@@ -14,7 +14,7 @@ julia csv2nc4.jl [yml]
 
 where `yml` can be one of the followings:
 
-- `energy_community_model` (by default, if none given)
+- `energy_community_model_CO` (i.e., Cooperative case; the default, if none is given)
 - `energy_community_model_NA` (i.e., No Asset case)
 - `energy_community_model_NC` (i.e., No Cooperative case)
 
