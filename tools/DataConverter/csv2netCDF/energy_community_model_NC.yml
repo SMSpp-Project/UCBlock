@@ -7,7 +7,7 @@ general: # general input parameters
 
   optional_datasets: # optional csv files storing data
     - input_resource.csv
-    - market_data.csv
+    - market_data_NC.csv
 
 market: # market characteristics
   profile:

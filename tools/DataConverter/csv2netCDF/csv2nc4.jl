@@ -1,6 +1,6 @@
 using YAML
 # the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
-# does not support (jet) the concept of group :(
+# does not support (yet) the concept of group :(
 using NCDatasets
 using DataStructures
 
@@ -8,9 +8,15 @@ include("utils.jl")
 
 function csvEC2nc4()
 
+    middle = "_"
+    if (occursin("_NA", file_name))
+        middle = "_NA_"
+    elseif (occursin("_NC", file_name))
+        middle = "_NC_"
+    end
+    last = "--with-network-blocks" in ARGS ? "_NB" : ""
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(!("-with-network-blocks" in ARGS) ? string("../../../netCDF_files/EC_Test.nc4") : # EC_NA_Test.nc4 EC_NC_Test.nc4
-                   string("../../../netCDF_files/EC_Test_NB.nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1)) # EC_NA_Test_NB.nc4 EC_NC_Test_NB.nc4
+    ds = NCDataset(string("../../../netCDF_files/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
@@ -78,7 +84,7 @@ function csvEC2nc4()
                      for t in time_set] *
                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    if (!("-with-network-blocks" in ARGS) &&
+    if (!("--with-network-blocks" in ARGS) &&
         allequal(sell_price_data) &&
         allequal(buy_price_data) &&
         allequal(peak_tariff_data) &&
@@ -397,7 +403,8 @@ end
 
 ## Parameters
 
-file_name = "energy_community_model.yml" # "energy_community_model_NA.yml"
+file_name = !isempty(ARGS) ? ARGS[1] : "energy_community_model.yml"
+file_name = endswith(file_name, ".yml") ? file_name : string(file_name, ".yml")
 
 ## Initialization
 
