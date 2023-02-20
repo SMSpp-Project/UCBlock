@@ -5,11 +5,28 @@ csv to NetCDF.
 
 ## Getting started
 
-The main script file is `csv2nc4.jl` that, if run without specific options, 
-i.e.:
+The main script file is `csv2nc4.jl` that optionally takes in input the 
+following parameters:
 
 ```
-julia csv2nc4.jl
+julia csv2nc4.jl [yml]
 ```
 
-will produce a nc4 file.
+where `yml` can be one of the followings:
+
+- `energy_community_model` (by default, if none given)
+- `energy_community_model_NA` (i.e., No Asset case)
+- `energy_community_model_NC` (i.e., No Cooperative case)
+
+Moreover, it can take an additional parameter to enforce the generation of 
+the physical ECNetworkBlock(s), i.e.;
+
+```
+julia csv2nc4.jl [yml] --with-network-blocks
+```
+
+## Author
+
+- **Donato Meoli**  
+  Dipartimento di Informatica  
+  Università di Pisa
