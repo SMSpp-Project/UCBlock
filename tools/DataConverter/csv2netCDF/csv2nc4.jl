@@ -8,8 +8,10 @@ include("utils.jl")
 
 function csvEC2nc4()
 
-    middle = "_"
-    if (occursin("_NA", file_name))
+    middle = ""
+    if (occursin("_CO", file_name))
+        middle = "_CO_"
+    elseif (occursin("_NA", file_name))
         middle = "_NA_"
     elseif (occursin("_NC", file_name))
         middle = "_NC_"
@@ -403,7 +405,9 @@ end
 
 ## Parameters
 
-file_name = !isempty(ARGS) ? string(ARGS[1], endswith(ARGS[1], ".yml") ? "" : ".yml") : "energy_community_model_CO.yml"
+file_name = !isempty(ARGS) && ARGS[1] != "--with-network-blocks" ?
+            string(ARGS[1], endswith(ARGS[1], ".yml") ? "" : ".yml") :
+            "energy_community_model_CO.yml"
 
 ## Initialization
 
