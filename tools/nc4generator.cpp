@@ -8,11 +8,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Niccolò Iardella \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Niccolò Iardella
+ * \copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
 #include <iostream>
