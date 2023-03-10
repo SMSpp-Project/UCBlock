@@ -914,7 +914,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  MinPower_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  // shape of the max-power constraint:
+  // shape of the min-power constraint:
   // first term:      - u_t * min_power_t
   // second term:     + p_t
   // third term:      - primary_reserve_t (if any)
