@@ -219,7 +219,7 @@ function csvEC2nc4()
 
     # --------------------------------------------------------------------------------------- #
 
-    # Create g `(Battery/Intermittent)UnitBlock`(s) for each electrical generator/device
+    # Create g `UnitBlock`(s) for each electrical generator/device
 
     devices = [d for u in user_set
                for d in asset_names(users_data[u], SMSPP_DEVICES)]

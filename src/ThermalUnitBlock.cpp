@@ -920,25 +920,26 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // third term:      - primary_reserve_t (if any)
   // fourth term:     - secondary_reserve_t (if any)
 
-  auto coeff = v_coeff_pair( 2 );
-  coeff[ 0 ] = std::make_pair( &v_commitment[ t ] ,
-                               -get_operational_min_power( t ) );
-  coeff[ 1 ] = std::make_pair( &v_active_power[ t ] , 1.0 );
+  LinearFunction::v_coeff_pair lower_vars;
+
+  lower_vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                        -get_operational_min_power( t ) ) );
+  lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
   // if UCBlock has primary reserve variables
   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   coeff.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
+   lower_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
   // if UCBlock has secondary reserve variables
   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   coeff.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
+   lower_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
   MinPower_Const[ t ].set_rhs( Inf< double >() );
   MinPower_Const[ t ].set_lhs( 0.0 );
   MinPower_Const[ t ].set_function(
-   new LinearFunction( std::move( coeff ) ) );
+   new LinearFunction( std::move( lower_vars ) ) );
  }
 
  add_static_constraint( MinPower_Const ,
@@ -955,25 +956,26 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // third term:      - primary_reserve_t (if any)
   // fourth term:     - secondary_reserve_t (if any)
 
-  auto coeff = v_coeff_pair( 2 );
-  coeff[ 0 ] = std::make_pair( &v_commitment[ t ] ,
-                               get_operational_max_power( t ) );
-  coeff[ 1 ] = std::make_pair( &v_active_power[ t ] , -1.0 );
+  LinearFunction::v_coeff_pair upper_vars;
+
+  upper_vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                        get_operational_max_power( t ) ) );
+  upper_vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
   // if UCBlock has primary reserve variables
   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   coeff.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
+   upper_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
   // if UCBlock has secondary reserve variables
   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   coeff.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
+   upper_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
   MaxPower_Const[ t ].set_lhs( 0.0 );
   MaxPower_Const[ t ].set_rhs( Inf< double >() );
   MaxPower_Const[ t ].set_function(
-   new LinearFunction( std::move( coeff ) ) );
+   new LinearFunction( std::move( upper_vars ) ) );
  }
 
  add_static_constraint( MaxPower_Const ,
