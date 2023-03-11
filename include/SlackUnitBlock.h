@@ -258,9 +258,9 @@ class SlackUnitBlock : public UnitBlock
   * stvv. In other word, each group of above variables as binary commitment, or
   * primary or secondary spinning reserve, or active power variables must be
   * defined if and only if the MaxInertia or MaxPrimaryPower or
-  * MaxSecondaryPower or MaxPower is defined in the deserialize(netCDF::NcGroup)
-  * respectively. Otherwise, the corresponding variable is not to be needed to
-  * generate. */
+  * MaxSecondaryPower or MaxPower is defined in the
+  * deserialize( netCDF::NcGroup ) respectively. Otherwise, the corresponding
+  * variable is not to be needed to generate. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 

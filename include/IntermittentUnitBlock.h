@@ -289,7 +289,7 @@ class IntermittentUnitBlock : public UnitBlock
   * as maximum power at any time instant.
   *
   * For instance, if the maximum power provided during deserialization (see
-  * IntermittentUnitBlock::deserialize(netCDF::NcGroup)) is zero for some time
+  * IntermittentUnitBlock::deserialize( netCDF::NcGroup )) is zero for some time
   * instant t, then it will become epsilon for that time instant. Moreover, if
   * any zero value is provided to set_maximum_power() for some time instant t,
   * then the maximum power for time instant t will become epsilon.

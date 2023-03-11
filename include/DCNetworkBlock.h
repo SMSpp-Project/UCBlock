@@ -68,7 +68,7 @@ namespace SMSpp_di_unipi_it
  *    is a non-zero value.
  *
  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines). This
- *    is a combination of first and second cases, where for some lines(not all
+ *    is a combination of first and second cases, where for some lines (not all
  *    of them) may have zero susceptance. */
 
 class DCNetworkBlock : public NetworkBlock

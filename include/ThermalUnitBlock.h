@@ -450,7 +450,7 @@ class ThermalUnitBlock : public UnitBlock
   *   fix to 1 the bound constraints, a std::vector< LB0Constraint > with
   *   exactly init_t entries, the entry a = 0, ..., init_t - 1 being the bound
   *   constraints of the ColVariable corresponding to the active power
-  *   production of the unit(put init_t := \f$ t_0 \f$).
+  *   production of the unit (put init_t := \f$ t_0 \f$).
   *
   * Then the main thermal unit constraints with three 3 binary variables
   * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are are presented as following:
@@ -484,9 +484,9 @@ class ThermalUnitBlock : public UnitBlock
   *   and shutdown connecting constraints at time t. According to the concept
   *   of init_t when \f$ \tau_0 < 0 \f$  and \f$ -\tau_0 < \tau_- \f$ the
   *   commitment variables \f$ u_t \f$  are fixed to zero for init_t time
-  *   steps(starting from zero till init_t - 1). When \f$ \tau_0 > 0 \f$  and
+  *   steps (starting from zero till init_t - 1). When \f$ \tau_0 > 0 \f$  and
   *   \f$ \tau_0 < \tau_+ \f$ the commitment variables \f$ u_t \f$  are fixed
-  *   to one for init_t time steps(starting from zero till init_t - 1). Since
+  *   to one for init_t time steps (starting from zero till init_t - 1). Since
   *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
   *   can ensure (for all periods \f$ t \in \{ t_0, ..., \mathcal{T} -1 \} \f$)
   *   that \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and
@@ -607,7 +607,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - Power output Constraints:
   *   Since commitment variable \f$ u_t \f$ is fixed to one or zero
-  *   for "init_t" time steps(look above comments), because of power output
+  *   for "init_t" time steps (look above comments), because of power output
   *   constraint (look constraint (6)) when for the (0, ..., init_t - 1) time
   *   steps, commitment variable \f$ u_t \f$ is fixed to zero we must fix
   *   \f$ p_t^{ac} \f$, \f$ p_t^{pr} \f$, and \f$ p_t^{sc}\f$ to zero for the same
@@ -669,7 +669,7 @@ class ThermalUnitBlock : public UnitBlock
   *   These inequalities give the active power output generation limits when
   *   unit is ON or OFF. More precisely, the unit generation limits taking into
   *   account its maximum \f$ \bar{p}_t \f$ and minimum \f$ \underline{p}_t \f$
-  *   production, as well as its startup and shutdown capabilities(here both of
+  *   production, as well as its startup and shutdown capabilities (here both of
   *   them are assumed be equal with minimum production \f$ \underline{p}_t \f$)
   *   in each time step t. Be aware that (10) may be infeasible in the event
   *   that the unit is online for just one period. That is,

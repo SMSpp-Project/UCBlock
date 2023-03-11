@@ -634,7 +634,7 @@ class HeatBlock : public Block
 
  Index f_time_horizon;  ///< the time horizon of the HB
 
- Index f_number_heat_units;  ///< the number of units(generators) of the HB
+ Index f_number_heat_units;  ///< the number of units (generators) of the HB
 
  Index f_number_intervals;   ///< the number of intervals
 

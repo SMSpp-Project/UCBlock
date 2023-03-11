@@ -1067,8 +1067,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // BoxConstraint - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ( init_t > 0 ) && ( f_InitUpDownTime > 0 ) &&
-     ( f_InitUpDownTime < f_MinUpTime )
-  ) {
+     ( f_InitUpDownTime < f_MinUpTime ) ) {
 
   // the commitment fixed to one BoxConstraints
   Commitment_fixed_to_One_Const.resize( f_time_horizon );
