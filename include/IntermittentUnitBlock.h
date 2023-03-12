@@ -267,11 +267,11 @@ class IntermittentUnitBlock : public UnitBlock
   *   in the design scenario of the UC problem is given as follow:
   *
   *   \f[
-  *     \min ( I z )
+  *     \min ( ( I + M ) z )
   *   \f]
   *
-  *   where \f$ I \f$, is the investment cost and \f$ z \f$ is the design
-  *   binary variable.
+  *   where \f$ I \f$ is the investment cost, \f$ M \f$ is the operation and
+  *   maintenance cost and \f$ z \f$ is the design variable.
   *   Otherwise, the objective function of the IntermittentUnitBlock is
   *   "empty" (a FRealObjective with a LinearFunction inside with no active
   *   variables). */

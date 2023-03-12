@@ -727,7 +727,7 @@ class ThermalUnitBlock : public UnitBlock
   *  is added to the objective function described above:
   *
   *   \f[
-  *     \sum_{ t \in \mathcal{T}  } c_t^{pr} p_t^{pr}.
+  *     \sum_{ t \in \mathcal{T} } c_t^{pr} p_t^{pr}
   *   \f]
   *
   *  If the second bit of this int value is 1, then the secondary spinning
@@ -735,13 +735,23 @@ class ThermalUnitBlock : public UnitBlock
   *  term is added to the objective function described above:
   *
   *   \f[
-  *     \sum_{ t \in \mathcal{T}  } c_t^{sc} p_t^{sc}.
+  *     \sum_{ t \in \mathcal{T} } c_t^{sc} p_t^{sc}
   *   \f]
   *
   *  If the primary and/or secondary spinning reserve variables are included in
   *  the objective function, their coefficients can be set by the
   *  set_primary_spinning_reserve_cost() and
-  *  set_secondary_spinning_reserve_cost() methods, respectively. */
+  *  set_secondary_spinning_reserve_cost() methods, respectively.
+  *  In the the design scenario of the UC problem, an additional cost is
+  *  added to the objective, i.e.:
+  *
+  *   \f[
+  *     ( I z ) + \sum_{ t \in \mathcal{T} } M u_t
+  *   \f]
+  *
+  *  where \f$ I \f$ is the investment cost, \f$ z \f$ is the design variable,
+  *  \f$ M \f$ is the operation and maintenance cost and \f$ u_t \f$ indicates
+  *  that the unit is committed at time \f$ t \f$. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 

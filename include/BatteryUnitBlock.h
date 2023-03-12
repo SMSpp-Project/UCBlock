@@ -658,14 +658,16 @@ public:
   *   is given as follow:
   *
   *   \f[
-  *     \min ( I_b z_b + I_c z_c +
-  *     \sum_{ t \in  [0 , \mathcal{T}] } C_t (p^+_t +  p^-_t) )
+  *     \min ( ( I_b + M_b ) z_b + ( I_c + M_c ) z_c +
+  *     \sum_{ t \in \mathcal{T} } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
-  *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c
-  *   \f$ are the design variable the battery and the converter respectively;
-  *   and \f$ C_t \f$ is a certain proportion cost function. */
+  *   battery and the converter respectively, \f$ M_b \f$ and \f$ M_c \f$ are
+  *   the the operation and maintenance costs of the battery and the
+  *   converter respectively, \f$ z_b \f$ and \f$ z_c \f$ are the design
+  *   variable the battery and the converter respectively, and \f$ C_t \f$ is
+  *   a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
