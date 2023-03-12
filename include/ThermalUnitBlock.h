@@ -19,6 +19,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato
  */
@@ -839,6 +843,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
+
+ /// returns the operation and maintenance cost
+ double get_OEM_cost( void ) const { return( f_OEMCost ); }
 
  /// returns the maximum installable capacity by the user
  double get_max_capacity( void ) const { return( f_MaxCapacity ); }
@@ -1672,6 +1679,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the investment cost
  double f_InvestmentCost{};
+
+ /// the operation and maintenance cost
+ double f_OEMCost{};
 
  /// the maximum installable capacity by the user
  double f_MaxCapacity{};

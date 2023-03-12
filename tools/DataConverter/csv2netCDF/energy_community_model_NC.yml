@@ -43,6 +43,20 @@ users: # list of users and the corresponding assets
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
+    generator: # component (bio)gas microturbine
+      type: thermal
+      CAPEX_lin: 2000  # [€/kW] specific investment cost of the component
+      OEM_lin: 0.02  # [€/kW/y] specific O&M cost
+      lifetime_y: 10  # [y] lifetime of the component
+      fuel_price: 1.6  # fuel price
+      inter_map: 0.2  # intercept of the fuel consumption map
+      slope_map: 0.3  # slope of the fuel consumption map
+      min_technical: 0.1  # [-] minimum technical working point of the generator
+      max_technical: 1.0  # [-] maximum technical working point of the generator
+      max_capacity: 10  # [kW] maximum capacity to install
+      type_install: integer  # [integer/continuous] whether the installation is continuous or integer
+      nom_capacity: 10  # [kW] nominal capacity of the generator
+
     load: # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost

@@ -81,7 +81,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "InertiaPower" ,
                                                      "Gamma" , "Kappa" ,
                                                      "MaxCapacity" ,
-                                                     "InvestmentCost" };
+                                                     "InvestmentCost" ,
+                                                     "OEMCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -94,6 +95,12 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  // Optional variables
 
+ ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+
+ ::deserialize( group , f_OEMCost , "OEMCost" );
+
+ ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
+
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
   v_MinPower.assign( f_time_horizon , 0 );
 
@@ -103,10 +110,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
-
- ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
-
- ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
  // Decompress vectors
 
@@ -357,7 +360,7 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
  LinearFunction::v_coeff_pair vars;
 
  if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
+  vars.push_back( std::make_pair( &design , f_InvestmentCost + f_OEMCost ) );
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
@@ -447,6 +450,10 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
+
+ if( f_OEMCost != 0 )
+  ::serialize( group , "OEMCost" , netCDF::NcDouble() ,
+               f_OEMCost );
 
  if( f_MaxCapacity != 0 )
   ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
