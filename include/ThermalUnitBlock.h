@@ -746,12 +746,11 @@ class ThermalUnitBlock : public UnitBlock
   *  added to the objective, i.e.:
   *
   *   \f[
-  *     ( I z ) + \sum_{ t \in \mathcal{T} } M u_t
+  *     ( I z )
   *   \f]
   *
-  *  where \f$ I \f$ is the investment cost, \f$ z \f$ is the design variable,
-  *  \f$ M \f$ is the operation and maintenance cost and \f$ u_t \f$ indicates
-  *  that the unit is committed at time \f$ t \f$. */
+  *  where \f$ I \f$ is the investment cost and \f$ z \f$ is the design
+  *  variable. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -853,9 +852,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
-
- /// returns the operation and maintenance cost
- double get_OEM_cost( void ) const { return( f_OEMCost ); }
 
  /// returns the maximum installable capacity by the user
  double get_max_capacity( void ) const { return( f_MaxCapacity ); }
@@ -1689,9 +1685,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the investment cost
  double f_InvestmentCost{};
-
- /// the operation and maintenance cost
- double f_OEMCost{};
 
  /// the maximum installable capacity by the user
  double f_MaxCapacity{};

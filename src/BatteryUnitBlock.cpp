@@ -98,8 +98,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
     "MaxCRateCharge" , "MaxCRateDischarge" ,
     "BatteryMaxCapacity" , "ConverterMaxCapacity" ,
     "MaxIntakePower" , "MaxOuttakePower" ,
-    "BatteryInvestmentCost" , "BatteryOEMCost" ,
-    "ConverterInvestmentCost" , "ConverterOEMCost" };
+    "BatteryInvestmentCost" , "ConverterInvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -143,11 +142,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   v_Cost.resize( 1 , 0 );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
- ::deserialize( group , f_BattOEMCost , "BatteryOEMCost" );
  ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
 
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
- ::deserialize( group , f_ConvOEMCost , "ConverterOEMCost" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
 
  // Decompress vectors
@@ -912,12 +909,10 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
  }
 
  if( f_BattInvestmentCost != 0 )
-  linear_function->add_variable( &batt_design , f_BattInvestmentCost +
-                                                f_BattOEMCost );
+  linear_function->add_variable( &batt_design , f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
-  linear_function->add_variable( &conv_design , f_ConvInvestmentCost +
-                                                f_ConvOEMCost );
+  linear_function->add_variable( &conv_design , f_ConvInvestmentCost );
 
  objective.set_function( linear_function );
  objective.set_sense( Objective::eMin );
@@ -1006,10 +1001,6 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
   ::serialize( group , "BatteryInvestmentCost" , netCDF::NcDouble() ,
                f_BattInvestmentCost );
 
- if( f_BattOEMCost != 0 )
-  ::serialize( group , "BatteryOEMCost" , netCDF::NcDouble() ,
-               f_BattOEMCost );
-
  if( f_BattMaxCapacity != 0 )
   ::serialize( group , "BatteryMaxCapacity" , netCDF::NcDouble() ,
                f_BattMaxCapacity );
@@ -1017,10 +1008,6 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_ConvInvestmentCost != 0 )
   ::serialize( group , "ConverterInvestmentCost" , netCDF::NcDouble() ,
                f_ConvInvestmentCost );
-
- if( f_ConvOEMCost != 0 )
-  ::serialize( group , "ConverterOEMCost" , netCDF::NcDouble() ,
-               f_ConvOEMCost );
 
  if( f_ConvMaxCapacity != 0 )
   ::serialize( group , "ConverterMaxCapacity" , netCDF::NcDouble() ,

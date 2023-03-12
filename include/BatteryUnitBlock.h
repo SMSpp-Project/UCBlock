@@ -658,16 +658,14 @@ public:
   *   is given as follow:
   *
   *   \f[
-  *     \min ( ( I_b + M_b ) z_b + ( I_c + M_c ) z_c +
+  *     \min ( I_b z_b + I_c z_c +
   *     \sum_{ t \in \mathcal{T} } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
-  *   battery and the converter respectively, \f$ M_b \f$ and \f$ M_c \f$ are
-  *   the the operation and maintenance costs of the battery and the
-  *   converter respectively, \f$ z_b \f$ and \f$ z_c \f$ are the design
-  *   variable the battery and the converter respectively, and \f$ C_t \f$ is
-  *   a certain proportion cost function. */
+  *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c \f$ are
+  *   the design variable the battery and the converter respectively, and \f$
+  *   C_t \f$ is a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -758,16 +756,10 @@ public:
   return( f_BattInvestmentCost );
  }
 
- /// returns the battery operation and maintenance cost
- double get_batt_OEM_cost( void ) const { return( f_BattOEMCost ); }
-
  /// returns the converter investment cost
  double get_conv_investment_cost( void ) const {
   return( f_ConvInvestmentCost );
  }
-
- /// returns the converter operation and maintenance cost
- double get_conv_OEM_cost( void ) const { return( f_ConvOEMCost ); }
 
  /// returns the maximum battery installable capacity by the user
  double get_batt_max_capacity( void ) const { return( f_BattMaxCapacity ); }
@@ -1443,14 +1435,8 @@ public:
  /// the battery investment cost
  double f_BattInvestmentCost{};
 
- /// the operation and maintenance cost
- double f_BattOEMCost{};
-
  /// the converter investment cost
  double f_ConvInvestmentCost{};
-
- /// the operation and maintenance cost
- double f_ConvOEMCost{};
 
  /// the maximum battery installable capacity by the user
  double f_BattMaxCapacity{};

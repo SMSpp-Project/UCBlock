@@ -162,7 +162,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "MinDownTime" ,
                                               "InitUpDownTime" ,
                                               "Availability" , "MaxCapacity" ,
-                                              "InvestmentCost" , "OEMCost" };
+                                              "InvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -175,8 +175,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  // Optional variables
 
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
-
- ::deserialize( group , f_OEMCost , "OEMCost" );
 
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
@@ -1137,13 +1135,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 
  auto dquad_function = new DQuadFunction();
 
- if( f_InvestmentCost != 0 ) {
-
+ if( f_InvestmentCost != 0 )
   dquad_function->add_variable( &design , f_InvestmentCost , 0.0 );
-
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   dquad_function->add_variable( &v_commitment[ t ] , f_OEMCost , 0.0 );
- }
 
  for( Index t = init_t ; t < f_time_horizon ; ++t )
   dquad_function->add_variable( &v_start_up[ t - init_t ] ,
@@ -1284,10 +1277,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
-
- if( f_OEMCost != 0 )
-  ::serialize( group , "OEMCost" , netCDF::NcDouble() ,
-               f_OEMCost );
 
  if( f_MaxCapacity != 0 )
   ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
