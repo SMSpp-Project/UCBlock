@@ -48,9 +48,9 @@ users: # list of users and the corresponding assets
       CAPEX_lin: 2000  # [€/kW] specific investment cost of the component
       OEM_lin: 0.02  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
-      fuel_price: 1.6  # fuel price
-      inter_map: 0.2  # intercept of the fuel consumption map
-      slope_map: 0.3  # slope of the fuel consumption map
+      fuel_price: 0.018  # [€/m3] fuel price
+      inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map
+      slope_map: 3.7  # [m3/kWh] slope of the fuel consumption map
       min_technical: 0.1  # [-] minimum technical working point of the generator
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 10  # [kW] maximum capacity to install
