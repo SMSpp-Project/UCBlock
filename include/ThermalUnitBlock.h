@@ -1750,6 +1750,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the active power lower bound constraints
  std::vector< FRowConstraint > MaxPower_Const;
 
+ /// the commitment design constraints
+ std::vector< FRowConstraint > CommitmentDesign_Const;
+
 
  /// the commitment bound constraints
  std::vector< ZOConstraint > Commitment_bound_Const;

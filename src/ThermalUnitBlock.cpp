@@ -130,6 +130,7 @@ ThermalUnitBlock::~ThermalUnitBlock() {
  Constraint::clear( SecondaryRho_Const );
  Constraint::clear( MinPower_Const );
  Constraint::clear( MaxPower_Const );
+ Constraint::clear( CommitmentDesign_Const );
 
  Constraint::clear( Commitment_bound_Const );
  Constraint::clear( StartUp_Binary_bound_Const );
@@ -1085,6 +1086,28 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
                          "Commitment_fixed_to_one_Thermal" );
  }
 
+ if( f_InvestmentCost != 0 ) {
+
+  CommitmentDesign_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &design , -1.0 ) );
+
+   CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
+   CommitmentDesign_Const[ t ].set_rhs( 0.0 );
+
+   CommitmentDesign_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( CommitmentDesign_Const ,
+                         "CommitmentDesign_Const_Thermal" );
+ }
+
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1255,6 +1278,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
   && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
