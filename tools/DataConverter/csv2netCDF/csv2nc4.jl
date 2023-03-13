@@ -394,7 +394,7 @@ function csvEC2nc4()
                     thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
                                             field_component(users_data[u], g, "nom_capacity"))
 
-                    # Net Present Value (CAPEX with replacement cost part) of the thermal
+                    # Net Present Value of the thermal
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                              (((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
