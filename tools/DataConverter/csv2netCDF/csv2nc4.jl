@@ -409,10 +409,10 @@ function csvEC2nc4()
                                          field_component(users_data[u], g, "nom_capacity")
 
                     # constant term of the thermal
-                    constant_term_data = sum([((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                                field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
-                                                field_component(users_data[u], g, "inter_map")) *
-                                               field_component(users_data[u], g, "nom_capacity")) *
+                    constant_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                               field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
+                                               field_component(users_data[u], g, "inter_map")) *
+                                              field_component(users_data[u], g, "nom_capacity") *
                                               profile(market_data, "energy_weight")[t] *
                                               profile(market_data, "time_res")[t]
                                               for t in time_set] *
