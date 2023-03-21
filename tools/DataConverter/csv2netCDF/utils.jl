@@ -2,7 +2,7 @@ using Parameters, DataFrames
 import XLSX, JLD2, YAML, CSV
 
 
-@enum ASSET_TYPE LOAD = 0 REN = 1 BATT = 2 CONV = 3 THERMAL = 4
+@enum ASSET_TYPE LOAD = 0 REN = 1 BATT = 2 CONV = 3 THER = 4
 ANY = collect(instances(ASSET_TYPE))  # all assets code
 DEVICES = setdiff(ANY, [LOAD])  # devices codes
 
@@ -10,7 +10,7 @@ type_codes = Base.Dict(
     "renewable" => REN,
     "battery" => BATT,
     "converter" => CONV,
-    "thermal" => THERMAL,
+    "thermal" => THER,
     "load" => LOAD,
 )
 
