@@ -18,7 +18,14 @@ where `yml` can be one of the followings:
 - `energy_community_model_NA` (i.e., No Asset case)
 - `energy_community_model_NC` (i.e., No Cooperative case)
 
-Moreover, for tests purposes, it can take an additional parameter to enforce 
+It is also possible to choose whether to include the generator thermal using 
+the appropriate flag, i.e.:
+
+```
+julia csv2nc4.jl [yml] --with-thermal-blocks
+```
+
+Finally, for tests purposes, it can take an additional parameter to enforce 
 the generation of the physical ECNetworkBlock(s), i.e.;
 
 ```
