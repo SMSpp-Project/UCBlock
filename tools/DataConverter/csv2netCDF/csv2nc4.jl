@@ -9,14 +9,22 @@ include("utils.jl")
 function csvEC2nc4()
 
     middle = ""
-    if (occursin("_CO", file_name))
+    if occursin("_CO", file_name)
         middle = "_CO_"
-    elseif (occursin("_NA", file_name))
+    elseif occursin("_NA", file_name)
         middle = "_NA_"
-    elseif (occursin("_NC", file_name))
+    elseif occursin("_NC", file_name)
         middle = "_NC_"
     end
-    last = "--with-network-blocks" in ARGS ? "_NB" : ""
+
+    last = ""
+    if "--with-thermal-blocks" in ARGS && !occursin("_NA", file_name)
+        last = string(last, "_TUB")
+    end
+    if "--with-network-blocks" in ARGS
+        last = string(last, "_NB")
+    end
+
     # The mode "c" stands for creating a new file (clobber)
     ds = NCDataset(string("../../../netCDF_files/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
@@ -70,8 +78,8 @@ function csvEC2nc4()
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     # `PeakTariff`, i.e., the peak tariff cost
-    peak_tariff_data = [(profile(market_data, "peak_weight")[w] *
-                         profile(market_data, "peak_tariff")[w])
+    peak_tariff_data = [profile(market_data, "peak_weight")[w] *
+                        profile(market_data, "peak_tariff")[w]
                         for w in peak_set] *
                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -454,7 +462,7 @@ end
 
 ## Parameters
 
-file_name = !isempty(ARGS) && ARGS[1] != "--with-network-blocks" ?
+file_name = !isempty(ARGS) && !startswith(ARGS[1], "--") ?
             string(ARGS[1], endswith(ARGS[1], ".yml") ? "" : ".yml") :
             "energy_community_model_CO.yml"
 
@@ -471,7 +479,7 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
-SMSPP_DEVICES = setdiff(DEVICES, [CONV])  # devices codes in SMS++
+SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
 
 ## Data aggregation and netCDF files generation
 csvEC2nc4()
