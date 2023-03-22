@@ -261,7 +261,7 @@ function csvEC2nc4()
                         max_power[:] = max_power_data[:]
                     end
 
-                    # Net Present Value of the pv/wind asset
+                    # store the Net Present Value of the pv/wind asset
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                              (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
@@ -328,7 +328,7 @@ function csvEC2nc4()
                         max_storage[:] = max_storage_data[:]
                     end
 
-                    # Net Present Value of the battery
+                    # store the Net Present Value of the battery
                     batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
                     batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                                    (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
@@ -363,7 +363,7 @@ function csvEC2nc4()
                     outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
                                        field_component(users_data[u], g_conv, "eta") # corresponding converter, i.e., "conv"
 
-                    # Net Present Value of the converter
+                    # store the Net Present Value of the converter
                     conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
                     conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
                                                    (field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
@@ -382,19 +382,20 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the thermal
                     thermal_max_capacity = defVar(ub, "MaxCapacity", Float64, ())
-                    thermal_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+                    thermal_max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
+                                               field_component(users_data[u], g, "nom_capacity"))
 
                     # store the minimum power of the thermal
                     thermal_min_power = defVar(ub, "MinPower", Float64, ())
                     thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
-                                            field_component(users_data[u], g, "nom_capacity"))
+                                            field_component(users_data[u], g, "max_capacity"))
 
                     # store the maximum power of the thermal
                     thermal_max_power = defVar(ub, "MaxPower", Float64, ())
                     thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
-                                            field_component(users_data[u], g, "nom_capacity"))
+                                            field_component(users_data[u], g, "max_capacity"))
 
-                    # Net Present Value of the thermal
+                    # store the Net Present Value of the thermal
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                              (((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
@@ -404,20 +405,17 @@ function csvEC2nc4()
                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                              (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                             for y in append!([0], year_set)) *
-                                         field_component(users_data[u], g, "max_capacity") *
-                                         field_component(users_data[u], g, "nom_capacity")
+                                             for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity")
 
-                    # constant term of the thermal
+                    # store the constant term of the thermal
                     constant_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
                                                field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
                                                field_component(users_data[u], g, "inter_map")) *
-                                              field_component(users_data[u], g, "nom_capacity") *
                                               profile(market_data, "energy_weight")[t] *
                                               profile(market_data, "time_res")[t]
                                               for t in time_set] *
                                              (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                             for y in year_set)
+                                             for y in year_set) * field_component(users_data[u], g, "max_capacity")
                     if (allequal(constant_term_data))
                         constant_term = defVar(ub, "ConstTerm", Float64, ())
                         constant_term[:] = constant_term_data[1]
@@ -426,7 +424,7 @@ function csvEC2nc4()
                         constant_term[:] = constant_term_data[:]
                     end
 
-                    # linear term of the thermal
+                    # store the linear term of the thermal
                     linear_term_data = sum([field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
                                             field_component(users_data[u], g, "slope_map") *
                                             profile(market_data, "energy_weight")[t] *

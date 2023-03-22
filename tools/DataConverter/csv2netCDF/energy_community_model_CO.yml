@@ -54,7 +54,6 @@ users: # list of users and the corresponding assets
       min_technical: 0.2  # [-] minimum technical working point of the generator
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 30  # [kW] maximum capacity to install
-      type_install: integer  # [integer/continuous] whether the installation is continuous or integer
       nom_capacity: 10  # [kW] nominal capacity of the generator
 
     load: # component load
