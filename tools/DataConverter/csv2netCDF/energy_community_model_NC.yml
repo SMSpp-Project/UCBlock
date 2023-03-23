@@ -34,12 +34,13 @@ users: # list of users and the corresponding assets
   user1: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1700  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -51,10 +52,10 @@ users: # list of users and the corresponding assets
       fuel_price: 0.018  # [€/m3] fuel price
       inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map
       slope_map: 3.7  # [m3/kWh] slope of the fuel consumption map
-      min_technical: 0.2  # [-] minimum technical working point of the generator
-      max_technical: 1.0  # [-] maximum technical working point of the generator
+      min_technical: 0.2  # [-] minimum technical working point of the component
+      max_technical: 1.0  # [-] maximum technical working point of the component
       max_capacity: 30  # [kW] maximum capacity to install
-      nom_capacity: 10  # [kW] nominal capacity of the generator
+      nom_capacity: 10  # [kW] nominal capacity of the component
 
     load: # component load
       type: load
@@ -65,12 +66,13 @@ users: # list of users and the corresponding assets
   user2: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 80  # [kW] maximum capacity
+      max_capacity: 80  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -82,9 +84,10 @@ users: # list of users and the corresponding assets
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -95,7 +98,8 @@ users: # list of users and the corresponding assets
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -107,12 +111,13 @@ users: # list of users and the corresponding assets
   user3: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1600  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 100  # [kW] maximum capacity
+      max_capacity: 100  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -121,7 +126,8 @@ users: # list of users and the corresponding assets
       CAPEX_lin: 3000  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 20  # [y] lifetime of the component
-      max_capacity: 100  # [kW] maximum capacity
+      max_capacity: 100  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
 
@@ -133,9 +139,10 @@ users: # list of users and the corresponding assets
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -146,7 +153,8 @@ users: # list of users and the corresponding assets
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -158,12 +166,13 @@ users: # list of users and the corresponding assets
   user4: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 40  # [kW] maximum capacity
+      max_capacity: 40  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -185,12 +194,13 @@ users: # list of users and the corresponding assets
   user6: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 60  # [kW] maximum capacity
+      max_capacity: 60  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -202,9 +212,10 @@ users: # list of users and the corresponding assets
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -215,7 +226,8 @@ users: # list of users and the corresponding assets
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -236,12 +248,13 @@ users: # list of users and the corresponding assets
   user8: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 100  # [kW] maximum capacity
+      max_capacity: 100  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -250,7 +263,8 @@ users: # list of users and the corresponding assets
       CAPEX_lin: 3000  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 20  # [y] lifetime of the component
-      max_capacity: 100  # [kW] maximum capacity
+      max_capacity: 100  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
 
@@ -262,9 +276,10 @@ users: # list of users and the corresponding assets
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -275,7 +290,8 @@ users: # list of users and the corresponding assets
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -287,12 +303,13 @@ users: # list of users and the corresponding assets
   user9: # name of the user
     # list of components
 
-    PV: # component PV, i.e., photovoltaic
+    PV: # component photovoltaic
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
-      max_capacity: 100  # [kW] maximum capacity
+      max_capacity: 100  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -304,9 +321,10 @@ users: # list of users and the corresponding assets
       eta: 0.92  # [-] roundtrip efficiency
       max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -317,7 +335,8 @@ users: # list of users and the corresponding assets
       eta: 1.0  # [-] roundtrip efficiency
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
-      max_capacity: 50  # [kW] maximum capacity
+      max_capacity: 50  # [kW] maximum capacity to install
+      nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load

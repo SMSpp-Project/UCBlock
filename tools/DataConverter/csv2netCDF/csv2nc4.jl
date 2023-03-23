@@ -255,7 +255,8 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the pv/wind asset
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
-                    max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+                    max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
+                                       field_component(users_data[u], g, "nom_capacity"))
 
                     # store the maximum power of the pv/wind asset
                     max_power_data = [field_component(users_data[u], g, "max_capacity") *
@@ -290,7 +291,8 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the battery
                     batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
-                    batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+                    batt_max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
+                                            field_component(users_data[u], g, "nom_capacity"))
 
                     # store the maximum power of the battery
                     batt_max_power = defVar(ub, "MaxPower", Float64, ())
@@ -355,7 +357,8 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the converter
                     conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
-                    conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
+                    conv_max_capacity[:] = (field_component(users_data[u], g_conv, "max_capacity") /
+                                            field_component(users_data[u], g_conv, "nom_capacity"))
 
                     # store the maximum power of the converter
                     conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
