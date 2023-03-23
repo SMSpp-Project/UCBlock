@@ -688,7 +688,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  initial_demand_vars.push_back( std::make_pair( &v_intake_level[ 0 ] ,
                                                 intake_coeff ) );
 
- double rhs = f_InitialStorage;
+ double rhs = f_InitialStorage < 0 ? 0.0 : f_InitialStorage;
  if( ! v_Demand.empty() )
   rhs -= v_Demand[ 0 ];
  demand_Const[ 0 ].set_both( rhs );
