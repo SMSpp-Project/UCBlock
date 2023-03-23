@@ -283,14 +283,6 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
                                   ", but is must be nonnegative." ) );
  }
 
- // Initial storage
-
- if( f_InitialStorage < 0 )
-  throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
-                                "initial storage is " +
-                                std::to_string( f_InitialStorage ) +
-                                ", but it must be nonnegative." ) );
-
  // Kappa
 
  if( f_kappa < 0 )
@@ -679,18 +671,22 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  LinearFunction::v_coeff_pair initial_demand_vars;
 
  initial_demand_vars.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
- initial_demand_vars.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
-                                                -1.0 ) );
+
+ if( f_InitialStorage < 0 ) // cyclical notation
+  initial_demand_vars.push_back(
+   std::make_pair( &v_storage_level[ f_time_horizon - 1 ] , -1.0 ) );
 
  double outtake_coeff = -1;
  if( ! v_StoringBatteryRho.empty() )
   outtake_coeff = -v_StoringBatteryRho[ 0 ];
- initial_demand_vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , outtake_coeff ) );
+ initial_demand_vars.push_back( std::make_pair( &v_outtake_level[ 0 ] ,
+                                                outtake_coeff ) );
 
  double intake_coeff = 1;
  if( ! v_ExtractingBatteryRho.empty() )
   intake_coeff = v_ExtractingBatteryRho[ 0 ];
- initial_demand_vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
+ initial_demand_vars.push_back( std::make_pair( &v_intake_level[ 0 ] ,
+                                                intake_coeff ) );
 
  double rhs = f_InitialStorage;
  if( ! v_Demand.empty() )
@@ -1079,8 +1075,7 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
   return;
 
  if( ! v_Demand.empty() )
-  demand_Const[ 0 ].set_both( f_InitialStorage - v_Demand[ 0 ] ,
-                              issueAMod );
+  demand_Const[ 0 ].set_both( f_InitialStorage - v_Demand[ 0 ] , issueAMod );
  else
   demand_Const[ 0 ].set_both( f_InitialStorage , issueAMod );
 }  // end( BatteryUnitBlock::update_initial_storage_in_constraints )

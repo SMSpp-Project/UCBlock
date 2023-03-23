@@ -312,6 +312,10 @@ function csvEC2nc4()
                         batt_max_C_dch[:] = max_C_dch
                     end
 
+                    # set a negative inital power negative to activate cyclical notation
+                    initial_storage = defVar(ub, "InitialStorage", Float64, ())
+                    initial_storage[:] = -1
+
                     # store the minimum storage of the battery
                     min_storage_data = [(field_component(users_data[u], g, "min_SOC") *
                                          field_component(users_data[u], g, "max_capacity")) /

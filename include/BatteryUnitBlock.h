@@ -1593,8 +1593,6 @@ public:
   * - The maximum active power that can be used as primary and secondary
   *   reserves are nonnegative.
   *
-  * - The initial storage is nonnegative.
-  *
   * If any of the above conditions are not met, an exception is thrown. */
 
  void check_data_consistency( void ) const;
