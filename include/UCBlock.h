@@ -299,17 +299,10 @@ class UCBlock : public Block
  *     provided or it is == 1).
  *
  *   In particular, when a NetworkBlock is not defined for a given time
- *   instant t then one of these happens:
- *
- *   - If "NumberNodes" == 1 (or it is not provided) then a BusNetworkBlock
- *     is automatically constructed for that time instant, and the entry
- *     ActivePowerDemand[ 0 , t ] contains the active demand for t.
- *
- *   - If "NumberNodes" > 1, then a DCNetworkBlock is automatically
- *     constructed for that time instant, it is provided with the NetworkData
- *     object (which must be present in UCBlock) and the row
- *     ActivePowerDemand[ ... , t ] contains the active demand of each node
- *     at time instant t.
+ *   instant t then a DCNetworkBlock is automatically constructed for that
+ *   time instant, it is provided with the NetworkData object (which must be
+ *   present in UCBlock) and the row ActivePowerDemand[ ... , t ] contains
+ *   the active demand of each node at time instant t.
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
