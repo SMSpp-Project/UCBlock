@@ -1075,9 +1075,11 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
   return;
 
  if( ! v_Demand.empty() )
-  demand_Const[ 0 ].set_both( f_InitialStorage - v_Demand[ 0 ] , issueAMod );
+  demand_Const[ 0 ].set_both(
+   f_InitialStorage < 0 ? 0.0 : f_InitialStorage - v_Demand[ 0 ] , issueAMod );
  else
-  demand_Const[ 0 ].set_both( f_InitialStorage , issueAMod );
+  demand_Const[ 0 ].set_both(
+   f_InitialStorage < 0 ? 0.0 : f_InitialStorage , issueAMod );
 }  // end( BatteryUnitBlock::update_initial_storage_in_constraints )
 
 /*--------------------------------------------------------------------------*/
