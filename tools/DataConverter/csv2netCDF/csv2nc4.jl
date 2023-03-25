@@ -18,10 +18,10 @@ function csvEC2nc4()
     end
 
     last = ""
-    if "--with-thermal-blocks" in ARGS && !occursin("_NA", file_name)
+    if "--with-thermal-blocks" in OPTION_ARGS && !occursin("_NA", file_name)
         last = string(last, "_TUB")
     end
-    if "--with-network-blocks" in ARGS
+    if "--with-network-blocks" in OPTION_ARGS
         last = string(last, "_NB")
     end
 
@@ -94,7 +94,7 @@ function csvEC2nc4()
                      for t in time_set] *
                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
-    if (!("--with-network-blocks" in ARGS) &&
+    if (!("--with-network-blocks" in OPTION_ARGS) &&
         allequal(sell_price_data) &&
         allequal(buy_price_data) &&
         allequal(peak_tariff_data) &&
@@ -469,8 +469,14 @@ end
 
 ## Parameters
 
-file_name = !isempty(ARGS) && !startswith(ARGS[1], "--") ?
-            string(ARGS[1], endswith(ARGS[1], ".yml") ? "" : ".yml") :
+NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
+@assert 0 <= length(NO_OPTION_ARGS) <= 1
+
+OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
+@assert 0 <= length(OPTION_ARGS) <= 2
+
+file_name = !isempty(NO_OPTION_ARGS) ?
+            string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
             "energy_community_model_CO.yml"
 
 ## Initialization
@@ -486,7 +492,7 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
-SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
+SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
 
 ## Data aggregation and netCDF files generation
 csvEC2nc4()
