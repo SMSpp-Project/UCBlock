@@ -363,7 +363,7 @@ public:
   *   before the start of the time horizon; this is necessary to compute the
   *   storage level connection with intake and outtake constraints. If
   *   InitialStorage <= 0 then the cyclical notation is used, so the
-  *   constraint v_storage_level[ 0 ] == v_storage_level[ t - 1 ] is added
+  *   constraint v_storage_level[ 0 ] = v_storage_level[ t - 1 ] is added
   *   to handle the unknown storage level of the battery at time zero; but
   *   since negative values for this data does not make sense in domain
   *   since the batteries cannot have a negative storage level obviously, it is
