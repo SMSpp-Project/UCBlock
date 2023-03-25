@@ -361,7 +361,13 @@ public:
   *   indexed over any dimension. This variable indicates the amount of the
   *   storage level that the unit was producing at time instant -1, i.e.,
   *   before the start of the time horizon; this is necessary to compute the
-  *   storage level connection with intake and outtake constraints.
+  *   storage level connection with intake and outtake constraints. If
+  *   InitialStorage <= 0 then the cyclical notation is used, so the
+  *   constraint v_storage_level[ 0 ] == v_storage_level[ t - 1 ] is added
+  *   to handle the unknown storage level of the battery at time zero; but
+  *   since negative values for this data does not make sense in domain
+  *   since the batteries cannot have a negative storage level obviously, it is
+  *   used as if it was 0.
   *
   * - The variable "Cost", of type netCDF::NcDouble and either of size 1 or
   *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
