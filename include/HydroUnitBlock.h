@@ -278,7 +278,7 @@ class HydroUnitBlock : public UnitBlock
  *   time interval t, and therefore that is available in the reservoir at the
  *   end of time step t (hence, the beginning of time step t + 1, if
  *   any). This variable is optional; if it isn't defined, it is taken to be
- *   zero.  Inflows can be either positive or negative.
+ *   zero. Inflows can be either positive or negative.
  *
  * - The variable "MinPower", of type netCDF::NcDouble and indexed over both
  *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
@@ -306,7 +306,7 @@ class HydroUnitBlock : public UnitBlock
  *   always has size NumberArcs (if it is provided at all). This is meant to
  *   represent the matrix MaxP[ t , l ] which, for each time instant t at each
  *   arc l contains the maximum power value of the unit; it must be that MinP[
- *   t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.  This
+ *   t , l ] <= MaxP[ t , l ] for each time instant t and each arc l. This
  *   variable is optional; if it is not provided then it is assumed that MaxP[
  *   t , l ] == 0, i.e., the maximum power of all units is zero (i.e., all
  *   units are pumps). If the first dimension has size 1 then the entry MaxP[
@@ -347,7 +347,7 @@ class HydroUnitBlock : public UnitBlock
  *   l. This variable is optional; if it is not provided then it is assumed
  *   that DM[ t , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., the unit can
  *   ramp down by an arbitrary amount, i.e., there are no ramp-down
- *   constraints.  If first dimension has size 1 then the entry DM[ 0 , l ] is
+ *   constraints. If first dimension has size 1 then the entry DM[ 0 , l ] is
  *   assumed to contain the maximum possible decrease of the flow rate of arc
  *   l for all time instants. Otherwise, DeltaRampDown[ i , l ] is the fixed
  *   value of DM[ t , l ] for arc l and all time t in the interval [
@@ -366,7 +366,7 @@ class HydroUnitBlock : public UnitBlock
  *   can be used as primary reserve. This variable is optional, when it's not
  *   present then PR[ t , l ] == 0 for all t and l, i.e., the unit is not
  *   capable of producing any primary reserve. Note that only turbines can
- *   produce primary reserve, i.e., PR[ t , l ] > 0 ==> MaxP[ t , l ] > 0.  If
+ *   produce primary reserve, i.e., PR[ t , l ] > 0 ==> MaxP[ t , l ] > 0. If
  *   the first dimension has size 1 then the entry PR[ 0 , l ] is assumed to
  *   contain the maximum possible fraction of active power that can be used as
  *   primary reserve by arc l for all time instants. Otherwise, PrimaryRho[ i
@@ -387,7 +387,7 @@ class HydroUnitBlock : public UnitBlock
  *   variable is optional, when it's not present then SR[ t , l ] == 0 for all
  *   t and l, i.e., the unit is not capable of producing any secondary
  *   reserve. Note that only turbines can produce secondary reserve, i.e., SR[
- *   t , l ] > 0 ==> MaxP[ t , l ] > 0.  If the first dimension has size 1
+ *   t , l ] > 0 ==> MaxP[ t , l ] > 0. If the first dimension has size 1
  *   then the entry SR[ 0 , l ] is assumed to contain the maximum possible
  *   fraction of active power that can use as secondary reserve by arc l for
  *   all time instant. Otherwise, SecondaryRho[ i , l ] is the fixed value of
@@ -398,7 +398,7 @@ class HydroUnitBlock : public UnitBlock
  *   not loaded.
  *
  * - The variable "NumberPieces", of type netCDF::NcUint and indexed over the
- *   dimension "NumberArcs".  NumberPieces[ l ] tells how many pieces the
+ *   dimension "NumberArcs". NumberPieces[ l ] tells how many pieces the
  *   concave flow-to-active-power function has for unit (arc) l. Note that
  *   pumps must necessarily have exactly one piece. The sum over all i of
  *   NumberPieces[ i ] is the total number of pieces (say,
@@ -423,7 +423,7 @@ class HydroUnitBlock : public UnitBlock
  *   = 0, 1, ..., NumberArcs - 1, corresponds with a unit (arc), and the
  *   linear functions for each unit (arc) also have some natural ordering.
  *   Thus, in general the mapping is: piece 0 = first piece of unit (arc) 0
- *   piece 1 = second piece of unit (arc) 0 ...  piece NumberPieces[ 0 ] - 1 =
+ *   piece 1 = second piece of unit (arc) 0 ... piece NumberPieces[ 0 ] - 1 =
  *   last piece of unit (arc) 0 piece NumberPieces[ 0 ] = first piece of unit
  *   (arc) 1 piece NumberPieces[ 0 ] + 1 = second piece of unit (arc) 1 ...
  *   which of course boils down to "h = i" when each arc has exactly one
@@ -448,7 +448,7 @@ class HydroUnitBlock : public UnitBlock
  *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
  *   time instants t and arc l. If the first dimension has size 1 then the
  *   entry IP[ 0 , l ] is assumed to contain the inertia power value for
- *   arc l and all time instants t.  Otherwise, InertiaPower[ i , l ] is the
+ *   arc l and all time instants t. Otherwise, InertiaPower[ i , l ] is the
  *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
  *   - 1 ] = 0 and all l. If NumberIntervals <= 1 or NumberIntervals >=

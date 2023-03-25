@@ -209,7 +209,7 @@ public:
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
   *   for each time instant t, contains the minimum active power output value
-  *   of the unit for the corresponding time step.  If "MinPower" has length 1
+  *   of the unit for the corresponding time step. If "MinPower" has length 1
   *   then MinP[ t ] contains the same value for all t. Otherwise,
   *   MinPower[ i ] is the fixed value of MinP[ t ] for all t in the interval
   *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -223,7 +223,7 @@ public:
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
   *   for each time instant t, contains the maximum active power output value
-  *   of the unit for the corresponding time step.  If "MaxPower" has length 1
+  *   of the unit for the corresponding time step. If "MaxPower" has length 1
   *   then MaxP[ t ] contains the same value for all t. Otherwise,
   *   MaxPower[ i ] is the fixed value of MaxP[ t ] for all t in the interval
   *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -375,7 +375,7 @@ public:
   *   "TimeHorizon"). This is meant to represent the vector C[ t ] that, for
   *   each time instant t, contains the monetary cost of storing one unit or
   *   energy into, or extracting it from, the battery (the cost is the same
-  *   in both cases) at the corresponding time step.  This variable is
+  *   in both cases) at the corresponding time step. This variable is
   *   optional; if it is not provided then it's taken to be zero. If "Cost"
   *   has length 1 then C[ t ] contains the same value for all t. Otherwise,
   *   Cost[ i ] is the fixed value of C[ t ] for all t in the interval
@@ -531,7 +531,7 @@ public:
   *   presented in (5). Each of them is a std::vector< FRowConstraint >; with
   *   the dimension of f_time_horizon, where the entry t =
   *   0, ..., f_time_horizon - 1 being the active power relation with intake and
-  *   outtake levels at time t.  These ensure the active power at each time
+  *   outtake levels at time t. These ensure the active power at each time
   *   should be equal to the intake and outtake difference, i.e.:
   *
   *   \f[

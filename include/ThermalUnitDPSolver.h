@@ -463,7 +463,7 @@ class ThermalUnitDPSolver : public Solver
   } __attribute__((aligned(8)));
 
   /** For each k = h, ..., n - 1 the vector contains the indices of the pieces
-   * of the objective function.  */
+   * of the objective function. */
   std::vector< pos_t > pos;
 
   /// unconstrained optimal power values

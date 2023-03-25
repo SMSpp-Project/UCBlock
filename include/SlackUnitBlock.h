@@ -118,7 +118,7 @@ class SlackUnitBlock : public UnitBlock
  *   not provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
  *   each time instant t, contains the maximum active power output value of
- *   the unit for the corresponding time step.  If "MaxPower" has length 1
+ *   the unit for the corresponding time step. If "MaxPower" has length 1
  *   then MxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i ]
  *   is the fixed value of MxP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -194,7 +194,7 @@ class SlackUnitBlock : public UnitBlock
  *   is not provided, then this variable can also be indexed over
  *   "TimeHorizon"). This is meant to represent the vector PC[ t ] that, for
  *   each time instant t, contains the cost of producing one unit of primary
- *   reserve at the corresponding time step.  This variable is optional; if it
+ *   reserve at the corresponding time step. This variable is optional; if it
  *   is not provided then it's taken to be zero (but this is a very strange
  *   setting, cf. the discussion in ActivePowerCost). If "PrimaryCost" has
  *   length 1 then PC[ t ] contains the same value for t. Otherwise,
@@ -209,7 +209,7 @@ class SlackUnitBlock : public UnitBlock
  *   "NumberIntervals" is not provided, then this variable can also be
  *   indexed over "TimeHorizon"). This is meant to represent the vector
  *   SC[ t ] that, for each time instant t, contains the cost of producing
- *   one unit of secondary reserve at the corresponding time step.  This
+ *   one unit of secondary reserve at the corresponding time step. This
  *   variable is optional; if it is not provided then it's taken to be zero
  *   (but this is a very strange setting, cf. the discussion in
  *   ActivePowerCost). If "SecondaryCost" has length 1 then SC[ t ] contains

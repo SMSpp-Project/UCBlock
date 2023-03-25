@@ -182,7 +182,7 @@ class UnitBlock : public Block
   *
   * - The variable "ChangeIntervals", of type integer and indexed over the
   *   dimension "NumberIntervals". The time horizon is subdivided into
-  *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ...  [
+  *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ... [
   *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
   *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
   *   the upper endpoint of the last interval must necessarily be "TimeHorizon"

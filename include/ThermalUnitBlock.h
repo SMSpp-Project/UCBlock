@@ -135,7 +135,7 @@ class ThermalUnitBlock : public UnitBlock
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
   *   each time instant t, contains the nominal maximum active power output
-  *   value of the unit for the corresponding time step.  If "MaxPower" has
+  *   value of the unit for the corresponding time step. If "MaxPower" has
   *   length 1 then MxP[ t ] contains the same value for all t. Otherwise,
   *   MaxPower[ i ] is the fixed value of MxP[ t ] for all t in the interval [
   *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -242,10 +242,10 @@ class ThermalUnitBlock : public UnitBlock
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector A[ t ] that, for
   *   each time instant t, contains the quadratic term of power cost function
-  *   of the unit for the corresponding time step.  This variable is optional;
+  *   of the unit for the corresponding time step. This variable is optional;
   *   if it is not provided then it is assumed that A[ t ] == 0, i.e., the cost
-  *   of the unit is linear in the produced power.  If "QuadTerm" has length 1
-  *   then A[ t ] contains the same value for all t.  Otherwise, QuadTerm[ i ]
+  *   of the unit is linear in the produced power. If "QuadTerm" has length 1
+  *   then A[ t ] contains the same value for all t. Otherwise, QuadTerm[ i ]
   *   is the fixed value of A[ t ] for all t in the interval [ ChangeIntervals[
   *   i - 1 ] , ChangeIntervals[ i ] ], with the assumption that
   *   ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
@@ -272,12 +272,12 @@ class ThermalUnitBlock : public UnitBlock
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
   *   each time instant t, contains the linear term of power cost function of
-  *   the unit for the corresponding time step.  This variable is optional; if
+  *   the unit for the corresponding time step. This variable is optional; if
   *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost of
   *   the unit has no linear dependence on the produced power (say, only the
   *   quadratic one). If "LinearTerm" has length 1 then A[ t ] contains the
-  *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of B[
-  *   t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of
+  *   B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
   *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
   *   the mapping clearly does not require "ChangeIntervals", which in fact is
@@ -288,7 +288,7 @@ class ThermalUnitBlock : public UnitBlock
   *   "NumberIntervals" is not provided, then this variable can also be
   *   indexed over "TimeHorizon"). This is meant to represent the vector
   *   C[ t ] that, for each time instant t, contains the constant term of
-  *   power cost function of the unit for the corresponding time step.  This
+  *   power cost function of the unit for the corresponding time step. This
   *   variable is optional; if it is not provided then it is assumed that C[
   *   t ] == 0, i.e., the cost of the unit has no fixed term, only those
   *   depending (linearly or quadratically) on the produced power. If
@@ -317,7 +317,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
   *   indexed over any dimension and indicates the initial time to generating
-  *   the unit.  If InitUpDownTime > 0, this means that the unit has been on
+  *   the unit. If InitUpDownTime > 0, this means that the unit has been on
   *   for InitUpDownTime timestamps prior to timestamp 0 (the beginning of
   *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
   *   has been off for - InitUpDownTime timestamps prior to timestamp 0; note
@@ -862,7 +862,7 @@ class ThermalUnitBlock : public UnitBlock
   * nominal minimum active power output of the unit for all time steps. When
   * the unit is available, get_min_power()[ t ] gives the minimum active power
   * output of the unit at time t, for each t in {0, ..., get_time_horizon() -
-  * 1}.  */
+  * 1}. */
 
  const std::vector< double > & get_min_power( void ) const {
   return( v_MinPower );
@@ -1156,7 +1156,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of startup cost
- /** The returned vector contains to startup cost at time t.  There are three
+ /** The returned vector contains to startup cost at time t. There are three
   * possible cases:
   *
   * - if the vector is empty, then the startup cost of the unit is 0;
@@ -1360,7 +1360,7 @@ class ThermalUnitBlock : public UnitBlock
   * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
   * the definition of operational maximum and minimum active power). If the
   * given availability in \p values is such that this condition does not hold,
-  * an exception is thrown.  */
+  * an exception is thrown. */
 
  void set_availability( MF_dbl_it values ,
                         Subset && subset , bool ordered = false ,
@@ -1384,7 +1384,7 @@ class ThermalUnitBlock : public UnitBlock
   * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
   * the definition of operational maximum and minimum active power). If the
   * given availability in \p values is such that this condition does not hold,
-  * an exception is thrown.  */
+  * an exception is thrown. */
 
  void set_availability( MF_dbl_it values , Range rng = INFRange ,
                         ModParam issuePMod = eNoBlck ,

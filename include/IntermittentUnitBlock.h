@@ -133,7 +133,7 @@ class IntermittentUnitBlock : public UnitBlock
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MinP[ t ] that,
   *   for each time instant t, contains the minimum potential production value
-  *   of the unit for the corresponding time step.  If "MinPower" has length 1
+  *   of the unit for the corresponding time step. If "MinPower" has length 1
   *   then MinP[ t ] contains the same value for all t. Otherwise, MinPower[ i
   *   ] is the fixed value of MinP[ t ] for all t in the interval [
   *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
@@ -147,7 +147,7 @@ class IntermittentUnitBlock : public UnitBlock
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector MaxP[ t ] that,
   *   for each time instant t, contains the maximum potential production value
-  *   of the unit for the corresponding time step.  If "MaxPower" has length 1
+  *   of the unit for the corresponding time step. If "MaxPower" has length 1
   *   then MaxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i
   *   ] is the fixed value of MaxP[ t ] for all t in the interval [
   *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption

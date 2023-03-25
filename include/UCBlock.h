@@ -371,7 +371,7 @@ class UCBlock : public Block
  *   zone, and hence the corresponding electrical generators are not involved
  *   into the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
  *   is not provided at all) then this variable need not be defined, since it
- *   is not loaded.  If NumberPrimaryZones == 1 and this variable is not
+ *   is not loaded. If NumberPrimaryZones == 1 and this variable is not
  *   defined, then there is only one primary zone and all the nodes belong to
  *   it.
  *
@@ -467,11 +467,11 @@ class UCBlock : public Block
  *   NumberPollutants - 1, and each pollutant p may have several pollutant
  *   zones (see comments of variable "NumberPollutantZones" above). Thus, in
  *   general the mapping is: n = 0 corresponds to the zone 0 of pollutant 0 n
- *   = 1 corresponds to the zone 1 of pollutant 0 ...  n =
+ *   = 1 corresponds to the zone 1 of pollutant 0 ... n =
  *   NumberPollutantZone[ 0 ] - 1 corresponds to the zone NumberPollutantZone[
  *   0 ] - 1 of pollutant 0 n = NumberPollutantZone[ 0 ] corresponds to the
  *   zone 0 of pollutant 1 n = NumberPollutantZone[ 0 ] + 1 corresponds to the
- *   zone 1 of pollutant 1 ...  If NumberPollutants == 0 (say, it is not
+ *   zone 1 of pollutant 1 ... . If NumberPollutants == 0 (say, it is not
  *   provided) then this variable need not be defined, since it is not loaded.
  *
  * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over

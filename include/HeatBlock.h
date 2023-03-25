@@ -173,7 +173,7 @@ class HeatBlock : public Block
   * - The variable "CostHeatUnit", of type netCDF::NcDouble and indexed over two
   *   dimensions. The first dimension can have size 1 or "NumberIntervals" (if
   *   "NumberIntervals" is not provided, then the size can also be
-  *   "TimeHorizon").  The second dimension has size "NumberHeatUnits". This is
+  *   "TimeHorizon"). The second dimension has size "NumberHeatUnits". This is
   *   meant to represent the matrix CHU[ t , i ] which is assumed to contain
   *   the unitary cost of heat production of heat-producing unit i for time
   *   instant t. If the first dimension has size 1, then the cost is the same
@@ -185,7 +185,7 @@ class HeatBlock : public Block
   * - The variable "MinHeatProduction", of type netCDF::NcDouble and indexed
   *   over two dimensions. The first dimension can have size 1 or
   *   "NumberIntervals" (if "NumberIntervals" is not provided, then the size
-  *   can also be "TimeHorizon").  The second dimension has size
+  *   can also be "TimeHorizon"). The second dimension has size
   *   "NumberHeatUnits". This is meant to represent the matrix MinHP[ t , i ]
   *   which is assumed to contain the minimum heat production of
   *   heat-producing unit i for time instant t. The variable is optional; if
