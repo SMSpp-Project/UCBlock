@@ -1219,9 +1219,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
                                   0.0 , 0.0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable
-     ( &v_primary_spinning_reserve[ t ] ,
-       f_scale * v_PrimarySpinningReserveCost[ t ] , 0.0 );
+    dquad_function->add_variable( &v_primary_spinning_reserve[ t ] ,
+                                  f_scale * v_PrimarySpinningReserveCost[ t ] ,
+                                  0.0 );
  }
 
  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
@@ -1237,9 +1237,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
                                   0.0 , 0.0 );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    dquad_function->add_variable
-     ( &v_secondary_spinning_reserve[ t ] ,
-       f_scale * v_SecondarySpinningReserveCost[ t ] , 0.0 );
+    dquad_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
+                                  f_scale * v_SecondarySpinningReserveCost[ t ] ,
+                                  0.0 );
  }
 
  objective.set_function( dquad_function );
