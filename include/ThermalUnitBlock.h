@@ -334,7 +334,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
-  *   time in this unit.This variable is optional, if it is not provided it is
+  *   time in this unit. This variable is optional, if it is not provided it is
   *   taken to be MinDownTime == 0, which mean that the unit can start up in
   *   the very same timestamp in which it shuts down.
   *
@@ -842,7 +842,7 @@ class ThermalUnitBlock : public UnitBlock
  double get_initial_power( void ) const { return( f_InitialPower ); }
 
  /// returns the init up and down time value
- int get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
+ Index get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
 
  /// returns the minimum allowed up time value
  Index get_min_up_time( void ) const { return( f_MinUpTime ); }
@@ -1672,7 +1672,7 @@ class ThermalUnitBlock : public UnitBlock
  Index f_MinDownTime{};
 
  /// the InitUpDownTime value
- int f_InitUpDownTime{};
+ Index f_InitUpDownTime{};
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
