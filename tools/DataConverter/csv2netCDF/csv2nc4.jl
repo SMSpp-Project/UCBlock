@@ -217,6 +217,8 @@ function csvEC2nc4()
             # max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
             #                                   profile_component(users_data[u], r, "ren_pu")[t]
             #                                   for r in asset_names(users_data[u], REN)], init=0.0) +
+            #                        reduce(+, [field_component(users_data[u], t, "max_capacity")
+            #                                   for t in asset_names(users_data[u], THER)], init=0.0) +
             #                        reduce(+, [field_component(users_data[u], b, "max_capacity")
             #                                   for b in asset_names(users_data[u], BATT)], init=0.0)
             #                        for u in user_set, t in last_t:last_i]
@@ -255,8 +257,7 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the pv/wind asset
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
-                    max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
-                                       field_component(users_data[u], g, "nom_capacity"))
+                    max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
                     # store the maximum power of the pv/wind asset
                     max_power_data = [field_component(users_data[u], g, "max_capacity") *
@@ -280,8 +281,8 @@ function csvEC2nc4()
                                                field_component(users_data[u], g, "CAPEX_lin") *
                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                             for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity")
+                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                         field_component(users_data[u], g, "max_capacity")
 
                 elseif g == "batt"
 
@@ -291,8 +292,7 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the battery
                     batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
-                    batt_max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
-                                            field_component(users_data[u], g, "nom_capacity"))
+                    batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
                     # store the maximum power of the battery
                     batt_max_power = defVar(ub, "MaxPower", Float64, ())
@@ -317,10 +317,9 @@ function csvEC2nc4()
                     initial_storage[:] = -1
 
                     # store the minimum storage of the battery
-                    min_storage_data = [(field_component(users_data[u], g, "min_SOC") *
-                                         field_component(users_data[u], g, "max_capacity")) /
+                    min_storage_data = [field_component(users_data[u], g, "min_SOC") /
                                         profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set]
+                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
                         min_storage[:] = min_storage_data[1]
@@ -330,10 +329,9 @@ function csvEC2nc4()
                     end
 
                     # store the maximum storage of the battery
-                    max_storage_data = [(field_component(users_data[u], g, "max_SOC") *
-                                         field_component(users_data[u], g, "max_capacity")) /
+                    max_storage_data = [field_component(users_data[u], g, "max_SOC") /
                                         profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set]
+                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
                         max_storage[:] = max_storage_data[1]
@@ -352,8 +350,8 @@ function csvEC2nc4()
                                                      field_component(users_data[u], g, "CAPEX_lin") *
                                                      (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                   for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity"))
+                                                   (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                               field_component(users_data[u], g, "max_capacity"))
 
                     # ---------- Converter ----------
 
@@ -361,8 +359,7 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the converter
                     conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
-                    conv_max_capacity[:] = (field_component(users_data[u], g_conv, "max_capacity") /
-                                            field_component(users_data[u], g_conv, "nom_capacity"))
+                    conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
 
                     # store the maximum power of the converter
                     conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
@@ -388,8 +385,8 @@ function csvEC2nc4()
                                                      field_component(users_data[u], g_conv, "CAPEX_lin") *
                                                      (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                                   for y in append!([0], year_set)) * field_component(users_data[u], g_conv, "max_capacity"))
+                                                   (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                               field_component(users_data[u], g_conv, "max_capacity"))
 
                 elseif g == "generator"
 
@@ -397,8 +394,7 @@ function csvEC2nc4()
 
                     # store the maximum installable capacity of the thermal
                     thermal_max_capacity = defVar(ub, "MaxCapacity", Float64, ())
-                    thermal_max_capacity[:] = (field_component(users_data[u], g, "max_capacity") /
-                                               field_component(users_data[u], g, "nom_capacity"))
+                    thermal_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
                     # store the minimum power of the thermal
                     thermal_min_power = defVar(ub, "MinPower", Float64, ())
@@ -419,18 +415,17 @@ function csvEC2nc4()
                                                field_component(users_data[u], g, "CAPEX_lin") *
                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                             for y in append!([0], year_set)) * field_component(users_data[u], g, "max_capacity")
+                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                         field_component(users_data[u], g, "max_capacity")
 
                     # store the constant term of the thermal
-                    constant_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                               field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
-                                               field_component(users_data[u], g, "inter_map")) *
-                                              profile(market_data, "energy_weight")[t] *
-                                              profile(market_data, "time_res")[t]
+                    constant_term_data = sum([field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                              (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
+                                               field_component(users_data[u], g, "inter_map")) /
+                                              profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                               for t in time_set] *
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                             for y in year_set) * field_component(users_data[u], g, "max_capacity")
+                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set) *
+                                         field_component(users_data[u], g, "max_capacity")
                     if (allequal(constant_term_data))
                         constant_term = defVar(ub, "ConstTerm", Float64, ())
                         constant_term[:] = constant_term_data[1]
@@ -440,13 +435,11 @@ function csvEC2nc4()
                     end
 
                     # store the linear term of the thermal
-                    linear_term_data = sum([field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
-                                            field_component(users_data[u], g, "slope_map") *
-                                            profile(market_data, "energy_weight")[t] *
-                                            profile(market_data, "time_res")[t]
+                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
+                                             field_component(users_data[u], g, "slope_map")) /
+                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                             for t in time_set] *
-                                           (1 / ((1 + field(gen_data, "d_rate"))^y))
-                                           for y in year_set)
+                                           (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set)
                     if (allequal(linear_term_data))
                         linear_term = defVar(ub, "LinearTerm", Float64, ())
                         linear_term[:] = linear_term_data[1]
@@ -468,6 +461,8 @@ function csvEC2nc4()
 end
 
 ## Parameters
+
+@assert 0 <= length(ARGS) <= 3
 
 NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 @assert 0 <= length(NO_OPTION_ARGS) <= 1

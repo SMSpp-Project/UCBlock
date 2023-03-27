@@ -361,8 +361,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   relax_binary = config->f_value;
 
  // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
  v_commitment.resize( f_time_horizon );
  for( auto & var : v_commitment )
   if( relax_binary )
@@ -372,16 +370,12 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_commitment , "u_thermal" );
 
  // Active Power Variable - - - - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_active_power , "p_thermal" );
 
  // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
@@ -392,8 +386,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  // Secondary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
  if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
   if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
@@ -427,8 +419,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  }
 
  // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
  if( f_InvestmentCost != 0 ) {
   design.set_type( ColVariable::kPosUnitary );
   add_static_variable( design , "D_thermal" );
@@ -2657,8 +2647,9 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
    continue;
   auto var_index = function->is_active( &v_start_up[ t ] );
   assert( var_index < function->get_num_active_var() );
-  function->modify_linear_coefficient
-   ( var_index , f_scale * v_StartUpCost[ t ] , issueAMod );
+  function->modify_linear_coefficient( var_index ,
+                                       f_scale * v_StartUpCost[ t ] ,
+                                       issueAMod );
  }
 }  // end( ThermalUnitBlock::update_objective_start_up )
 
@@ -2699,8 +2690,9 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
  for( auto t : subset ) {
   auto var_index = function->is_active( &v_commitment[ t ] );
   assert( var_index < function->get_num_active_var() );
-  function->modify_linear_coefficient
-   ( var_index , f_scale * v_ConstTerm[ t ] , issueAMod );
+  function->modify_linear_coefficient( var_index ,
+                                       f_scale * v_ConstTerm[ t ] ,
+                                       issueAMod );
  }
 }  // end( ThermalUnitBlock::update_objective_commitment )
 

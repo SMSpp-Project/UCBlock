@@ -1435,7 +1435,7 @@ public:
  /// the kappa value
  double f_kappa = 1;
 
- /// the scale factor of this BatteryUnitBlock
+ /// the scale factor
  double f_scale = 1;
 
  /// the battery investment cost
