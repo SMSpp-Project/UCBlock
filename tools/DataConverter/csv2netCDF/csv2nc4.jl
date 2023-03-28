@@ -58,22 +58,22 @@ function csvEC2nc4()
 
     # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
     buy_price_data = [profile(market_data, "energy_weight")[t] *
-                      profile(market_data, "time_res")[t] *
-                      profile(market_data, "buy_price")[t]
+                      profile(market_data, "buy_price")[t] *
+                      profile(market_data, "time_res")[t]
                       for t in time_set] *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
     sell_price_data = [profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t] *
-                       profile(market_data, "sell_price")[t]
+                       profile(market_data, "sell_price")[t] *
+                       profile(market_data, "time_res")[t]
                        for t in time_set] *
                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     # `RewardPrice`, i.e., the reward awarded to the community
     reward_price_data = [profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t] *
-                         profile(market_data, "reward_price")[t]
+                         profile(market_data, "reward_price")[t] *
+                         profile(market_data, "time_res")[t]
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -84,13 +84,11 @@ function csvEC2nc4()
                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     # `ConstantTerm`, i.e., the consumption price
-    constant_term = [sum(profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t] *
-                         (profile(market_data, "consumption_price")[t] *
-                          sum(Float64[
-                             profile_component(users_data[u], l, "load")[t]
-                             for l in asset_names(users_data[u], LOAD)]))
-                         for u in user_set)
+    constant_term = [profile(market_data, "energy_weight")[t] *
+                     sum(profile(market_data, "consumption_price")[t] *
+                         profile_component(users_data[u], l, "load")[t]
+                         for u in user_set for l in asset_names(users_data[u], LOAD)) *
+                     profile(market_data, "time_res")[t]
                      for t in time_set] *
                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -418,6 +416,20 @@ function csvEC2nc4()
                                              (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
+                    # store the linear term of the thermal
+                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
+                                             field_component(users_data[u], g, "slope_map")) /
+                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                            for t in time_set] *
+                                           (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set)
+                    if (allequal(linear_term_data))
+                        linear_term = defVar(ub, "LinearTerm", Float64, ())
+                        linear_term[:] = linear_term_data[1]
+                    else
+                        linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
+                        linear_term[:] = linear_term_data[:]
+                    end
+
                     # store the constant term of the thermal
                     constant_term_data = sum([field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
                                               (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
@@ -432,20 +444,6 @@ function csvEC2nc4()
                     else
                         constant_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
                         constant_term[:] = constant_term_data[:]
-                    end
-
-                    # store the linear term of the thermal
-                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
-                                             field_component(users_data[u], g, "slope_map")) /
-                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                            for t in time_set] *
-                                           (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set)
-                    if (allequal(linear_term_data))
-                        linear_term = defVar(ub, "LinearTerm", Float64, ())
-                        linear_term[:] = linear_term_data[1]
-                    else
-                        linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
-                        linear_term[:] = linear_term_data[:]
                     end
 
                 end
@@ -469,6 +467,7 @@ NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 
 OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
 @assert 0 <= length(OPTION_ARGS) <= 2
+@assert issubset(OPTION_ARGS, ["--with-thermal-blocks", "--with-network-blocks"])
 
 file_name = !isempty(NO_OPTION_ARGS) ?
             string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
