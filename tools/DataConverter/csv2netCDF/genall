@@ -1,17 +1,18 @@
 #/usr/bin/env bash
 
-for f in energy_community_model_CO energy_community_model_NC
+for f in energy_community_model_CO energy_community_model_NA energy_community_model_NC
 do
 
 julia csv2nc4.jl ${f}
 julia csv2nc4.jl ${f} --with-network-blocks
 
+if [ "$f" = "energy_community_model_NA" ]; then
+
 julia csv2nc4.jl ${f} --with-thermal-blocks
 julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
 
-done
+fi
 
-julia csv2nc4.jl energy_community_model_NA
-julia csv2nc4.jl energy_community_model_NA --with-network-blocks
+done
 
 cp ../../../netCDF_files/EC_*.nc4 ../../../../tests/UC_MILP/data
