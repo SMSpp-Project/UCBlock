@@ -47,7 +47,7 @@ users: # list of users and the corresponding assets
     generator: # component (bio)gas microturbine
       type: thermal  # type of component
       CAPEX_lin: 2000  # [€/kW] specific investment cost of the component
-      OEM_lin: 0.02  # [€/kW/y] specific O&M cost
+      OEM_lin: 0.02  # [€/kWh/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       fuel_price: 0.018  # [€/m3] fuel price
       inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map

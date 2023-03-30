@@ -279,7 +279,7 @@ function csvEC2nc4()
                                                field_component(users_data[u], g, "CAPEX_lin") *
                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                             (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
                 elseif g == "batt"
@@ -348,7 +348,7 @@ function csvEC2nc4()
                                                      field_component(users_data[u], g, "CAPEX_lin") *
                                                      (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                   (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
                                                field_component(users_data[u], g, "max_capacity"))
 
                     # ---------- Converter ----------
@@ -383,7 +383,7 @@ function csvEC2nc4()
                                                      field_component(users_data[u], g_conv, "CAPEX_lin") *
                                                      (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                   (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
                                                field_component(users_data[u], g_conv, "max_capacity"))
 
                 elseif g == "generator"
@@ -413,15 +413,16 @@ function csvEC2nc4()
                                                field_component(users_data[u], g, "CAPEX_lin") *
                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                             (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
                     # store the linear term of the thermal
-                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt slope
-                                             field_component(users_data[u], g, "slope_map")) /
-                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                    linear_term_data = sum([(profile(market_data, "energy_weight")[t] *
+                                             field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the linear cost function
+                                             field_component(users_data[u], g, "slope_map")) *
+                                            profile(market_data, "time_res")[t]
                                             for t in time_set] *
-                                           (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set)
+                                           (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
                     if (allequal(linear_term_data))
                         linear_term = defVar(ub, "LinearTerm", Float64, ())
                         linear_term[:] = linear_term_data[1]
@@ -431,12 +432,14 @@ function csvEC2nc4()
                     end
 
                     # store the constant term of the thermal
-                    constant_term_data = sum([field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                              (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt intercept
-                                               field_component(users_data[u], g, "inter_map")) /
-                                              profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                    constant_term_data = sum([field_component(users_data[u], g, "OEM_lin") / # operation and maintenance cost of the component
+                                              profile(market_data, "time_res")[t] + # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                              (profile(market_data, "energy_weight")[t] *
+                                               field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the linear cost function
+                                               field_component(users_data[u], g, "inter_map")) *
+                                              profile(market_data, "time_res")[t]
                                               for t in time_set] *
-                                             (1 / ((1 + field(gen_data, "d_rate"))^y)) for y in year_set) *
+                                             (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
                                          field_component(users_data[u], g, "max_capacity")
                     if (allequal(constant_term_data))
                         constant_term = defVar(ub, "ConstTerm", Float64, ())
