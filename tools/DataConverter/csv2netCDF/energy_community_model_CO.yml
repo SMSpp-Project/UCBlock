@@ -50,8 +50,8 @@ users: # list of users and the corresponding assets
       OEM_lin: 0.02  # [€/kWh/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       fuel_price: 0.018  # [€/m3] fuel price
-      inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map
       slope_map: 3.7  # [m3/kWh] slope of the fuel consumption map
+      inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map
       min_technical: 0.2  # [-] minimum technical working point of the component
       max_technical: 1.0  # [-] maximum technical working point of the component
       max_capacity: 30  # [kW] maximum capacity to install
