@@ -82,10 +82,10 @@ users: # list of users and the corresponding assets
       OEM_lin: 5  # [€/kWh/y] specific O&M cost
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
-      max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_C_dch: 1.0  # [-] maximum C-rate in discharge
+      max_SOC: 1.0  # [-] maximum state of charge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
@@ -137,10 +137,10 @@ users: # list of users and the corresponding assets
       OEM_lin: 5  # [€/kWh/y] specific O&M cost
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
-      max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_C_dch: 1.0  # [-] maximum C-rate in discharge
+      max_SOC: 1.0  # [-] maximum state of charge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
@@ -210,10 +210,10 @@ users: # list of users and the corresponding assets
       OEM_lin: 5  # [€/kWh/y] specific O&M cost
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
-      max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_C_dch: 1.0  # [-] maximum C-rate in discharge
+      max_SOC: 1.0  # [-] maximum state of charge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
@@ -274,10 +274,10 @@ users: # list of users and the corresponding assets
       OEM_lin: 5  # [€/kWh/y] specific O&M cost
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
-      max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_C_dch: 1.0  # [-] maximum C-rate in discharge
+      max_SOC: 1.0  # [-] maximum state of charge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
@@ -319,10 +319,10 @@ users: # list of users and the corresponding assets
       OEM_lin: 5  # [€/kWh/y] specific O&M cost
       lifetime_y: 15  # [y] lifetime of the component
       eta: 0.92  # [-] roundtrip efficiency
-      max_SOC: 1.0  # [-] maximum state of charge
       min_SOC: 0.2  # [-] minimum state of charge
-      max_C_dch: 1.0  # [-] maximum C-rate in discharge
+      max_SOC: 1.0  # [-] maximum state of charge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
+      max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter

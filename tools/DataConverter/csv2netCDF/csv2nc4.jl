@@ -272,14 +272,14 @@ function csvEC2nc4()
                     # store the Net Present Value of the pv/wind asset
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                             (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                              ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                               field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                              ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                               field_component(users_data[u], g, "CAPEX_lin") *
-                                               (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                      field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
+                                             ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                               ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                               ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") *
+                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                              (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
                 elseif g == "batt"
@@ -341,14 +341,14 @@ function csvEC2nc4()
                     # store the Net Present Value of the battery
                     batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
                     batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                                   (field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                                    ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                     field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                                    ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                     field_component(users_data[u], g, "CAPEX_lin") *
-                                                     (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                            field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
+                                                   ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                     ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                      field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                     ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                      field_component(users_data[u], g, "CAPEX_lin") *
+                                                      (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                    (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                                field_component(users_data[u], g, "max_capacity"))
 
                     # ---------- Converter ----------
@@ -376,14 +376,14 @@ function csvEC2nc4()
                     # store the Net Present Value of the converter
                     conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
                     conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
-                                                   (field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
-                                                    ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                     field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                                    ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                     field_component(users_data[u], g_conv, "CAPEX_lin") *
-                                                     (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
-                                                            field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                   (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
+                                                   ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                                                     ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                      field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                     ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                      field_component(users_data[u], g_conv, "CAPEX_lin") *
+                                                      (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
+                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                    (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                                field_component(users_data[u], g_conv, "max_capacity"))
 
                 elseif g == "generator"
@@ -407,13 +407,13 @@ function csvEC2nc4()
                     # store the Net Present Value of the thermal
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                             (((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                               field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                              ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                               field_component(users_data[u], g, "CAPEX_lin") *
-                                               (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                      field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                             (1 / (1 + field(gen_data, "d_rate"))^y) for y in append!([0], year_set)) *
+                                             ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                               ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") *
+                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                              (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
                     # store the linear term of the thermal
