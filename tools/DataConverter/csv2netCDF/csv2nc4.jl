@@ -417,9 +417,9 @@ function csvEC2nc4()
                                          field_component(users_data[u], g, "max_capacity")
 
                     # store the linear term of the thermal
-                    linear_term_data = sum([(profile(market_data, "energy_weight")[t] *
-                                             field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
+                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                              field_component(users_data[u], g, "slope_map")) *
+                                            profile(market_data, "energy_weight")[t] *
                                             profile(market_data, "time_res")[t]
                                             for t in time_set] *
                                            (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
@@ -432,11 +432,10 @@ function csvEC2nc4()
                     end
 
                     # store the constant term of the thermal
-                    constant_term_data = sum([field_component(users_data[u], g, "OEM_lin") / # operation and maintenance cost of the component
-                                              profile(market_data, "time_res")[t] + # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                              (profile(market_data, "energy_weight")[t] *
-                                               field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
-                                               field_component(users_data[u], g, "inter_map")) *
+                    constant_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                               (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
+                                                field_component(users_data[u], g, "inter_map"))) *
+                                              profile(market_data, "energy_weight")[t] *
                                               profile(market_data, "time_res")[t]
                                               for t in time_set] *
                                              (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
