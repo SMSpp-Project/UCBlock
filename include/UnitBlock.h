@@ -323,7 +323,7 @@ class UnitBlock : public Block
  /// returns the array of commitment variables
  /** This method returns a pointer to the array containing the commitment
   * variables of the given \p generator at all time instants. Being C the
-  * value returned by this method, C[t] is the commitment variable at time t
+  * value returned by this method, C[ t ] is the commitment variable at time t
   * for each t in {0, ..., time_horizon - 1}.
   *
   * The default implementation of this method returns nullptr; and derived

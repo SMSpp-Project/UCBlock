@@ -2596,9 +2596,11 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::scale
- ( std::vector< double >::const_iterator values , Subset && subset ,
-   const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
+void ThermalUnitBlock::scale( std::vector< double >::const_iterator values ,
+                              Subset && subset ,
+                              const bool ordered ,
+                              c_ModParam issuePMod ,
+                              c_ModParam issueAMod ) {
 
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
@@ -3021,7 +3023,6 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   return;
 
  }  // end( C05FunctionModLinSbst )
-
 
  throw( std::invalid_argument(
   "ThermalUnitBlock:: unsupported FunctionMod from Objective" ) );
