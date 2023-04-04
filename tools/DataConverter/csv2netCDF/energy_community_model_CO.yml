@@ -40,7 +40,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -55,7 +54,7 @@ users: # list of users and the corresponding assets
       min_technical: 0.2  # [-] minimum technical working point of the component
       max_technical: 1.0  # [-] maximum technical working point of the component
       max_capacity: 30  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
+      nom_capacity: 10  # [kW] nominal capacity of the component
 
     load: # component load
       type: load
@@ -72,7 +71,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 80  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -87,7 +85,6 @@ users: # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -99,7 +96,6 @@ users: # list of users and the corresponding assets
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -117,7 +113,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -127,7 +122,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 20  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
 
@@ -142,7 +136,6 @@ users: # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -154,7 +147,6 @@ users: # list of users and the corresponding assets
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -172,7 +164,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 40  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -200,7 +191,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 60  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -215,7 +205,6 @@ users: # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -227,7 +216,6 @@ users: # list of users and the corresponding assets
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -254,7 +242,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -264,7 +251,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 20  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
 
@@ -279,7 +265,6 @@ users: # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -291,7 +276,6 @@ users: # list of users and the corresponding assets
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load
@@ -309,7 +293,6 @@ users: # list of users and the corresponding assets
       OEM_lin: 30  # [€/kW/y] specific O&M cost
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
@@ -324,7 +307,6 @@ users: # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: conv  # corresponding converter
 
     conv: # component converter
@@ -336,7 +318,6 @@ users: # list of users and the corresponding assets
       max_dch: 1.0  # [-] maximum discharge
       min_ch: 0.1  # [-] minimum charge
       max_capacity: 50  # [kW] maximum capacity to install
-      nom_capacity: 1  # [kW] nominal capacity of the component
       corr_asset: batt  # corresponding battery
 
     load: # component load

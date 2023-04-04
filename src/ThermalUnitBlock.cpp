@@ -175,8 +175,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
- ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
-
  if( ! ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = 0;
 
@@ -420,7 +418,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kPosUnitary );
+  if( relax_binary )
+   design.set_type( ColVariable::kPosUnitary );
+  else
+   design.set_type( ColVariable::kBinary );
   add_static_variable( design , "D_thermal" );
  }
 
@@ -1320,9 +1321,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
-
- if( f_MaxCapacity != 0 )
-  ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
 
  // Serialize one-dimensional variables
 

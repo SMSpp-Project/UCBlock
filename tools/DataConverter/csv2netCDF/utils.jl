@@ -95,9 +95,6 @@ function asset_names_ex(d, ex::Vector{ASSET_TYPE})
     return asset_names(d, accepted_types)
 end
 
-"Function to get the list of devices for a user"
-device_names(d) = asset_names(d, DEVICES)
-
 "Get the list of users"
 function user_names(gen_data, users_data)
     # get the list of users if set

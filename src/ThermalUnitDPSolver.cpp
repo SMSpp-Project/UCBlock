@@ -105,36 +105,35 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  // set active power variables, if any
  if( auto pow_it = b->get_active_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
-   (pow_it++)->set_value( P[ i++ ] );
+   ( pow_it++ )->set_value( P[ i++ ] );
 
  // set unit commitment variables, if any
  if( auto com_it = b->get_commitment( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
-   (com_it++)->set_value( U[ i++ ] ? 1 : 0 );
+   ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
 
  // set start_up variables, if any, but note that start_up variables are
  // only defined from t_init onwards, so skip all i <= t_init
  if( auto sup_it = b->get_start_up() ) {
-  // startup at 0 iif the unit was off at the start and it is on at 0
+  // startup at 0 iif the unit was off at the start, and it is on at 0
   if( ! t_init )
-   (sup_it++)->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
+   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
 
-  // startup at i iff the unit was off at i - 1 and it is on at i
+  // startup at i iff the unit was off at i - 1, and it is on at i
   for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sup_it++)->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
+   ( sup_it++ )->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
   }
 
  // set shut_down variables, if any, but note that start_up variables are
  // only defined from t_init onwards, so skip all i <= t_init
  if( auto sdn_it = b->get_shut_down() ) {
-  // shutdown at 0 iif the unit was on at the start and it is off at 0
+  // shutdown at 0 iif the unit was on at the start, and it is off at 0
   if( ! t_init )
-   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] )
-			  ? 1 : 0 );
+   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] ) ? 1 : 0 );
 
-  // shutdown at i iff the unit was on at i - 1 and it is off at i
+  // shutdown at i iff the unit was on at i - 1, and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sdn_it++)->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
+   ( sdn_it++ )->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
   }
 
  // unlock the Block
@@ -199,7 +198,7 @@ void ThermalUnitDPSolver::build_graph( void )
   // are ( s , 3 ), ( s, 4 ), ( s, 5 ), ( s, d ) These are 6 - 3 + 1 = 4.
   //
   // note the weird case where kMin == 0, i.e., ( s , 0 ) exists, i.e.,
-  // the unit is on but it is immediately turned off: this "oddball"
+  // the unit is on, but it is immediately turned off: this "oddball"
   // arc corresponds to an empty ED and always has 0 cost
 
   double fc = 0;             // compute the fixed-cost component of the cost
@@ -237,7 +236,7 @@ void ThermalUnitDPSolver::build_graph( void )
   // (note that t_init <= time_horizon, so at least one arc is there)
   // where note that t_init == 0 is now possible meaning that
   // init_up_down_time == min_down_time == 0; this implies that the first
-  // arc is ( s , 0 ), i.e., "the unit was off at the beginning but it
+  // arc is ( s , 0 ), i.e., "the unit was off at the beginning, but it
   // starts up immediately". Apart from this the structure of the arcs is
   // analogous as in the init_up_down_time > 0 case, except of course they
   // go to the ON nodes
@@ -265,7 +264,7 @@ void ThermalUnitDPSolver::build_graph( void )
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // we do this in the order i = 0, 1, ..., n - 1: since the graph is
  // acyclic, if the lab of the node is still 0 when we process it then the
- // node is unreachable from d and we need not construct any arc
+ // node is unreachable from d, and we need not construct any arc
 
  const Index mut = std::max( min_up_time , Index( 1 ) );
  // min up-time of 0 makes no sense
@@ -402,8 +401,8 @@ void ThermalUnitDPSolver::compute_EDPs( void )
 
   // the cost of ( s , h ) is found in cost[ h - 1 ]: however, one must
   // be careful of the weird case where ( s , 0 ) is present, i.e.,
-  // the unit is on but it immediately shuts down. this arc has cost 0
-  // as "nothing happens there". this is how the arc cost is initialized
+  // the unit is on, but it immediately shuts down. this arc has cost 0
+  // as "nothing happens there". this is how the arc cost is initialized,
   // and it is never changed, so one just need to skip it
   auto ai = f_start.v_arcs.begin();
   if( h )
