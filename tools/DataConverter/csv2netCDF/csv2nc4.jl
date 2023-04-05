@@ -400,6 +400,10 @@ function csvEC2nc4()
 
                         ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
+                        # store the installable capacity of the thermal
+                        thermal_capacity = defVar(ub, "Capacity", Float64, ())
+                        thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+
                         # store the minimum power of the thermal
                         thermal_min_power = defVar(ub, "MinPower", Float64, ())
                         thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *

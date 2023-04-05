@@ -16,6 +16,10 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
  */
 /*--------------------------------------------------------------------------*/

@@ -160,7 +160,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                                               "InitialPower" , "MinUpTime" ,
                                               "MinDownTime" ,
                                               "InitUpDownTime" ,
-                                              "Availability" , "MaxCapacity" ,
+                                              "Availability" , "Capacity" ,
                                               "InvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -174,6 +174,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  // Optional variables
 
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+
+ ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ! ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = 0;
@@ -1321,6 +1323,9 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
+
+ if( f_Capacity != 0 )
+  ::serialize( group , "Capacity" , netCDF::NcDouble() , f_Capacity );
 
  // Serialize one-dimensional variables
 

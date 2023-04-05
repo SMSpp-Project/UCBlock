@@ -853,6 +853,9 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
+ /// returns the installable capacity by the user
+ double get_capacity( void ) const { return( f_Capacity ); }
+
 /*--------------------------------------------------------------------------*/
  /// returns the vector of nominal minimum active power output
  /** This method returns (a const reference to) the vector containing the
@@ -1682,6 +1685,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the investment cost
  double f_InvestmentCost{};
+
+ /// the installable capacity by the user
+ double f_Capacity{};
 
 /*-------------------------------- variables -------------------------------*/
 
