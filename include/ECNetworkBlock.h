@@ -532,8 +532,8 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the Variable of the ECNetworkBlock
  * @{ */
 
- /// returns the vector of micro power injection variables
- /** Returns vector of micro power injection variables, which is assumed to
+ /// returns the vector of microgrid power injection variables
+ /** Returns vector of microgrid power injection variables, which is assumed to
   * have size get_number_nodes(). */
 
  ColVariable * get_micro_power_injection( Index t = 0 ) {
@@ -543,7 +543,7 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of micro power absorption variables
+ /// returns the vector of microgrid power absorption variables
  /** Returns the vector of micro public power absorption variables, which is
   * assumed to have size get_number_nodes(). */
 
