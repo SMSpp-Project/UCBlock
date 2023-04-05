@@ -36,11 +36,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-//#include <SMSTypedefs.h>
-
-#include <Solver.h>
-
-#include <ThermalUnitBlock.h>
+#include "Solver.h"
+#include "ThermalUnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -363,7 +360,7 @@ class ThermalUnitDPSolver : public Solver
    * corresponding to the fact that the unit remains on from h to k - 1
    * included, but it is off at k. The cost of the special arc ( h , t )
    * corresponds to a "special" ED( h , n - 1 ) in which the unit remains
-   * on from h to the end of the time horizon, comprised the last istant.
+   * on from h to the end of the time horizon, comprised the last instant.
    * The difference is that in this last ED we do *not* assume the unit will
    * be shut down at n, as this is outside of the time horizon and whatever
    * happens to the unit then is of no concern here.
@@ -601,7 +598,7 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > min_power;
  std::vector< double > max_power;
 
- // these two are identical to min_power but we keep them for readability
+ // these two are identical to min_power, but we keep them for readability
  std::vector< double > & bound_on = min_power;
  std::vector< double > & bound_down = min_power;
  // TODO std::vector< double > & bound_on = max_power;

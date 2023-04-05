@@ -2,7 +2,7 @@
 /*----------------------- File ThermalUnitDPSolver.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the EDPSolver class.
+ * Implementation of the ThermalUnitDPSolver class.
  *
  * \author Claudio Gentile \n
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
@@ -29,7 +29,7 @@
 /*--------------------------------------------------------------------------*/
 
 #define COMPUTE_DUALS 0
-/* If COMPUTE_DUALS > 0, the ED solver allocates more memory and store more
+/* If COMPUTE_DUALS > 0, the solver allocates more memory and store more
  * information about the solution process in such a way as to make it possible
  * to reconstruct the optimal dual solution in the end. However, this is not
  * implemented yet, so that currently the setting makes no sense. */
