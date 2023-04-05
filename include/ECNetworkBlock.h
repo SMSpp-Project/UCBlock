@@ -544,7 +544,7 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of microgrid power absorption variables
- /** Returns the vector of micro public power absorption variables, which is
+ /** Returns the vector of microgrid power absorption variables, which is
   * assumed to have size get_number_intervals() by get_number_nodes(). */
 
  ColVariable * get_micro_power_absorption( Index t = 0 ) {
