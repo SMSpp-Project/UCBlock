@@ -1403,8 +1403,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
 
  // MinPower_Const: the commitment variable is in position 0
  LF( MinPower_Const[ t ].get_function()
- )->modify_coefficient( 0 , -get_operational_min_power( t ) ,
-                        issueAMod );
+ )->modify_coefficient( 0 , -get_operational_min_power( t ) , issueAMod );
  // RampUp_Const
  if( init_t == 0 ) {
   double coefficient = get_operational_min_power( t );
