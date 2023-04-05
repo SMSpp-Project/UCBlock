@@ -507,43 +507,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
- // store the max node injection into each ECNetworkBlock
-
- if( ! v_network_blocks.empty() ) {
-
-  Index t = 0;
-  for( Index n = 0 ; n < f_number_networks ; ++n ) {
-
-   for( Index i = 0 ;
-        i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t ) {
-
-    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-     double max_node_injection = 0.0;
-
-     Index elc_generator = 0;
-     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
-
-      const auto unit_block = get_unit_block( unit_id );
-
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ;
-           ++generator , ++elc_generator ) {
-
-       if( node_id != v_generator_node[ elc_generator ] )
-        continue;
-
-       max_node_injection += unit_block->get_max_power( t , generator );
-      }
-     }
-     v_network_blocks[ n ]->set_MaxNodeInjection( i , node_id ,
-                                                  max_node_injection );
-    }
-   }
-  }
- }
-
  // finally call the method of the base class
  Block::deserialize( group );
 

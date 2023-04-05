@@ -209,19 +209,6 @@ function csvEC2nc4()
             const_term = defVar(ecnb, "ConstantTerm", Float64, ())
             const_term[:] = sum(const_term_data[last_t:last_i])
 
-            #= # `MaxNodeInjection` to upper bound the node injection
-            max_injection = defVar(ecnb, "MaxNodeInjection", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
-            # `reduce(+, itr; init)`, i.e., sum() over (possible) empty collection
-            max_injection[:, :] = [reduce(+, [field_component(users_data[u], r, "max_capacity") *
-                                              profile_component(users_data[u], r, "ren_pu")[t]
-                                              for r in asset_names(users_data[u], REN)], init=0.0) +
-                                   reduce(+, [field_component(users_data[u], g, "max_capacity") *
-                                              field_component(users_data[u], g, "max_technical")
-                                              for g in asset_names(users_data[u], THER)], init=0.0) +
-                                   reduce(+, [field_component(users_data[u], b, "max_capacity")
-                                              for b in asset_names(users_data[u], BATT)], init=0.0)
-                                   for u in user_set, t in last_t:last_i] =#
-
             last_t += n_intervals
         end
     end

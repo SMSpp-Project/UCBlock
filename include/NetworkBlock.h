@@ -480,12 +480,6 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) = 0;
 
-/*--------------------------------------------------------------------------*/
- /// method to set the MaxNodeInjection
-
- virtual void set_MaxNodeInjection( Index interval_id , Index node_id ,
-                                    const double max_injection ) {}
-
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/

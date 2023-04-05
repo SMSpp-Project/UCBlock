@@ -57,8 +57,6 @@ ECNetworkBlock::~ECNetworkBlock() {
  Constraint::clear( power_balance_const );
  Constraint::clear( power_flow_limit_const );
 
- Constraint::clear( node_injection_upper_bound_const );
-
  objective.clear();
 
  // Delete the ECNetworkData if it is local.
@@ -88,7 +86,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
                                                      "ConstantTerm" ,
-                                                     "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
@@ -127,8 +124,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
-                                                     "ConstantTerm" ,
-                                                     "MaxNodeInjection" };
+                                                     "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -151,11 +147,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   assert( ( v_ActiveDemand.shape()[ 0 ] == f_number_intervals ) &&
           ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
  }
-
- if( ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection ) )
-  // always check if the max node injection is given in the correct shape
-  assert( ( v_MaxNodeInjection.shape()[ 0 ] == f_number_intervals ) &&
-          ( v_MaxNodeInjection.shape()[ 1 ] == NumberNodes ) );
 
  ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
                 true , true );
@@ -398,26 +389,6 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  add_static_constraint( power_balance_const , "Power_Balance_Const" );
 
- // node injection upper bound constraints
-
- node_injection_upper_bound_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
-
- for( Index t = 0 ; t < number_intervals ; ++t )
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-   node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
-    v_MaxNodeInjection[ t ][ node_id ] );
-   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
-    &v_node_injection[ t ][ node_id ] );
-  }
-
- add_static_constraint( node_injection_upper_bound_const ,
-                        "Node_Injection_Upper_Bound_Const" );
-
  set_constraints_generated();
 
 }  // end( ECNetworkBlock::generate_abstract_constraints )
@@ -514,8 +485,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
   // Constraints
   && RowConstraint::is_feasible( micro_power_balance_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
-  && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
-  && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 
@@ -583,9 +553,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
- ::serialize( group , "MaxNodeInjection" , netCDF::NcDouble() ,
-              { NumberIntervals , NumberNodes } , v_MaxNodeInjection );
 
 }  // end( ECNetworkBlock::serialize )
 
