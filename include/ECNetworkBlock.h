@@ -534,7 +534,7 @@ class ECNetworkBlock : public NetworkBlock
 
  /// returns the vector of microgrid power injection variables
  /** Returns vector of microgrid power injection variables, which is assumed to
-  * have size get_number_nodes(). */
+  * have size get_number_intervals() by get_number_nodes(). */
 
  ColVariable * get_micro_power_injection( Index t = 0 ) {
   if( v_micro_power_injection.empty() )
@@ -545,7 +545,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of microgrid power absorption variables
  /** Returns the vector of micro public power absorption variables, which is
-  * assumed to have size get_number_nodes(). */
+  * assumed to have size get_number_intervals() by get_number_nodes(). */
 
  ColVariable * get_micro_power_absorption( Index t = 0 ) {
   if( v_micro_power_absorption.empty() )
