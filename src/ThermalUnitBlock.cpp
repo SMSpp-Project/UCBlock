@@ -418,7 +418,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   add_static_variable( v_shut_down , "w" );
  }
 
- // Design Variable - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InvestmentCost != 0 ) {
   if( relax_binary )
    design.set_type( ColVariable::kPosUnitary );

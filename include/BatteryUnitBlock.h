@@ -1520,7 +1520,7 @@ public:
  std::vector< LB0Constraint > secondary_upper_bound_Const;
 
 
- /// the vector of binary variables
+ /// the vector of binary bound constraints
  std::vector< ZOConstraint > battery_binary_bound_Const;
 
 

@@ -1296,7 +1296,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the design variable
+ /// returns the design binary variable
 
  ColVariable & get_design( void ) {
   return( design );
@@ -1709,7 +1709,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the design variable
+ /// the design binary variable
  ColVariable design;
 
 /*------------------------------- constraints ------------------------------*/
