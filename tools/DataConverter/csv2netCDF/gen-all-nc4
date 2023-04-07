@@ -14,5 +14,3 @@ julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
 fi
 
 done
-
-cp ../../../netCDF_files/EC_*.nc4 ../../../../tests/UC_MILP/data
