@@ -46,7 +46,6 @@ Launch `ctest` from the build directory to run them.
 To disable them, set the option `BUILD_TESTING` to `OFF`.
 
 > **Note:**
-> Some tests use [Google Test](https://github.com/google/googletest).
 > CMake will fetch and build it automatically.
 
 ## Tools

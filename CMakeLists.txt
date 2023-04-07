@@ -114,10 +114,6 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- Subdirectories ------------------------------------------------------ #
 add_subdirectory(tools)
 
-if (BUILD_TESTING)
-    add_subdirectory(test)
-endif ()
-
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
 # and its CMake configuration files on the system.
