@@ -497,7 +497,7 @@ class UCBlock : public Block
  *
  * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
  *   indexed over the dimension "NumberNetworks"; the entry
- *   NetworkConstantTerms[ n ] tells the constant term, i.e. typically the
+ *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
  *   fixed costs, of the NetworkBlock n.
  *
  * - The variable "NetworkBlockClassname", of type netCDF::NcString specify
