@@ -827,7 +827,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   // initialize the vector pos containing the initial indices of the pieces.
   pos[ 0 ].begm = 0;
   pos[ 0 ].begt = 0;
- #endif 
+ #endif
 
  // initialize the vector of unconstrained power values, i.e., 
  // power values are not constrained by bound_down[ k ]
