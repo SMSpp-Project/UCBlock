@@ -117,7 +117,7 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
    v_network_blocks[ i ] = nbi;
    delete f_NetworkData;
    f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ));
+    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
    f_NetworkData->deserialize( sub_group );
    nbi->set_NetworkData( f_NetworkData );
    ++cntr;
@@ -421,7 +421,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
    delete f_NetworkData;
    f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ));
+    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
    f_NetworkData->deserialize( group );
   }
 
@@ -1023,7 +1023,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto rho = get_pollutant_heat_rho()[ t ][pollutant][ h ];
 
          auto linear_function = dynamic_cast< LinearFunction * >
-         ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+         ( v_PollutantBudget_Const[pollutant][zone_id].get_function() );
 
          linear_function->add_variable( &heat, rho );
         }
@@ -1113,7 +1113,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
          auto linear_function = dynamic_cast< LinearFunction * >
-         ( v_PollutantBudget_Const[pollutant][zone_id].get_function());
+         ( v_PollutantBudget_Const[pollutant][zone_id].get_function() );
 
          linear_function->add_variable( &heat, rho );
         }
@@ -1211,7 +1211,7 @@ void UCBlock::generate_heat_constraints( void ) {
      auto power_heat_rho = get_power_heat_rho()[ generator_id ];
 
      auto linear_function = dynamic_cast< LinearFunction * >
-     ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function());
+     ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() );
      linear_function->add_variable( &heat, 1, 0 );
      linear_function->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
     }
@@ -1363,7 +1363,7 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const {
  /* TODO commented away until HeatBlock are properly managed
  for( Index i = 0; i < f_number_heat_blocks; ++i ) {
   auto sub_block = get_heat_block( i );
-  auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ));
+  auto sub_group = group.addGroup( "HeatBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
   }
  */
