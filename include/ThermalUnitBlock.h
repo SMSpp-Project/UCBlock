@@ -1672,7 +1672,7 @@ class ThermalUnitBlock : public UnitBlock
  Index f_MinDownTime{};
 
  /// the InitUpDownTime value
- Index f_InitUpDownTime{};
+ int f_InitUpDownTime{};
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
