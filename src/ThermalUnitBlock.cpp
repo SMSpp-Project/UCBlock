@@ -592,7 +592,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  if( init_t > 0 ) {
 
-  auto startup_shutdown_const_size = f_time_horizon - init_t;
+  auto startup_shutdown_const_size =
+   static_cast< int >( f_time_horizon - init_t );
 
   if( startup_shutdown_const_size > 0 ) {
 
@@ -638,7 +639,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // Initializing turn on constraints (start up constraints) - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto startup_const_size = f_time_horizon - init_t - f_MinUpTime;
+ auto startup_const_size =
+  static_cast< int >( f_time_horizon - init_t - f_MinUpTime );
 
  if( startup_const_size > 0 ) {
 
@@ -665,7 +667,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // Initializing turn off constraints (shut down constraints) - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto shutdown_const_size = f_time_horizon - init_t - f_MinDownTime;
+ auto shutdown_const_size =
+  static_cast< int >( f_time_horizon - init_t - f_MinDownTime );
 
  if( shutdown_const_size > 0 ) {
 
