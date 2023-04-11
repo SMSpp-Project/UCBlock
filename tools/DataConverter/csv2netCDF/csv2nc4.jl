@@ -26,7 +26,7 @@ function csvEC2nc4()
     end
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("../../../netCDF_files/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset(string("../../../netCDF_files/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
 
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
