@@ -586,7 +586,7 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 
  Index time_horizon;       ///< time horizon
- Index init_up_down_time;  ///< initial up/down time (it can be < 0)
+ int init_up_down_time;    ///< initial up/down time (it can be < 0)
  Index min_up_time;        ///< minimum up time
  Index min_down_time;      ///< minimum down time
  double initial_power;     ///< initial power
