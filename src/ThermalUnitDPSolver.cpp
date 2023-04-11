@@ -400,8 +400,8 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  std::vector< double > cost( time_horizon );
 
  // update variable costs in the arcs outgoing from s
- if( f_start.DPS ) {                    // f_start is a ON node
-  f_start.DPS->compute_costs( cost );   // solve EDPs, retrieve optimal costs
+ if( f_start.DPS ) {                   // f_start is a ON node
+  f_start.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
 
   // index of first tail node (note: one arc surely exists)
   Index h = h_of_node( f_start.v_arcs.front().tail );
@@ -500,7 +500,7 @@ void ThermalUnitDPSolver::compute_solutions( void )
  // compute the solution by visiting the optimal path backward from f_end
 
  do {
-  Index h = h_of_node( n );   // the current arc is ( h , k )
+  Index h = h_of_node( n );  // the current arc is ( h , k )
   if( n->DPS && k ) {
    // n is ON( h ), or the source (if h == 0) that works as an ON node
    // the power and commitment variables of this arc are these with index
@@ -517,8 +517,8 @@ void ThermalUnitDPSolver::compute_solutions( void )
   // node: P[ i ] = U[ i ] = 0 for i = h, ..., k - 1, but these already
   // have those values
 
-  k = h;         // the previous beginning will be the end
-  n = n->pred;   // back one arc
+  k = h;        // the previous beginning will be the end
+  n = n->pred;  // back one arc
 
   } while( n );  // ... until we hit f_start that has pred == nullptr
 
