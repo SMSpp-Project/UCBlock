@@ -99,10 +99,10 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
-  v_MinPower.assign( f_time_horizon , 0 );
+  v_MinPower.resize( f_time_horizon );
 
  if( ! ::deserialize( group , "InertiaPower" , v_InertiaPower ) )
-  v_InertiaPower.assign( f_time_horizon , 0 );
+  v_InertiaPower.resize( f_time_horizon );
 
  ::deserialize( group , f_gamma , "Gamma" );
 
@@ -545,7 +545,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
   Index max_index = *std::max_element( std::begin( subset ) ,
                                        std::end( subset ) );
-  v_MaxPower.assign( max_index , 0 );
+  v_MaxPower.resize( max_index );
  }
 
  // If nothing changes, return
@@ -602,7 +602,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
    return;
 
   auto max_index = rng.second;
-  v_MaxPower.assign( max_index , 0 );
+  v_MaxPower.resize( max_index );
  }
 
  // If nothing changes, return

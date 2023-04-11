@@ -109,12 +109,13 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , "MinStorage" , v_MinStorage , false );
  ::deserialize( group , "MaxStorage" , v_MaxStorage , false );
+
  ::deserialize( group , "MaxPower" , v_MaxPower , false );
 
  // Optional variables
 
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
-  v_MinPower.assign( f_time_horizon , 0 );
+  v_MinPower.resize( f_time_horizon );
 
  if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) ) {
   v_ConvMaxPower.resize( v_MaxPower.size() );
@@ -132,19 +133,22 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
  ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryRho );
  ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryRho );
+
  ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
  ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
+
  ::deserialize( group , "Demand" , v_Demand );
+
  ::deserialize( group , "StoringBatteryRho" , v_StoringBatteryRho );
  ::deserialize( group , "ExtractingBatteryRho" , v_ExtractingBatteryRho );
 
  if( ! ::deserialize( group , "Cost" , v_Cost ) )
-  v_Cost.resize( 1 , 0 );
+  v_Cost.resize( 1 );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
- ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
-
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
+
+ ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
 
  // Decompress vectors

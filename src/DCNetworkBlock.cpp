@@ -632,7 +632,7 @@ void DCNetworkBlock::set_active_demand(
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_ActiveDemand.assign( get_number_nodes() , 0 );
+  v_ActiveDemand.resize( get_number_nodes() );
  }
 
  bool identical = true;
@@ -705,7 +705,7 @@ void DCNetworkBlock::set_active_demand(
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_ActiveDemand.assign( get_number_nodes() , 0 );
+  v_ActiveDemand.resize( get_number_nodes() );
  }
 
  // If nothing changes, return
@@ -764,7 +764,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
-  v_kappa.assign( get_number_lines() , 1 );
+  v_kappa.resize( get_number_lines() , 1 );
  }
 
  bool identical = true;
@@ -836,7 +836,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
-  v_kappa.assign( get_number_lines() , 1 );
+  v_kappa.resize( get_number_lines() , 1 );
  }
 
  // If nothing changes, return

@@ -179,7 +179,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
                 v_DownhillDelay , true , true );
 
  ::deserialize( group , "MinVolumetric" , v_MinVolumetric , true , true );
-
  ::deserialize( group , "MaxVolumetric" , v_MaxVolumetric , true , true );
 
  decompress_array( v_MinFlow );
@@ -1351,7 +1350,7 @@ void HydroUnitBlock::set_initial_volume(
    // The initial volumes are still zero. There is nothing to be updated.
    return;
 
-  v_InitialVolumetric.assign( get_number_reservoirs() , 0 );
+  v_InitialVolumetric.resize( get_number_reservoirs() );
  }
 
  bool identical = true;
@@ -1416,7 +1415,7 @@ void HydroUnitBlock::set_initial_volume(
    // The initial volumes are still zero. There is nothing to be updated.
    return;
 
-  v_InitialVolumetric.assign( get_number_reservoirs() , 0 );
+  v_InitialVolumetric.resize( get_number_reservoirs() );
  }
 
  // If nothing changes, return
@@ -1517,7 +1516,7 @@ void HydroUnitBlock::set_initial_flow_rate(
 
   auto max_index = *std::max_element( std::begin( subset ) ,
                                       std::end( subset ) );
-  v_InitialFlowRate.assign( max_index , 0 );
+  v_InitialFlowRate.resize( max_index );
  }
 
  bool identical = true;
@@ -1572,7 +1571,7 @@ void HydroUnitBlock::set_initial_flow_rate(
    return;
 
   Index max_index = rng.second;
-  v_InitialFlowRate.assign( max_index , 0 );
+  v_InitialFlowRate.resize( max_index );
  }
 
   // If nothing changes, return
