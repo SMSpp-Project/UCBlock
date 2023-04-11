@@ -123,11 +123,11 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( auto sup_it = b->get_start_up() ) {
   // startup at 0 iif the unit was off at the start, and it is on at 0
   if( ! t_init )
-   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
+   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && ( U[ 0 ] ? 1 : 0 ) );
 
   // startup at i iff the unit was off at i - 1, and it is on at i
   for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   ( sup_it++ )->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
+   ( sup_it++ )->set_value( ( U[ i ] ) && ( ! U[ i - 1 ] ? 1 : 0 ) );
   }
 
  // set shut_down variables, if any, but note that start_up variables are
@@ -135,7 +135,7 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( auto sdn_it = b->get_shut_down() ) {
   // shutdown at 0 iif the unit was on at the start, and it is off at 0
   if( ! t_init )
-   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] ) ? 1 : 0 );
+   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ]  ? 1 : 0 ) );
 
   // shutdown at i iff the unit was on at i - 1, and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
@@ -967,7 +967,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    // compute unc_p, unconstrained optimal value for z_{hk}
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];
@@ -1004,7 +1004,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    m[ mcnt++ ] = p_bar;
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];
@@ -1043,7 +1043,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    ++qm;
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];

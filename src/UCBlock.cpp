@@ -152,7 +152,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
                                                      "NumberNodes" ,
                                                      "NumberLines" ,
                                                      "NumberElectricalGenerators" ,
-                                                     "TotalNumberPollutantZones" };
+                                                     "TotalNumberPollutantZones" ,
+                                                     "NumberIntervals" }; // (?)
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
