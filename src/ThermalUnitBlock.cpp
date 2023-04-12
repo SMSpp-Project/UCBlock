@@ -599,25 +599,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    StartUp_ShutDown_Variables_Const.resize( startup_shutdown_const_size );
 
-   // Initial condition
-
-   LinearFunction::v_coeff_pair init_vars;
-
-   init_vars.push_back( std::make_pair( &v_commitment[ init_t ] , 1.0 ) );
-   init_vars.push_back( std::make_pair( &v_start_up[ 0 ] , -1.0 ) );
-   init_vars.push_back( std::make_pair( &v_shut_down[ 0 ] , 1.0 ) );
-
-   if( f_InitUpDownTime <= 0 ) {  // - f_InitUpDownTime < f_MinDownTime
-    StartUp_ShutDown_Variables_Const[ 0 ].set_both( 0.0 );
-    StartUp_ShutDown_Variables_Const[ 0 ].set_function(
-     new LinearFunction( std::move( init_vars ) ) );
-   } else {  // f_InitUpDownTime > 0 && f_InitUpDownTime < f_MinUpTime
-    StartUp_ShutDown_Variables_Const[ 0 ].set_both( 1.0 );
-    StartUp_ShutDown_Variables_Const[ 0 ].set_function(
-     new LinearFunction( std::move( init_vars ) ) );
-   }
-
-   for( Index t = init_t + 1 , constraint_index = 1 ; t < f_time_horizon ;
+   for( Index t = init_t , constraint_index = 0 ; t < f_time_horizon ;
         ++t , ++constraint_index ) {
 
     LinearFunction::v_coeff_pair vars;
@@ -625,8 +607,15 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
     vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
     vars.push_back( std::make_pair( &v_start_up[ t - init_t ] , -1.0 ) );
     vars.push_back( std::make_pair( &v_shut_down[ t - init_t ] , 1.0 ) );
-    vars.push_back( std::make_pair( &v_commitment[ t - 1 ] , -1.0 ) );
-    StartUp_ShutDown_Variables_Const[ constraint_index ].set_both( 0.0 );
+
+    if( t > init_t )
+     vars.push_back( std::make_pair( &v_commitment[ t - 1 ] , -1.0 ) );
+
+    if( t == init_t && f_InitUpDownTime > 0 )
+     StartUp_ShutDown_Variables_Const[ constraint_index ].set_both( 1.0 );
+    else
+     StartUp_ShutDown_Variables_Const[ constraint_index ].set_both( 0.0 );
+
     StartUp_ShutDown_Variables_Const[ constraint_index ].set_function(
      new LinearFunction( std::move( vars ) ) );
    }
@@ -651,7 +640,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    LinearFunction::v_coeff_pair vars;
 
-   for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s < t - init_t ; ++s )
+   for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s <= t - init_t ; ++s )
     vars.push_back( std::make_pair( &v_start_up[ s ] , -1.0 ) );
 
    vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
