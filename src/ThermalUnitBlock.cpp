@@ -640,19 +640,19 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto startup_const_size =
-  static_cast< int >( f_time_horizon - init_t - f_MinUpTime );
+  static_cast< int >( f_time_horizon - ( init_t + f_MinUpTime - 1 ) );
 
  if( startup_const_size > 0 ) {
 
   StartUp_Const.resize( startup_const_size );
 
-  for( Index t = init_t + f_MinUpTime , constraint_index = 0 ;
+  for( Index t = ( init_t + f_MinUpTime - 1 ) , constraint_index = 0 ;
        t < f_time_horizon ; ++t , ++constraint_index ) {
 
    LinearFunction::v_coeff_pair vars;
 
-   for( Index s = t - f_MinUpTime ; s < t ; ++s )
-    vars.push_back( std::make_pair( &v_start_up[ s - init_t + 1 ] , -1.0 ) );
+   for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s < t - init_t ; ++s )
+    vars.push_back( std::make_pair( &v_start_up[ s ] , -1.0 ) );
 
    vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
    StartUp_Const[ constraint_index ].set_lhs( 0.0 );
@@ -668,19 +668,19 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto shutdown_const_size =
-  static_cast< int >( f_time_horizon - init_t - f_MinDownTime );
+  static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime - 1 ) );
 
  if( shutdown_const_size > 0 ) {
 
   ShutDown_Const.resize( shutdown_const_size );
 
-  for( Index t = init_t + f_MinDownTime , constraint_index = 0 ;
+  for( Index t = init_t + f_MinDownTime - 1 , constraint_index = 0 ;
        t < f_time_horizon ; ++t , ++constraint_index ) {
 
    LinearFunction::v_coeff_pair vars;
 
-   for( Index s = t - f_MinDownTime ; s < t ; ++s )
-    vars.push_back( std::make_pair( &v_shut_down[ s - init_t + 1 ] , 1.0 ) );
+   for( Index s = t - ( init_t + f_MinDownTime - 1 ) ; s <= t - init_t ; ++s )
+    vars.push_back( std::make_pair( &v_shut_down[ s ] , 1.0 ) );
 
    vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
    ShutDown_Const[ constraint_index ].set_lhs( -Inf< double >() );
