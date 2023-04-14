@@ -30,8 +30,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "NetworkBlock.h"
+
 #include "FRealObjective.h"
+
 #include "FRowConstraint.h"
+
 #include "OneVarConstraint.h"
 
 /*--------------------------------------------------------------------------*/

@@ -34,9 +34,13 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "OneVarConstraint.h"
+
 #include "ColVariable.h"
+
 #include "FRowConstraint.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
@@ -689,15 +693,15 @@ class HeatBlock : public Block
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the heat bound satisfaction constraints
- boost::multi_array< FRowConstraint , 2 > v_HeatBounds_Const;
-
  /// the evolution in the  stored heat constraints
  std::vector< FRowConstraint > v_EvolutionStoredHeat_Const;
 
-
  /// the heat demand satisfaction constraints
- std::vector< BoxConstraint > v_HeatDemand_Const;
+ std::vector< FRowConstraint > v_HeatDemand_Const;
+
+
+ /// the heat bound satisfaction constraints
+ boost::multi_array< BoxConstraint , 2 > v_HeatBounds_Const;
 
  /// the heat storage bound satisfaction constraints
  std::vector< BoxConstraint > v_HeatStorageBounds_Const;

@@ -34,10 +34,15 @@
 /*--------------------------------------------------------------------------*/
 
 #include "ColVariable.h"
+
 #include "FRowConstraint.h"
+
 #include "DQuadFunction.h"
+
 #include "UnitBlock.h"
+
 #include "OneVarConstraint.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/

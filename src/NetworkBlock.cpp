@@ -36,9 +36,13 @@
 #include <map>
 
 #include "LinearFunction.h"
+
 #include "NetworkBlock.h"
+
 #include "RowConstraintSolution.h"
+
 #include "ColRowSolution.h"
+
 #include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/

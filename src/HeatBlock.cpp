@@ -26,14 +26,19 @@
 /*--------------------------------------------------------------------------*/
 
 #include <iostream>
+
 #include <map>
+
 #include <random>
 
-#include "DQuadFunction.h"
 #include "FRealObjective.h"
+
 #include "FRowConstraint.h"
+
 #include "HeatBlock.h"
+
 #include "LinearFunction.h"
+
 #include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -56,9 +61,10 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 
 HeatBlock::~HeatBlock() {
 
- Constraint::clear( v_HeatBounds_Const );
  Constraint::clear( v_EvolutionStoredHeat_Const );
+ Constraint::clear( v_HeatDemand_Const );
 
+ Constraint::clear( v_HeatBounds_Const );
  Constraint::clear( v_HeatStorageBounds_Const );
 
  objective.clear();
@@ -225,12 +231,10 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
 
  // Heat added, removed, and available variables
 
- using v_pairs = std::vector< ColVariable > *;
-
- v_pairs variables_and_types =
-  { std::make_pair( &v_heat_added , ColVariable::kNonNegative ) ,
-    std::make_pair( &v_heat_removed , ColVariable::kNonNegative ) ,
-    std::make_pair( &v_heat_available , ColVariable::kNonNegative )
+ auto variables_and_types =
+  { std::make_pair( v_heat_added , ColVariable::kNonNegative ) ,
+    std::make_pair( v_heat_removed , ColVariable::kNonNegative ) ,
+    std::make_pair( v_heat_available , ColVariable::kNonNegative )
   };
 
  auto variables_to_be_generated = get_variables_to_be_generated( stvv );
@@ -239,8 +243,8 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
  for( auto pair : variables_and_types ) {
   if( variables_to_be_generated & k ) {
    auto variables = pair.first;
-   variables->resize( f_time_horizon );
-   for( auto & variable : *variables )
+   variables.resize( f_time_horizon );
+   for( auto & variable : variables )
     variable.set_type( pair.second );
    add_static_variable( variables );
   }
@@ -294,31 +298,38 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   if( t == 0 ) {
-    auto linear_function = new LinearFunction();
-    linear_function->add_variable( &v_heat_available[ t ] , 1.0 );
-    linear_function->add_variable( &v_heat_added[ t ] , - f_storing_heat_rho );
-    linear_function->add_variable( &v_heat_removed[ t ] ,
-                                   f_extracting_heat_rho );
-    v_EvolutionStoredHeat_Const[ t ].set_function( linear_function );
-    v_EvolutionStoredHeat_Const[ t ].set_lhs( 0.0 );
-    v_EvolutionStoredHeat_Const[ t ].set_rhs
-     ( f_initial_heat_storage * f_keeping_heat_rho );
-   } else {
-    auto linear_function = new LinearFunction();
-    // TODO t+1 is not defined for t = time_horizon - 1
-    linear_function->add_variable( &v_heat_available[ t + 1 ] , 1.0 );
-    linear_function->add_variable( &v_heat_available[ t ] ,
-                                   - f_keeping_heat_rho );
-    linear_function->add_variable( &v_heat_added[ t + 1 ] ,
-                                   - f_storing_heat_rho );
-    linear_function->add_variable( &v_heat_removed[ t + 1 ] ,
-                                   f_extracting_heat_rho );
+   LinearFunction::v_coeff_pair vars;
 
-    v_EvolutionStoredHeat_Const[ t ].set_function( linear_function );
+   if( t == 0 ) {
+
+    vars.push_back( std::make_pair( &v_heat_available[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_heat_added[ t ] ,
+                                    -f_storing_heat_rho ) );
+    vars.push_back( std::make_pair( &v_heat_removed[ t ] ,
+                                    f_extracting_heat_rho ) );
+
+    v_EvolutionStoredHeat_Const[ t ].set_lhs( 0.0 );
+    v_EvolutionStoredHeat_Const[ t ].set_rhs(
+     f_initial_heat_storage * f_keeping_heat_rho );
+
+   } else {
+
+    // TODO t+1 is not defined for t = time_horizon - 1
+    vars.push_back( std::make_pair( &v_heat_available[ t + 1 ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_heat_available[ t ] ,
+                                    -f_keeping_heat_rho ) );
+    vars.push_back( std::make_pair( &v_heat_added[ t + 1 ] ,
+                                    -f_storing_heat_rho ) );
+    vars.push_back( std::make_pair( &v_heat_removed[ t + 1 ] ,
+                                    f_extracting_heat_rho ) );
+
     v_EvolutionStoredHeat_Const[ t ].set_both( 0.0 );
    }
+
+   v_EvolutionStoredHeat_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
   }
+
   add_static_constraint( v_EvolutionStoredHeat_Const );
  }
 
@@ -330,13 +341,15 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   auto linear_function = new LinearFunction();
-   linear_function->add_variable( &v_heat_added[ t ] , -1.0 );
-   linear_function->add_variable( &v_heat_removed[ t ] , 1.0 );
-   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id )
-    linear_function->add_variable( &v_heat[ t ][ unit_id ] , 1.0 );
+   LinearFunction::v_coeff_pair vars;
 
-   v_HeatDemand_Const[ t ].set_function( linear_function );
+   vars.push_back( std::make_pair( &v_heat_added[ t ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_heat_removed[ t ] , 1.0 ) );
+   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id )
+    vars.push_back( std::make_pair( &v_heat[ t ][ unit_id ] , 1.0 ) );
+
+   v_HeatDemand_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
    v_HeatDemand_Const[ t ].set_lhs( v_heat_demand[ t ] );
    v_HeatDemand_Const[ t ].set_rhs( Inf< double >() );
   }
@@ -357,18 +370,20 @@ void HeatBlock::generate_objective( Configuration * objc ) {
   throw( std::logic_error( "HeatBlock::generate_objective: v_heat must have "
                            "size equal to the time horizon." ) );
 
- auto linear_function = new LinearFunction();
+ LinearFunction::v_coeff_pair vars;
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
    auto cost = get_cost_heat_unit()[ t ][ unit_id ];
-   linear_function->add_variable( &v_heat[ t ][ unit_id ] , cost );
+   vars.push_back( std::make_pair( &v_heat[ t ][ unit_id ] , cost ) );
   }
  }
 
- objective.set_function( linear_function );
+ objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
- objective.set_Block( this );
+
+ // Set block objective
+ this->set_objective( &objective );
 
 }  // end( HeatBlock::generate_objective )
 

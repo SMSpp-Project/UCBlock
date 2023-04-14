@@ -30,12 +30,17 @@
 /*--------------------------------------------------------------------------*/
 
 #include <iostream>
+
 #include <random>
+
 #include <map>
 
 #include "BatteryUnitBlock.h"
+
 #include "LinearFunction.h"
+
 #include "FRealObjective.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -411,6 +416,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   }
 
  set_variables_generated();
+
 }  // end( BatteryUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -899,22 +905,20 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                         // cowardly (and silently) return
 
- auto linear_function = new LinearFunction();
+ auto lf = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  linear_function->add_variable( &v_intake_level[ t ] ,
-                                 f_scale * v_Cost[ t ] , eDryRun );
-  linear_function->add_variable( &v_outtake_level[ t ] ,
-                                 f_scale * v_Cost[ t ] , eDryRun );
+  lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+  lf->add_variable( &v_outtake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
  }
 
  if( f_BattInvestmentCost != 0 )
-  linear_function->add_variable( &batt_design , f_BattInvestmentCost );
+  lf->add_variable( &batt_design , f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
-  linear_function->add_variable( &conv_design , f_ConvInvestmentCost );
+  lf->add_variable( &conv_design , f_ConvInvestmentCost );
 
- objective.set_function( linear_function );
+ objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective

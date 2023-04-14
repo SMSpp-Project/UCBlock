@@ -30,12 +30,17 @@
 /*--------------------------------------------------------------------------*/
 
 #include <iostream>
+
 #include <random>
+
 #include <map>
 
 #include "IntermittentUnitBlock.h"
+
 #include "LinearFunction.h"
+
 #include "FRealObjective.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/

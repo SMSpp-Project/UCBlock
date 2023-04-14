@@ -28,9 +28,13 @@
 #include <map>
 
 #include "NetworkBlock.h"
+
 #include "DCNetworkBlock.h"
+
 #include "LinearFunction.h"
+
 #include "OneVarConstraint.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
@@ -447,16 +451,16 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
 
  auto lines_type = f_NetworkData->get_lines_type();
 
- auto linear_function = new LinearFunction();
+ auto lf = new LinearFunction();
 
  // HVDC power flow limit
  if( lines_type == kHVDC ) {
 
   if( ! f_NetworkData->get_network_cost().empty() )
    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-    linear_function->add_variable( &v_auxiliary_variable[ line_id ] ,
-                                   f_NetworkData->get_network_cost()[ line_id ] ,
-                                   0.0 );
+    lf->add_variable( &v_auxiliary_variable[ line_id ] ,
+                      f_NetworkData->get_network_cost()[ line_id ] ,
+                      eDryRun );
  }
 
  // TODO The implementation of objective function for
@@ -472,9 +476,9 @@ void DCNetworkBlock::generate_objective( Configuration * objc ) {
   // TODO
  }
 
- linear_function->set_constant_term( f_ConstTerm );
+ lf->set_constant_term( f_ConstTerm );
 
- objective.set_function( linear_function );
+ objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective

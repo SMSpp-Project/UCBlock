@@ -21,7 +21,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "UCBlock.h"
+
 #include "HydroSystemUnitBlock.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
@@ -189,6 +191,7 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   set_variables( std::move( x ) );
 
  set_variables_generated();
+
 }  // end( HydroSystemUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -204,8 +207,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
  if( get_objective() != nullptr )  // an objective is there already
   return;                          // cowardly (and silently) return
 
- auto linear_function = new LinearFunction();
- objective.set_function( linear_function );
+ objective.set_function( new LinearFunction() );
 
  // Set Block objective
  this->set_objective( &objective );

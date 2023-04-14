@@ -39,8 +39,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "FRowConstraint.h"
+
 #include "OneVarConstraint.h"
+
 #include "FRealObjective.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/

@@ -35,9 +35,13 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "FRowConstraint.h"
+
 #include "OneVarConstraint.h"
+
 #include "NetworkBlock.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/

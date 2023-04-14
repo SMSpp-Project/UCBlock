@@ -30,9 +30,13 @@
 /*--------------------------------------------------------------------------*/
 
 #include "UCBlock.h"
+
 #include "UnitBlock.h"
+
 #include "RowConstraintSolution.h"
+
 #include "ColRowSolution.h"
+
 #include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/

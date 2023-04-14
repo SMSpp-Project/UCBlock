@@ -31,7 +31,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SlackUnitBlock.h"
+
 #include "LinearFunction.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
@@ -263,6 +265,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  }
 
  set_constraints_generated();
+
 }  // end( SlackUnitBlock::generate_abstract_constraints )
 
 
@@ -301,62 +304,45 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
                              "v_secondary_spinning_reserve must have size "
                              "equal to the time horizon." ) );
 
- auto linear_function = new LinearFunction();
+ auto lf = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  if( ! v_ActivePowerCost.empty() ) {
-   linear_function->add_variable( &v_active_power[ t ] ,
-                                  v_ActivePowerCost[ t ] ,
-                                  0.0 );
-  } else {
-   linear_function->add_variable( &v_active_power[ t ] ,
-                                  0.0 ,
-                                  0.0 );
-  }
+  if( ! v_ActivePowerCost.empty() )
+   lf->add_variable( &v_active_power[ t ] , v_ActivePowerCost[ t ] , eDryRun );
+  else
+   lf->add_variable( &v_active_power[ t ] , 0.0 , eDryRun );
 
   if( reserve_vars & 1u ) {
    if( ! v_MaxPrimaryPower.empty() ) {
-    if( ! v_PrimaryCost.empty() ) {
-     linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
-                                    v_PrimaryCost[ t ] ,
-                                    0.0 );
-    } else {
-     linear_function->add_variable( &v_primary_spinning_reserve[ t ] ,
-                                    0.0 ,
-                                    0.0 );
-    }
+    if( ! v_PrimaryCost.empty() )
+     lf->add_variable( &v_primary_spinning_reserve[ t ] ,
+                       v_PrimaryCost[ t ] , eDryRun );
+    else
+     lf->add_variable( &v_primary_spinning_reserve[ t ] , 0.0 , eDryRun );
    }
   }
 
   if( reserve_vars & 2u ) {
    if( ! v_MaxSecondaryPower.empty() ) {
-    if( ! v_SecondaryCost.empty() ) {
-     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
-                                    v_SecondaryCost[ t ] ,
-                                    0.0 );
-    } else {
-     linear_function->add_variable( &v_secondary_spinning_reserve[ t ] ,
-                                    0.0 ,
-                                    0.0 );
-    }
+    if( ! v_SecondaryCost.empty() )
+     lf->add_variable( &v_secondary_spinning_reserve[ t ] ,
+                       v_SecondaryCost[ t ] , eDryRun );
+    else
+     lf->add_variable( &v_secondary_spinning_reserve[ t ] , 0.0 , eDryRun );
    }
   }
 
   if( reserve_vars & 4u ) {
-   if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) ) {
-    linear_function->add_variable( &v_commitment[ t ] ,
-                                   v_InertiaCost[ t ] * v_MaxInertia[ t ] ,
-                                   0.0 );
-   } else {
-    linear_function->add_variable( &v_commitment[ t ] ,
-                                   0.0 ,
-                                   0.0 );
-   }
+   if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) )
+    lf->add_variable( &v_commitment[ t ] ,
+                      v_InertiaCost[ t ] * v_MaxInertia[ t ] , eDryRun );
+   else
+    lf->add_variable( &v_commitment[ t ] , 0.0 , eDryRun );
   }
  }
 
- objective.set_function( linear_function );
+ objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective

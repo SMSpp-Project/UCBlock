@@ -35,9 +35,13 @@
 
 // TODO commented away until HeatBlock are properly managed
 // #include "HeatBlock.h"
+
 #include "BlockInspection.h"
+
 #include "LinearFunction.h"
+
 #include "Objective.h"
+
 #include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -533,8 +537,6 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
  generate_pollutant_budget_constraints();
  generate_heat_constraints();
 
- // mark all done
-
  set_constraints_generated();
 
 }  // end( UCBlock::generate_abstract_constraints )
@@ -618,10 +620,9 @@ void UCBlock::generate_node_injection_constraints( void ) {
 
      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-      auto linear_function = new LinearFunction();
+      auto lf = new LinearFunction();
 
-      linear_function->add_variable( &node_injection[ node_id ] , -1.0 ,
-                                     eNoMod );
+      lf->add_variable( &node_injection[ node_id ] , -1.0 , eNoMod );
 
       double rhs = 0.0;
 
@@ -640,28 +641,29 @@ void UCBlock::generate_node_injection_constraints( void ) {
 
         if( auto ap = unit_block->get_active_power( generator ) ) {
          auto active_power = &ap[ t ];
-         linear_function->add_variable( active_power , scale , eNoMod );
+         lf->add_variable( active_power , scale , eNoMod );
         }
 
         if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
          if( auto c = unit_block->get_commitment( generator ) ) {
           auto fixed_consumption = fc[ t ] * scale;
           auto commitment = &c[ t ];
-          linear_function->add_variable( commitment , - fixed_consumption ,
-                                         eNoMod );
+          lf->add_variable( commitment , -fixed_consumption , eNoMod );
           rhs -= fixed_consumption;
          }
         }
        }
       }
       v_node_injection_Const[ t ][ node_id ].set_both( rhs , eNoMod );
-      v_node_injection_Const[ t ][ node_id ].set_function( linear_function );
+      v_node_injection_Const[ t ][ node_id ].set_function( lf );
      }
     }
    }
   }
+
   add_static_constraint( v_node_injection_Const , "node_injection_c" );
  }
+
 }  // end( UCBlock::generate_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -690,7 +692,7 @@ void UCBlock::generate_primary_demand_constraints( void ) {
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
 
-   auto linear_function = new LinearFunction();
+   auto lf = new LinearFunction();
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -723,7 +725,7 @@ void UCBlock::generate_primary_demand_constraints( void ) {
         // first time step.
         assert( t == 0 );
 
-        const auto num_active_var = linear_function->get_num_active_var();
+        const auto num_active_var = lf->get_num_active_var();
         primary_var_index[ unit_id ][ zone_id ].first = num_active_var;
         primary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
@@ -734,7 +736,7 @@ void UCBlock::generate_primary_demand_constraints( void ) {
 
        // Now we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = &primary_s_r[ t ];
-       linear_function->add_variable( primary_spinning_reserve , scale );
+       lf->add_variable( primary_spinning_reserve , scale );
       }
 
      }  // end( for( generator ) )
@@ -744,7 +746,7 @@ void UCBlock::generate_primary_demand_constraints( void ) {
    const auto demand = get_primary_demand()[ zone_id ][ t ];
    v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-   v_PrimaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
+   v_PrimaryDemand_Const[ t ][ zone_id ].set_function( lf );
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
@@ -779,7 +781,7 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
 
-   auto linear_function = new LinearFunction();
+   auto lf = new LinearFunction();
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -812,7 +814,7 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
         // first time step.
         assert( t == 0 );
 
-        const auto num_active_var = linear_function->get_num_active_var();
+        const auto num_active_var = lf->get_num_active_var();
         secondary_var_index[ unit_id ][ zone_id ].first = num_active_var;
         secondary_var_index[ unit_id ][ zone_id ].second = num_active_var;
        }
@@ -823,7 +825,7 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
 
        // Now we add the secondary reserve variable to the LinearFunction.
        auto secondary_spinning_reserve = &secondary_s_r[ t ];
-       linear_function->add_variable( secondary_spinning_reserve , scale );
+       lf->add_variable( secondary_spinning_reserve , scale );
       }
 
      }  // end( for( generator ) )
@@ -833,7 +835,7 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
    const auto demand = get_secondary_demand()[ zone_id ][ t ];
    v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-   v_SecondaryDemand_Const[ t ][ zone_id ].set_function( linear_function );
+   v_SecondaryDemand_Const[ t ][ zone_id ].set_function( lf );
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
@@ -869,7 +871,7 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
 
-   auto linear_function = new LinearFunction();
+   auto lf = new LinearFunction();
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -906,13 +908,13 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
         // first time step.
         assert( t == 0 );
 
-        const auto num_active_var = linear_function->get_num_active_var();
+        const auto num_active_var = lf->get_num_active_var();
         inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
 
        auto commitment_t = &commitment[ t ];
        auto coefficient = scale * inertia_commitment[ t ];
-       linear_function->add_variable( commitment_t , coefficient );
+       lf->add_variable( commitment_t , coefficient );
       }
 
       auto active_power = unit_block->get_active_power( generator );
@@ -931,13 +933,13 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
         // first time step.
         assert( t == 0 );
 
-        const auto num_active_var = linear_function->get_num_active_var();
+        const auto num_active_var = lf->get_num_active_var();
         inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
        }
 
        auto active_power_t = &active_power[ t ];
        auto coefficient = scale * inertia_power[ t ];
-       linear_function->add_variable( active_power_t , coefficient );
+       lf->add_variable( active_power_t , coefficient );
       }
 
      }  // end( for( generator ) )
@@ -947,7 +949,7 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
    const auto demand = get_inertia_demand()[ zone_id ][ t ];
    v_InertiaDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
-   v_InertiaDemand_Const[ t ][ zone_id ].set_function( linear_function );
+   v_InertiaDemand_Const[ t ][ zone_id ].set_function( lf );
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
@@ -979,7 +981,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
       // Terms associated with active power
-      auto linear_function = new LinearFunction();
+      LinearFunction::v_coeff_pair vars;
 
       for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
@@ -999,7 +1001,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto active_power = &ap[ t ];
          auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
          auto coefficient = scale * rho;
-         linear_function->add_variable( active_power , coefficient );
+         vars.push_back( std::make_pair( active_power , coefficient ) );
         }
        }
       }
@@ -1023,10 +1025,10 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][pollutant][ h ];
 
-         auto linear_function = dynamic_cast< LinearFunction * >
+         auto lf = dynamic_cast< LinearFunction * >
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function() );
 
-         linear_function->add_variable( &heat, rho );
+         lf->add_variable( &heat, rho );
         }
        }
       }
@@ -1036,8 +1038,8 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
        (
         v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function
-       ( linear_function );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
+       new LinearFunction( std::move( vars ) ) );
      }
     }
    }
@@ -1051,7 +1053,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
       // Terms associated with active power
-      auto linear_function = new LinearFunction();
+      LinearFunction::v_coeff_pair vars;
 
       Index pollutant_zone = 0;
       for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
@@ -1084,7 +1086,7 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
             auto active_power = &ap[ t ];
             auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
             auto coefficient = scale * rho;
-            linear_function->add_variable( active_power , coefficient );
+            vars.push_back( std::make_pair( active_power , coefficient ) );
            }
           }
          }
@@ -1113,10 +1115,10 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
          auto heat = get_heat_block()[h]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
 
-         auto linear_function = dynamic_cast< LinearFunction * >
+         auto lf = dynamic_cast< LinearFunction * >
          ( v_PollutantBudget_Const[pollutant][zone_id].get_function() );
 
-         linear_function->add_variable( &heat, rho );
+         lf->add_variable( &heat, rho );
         }
        }
       }
@@ -1126,15 +1128,17 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
        (
         v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function
-       ( linear_function );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
+       new LinearFunction( std::move( vars ) ) );
      }
     }
    }
   }
-  add_static_constraint
-   ( v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
+
+  add_static_constraint(
+   v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
+
 }  // end( UCBlock::generate_pollutant_budget_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -1211,10 +1215,10 @@ void UCBlock::generate_heat_constraints( void ) {
      auto heat = get_heat_block() [ heat_unit_id ]->get_heat()[ t ][generator_id];
      auto power_heat_rho = get_power_heat_rho()[ generator_id ];
 
-     auto linear_function = dynamic_cast< LinearFunction * >
+     auto lf = dynamic_cast< LinearFunction * >
      ( v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() );
-     linear_function->add_variable( &heat, 1, 0 );
-     linear_function->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
+     lf->add_variable( &heat, 1, 0 );
+     lf->add_variable( &active_power[ t ][ generator_id ], -power_heat_rho );
     }
    }
   }
@@ -1623,6 +1627,7 @@ void UCBlock::update_node_injection_constraints(
    }  // end( for( t ) )
   }
  }  // end( if( number_nodes > 0 ) )
+
 }  // end( UCBlock::update_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -1721,6 +1726,7 @@ void UCBlock::update_primary_demand_constraints(
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
+
 }  // end( UCBlock::update_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -1820,6 +1826,7 @@ void UCBlock::update_secondary_demand_constraints(
 
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
+
 }  // end( UCBlock::update_secondary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -1958,6 +1965,7 @@ void UCBlock::update_inertia_demand_constraints(
    }  // end( for( node_id ) )
   }  // end( for( zone_id ) )
  }  // end( for( t ) )
+
 }  // end( UCBlock::update_inertia_demand_constraints )
 
 /*--------------------------------------------------------------------------*/

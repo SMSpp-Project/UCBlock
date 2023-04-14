@@ -36,8 +36,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "PolyhedralFunctionBlock.h"
+
 #include "HydroUnitBlock.h"
+
 #include "FRealObjective.h"
 
 /*--------------------------------------------------------------------------*/
