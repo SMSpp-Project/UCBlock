@@ -181,7 +181,15 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  ::deserialize( group , f_MinDownTime , "MinDownTime" );
 
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
+
   ::deserialize( group , f_InitialPower , "InitialPower" );
+
+ else
+
+  if( f_InitialPower == 0 )
+   f_InitUpDownTime = - f_MinDownTime;
+  else
+   f_InitUpDownTime = f_MinUpTime;
 
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
   v_MinPower.resize( f_time_horizon );
