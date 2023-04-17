@@ -502,14 +502,14 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
  ModParam issueAMod ) {
  if( ! max_power_Const.empty() )
   for( auto t : time )
-   max_power_Const[ t ].set_rhs
-    ( f_kappa * f_gamma * v_MaxPower[ t ] , issueAMod );
+   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
+                                 issueAMod );
    // FIXME: use a GroupModification
 
  if( ! active_power_bounds_Const.empty() )
   for( auto t : time )
-   active_power_bounds_Const[ t ].set_rhs
-    ( f_kappa * v_MaxPower[ t ] , issueAMod );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
+                                           issueAMod );
    // FIXME: use a GroupModification
 }
 
@@ -520,14 +520,14 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
  ModParam issueAMod ) {
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
-   max_power_Const[ t ].set_rhs
-    ( f_kappa * f_gamma * v_MaxPower[ t ] , issueAMod );
+   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
+                                 issueAMod );
    // FIXME: use a GroupModification
 
  if( ! active_power_bounds_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
-   active_power_bounds_Const[ t ].set_rhs
-    ( f_kappa * v_MaxPower[ t ] , issueAMod );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
+                                           issueAMod );
    // FIXME: use a GroupModification
 }
 
@@ -692,10 +692,10 @@ void IntermittentUnitBlock::set_kappa(
 
     if( ! active_power_bounds_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-      active_power_bounds_Const[ t ].set_lhs
-       ( f_kappa * v_MinPower[ t ] , issueAMod );
-      active_power_bounds_Const[ t ].set_rhs
-       ( f_kappa * v_MaxPower[ t ] , issueAMod );
+      active_power_bounds_Const[ t ].set_lhs(
+       f_kappa * v_MinPower[ t ] , issueAMod );
+      active_power_bounds_Const[ t ].set_rhs(
+       f_kappa * v_MaxPower[ t ] , issueAMod );
      }
 
     if( ! min_power_Const.empty() )
@@ -705,8 +705,8 @@ void IntermittentUnitBlock::set_kappa(
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      max_power_Const[ t ].set_rhs
-       ( f_gamma * f_kappa * v_MaxPower[ t ] , issueAMod );
+      max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] ,
+                                    issueAMod );
    }  // end( constraints_generated )
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )

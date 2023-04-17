@@ -1483,16 +1483,16 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( auto arc : arcs )
-   RampUp_Const[ 0 ][ arc ].set_rhs
-    ( get_initial_flow_rate( arc ) + v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
+                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints
  if( ! ( RampDown_Const.empty() || v_DeltaRampDown.empty() ) ) {
   for( auto arc : arcs )
-   RampDown_Const[ 0 ][ arc ].set_lhs
-    ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
-      issueAMod );
+   RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
+                                       v_DeltaRampDown[ 0 ][ arc ] ,
+                                       issueAMod );
  }
 }  // end( HydroUnitBlock::update_initial_flow_rate_in_constraints )
 
@@ -1508,8 +1508,8 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
-   RampUp_Const[ 0 ][ arc ].set_rhs
-    ( get_initial_flow_rate( arc ) + v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+   RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
+                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
  }
 
  // ramp-down constraints

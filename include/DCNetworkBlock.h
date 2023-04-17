@@ -535,7 +535,7 @@ class DCNetworkBlock : public NetworkBlock
   * \f$ V_l \f$ respectively.
   *
   *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
-  *    model:
+  *    model.
   *    In this special case the susceptance value for each line is equal to
   *    zero. In fact, this corresponds to a model with a single connected grid
   *    composed of HVDC lines only. In this case, the flow limit equations
@@ -570,12 +570,12 @@ class DCNetworkBlock : public NetworkBlock
   *     -V_l \leq F_l                         \quad l \in \mathcal{L} \quad (4)
   *    \f]
   *
-  *  - DCNetworkBlock with just AC lines model:
-  *    By considering a \f$ |L| \times |N| \f$ matrix
-  *    \f$ B \f$ which constitutes the so-called Power Transfer Distribution
-  *    Factor matrix (PTDF-matrix) which represents the linear relationship
-  *    between power injections at each node of the grid and active power flows
-  *    through the transmission lines.
+  *  - DCNetworkBlock with just AC lines model.
+  *    By considering a \f$ |L| \times |N| \f$ matrix \f$ B \f$ which
+  *    constitutes the so-called Power Transfer Distribution Factor matrix
+  *    (PTDF-matrix) which represents the linear relationship between power
+  *    injections at each node of the grid and active power flows through the
+  *    transmission lines.
   *
   *  The flow limit equations can be written as follow:
   *
@@ -585,7 +585,7 @@ class DCNetworkBlock : public NetworkBlock
   *                                           \quad l \in \mathcal{L} \quad (5)
   *  \f]
   *
-  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines):
+  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines).
   *    This is the case of an hybrid grid constituted of both AC and HVDC (High
   *    Voltage Direct Current) lines. The DC lines are characterized by the
   *    fact that the flow passing through those lines is fully controllable.
@@ -593,12 +593,12 @@ class DCNetworkBlock : public NetworkBlock
   *    connected AC lines. To use the matrix formalism, we first introduce some
   *    additional notations:
   *
-  *    - Lines of the grid are indexed by \f$ l = 1,···|L^{ac}| \f$ for AC
+  *    - Lines of the grid are indexed by \f$ l = 1,··· ,|L^{ac}| \f$ for AC
   *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
   *      refer to DC lines.
   *
-  *    - For any \f$ l \in \{1,···|L^{ac}| \}\f$ and
-  *      \f$ k \in \{1,···|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
+  *    - For any \f$ l \in \{1,··· ,|L^{ac}| \}\f$ and
+  *      \f$ k \in \{1,··· ,|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
   *      nodes related by the AC line indexed by \f$ l \f$ and
   *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
   *      line indexed by \f$ k+|L^{dc}| \f$.
@@ -1162,14 +1162,11 @@ class DCNetworkBlock : public NetworkBlock
  /// AC power flow limit constraints
  std::vector< FRowConstraint > v_AC_power_flow_limit_const;
 
- /// AC_HVDC power flow limit constraints
+ /// AC/HVDC power flow limit constraints
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_limit_const;
 
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
-
- /// AC_HVDC power flow constraints
- std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
 
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;

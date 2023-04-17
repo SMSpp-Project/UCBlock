@@ -1033,9 +1033,8 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
       }
       */
 
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-       (
-        v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs(
+       v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
        new LinearFunction( std::move( vars ) ) );
@@ -1123,9 +1122,8 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
       }
       */
 
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs
-       (
-        v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
+      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs(
+       v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
       v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
        new LinearFunction( std::move( vars ) ) );
@@ -1206,8 +1204,8 @@ void UCBlock::generate_heat_constraints( void ) {
       v_power_Heat_Rho_Const[ t ][ constraint_id ].
        set_lhs( -Inf< double >() );
       v_power_Heat_Rho_Const[ t ][ constraint_id ].set_rhs( 0.0 );
-      v_power_Heat_Rho_Const[ t ][ constraint_id ].set_function
-       ( new LinearFunction() );
+      v_power_Heat_Rho_Const[ t ][ constraint_id ].set_function(
+       new LinearFunction() );
      }
 
      auto active_power = get_unit_block( generator_id )->get_active_power();

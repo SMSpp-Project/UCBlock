@@ -688,8 +688,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    lower_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                          -1.0 ) );
 
-  MinPower_Const[ t ].set_rhs( Inf< double >() );
   MinPower_Const[ t ].set_lhs( 0.0 );
+  MinPower_Const[ t ].set_rhs( Inf< double >() );
   MinPower_Const[ t ].set_function(
    new LinearFunction( std::move( lower_vars ) ) );
  }
@@ -856,7 +856,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
    CommitmentDesign_Const[ t ].set_rhs( 0.0 );
-
    CommitmentDesign_Const[ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }

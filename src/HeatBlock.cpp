@@ -267,10 +267,10 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
-   v_HeatBounds_Const[ t ][ unit_id ].set_lhs
-    ( v_min_heat_production[ t ][ unit_id ] );
-   v_HeatBounds_Const[ t ][ unit_id ].set_rhs
-    ( v_max_heat_production[ t ][ unit_id ] );
+   v_HeatBounds_Const[ t ][ unit_id ].set_lhs(
+    v_min_heat_production[ t ][ unit_id ] );
+   v_HeatBounds_Const[ t ][ unit_id ].set_rhs(
+    v_max_heat_production[ t ][ unit_id ] );
    v_HeatBounds_Const[ t ][ unit_id ].set_variable(
     &v_heat[ t ][ unit_id ] );
   }
