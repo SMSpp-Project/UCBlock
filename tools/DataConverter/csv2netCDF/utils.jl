@@ -110,7 +110,6 @@ function user_names(gen_data, users_data)
     return sort!(user_list)
 end
 
-
 """
 Function to parse a string value of a profile to load the corresponding dataframe
 """
@@ -193,7 +192,6 @@ function parse_dataprofile(gen_config, data, profile_name, profile_value::Dict)
     return ret_value
 end
 
-
 """
 Function to parse a string value of a profile to load the corresponding dataframe
 """
@@ -274,7 +272,6 @@ end
 
 parse_to_float(x::AbstractString) = parse(Float64, x)
 parse_to_float(x::Any) = Float64(x)
-
 
 "Function to parse the peak power categories and tariff"
 function parse_peak_quantity_by_time_vectors(
