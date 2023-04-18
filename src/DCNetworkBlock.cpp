@@ -387,6 +387,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    LinearFunction::v_coeff_pair vars;
 
+   const auto kappa = get_kappa( line_id );
+
    double constant_term = 0;
 
    for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id ) {
@@ -400,9 +402,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    }
 
    v_AC_power_flow_limit_const[ line_id ].set_lhs(
-    get_min_power_flow( line_id ) - constant_term );
+    kappa * get_min_power_flow( line_id ) - constant_term );
    v_AC_power_flow_limit_const[ line_id ].set_rhs(
-    get_max_power_flow( line_id ) - constant_term );
+    kappa * get_max_power_flow( line_id ) - constant_term );
    v_AC_power_flow_limit_const[ line_id ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
@@ -591,13 +593,12 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+                                        Block::Subset && subset ,
+                                        const bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -664,12 +665,11 @@ void DCNetworkBlock::set_active_demand(
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+                                        Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , get_number_nodes() );
  if( rng.second <= rng.first )
   return;
@@ -728,8 +728,8 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                                 Block::Subset && subset ,
                                 const bool ordered ,
                                 c_ModParam issuePMod ,
-                                c_ModParam issueAMod ) {
-
+                                c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -746,6 +746,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
   if( i >= v_kappa.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_kappa: invalid value in"
                                  " subset: " + std::to_string( i ) + "." ) );
+
   const auto kappa = *( values++ );
   if( v_kappa[ i ] != kappa ) {
    identical = false;
@@ -754,6 +755,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
     v_kappa[ i ] = kappa;
   }
  }
+
  if( identical )
   return;  // nothing changes; return
 
@@ -773,9 +775,15 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
     }
     break;
    }
-   case( kAC ):
-    // TODO
+   case( kAC ): {
+    for( auto i : subset ) {
+     v_AC_power_flow_limit_const[ i ].set_lhs(
+      v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
+     v_AC_power_flow_limit_const[ i ].set_rhs(
+      v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
+    }
     break;
+   }
    case( kAC_HVDC ):
     // TODO
     break;
@@ -792,15 +800,15 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                             this , DCNetworkBlockMod::eSetKappa , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( DCNetworkData::set_kappa )
+}  // end( DCNetworkData::set_kappa( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                                 Block::Range rng ,
                                 c_ModParam issuePMod ,
-                                c_ModParam issueAMod ) {
-
+                                c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , get_number_lines() );
  if( rng.second <= rng.first )
   return;
@@ -837,9 +845,15 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
      }
      break;
     }
-    case( kAC ):
-     // TODO
+    case( kAC ): {
+     for( Index i = rng.first ; i < rng.second ; ++i ) {
+      v_AC_power_flow_limit_const[ i ].set_lhs(
+       v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
+      v_AC_power_flow_limit_const[ i ].set_rhs(
+       v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
+     }
      break;
+    }
     case( kAC_HVDC ):
      // TODO
      break;
@@ -854,7 +868,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
                             this , DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( DCNetworkData::set_kappa )
+}  // end( DCNetworkData::set_kappa( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/

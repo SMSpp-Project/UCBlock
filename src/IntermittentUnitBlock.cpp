@@ -59,8 +59,8 @@ SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 /*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-IntermittentUnitBlock::~IntermittentUnitBlock() {
-
+IntermittentUnitBlock::~IntermittentUnitBlock()
+{
  Constraint::clear( min_power_Const );
  Constraint::clear( max_power_Const );
  Constraint::clear( active_power_bounds_design_Const );
@@ -74,7 +74,8 @@ IntermittentUnitBlock::~IntermittentUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -129,7 +130,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::check_data_consistency( void ) const {
+void IntermittentUnitBlock::check_data_consistency( void ) const
+{
  // Minimum and maximum power
 
  assert( v_MinPower.size() == f_time_horizon );
@@ -179,7 +181,6 @@ void IntermittentUnitBlock::check_data_consistency( void ) const {
 
 void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
-
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -221,9 +222,8 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::generate_abstract_constraints(
- Configuration * stcc ) {
-
+void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -350,8 +350,8 @@ void IntermittentUnitBlock::generate_abstract_constraints(
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::generate_objective( Configuration * objc ) {
-
+void IntermittentUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
@@ -394,8 +394,8 @@ void IntermittentUnitBlock::set_BlockConfig( BlockConfig * newBC ,
 /*--------------------------------------------------------------------------*/
 
 bool IntermittentUnitBlock::is_feasible( bool useabstract ,
-                                         Configuration * fsbc ) {
-
+                                         Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -440,7 +440,8 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
+void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  UnitBlock::serialize( group );
 
  // Serialize scalar variables
@@ -497,9 +498,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::update_max_power_in_constraints(
- const Subset & time ,
- ModParam issueAMod ) {
+void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
+                                                        ModParam issueAMod )
+{
  if( ! max_power_Const.empty() )
   for( auto t : time )
    max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
@@ -511,13 +512,13 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
    // FIXME: use a GroupModification
-}
+}  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::update_max_power_in_constraints(
- const Range & time ,
- ModParam issueAMod ) {
+void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
+                                                        ModParam issueAMod )
+{
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
    max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
@@ -529,15 +530,16 @@ void IntermittentUnitBlock::update_max_power_in_constraints(
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
    // FIXME: use a GroupModification
-}
+}  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
                                                Subset && subset ,
-                                               bool ordered ,
+                                               const bool ordered ,
                                                ModParam issuePMod ,
-                                               ModParam issueAMod ) {
+                                               ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -557,7 +559,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  for( auto t : subset ) {
   if( t >= v_MaxPower.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
-                                  " invalid value in subset." ) );
+                                 " invalid value in subset." ) );
   auto max_power = *( values++ );
   if( v_MaxPower[ t ] != max_power ) {
    identical = false;
@@ -576,7 +578,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
      ( not_dry_run( issueAMod ) ) &&
      ( constraints_generated() ) )
   // Change the abstract representation
-  update_max_power_in_constraints( subset , issueAMod );
+  update_max_power_in_cnstrs( subset , issueAMod );
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
@@ -588,13 +590,15 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
                             std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( IntermittentUnitBlock::set_maximum_power )
+}  // end( IntermittentUnitBlock::set_maximum_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
+void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
+                                               Range rng ,
                                                ModParam issuePMod ,
-                                               ModParam issueAMod ) {
+                                               ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -626,7 +630,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_max_power_in_constraints( rng , issueAMod );
+   update_max_power_in_cnstrs( rng , issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -635,17 +639,16 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
                             this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( IntermittentUnitBlock::set_maximum_power )
+}  // end( IntermittentUnitBlock::set_maximum_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::scale(
- std::vector< double >::const_iterator values ,
- Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void IntermittentUnitBlock::scale( std::vector< double >::const_iterator values ,
+                                   Subset && subset ,
+                                   const bool ordered ,
+                                   c_ModParam issuePMod ,
+                                   c_ModParam issueAMod )
+{
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
 
@@ -669,13 +672,12 @@ void IntermittentUnitBlock::scale(
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa(
- std::vector< double >::const_iterator values ,
- Subset && subset ,
- const bool ordered ,
- ModParam issuePMod ,
- ModParam issueAMod ) {
-
+void IntermittentUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                       Subset && subset ,
+                                       const bool ordered ,
+                                       ModParam issuePMod ,
+                                       ModParam issueAMod )
+{
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
 
@@ -717,22 +719,22 @@ void IntermittentUnitBlock::set_kappa(
                             this , IntermittentUnitBlockMod::eSetKappa ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( IntermittentUnitBlock::set_kappa )
+}  // end( IntermittentUnitBlock::set_kappa( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa
- ( std::vector< double >::const_iterator values , Range rng ,
-   ModParam issuePMod , ModParam issueAMod ) {
-
+void IntermittentUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                       Range rng ,
+                                       ModParam issuePMod , ModParam issueAMod )
+{
  if( rng.first >= rng.second )
-  return; // An empty Range was given: no operation is performed.
+  return; // An empty Range was given: no operation is performed
 
  Subset subset( 1 , 0 );
 
  set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
 
-}  // end( IntermittentUnitBlock::set_kappa )
+}  // end( IntermittentUnitBlock::set_kappa( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File IntermittentUnitBlock.cpp -------------------*/

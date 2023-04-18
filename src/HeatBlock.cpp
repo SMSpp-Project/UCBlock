@@ -58,8 +58,8 @@ SMSpp_insert_in_factory_cpp_1( HeatBlock );
 /*--------------------------- METHODS OF HeatBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-HeatBlock::~HeatBlock() {
-
+HeatBlock::~HeatBlock()
+{
  Constraint::clear( v_EvolutionStoredHeat_Const );
  Constraint::clear( v_HeatDemand_Const );
 
@@ -73,8 +73,8 @@ HeatBlock::~HeatBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
-
+void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
+{
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -105,8 +105,8 @@ void HeatBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
-
+void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
+{
  auto NumberIntervals = group.getDim( "NumberIntervals" );
  if( NumberIntervals.isNull() )
   f_number_intervals = 0;
@@ -148,8 +148,8 @@ void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::deserialize( const netCDF::NcGroup & group ) {
-
+void HeatBlock::deserialize( const netCDF::NcGroup & group )
+{
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
 
@@ -185,8 +185,8 @@ void HeatBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
-
+unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv )
+{
  if( ! stvv )
   return( 0 );
 
@@ -210,8 +210,8 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void HeatBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( ! v_heat.empty() )
   // the abstract variables have already been generated
   return;
@@ -249,21 +249,20 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv ) {
   }
   k *= 2;
  }
-
 }  // end( HeatBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void HeatBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( ! v_HeatBounds_Const.empty() )
   return; // constraints have already been generated
 
  // Satisfaction Heat Bounds constraints
 
- v_HeatBounds_Const.resize
-  ( boost::multi_array< BoxConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_number_heat_units ] );
+ v_HeatBounds_Const.resize(
+  boost::multi_array< BoxConstraint , 2 >::
+  extent_gen()[ f_time_horizon ][ f_number_heat_units ] );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id ) {
@@ -274,17 +273,21 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
    v_HeatBounds_Const[ t ][ unit_id ].set_variable(
     &v_heat[ t ][ unit_id ] );
   }
+
  add_static_constraint( v_HeatBounds_Const );
 
  // Satisfaction Heat Storage Bounds constraints
 
  if( ! v_heat_available.empty() ) {
+
   v_HeatStorageBounds_Const.resize( f_time_horizon );
+
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_HeatStorageBounds_Const[ t ].set_lhs( v_min_heat_storage[ t ] );
    v_HeatStorageBounds_Const[ t ].set_rhs( v_max_heat_storage[ t ] );
    v_HeatStorageBounds_Const[ t ].set_variable( &v_heat_available[ t ] );
   }
+
   add_static_constraint( v_HeatStorageBounds_Const );
  }
 
@@ -355,13 +358,12 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   add_static_constraint( v_HeatDemand_Const );
  }
-
 }  // end( HeatBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::generate_objective( Configuration * objc ) {
-
+void HeatBlock::generate_objective( Configuration * objc )
+{
  if( get_objective() )  // an objective is there already
   return;               // cowardly (and silently) return
 
@@ -390,9 +392,10 @@ void HeatBlock::generate_objective( Configuration * objc ) {
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE HeatBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-void HeatBlock::serialize( netCDF::NcGroup & group ) const {
-
+void HeatBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
+
  group.addDim( "TimeHorizon" , f_time_horizon );
 
  auto NumberIntervals = group.addDim( "NumberIntervals" , f_number_intervals );

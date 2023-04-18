@@ -1574,7 +1574,8 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_inflow( std::vector< double >::const_iterator values ,
-                  Subset && subset , bool ordered = false ,
+                  Subset && subset ,
+                  const bool ordered = false ,
                   ModParam issuePMod = eNoBlck ,
                   ModParam issueAMod = eNoBlck );
 
@@ -1584,7 +1585,8 @@ class HydroUnitBlock : public UnitBlock
                   ModParam issueAMod = eNoBlck );
 
  void set_inertia_power( std::vector< double >::const_iterator values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1594,7 +1596,8 @@ class HydroUnitBlock : public UnitBlock
                          ModParam issueAMod = eNoBlck );
 
  void set_initial_volume( std::vector< double >::const_iterator values ,
-                          Subset && subset , bool ordered = false ,
+                          Subset && subset ,
+                          const bool ordered = false ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
@@ -1604,7 +1607,8 @@ class HydroUnitBlock : public UnitBlock
                           ModParam issueAMod = eNoBlck );
 
  void set_initial_flow_rate( std::vector< double >::const_iterator values ,
-                             Subset && subset , bool ordered = false ,
+                             Subset && subset ,
+                             const bool ordered = false ,
                              ModParam issuePMod = eNoBlck ,
                              ModParam issueAMod = eNoBlck );
 
@@ -1856,8 +1860,8 @@ class HydroUnitBlock : public UnitBlock
   * @param arcs The indices of the arcs whose constraints must be updated.
   */
 
- void update_initial_flow_rate_in_constraints
-  ( Range arcs , c_ModParam issueAMod = eNoBlck );
+ void update_initial_flow_rate_in_cnstrs( Range arcs ,
+                                          c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the given arcs at time 0
@@ -1870,8 +1874,8 @@ class HydroUnitBlock : public UnitBlock
   *        be updated.
   */
 
- void update_initial_flow_rate_in_constraints
-  ( const Block::Subset & arcs , c_ModParam issueAMod = eNoBlck );
+ void update_initial_flow_rate_in_cnstrs( const Block::Subset & arcs ,
+                                          c_ModParam issueAMod = eNoBlck );
 
 };  // end( class( HydroUnitBlock ) )
 

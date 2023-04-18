@@ -1365,7 +1365,8 @@ class ThermalUnitBlock : public UnitBlock
   * an exception is thrown. */
 
  void set_availability( MF_dbl_it values ,
-                        Subset && subset , bool ordered = false ,
+                        Subset && subset ,
+                        const bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1395,7 +1396,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_maximum_power( MF_dbl_it values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1408,7 +1410,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_startup_costs( MF_dbl_it values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1421,7 +1424,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_const_term( MF_dbl_it values ,
-                      Subset && subset , bool ordered = false ,
+                      Subset && subset ,
+                      const bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
@@ -1434,7 +1438,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_linear_term( MF_dbl_it values ,
-                       Subset && subset , bool ordered = false ,
+                       Subset && subset ,
+                       const bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
@@ -1447,7 +1452,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_quad_term( MF_dbl_it values ,
-                     Subset && subset , bool ordered = false ,
+                     Subset && subset ,
+                     const bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
@@ -1461,7 +1467,7 @@ class ThermalUnitBlock : public UnitBlock
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                          Subset && subset ,
-                                         bool ordered = false ,
+                                         const bool ordered = false ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eNoBlck );
 
@@ -1476,7 +1482,7 @@ class ThermalUnitBlock : public UnitBlock
 
  void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                            Subset && subset ,
-                                           bool ordered = false ,
+                                           const bool ordered = false ,
                                            ModParam issuePMod = eNoBlck ,
                                            ModParam issueAMod = eNoBlck );
 
@@ -1497,7 +1503,8 @@ class ThermalUnitBlock : public UnitBlock
   * zero. */
 
  void set_initial_power( MF_dbl_it values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1517,7 +1524,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_init_updown_time( MF_int_it values ,
-                            Subset && subset , bool ordered = false ,
+                            Subset && subset ,
+                            const bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
@@ -1543,7 +1551,8 @@ class ThermalUnitBlock : public UnitBlock
   * @param issueAMod Controls how abstract Modification are issued. */
 
  void scale( std::vector< double >::const_iterator values ,
-             Subset && subset , const bool ordered = false ,
+             Subset && subset ,
+             const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
 
@@ -1807,7 +1816,7 @@ class ThermalUnitBlock : public UnitBlock
   * the left-hand side of the ramp-down constraints at time 0 (which are the
   * constraints that depend on the initial power). */
 
- void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+ void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if the given availability is consistent

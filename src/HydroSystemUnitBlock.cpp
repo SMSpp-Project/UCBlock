@@ -44,7 +44,8 @@ SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 /*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 
-HydroSystemUnitBlock::~HydroSystemUnitBlock() {
+HydroSystemUnitBlock::~HydroSystemUnitBlock()
+{
  for( auto block : v_Block )
   delete block;
  v_Block.clear();
@@ -54,7 +55,8 @@ HydroSystemUnitBlock::~HydroSystemUnitBlock() {
 
 /*--------------------------------------------------------------------------*/
 
-HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
+HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
+{
  return( dynamic_cast< HydroUnitBlock * >( v_Block[ i ] ) );
 }
 
@@ -62,7 +64,8 @@ HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -80,9 +83,8 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize_sub_blocks
- ( const netCDF::NcGroup & group ) {
-
+void HydroSystemUnitBlock::deserialize_sub_blocks( const netCDF::NcGroup & group )
+{
  for( auto block : v_Block )
   delete block;
  v_Block.clear();
@@ -95,7 +97,8 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
 
 /*--------------------------------------------------------------------------*/
 
-Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const {
+Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const
+{
  Index total_number_reservoirs = 0;
  assert( v_Block.size() >= f_number_hydro_units );
  for( Index i = 0 ; i < f_number_hydro_units ; ++i )
@@ -106,9 +109,10 @@ Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize_polyhedral_function_block
- ( const netCDF::NcGroup & group , const std::string & sub_group_name ) {
-
+void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
+ const netCDF::NcGroup & group ,
+ const std::string & sub_group_name )
+{
  if( group.isNull() )
   return;
 
@@ -141,10 +145,11 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::deserialize_sub_blocks
- ( const netCDF::NcGroup & group , const std::string & sub_group_name_prefix ,
-   const Index num_sub_blocks ) {
-
+void HydroSystemUnitBlock::deserialize_sub_blocks(
+ const netCDF::NcGroup & group ,
+ const std::string & sub_group_name_prefix ,
+ const Index num_sub_blocks )
+{
  for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
 
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
@@ -162,8 +167,8 @@ void HydroSystemUnitBlock::deserialize_sub_blocks
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -196,8 +201,8 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
-
+void HydroSystemUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
@@ -220,8 +225,8 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc ) {
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
 
  auto dim_number_hydro_units = group.addDim( "NumberHydroUnits" ,

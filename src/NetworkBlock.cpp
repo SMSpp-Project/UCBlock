@@ -54,8 +54,8 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void NetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
 
@@ -73,7 +73,8 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
-Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
+Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
+{
  Index solution_type = 0;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
@@ -104,7 +105,8 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys ) {
 /*--------------------------------------------------------------------------*/
 
 NetworkBlock::NetworkData::NetworkDataFactoryMap &
-NetworkBlock::NetworkData::f_factory( void ) {
+NetworkBlock::NetworkData::f_factory( void )
+{
  static NetworkDataFactoryMap s_factory;
  return( s_factory );
 }

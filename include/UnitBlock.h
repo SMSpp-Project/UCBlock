@@ -581,7 +581,8 @@ class UnitBlock : public Block
   * @param issueAMod Controls how abstract Modification are issued. */
 
  virtual void scale( std::vector< double >::const_iterator values ,
-                     Subset && subset , const bool ordered = false ,
+                     Subset && subset ,
+                     const bool ordered = false ,
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck ) { }
 

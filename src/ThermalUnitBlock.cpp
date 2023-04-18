@@ -141,7 +141,8 @@ ThermalUnitBlock::~ThermalUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -182,13 +183,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
 
   ::deserialize( group , f_InitialPower , "InitialPower" );
-
- else
-
-  if( f_InitialPower == 0 )
-   f_InitUpDownTime = - f_MinDownTime;
-  else
-   f_InitUpDownTime = f_MinUpTime;
 
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
   v_MinPower.resize( f_time_horizon );
@@ -242,7 +236,18 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::check_data_consistency( void ) const {
+void ThermalUnitBlock::check_data_consistency( void ) const
+{
+
+ // InvestmentCost- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ( f_InvestmentCost != 0 ) && ( f_InitUpDownTime != 0 ) )
+  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: the "
+                           "presence of the investment cost of the thermal "
+                           "allows the model to switch into the strategic "
+                           "scenario mode, but the presence of also the "
+                           "initial up/down time, typical of the operative "
+                           "scenario, is incompatible." ) );
+
  // Minimum and maximum power - - - - - - - - - - - - - - - - - - - - - - - -
  assert( v_MinPower.size() == f_time_horizon );
  assert( v_MaxPower.size() == f_time_horizon );
@@ -336,8 +341,8 @@ void ThermalUnitBlock::check_data_consistency( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -478,8 +483,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -870,8 +875,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::generate_objective( Configuration * objc ) {
-
+void ThermalUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return;  // Objective has already been generated
 
@@ -980,8 +985,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc ) {
 /*---------------- METHODS FOR CHECKING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 
-bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
+bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -1037,8 +1042,8 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  UnitBlock::serialize( group );
 
  // Serialize scalar variables
@@ -1107,19 +1112,22 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
+void ThermalUnitBlock::add_Modification( sp_Mod mod , ChnlName chnl )
+{
  if( mod->concerns_Block() ) {
   mod->concerns_Block( false );
   guts_of_add_Modification( mod.get() , chnl );
  }
 
  Block::add_Modification( mod , chnl );
-}
+
+}  // end( ThermalUnitBlock::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_availability_dependents( Index t ,
-                                                       ModParam issueAMod ) {
+                                                       ModParam issueAMod )
+{
  if( ! constraints_generated() )
   return;
 
@@ -1181,9 +1189,12 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
-                                         bool ordered , ModParam issuePMod ,
-                                         ModParam issueAMod ) {
+void ThermalUnitBlock::set_availability( MF_dbl_it values ,
+                                         Subset && subset ,
+                                         const bool ordered ,
+                                         ModParam issuePMod ,
+                                         ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1241,13 +1252,14 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Subset && subset ,
                             this , ThermalUnitBlockMod::eSetAv , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_availability )
+}  // end( ThermalUnitBlock::set_availability( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
                                          ModParam issuePMod ,
-                                         ModParam issueAMod ) {
+                                         ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1297,14 +1309,16 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
                             this , ThermalUnitBlockMod::eSetAv , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_availability )
+}  // end( ThermalUnitBlock::set_availability( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
-                                          Subset && subset , bool ordered ,
+                                          Subset && subset ,
+                                          const bool ordered ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1345,13 +1359,15 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                             this , ThermalUnitBlockMod::eSetMaxP , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_maximum_power )
+}  // end( ThermalUnitBlock::set_maximum_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
+                                          Range rng ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1392,12 +1408,12 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values , Range rng ,
                             this , ThermalUnitBlockMod::eSetMaxP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_maximum_power )
+}  // end( ThermalUnitBlock::set_maximum_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::update_initial_power_in_constraints(
- ModParam issueAMod ) {
+void ThermalUnitBlock::update_initial_power_in_cnstrs( ModParam issueAMod )
+{
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) )
   if( f_InitUpDownTime > 0 )
    RampUp_Const[ 0 ].set_rhs( v_DeltaRampUp[ 0 ] + f_InitialPower ,
@@ -1407,14 +1423,16 @@ void ThermalUnitBlock::update_initial_power_in_constraints(
   if( f_InitUpDownTime > 0 )
    RampDown_Const[ 0 ].set_lhs( f_InitialPower , issueAMod );
 
-}  // end( ThermalUnitBlock::update_initial_power_in_constraints )
+}  // end( ThermalUnitBlock::update_initial_power_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
-                                          Subset && subset , bool ordered ,
+                                          Subset && subset ,
+                                          const bool ordered ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1435,7 +1453,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
 
  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
-  update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
+  update_initial_power_in_cnstrs( un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
@@ -1443,13 +1461,15 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
                             this , ThermalUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_initial_power )
+}  // end( ThermalUnitBlock::set_initial_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
+                                          Range rng ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  rng.second = std::min( rng.second , Index( 1 ) );
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
   return; // 0 does not belong to the range; return
@@ -1465,7 +1485,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
 
  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
   // Change the abstract representation
-  update_initial_power_in_constraints( un_ModBlock( issueAMod ) );
+  update_initial_power_in_cnstrs( un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
@@ -1473,14 +1493,16 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
                             this , ThermalUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_initial_power )
+}  // end( ThermalUnitBlock::set_initial_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
-                                          Subset && subset , bool ordered ,
+                                          Subset && subset ,
+                                          const bool ordered ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1539,9 +1561,11 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
+                                          Range rng ,
                                           ModParam issuePMod ,
-                                          ModParam issueAMod ) {
+                                          ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1599,9 +1623,12 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
-                                       bool ordered , ModParam issuePMod ,
-                                       ModParam issueAMod ) {
+void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
+                                       Subset && subset ,
+                                       const bool ordered ,
+                                       ModParam issuePMod ,
+                                       ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1661,9 +1688,11 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
+                                       Range rng ,
                                        ModParam issuePMod ,
-                                       ModParam issueAMod ) {
+                                       ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1722,9 +1751,12 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
-                                        bool ordered , ModParam issuePMod ,
-                                        ModParam issueAMod ) {
+void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
+                                        Subset && subset ,
+                                        const bool ordered ,
+                                        ModParam issuePMod ,
+                                        ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1782,9 +1814,11 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
+                                        Range rng ,
                                         ModParam issuePMod ,
-                                        ModParam issueAMod ) {
+                                        ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1839,9 +1873,12 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
-                                      bool ordered , ModParam issuePMod ,
-                                      ModParam issueAMod ) {
+void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
+                                      Subset && subset ,
+                                      const bool ordered ,
+                                      ModParam issuePMod ,
+                                      ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1909,7 +1946,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Subset && subset ,
 
 void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
                                       ModParam issuePMod ,
-                                      ModParam issueAMod ) {
+                                      ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -1971,10 +2009,11 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
 
 void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                           Subset && subset ,
-                                                          bool ordered ,
+                                                          const bool ordered ,
                                                           ModParam issuePMod ,
-                                                          ModParam issueAMod ) {
- if( v_primary_spinning_reserve.empty() || ( ! ( reserve_vars & 1u ) ) )
+                                                          ModParam issueAMod )
+{
+ if( v_primary_spinning_reserve.empty() || ( !( reserve_vars & 1u ) ) )
   return;  // primary reserve is not there, silently return
 
  if( subset.empty() )
@@ -2044,8 +2083,9 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                           Range rng ,
                                                           ModParam issuePMod ,
-                                                          ModParam issueAMod ) {
- if( v_primary_spinning_reserve.empty() || ( ! ( reserve_vars & 1u ) ) )
+                                                          ModParam issueAMod )
+{
+ if( v_primary_spinning_reserve.empty() || ( !( reserve_vars & 1u ) ) )
   return;  // primary reserve is not there, silently return
 
  rng.second = std::min( rng.second , f_time_horizon );
@@ -2112,10 +2152,13 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
- MF_dbl_it values , Subset && subset , bool ordered ,
- ModParam issuePMod , ModParam issueAMod ) {
- if( v_secondary_spinning_reserve.empty() || ( ! ( reserve_vars & 2u ) ) )
+void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+                                                            Subset && subset ,
+                                                            const bool ordered ,
+                                                            ModParam issuePMod ,
+                                                            ModParam issueAMod )
+{
+ if( v_secondary_spinning_reserve.empty() || ( !( reserve_vars & 2u ) ) )
   return;  // secondary reserve is not there, silently return
 
  if( subset.empty() )
@@ -2176,7 +2219,6 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
                                  true , un_ModBlock( issueAMod ) );
  }
 
-
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
@@ -2187,9 +2229,11 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
- MF_dbl_it values , Range rng ,
- ModParam issuePMod , ModParam issueAMod ) {
+void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+                                                            Range rng ,
+                                                            ModParam issuePMod ,
+                                                            ModParam issueAMod )
+{
  if( v_secondary_spinning_reserve.empty() || ( ! ( reserve_vars & 2u ) ) )
   return;  // secondary reserve is not there, silently return
 
@@ -2263,9 +2307,11 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost(
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
-                                             Subset && subset , bool ordered ,
+                                             Subset && subset ,
+                                             const bool ordered ,
                                              ModParam issuePMod ,
-                                             ModParam issueAMod ) {
+                                             ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -2299,9 +2345,11 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_init_updown_time( MF_int_it values , Range rng ,
+void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
+                                             Range rng ,
                                              ModParam issuePMod ,
-                                             ModParam issueAMod ) {
+                                             ModParam issueAMod )
+{
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
@@ -2334,8 +2382,8 @@ void ThermalUnitBlock::scale( std::vector< double >::const_iterator values ,
                               Subset && subset ,
                               const bool ordered ,
                               c_ModParam issuePMod ,
-                              c_ModParam issueAMod ) {
-
+                              c_ModParam issueAMod )
+{
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
 
@@ -2368,8 +2416,8 @@ void ThermalUnitBlock::scale( std::vector< double >::const_iterator values ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
-                                                  c_ModParam issueAMod ) {
-
+                                                  c_ModParam issueAMod )
+{
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
@@ -2392,8 +2440,8 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
-                                                      c_ModParam issueAMod ) {
-
+                                                      c_ModParam issueAMod )
+{
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
@@ -2413,8 +2461,8 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
-                                                    c_ModParam issueAMod ) {
-
+                                                    c_ModParam issueAMod )
+{
  if( ! objective_generated() )
   return; // the Objective has not been generated: nothing to be done
 
@@ -2435,16 +2483,18 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective( const Subset & subset ,
-                                         c_ModParam issueAMod ) {
+                                         c_ModParam issueAMod )
+{
  update_objective_start_up( subset , issueAMod );
  update_objective_active_power( subset , issueAMod );
  update_objective_commitment( subset , issueAMod );
-}  // end( ThermalUnitBlock::update_objective )
+}  // end( ThermalUnitBlock::update_objective( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::update_objective( Range rng , c_ModParam issueAMod ) {
-
+void ThermalUnitBlock::update_objective( Range rng ,
+                                         c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -2453,11 +2503,12 @@ void ThermalUnitBlock::update_objective( Range rng , c_ModParam issueAMod ) {
  std::iota( subset.begin() , subset.end() , rng.first );
 
  update_objective( subset , issueAMod );
-}  // end( ThermalUnitBlock::update_objective )
+}  // end( ThermalUnitBlock::update_objective( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl ) {
+void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
+{
  // process abstract Modification - - - - - - - - - - - - - - - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
   * to find what this Modification exactly is and appropriately mirror the
@@ -2539,7 +2590,8 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl ) {
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
-                                                ChnlName chnl ) {
+                                                ChnlName chnl )
+{
  const auto * qf = static_cast< const DQuadFunction * >( mod->function() );
  auto par = make_par( eNoBlck , chnl );
  Index th = f_time_horizon;

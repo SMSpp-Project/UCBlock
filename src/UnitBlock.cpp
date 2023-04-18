@@ -63,7 +63,8 @@ UnitBlock::UnitBlock( Block * father_block , Index t )
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
+{
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
  if( TimeHorizon.isNull() ) {
   // dimension TimeHorizon is not present in the netCDF input
@@ -96,7 +97,8 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
+void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
+{
  if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
  else
@@ -129,7 +131,8 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void UnitBlock::deserialize( const netCDF::NcGroup & group )
+{
  Block::deserialize( group );
 
  deserialize_time_horizon( group );
@@ -141,9 +144,10 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::scale( std::vector< double >::const_iterator values ,
-                       Range rng , c_ModParam issuePMod ,
-                       c_ModParam issueAMod ) {
-
+                       Range rng ,
+                       c_ModParam issuePMod ,
+                       c_ModParam issueAMod )
+{
  if( rng.first >= rng.second )
   return; // An empty Range was given: no operation is performed.
 
@@ -169,8 +173,10 @@ void UnitBlock::scale( std::vector< double >::const_iterator values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( double scale_factor , c_ModParam issuePMod ,
-                       c_ModParam issueAMod ) {
+void UnitBlock::scale( double scale_factor ,
+                       c_ModParam issuePMod ,
+                       c_ModParam issueAMod )
+{
  Subset subset = { 0 };
  std::vector< double > values = { scale_factor };
  scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
@@ -180,7 +186,8 @@ void UnitBlock::scale( double scale_factor , c_ModParam issuePMod ,
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 
-Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
+Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
+{
  Index solution_type = 0;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
@@ -210,7 +217,8 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys ) {
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::serialize( netCDF::NcGroup & group ) const {
+void UnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
 
  group.addDim( "TimeHorizon" , f_time_horizon );

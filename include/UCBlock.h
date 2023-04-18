@@ -1334,7 +1334,7 @@ class UCBlock : public Block
 
  void set_active_power_demand( std::vector< double >::const_iterator values ,
                                Subset && subset = { 0 } ,
-                               bool ordered = false ,
+                               const bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 

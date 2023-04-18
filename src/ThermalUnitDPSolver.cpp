@@ -721,8 +721,7 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
-                                         const std::vector< double > & in )
- const
+                                         const std::vector< double > & in ) const
 {
  if( in.empty() ) {
   out.resize( time_horizon );
@@ -744,7 +743,7 @@ void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
 /*--------------------------------------------------------------------------*/
 
 ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
-					     ThermalUnitDPSolver * s )
+                                             ThermalUnitDPSolver * s )
  : EDSolver( h , s )
 {
  auto & time_horizon = f_solver->time_horizon;
@@ -776,7 +775,7 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::DPEDSolver::compute_costs(
-					      std::vector< double > & costs )
+ std::vector< double > & costs )
 {
  // scalar values
  auto time_horizon = f_solver->time_horizon;
@@ -1113,7 +1112,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
-						  std::vector< double > & p )
+                                                               std::vector< double > & p )
 {
  auto & delta_ramp_up = f_solver->delta_ramp_up;
  auto & delta_ramp_down = f_solver->delta_ramp_down;

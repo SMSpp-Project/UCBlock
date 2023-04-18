@@ -61,8 +61,8 @@ SMSpp_insert_in_factory_cpp_1( UCBlock );
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
-UCBlock::~UCBlock() {
-
+UCBlock::~UCBlock()
+{
  Constraint::clear( v_node_injection_Const );
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
@@ -85,7 +85,8 @@ UCBlock::~UCBlock() {
 
 void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
                                       const std::string & prefix ,
-                                      Index num_sub_blocks ) {
+                                      Index num_sub_blocks )
+{
  auto sz = v_Block.size();
  v_Block.resize( sz + num_sub_blocks );
  for( int i = 0 ; i < num_sub_blocks ; ++i ) {
@@ -105,7 +106,8 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
+void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
+{
  Index cntr = 0;
  v_network_blocks.resize( f_number_networks );
 
@@ -141,7 +143,8 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::deserialize( const netCDF::NcGroup & group ) {
+void UCBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -518,8 +521,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void UCBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
@@ -542,8 +545,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_node_injection_constraints( void ) {
-
+void UCBlock::generate_node_injection_constraints( void )
+{
  const auto number_nodes = get_number_nodes();
 
  v_node_injection_Const.resize(
@@ -667,8 +670,8 @@ void UCBlock::generate_node_injection_constraints( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_primary_demand_constraints( void ) {
-
+void UCBlock::generate_primary_demand_constraints( void )
+{
  if( f_number_primary_zones == 0 )
   return;
 
@@ -756,8 +759,8 @@ void UCBlock::generate_primary_demand_constraints( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_secondary_demand_constraints( void ) {
-
+void UCBlock::generate_secondary_demand_constraints( void )
+{
  if( f_number_secondary_zones == 0 )
   return;
 
@@ -845,8 +848,8 @@ void UCBlock::generate_secondary_demand_constraints( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_inertia_demand_constraints( void ) {
-
+void UCBlock::generate_inertia_demand_constraints( void )
+{
  if( f_number_inertia_zones == 0 )
   return;
 
@@ -959,8 +962,8 @@ void UCBlock::generate_inertia_demand_constraints( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_pollutant_budget_constraints( void ) {
-
+void UCBlock::generate_pollutant_budget_constraints( void )
+{
  // TODO These constraints must be fixed
 
  const auto number_nodes = get_number_nodes();
@@ -1140,8 +1143,8 @@ void UCBlock::generate_pollutant_budget_constraints( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::generate_heat_constraints( void ) {
-
+void UCBlock::generate_heat_constraints( void )
+{
  /* TODO commented away until HeatBlock are properly managed
  // Heat constraints.
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1230,8 +1233,8 @@ void UCBlock::generate_heat_constraints( void ) {
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::serialize( netCDF::NcGroup & group ) const {
-
+void UCBlock::serialize( netCDF::NcGroup & group ) const
+{
  Block::serialize( group );
 
  netCDF::NcDim NumberNodes;
@@ -1382,8 +1385,8 @@ int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
-
+void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
+{
  std::vector< Index > modified_units;
 
  // TODO Handle GroupModification in order to deal with multiple UnitBlockMod
@@ -1418,8 +1421,8 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl ) {
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints(
- const std::vector< Index > & modified_units ) {
-
+ const std::vector< Index > & modified_units )
+{
  if( ( ! constraints_generated() ) ||
      ( v_node_injection_Const.empty() ) || modified_units.empty() )
   return;
@@ -1630,8 +1633,8 @@ void UCBlock::update_node_injection_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_primary_demand_constraints(
- const std::vector< Index > & modified_units ) {
-
+ const std::vector< Index > & modified_units )
+{
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
@@ -1729,8 +1732,8 @@ void UCBlock::update_primary_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_secondary_demand_constraints(
- const std::vector< Index > & modified_units ) {
-
+ const std::vector< Index > & modified_units )
+{
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
@@ -1829,8 +1832,8 @@ void UCBlock::update_secondary_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_inertia_demand_constraints(
- const std::vector< Index > & modified_units ) {
-
+ const std::vector< Index > & modified_units )
+{
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
   return; // there is nothing to be updated
@@ -1969,7 +1972,8 @@ void UCBlock::update_inertia_demand_constraints(
 
 void UCBlock::update_node_injection_constraints( Index time ,
                                                  Index node_index ,
-                                                 double demand ) {
+                                                 double demand )
+{
  auto rhs = demand;
  for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
   const auto unit_block = static_cast< UnitBlock * >( v_Block[ i ] );
@@ -1990,13 +1994,12 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void UCBlock::set_active_power_demand( std::vector< double >::const_iterator values ,
+                                       Block::Subset && subset ,
+                                       const bool ordered ,
+                                       c_ModParam issuePMod ,
+                                       c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -2056,16 +2059,15 @@ void UCBlock::set_active_power_demand(
                             this , UCBlockMod::eSetActD , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand )
+}  // end( UCBlock::set_active_power_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void UCBlock::set_active_power_demand( std::vector< double >::const_iterator values ,
+                                       Block::Range rng ,
+                                       c_ModParam issuePMod ,
+                                       c_ModParam issueAMod )
+{
  const auto number_nodes = get_number_nodes();
 
  rng.second = std::min( rng.second , number_nodes * f_time_horizon );
@@ -2127,7 +2129,7 @@ void UCBlock::set_active_power_demand(
                             this , UCBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand )
+}  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/

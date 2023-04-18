@@ -1209,7 +1209,8 @@ public:
  *  @{ */
 
  void set_initial_storage( std::vector< double >::const_iterator it ,
-                           Subset && subset , bool ordered = false ,
+                           Subset && subset ,
+                           const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
 
@@ -1289,7 +1290,8 @@ public:
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_kappa( std::vector< double >::const_iterator values ,
-                 Subset && subset , const bool ordered = false ,
+                 Subset && subset ,
+                 const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
 
@@ -1552,7 +1554,7 @@ public:
  /** This function updates both sides of the demand constraint at time 0
   * (which is the constraint that depends on the initial storage). */
 
- void update_initial_storage_in_constraints( c_ModParam issueAMod = eNoBlck );
+ void update_initial_storage_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current initial power
@@ -1560,14 +1562,14 @@ public:
   * the left-hand side of the ramp-down constraints at time 0 (which are the
   * constraints that depend on the initial power). */
 
- void update_initial_power_in_constraints( c_ModParam issueAMod = eNoBlck );
+ void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current kappa
  /** This function updates the constraints to take into account the current
   * value of the kappa constant. */
 
- void update_kappa_in_constraints( ModParam issueAMod = eNoBlck );
+ void update_kappa_in_cnstrs( ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective

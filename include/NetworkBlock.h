@@ -623,8 +623,10 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( std::vector< double >::const_iterator values ,
-                                 Subset && subset , bool ordered ,
-                                 ModParam issuePMod , ModParam issueAMod ) = 0;
+                                 Subset && subset ,
+                                 const bool ordered ,
+                                 ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng

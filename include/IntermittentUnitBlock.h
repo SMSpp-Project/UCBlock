@@ -560,7 +560,8 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  void set_maximum_power( std::vector< double >::const_iterator values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -585,7 +586,8 @@ class IntermittentUnitBlock : public UnitBlock
   * @param issueAMod Controls how abstract Modification are issued. */
 
  void scale( std::vector< double >::const_iterator values ,
-             Subset && subset , const bool ordered = false ,
+             Subset && subset ,
+             const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
 
@@ -606,7 +608,8 @@ class IntermittentUnitBlock : public UnitBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_kappa( std::vector< double >::const_iterator values ,
-                 Subset && subset , const bool ordered = false ,
+                 Subset && subset ,
+                 const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
 
@@ -789,8 +792,8 @@ class IntermittentUnitBlock : public UnitBlock
   * "active power bounds" constraints associated with the time instants given
   * in \p time. */
 
- void update_max_power_in_constraints( const Block::Subset & time ,
-                                       c_ModParam issueAMod );
+ void update_max_power_in_cnstrs( const Block::Subset & time ,
+                                  c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current maximum power
@@ -798,8 +801,8 @@ class IntermittentUnitBlock : public UnitBlock
   * "active power bounds" constraints associated with the time instants given
   * in \p time. */
 
- void update_max_power_in_constraints( const Block::Range & time ,
-                                       c_ModParam issueAMod );
+ void update_max_power_in_cnstrs( const Block::Range & time ,
+                                  c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this IntermittentUnitBlock is consistent

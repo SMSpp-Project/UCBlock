@@ -54,8 +54,8 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkData );
 /*----------------------- METHODS OF ECNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-ECNetworkBlock::~ECNetworkBlock() {
-
+ECNetworkBlock::~ECNetworkBlock()
+{
  Constraint::clear( micro_power_balance_const );
  Constraint::clear( power_balance_const );
  Constraint::clear( power_flow_limit_const );
@@ -71,7 +71,8 @@ ECNetworkBlock::~ECNetworkBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
+void ECNetworkData::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
@@ -115,7 +116,8 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
+void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
@@ -175,8 +177,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -231,8 +233,8 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -398,8 +400,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::generate_objective( Configuration * objc ) {
-
+void ECNetworkBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // objective has already been generated
 
@@ -448,8 +450,8 @@ void ECNetworkBlock::generate_objective( Configuration * objc ) {
 /*----------------- METHODS FOR CHECKING THE ECNetworkBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
+bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -496,8 +498,8 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE ECNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkData::serialize( netCDF::NcGroup & group ) const {
-
+void ECNetworkData::serialize( netCDF::NcGroup & group ) const
+{
  group.addDim( "NumberNodes" , f_number_nodes );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
@@ -506,12 +508,13 @@ void ECNetworkData::serialize( netCDF::NcGroup & group ) const {
 
  if( f_RewardPrice != 0 )
   ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
+
 }  // end( ECNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
-
+void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
+{
  NetworkBlock::serialize( group );
 
  auto NumberIntervals = group.getDim( "NumberIntervals" );
@@ -563,13 +566,12 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+                                        Block::Subset && subset ,
+                                        const bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -626,16 +628,15 @@ void ECNetworkBlock::set_active_demand(
                             std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( ECNetworkBlock::set_active_demand )
+}  // end( ECNetworkBlock::set_active_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+                                        Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_number_intervals * get_number_nodes() );
  if( rng.second <= rng.first )
   return;
@@ -682,7 +683,7 @@ void ECNetworkBlock::set_active_demand(
                             this , ECNetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ECNetworkBlock::set_active_demand )
+}  // end( ECNetworkBlock::set_active_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/

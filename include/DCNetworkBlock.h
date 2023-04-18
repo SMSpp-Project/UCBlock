@@ -940,8 +940,7 @@ class DCNetworkBlock : public NetworkBlock
   * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand(
-  const std::vector< std::vector< double > > & v ) override {
+ void set_ActiveDemand(const std::vector< std::vector< double > > & v ) override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand = v[ 0 ];
  }
@@ -1033,7 +1032,8 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_kappa( std::vector< double >::const_iterator values ,
-                 Subset && subset , const bool ordered = false ,
+                 Subset && subset ,
+                 const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
 
@@ -1079,7 +1079,8 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_active_demand( std::vector< double >::const_iterator values ,
-                         Subset && subset , bool ordered = false ,
+                         Subset && subset ,
+                         const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 

@@ -53,8 +53,8 @@ SMSpp_insert_in_factory_cpp_1( SlackUnitBlock );
 /*----------------------- METHODS OF SlackUnitBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-SlackUnitBlock::~SlackUnitBlock() {
-
+SlackUnitBlock::~SlackUnitBlock()
+{
  Constraint::clear( Secondary_Spinning_Reserve_Bound_Const );
  Constraint::clear( Primary_Spinning_Reserve_Bound_Const );
  Constraint::clear( ActivePower_Bound_Const );
@@ -68,7 +68,8 @@ SlackUnitBlock::~SlackUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -113,8 +114,8 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -164,8 +165,8 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 
@@ -270,8 +271,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::generate_objective( Configuration * objc ) {
-
+void SlackUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
@@ -355,8 +356,8 @@ void SlackUnitBlock::generate_objective( Configuration * objc ) {
 /*----------------- METHODS FOR CHECKING THE SlackUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
+bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -402,7 +403,8 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE SlackUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const {
+void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  UnitBlock::serialize( group );
 
  // Serialize one-dimensional variables

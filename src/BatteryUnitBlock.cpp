@@ -179,6 +179,17 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
 
 void BatteryUnitBlock::check_data_consistency( void ) const {
 
+ // InvestmentCost
+
+ if( ( ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) ) &&
+     ( f_InitialStorage >= 0 ) )
+  throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
+                           "presence of the investment cost of the battery "
+                           "allows the model to switch into the strategic "
+                           "scenario mode, but the presence of also a positive "
+                           "initial storage, typical of the operative "
+                           "scenario, is incompatible." ) );
+
  // Minimum and maximum power
 
  assert( v_MinPower.size() == f_time_horizon );
@@ -1075,9 +1086,8 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::update_initial_storage_in_constraints
-( c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::update_initial_storage_in_cnstrs( c_ModParam issueAMod )
+{
  if( demand_Const.empty() )
   return;
 
@@ -1089,14 +1099,17 @@ void BatteryUnitBlock::update_initial_storage_in_constraints
   demand_Const[ 0 ].set_both(
    ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage ) ,
    issueAMod );
-}  // end( BatteryUnitBlock::update_initial_storage_in_constraints )
+
+}  // end( BatteryUnitBlock::update_initial_storage_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage
-( std::vector< double >::const_iterator it , Block::Subset && subset ,
-  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator values ,
+                                            Subset && subset ,
+                                            const bool ordered ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1106,18 +1119,18 @@ void BatteryUnitBlock::set_initial_storage
  if( index_it == subset.rend() )
   return; // 0 is not in subset; return
 
- std::advance( it , std::distance( index_it , subset.rend() ) - 1 );
+ std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
 
- if( f_InitialStorage == *it )
+ if( f_InitialStorage == *values )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialStorage = *it;
+  f_InitialStorage = *values;
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_initial_storage_in_constraints( issueAMod );
+   update_initial_storage_in_cnstrs( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1126,30 +1139,31 @@ void BatteryUnitBlock::set_initial_storage
                             this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( BatteryUnitBlock::set_initial_storage )
+}  // end( BatteryUnitBlock::set_initial_storage( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage
-( std::vector< double >::const_iterator it , Block::Range rng ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator values ,
+                                            Range rng ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( it , - rng.first );
+ std::advance( values , - rng.first );
 
- if( f_InitialStorage == *it )
+ if( f_InitialStorage == *values )
   return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialStorage = *it;
+  f_InitialStorage = *values;
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_initial_storage_in_constraints( issueAMod );
+   update_initial_storage_in_cnstrs( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1158,12 +1172,12 @@ void BatteryUnitBlock::set_initial_storage
                             this , BatteryUnitBlockMod::eSetInitS ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( BatteryUnitBlock::set_initial_storage )
+}  // end( BatteryUnitBlock::set_initial_storage( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::update_initial_power_in_constraints
-( c_ModParam issueAMod ) {
+void BatteryUnitBlock::update_initial_power_in_cnstrs( c_ModParam issueAMod )
+{
  if( ! ( ramp_up_Const.empty() || v_DeltaRampUp.empty() ) )
   ramp_up_Const[ 0 ].set_rhs( v_DeltaRampUp[ 0 ] + f_InitialPower ,
                               issueAMod );
@@ -1171,14 +1185,17 @@ void BatteryUnitBlock::update_initial_power_in_constraints
  if( ! ( ramp_down_Const.empty() || v_DeltaRampDown.empty() ) )
   ramp_down_Const[ 0 ].set_lhs( -v_DeltaRampDown[ 0 ] + f_InitialPower ,
                                 issueAMod );
-}  // end( BatteryUnitBlock::update_initial_power_in_constraints )
+
+}  // end( BatteryUnitBlock::update_initial_power_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power
-( std::vector< double >::const_iterator it , Block::Subset && subset ,
-  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator values ,
+                                          Subset && subset ,
+                                          const bool ordered ,
+                                          c_ModParam issuePMod ,
+                                          c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1188,18 +1205,18 @@ void BatteryUnitBlock::set_initial_power
  if( index_it == subset.rend() )
   return; // 0 is not in subset; return
 
- std::advance( it , std::distance( index_it , subset.rend() ) - 1 );
+ std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
 
- if( f_InitialPower == *it )
+ if( f_InitialPower == *values )
   return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialPower = *it;
+  f_InitialPower = *values;
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_initial_power_in_constraints( issueAMod );
+   update_initial_power_in_cnstrs( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1208,30 +1225,31 @@ void BatteryUnitBlock::set_initial_power
                             this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( BatteryUnitBlock::set_initial_power )
+}  // end( BatteryUnitBlock::set_initial_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power
-( std::vector< double >::const_iterator it , Block::Range rng ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator values ,
+                                          Range rng ,
+                                          c_ModParam issuePMod ,
+                                          c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( it , - rng.first );
+ std::advance( values , - rng.first );
 
- if( f_InitialPower == *it )
+ if( f_InitialPower == *values )
   return; // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialPower = *it;
+  f_InitialPower = *values;
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_initial_power_in_constraints( issueAMod );
+   update_initial_power_in_cnstrs( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1240,14 +1258,16 @@ void BatteryUnitBlock::set_initial_power
                             this , BatteryUnitBlockMod::eSetInitP ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( BatteryUnitBlock::set_initial_power )
+}  // end( BatteryUnitBlock::set_initial_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::scale
-( std::vector< double >::const_iterator values , Subset && subset ,
-  const bool ordered , c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BatteryUnitBlock::scale( std::vector< double >::const_iterator values ,
+                              Subset && subset ,
+                              const bool ordered ,
+                              c_ModParam issuePMod ,
+                              c_ModParam issueAMod )
+{
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
 
@@ -1279,8 +1299,8 @@ void BatteryUnitBlock::scale
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
-
+void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
+{
  if( ! active_power_bounds_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    active_power_bounds_Const[ 0 ][ t ].set_lhs(
@@ -1349,14 +1369,17 @@ void BatteryUnitBlock::update_kappa_in_constraints( ModParam issueAMod ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    secondary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxSecondaryRho[ t ] ,
                                              issueAMod );
- }
+
+ }  // end( BatteryUnitBlock::update_kappa_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa
-( std::vector< double >::const_iterator values , Subset && subset ,
-  const bool ordered , ModParam issuePMod , ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                  Subset && subset ,
+                                  const bool ordered ,
+                                  ModParam issuePMod ,
+                                  ModParam issueAMod )
+{
  if( subset.empty() )
   return; // Since the given Subset is empty, no operation is performed
 
@@ -1370,7 +1393,7 @@ void BatteryUnitBlock::set_kappa
    // Update the abstract representation
    if( constraints_generated() )
     // Update the constraints
-    update_kappa_in_constraints( issueAMod );
+    update_kappa_in_cnstrs( issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1379,14 +1402,15 @@ void BatteryUnitBlock::set_kappa
                             this , BatteryUnitBlockMod::eSetKappa ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( BatteryUnitBlock::set_kappa )
+}  // end( BatteryUnitBlock::set_kappa( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa
-( std::vector< double >::const_iterator values , Range rng ,
-  ModParam issuePMod , ModParam issueAMod ) {
-
+void BatteryUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+                                  Range rng ,
+                                  ModParam issuePMod ,
+                                  ModParam issueAMod )
+{
  if( rng.first >= rng.second )
   return; // An empty Range was given: no operation is performed.
 
@@ -1394,7 +1418,7 @@ void BatteryUnitBlock::set_kappa
 
  set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
 
-}  // end( BatteryUnitBlock::set_kappa )
+}  // end( BatteryUnitBlock::set_kappa( range ) )
 
 /*--------------------------------------------------------------------------*/
 

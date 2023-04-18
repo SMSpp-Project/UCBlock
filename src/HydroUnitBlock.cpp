@@ -56,8 +56,8 @@ SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
 /*------------------------ METHODS OF HydroUnitBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-HydroUnitBlock::~HydroUnitBlock() {
-
+HydroUnitBlock::~HydroUnitBlock()
+{
  Constraint::clear( MaxPowerPrimarySecondary_Const );
  Constraint::clear( MinPowerPrimarySecondary_Const );
  Constraint::clear( ActivePowerPrimary_Const );
@@ -78,7 +78,8 @@ HydroUnitBlock::~HydroUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -206,12 +207,13 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group ) {
   v_ConstTerm.resize( f_NumberArcs , v_ConstTerm[ 0 ] );
 
  UnitBlock::deserialize( group );
+
 }  // end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
+void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
  if( variables_generated() )
   return; // variables have already been generated
 
@@ -273,17 +275,18 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
 
  // final volume constraints for each reservoir
 
  assert( FinalVolumeReservoir_Const.empty() );
- FinalVolumeReservoir_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_NumberReservoirs ] );
+
+ FinalVolumeReservoir_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::
+  extent_gen()[ f_time_horizon ][ f_NumberReservoirs ] );
 
  for( Index n = 0 ; n < f_NumberReservoirs ; ++n ) {
 
@@ -382,9 +385,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  assert( MaxPowerPrimarySecondary_Const.empty() );
 
- MaxPowerPrimarySecondary_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+ MaxPowerPrimarySecondary_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::
+  extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
@@ -423,9 +426,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  assert( MinPowerPrimarySecondary_Const.empty() );
 
- MinPowerPrimarySecondary_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+ MinPowerPrimarySecondary_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::
+  extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
@@ -466,9 +469,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    assert( ActivePowerPrimary_Const.empty() );
 
-   ActivePowerPrimary_Const.resize
-    ( boost::multi_array< FRowConstraint , 2 >::
-      extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+   ActivePowerPrimary_Const.resize(
+    boost::multi_array< FRowConstraint , 2 >::
+    extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
    if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
 
@@ -564,9 +567,10 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    assert( ActivePowerSecondary_Const.empty() );
 
-   ActivePowerSecondary_Const.resize
-    ( boost::multi_array< FRowConstraint , 2 >::
-      extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+   ActivePowerSecondary_Const.resize(
+    boost::multi_array< FRowConstraint , 2 >::
+    extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+
    if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) ) {
 
     for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
@@ -660,9 +664,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  assert( FlowActivePower_Const.empty() );
 
- FlowActivePower_Const.resize
-  ( boost::multi_array< FRowConstraint , 2 >::
-    extent_gen()[ f_time_horizon ][ f_TotalNumberPieces ] );
+ FlowActivePower_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::
+  extent_gen()[ f_time_horizon ][ f_TotalNumberPieces ] );
 
  if( f_NumberArcs > 0 ) {
 
@@ -810,9 +814,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   assert( FlowRateBounds_Const.empty() );
 
-  FlowRateBounds_Const.resize
-   ( boost::multi_array< BoxConstraint , 2 >::
-     extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+  FlowRateBounds_Const.resize(
+   boost::multi_array< BoxConstraint , 2 >::
+   extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
@@ -837,9 +841,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   assert( RampUp_Const.empty() );
 
-  RampUp_Const.resize
-   ( boost::multi_array< FRowConstraint , 2 >::
-     extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+  RampUp_Const.resize(
+   boost::multi_array< FRowConstraint , 2 >::
+   extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
   // Initial condition
 
@@ -877,9 +881,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   assert( RampDown_Const.empty() );
 
-  RampDown_Const.resize
-   ( boost::multi_array< FRowConstraint , 2 >::
-     extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+  RampDown_Const.resize(
+   boost::multi_array< FRowConstraint , 2 >::
+   extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
   // Initial condition
 
@@ -928,9 +932,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  assert( VolumetricBounds_Const.empty() );
 
- VolumetricBounds_Const.resize
-  ( boost::multi_array< BoxConstraint , 2 >::
-    extent_gen()[ f_NumberReservoirs ][ f_time_horizon ] );
+ VolumetricBounds_Const.resize(
+  boost::multi_array< BoxConstraint , 2 >::
+  extent_gen()[ f_NumberReservoirs ][ f_time_horizon ] );
 
  for( Index node = 0 ; node < f_NumberReservoirs ; ++node )
 
@@ -957,8 +961,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::generate_objective( Configuration * objc ) {
-
+void HydroUnitBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() )
   return; // Objective has already been generated
 
@@ -978,8 +982,8 @@ void HydroUnitBlock::generate_objective( Configuration * objc ) {
 /*----------------- METHODS FOR CHECKING THE HydroUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
+bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -1032,8 +1036,8 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const {
-
+void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
+{
  UnitBlock::serialize( group );
 
  auto TimeHorizon = group.getDim( "TimeHorizon" );
@@ -1127,7 +1131,8 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
                                  Block::Subset && subset ,
                                  const bool ordered ,
                                  c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) {
+                                 c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1188,14 +1193,15 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
                             this , HydroUnitBlockMod::eSetInf , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( HydroUnitBlock::set_inflow )
+}  // end( HydroUnitBlock::set_inflow( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
                                  Block::Range rng ,
                                  c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) {
+                                 c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second ,
                         get_time_horizon() * get_number_reservoirs() );
  if( rng.second <= rng.first )
@@ -1245,17 +1251,16 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
                             this , HydroUnitBlockMod::eSetInf , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( HydroUnitBlock::set_inflow )
+}  // end( HydroUnitBlock::set_inflow( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power(
- std::vector< double >::const_iterator values ,
- Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values ,
+                                        Subset && subset ,
+                                        const bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1306,16 +1311,15 @@ void HydroUnitBlock::set_inertia_power(
                             this , HydroUnitBlockMod::eSetInerP , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( HydroUnitBlock::set_inertia_power )
+}  // end( HydroUnitBlock::set_inertia_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values ,
+                                        Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , f_NumberArcs * get_time_horizon() );
  if( rng.second <= rng.first )
   return;
@@ -1353,17 +1357,16 @@ void HydroUnitBlock::set_inertia_power(
                             this , HydroUnitBlockMod::eSetInerP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( HydroUnitBlock::set_inertia_power )
+}  // end( HydroUnitBlock::set_inertia_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator values ,
+                                         Block::Subset && subset ,
+                                         const bool ordered ,
+                                         c_ModParam issuePMod ,
+                                         c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1418,16 +1421,15 @@ void HydroUnitBlock::set_initial_volume(
                             this , HydroUnitBlockMod::eSetInitV , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( HydroUnitBlock::set_initial_volume )
+}  // end( HydroUnitBlock::set_initial_volume( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator values ,
+                                         Block::Range rng ,
+                                         c_ModParam issuePMod ,
+                                         c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , get_number_reservoirs() );
  if( rng.second <= rng.first )
   return;
@@ -1469,14 +1471,13 @@ void HydroUnitBlock::set_initial_volume(
                             this , HydroUnitBlockMod::eSetInitV , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( HydroUnitBlock::set_initial_volume )
+}  // end( HydroUnitBlock::set_initial_volume( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_constraints(
- const Block::Subset & arcs ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & arcs ,
+                                                         c_ModParam issueAMod )
+{
  if( ! constraints_generated() )
   return;
 
@@ -1494,14 +1495,13 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
                                        v_DeltaRampDown[ 0 ][ arc ] ,
                                        issueAMod );
  }
-}  // end( HydroUnitBlock::update_initial_flow_rate_in_constraints )
+}  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_constraints(
- Block::Range arcs ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::update_initial_flow_rate_in_cnstrs(Block::Range arcs ,
+                                                        c_ModParam issueAMod )
+{
  if( ! constraints_generated() )
   return;
 
@@ -1519,17 +1519,16 @@ void HydroUnitBlock::update_initial_flow_rate_in_constraints(
     ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
       issueAMod );
  }
-}  // end( HydroUnitBlock::update_initial_flow_rate_in_constraints )
+}  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate(
- std::vector< double >::const_iterator values ,
- Block::Subset && subset ,
- const bool ordered ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                                            Block::Subset && subset ,
+                                            const bool ordered ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
  if( subset.empty() )
   return;
 
@@ -1564,7 +1563,7 @@ void HydroUnitBlock::set_initial_flow_rate(
      ( not_dry_run( issueAMod ) ) &&
      ( constraints_generated() ) )
   // Change the abstract representation
-  update_initial_flow_rate_in_constraints( subset , issueAMod );
+  update_initial_flow_rate_in_cnstrs( subset , issueAMod );
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
@@ -1575,16 +1574,15 @@ void HydroUnitBlock::set_initial_flow_rate(
                             this , HydroUnitBlockMod::eSetInitF , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
-}  // end( HydroUnitBlock::set_initial_flow_rate )
+}  // end( HydroUnitBlock::set_initial_flow_rate( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate(
- std::vector< double >::const_iterator values ,
- Block::Range rng ,
- c_ModParam issuePMod ,
- c_ModParam issueAMod ) {
-
+void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterator values ,
+                                            Block::Range rng ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
  rng.second = std::min( rng.second , get_number_generators() );
  if( rng.second <= rng.first )
   return;
@@ -1612,7 +1610,7 @@ void HydroUnitBlock::set_initial_flow_rate(
 
   if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
    // Change the abstract representation
-   update_initial_flow_rate_in_constraints( rng , issueAMod );
+   update_initial_flow_rate_in_cnstrs( rng , issueAMod );
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1621,12 +1619,13 @@ void HydroUnitBlock::set_initial_flow_rate(
                             this , HydroUnitBlockMod::eSetInitF , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( HydroUnitBlock::set_initial_flow_rate )
+}  // end( HydroUnitBlock::set_initial_flow_rate( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< typename T >
-void HydroUnitBlock::transpose( boost::multi_array< T , 2 > & a ) {
+void HydroUnitBlock::transpose( boost::multi_array< T , 2 > & a )
+{
  long rows = a.shape()[ 0 ];
  long cols = a.shape()[ 1 ];
 
@@ -1641,9 +1640,8 @@ void HydroUnitBlock::transpose( boost::multi_array< T , 2 > & a ) {
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::decompress_array(
- boost::multi_array< double , 2 > & array ) {
-
+void HydroUnitBlock::decompress_array( boost::multi_array< double , 2 > & array )
+{
  // This function receives an array whose dimensions are N x f_NumberArcs,
  // where N can be 1, time horizon, or the number of change intervals. The
  // array can also be empty, in which case nothing is done.
@@ -1701,9 +1699,8 @@ void HydroUnitBlock::decompress_array(
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::decompress_vol(
- boost::multi_array< double , 2 > & array ) {
-
+void HydroUnitBlock::decompress_vol( boost::multi_array< double , 2 > & array )
+{
  // This function receives an array whose dimensions are f_NumberReservoirs x
  // N, where N can be 1, time horizon, or the number of change intervals. The
  // array can also be empty, in which case nothing is done.
