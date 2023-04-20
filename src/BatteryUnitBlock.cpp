@@ -20,7 +20,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -320,32 +321,19 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
  UnitBlock::generate_abstract_variables( stvv );
 
- // Check if negative prices may occur and if binary variables (if generated)
- // must be relaxed.
-
+ // Check if negative prices may occur
  bool negative_prices = false;
- bool relax_binary = false;
-
- auto extract_parameters = [ &negative_prices , &relax_binary ]
-  ( Configuration * c ) {
-  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( c ) ) {
-   negative_prices = config->f_value;
-   return( true );
-  }
-  if( auto config = dynamic_cast< SimpleConfiguration< std::pair< int , int > > * >( c ) ) {
-   negative_prices = config->f_value.first;
-   relax_binary = config->f_value.second;
-   return( true );
-  }
-  return( false );
- };
-
- if( ( ! extract_parameters( stvv ) ) && f_BlockConfig )
-  extract_parameters( f_BlockConfig->f_static_variables_Configuration );
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( stvv );
+ if( ( ! config ) && f_BlockConfig &&
+     f_BlockConfig->f_static_variables_Configuration )
+  config = dynamic_cast< SimpleConfiguration< int > * >
+  ( f_BlockConfig->f_static_variables_Configuration );
+ if( config )
+  negative_prices = config->f_value;
 
  // Binary variables must be generated if negative prices may occur and if
- // there is some t such that StoringBatteryRho[ t ] < 1 <
- // ExtractingBatterRho[ t ].
+ // there is some t such that
+ // StoringBatteryRho[ t ] < 1 < ExtractingBatterRho[ t ]
 
  bool generate_binary_variables = false;
 
@@ -354,7 +342,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   assert( v_StoringBatteryRho.size() == f_time_horizon );
   assert( v_ExtractingBatteryRho.size() == f_time_horizon );
   for( Index t = 0 ; t < v_StoringBatteryRho.size() ; ++t )
-   if( v_StoringBatteryRho[ t ] < 1 && v_ExtractingBatteryRho[ t ] > 1 ) {
+   if( ( v_StoringBatteryRho[ t ] < 1 ) &&
+       ( v_ExtractingBatteryRho[ t ] > 1 ) ) {
     generate_binary_variables = true;
     break;
    }
@@ -380,10 +369,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( generate_binary_variables ) {
   v_battery_binary.resize( f_time_horizon );
   for( auto & var : v_battery_binary )
-   if( relax_binary )
-    var.set_type( ColVariable::kPosUnitary );
-   else
-    var.set_type( ColVariable::kBinary );
+   var.set_type( ColVariable::kBinary );
   add_static_variable( v_battery_binary , "BB_battery" );
  }
 
@@ -1128,7 +1114,7 @@ void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterato
   // Change the physical representation
   f_InitialStorage = *values;
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_initial_storage_in_cnstrs( issueAMod );
  }
@@ -1161,7 +1147,7 @@ void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterato
   // Change the physical representation
   f_InitialStorage = *values;
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_initial_storage_in_cnstrs( issueAMod );
  }
@@ -1214,7 +1200,7 @@ void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator 
   // Change the physical representation
   f_InitialPower = *values;
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_initial_power_in_cnstrs( issueAMod );
  }
@@ -1247,7 +1233,7 @@ void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator 
   // Change the physical representation
   f_InitialPower = *values;
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_initial_power_in_cnstrs( issueAMod );
  }

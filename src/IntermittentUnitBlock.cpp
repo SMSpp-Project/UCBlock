@@ -20,7 +20,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -574,9 +575,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) )
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() )
   // Change the abstract representation
   update_max_power_in_cnstrs( subset , issueAMod );
 

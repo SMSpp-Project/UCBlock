@@ -23,7 +23,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Tiziano Bacci \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli, Tiziano Bacci
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -1702,6 +1707,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*-------------------------------- variables -------------------------------*/
 
+ /// the design binary variable
+ ColVariable design;
+
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
 
@@ -1720,8 +1728,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the design binary variable
- ColVariable design;
+ // DP formulation variables
+
 
 /*------------------------------- constraints ------------------------------*/
 

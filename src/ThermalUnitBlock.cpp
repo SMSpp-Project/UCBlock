@@ -20,7 +20,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Tiziano Bacci \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli, Tiziano Bacci
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -355,22 +360,16 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   init_t = ( - f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
- int relax_binary = 0;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_InvestmentCost != 0 ) {
+  design.set_type( ColVariable::kBinary );
+  add_static_variable( design , "D_thermal" );
+ }
 
  // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
  for( auto & var : v_commitment )
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
+  var.set_type( ColVariable::kBinary );
  add_static_variable( v_commitment , "u_thermal" );
 
  // Active Power Variable - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -408,28 +407,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   v_start_up.resize( startup_shutdown_size );
   for( auto & var : v_start_up )
-   if( relax_binary )
-    var.set_type( ColVariable::kPosUnitary );
-   else
-    var.set_type( ColVariable::kBinary );
+   var.set_type( ColVariable::kBinary );
   add_static_variable( v_start_up , "v" );
 
   v_shut_down.resize( startup_shutdown_size );
   for( auto & var : v_shut_down )
-   if( relax_binary )
-    var.set_type( ColVariable::kPosUnitary );
-   else
-    var.set_type( ColVariable::kBinary );
+   var.set_type( ColVariable::kBinary );
   add_static_variable( v_shut_down , "w" );
- }
-
- // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_InvestmentCost != 0 ) {
-  if( relax_binary )
-   design.set_type( ColVariable::kPosUnitary );
-  else
-   design.set_type( ColVariable::kBinary );
-  add_static_variable( design , "D_thermal" );
  }
 
  // POSSIBLY FIXING THE COMMITMENT VARIABLES TO 0 OR 1- - - - - - - - - - - -
@@ -496,6 +480,30 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   ( f_BlockConfig->f_static_constraints_Configuration );
  if( config )
   generate_ZOConstraint = config->f_value;
+
+ // Initializing commitment design binary variable constraints- - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_InvestmentCost != 0 ) {
+
+  CommitmentDesign_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &design , -1.0 ) );
+
+   CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
+   CommitmentDesign_Const[ t ].set_rhs( 0.0 );
+   CommitmentDesign_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( CommitmentDesign_Const ,
+                         "CommitmentDesign_Const_Thermal" );
+ }
 
  // Initializing start up and shut down variables connection constraints- - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -846,27 +854,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( Commitment_fixed_to_One_Const ,
                          "Commitment_fixed_to_one_Thermal" );
- }
-
- if( f_InvestmentCost != 0 ) {
-
-  CommitmentDesign_Const.resize( f_time_horizon );
-
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
-
-   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &design , -1.0 ) );
-
-   CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
-   CommitmentDesign_Const[ t ].set_rhs( 0.0 );
-   CommitmentDesign_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
-
-  add_static_constraint( CommitmentDesign_Const ,
-                         "CommitmentDesign_Const_Thermal" );
  }
 
  set_constraints_generated();
