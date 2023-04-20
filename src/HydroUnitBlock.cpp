@@ -1402,9 +1402,9 @@ void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator v
   // Nothing has changed.
   return;
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) ) {
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
   // Change the abstract representation
   for( auto r : subset ) {
    FinalVolumeReservoir_Const[ 0 ][ r ].set_both
@@ -1559,9 +1559,9 @@ void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterato
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) )
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
+     constraints_generated() )
   // Change the abstract representation
   update_initial_flow_rate_in_cnstrs( subset , issueAMod );
 

@@ -604,9 +604,9 @@ void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) ) {
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
   // Change the abstract representation
 
   for( auto i : subset ) {

@@ -629,9 +629,9 @@ void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) ) {
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
   // Change the abstract representation
 
   switch( f_NetworkData->get_lines_type() ) {
@@ -759,9 +759,9 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) ) {
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
+     constraints_generated() ) {
 
   // Change the abstract representation
 
