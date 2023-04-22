@@ -7,12 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add is_feasible() to BatteryUnitBlock, SlackUnitBlock.
+- IntermittentUnitBlock::set_BlockConfig().
+
+### Changed
+
+- Update is_feasible() in HydroUnitBlock, DCNetworkBlock,
+  IntermittentUnitBlock, ThermalUnitBlock, and BatteryUnitBlock.
+- Remove "battery_type" from BatteryUnitBlock and check if negative prices may
+  occur.
+
 ## [0.6.1] - 2022-07-01
 
 ### Added
 
 - UnitBlock can be scaled (replicated).
-- BatteryUnitBlock, IntermittentUnitBlock, and ThermalUnitBlock implement scale().
+- BatteryUnitBlock, IntermittentUnitBlock, and ThermalUnitBlock implement
+  scale().
 - BatteryUnitBlock and IntermittentUnitBlock can have their minimum and
   maximum power and storage levels scaled.
 
