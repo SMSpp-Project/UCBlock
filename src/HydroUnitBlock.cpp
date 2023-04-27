@@ -214,8 +214,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  UnitBlock::generate_abstract_variables( stvv );
 
@@ -277,8 +277,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
  // final volume constraints for each reservoir
 
@@ -963,11 +963,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 void HydroUnitBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  objective.set_function( new LinearFunction() );
 
@@ -997,8 +994,7 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-      std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -1152,7 +1148,7 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
    throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
                                  "invalid value in subset." ) );
 
-  if( *( v_inflows.data() + i ) != *( values++ ) )
+  if( *( v_inflows.data() + i ) != *(values++) )
    identical = false;
  }
 
@@ -1165,7 +1161,7 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
   for( auto i : subset ) {
    Index t = i % f_time_horizon;
    Index r = i / f_time_horizon;
-   v_inflows[ r ][ t ] = *( values++ );
+   v_inflows[ r ][ t ] = *(values++);
   }
 
   if( constraints_generated() )
@@ -1280,7 +1276,7 @@ void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator va
    throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: "
                                  "invalid value in subset." ) );
 
-  if( *( v_InertiaPower.data() + i ) != *( values++ ) )
+  if( *( v_InertiaPower.data() + i ) != *(values++) )
    identical = false;
  }
 
@@ -1293,7 +1289,7 @@ void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator va
   for( auto i : subset ) {
    Index a = i % f_NumberArcs;
    Index t = i / f_NumberArcs;
-   v_InertiaPower[ t ][ a ] = *( values++ );
+   v_InertiaPower[ t ][ a ] = *(values++);
   }
 
   if( constraints_generated() ) {
@@ -1387,7 +1383,7 @@ void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator v
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: invalid "
                                  "index in subset: " + std::to_string( r ) ) );
 
-  const auto volume = *( values++ );
+  const auto volume = *(values++);
   if( v_InitialVolumetric[ r ] != volume ) {
    identical = false;
 
@@ -1456,7 +1452,7 @@ void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator v
              values + ( rng.second - rng.first ) ,
              v_InitialVolumetric.begin() + rng.first );
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index r = rng.first ; r < rng.second ; ++r ) {
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
@@ -1548,7 +1544,7 @@ void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterato
   if( i >= v_InitialFlowRate.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
                                   "invalid value in subset." ) );
-  auto flow_rate = *( values++ );
+  auto flow_rate = *(values++);
   if( v_InitialFlowRate[ i ] != flow_rate ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
@@ -1608,7 +1604,7 @@ void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterato
              values + ( rng.second - rng.first ) ,
              v_InitialFlowRate.begin() + rng.first );
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_initial_flow_rate_in_cnstrs( rng , issueAMod );
  }

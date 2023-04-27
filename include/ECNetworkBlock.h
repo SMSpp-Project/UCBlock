@@ -630,7 +630,7 @@ class ECNetworkBlock : public NetworkBlock
    auto demand = v_ActiveDemand.data();
    for( Index i = 0 ; i < get_number_intervals() ; i++ )
     for( Index j = 0 ; j < get_number_nodes() ; j++ )
-     *( demand++ ) = v[ i ][ j ];
+     *(demand++) = v[ i ][ j ];
   }
  }
 

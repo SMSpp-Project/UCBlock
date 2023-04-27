@@ -61,8 +61,8 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 /*----------------------- METHODS OF BatteryUnitBlock ----------------------*/
 /*--------------------------------------------------------------------------*/
 
-BatteryUnitBlock::~BatteryUnitBlock() {
-
+BatteryUnitBlock::~BatteryUnitBlock()
+{
  Constraint::clear( active_power_bounds_Const );
  Constraint::clear( intake_outtake_upper_bounds_design_Const );
  Constraint::clear( storage_level_bounds_design_Const );
@@ -86,7 +86,8 @@ BatteryUnitBlock::~BatteryUnitBlock() {
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group ) {
+void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
+{
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon" ,
@@ -314,19 +315,19 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
-
- if( variables_generated() )
-  return; // variables have already been generated
+void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
+{
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  UnitBlock::generate_abstract_variables( stvv );
 
  // Check if negative prices may occur
  bool negative_prices = false;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stvv );
+ auto config = dynamic_cast< SimpleConfiguration< bool > * >( stvv );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
+  config = dynamic_cast< SimpleConfiguration< bool > * >
   ( f_BlockConfig->f_static_variables_Configuration );
  if( config )
   negative_prices = config->f_value;
@@ -417,20 +418,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
+void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
- if( constraints_generated() )
-  return; // constraints have already been generated
-
- if( ! variables_generated() )
-  throw( std::logic_error( "BatteryUnitBlock::generate_abstract_constraints: "
-                           "variables need be generated for constraints to be." ) );
-
- int generate_ZOConstraint = 0;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
+ bool generate_ZOConstraint = 0;
+ auto config = dynamic_cast< SimpleConfiguration< bool > * >( stcc );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_constraints_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
+  config = dynamic_cast< SimpleConfiguration< bool > * >
   ( f_BlockConfig->f_static_constraints_Configuration );
  if( config )
   generate_ZOConstraint = config->f_value;
@@ -535,7 +532,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // battery in discharge
    intake_vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    intake_vars.push_back( std::make_pair( &batt_design ,
-                                          - f_kappa * f_MaxCRateDischarge *
+                                          -f_kappa * f_MaxCRateDischarge *
                                           v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
@@ -554,7 +551,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // battery in charge
    outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    outtake_vars.push_back( std::make_pair( &batt_design ,
-                                           - f_kappa * f_MaxCRateCharge *
+                                           -f_kappa * f_MaxCRateCharge *
                                            v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
@@ -575,7 +572,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    intake_outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] ,
                                                   1.0 ) );
    intake_outtake_vars.push_back( std::make_pair( &conv_design ,
-                                                  - f_kappa *
+                                                  -f_kappa *
                                                   v_ConvMaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs( -Inf< double >() );
@@ -763,7 +760,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    lower_vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    lower_vars.push_back( std::make_pair( &batt_design ,
-                                         - f_kappa * v_MinStorage[ t ] ) );
+                                         -f_kappa * v_MinStorage[ t ] ) );
 
    storage_level_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
    storage_level_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
@@ -779,7 +776,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    upper_vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    upper_vars.push_back( std::make_pair( &batt_design ,
-                                         - f_kappa * v_MaxStorage[ t ] ) );
+                                         -f_kappa * v_MaxStorage[ t ] ) );
 
    storage_level_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    storage_level_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
@@ -805,7 +802,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    intake_vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    intake_vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                          - f_kappa * v_MaxPower[ t ] ) );
+                                          -f_kappa * v_MaxPower[ t ] ) );
 
    intake_outtake_binary_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_binary_Const[ 0 ][ t ].set_rhs( 0.0 );
@@ -816,10 +813,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    outtake_vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    outtake_vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
-                                           - f_kappa * v_MinPower[ t ] ) );
+                                           -f_kappa * v_MinPower[ t ] ) );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( - f_kappa * v_MinPower[ t ] );
+   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( -f_kappa * v_MinPower[ t ] );
    intake_outtake_binary_Const[ 1 ][ t ].set_function(
     new LinearFunction( std::move( outtake_vars ) ) );
   }
@@ -889,17 +886,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::generate_objective( Configuration *objc ) {
-
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( ! variables_generated() )
-  throw( std::logic_error( "BatteryUnitBlock::generate_objective: variables "
-                           "need be generated for constraints to be." ) );
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                         // cowardly (and silently) return
+void BatteryUnitBlock::generate_objective( Configuration *objc )
+{
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  auto lf = new LinearFunction();
 
@@ -928,8 +918,8 @@ void BatteryUnitBlock::generate_objective( Configuration *objc ) {
 /*---------------- METHODS FOR CHECKING THE BatteryUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 
-bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
-
+bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
  // Retrieve the tolerance and the type of violation.
  double tol = 0;
  bool rel_viol = true;
@@ -943,8 +933,7 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-   std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -1138,7 +1127,7 @@ void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterato
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( values , - rng.first );
+ std::advance( values , -rng.first );
 
  if( f_InitialStorage == *values )
   return; // nothing changes; return
@@ -1224,7 +1213,7 @@ void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator 
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
   return; // 0 does not belong to the range; return
 
- std::advance( values , - rng.first );
+ std::advance( values , -rng.first );
 
  if( f_InitialPower == *values )
   return; // nothing changes; return
@@ -1324,7 +1313,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in intake_binary_Const." ) );
 
-   f->modify_coefficient( index , - f_kappa * v_MaxPower[ t ] , issueAMod );
+   f->modify_coefficient( index , -f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
  if( ! intake_outtake_binary_Const[ 1 ].empty() )
@@ -1340,10 +1329,10 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in outtake_binary_Const." ) );
 
-   f->modify_coefficient( index , - f_kappa * v_MinPower[ t ] , issueAMod );
+   f->modify_coefficient( index , -f_kappa * v_MinPower[ t ] , issueAMod );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-    - f_kappa * v_MinPower[ t ] , issueAMod );
+    -f_kappa * v_MinPower[ t ] , issueAMod );
   }
 
  if( ! primary_upper_bound_Const.empty() )

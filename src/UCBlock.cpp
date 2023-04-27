@@ -400,7 +400,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
    for( auto apdit = v_active_power_demand.data() ;
         apdit != v_active_power_demand.data() + f_time_horizon ; )
-    *( apdit++ ) = 0;
+    *(apdit++) = 0;
   }
 
   if( ! v_network_blocks.empty() ) {
@@ -579,8 +579,8 @@ void UCBlock::generate_node_injection_constraints( void )
      for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
 
       // surely add the contribution of the corresponding active power
-      *( vcit++ ) = std::pair( &unit_block->get_active_power( g )[ t ] ,
-                               scale );
+      *(vcit++) = std::pair( &unit_block->get_active_power( g )[ t ] ,
+                             scale );
 
       // if the generator also has nonzero fixed consumption at t
       // fixed consumption happens when the generator is off, and it
@@ -593,7 +593,7 @@ void UCBlock::generate_node_injection_constraints( void )
         if( auto u = unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
-         *( vcit++ ) = std::pair( &u[ t ] , - fixed_consumption );
+         *(vcit++) = std::pair( &u[ t ] , -fixed_consumption );
          rhs -= fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
@@ -2034,7 +2034,7 @@ void UCBlock::set_active_power_demand( std::vector< double >::const_iterator val
  for( auto index : subset ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *( values++ );
+  const auto demand = *(values++);
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -2043,7 +2043,7 @@ void UCBlock::set_active_power_demand( std::vector< double >::const_iterator val
     // Change the physical representation
     v_active_power_demand[ node_index ][ time ] = demand;
 
-    if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+    if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
    }
@@ -2104,7 +2104,7 @@ void UCBlock::set_active_power_demand( std::vector< double >::const_iterator val
  for( Index index = rng.first ; index < rng.second ; ++index ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *( values++ );
+  const auto demand = *(values++);
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -2113,7 +2113,7 @@ void UCBlock::set_active_power_demand( std::vector< double >::const_iterator val
     // Change the physical representation
     v_active_power_demand[ node_index ][ time ] = demand;
 
-    if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+    if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
    }

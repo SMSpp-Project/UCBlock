@@ -169,8 +169,8 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
 
 void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  for( auto block : v_Block )
   block->generate_abstract_variables();
@@ -203,14 +203,11 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 void HydroSystemUnitBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return; // Objective has already been generated
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  for( auto block : v_Block )
   block->generate_objective();
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
 
  objective.set_function( new LinearFunction() );
 

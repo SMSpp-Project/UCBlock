@@ -536,15 +536,7 @@ class HydroUnitBlock : public UnitBlock
   *  - the volumetric variables
   *
   *  Where its' first dimension is the number of reservoirs and the second
-  *  dimension is the time horizon.
-  *
-  *  All of these variables are optional, and it is also possible to restrict
-  *  which of the subsets are generated with the parameter stvv. If stvv is not
-  *  nullptr and it is a SimpleConfiguration< int >, or if
-  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
-  *  each of the optional variables should be created. If the Configuration
-  *  is not available, the default value is taken to be 0. */
+  *  dimension is the time horizon. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 

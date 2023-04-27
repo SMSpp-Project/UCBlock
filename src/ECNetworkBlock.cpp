@@ -179,8 +179,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  NetworkBlock::generate_abstract_variables( stvv );
 
@@ -235,8 +235,8 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
@@ -402,11 +402,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 void ECNetworkBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return; // objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  const auto is_coop = is_cooperative();
 
@@ -465,8 +462,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-   std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -591,7 +587,7 @@ void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
    throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
-  auto demand = *( values++ );
+  auto demand = *(values++);
   if( *( v_ActiveDemand.data() + i ) != demand ) {
    identical = false;
 
@@ -663,8 +659,7 @@ void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
              values + ( rng.second - rng.first ) ,
              v_ActiveDemand.data() + rng.first );
 
-  if( ( not_dry_run( issueAMod ) ) &&
-      ( constraints_generated() ) ) {
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {

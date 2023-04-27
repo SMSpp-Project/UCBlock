@@ -116,16 +116,15 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  // Commitment Variable
  if( reserve_vars & 4u ) {  // if UCBlock has inertia demand variables
   if( ! v_MaxInertia.empty() ) {  // if unit produces any inertia reserve
    v_commitment.resize( f_time_horizon );
-   for( auto & i : v_commitment ) {
+   for( auto & i : v_commitment )
     i.set_type( ColVariable::kPosUnitary );
-   }
    add_static_variable( v_commitment , "u_inertia_slack" );
   }
  }
@@ -140,21 +139,18 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_MaxPrimaryPower.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_primary_spinning_reserve ) {
+   for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
-   }
    add_static_variable( v_primary_spinning_reserve , "pr_slack" );
   }
  }
 
  // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
-  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary
-   // reserve
+  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary reserve
    v_secondary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_secondary_spinning_reserve ) {
+   for( auto & var : v_secondary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
-   }
    add_static_variable( v_secondary_spinning_reserve , "sr_slack" );
   }
  }
@@ -167,14 +163,14 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
- int generate_ZOConstraint = 0;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
+ bool generate_ZOConstraint = 0;
+ auto config = dynamic_cast< SimpleConfiguration< bool > * >( stcc );
  if( ( ! config ) && f_BlockConfig &&
      f_BlockConfig->f_static_constraints_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
+  config = dynamic_cast< SimpleConfiguration< bool > * >
   ( f_BlockConfig->f_static_constraints_Configuration );
  if( config )
   generate_ZOConstraint = config->f_value;
@@ -203,8 +199,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  /*--------------------------------------------------------------------------*/
 
  // Initializing primary spinning reserve bounds constraints
- if( reserve_vars & 1u ) {
-  if( ! v_MaxPrimaryPower.empty() ) {
+ if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
+  if( ! v_MaxPrimaryPower.empty() ) {  // if unit produces any primary reserve
 
    if( Primary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
     // this should only happen once
@@ -228,8 +224,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  /*--------------------------------------------------------------------------*/
 
  // Initializing secondary spinning reserve bounds constraints
- if( reserve_vars & 2u ) {
-  if( ! v_MaxSecondaryPower.empty() ) {
+ if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
+  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary reserve
    if( Secondary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
     // this should only happen once
     assert( Secondary_Spinning_Reserve_Bound_Const.empty() );
@@ -273,11 +269,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 void SlackUnitBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  if( reserve_vars & 4u )
   if( v_commitment.size() != f_time_horizon )
@@ -290,14 +283,14 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
                            "v_active_power must have size equal to the time "
                            "horizon." ) );
 
- if( reserve_vars & 1u )
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
   if( ! v_MaxPrimaryPower.empty() )
    if( v_primary_spinning_reserve.size() != f_time_horizon )
     throw( std::logic_error( "SlackUnitBlock::generate_objective: "
                              "v_primary_spinning_reserve must have size equal"
                              " to the time horizon." ) );
 
- if( reserve_vars & 2u )
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
   if( ! v_MaxSecondaryPower.empty() )
    if( v_secondary_spinning_reserve.size() != f_time_horizon )
     throw( std::logic_error( "SlackUnitBlock::generate_objective: "
@@ -313,7 +306,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
   else
    lf->add_variable( &v_active_power[ t ] , 0.0 , eDryRun );
 
-  if( reserve_vars & 1u ) {
+  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
    if( ! v_MaxPrimaryPower.empty() ) {
     if( ! v_PrimaryCost.empty() )
      lf->add_variable( &v_primary_spinning_reserve[ t ] ,
@@ -323,7 +316,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
    }
   }
 
-  if( reserve_vars & 2u ) {
+  if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
    if( ! v_MaxSecondaryPower.empty() ) {
     if( ! v_SecondaryCost.empty() )
      lf->add_variable( &v_secondary_spinning_reserve[ t ] ,
@@ -371,8 +364,7 @@ bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-      std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );

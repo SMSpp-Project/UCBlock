@@ -466,19 +466,9 @@ public:
   * Configuration in the BlockConfig is only considered if no valid
   * Configuration has been provided in \p stvv. By default, it is assumed that
   * negative prices do not occur and, therefore, the binary variables are not
-  * generated. Two types of Configuration are allowed:
-  *
-  *  - If the Configuration is a SimpleConfiguration< int >, then a nonzero
-  *    value stored in this Configuration indicates that negative prices may
-  *    occur. The value zero indicates that negative prices do not occur.
-  *
-  *  - If the Configuration is a SimpleConfiguration< std::pair< int , int > >,
-  *    then the first value is associated with the negative prices (a nonzero
-  *    value indicates that negative prices may occur and the value zero
-  *    indicates that negative prices do not occur) and the second value
-  *    indicates whether the binary variables must have their integrality
-  *    constraints relaxed (a nonzero value for relaxing and the value zero
-  *    for not relaxing the integrality constraints). */
+  * generated. If the Configuration is a SimpleConfiguration< int >, then a
+  * nonzero value stored in this Configuration indicates that negative prices
+  * may occur. The value zero indicates that negative prices do not occur. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
