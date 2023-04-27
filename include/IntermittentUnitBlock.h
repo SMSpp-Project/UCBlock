@@ -22,7 +22,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -201,13 +202,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   *  All of those variables are optional except the active power variables in
   *  the sense that the model may just not have them and whenever a group of
-  *  above variables is created, its size will be the time horizon. It is
-  *  possible to restrict which of the subsets are generated with the parameter
-  *  stvv. If stvv is not nullptr and it is a SimpleConfiguration< int >, or if
-  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
-  *  each of the optional variables should be created. If the Configuration
-  *  is not available, the default value is taken to be 0.
+  *  above variables is created, its size will be the time horizon.
   *
   *  In the design scenario of the UC problem, i.e., if an investment cost
   *  is given for this IntermittentUnitBlock, an additional binary variable

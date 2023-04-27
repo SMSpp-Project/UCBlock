@@ -20,7 +20,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
+ * Copyright &copy by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella,
+ *                    Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -146,7 +147,7 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  if( ! owned )
   f_Block->unlock( f_id );
 
- }  // end( ThermalUnitDPSolver::get_var_solution( )
+ }  // end( ThermalUnitDPSolver::get_var_solution )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ BUILDING AND SOLVING THE DP PROBLEM -------------------*/
@@ -387,7 +388,7 @@ void ThermalUnitDPSolver::build_graph( void )
 
  stage = graph_OK;  // update stage
 
- }  // end( build_graph )
+ }  // end( ThermalUnitDPSolver::build_graph )
 
 /*--------------------------------------------------------------------------*/
 
@@ -444,7 +445,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
 
  stage = edps_OK;  // update stage
 
- }  // end( compute_EDPs )
+ }  // end( ThermalUnitDPSolver::compute_EDPs )
 
 /*--------------------------------------------------------------------------*/
 
@@ -477,7 +478,7 @@ void ThermalUnitDPSolver::min_path( void )
 
  stage = path_OK;  // all done: update stage
 
- }  // end( min_path )
+ }  // end( ThermalUnitDPSolver::min_path )
 
 /*--------------------------------------------------------------------------*/
 
@@ -524,7 +525,7 @@ void ThermalUnitDPSolver::compute_solutions( void )
 
  stage = sol_OK;  // all done: update stage
 
- }  // end( compute_solutions )
+ }  // end( ThermalUnitDPSolver::compute_solutions )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE METHODS OF THE CLASS ------------------------*/
@@ -629,7 +630,7 @@ void ThermalUnitDPSolver::process_modifications( void )
  if( reload )
   load_parameters();
 
- }  // end( process_modifications )
+ }  // end( ThermalUnitDPSolver::process_modifications )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1107,7 +1108,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
                coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
 
   }  // end( for( k ) )
- }  // end( compute_costs )
+ }  // end( ThermalUnitDPSolver::compute_costs )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1141,7 +1142,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
    else
     p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
   }
- }  // end( compute_power_variables )
+ }  // end( ThermalUnitDPSolver::compute_power_variables )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File ThermalUnitDPSolver.cpp -----------------------*/

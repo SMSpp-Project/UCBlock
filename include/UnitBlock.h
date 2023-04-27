@@ -730,6 +730,9 @@ class UnitBlock : public Block
  /// bit-wise coded: which reserve variables generate
  unsigned char reserve_vars{};
 
+ ///< bit-wise coded: what abstract is there
+ unsigned char AR{};
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -739,9 +742,6 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
-
- ///< bit-wise coded: what abstract is there
- unsigned char AR{};
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed

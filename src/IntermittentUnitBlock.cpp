@@ -20,7 +20,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -181,8 +182,8 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
 
 void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  UnitBlock::generate_abstract_variables( stvv );
 
@@ -224,8 +225,8 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
  // Minimum power constraints
 
@@ -238,10 +239,10 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   min_power_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
   if( f_gamma != 0 ) {  // if unit produces any reserve
-   if( reserve_vars & 1u )
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     min_power_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                               -1.0 ) );
-   if( reserve_vars & 2u )
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     min_power_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                               -1.0 ) );
   }
@@ -266,10 +267,10 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    max_power_vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
 
-   if( reserve_vars & 1u )
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     max_power_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                               1.0 ) );
-   if( reserve_vars & 2u )
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     max_power_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                               1.0 ) );
 
@@ -316,7 +317,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    lower_vars.push_back( std::make_pair( &design ,
-                                         - f_kappa * v_MinPower[ t ] ) );
+                                         -f_kappa * v_MinPower[ t ] ) );
 
    active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
    active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
@@ -332,7 +333,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    upper_vars.push_back( std::make_pair( &design ,
-                                         - f_kappa * v_MaxPower[ t ] ) );
+                                         -f_kappa * v_MaxPower[ t ] ) );
 
    active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
@@ -352,11 +353,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
 void IntermittentUnitBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return; // Objective has already been generated
-
- if( get_objective() != nullptr )  // an objective is there already
-  return;                          // cowardly (and silently) return
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  LinearFunction::v_coeff_pair vars;
 
@@ -409,8 +407,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-      std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -560,7 +557,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   if( t >= v_MaxPower.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
                                  " invalid value in subset." ) );
-  auto max_power = *( values++ );
+  auto max_power = *(values++);
   if( v_MaxPower[ t ] != max_power ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
@@ -574,9 +571,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( identical )
   return;  // nothing changes; return
 
- if( ( not_dry_run( issuePMod ) ) &&
-     ( not_dry_run( issueAMod ) ) &&
-     ( constraints_generated() ) )
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() )
   // Change the abstract representation
   update_max_power_in_cnstrs( subset , issueAMod );
 
@@ -628,7 +624,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
     if( v_MaxPower[ t ] == 0.0 )
      v_MaxPower[ t ] = f_max_power_epsilon;
 
-  if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+  if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
    update_max_power_in_cnstrs( rng , issueAMod );
  }

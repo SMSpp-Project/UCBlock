@@ -23,7 +23,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Tiziano Bacci \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli, Tiziano Bacci
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -371,7 +376,24 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ThermalUnitBlock
- /** The ThermalUnitBlock class has six different variables:
+ /** Method that generates the abstract Variable of the ThermalUnitBlock,
+  * meanwhile deciding which of the different formulations of the problem is
+  * produced as the "abstract representation" of the block.
+  * The different possible formulations are represented by a single int value
+  * "wf" that is obtained as follows:
+  *
+  * - if either \p stvv is not nullptr and it is a SimpleConfiguration< int >,
+  *   or f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_static_variables_Configuration is not nullptr,
+  *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
+  *   SimpleConfiguration< int >
+  *
+  * - otherwise, wf is 0, i.e., the default formulation is the 3bin.
+  *
+  * The list of supported formulations is:
+  *
+  * - wf & 3 == 0 is the "three binaries" (3bin) formulation. This
+  * formulation of the ThermalUnitBlock class has six different variables:
   *
   *  - the binary commitment variables which takes the value of 1 if unit is ON
   *    at time instant t and 0 otherwise;
@@ -400,16 +422,23 @@ class ThermalUnitBlock : public UnitBlock
   *  steps 0, ..., init_t - 1 (see initial time step concept in the
   *  generate_abstract_constraints()).
   *
-  *  All of these variables are optional, and it is also possible to restrict
-  *  which of the subsets are generated with the parameter \p stvv. If \p stvv
-  *  is not nullptr and it is a SimpleConfiguration< int >, or if
-  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is a
-  *  SimpleConfiguration< int >, then the f_value (an int) indicates whether
-  *  each of the optional variables should be created. If the Configuration
-  *  is not available, the default value is taken to be 0.
+  *  - wf & 3 == 1: the "dynamic programming" formulation (DP).
   *
-  * Note that there may be other formulations (like the DP one), which will
-  * possibly be implemented in the future. */
+  *  // TODO add here details about DP formulation
+  *
+  *  - wf & 3 == 2: the p_t formulation.
+  *
+  *  // TODO add here details about p_t formulation
+  *
+  *  - wf & 3 == 3: the "start up" formulation (SU).
+  *
+  *  // TODO add here details about SU formulation
+  *
+  *  - wf & 3 >= 4: the "shut down" formulation (SD).
+  *
+  *  // TODO add here details about SD formulation
+  *
+  *  */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -690,6 +719,14 @@ class ThermalUnitBlock : public UnitBlock
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// generate the dynamic constraint of the ThermalUnitBlock
+ /**
+  * TODO
+  */
+
+ void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
  /// generate the objective of the ThermalUnitBlock
  /** Method that generates the objective of the ThermalUnitBlock. The objective
   *  function of the ThermalUnitBlock representing the total power production
@@ -797,7 +834,7 @@ class ThermalUnitBlock : public UnitBlock
   *     in that SimpleConfiguration and the relative violation is considered.
   *
   *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
   *     fsbc->f_value.first and the type of violation is determined by
   *     fsbc->f_value.second (any nonzero number for relative violation and
   *     zero for absolute violation);
@@ -805,7 +842,7 @@ class ThermalUnitBlock : public UnitBlock
   *   - Otherwise, if both #f_BlockConfig and
   *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *     latter is a pointer to either a SimpleConfiguration<double> or to a
-  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
   *     parameters are obtained analogously as above;
   *
   *   - Otherwise, by default, the tolerance is 0 and the relative violation
@@ -1677,10 +1714,10 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_InertiaCommitment;
 
  /// the MinUpTime value
- Index f_MinUpTime{};
+ Index f_MinUpTime = 1;
 
  /// the MinDownTime value
- Index f_MinDownTime{};
+ Index f_MinDownTime = 1;
 
  /// the InitUpDownTime value
  int f_InitUpDownTime{};
@@ -1700,7 +1737,75 @@ class ThermalUnitBlock : public UnitBlock
  /// the installable capacity by the user
  double f_Capacity{};
 
+ /// TODO
+ std::vector< double > v_u_bar;
+
+ /// TODO
+ std::vector< double > v_l_bar;
+
+ /// TODO
+ std::vector< int > v_T_RU;
+
+ /// TODO
+ std::vector< int > v_T_RD;
+
+ /// TODO
+ std::vector< int > v_K_SD;
+
+ /// TODO
+ std::vector< int > v_K_SU;
+
+ /// stores the value of the last pbar in a p/c
+ std::vector< double > v_prevpbar;
+
+ /// TODO
+ std::vector< double > v_psi;
+
+ // DP formulation data
+
+ /// TODO
+ std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
+
+ /// TODO
+ std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
+
+ // SU formulation data
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_P_h;
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_Z_h;
+
+ // SD formulation data
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_P_k;
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_Z_k;
+
+ // DP, SU and SD formulations data
+
+ /// TODO
+ std::vector< Index > v_nodes_plus;
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_Y_plus;
+
+ /// TODO
+ std::vector< std::pair< Index , Index > > v_Y_minus;
+
+ /// TODO
+ std::vector< Index > v_nodes_minus;
+
 /*-------------------------------- variables -------------------------------*/
+
+ /// the design binary variable
+ ColVariable design;
+
+ /// the commitment variables
+ std::vector< ColVariable > v_commitment;
 
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
@@ -1708,34 +1813,61 @@ class ThermalUnitBlock : public UnitBlock
  /// the shut down binary variables
  std::vector< ColVariable > v_shut_down;
 
- /// the commitment variables
- std::vector< ColVariable > v_commitment;
-
- /// the active power variables
- std::vector< ColVariable > v_active_power;
-
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the design binary variable
- ColVariable design;
+
+ // 3bin and p_t formulation variables
+
+ /// the active power variables for 3bin and p_t models
+ std::vector< ColVariable > v_active_power;
+
+ /// the p/c variables for 3bin and p_t models
+ std::vector< ColVariable > v_z;
+
+
+ // DP formulation variables
+
+ /// the active power variables for DP model
+ std::vector< ColVariable > v_p_h_k;
+
+ /// the p/c variables for DP model
+ std::vector< ColVariable > v_z_h_k;
+
+
+ // SU formulation variables
+
+ /// the active power variables for SU model
+ std::vector< ColVariable > v_p_h;
+
+ /// the p/c variables for SU model
+ std::vector< ColVariable > v_z_h;
+
+
+ // SD formulation variables
+
+ /// the active power variables for SD model
+ std::vector< ColVariable > v_p_k;
+
+ /// the p/c variables for SD model
+ std::vector< ColVariable > v_z_k;
+
+
+ // DP, SU and SD formulation variables
+
+ /// the y^+ binary variables for DP, SU and SD models
+ std::vector< ColVariable > v_y_plus;
+
+ /// the y^- binary variables for DP, SU and SD models
+ std::vector< ColVariable > v_y_minus;
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the connection power out put constraints
- std::vector< FRowConstraint > Power_StartUp_ShutDown_Variables_Const;
-
- /// the Start Up power out put constraints
- std::vector< FRowConstraint > Power_StartUp_Variable_Const;
-
- /// the Shut Down power out put constraints
- std::vector< FRowConstraint > Power_ShutDown_Variable_Const;
-
- /// the connection min up and down time constraints
- std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
+ /// the commitment design constraints
+ std::vector< FRowConstraint > CommitmentDesign_Const;
 
  /// the TURN ON min up and down time constraints
  std::vector< FRowConstraint > StartUp_Const;
@@ -1743,11 +1875,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the SHUT DOWN min up and down time constraints
  std::vector< FRowConstraint > ShutDown_Const;
 
- /// the RampUp time constraints
- std::vector< FRowConstraint > RampUp_Const;
-
- /// the RampDown time constraints
- std::vector< FRowConstraint > RampDown_Const;
+ /// the connection min up and down time constraints
+ std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
 
  /// the PrimaryRho fraction constraints
  std::vector< FRowConstraint > PrimaryRho_Const;
@@ -1755,14 +1884,132 @@ class ThermalUnitBlock : public UnitBlock
  /// the SecondaryRho fraction constraints
  std::vector< FRowConstraint > SecondaryRho_Const;
 
- /// the active power upper bound constraints
+
+ // 3bin formulation constraints
+
+ /// the active power upper bound constraints for 3bin model
  std::vector< FRowConstraint > MinPower_Const;
 
- /// the active power lower bound constraints
+ /// the active power lower bound constraints for 3bin model
  std::vector< FRowConstraint > MaxPower_Const;
 
- /// the commitment design constraints
- std::vector< FRowConstraint > CommitmentDesign_Const;
+ /// the RampUp time constraints for 3bin model
+ std::vector< FRowConstraint > RampUp_Const;
+
+ /// the RampDown time constraints for 3bin model
+ std::vector< FRowConstraint > RampDown_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Init_PC_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > PC_Const;
+
+
+ // DP formulation constraints
+
+ /// TODO
+ std::vector< FRowConstraint > Network_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MinPower_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MaxPower_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > EqPower_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > EqCommit_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > EqStartUp_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > EqShutDown_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampUp_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampDown_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Init_PC_DP_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Eq_PC_DP_Const;
+
+
+ // pt formulation constraints
+
+ /// TODO
+ std::vector< FRowConstraint > MinPower_pt_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MaxPower_pt_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampUp_pt_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampDown_pt_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Init_PC_pt_Const;
+
+
+ // SU formulation constraints
+
+ /// TODO
+ std::vector< FRowConstraint > EqPower_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MinPower_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MaxPower_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampUp_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampDown_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Init_PC_pk_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Eq_PC_pk_Const;
+
+
+ // SD formulation constraints
+
+ /// TODO
+ std::vector< FRowConstraint > EqPower_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MinPower_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > MaxPower_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampUp_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > RampDown_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Init_PC_ph_Const;
+
+ /// TODO
+ std::vector< FRowConstraint > Eq_PC_ph_Const;
+
+
+ /// TODO
+ std::list< FRowConstraint > PC_cuts;
 
 
  /// the commitment bound constraints

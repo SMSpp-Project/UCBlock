@@ -212,9 +212,8 @@ unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv )
 
 void HeatBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( ! v_heat.empty() )
-  // the abstract variables have already been generated
-  return;
+ if( ! v_heat.empty() )  // variables have already been generated
+  return;                // nothing to do
 
  if( f_time_horizon == 0 )
   // there are no variables to be generated
@@ -255,8 +254,8 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv )
 
 void HeatBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( ! v_HeatBounds_Const.empty() )
-  return; // constraints have already been generated
+ if( ! v_HeatBounds_Const.empty() )  // constraints have already been generated
+  return;                            // nothing to do
 
  // Satisfaction Heat Bounds constraints
 
@@ -364,8 +363,8 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc )
 
 void HeatBlock::generate_objective( Configuration * objc )
 {
- if( get_objective() )  // an objective is there already
-  return;               // cowardly (and silently) return
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  if( v_heat.size() != f_time_horizon )
   throw( std::logic_error( "HeatBlock::generate_objective: v_heat must have "

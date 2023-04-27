@@ -20,7 +20,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Tiziano Bacci \n
+ *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
+ *         Consiglio Nazionale delle Ricerche \n
+ *
+ * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                    Donato Meoli, Tiziano Bacci
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -41,16 +46,32 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*-------------------------------- CONSTANTS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register ThermalUnitBlock to the Block factory
+static constexpr unsigned char tbinForm = 0;
+/// the "three binaries" (3bin) formulation is used
 
-SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
+static constexpr unsigned char DPForm = 1;
+/// the "dynamic programming" (DP) formulation is used
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+static constexpr unsigned char ptForm = 2;
+/// the "p_t" formulation is used
+
+static constexpr unsigned char SUForm = 3;
+/// the "start up" (SU) formulation is used
+
+static constexpr unsigned char SDForm = 4;
+/// the "shut down" (SD) formulation is used
+
+static constexpr unsigned char z0c = 8;
+/// fourth bit of AR == 1 if we generate Z0Constraints
+
+static constexpr unsigned char PCuts = 16;
+/// fifth bit of AR == 1 if the perspective cuts are used
 
 int ThermalUnitBlock::f_ignore_netcdf_variables = 0;
+/// this variable indicates which netCDF variables must be ignored
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -74,7 +95,7 @@ static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
  // returns true if the sub-vector of vec[] corresponding to the indices
  // in sbst is identical to the vector starting at it
  for( auto t : sbst )
-  if( vec[ t ] != *( it++ ) )
+  if( vec[ t ] != *(it++) )
    return( false );
 
  return( true );
@@ -88,7 +109,7 @@ static void assign( std::vector< T > & vec , const Block::Subset sbst ,
  // assign to the sub-vector of vec[] corresponding to the indices in sbst
  // the values found in vector starting at it
  for( auto t : sbst )
-  vec[ t ] = *( it++ );
+  vec[ t ] = *(it++);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -112,11 +133,19 @@ Block::Subset subset_sbtrct( const Block::Subset & sbst , Block::Index dlt ) {
 }
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register ThermalUnitBlock to the Block factory
+
+SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ThermalUnitBlock ----------------------*/
 /*--------------------------------------------------------------------------*/
 
-ThermalUnitBlock::~ThermalUnitBlock() {
-
+ThermalUnitBlock::~ThermalUnitBlock()
+{
  Constraint::clear( StartUp_ShutDown_Variables_Const );
  Constraint::clear( StartUp_Const );
  Constraint::clear( ShutDown_Const );
@@ -133,6 +162,44 @@ ThermalUnitBlock::~ThermalUnitBlock() {
  Constraint::clear( ShoutDown_Binary_bound_Const );
 
  Constraint::clear( Commitment_fixed_to_One_Const );
+
+ Constraint::clear( Network_DP_Const );
+ Constraint::clear( MinPower_DP_Const );
+ Constraint::clear( MaxPower_DP_Const );
+ Constraint::clear( EqPower_DP_Const );
+ Constraint::clear( EqCommit_DP_Const );
+ Constraint::clear( EqStartUp_DP_Const );
+ Constraint::clear( EqShutDown_DP_Const );
+ Constraint::clear( RampUp_DP_Const );
+ Constraint::clear( RampDown_DP_Const );
+
+ Constraint::clear( Init_PC_pt_Const );
+ Constraint::clear( Init_PC_DP_Const );
+ Constraint::clear( Init_PC_ph_Const );
+ Constraint::clear( Init_PC_pk_Const );
+ Constraint::clear( Init_PC_Const );
+ Constraint::clear( PC_Const );
+ Constraint::clear( Eq_PC_DP_Const );
+ Constraint::clear( Eq_PC_ph_Const );
+ Constraint::clear( Eq_PC_pk_Const );
+ Constraint::clear( PC_cuts );
+
+ Constraint::clear( MinPower_pt_Const );
+ Constraint::clear( MaxPower_pt_Const );
+ Constraint::clear( RampUp_pt_Const );
+ Constraint::clear( RampDown_pt_Const );
+
+ Constraint::clear( EqPower_ph_Const );
+ Constraint::clear( MinPower_ph_Const );
+ Constraint::clear( MaxPower_ph_Const );
+ Constraint::clear( RampUp_ph_Const );
+ Constraint::clear( RampDown_ph_Const );
+
+ Constraint::clear( EqPower_pk_Const );
+ Constraint::clear( MinPower_pk_Const );
+ Constraint::clear( MaxPower_pk_Const );
+ Constraint::clear( RampUp_pk_Const );
+ Constraint::clear( RampDown_pk_Const );
 
  objective.clear();
 }
@@ -176,9 +243,16 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
- ::deserialize( group , f_MinUpTime , "MinUpTime" );
+ if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) ) {  // TODO simplify
+  f_MinUpTime = ( f_MinUpTime > 1 ? f_MinUpTime : 1 );
+  f_MinUpTime = ( f_MinUpTime > f_time_horizon ? f_time_horizon : f_MinUpTime );
+ }
 
- ::deserialize( group , f_MinDownTime , "MinDownTime" );
+ if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) ) {  // TODO simplify
+  f_MinDownTime = ( f_MinDownTime > 1 ? f_MinDownTime : 1 );
+  f_MinDownTime = ( f_MinDownTime > f_time_horizon ? f_time_horizon
+                                                   : f_MinDownTime );
+ }
 
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
 
@@ -238,7 +312,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 void ThermalUnitBlock::check_data_consistency( void ) const
 {
-
  // InvestmentCost- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ( f_InvestmentCost != 0 ) && ( f_InitUpDownTime != 0 ) )
   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: the "
@@ -286,7 +359,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampUp[ t ] < 0 )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "delta ram pup for time step " +
+                             "delta ramp-up for time step " +
                              std::to_string( t ) + " is " +
                              std::to_string( v_DeltaRampUp[ t ] ) +
                              ", but it must be nonnegative." ) );
@@ -298,7 +371,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampDown[ t ] < 0 )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "delta ramp down for time step " +
+                             "delta ramp-down for time step " +
                              std::to_string( t ) + " is " +
                              std::to_string( v_DeltaRampDown[ t ] ) +
                              ", but it must be nonnegative." ) );
@@ -343,63 +416,33 @@ void ThermalUnitBlock::check_data_consistency( void ) const
 
 void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
- if( variables_generated() )
-  return; // variables have already been generated
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
 
  UnitBlock::generate_abstract_variables( stvv );
+
+ Index wf = 0;
+ if( ( ! stvv ) && f_BlockConfig )
+  stvv = f_BlockConfig->f_static_variables_Configuration;
+ if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
+  wf = sci->f_value;
+
+ AR = ( AR & ( ~PCuts ) ) | ( PCuts * wf );
 
  if( f_InitUpDownTime > 0 )
   init_t = ( f_InitUpDownTime >= f_MinUpTime ? 0 :
              f_MinUpTime - f_InitUpDownTime );
  else
-  init_t = ( - f_InitUpDownTime >= f_MinDownTime ? 0 :
+  init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
- int relax_binary = 0;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
-
- // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
- v_commitment.resize( f_time_horizon );
- for( auto & var : v_commitment )
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- add_static_variable( v_commitment , "u_thermal" );
-
- // Active Power Variable - - - - - - - - - - - - - - - - - - - - - - - - - -
- v_active_power.resize( f_time_horizon );
- for( auto & var : v_active_power )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_active_power , "p_thermal" );
-
- // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
-  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
-   v_primary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_primary_spinning_reserve )
-    var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_primary_spinning_reserve , "pr_thermal" );
-  }
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_InvestmentCost != 0 ) {
+  design.set_type( ColVariable::kBinary );
+  add_static_variable( design , "D_thermal" );
  }
 
- // Secondary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
-  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
-   v_secondary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_secondary_spinning_reserve )
-    var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_secondary_spinning_reserve , "sc_thermal" );
-  }
- }
-
- // START UP AND SHUT DOWN BINARY VARIABLES - - - - - - - - - - - - - - - - -
+ // Start Up and Shut Down Binary Variables - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto startup_shutdown_size = f_time_horizon - init_t;
@@ -408,33 +451,40 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   v_start_up.resize( startup_shutdown_size );
   for( auto & var : v_start_up )
-   if( relax_binary )
-    var.set_type( ColVariable::kPosUnitary );
-   else
-    var.set_type( ColVariable::kBinary );
+   var.set_type( ColVariable::kBinary );
   add_static_variable( v_start_up , "v" );
 
   v_shut_down.resize( startup_shutdown_size );
   for( auto & var : v_shut_down )
-   if( relax_binary )
-    var.set_type( ColVariable::kPosUnitary );
-   else
-    var.set_type( ColVariable::kBinary );
+   var.set_type( ColVariable::kBinary );
   add_static_variable( v_shut_down , "w" );
  }
 
- // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_InvestmentCost != 0 ) {
-  if( relax_binary )
-   design.set_type( ColVariable::kPosUnitary );
-  else
-   design.set_type( ColVariable::kBinary );
-  add_static_variable( design , "D_thermal" );
- }
+ // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_primary_spinning_reserve )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_primary_spinning_reserve , "pr_thermal" );
+  }
 
- // POSSIBLY FIXING THE COMMITMENT VARIABLES TO 0 OR 1- - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // Secondary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - -
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_secondary_spinning_reserve )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_secondary_spinning_reserve , "sc_thermal" );
+  }
 
+ // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ v_commitment.resize( f_time_horizon );
+ for( auto & var : v_commitment )
+  var.set_type( ColVariable::kBinary );
+ add_static_variable( v_commitment , "u_thermal" );
+
+ // Possibly fixing the commitment variables to 0 or 1- - - - - - - - - - - -
  if( f_InitUpDownTime > 0 ) {
 
   for( Index t = 0 ; t < init_t ; ++t ) {
@@ -477,6 +527,185 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
  }
 
+ // Active Power & Prospective Cuts Variables - - - - - - - - - - - - - - - -
+ if( ! ( AR & tbinForm ) || ! ( AR & ptForm ) ) {  // 3bin or p_t model - - -
+
+  v_active_power.resize( f_time_horizon );
+  for( auto & var : v_active_power )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_active_power , "p_thermal" );
+
+  if( AR & PCuts ) {
+
+   v_z.resize( f_time_horizon );
+   for( auto & var : v_z )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_z , "z_thermal" );
+
+   v_prevpbar.resize( f_time_horizon , 0 );
+  }
+
+ } else if( ! ( AR & DPForm ) ||
+            ! ( AR & SUForm ) ||
+            ! ( AR & SDForm ) ) {  // DP, SU or SD model- - - - - - - - - - -
+
+  if( f_InitUpDownTime > 0 ) {  // if initial committed, OFF_0
+
+   for( Index k = init_t ; k <= f_time_horizon + 1 ; k++ ) {
+    if( k == 0 )
+     k++;
+    v_Y_plus.push_back( std::make_pair( 0 , k ) );
+   }
+
+   for( Index k = init_t ; k <= f_time_horizon ; k++ ) {
+    if( k <= f_time_horizon - f_MinDownTime - 1 )
+     for( Index h = ( k + f_MinDownTime + 1 ) ;  //  OFF_h
+          h <= f_time_horizon ; h++ )
+      v_Y_minus.push_back( std::make_pair( k , h ) );
+    v_Y_minus.push_back( std::make_pair( k , f_time_horizon + 1 ) );
+    v_nodes_minus.push_back( k );
+   }
+
+   for( Index h = ( init_t + f_MinDownTime + 1 ) ;  // OFF_h
+        h <= f_time_horizon ; h++ ) {
+    if( h <= f_time_horizon - f_MinUpTime + 1 )
+     for( Index k = ( h + f_MinUpTime - 1 ) ;  // ON_k
+          k <= f_time_horizon ; k++ )
+      v_Y_plus.push_back( std::make_pair( h , k ) );
+    v_Y_plus.push_back( std::make_pair( h , f_time_horizon + 1 ) );
+    v_nodes_plus.push_back( h );
+   }
+
+  } else {
+
+   for( Index h = init_t + 1 ; h <= f_time_horizon + 1 ; h++ )  // ON_k
+    v_Y_minus.push_back( std::make_pair( 0 , h ) );
+
+   for( Index h = init_t + 1 ; h <= f_time_horizon ; h++ ) {  // OFF_h
+    if( h <= f_time_horizon - f_MinUpTime + 1 )
+     for( Index k = ( h + f_MinUpTime - 1 ) ;   // ON_k
+          k <= f_time_horizon ; k++ )
+      v_Y_plus.push_back( std::make_pair( h , k ) );
+    v_Y_plus.push_back( std::make_pair( h , f_time_horizon + 1 ) );
+    v_nodes_plus.push_back( h );
+   }
+
+   for( Index k = init_t + 1 + f_MinUpTime - 1 ;
+        k <= f_time_horizon ; k++ ) {  // ON_k
+    if( k <= f_time_horizon - f_MinDownTime - 1 )
+     for( Index h = ( k + f_MinDownTime + 1 ) ;  // OFF_h
+          h <= f_time_horizon ; h++ )
+      v_Y_minus.push_back( std::make_pair( k , h ) );
+    v_Y_minus.push_back( std::make_pair( k , f_time_horizon + 1 ) );
+    v_nodes_minus.push_back( k );
+   }
+  }
+
+  v_y_plus.resize( v_Y_plus.size() );
+  for( auto & var : v_y_plus )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_y_plus , "v_y_plus_thermal" );
+
+  v_y_minus.resize( v_Y_minus.size() );
+  for( auto & var : v_y_minus )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_y_minus , "v_y_minus_thermal" );
+
+  if( ! ( AR & DPForm ) ) {  // DP model- - - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+    for( Index t = 0 ; t < f_time_horizon ; t++ )
+     if( ( v_Y_plus[ i ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
+      v_P_h_k.push_back(
+       std::make_pair( t , std::make_pair( v_Y_plus[ i ].first ,
+                                           v_Y_plus[ i ].second ) ) );
+
+   v_p_h_k.resize( v_P_h_k.size() );
+   for( auto & var : v_p_h_k )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_p_h_k , "v_p_h_k_thermal" );
+
+   if( AR & PCuts ) {
+
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     for( Index t = 0 ; t < f_time_horizon ; t++ )
+      if( ( v_Y_plus[ i ].first <= t + 1 ) &&
+          ( t + 1 <= v_Y_plus[ i ].second ) )
+       v_Z_h_k.push_back(
+        std::make_pair( t , std::make_pair( v_Y_plus[ i ].first ,
+                                            v_Y_plus[ i ].second ) ) );
+
+    v_z_h_k.resize( v_Z_h_k.size() );
+    for( auto & var : v_z_h_k )
+     var.set_type( ColVariable::kNonNegative );
+    add_static_variable( v_z_h_k , "v_z_h_k_thermal" );
+
+    v_prevpbar.resize( v_Z_h_k.size() , 0 );
+   }
+  }
+
+  if( ! ( AR & SUForm ) ) {  // SU model- - - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+    for( Index t = 0 ; t < f_time_horizon ; t++ )
+     if( v_Y_plus[ i ].first <= t + 1 )
+      v_P_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
+
+   v_p_h.resize( v_P_h.size() );
+   for( auto & var : v_p_h )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_p_h , "v_p_h_thermal" );
+
+   if( AR & PCuts ) {
+
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     for( Index t = 0 ; t < f_time_horizon ; t++ )
+      if( v_Y_plus[ i ].first <= t + 1 )
+       v_Z_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
+
+    v_z_h.resize( v_Z_h.size() );
+    for( auto & var : v_z_h )
+     var.set_type( ColVariable::kNonNegative );
+    add_static_variable( v_z_h , "v_z_h_thermal" );
+
+    v_prevpbar.resize( v_Z_h.size() , 0 );
+   }
+  }
+
+  if( ! ( AR & SDForm ) ) {  // SD model- - - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+    for( Index t = 0 ; t < f_time_horizon ; t++ )
+     if( v_Y_plus[ i ].second >= t + 1 )
+      v_P_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
+
+   v_p_k.resize( v_P_k.size() );
+   for( auto & var : v_p_k )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_p_k , "v_p_k_thermal" );
+
+   if( AR & PCuts ) {
+
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     for( Index t = 0 ; t < f_time_horizon ; t++ )
+      if( v_Y_plus[ i ].second >= t + 1 )
+       v_Z_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
+
+    v_z_k.resize( v_Z_k.size() );
+    for( auto & var : v_z_k )
+     var.set_type( ColVariable::kNonNegative );
+    add_static_variable( v_z_k , "v_z_k_thermal" );
+
+    v_prevpbar.resize( v_Z_k.size() , 0 );
+   }
+  }
+
+ } else {
+
+  throw( std::invalid_argument(
+   "ThermalUnitBlock::generate_abstract_variables: invalid formulation" ) );
+ }
+
  set_variables_generated();
 
 }  // end( ThermalUnitBlock::generate_abstract_variables )
@@ -485,17 +714,98 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
- int generate_ZOConstraint = 0;
- auto config = dynamic_cast< SimpleConfiguration< int > * >( stcc );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_constraints_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_constraints_Configuration );
- if( config )
-  generate_ZOConstraint = config->f_value;
+ unsigned char z0 = 0;
+ if( ( ! stcc ) && f_BlockConfig )
+  stcc = f_BlockConfig->f_static_constraints_Configuration;
+ if( auto sci = dynamic_cast< SimpleConfiguration< unsigned char > * >( stcc ) )
+  z0 = sci->value();
+
+ AR = ( AR & ( ~z0c ) ) | ( z0c * z0 );
+
+ // Initializing commitment design binary variable constraints- - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_InvestmentCost != 0 ) {
+
+  CommitmentDesign_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &design , -1.0 ) );
+
+   CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
+   CommitmentDesign_Const[ t ].set_rhs( 0.0 );
+   CommitmentDesign_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( CommitmentDesign_Const ,
+                         "CommitmentDesign_Const_Thermal" );
+ }
+
+ // Initializing turn on constraints (start up constraints) - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto startup_const_size =
+  static_cast< int >( f_time_horizon - ( init_t + f_MinUpTime - 1 ) );
+
+ if( startup_const_size > 0 ) {
+
+  StartUp_Const.resize( startup_const_size );
+
+  for( Index t = ( init_t + f_MinUpTime - 1 ) , cnstr_idx = 0 ;
+       t < f_time_horizon ; ++t , ++cnstr_idx ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s <= t - init_t ; ++s )
+    vars.push_back( std::make_pair( &v_start_up[ s ] , -1.0 ) );
+
+   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
+
+   StartUp_Const[ cnstr_idx ].set_lhs( 0.0 );
+   StartUp_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+   StartUp_Const[ cnstr_idx ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( StartUp_Const , "StartUp_Commitment_Const_Thermal" );
+ }
+
+ // Initializing turn off constraints (shut down constraints) - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto shutdown_const_size =
+  static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime - 1 ) );
+
+ if( shutdown_const_size > 0 ) {
+
+  ShutDown_Const.resize( shutdown_const_size );
+
+  for( Index t = ( init_t + f_MinDownTime - 1 ) , cnstr_idx = 0 ;
+       t < f_time_horizon ; ++t , ++cnstr_idx ) {
+
+   LinearFunction::v_coeff_pair vars;
+
+   for( Index s = t - ( init_t + f_MinDownTime - 1 ) ; s <= t - init_t ; ++s )
+    vars.push_back( std::make_pair( &v_shut_down[ s ] , 1.0 ) );
+
+   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
+
+   ShutDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
+   ShutDown_Const[ cnstr_idx ].set_rhs( 1.0 );
+   ShutDown_Const[ cnstr_idx ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( ShutDown_Const , "ShutDown_Commitment_Const_Thermal" );
+ }
 
  // Initializing start up and shut down variables connection constraints- - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -526,68 +836,82 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   add_static_constraint( StartUp_ShutDown_Variables_Const ,
-                         "StartUp_ShutDown_Variables_Const" );
+                         "StartUp_ShutDown_Variables_Const_Thermal" );
  }
 
- // Initializing turn on constraints (start up constraints) - - - - - - - - -
+ // Initializing minimum power constraints- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto startup_const_size =
-  static_cast< int >( f_time_horizon - ( init_t + f_MinUpTime - 1 ) );
+ MinPower_Const.resize( f_time_horizon );
 
- if( startup_const_size > 0 ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  // shape of the min-power constraint:
+  // first term:      - u_t * min_power_t
+  // second term:     + p_t
+  // third term:      - primary_reserve_t (if any)
+  // fourth term:     - secondary_reserve_t (if any)
 
-  StartUp_Const.resize( startup_const_size );
+  LinearFunction::v_coeff_pair lower_vars;
 
-  for( Index t = ( init_t + f_MinUpTime - 1 ) , cnstr_idx = 0 ;
-       t < f_time_horizon ; ++t , ++cnstr_idx ) {
+  lower_vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                        -get_operational_min_power( t ) ) );
+  lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   LinearFunction::v_coeff_pair vars;
+  // if UCBlock has primary demand variables
+  if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
+   lower_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
-   for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s <= t - init_t ; ++s )
-    vars.push_back( std::make_pair( &v_start_up[ s ] , -1.0 ) );
+  // if UCBlock has secondary reserve variables
+  if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
+   lower_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
-   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
-
-   StartUp_Const[ cnstr_idx ].set_lhs( 0.0 );
-   StartUp_Const[ cnstr_idx ].set_rhs( Inf< double >() );
-   StartUp_Const[ cnstr_idx ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
-
-  add_static_constraint( StartUp_Const , "StartUp_Commitment_Const" );
+  MinPower_Const[ t ].set_lhs( 0.0 );
+  MinPower_Const[ t ].set_rhs( Inf< double >() );
+  MinPower_Const[ t ].set_function(
+   new LinearFunction( std::move( lower_vars ) ) );
  }
 
- // Initializing turn off constraints (shut down constraints) - - - - - - - -
+ add_static_constraint( MinPower_Const , "MinPower_Const_Thermal" );
+
+ // Initializing maximum power constraints- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto shutdown_const_size =
-  static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime - 1 ) );
+ MaxPower_Const.resize( f_time_horizon );
 
- if( shutdown_const_size > 0 ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  // shape of the max-power constraint:
+  // first term:      u_t * max_power_t
+  // second term:     - p_t
+  // third term:      - primary_reserve_t (if any)
+  // fourth term:     - secondary_reserve_t (if any)
 
-  ShutDown_Const.resize( shutdown_const_size );
+  LinearFunction::v_coeff_pair upper_vars;
 
-  for( Index t = ( init_t + f_MinDownTime - 1 ) , cnstr_idx = 0 ;
-       t < f_time_horizon ; ++t , ++cnstr_idx ) {
+  upper_vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                        get_operational_max_power( t ) ) );
+  upper_vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-   LinearFunction::v_coeff_pair vars;
+  // if UCBlock has primary demand variables
+  if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
+   upper_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
-   for( Index s = t - ( init_t + f_MinDownTime - 1 ) ; s <= t - init_t ; ++s )
-    vars.push_back( std::make_pair( &v_shut_down[ s ] , 1.0 ) );
+  // if UCBlock has secondary reserve variables
+  if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
+   upper_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                         -1.0 ) );
 
-   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
-
-   ShutDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
-   ShutDown_Const[ cnstr_idx ].set_rhs( 1.0 );
-   ShutDown_Const[ cnstr_idx ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
-
-  add_static_constraint( ShutDown_Const , "ShutDown_Commitment_Const" );
+  MaxPower_Const[ t ].set_lhs( 0.0 );
+  MaxPower_Const[ t ].set_rhs( Inf< double >() );
+  MaxPower_Const[ t ].set_function(
+   new LinearFunction( std::move( upper_vars ) ) );
  }
 
- // Initializing ramp-up constraints with 3-Binary Variables- - - - - - - - -
+ add_static_constraint( MaxPower_Const , "MaxPower_Const_Thermal" );
+
+ // Initializing ramp-up constraints- - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) )
@@ -624,7 +948,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
    if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
     RampUp_Const[ cnstr_idx ].set_rhs( f_InitialPower + v_DeltaRampUp[ t ] );
-   else if( ( t > 0 ) || ( ( t == 0 ) && ( f_InitUpDownTime <= 0 ) ) )
+   else if( ( t > 0 ) ||
+            ( ( t == 0 ) && ( f_InitUpDownTime <= 0 ) ) )
     RampUp_Const[ cnstr_idx ].set_rhs( 0.0 );
    RampUp_Const[ cnstr_idx ].set_function(
     new LinearFunction( std::move( vars ) ) );
@@ -633,7 +958,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( RampUp_Const , "RampUp_Const_Thermal" );
  }
 
- // Initializing ramp down constraints- - - - - - - - - - - - - - - - - - - -
+ // Initializing ramp-down constraints- - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ! v_DeltaRampDown.empty() ) {
@@ -656,7 +981,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
    if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
     RampDown_Const[ cnstr_idx ].set_rhs( -f_InitialPower );
-   else if( ( t > 0 ) || ( ( t == 0 ) && ( f_InitUpDownTime <= 0 ) ) )
+   else if( ( t > 0 ) ||
+            ( ( t == 0 ) && ( f_InitUpDownTime <= 0 ) ) )
     RampDown_Const[ cnstr_idx ].set_rhs( 0.0 );
    RampDown_Const[ cnstr_idx ].set_function(
     new LinearFunction( std::move( vars ) ) );
@@ -664,78 +990,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( RampDown_Const , "RampDown_Const_Thermal" );
  }
-
- // Initializing minimum power constraints- - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- MinPower_Const.resize( f_time_horizon );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  // shape of the min-power constraint:
-  // first term:      - u_t * min_power_t
-  // second term:     + p_t
-  // third term:      - primary_reserve_t (if any)
-  // fourth term:     - secondary_reserve_t (if any)
-
-  LinearFunction::v_coeff_pair lower_vars;
-
-  lower_vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                        -get_operational_min_power( t ) ) );
-  lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-
-  // if UCBlock has primary reserve variables
-  if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   lower_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                         -1.0 ) );
-
-  // if UCBlock has secondary reserve variables
-  if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   lower_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                         -1.0 ) );
-
-  MinPower_Const[ t ].set_lhs( 0.0 );
-  MinPower_Const[ t ].set_rhs( Inf< double >() );
-  MinPower_Const[ t ].set_function(
-   new LinearFunction( std::move( lower_vars ) ) );
- }
-
- add_static_constraint( MinPower_Const , "MinPower_Const_Thermal" );
-
- // Initializing maximum power constraints- - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- MaxPower_Const.resize( f_time_horizon );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  // shape of the max-power constraint:
-  // first term:      u_t * max_power_t
-  // second term:     - p_t
-  // third term:      - primary_reserve_t (if any)
-  // fourth term:     - secondary_reserve_t (if any)
-
-  LinearFunction::v_coeff_pair upper_vars;
-
-  upper_vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                        get_operational_max_power( t ) ) );
-  upper_vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
-
-  // if UCBlock has primary reserve variables
-  if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-   upper_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                         -1.0 ) );
-
-  // if UCBlock has secondary reserve variables
-  if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-   upper_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                         -1.0 ) );
-
-  MaxPower_Const[ t ].set_lhs( 0.0 );
-  MaxPower_Const[ t ].set_rhs( Inf< double >() );
-  MaxPower_Const[ t ].set_function(
-   new LinearFunction( std::move( upper_vars ) ) );
- }
-
- add_static_constraint( MaxPower_Const , "MaxPower_Const_Thermal" );
 
  if( reserve_vars & 1u )  // if UCBlock has primary demand variables
   if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
@@ -780,7 +1034,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     if( ! v_SecondaryRho.empty() )
      vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                    v_SecondaryRho[ t ] ) );
+                                     v_SecondaryRho[ t ] ) );
     else
      vars.push_back( std::make_pair( &v_active_power[ t ] , 0.0 ) );
 
@@ -796,10 +1050,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( SecondaryRho_Const , "SecondaryRho_Const_Thermal" );
   }
 
- // ZOConstraint- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // ZOConstraints - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( generate_ZOConstraint ) {
+ if( AR & z0c ) {
 
   // the commitment bound constraints
   Commitment_bound_Const.resize( f_time_horizon );
@@ -848,37 +1102,271 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                          "Commitment_fixed_to_one_Thermal" );
  }
 
- if( f_InvestmentCost != 0 ) {
-
-  CommitmentDesign_Const.resize( f_time_horizon );
-
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
-
-   vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &design , -1.0 ) );
-
-   CommitmentDesign_Const[ t ].set_lhs( -Inf< double >() );
-   CommitmentDesign_Const[ t ].set_rhs( 0.0 );
-   CommitmentDesign_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
-
-  add_static_constraint( CommitmentDesign_Const ,
-                         "CommitmentDesign_Const_Thermal" );
- }
-
  set_constraints_generated();
 
 }  // end( ThermalUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
+{
+ double tol = 1e-6; // threshold parameter for p/c generation
+ double eps = 1e-4; // tolerance value to consider a binary variable
+
+ double value , pbar , value2;
+
+ if( ! ( AR & tbinForm ) ) {  // 3bin model - - - - - - - - - - - - - - - - -
+
+  for( Index t = 0 ; t < f_time_horizon ; t++ )
+
+   if( v_commitment[ t ].get_value() > eps ) {
+
+    pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
+    value = ( v_active_power[ t ].get_value() *
+              v_active_power[ t ].get_value() ) / v_commitment[ t ].get_value();
+
+    if( ( v_z[ t ].get_value() < value - tol ) )
+     if( ( v_prevpbar[ t ] == 0 ) ||
+         ( ( v_prevpbar[ t ] != 0 ) && ( std::abs( ( v_prevpbar[ t ] - pbar ) /
+                                                 v_prevpbar[ t ] ) > eps ) ) ) {
+
+      std::list< FRowConstraint > newcut( 1 );
+      v_prevpbar[ t ] = pbar;
+
+      LinearFunction::v_coeff_pair vars;
+
+      vars.push_back( std::make_pair( &v_active_power[ t ] , 2 * (
+       v_active_power[ t ].get_value() / v_commitment[ t ].get_value() ) ) );
+
+      vars.push_back( std::make_pair( &v_z[ t ] , -1.0 ) );
+
+      vars.push_back( std::make_pair( &v_commitment[ t ] , -(
+       ( v_active_power[ t ].get_value() * v_active_power[ t ].get_value() ) /
+       ( v_commitment[ t ].get_value() * v_commitment[ t ].get_value() ) ) ) );
+
+      newcut.front().set_lhs( -Inf< double >() );
+      newcut.front().set_rhs( 0.0 );
+      newcut.front().set_function(
+       new LinearFunction( std::move( vars ) , eNoMod ) );
+
+      add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+     }
+   }
+
+ } else if( ! ( AR & ptForm ) ) {  // p_t model - - - - - - - - - - - - - - -
+
+  for( Index t = 0 ; t < f_time_horizon ; t++ ) {
+
+   double sum_y = 0.0;
+   for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+    if( ( v_Y_plus[ j ].first <= t + 1 ) &&
+        ( t + 1 <= v_Y_plus[ j ].second ) )
+     sum_y += v_y_plus[ j ].get_value();
+
+   if( sum_y > eps ) {
+
+    pbar = v_active_power[ t ].get_value() / sum_y;
+    value = ( v_active_power[ t ].get_value() *
+              v_active_power[ t ].get_value() ) / sum_y;
+
+    if( ( v_z[ t ].get_value() < value - tol ) )
+     if( ( v_prevpbar[ t ] == 0 ) ||
+         ( ( v_prevpbar[ t ] != 0 ) && ( std::abs( ( v_prevpbar[ t ] - pbar ) /
+                                                 v_prevpbar[ t ] ) > eps ) ) ) {
+
+      std::list< FRowConstraint > newcut( 1 );
+      v_prevpbar[ t ] = pbar;
+
+      LinearFunction::v_coeff_pair vars;
+
+      vars.push_back( std::make_pair( &v_active_power[ t ] , 2 * (
+       v_active_power[ t ].get_value() / sum_y ) ) );
+
+      vars.push_back( std::make_pair( &v_z[ t ] , -1.0 ) );
+
+      for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+       if( ( v_Y_plus[ j ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ j ].second
+       ) )
+        vars.push_back( std::make_pair( &v_y_plus[ j ] , -(
+         ( v_active_power[ t ].get_value() * v_active_power[ t ].get_value() ) /
+         ( sum_y * sum_y ) ) ) );
+
+      newcut.front().set_lhs( -Inf< double >() );
+      newcut.front().set_rhs( 0.0 );
+      newcut.front().set_function(
+       new LinearFunction( std::move( vars ) , eNoMod ) );
+
+      add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+     }
+   }
+  }
+
+ } else if( ! ( AR & DPForm ) ) {  // DP model- - - - - - - - - - - - - - - -
+
+  for( Index j = 0 ; j < v_Y_plus.size() ; j++ )
+   if( v_y_plus[ j ].get_value() > eps ) {
+
+    for( Index i = 0 ; i < v_P_h_k.size() ; i++ )
+     if( v_P_h_k[ i ].second.first == v_Y_plus[ j ].first &&
+         v_P_h_k[ i ].second.second == v_Y_plus[ j ].second ) {
+
+      auto t = v_P_h_k[ i ].first;
+      pbar = v_p_h_k[ i ].get_value() / v_y_plus[ j ].get_value();
+      value = ( v_p_h_k[ i ].get_value() * v_p_h_k[ i ].get_value() ) /
+              v_y_plus[ j ].get_value();
+
+      for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
+       if( v_P_h_k[ i ].second.first == v_Z_h_k[ s ].second.first &&
+           v_P_h_k[ i ].second.second == v_Z_h_k[ s ].second.second )
+        if( v_Z_h_k[ s ].first == t )
+         if( ( v_z_h_k[ s ].get_value() < value - tol ) )
+          if( ( v_prevpbar[ i ] == 0 ) ||
+              ( ( v_prevpbar[ i ] != 0 ) &&
+                ( std::abs( ( v_prevpbar[ i ] - pbar ) /
+                            v_prevpbar[ i ] ) > eps ) ) ) {
+
+           std::list< FRowConstraint > newcut( 1 );
+           v_prevpbar[ i ] = pbar;
+
+           LinearFunction::v_coeff_pair vars;
+
+           vars.push_back( std::make_pair( &v_p_h_k[ i ] , 2 * (
+            v_p_h_k[ i ].get_value() / v_y_plus[ j ].get_value() ) ) );
+
+           vars.push_back( std::make_pair( &v_z_h_k[ s ] , -1.0 ) );
+
+           vars.push_back( std::make_pair( &v_y_plus[ j ] , -(
+            ( v_p_h_k[ i ].get_value() * v_p_h_k[ i ].get_value() ) /
+            ( v_y_plus[ j ].get_value() * v_y_plus[ j ].get_value() ) ) ) );
+
+           newcut.front().set_lhs( -Inf< double >() );
+           newcut.front().set_rhs( 0.0 );
+           newcut.front().set_function(
+            new LinearFunction( std::move( vars ) , eNoMod ) );
+
+           add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+          }
+     }
+   }
+
+ } else if( ! ( AR & SUForm ) ) {  // SU model- - - - - - - - - - - - - - - -
+
+  for( Index i = 0 ; i < v_P_h.size() ; i++ ) {
+
+   double sum_y = 0.0;
+   for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+    if( ( v_Y_plus[ j ].first == v_P_h[ i ].second ) &&
+        ( v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second ) )
+     sum_y += v_y_plus[ j ].get_value();
+
+   if( sum_y > eps ) {
+
+    auto t = v_P_h[ i ].first;
+    pbar = v_p_h[ i ].get_value() / sum_y;
+    value = ( v_p_h[ i ].get_value() * v_p_h[ i ].get_value() ) / sum_y;
+
+    for( Index s = 0 ; s < v_P_h.size() ; ++s )
+     if( v_P_h[ i ].first == v_Z_h[ s ].first &&
+         v_P_h[ i ].second == v_Z_h[ s ].second )
+      if( v_Z_h[ s ].first == t )
+       if( ( v_z_h[ s ].get_value() < value - tol ) )
+        if( ( v_prevpbar[ i ] == 0 ) ||
+            ( ( v_prevpbar[ i ] != 0 ) &&
+              ( std::abs( ( v_prevpbar[ i ] - pbar ) /
+                          v_prevpbar[ i ] ) > eps ) ) ) {
+
+         std::list< FRowConstraint > newcut( 1 );
+         v_prevpbar[ i ] = pbar;
+
+         LinearFunction::v_coeff_pair vars;
+
+         vars.push_back( std::make_pair( &v_p_h[ i ] ,
+                                         2 * ( v_p_h[ i ].get_value() /
+                                               sum_y ) ) );
+
+         vars.push_back( std::make_pair( &v_z_h[ s ] , -1.0 ) );
+
+         for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+          if( v_Y_plus[ j ].first == v_P_h[ i ].second &&
+              v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
+           vars.push_back( std::make_pair( &v_y_plus[ j ] , -(
+            ( v_p_h[ i ].get_value() * v_p_h[ i ].get_value() ) /
+            ( sum_y * sum_y ) ) ) );
+
+         newcut.front().set_lhs( -Inf< double >() );
+         newcut.front().set_rhs( 0.0 );
+         newcut.front().set_function(
+          new LinearFunction( std::move( vars ) , eNoMod ) );
+
+         add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+        }
+   }
+  }
+
+ } else if( ! ( AR & SDForm ) ) {  // SU model- - - - - - - - - - - - - - - -
+
+  for( Index i = 0 ; i < v_P_k.size() ; i++ ) {
+
+   double sum_y = 0.0;
+   for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+    if( ( v_Y_plus[ j ].second == v_P_k[ i ].second ) &&
+        ( v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first ) )
+     sum_y += v_y_plus[ j ].get_value();
+
+   if( sum_y > eps ) {
+
+    auto t = v_P_k[ i ].first;
+    pbar = v_p_k[ i ].get_value() / sum_y;
+    value = ( v_p_k[ i ].get_value() * v_p_k[ i ].get_value() ) / sum_y;
+    for( Index s = 0 ; s < v_P_k.size() ; ++s )
+     if( v_P_k[ i ].first == v_Z_k[ s ].first &&
+         v_P_k[ i ].second == v_Z_k[ s ].second )
+      if( v_Z_k[ s ].first == t )
+       if( ( v_z_k[ s ].get_value() < value - tol ) )
+        if( ( v_prevpbar[ i ] == 0 ) ||
+            ( ( v_prevpbar[ i ] != 0 ) &&
+              ( std::abs( ( v_prevpbar[ i ] - pbar ) /
+                          v_prevpbar[ i ] ) > eps ) ) ) {
+
+         std::list< FRowConstraint > newcut( 1 );
+         v_prevpbar[ i ] = pbar;
+
+         LinearFunction::v_coeff_pair vars;
+
+         vars.push_back( std::make_pair( &v_p_k[ i ] ,
+                                         2 * ( v_p_k[ i ].get_value() /
+                                               sum_y ) ) );
+
+         vars.push_back( std::make_pair( &v_z_k[ s ] , -1.0 ) );
+
+         for( int j = 0 ; j < v_Y_plus.size() ; j++ )
+          if( v_Y_plus[ j ].second == v_P_k[ i ].second &&
+              v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
+           vars.push_back( std::make_pair( &v_y_plus[ j ] , -(
+            ( v_p_k[ i ].get_value() * v_p_k[ i ].get_value() ) /
+            ( sum_y * sum_y ) ) ) );
+
+         newcut.front().set_lhs( -Inf< double >() );
+         newcut.front().set_rhs( 0.0 );
+         newcut.front().set_function(
+          new LinearFunction( std::move( vars ) , eNoMod ) );
+
+         add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+        }
+   }
+  }
+ }
+
+ add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
+
+}  // end( ThermalUnitBlock::generate_dynamic_constraints )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )
-  return;  // Objective has already been generated
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
 
  // initialize Objective
  //
@@ -914,64 +1402,196 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    "ThermalUnitBlock::generate_objective: v_start_up must have "
    "size equal to the time horizon - init_t." ) );
 
- DQuadFunction::v_coeff_triple vars;
+ if( AR & PCuts ) {
 
- if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
+  DQuadFunction::v_coeff_triple vars;
 
- for( Index t = init_t ; t < f_time_horizon ; ++t )
-  vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
-                                   f_scale * v_StartUpCost[ t ] , 0.0 ) );
+  if( f_InvestmentCost != 0 )
+   vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  vars.push_back( std::make_tuple( &v_active_power[ t ] ,
-                                   f_scale * v_LinearTerm[ t ] ,
-                                   f_scale * v_QuadTerm[ t ] ) );
+  for( Index t = init_t ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
+                                    f_scale * v_StartUpCost[ t ] , 0.0 ) );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  vars.push_back( std::make_tuple( &v_commitment[ t ] ,
-                                   f_scale * v_ConstTerm[ t ] , 0.0 ) );
+  if( ! ( AR & tbinForm ) || ! ( AR & ptForm ) )  // 3bin or p_t model- - - -
 
- // possibly add the primary and secondary spinning reserve variables - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
-  // add the primary spinning reserve variables - - - - - - - - - - - - - - -
-  if( v_primary_spinning_reserve.size() != f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
-                            "spinning_reserve must have size equal to the "
-                            "time horizon." ) );
-
-  if( v_PrimarySpinningReserveCost.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                     0.0 , 0.0 ) );
-  else
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                     f_scale * v_PrimarySpinningReserveCost[ t ] ,
+    vars.push_back( std::make_tuple( &v_active_power[ t ] ,
+                                     f_scale * v_LinearTerm[ t ] ,
+                                     f_scale * v_QuadTerm[ t ] ) );
+
+  else if( ! ( AR & DPForm ) )  // DP model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_h_k.size() ; i++ ) {
+    auto t = v_P_h_k[ i ].first;
+    vars.push_back( std::make_tuple( &v_p_h_k[ i ] ,
+                                     f_scale * v_LinearTerm[ t ] ,
+                                     f_scale * v_QuadTerm[ t ] ) );
+   }
+
+  else if( ! ( AR & SUForm ) )  // SU model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_h.size() ; i++ ) {
+    auto t = v_P_h[ i ].first;
+    vars.push_back( std::make_tuple( &v_p_h[ i ] ,
+                                     f_scale * v_LinearTerm[ t ] ,
+                                     f_scale * v_QuadTerm[ t ] ) );
+   }
+
+  else if( ! ( AR & SDForm ) )  // SD model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_k.size() ; i++ ) {
+    auto t = v_P_k[ i ].first;
+    vars.push_back( std::make_tuple( &v_p_k[ i ] ,
+                                     f_scale * v_LinearTerm[ t ] ,
+                                     f_scale * v_QuadTerm[ t ] ) );
+   }
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
+                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
+
+  // possibly add the primary and secondary spinning reserve variables- - - -
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
+   // add the primary spinning reserve variables- - - - - - - - - - - - - - -
+   if( v_primary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
+                             "spinning_reserve must have size equal to the "
+                             "time horizon." ) );
+
+   if( v_PrimarySpinningReserveCost.empty() )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
+                                      0.0 , 0.0 ) );
+   else
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
+                                      f_scale * v_PrimarySpinningReserveCost[ t ] ,
+                                      0.0 ) );
+  }
+
+  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
+   // add the secondary spinning reserve variables- - - - - - - - - - - - - -
+   if( v_secondary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
+                             "_spinning_reserve must have size equal to the "
+                             "time horizon." ) );
+
+   if( v_SecondarySpinningReserveCost.empty() )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
+                                      0.0 , 0.0 ) );
+   else
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
+                                      f_scale * v_SecondarySpinningReserveCost[ t ] ,
+                                      0.0 ) );
+  }
+
+  objective.set_function( new DQuadFunction( std::move( vars ) ) );
+
+ } else {
+
+  LinearFunction::v_coeff_pair vars;
+
+  if( f_InvestmentCost != 0 )
+   vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
+
+  for( Index t = init_t ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
+                                   f_scale * v_StartUpCost[ t ] ) );
+
+  if( ! ( AR & tbinForm ) || ! ( AR & ptForm ) )  // 3bin or p_t model- - - -
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    vars.push_back( std::make_pair( &v_active_power[ t ] ,
+                                    f_scale * v_LinearTerm[ t ] ) );
+    vars.push_back( std::make_pair( &v_z[ t ] ,
+                                    f_scale * v_QuadTerm[ t ] ) );
+   }
+
+  else if( ! ( AR & DPForm ) )  // DP model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_h_k.size() ; i++ ) {
+    vars.push_back( std::make_pair( &v_p_h_k[ i ] ,
+                                    f_scale *
+                                    v_LinearTerm[ v_P_h_k[ i ].first ] ) );
+    vars.push_back( std::make_pair( &v_z_h_k[ i ] ,
+                                    f_scale *
+                                    v_QuadTerm[ v_Z_h_k[ i ].first ] ) );
+   }
+
+  else if( ! ( AR & SUForm ) )  // SU model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_h.size() ; i++ ) {
+    vars.push_back( std::make_pair( &v_p_h[ i ] ,
+                                    f_scale *
+                                    v_LinearTerm[ v_P_h[ i ].first ] ) );
+    vars.push_back( std::make_pair( &v_z_h[ i ] ,
+                                    f_scale *
+                                    v_QuadTerm[ v_Z_h[ i ].first ] ) );
+   }
+
+  else if( ! ( AR & SDForm ) )  // SD model - - - - - - - - - - - - - - - - -
+
+   for( Index i = 0 ; i < v_P_k.size() ; i++ ) {
+    vars.push_back( std::make_pair( &v_p_k[ i ] ,
+                                    f_scale *
+                                    v_LinearTerm[ v_P_k[ i ].first ] ) );
+    vars.push_back( std::make_pair( &v_z_k[ i ] ,
+                                    f_scale *
+                                    v_QuadTerm[ v_Z_k[ i ].first ] ) );
+   }
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                   f_scale * v_ConstTerm[ t ] ) );
+
+  // possibly add the primary and secondary spinning reserve variables - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
+   // add the primary spinning reserve variables - - - - - - - - - - - - - - -
+   if( v_primary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
+                             "spinning_reserve must have size equal to the "
+                             "time horizon." ) );
+
+   if( v_PrimarySpinningReserveCost.empty() )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                      0.0 ) );
+   else
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     f_scale *
+                                     v_PrimarySpinningReserveCost[ t ] ) );
+  }
+
+  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
+   // add the secondary spinning reserve variables - - - - - - - - - - - - - -
+   if( v_secondary_spinning_reserve.size() != f_time_horizon )
+    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
+                             "_spinning_reserve must have size equal to the "
+                             "time horizon." ) );
+
+   if( v_SecondarySpinningReserveCost.empty() )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     0.0 ) );
+   else
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     f_scale *
+                                     v_SecondarySpinningReserveCost[ t ] ) );
+  }
+
+  objective.set_function( new LinearFunction( std::move( vars ) ) );
+
  }
 
- if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
-  // add the secondary spinning reserve variables - - - - - - - - - - - - - -
-  if( v_secondary_spinning_reserve.size() != f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
-                            "_spinning_reserve must have size equal to the "
-                            "time horizon." ) );
-
-  if( v_SecondarySpinningReserveCost.empty() )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                     0.0 , 0.0 ) );
-  else
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                     f_scale * v_SecondarySpinningReserveCost[ t ] ,
-                                     0.0 ) );
- }
-
- objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
 
  // set Block objective
@@ -1000,8 +1620,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration<
-      std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -1022,7 +1641,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
-  // Constraints: notice that the ZOConstraint are not checked, since the
+  // Constraints: notice that the ZOConstraints are not checked, since the
   // corresponding check is made on the ColVariable
   && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
   && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
@@ -1158,7 +1777,7 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
   auto depends_on_min_power = ( t > init_t );
   depends_on_min_power |= ( t == init_t ) &&
                           ( ( f_InitUpDownTime < 0 &&
-                              - f_InitUpDownTime < f_MinDownTime ) ||
+                              -f_InitUpDownTime < f_MinDownTime ) ||
                             ( f_InitUpDownTime > 0 &&
                               f_InitUpDownTime < f_MinUpTime ) );
 
@@ -1238,10 +1857,10 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
   // Change the physical representation
   availability = values;
   for( auto t : subset )
-   v_Availability[ t ] = *( availability++ );
+   v_Availability[ t ] = *(availability++);
  }
 
- if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+ if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( auto t : subset )
    update_availability_dependents( t , un_ModBlock( issueAMod ) );
@@ -1297,7 +1916,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
              values + ( rng.second - rng.first ) ,
              v_Availability.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+ if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
    update_availability_dependents( t , un_ModBlock( issueAMod ) );
@@ -1394,7 +2013,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
              values + ( rng.second - rng.first ) ,
              v_MaxPower.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+ if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
    // the commitment variable is in position 0 in the LF
@@ -1451,7 +2070,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
   // Change the physical representation
   f_InitialPower = *values;
 
- if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+ if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   update_initial_power_in_cnstrs( un_ModBlock( issueAMod ) );
 
@@ -1483,7 +2102,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
   // Change the physical representation
   f_InitialPower = *values;
 
- if( ( not_dry_run( issueAMod ) ) && ( constraints_generated() ) )
+ if( not_dry_run( issueAMod ) && constraints_generated() )
   // Change the abstract representation
   update_initial_power_in_cnstrs( un_ModBlock( issueAMod ) );
 
@@ -1542,7 +2161,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   // Change the physical representation
   assign( v_StartUpCost , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -1603,7 +2222,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
              values + sz ,
              v_StartUpCost.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   QF( objective.get_function()
@@ -1655,7 +2274,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   // Change the physical representation
   assign( v_ConstTerm , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1717,7 +2336,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
              values + sz ,
              v_ConstTerm.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1783,7 +2402,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   // Change the physical representation
   assign( v_LinearTerm , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1841,7 +2460,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   // Change the physical representation
   std::copy( values , values + sz , v_LinearTerm.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -1905,7 +2524,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   // Change the physical representation
   assign( v_QuadTerm , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the DQuadFunction is:
   //
@@ -1926,7 +2545,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   if( ! v_LinearTerm.empty() ) {
    auto tmplvit = tmplv.begin();
    for( auto t : subset )
-    *( tmplvit++ ) = v_LinearTerm[ t ];
+    *(tmplvit++) = v_LinearTerm[ t ];
   }
 
   QF( objective.get_function()
@@ -1970,7 +2589,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
   // Change the physical representation
   std::copy( values , values + sz , v_QuadTerm.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the DQuadFunction is:
   //
@@ -2013,7 +2632,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                           ModParam issuePMod ,
                                                           ModParam issueAMod )
 {
- if( v_primary_spinning_reserve.empty() || ( !( reserve_vars & 1u ) ) )
+ if( v_primary_spinning_reserve.empty() || ( ! ( reserve_vars & 1u ) ) )
   return;  // primary reserve is not there, silently return
 
  if( subset.empty() )
@@ -2024,7 +2643,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero. Nothing to do.
+   return; // The given values are zero: Nothing to do
 
   v_PrimarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
@@ -2044,7 +2663,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   // Change the physical representation
   assign( v_PrimarySpinningReserveCost , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2085,7 +2704,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                                           ModParam issuePMod ,
                                                           ModParam issueAMod )
 {
- if( v_primary_spinning_reserve.empty() || ( !( reserve_vars & 1u ) ) )
+ if( v_primary_spinning_reserve.empty() || ( ! ( reserve_vars & 1u ) ) )
   return;  // primary reserve is not there, silently return
 
  rng.second = std::min( rng.second , f_time_horizon );
@@ -2115,7 +2734,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
              values + sz ,
              v_PrimarySpinningReserveCost.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2158,7 +2777,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                                             ModParam issuePMod ,
                                                             ModParam issueAMod )
 {
- if( v_secondary_spinning_reserve.empty() || ( !( reserve_vars & 2u ) ) )
+ if( v_secondary_spinning_reserve.empty() || ( ! ( reserve_vars & 2u ) ) )
   return;  // secondary reserve is not there, silently return
 
  if( subset.empty() )
@@ -2169,7 +2788,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero. Nothing to do.
+   return; // The given values are zero: nothing to do
 
   v_SecondarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
@@ -2188,7 +2807,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   // Change the physical representation
   assign( v_SecondarySpinningReserveCost , subset , values );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2264,7 +2883,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
              values + sz ,
              v_SecondarySpinningReserveCost.begin() + rng.first );
 
- if( ( not_dry_run( issueAMod ) ) && ( objective_generated() ) ) {
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -2622,7 +3241,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *(nvit++) = qf->get_linear_coefficient( i++ );
    set_startup_costs( nv.begin() , Range( l , r2 ) , par , eDryRun );
    l = r2;
    if( l == r )
@@ -2636,7 +3255,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *(nvit++) = qf->get_linear_coefficient( i++ );
    set_linear_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
    l = r2;
    if( l == r )
@@ -2650,7 +3269,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *(nvit++) = qf->get_linear_coefficient( i++ );
    set_const_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
    l = r2;
    if( l == r )
@@ -2664,7 +3283,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *(nvit++) = qf->get_linear_coefficient( i++ );
    set_primary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
                                       par , eDryRun );
    l = r2;
@@ -2679,7 +3298,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *(nvit++) = qf->get_linear_coefficient( i++ );
    set_secondary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
                                         par , eDryRun );
    if( r2 == r )
@@ -2719,8 +3338,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ );
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++);
    }
    set_startup_costs( nv.begin() , std::move( nms ) , true , par , eDryRun );
    if( r == tmod->subset().end() )
@@ -2738,8 +3357,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
    }
    set_linear_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
    if( r == tmod->subset().end() )
@@ -2757,8 +3376,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
    }
    set_const_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
    if( r == tmod->subset().end() )
@@ -2776,8 +3395,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
    }
    set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
                                       true , par , eDryRun );
@@ -2796,8 +3415,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
+    *(nvit++) = qf->get_linear_coefficient( *l );
+    *(nmsit++) = *(l++) - gl;
    }
    set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
                                         true , par , eDryRun );
