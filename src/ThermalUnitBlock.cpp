@@ -545,9 +545,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    v_prevpbar.resize( f_time_horizon , 0 );
   }
 
- } else if( ! ( AR & DPForm ) ||
-            ! ( AR & SUForm ) ||
-            ! ( AR & SDForm ) ) {  // DP, SU or SD model- - - - - - - - - - -
+ } // DP, SU or SD model- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ else if( ! ( AR & DPForm ) || ! ( AR & SUForm ) || ! ( AR & SDForm ) ) {
 
   if( f_InitUpDownTime > 0 ) {  // if initial committed, OFF_0
 
@@ -643,10 +642,21 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   if( ! ( AR & SUForm ) ) {  // SU model- - - - - - - - - - - - - - - - - - -
 
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    for( Index t = 0 ; t < f_time_horizon ; t++ )
-     if( v_Y_plus[ i ].first <= t + 1 )
-      v_P_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
+   bool check_var = true;
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+    if( i > 0 )
+     for( Index j = 0 ; j < v_P_h.size() ; ++j )
+      if( v_P_h[ j ].second == v_Y_plus[ i ].first )
+       check_var = false;
+    if( check_var )
+     for( Index t = 0 ; t < f_time_horizon ; t++ )
+      if( v_Y_plus[ i ].first <= t + 1 ) {
+       v_P_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
+
+       if( AR & PCuts )
+        v_Z_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
+      }
+   }
 
    v_p_h.resize( v_P_h.size() );
    for( auto & var : v_p_h )
@@ -654,11 +664,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    add_static_variable( v_p_h , "v_p_h_thermal" );
 
    if( AR & PCuts ) {
-
-    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-     for( Index t = 0 ; t < f_time_horizon ; t++ )
-      if( v_Y_plus[ i ].first <= t + 1 )
-       v_Z_h.push_back( std::make_pair( t , v_Y_plus[ i ].first ) );
 
     v_z_h.resize( v_Z_h.size() );
     for( auto & var : v_z_h )
@@ -671,10 +676,21 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   if( ! ( AR & SDForm ) ) {  // SD model- - - - - - - - - - - - - - - - - - -
 
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    for( Index t = 0 ; t < f_time_horizon ; t++ )
-     if( v_Y_plus[ i ].second >= t + 1 )
-      v_P_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
+   bool check_var = true;
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+    if( i > 0 )
+     for( Index j = 0 ; j < v_P_k.size() ; ++j )
+      if( v_P_k[ j ].second == v_Y_plus[ i ].second )
+       check_var = false;
+    if( check_var )
+     for( Index t = 0 ; t < f_time_horizon ; t++ )
+      if( v_Y_plus[ i ].second >= t + 1 ) {
+       v_P_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
+
+       if( AR & PCuts )
+        v_Z_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
+      }
+   }
 
    v_p_k.resize( v_P_k.size() );
    for( auto & var : v_p_k )
@@ -682,11 +698,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    add_static_variable( v_p_k , "v_p_k_thermal" );
 
    if( AR & PCuts ) {
-
-    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-     for( Index t = 0 ; t < f_time_horizon ; t++ )
-      if( v_Y_plus[ i ].second >= t + 1 )
-       v_Z_k.push_back( std::make_pair( t , v_Y_plus[ i ].second ) );
 
     v_z_k.resize( v_Z_k.size() );
     for( auto & var : v_z_k )
@@ -721,6 +732,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   z0 = sci->value();
 
  AR = ( AR & ( ~z0c ) ) | ( z0c * z0 );
+
+ if( AR & PCuts ) {
+  PC_cuts.clear();
+  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
+ }
 
  // Initializing commitment design binary variable constraints- - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1310,7 +1326,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
    }
   }
 
- } else if( ! ( AR & SDForm ) ) {  // SU model- - - - - - - - - - - - - - - -
+ } else if( ! ( AR & SDForm ) ) {  // SD model- - - - - - - - - - - - - - - -
 
   for( Index i = 0 ; i < v_P_k.size() ; i++ ) {
 
