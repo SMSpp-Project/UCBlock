@@ -1737,6 +1737,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the installable capacity by the user
  double f_Capacity{};
 
+ /// this variable indicates if perspective cuts are used
+ bool f_cuts;
+
  /// TODO
  std::vector< double > v_u_bar;
 

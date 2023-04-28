@@ -743,12 +743,14 @@ class UnitBlock : public Block
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- static constexpr unsigned char HasVar = 1;
- ///< first bit of AR == 1 if the Variables have been constructed
- static constexpr unsigned char HasCst = 2;
- ///< second bit of AR == 1 if the Constraints have been constructed
- static constexpr unsigned char HasObj = 4;
- ///< third bit of AR == 1 if the Objective has been constructed
+ static constexpr unsigned char HasVar = 32;
+ ///< 6th bit of AR == 1 if the Variables have been constructed
+
+ static constexpr unsigned char HasCst = 64;
+ ///< 7th bit of AR == 1 if the Constraints have been constructed
+
+ static constexpr unsigned char HasObj = 128;
+ ///< 8th bit of AR == 1 if the Objective has been constructed
 
  SMSpp_insert_in_factory_h;
 
