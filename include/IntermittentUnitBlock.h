@@ -281,7 +281,7 @@ class IntermittentUnitBlock : public UnitBlock
   * the Configuration for the is_feasible() function, the
   * IntermittentUnitBlock also considers the extra Configuration of the
   * BlockConfig. If the extra Configuration is a non-null pointer to a
-  * SimpleConfiguration<double>, then the value, let us call it epsilon,
+  * SimpleConfiguration< double >, then the value, let us call it epsilon,
   * stored in that Configuration will replace any zero value that may appear
   * as maximum power at any time instant.
   *
@@ -337,15 +337,15 @@ class IntermittentUnitBlock : public UnitBlock
   *     in that SimpleConfiguration and the relative violation is considered.
   *
   *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
   *     fsbc->f_value.first and the type of violation is determined by
   *     fsbc->f_value.second (any nonzero number for relative violation and
   *     zero for absolute violation);
   *
   *   - Otherwise, if both #f_BlockConfig and
   *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration<double> or to a
-  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     latter is a pointer to either a SimpleConfiguration< double > or to a
+  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
   *     parameters are obtained analogously as above;
   *
   *   - Otherwise, by default, the tolerance is 0 and the relative violation

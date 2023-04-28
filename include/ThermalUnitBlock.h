@@ -841,7 +841,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   - Otherwise, if both #f_BlockConfig and
   *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     latter is a pointer to either a SimpleConfiguration< double > or to a
   *     SimpleConfiguration< std::pair< double , int > >, then the values of the
   *     parameters are obtained analogously as above;
   *
