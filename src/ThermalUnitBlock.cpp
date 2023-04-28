@@ -540,9 +540,11 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  switch( wf & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
-   AR |= tbinForm;
+   AR |= tbinForm;  // does nothing
+   // fall through
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
    AR |= TForm;
+   // fall through
   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
    AR |= ptForm;
 
@@ -567,8 +569,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
    AR |= DPForm;
+   // fall through
   case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
    AR |= SUForm;
+   // fall through
   case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
    AR |= SDForm;
 
@@ -1160,6 +1164,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
  switch( AR & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
+   // fall through
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
 
    for( Index t = 0 ; t < f_time_horizon ; t++ )
@@ -1487,7 +1492,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   switch( AR & FormMsk ) {
 
    case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
+    // fall through
    case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
+    // fall through
    case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
 
     for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1595,7 +1602,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   switch( AR & FormMsk ) {
 
    case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
+    // fall through
    case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
+    // fall through
    case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
