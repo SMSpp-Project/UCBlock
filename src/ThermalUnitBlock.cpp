@@ -225,9 +225,16 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
- ::deserialize( group , f_MinUpTime , "MinUpTime" );
+ if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) ) {  // TODO simplify
+  f_MinUpTime = ( f_MinUpTime > 1 ? f_MinUpTime : 1 );
+  f_MinUpTime = ( f_MinUpTime > f_time_horizon ? f_time_horizon : f_MinUpTime );
+ }
 
- ::deserialize( group , f_MinDownTime , "MinDownTime" );
+ if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) ) {  // TODO simplify
+  f_MinDownTime = ( f_MinDownTime > 1 ? f_MinDownTime : 1 );
+  f_MinDownTime = ( f_MinDownTime > f_time_horizon ? f_time_horizon
+                                                   : f_MinDownTime );
+ }
 
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
 

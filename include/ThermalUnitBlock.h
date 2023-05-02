@@ -1720,10 +1720,10 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_InertiaCommitment;
 
  /// the MinUpTime value
- Index f_MinUpTime{};
+ Index f_MinUpTime = 1;
 
  /// the MinDownTime value
- Index f_MinDownTime{};
+ Index f_MinDownTime = 1;
 
  /// the InitUpDownTime value
  int f_InitUpDownTime{};
