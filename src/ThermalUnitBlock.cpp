@@ -540,13 +540,17 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  switch( wf & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
-   AR |= tbinForm;  // does nothing
    // fall through
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
-   AR |= TForm;
    // fall through
   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
-   AR |= ptForm;
+
+   if( ( wf & FormMsk ) == tbinForm )  // 3bin formulation- - - - - - - - - -
+    AR |= tbinForm;  // does nothing
+   else if( ( wf & FormMsk ) == TForm )  // T formulation - - - - - - - - - -
+    AR |= TForm;
+   else if( ( wf & FormMsk ) == ptForm )  // pt formulation - - - - - - - - -
+    AR |= ptForm;
 
    v_active_power.resize( f_time_horizon );
    for( auto & var : v_active_power )
@@ -568,13 +572,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    break;
 
   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
-   AR |= DPForm;
    // fall through
   case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
-   AR |= SUForm;
    // fall through
   case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
-   AR |= SDForm;
 
    if( f_InitUpDownTime > 0 ) {  // if initial committed, OFF_0
 
@@ -637,6 +638,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
    if( ( wf & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - - - - -
 
+    AR |= DPForm;
+
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      for( Index t = 0 ; t < f_time_horizon ; t++ )
       if( ( v_Y_plus[ i ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
@@ -670,6 +673,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     }
 
    } else if( ( wf & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
+
+    AR |= SUForm;
 
     bool check_var = true;
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
@@ -705,6 +710,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     }
 
    } else if( ( wf & FormMsk ) == SDForm ) {  // SD formulation - - - - - - -
+
+    AR |= SDForm;
 
     bool check_var = true;
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
@@ -1478,7 +1485,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    "ThermalUnitBlock::generate_objective: v_start_up must have "
    "size equal to the time horizon - init_t." ) );
 
- if( f_cuts ) {
+ if( ! f_cuts ) {
 
   DQuadFunction::v_coeff_triple vars;
 
