@@ -428,19 +428,23 @@ class ThermalUnitBlock : public UnitBlock
   *  steps 0, ..., init_t - 1 (see initial time step concept in the
   *  generate_abstract_constraints()).
   *
-  *  - wf & 3 == 1: the "dynamic programming" formulation (DP).
+  *  - wf & 3 == 1: the T formulation.
+  *
+  *  // TODO add here details about T formulation
+  *
+  *  - wf & 3 == 2: the "dynamic programming" inspired formulation (DP).
   *
   *  // TODO add here details about DP formulation
   *
-  *  - wf & 3 == 2: the p_t formulation.
+  *  - wf & 3 == 3: the p_t formulation.
   *
   *  // TODO add here details about p_t formulation
   *
-  *  - wf & 3 == 3: the "start-up" formulation (SU).
+  *  - wf & 3 == 4: the "start-up" formulation (SU).
   *
   *  // TODO add here details about SU formulation
   *
-  *  - wf & 3 >= 4: the "shut-down" formulation (SD).
+  *  - wf & 3 == 5: the "shut-down" formulation (SD).
   *
   *  // TODO add here details about SD formulation
   *
@@ -448,6 +452,10 @@ class ThermalUnitBlock : public UnitBlock
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
+// TODO following the code-flow / order, add in the method blow, for each
+//  constraint, i.e., start-up / shut-down cnstrs, min/max power cnstrs, etc.,
+//  the details about all the other formulations, and all the new other cnstrs
+//  added, i.e., p/c cnstrs.
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the ThermalUnitBlock
  /** This method generates the abstract constraints of the ThermalUnitBlock.
@@ -717,17 +725,15 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can be negative.
   *   Consequently, (10) is only valid when \f$ \tau_+ \geq 2 \f$. Therefore,
   *   the correct formulation for units with \f$ \tau_+ = 1 \f$ is given by
-  *   (11) and (12).
-  *
-  * Note that there may be other formulations (like the DP one), which will
-  * possibly be implemented in the future. */
+  *   (11) and (12). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the dynamic constraint of the ThermalUnitBlock
  /**
-  * TODO
+  * TODO - following the code-flow / order, add in the method blow the cnstrs
+  * TODO - details for each formulation.
   */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
@@ -1752,27 +1758,27 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// TODO
+ /// TODO short description
  std::vector< int > v_T_RU;
 
- /// TODO
+ /// TODO short description
  std::vector< int > v_T_RD;
 
- /// TODO
+ /// TODO short description
  std::vector< int > v_K_SD;
 
- /// TODO
+ /// TODO short description
  std::vector< int > v_K_SU;
 
  /// stores the value of the last pbar in a p/c
  std::vector< double > v_last_v_pbar;
 
- /// TODO
+ /// TODO short description
  std::vector< double > v_psi;
 
  // DP formulation data
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
  /// TODO
@@ -1780,33 +1786,33 @@ class ThermalUnitBlock : public UnitBlock
 
  // SU formulation data
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_P_h;
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_Z_h;
 
  // SD formulation data
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_P_k;
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_Z_k;
 
  // DP, SU and SD formulations data
 
- /// TODO
+ /// TODO short description
  std::vector< Index > v_nodes_plus;
 
- /// TODO
+ /// TODO short description
+ std::vector< Index > v_nodes_minus;
+
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_Y_plus;
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , Index > > v_Y_minus;
-
- /// TODO
- std::vector< Index > v_nodes_minus;
 
 /*-------------------------------- variables -------------------------------*/
 
