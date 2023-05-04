@@ -248,11 +248,11 @@ class IntermittentUnitBlock : public UnitBlock
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
-  *    z ( \kappa P^{mn}_t ) \leq p^{ac}_t \leq z ( \kappa P^{mx}_t )
+  *    x ( \kappa P^{mn}_t ) \leq p^{ac}_t \leq x ( \kappa P^{mx}_t )
   *                                           \quad t \in \mathcal{T} \quad (3b)
   *   \f]
   *
-  *   where \f$ z \f$ is the design variable. */
+  *   where \f$ x \f$ is the design variable. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -264,11 +264,11 @@ class IntermittentUnitBlock : public UnitBlock
   *   in the design scenario of the UC problem is given as follow:
   *
   *   \f[
-  *     \min ( ( I + M ) z )
+  *     \min ( ( I + M ) x )
   *   \f]
   *
   *   where \f$ I \f$ is the investment cost, \f$ M \f$ is the operation and
-  *   maintenance cost and \f$ z \f$ is the design variable.
+  *   maintenance cost and \f$ x \f$ is the design variable.
   *   Otherwise, the objective function of the IntermittentUnitBlock is
   *   "empty" (a FRealObjective with a LinearFunction inside with no active
   *   variables). */

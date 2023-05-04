@@ -328,7 +328,7 @@ class ThermalUnitBlock : public UnitBlock
   *   for InitUpDownTime timestamps prior to timestamp 0 (the beginning of
   *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
   *   has been off for - InitUpDownTime timestamps prior to timestamp 0; note
-  *   that InitUpDownTime == 0 means that the unit has been just shut down at
+  *   that InitUpDownTime == 0 means that the unit has been just shut-down at
   *   the end of time instant -1, i.e., the beginning of time instant 0. This
   *   variable is optional. If it is not provided, then it is taken to be
   *   -MinDownTime if InitialPower == 0, and MinUpTime if InitialPower > 0.
@@ -336,7 +336,7 @@ class ThermalUnitBlock : public UnitBlock
   * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
   *   indexed over any dimension, which indicates the minimum allowed up time
   *   in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinUpTime == 0, which mean that the unit can shut down in the
+  *   taken to be MinUpTime == 0, which mean that the unit can shut-down in the
   *   very same timestamp in which it starts up.
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
@@ -370,7 +370,13 @@ class ThermalUnitBlock : public UnitBlock
   *   InertiaCommitment[ 0 ] for all t, regardless to what "NumberIntervals"
   *   says. Otherwise, InertiaCommitment[ i ] is the fixed value of IC[ t ]
   *   for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
-  *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0. */
+  *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0.
+  *
+  *   - The variable "StartUpLimit", // TODO
+  *
+  *   - The variable "ShutDownLimit", // TODO
+  *
+  *   */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -430,11 +436,11 @@ class ThermalUnitBlock : public UnitBlock
   *
   *  // TODO add here details about p_t formulation
   *
-  *  - wf & 3 == 3: the "start up" formulation (SU).
+  *  - wf & 3 == 3: the "start-up" formulation (SU).
   *
   *  // TODO add here details about SU formulation
   *
-  *  - wf & 3 >= 4: the "shut down" formulation (SD).
+  *  - wf & 3 >= 4: the "shut-down" formulation (SD).
   *
   *  // TODO add here details about SD formulation
   *
@@ -785,10 +791,10 @@ class ThermalUnitBlock : public UnitBlock
   *  added to the objective, i.e.:
   *
   *   \f[
-  *     ( I z )
+  *     ( I x )
   *   \f]
   *
-  *  where \f$ I \f$ is the investment cost and \f$ z \f$ is the design
+  *  where \f$ I \f$ is the investment cost and \f$ x \f$ is the design
   *  variable. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
@@ -1740,11 +1746,11 @@ class ThermalUnitBlock : public UnitBlock
  /// this variable indicates if perspective cuts are used
  bool f_cuts;
 
- /// TODO
- std::vector< double > v_u_bar;
+ /// the vector of start-up limits
+ std::vector< double > v_StartUpLimit;
 
- /// TODO
- std::vector< double > v_l_bar;
+ /// the vector of shut-down limits
+ std::vector< double > v_ShutDownLimit;
 
  /// TODO
  std::vector< int > v_T_RU;
@@ -1759,7 +1765,7 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< int > v_K_SU;
 
  /// stores the value of the last pbar in a p/c
- std::vector< double > v_prevpbar;
+ std::vector< double > v_last_v_pbar;
 
  /// TODO
  std::vector< double > v_psi;
@@ -1813,7 +1819,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
 
- /// the shut down binary variables
+ /// the shut-down binary variables
  std::vector< ColVariable > v_shut_down;
 
  /// the primary spinning reserve variables
@@ -1822,46 +1828,13 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-
- // 3bin and p_t formulation variables
-
- /// the active power variables for 3bin and p_t models
+ /// the active power variables
  std::vector< ColVariable > v_active_power;
 
- /// the p/c variables for 3bin and p_t models
- std::vector< ColVariable > v_z;
+ /// the perspective cuts variables
+ std::vector< ColVariable > v_cuts;
 
-
- // DP formulation variables
-
- /// the active power variables for DP model
- std::vector< ColVariable > v_p_h_k;
-
- /// the p/c variables for DP model
- std::vector< ColVariable > v_z_h_k;
-
-
- // SU formulation variables
-
- /// the active power variables for SU model
- std::vector< ColVariable > v_p_h;
-
- /// the p/c variables for SU model
- std::vector< ColVariable > v_z_h;
-
-
- // SD formulation variables
-
- /// the active power variables for SD model
- std::vector< ColVariable > v_p_k;
-
- /// the p/c variables for SD model
- std::vector< ColVariable > v_z_k;
-
-
- // DP, SU and SD formulation variables
-
- /// the y^+/- binary variables for DP, SU and SD models
+ /// the y^+/- binary variables for DP, SU and SD formulations
  boost::multi_array< ColVariable , 2 > v_y_plus_minus;
 
 /*------------------------------- constraints ------------------------------*/
@@ -1869,10 +1842,10 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;
 
- /// the TURN ON min up and down time constraints
+ /// the turn on min up and down time constraints
  std::vector< FRowConstraint > StartUp_Const;
 
- /// the SHUT DOWN min up and down time constraints
+ /// the shut-down min up and down time constraints
  std::vector< FRowConstraint > ShutDown_Const;
 
  /// the connection min up and down time constraints
@@ -1884,131 +1857,48 @@ class ThermalUnitBlock : public UnitBlock
  /// the SecondaryRho fraction constraints
  std::vector< FRowConstraint > SecondaryRho_Const;
 
-
- // 3bin formulation constraints
-
- /// the active power upper bound constraints for 3bin model
+ /// the active power upper bound constraints
  std::vector< FRowConstraint > MinPower_Const;
 
- /// the active power lower bound constraints for 3bin model
+ /// the active power lower bound constraints
  std::vector< FRowConstraint > MaxPower_Const;
 
- /// the RampUp time constraints for 3bin model
+ /// the RampUp time constraints
  std::vector< FRowConstraint > RampUp_Const;
 
- /// the RampDown time constraints for 3bin model
+ /// the RampDown time constraints
  std::vector< FRowConstraint > RampDown_Const;
 
- /// TODO
+
+ /// the network constraints of the pt, DP, SU and SD formulations
+ std::vector< FRowConstraint > Network_Const;
+
+ /// the constraints connecting commitment variables of 3bin
+ /// with those of pt, DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_Commitment_Const;
+
+ /// the constraints connecting start-up variables of 3bin
+ /// with those of pt, DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_StartUp_Const;
+
+ /// the constraints connecting shut-down variables of 3bin
+ /// with those of pt, DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_ShutDown_Const;
+
+ /// the constraints connecting power variables of 3bin
+ /// with those of DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_Power_Const;
+
+
+ /// the initial perspective cuts constraints
  std::vector< FRowConstraint > Init_PC_Const;
 
- /// TODO
- std::vector< FRowConstraint > PC_Const;
+ /// the constraints connecting p/c variables of
+ /// 3bin with those of DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_PC_Const;
 
 
- // DP formulation constraints
-
- /// TODO
- std::vector< FRowConstraint > Network_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > MinPower_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > MaxPower_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > EqPower_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > EqCommit_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > EqStartUp_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > EqShutDown_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampUp_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampDown_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > Init_PC_DP_Const;
-
- /// TODO
- std::vector< FRowConstraint > Eq_PC_DP_Const;
-
-
- // pt formulation constraints
-
- /// TODO
- std::vector< FRowConstraint > MinPower_pt_Const;
-
- /// TODO
- std::vector< FRowConstraint > MaxPower_pt_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampUp_pt_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampDown_pt_Const;
-
- /// TODO
- std::vector< FRowConstraint > Init_PC_pt_Const;
-
-
- // SU formulation constraints
-
- /// TODO
- std::vector< FRowConstraint > EqPower_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > MinPower_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > MaxPower_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampUp_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampDown_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > Init_PC_pk_Const;
-
- /// TODO
- std::vector< FRowConstraint > Eq_PC_pk_Const;
-
-
- // SD formulation constraints
-
- /// TODO
- std::vector< FRowConstraint > EqPower_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > MinPower_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > MaxPower_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampUp_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > RampDown_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > Init_PC_ph_Const;
-
- /// TODO
- std::vector< FRowConstraint > Eq_PC_ph_Const;
-
-
- /// TODO
+ /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;
 
 
@@ -2018,8 +1908,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the startup binary bound constraints
  std::vector< ZOConstraint > StartUp_Binary_bound_Const;
 
- /// the shout down binary bound constraints
- std::vector< ZOConstraint > ShoutDown_Binary_bound_Const;
+ /// the shut-down binary bound constraints
+ std::vector< ZOConstraint > ShutDown_Binary_bound_Const;
 
 
  /// the commitment fixed to one BoxConstraints

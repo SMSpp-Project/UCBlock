@@ -83,11 +83,11 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
-                                                     "InertiaPower" ,
-                                                     "Gamma" , "Kappa" ,
+ static std::vector< std::string > expected_vars = { "InvestmentCost" ,
                                                      "MaxCapacity" ,
-                                                     "InvestmentCost" };
+                                                     "MinPower" , "MaxPower" ,
+                                                     "InertiaPower" ,
+                                                     "Gamma" , "Kappa" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -190,7 +190,7 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Design Variable
  if( f_InvestmentCost != 0 ) {
   design.set_type( ColVariable::kPosUnitary );
-  add_static_variable( design , "D_intermittent" );
+  add_static_variable( design , "x_intermittent" );
  }
 
  // Active Power Variable
@@ -443,15 +443,15 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  // Serialize scalar variables
 
- ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
- ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
-
  if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
 
  if( f_MaxCapacity != 0 )
   ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
+
+ ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
+ ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
 
  // Serialize one-dimensional variables
 
