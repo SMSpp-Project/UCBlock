@@ -1814,17 +1814,38 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment variables
  std::vector< ColVariable > v_commitment;
 
- /// the active power variables
- std::vector< ColVariable > v_active_power;
-
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the perspective cuts variables
- std::vector< ColVariable > v_cuts;
+
+ /// the active power variables for 3bin, T and pt formulations
+ std::vector< ColVariable > v_active_power;
+
+ /// the active power variables for DP model
+ std::vector< ColVariable > v_p_h_k;
+
+ /// the active power variables for SU model
+ std::vector< ColVariable > v_p_h;
+
+ /// the active power variables for SD model
+ std::vector< ColVariable > v_p_k;
+
+
+ /// the perspective cuts variables for 3bin, T and pt formulations
+ std::vector< ColVariable > v_z;
+
+ /// the perspective cuts variables for DP model
+ std::vector< ColVariable > v_z_h_k;
+
+ /// the perspective cuts variables for SU model
+ std::vector< ColVariable > v_z_h;
+
+ /// the perspective cuts variables for SD model
+ std::vector< ColVariable > v_z_k;
+
 
  /// the binary variables for DP, SU and SD formulations
  boost::multi_array< ColVariable , 2 > v_y_plus_minus;
