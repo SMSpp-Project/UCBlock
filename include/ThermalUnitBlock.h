@@ -1728,23 +1728,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// TODO short description
- std::vector< int > v_T_RU;
-
- /// TODO short description
- std::vector< int > v_T_RD;
-
- /// TODO short description
- std::vector< int > v_K_SD;
-
- /// TODO short description
- std::vector< int > v_K_SU;
-
  /// stores the value of the last pbar in a p/c
  std::vector< double > v_last_v_pbar;
-
- /// TODO short description
- std::vector< double > v_psi;
 
  // DP formulation data
 
@@ -1791,20 +1776,20 @@ class ThermalUnitBlock : public UnitBlock
  /// the installable capacity by the user
  double f_Capacity{};
 
+ /// the InitialPower value
+ double f_InitialPower{};
+
+ /// the InitUpDownTime value
+ int f_InitUpDownTime{};
+
  /// the MinUpTime value
  Index f_MinUpTime = 1;
 
  /// the MinDownTime value
  Index f_MinDownTime = 1;
 
- /// the InitUpDownTime value
- int f_InitUpDownTime{};
-
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
-
- /// the InitialPower value
- double f_InitialPower{};
 
  /// the scale factor
  double f_scale = 1;
@@ -1813,7 +1798,7 @@ class ThermalUnitBlock : public UnitBlock
  bool f_cuts;
 
  /// this variable indicates which netCDF variables must be ignored
- static int f_ignore_netcdf_vars;
+ static bool f_ignore_netcdf_vars;
 
 /*-------------------------------- variables -------------------------------*/
 

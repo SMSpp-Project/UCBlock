@@ -79,7 +79,7 @@ static constexpr unsigned char z0c = 16;
 /// 5th bit of AR == 1 if we generate Z0Constraints
 
 
-int ThermalUnitBlock::f_ignore_netcdf_vars = 0;
+bool ThermalUnitBlock::f_ignore_netcdf_vars;
 /// this variable indicates which netCDF variables must be ignored
 
 /*--------------------------------------------------------------------------*/
@@ -228,13 +228,14 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) ) {  // TODO simplify
   f_MinUpTime = ( f_MinUpTime > 1 ? f_MinUpTime : 1 );
-  f_MinUpTime = ( f_MinUpTime > f_time_horizon ? f_time_horizon : f_MinUpTime );
+  f_MinUpTime = ( f_MinUpTime > f_time_horizon ?
+                  f_time_horizon : f_MinUpTime );
  }
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) ) {  // TODO simplify
   f_MinDownTime = ( f_MinDownTime > 1 ? f_MinDownTime : 1 );
-  f_MinDownTime = ( f_MinDownTime > f_time_horizon ? f_time_horizon
-                                                   : f_MinDownTime );
+  f_MinDownTime = ( f_MinDownTime > f_time_horizon ?
+                    f_time_horizon : f_MinDownTime );
  }
 
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
@@ -448,7 +449,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  UnitBlock::generate_abstract_variables( stvv );
 
- Index wf = 0;
+ Index wf = 3;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
@@ -479,12 +480,12 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   v_start_up.resize( startup_shutdown_size );
   for( auto & var : v_start_up )
    var.set_type( ColVariable::kBinary );
-  add_static_variable( v_start_up , "v" );
+  add_static_variable( v_start_up , "v_thermal" );
 
   v_shut_down.resize( startup_shutdown_size );
   for( auto & var : v_shut_down )
    var.set_type( ColVariable::kBinary );
-  add_static_variable( v_shut_down , "w" );
+  add_static_variable( v_shut_down , "w_thermal" );
  }
 
  // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
@@ -555,35 +556,13 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  }
 
  // Active Power & Prospective Cuts Variables - - - - - - - - - - - - - - - -
- // ( with auxiliary structures initialization) - - - - - - - - - - - - - - -
+ // (with auxiliary structures initialization)- - - - - - - - - - - - - - - -
  switch( wf & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
    // fall through
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
-
-   if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) ) {
-    v_T_RU.resize( f_time_horizon );
-    v_T_RD.resize( f_time_horizon );
-    v_K_SD.resize( f_time_horizon );
-    v_K_SU.resize( f_time_horizon );
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     v_T_RU[ t ] = std::floor(
-      ( get_operational_max_power( t ) - v_ShutDownLimit[ t ] ) /
-      v_DeltaRampUp[ t ] );
-     v_T_RD[ t ] = std::floor(
-      ( get_operational_max_power( t ) - v_StartUpLimit[ t ] ) /
-      v_DeltaRampDown[ t ] );
-     v_K_SD[ t ] = std::min( f_InitUpDownTime - 1 , v_T_RD[ t ] );
-     v_K_SD[ t ] = std::min( ( int ) ( f_time_horizon - t ) - 1 , v_K_SD[ t ] );
-     v_K_SU[ t ] = std::min( f_InitUpDownTime - 2 -
-                             std::max( 0 , v_K_SD[ t ] ) , v_T_RU[ t ] );
-     v_K_SU[ t ] = std::min( ( int ) ( t ) - 1 , v_K_SU[ t ] );
-    }
-   }
-
    // fall through
-
   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
 
    if( ( wf & FormMsk ) == tbinForm )  // 3bin formulation- - - - - - - - - -
@@ -675,7 +654,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    for( Index v_p = 0 ; v_p < v_Y_plus.size() ; ++v_p )
     for( Index v_m = 0 ; v_m < v_Y_minus.size() ; ++v_m )
      v_y_plus_minus[ v_p ][ v_m ].set_type( ColVariable::kBinary );
-   add_static_variable( v_y_plus_minus , "v_y_plus_minus_thermal" );
+   add_static_variable( v_y_plus_minus , "y_plus_minus_thermal" );
 
    if( ( wf & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - - - - -
 
@@ -795,48 +774,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
    throw( std::invalid_argument(
     "ThermalUnitBlock::generate_abstract_variables: invalid formulation" ) );
-
- }  // end( switch )
-
- switch( AR & FormMsk ) {
-
-  case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
-   // fall through
-  case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
-   // fall through
-  case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
-
-   v_psi.resize( v_P_h_k.size() );
-
-   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
-
-    Index t = v_P_h_k[ j ].first;
-
-    v_psi[ j ] = get_operational_max_power( t );
-
-    if( v_P_h_k[ j ].second.second <= f_time_horizon )
-     if( v_P_h_k[ j ].second.first > 0 )
-      v_psi[ j ] = std::min( v_psi[ j ] ,
-                             v_ShutDownLimit[ t ] +
-                             v_DeltaRampDown[ t ] *
-                             ( v_P_h_k[ j ].second.second - ( t + 1 ) ) );
-
-    if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-                            f_InitialPower + v_DeltaRampUp[ t ] * ( t + 1 ) );
-
-    if( v_P_h_k[ j ].second.first > 0 )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-                            v_StartUpLimit[ t ] +
-                            v_DeltaRampUp[ t ] *
-                            ( ( t + 1 ) - v_P_h_k[ j ].second.first ) );
-
-    v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
-   }
-
-  default:
-
-   ;  // does nothing
 
  }  // end( switch )
 
@@ -988,20 +925,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( t > 0 )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
        if( ( v_Y_plus[ i ].first <= t ) && ( t < v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -v_DeltaRampUp[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         get_operational_min_power( t - 1 ) ) );
        if( ( v_Y_plus[ i ].first == t + 1 ) &&
            ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -v_StartUpLimit[ t ] ) );
       }
      if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
        if( ( v_Y_plus[ i ].first == 0 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -f_InitialPower -
                                         v_DeltaRampUp[ t ] ) );
 
@@ -1053,11 +990,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
            ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
         if( t == 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                          -v_DeltaRampUp[ t ] -
                                          f_InitialPower ) );
         if( t > 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                          -v_DeltaRampUp[ t ] ) );
        }
       RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -1098,7 +1035,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampUp[ t ] -
                                           f_InitialPower ) );
 
@@ -1122,11 +1059,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first ) {
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampUp[ t ] ) );
          if( t == v_Y_plus[ i ].second )
           vars.push_back( std::make_pair(
-           &v_y_plus_minus[ 0 ][ i ] ,
+           &v_y_plus_minus[ i ][ 0 ] ,
            get_operational_min_power( t - 1 ) ) );
         }
 
@@ -1168,7 +1105,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampUp[ t ] -
                                           f_InitialPower ) );
 
@@ -1192,10 +1129,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampUp[ t ] ) );
          if( t + 1 == v_Y_plus[ i ].first )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_StartUpLimit[ t ] ) );
         }
 
@@ -1299,20 +1236,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( t > 0 )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
        if( ( v_Y_plus[ i ].first <= t ) && ( t < v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -v_DeltaRampDown[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -v_ShutDownLimit[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first == t + 1 ) &&
            ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         get_operational_min_power( t ) ) );
       }
      if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
        if( ( v_Y_plus[ i ].first == 0 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         f_InitialPower -
                                         v_DeltaRampDown[ t ] ) );
 
@@ -1363,11 +1300,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
            ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
         if( t == 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                          -v_DeltaRampDown[ t ] +
                                          f_InitialPower ) );
         if( t > 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                          -v_DeltaRampDown[ t ] ) );
        }
 
@@ -1410,7 +1347,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampDown[ t ] +
                                           f_InitialPower ) );
 
@@ -1434,10 +1371,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first ) {
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampDown[ t ] ) );
          if( t == v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_ShutDownLimit[ t - 1 ] ) );
         }
 
@@ -1478,7 +1415,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampDown[ t ] +
                                           f_InitialPower ) );
 
@@ -1502,11 +1439,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                           -v_DeltaRampDown[ t ] ) );
          if( t + 1 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair(
-           &v_y_plus_minus[ 0 ][ i ] ,
+           &v_y_plus_minus[ i ][ 0 ] ,
            get_operational_min_power( t - 1 ) ) );
         }
 
@@ -1558,11 +1495,29 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   Index max_power_cnstrs_size = 0;
 
+  std::vector< int > v_T_RU( f_time_horizon );
+  std::vector< int > v_T_RD( f_time_horizon );
+  std::vector< int > v_K_SD( f_time_horizon );
+  std::vector< int > v_K_SU( f_time_horizon );
+
   if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) ) {
-   // size bound constraints 4
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    v_T_RU[ t ] = std::floor( ( get_operational_max_power( t ) -
+                                v_ShutDownLimit[ t ] ) /
+                              v_DeltaRampUp[ t ] );
+    v_T_RD[ t ] = std::floor( ( get_operational_max_power( t ) -
+                                v_StartUpLimit[ t ] ) /
+                              v_DeltaRampDown[ t ] );
+    v_K_SD[ t ] = std::min( f_InitUpDownTime - 1 , v_T_RD[ t ] );
+    v_K_SD[ t ] = std::min( ( int ) ( f_time_horizon - t ) - 1 , v_K_SD[ t ] );
+    v_K_SU[ t ] = std::min( f_InitUpDownTime - 2 -
+                            std::max( 0 , v_K_SD[ t ] ) , v_T_RU[ t ] );
+    v_K_SU[ t ] = std::min( ( int ) ( t ) - 1 , v_K_SU[ t ] );
+   }
 
    max_power_cnstrs_size += f_time_horizon - init_t;
-   // size bound constraints 5
+   // size bound constraints 4 + 5
 
    for( Index t = init_t ; t < f_time_horizon ; ++t )
     if( f_MinUpTime - 2 < v_T_RU[ t ] )
@@ -1868,68 +1823,35 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      cnstr_idx++;
     }
   }
+  else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - -
 
- } else if( ( AR & FormMsk ) == ptForm ) {  // pt formulation - - - - - - - -
+   MaxPower_Const.resize( v_P_h_k.size() );
 
-  MaxPower_Const.resize( f_time_horizon );
+   for( Index j = 0 , cnstr_idx = 0 ; j < v_P_h_k.size() ; ++j , ++cnstr_idx ) {
 
-  for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
+    LinearFunction::v_coeff_pair vars;
 
-   LinearFunction::v_coeff_pair vars;
+    auto t = v_P_h_k[ j ].first;
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
+         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
+      if( v_Y_plus[ i ].first == t + 1 )
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                       v_StartUpLimit[ t ] ) );
+      else if( v_Y_plus[ i ].second == t + 1 )
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                       v_ShutDownLimit[ t ] ) );
+      else
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                       get_operational_max_power( t ) ) );
+     }
+    vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
-
-   // if UCBlock has primary demand variables
-   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
-
-   // if UCBlock has secondary reserve variables
-   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
-
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
-     if( v_P_h_k[ j ].first == t )
-      if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-          ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
-
-       if( ( v_Y_plus[ i ].first < t + 1 ) &&
-           ( t + 1 < v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                        v_psi[ j ] ) );
-       if( f_MinUpTime >= 2 ) {
-        if( ( v_Y_plus[ i ].first == t + 1 ) &&
-            ( t + 1 <= v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_StartUpLimit[ t ] ) );
-        if( ( v_Y_plus[ i ].first <= t + 1 ) &&
-            ( t + 1 == v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_ShutDownLimit[ t ] ) );
-       }
-       if( f_MinUpTime == 1 ) {
-        if( ( v_Y_plus[ i ].first == t + 1 ) &&
-            ( t + 1 < v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_StartUpLimit[ t ] ) );
-        if( ( v_Y_plus[ i ].first < t + 1 ) &&
-            ( t + 1 == v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_ShutDownLimit[ t ] ) );
-        if( ( v_Y_plus[ i ].first == t + 1 ) &&
-            ( t + 1 == v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         std::min( v_StartUpLimit[ t ] ,
-                                                   v_ShutDownLimit[ t ] ) ) );
-       }
-      }
-
-   MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
-   MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
-   MaxPower_Const[ cnstr_idx ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
+    MaxPower_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
   }
 
  } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - - -
@@ -1945,13 +1867,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
      if( v_Y_plus[ i ].first == t + 1 )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                       v_StartUpLimit[ t ] ) );
      else if( v_Y_plus[ i ].second == t + 1 )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                       v_ShutDownLimit[ t ] ) );
      else
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                       get_operational_max_power( t ) ) );
     }
    vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
@@ -1962,87 +1884,181 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     new LinearFunction( std::move( vars ) ) );
   }
 
- } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation - - - - - - - -
+ } else {  // pt, SD or SU formulations - - - - - - - - - - - - - - - - - - -
 
-  MaxPower_Const.resize( v_P_h.size() );
+  std::vector< double > v_psi( v_P_h_k.size() );
 
-  for( Index j = 0 , cnstr_idx = 0 ; j < v_P_h.size() ; ++j , ++cnstr_idx ) {
+  for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
 
-   LinearFunction::v_coeff_pair vars;
+   Index t = v_P_h_k[ j ].first;
 
-   auto t = v_P_h[ j ].first;
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    if( ( v_P_h[ j ].second == v_Y_plus[ i ].first ) &&
-        ( t + 1 <= v_Y_plus[ i ].second ) ) {
-     if( t + 1 == v_Y_plus[ i ].first ) {
-      if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       v_StartUpLimit[ t ] ) );
-      if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       std::min( v_StartUpLimit[ t ] ,
-                                                 v_ShutDownLimit[ t ] ) ) );
-     } else {
-      if( t + 1 == v_Y_plus[ i ].second )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       v_ShutDownLimit[ t ] ) );
-      if( t + 1 < v_Y_plus[ i ].second )
-       for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-        if( ( t == v_P_h_k[ s ].first ) &&
-            ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
-            ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_psi[ s ] ) );
-     }
-    }
+   v_psi[ j ] = get_operational_max_power( t );
 
-   vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
+   if( v_P_h_k[ j ].second.second <= f_time_horizon )
+    if( v_P_h_k[ j ].second.first > 0 )
+     v_psi[ j ] = std::min( v_psi[ j ] ,
+                            v_ShutDownLimit[ t ] +
+                            v_DeltaRampDown[ t ] *
+                            ( v_P_h_k[ j ].second.second - ( t + 1 ) ) );
 
-   MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
-   MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
-   MaxPower_Const[ cnstr_idx ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
+    v_psi[ j ] = std::min( v_psi[ j ] ,
+                           f_InitialPower + v_DeltaRampUp[ t ] * ( t + 1 ) );
+
+   if( v_P_h_k[ j ].second.first > 0 )
+    v_psi[ j ] = std::min( v_psi[ j ] ,
+                           v_StartUpLimit[ t ] +
+                           v_DeltaRampUp[ t ] *
+                           ( ( t + 1 ) - v_P_h_k[ j ].second.first ) );
+
+   v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
   }
 
- } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation - - - - - - - -
+  if( ( AR & FormMsk ) == ptForm ) {  // pt formulation - - - - - - - - - - -
 
-  MaxPower_Const.resize( v_P_k.size() );
+   MaxPower_Const.resize( f_time_horizon );
 
-  for( Index j = 0 , cnstr_idx = 0 ; j < v_P_k.size() ; ++j , ++cnstr_idx ) {
+   for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
-   LinearFunction::v_coeff_pair vars;
+    LinearFunction::v_coeff_pair vars;
 
-   auto t = v_P_k[ j ].first;
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    if( ( v_P_k[ j ].second == v_Y_plus[ i ].second ) &&
-        ( v_Y_plus[ i ].first <= t + 1 ) ) {
-     if( t + 1 == v_Y_plus[ i ].second ) {
-      if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       v_ShutDownLimit[ t ] ) );
-      if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       std::min( v_StartUpLimit[ t ] ,
-                                                 v_ShutDownLimit[ t ] ) ) );
-     } else {
-      if( t + 1 == v_Y_plus[ i ].first )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                       v_StartUpLimit[ t ] ) );
-      if( v_Y_plus[ i ].first < t + 1 )
-       for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-        if( ( t == v_P_h_k[ s ].first ) &&
-            ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
-            ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
-                                         v_psi[ s ] ) );
+    vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
+
+    // if UCBlock has primary demand variables
+    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+
+    // if UCBlock has secondary reserve variables
+    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
+      if( v_P_h_k[ j ].first == t )
+       if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
+           ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
+
+        if( ( v_Y_plus[ i ].first < t + 1 ) &&
+            ( t + 1 < v_Y_plus[ i ].second ) )
+         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                         v_psi[ j ] ) );
+        if( f_MinUpTime >= 2 ) {
+         if( ( v_Y_plus[ i ].first == t + 1 ) &&
+             ( t + 1 <= v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_StartUpLimit[ t ] ) );
+         if( ( v_Y_plus[ i ].first <= t + 1 ) &&
+             ( t + 1 == v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_ShutDownLimit[ t ] ) );
+        }
+        if( f_MinUpTime == 1 ) {
+         if( ( v_Y_plus[ i ].first == t + 1 ) &&
+             ( t + 1 < v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_StartUpLimit[ t ] ) );
+         if( ( v_Y_plus[ i ].first < t + 1 ) &&
+             ( t + 1 == v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_ShutDownLimit[ t ] ) );
+         if( ( v_Y_plus[ i ].first == t + 1 ) &&
+             ( t + 1 == v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          std::min( v_StartUpLimit[ t ] ,
+                                                    v_ShutDownLimit[ t ] ) ) );
+        }
+       }
+
+    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
+    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+    MaxPower_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+
+  } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation- - - - - - - -
+
+   MaxPower_Const.resize( v_P_h.size() );
+
+   for( Index j = 0 , cnstr_idx = 0 ; j < v_P_h.size() ; ++j , ++cnstr_idx ) {
+
+    LinearFunction::v_coeff_pair vars;
+
+    auto t = v_P_h[ j ].first;
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     if( ( v_P_h[ j ].second == v_Y_plus[ i ].first ) &&
+         ( t + 1 <= v_Y_plus[ i ].second ) ) {
+      if( t + 1 == v_Y_plus[ i ].first ) {
+       if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        v_StartUpLimit[ t ] ) );
+       if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        std::min( v_StartUpLimit[ t ] ,
+                                                  v_ShutDownLimit[ t ] ) ) );
+      } else {
+       if( t + 1 == v_Y_plus[ i ].second )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        v_ShutDownLimit[ t ] ) );
+       if( t + 1 < v_Y_plus[ i ].second )
+        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
+         if( ( t == v_P_h_k[ s ].first ) &&
+             ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
+             ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_psi[ s ] ) );
+      }
      }
-    }
-   vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
 
-   MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
-   MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
-   MaxPower_Const[ cnstr_idx ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+    vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
+
+    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
+    MaxPower_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+
+  } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - - -
+
+   MaxPower_Const.resize( v_P_k.size() );
+
+   for( Index j = 0 , cnstr_idx = 0 ; j < v_P_k.size() ; ++j , ++cnstr_idx ) {
+
+    LinearFunction::v_coeff_pair vars;
+
+    auto t = v_P_k[ j ].first;
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     if( ( v_P_k[ j ].second == v_Y_plus[ i ].second ) &&
+         ( v_Y_plus[ i ].first <= t + 1 ) ) {
+      if( t + 1 == v_Y_plus[ i ].second ) {
+       if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        v_ShutDownLimit[ t ] ) );
+       if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        std::min( v_StartUpLimit[ t ] ,
+                                                  v_ShutDownLimit[ t ] ) ) );
+      } else {
+       if( t + 1 == v_Y_plus[ i ].first )
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                        v_StartUpLimit[ t ] ) );
+       if( v_Y_plus[ i ].first < t + 1 )
+        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
+         if( ( t == v_P_h_k[ s ].first ) &&
+             ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
+             ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
+          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+                                          v_psi[ s ] ) );
+      }
+     }
+    vars.push_back( std::make_pair( &v_active_power[ j ] , -1.0 ) );
+
+    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
+    MaxPower_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
   }
  }
 
@@ -2102,7 +2118,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_Y_plus[ i ].first <= t + 1 ) &&
         ( t + 1 <= v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                      -get_operational_min_power( t ) ) );
 
    MinPower_Const[ constraint_index ].set_lhs( 0.0 );
@@ -2121,7 +2137,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ j ] , 1.0 ) );
 
@@ -2141,7 +2157,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_h[ j ].second == v_Y_plus[ i ].first ) &&
         ( t + 1 <= v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ j ] , 1.0 ) );
 
@@ -2161,7 +2177,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_k[ j ].second == v_Y_plus[ i ].second ) &&
         ( v_Y_plus[ i ].first <= t + 1 ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ j ] , 1.0 ) );
 
@@ -2223,7 +2239,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( ( v_Y_plus[ i ].first <= t + 1 ) &&
           ( t + 1 <= v_Y_plus[ i ].second ) )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                        -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2256,7 +2272,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( ( v_Y_plus[ i ].first == v_P_h_k[ j ].second.first ) &&
           ( v_Y_plus[ i ].second == v_P_h_k[ j ].second.second ) )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                        -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2288,7 +2304,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_P_h[ j ].second == v_Y_plus[ i ].first )
        if( t + 1 <= v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2320,7 +2336,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_P_k[ j ].second == v_Y_plus[ i ].second )
        if( v_Y_plus[ i ].first <= t + 1 )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] ,
+        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                         -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2333,6 +2349,76 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   add_static_constraint( Init_PC_Const , "Init_PC_Const_Thermal" );
+
+  // Constraints connecting perspective cuts variables of 3bin with those of
+  // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if( ( ( AR & FormMsk ) == tbinForm ) ||  // 3bin formulation- - - - - - - -
+      ( ( AR & FormMsk ) == TForm ) ||  // T formulation- - - - - - - - - - -
+      ( ( AR & FormMsk ) == ptForm ) ) {  // pt formulation - - - - - - - - -
+   ;  // does nothing
+  } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - -
+
+   Eq_PC_Const.resize( f_time_horizon );
+
+   for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
+        ++t , ++cnstr_idx ) {
+
+    LinearFunction::v_coeff_pair vars;
+
+    vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
+
+    for( Index j = 0 ; j < v_Z_h_k.size() ; ++j )
+     if( v_Z_h_k[ j ].first == t )
+      vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
+
+    Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
+    Eq_PC_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+
+  } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation- - - - - - - -
+
+   Eq_PC_Const.resize( f_time_horizon );
+
+   for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
+        ++t , ++cnstr_idx ) {
+
+    LinearFunction::v_coeff_pair vars;
+
+    vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
+
+    for( Index j = 0 ; j < v_Z_h.size() ; ++j )
+     if( v_Z_h[ j ].first == t )
+      vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
+
+    Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
+    Eq_PC_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+
+  } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - - -
+
+   Eq_PC_Const.resize( f_time_horizon );
+
+   for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
+        ++t , ++cnstr_idx ) {
+
+    LinearFunction::v_coeff_pair vars;
+
+    vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
+    for( Index j = 0 ; j < v_Z_k.size() ; ++j )
+     if( v_Z_k[ j ].first == t )
+      vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
+
+    Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
+    Eq_PC_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+  }
+
+  add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
  }
 
  switch( AR & FormMsk ) {
@@ -2442,79 +2528,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // fall through
   case ( SDForm ):  // SD formulation - - - - - - - - - - - - - - - - - - - -
 
-   // Constraints connecting perspective cuts variables of 3bin with those of
-   // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
+   // Constraints connecting power variables of 3bin with those of DP, SU and
+   // SD formulations - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    if( ( AR & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - - - - -
     ;  // does nothing
    } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
-
-    Eq_PC_Const.resize( f_time_horizon );
-
-    for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
-         ++t , ++cnstr_idx ) {
-
-     LinearFunction::v_coeff_pair vars;
-
-     vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
-
-     for( Index j = 0 ; j < v_Z_h_k.size() ; ++j )
-      if( v_Z_h_k[ j ].first == t )
-       vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
-
-     Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
-     Eq_PC_Const[ cnstr_idx ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-    }
-
-   } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
-
-    Eq_PC_Const.resize( f_time_horizon );
-
-    for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
-         ++t , ++cnstr_idx ) {
-
-     LinearFunction::v_coeff_pair vars;
-
-     vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
-
-     for( Index j = 0 ; j < v_Z_h.size() ; ++j )
-      if( v_Z_h[ j ].first == t )
-       vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
-
-     Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
-     Eq_PC_Const[ cnstr_idx ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-    }
-
-   } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation - - - - - - -
-
-    Eq_PC_Const.resize( f_time_horizon );
-
-    for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ;
-         ++t , ++cnstr_idx ) {
-
-     LinearFunction::v_coeff_pair vars;
-
-     vars.push_back( std::make_pair( &v_cuts[ t ] , 1.0 ) );
-     for( Index j = 0 ; j < v_Z_k.size() ; ++j )
-      if( v_Z_k[ j ].first == t )
-       vars.push_back( std::make_pair( &v_cuts[ j ] , -1.0 ) );
-
-     Eq_PC_Const[ cnstr_idx ].set_both( 0.0 );
-     Eq_PC_Const[ cnstr_idx ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-    }
-   }
-
-   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
-
-   // Constraints connecting power variables of 3bin with those of DP, SU and
-   // SD formulations - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - - - - -
 
     Eq_Power_Const.resize( f_time_horizon );
 
@@ -2592,7 +2612,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
     Eq_Commitment_Const[ cnstr_idx ].set_both( 0.0 );
     Eq_Commitment_Const[ cnstr_idx ].set_function(
@@ -2616,7 +2636,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first == t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
     Eq_StartUp_Const[ cnstr_idx ].set_both( 0.0 );
     Eq_StartUp_Const[ cnstr_idx ].set_function(
@@ -2640,7 +2660,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
     Eq_ShutDown_Const[ cnstr_idx ].set_both( 0.0 );
     Eq_ShutDown_Const[ cnstr_idx ].set_function(
@@ -2661,12 +2681,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( f_InitUpDownTime > 0 )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_Y_plus[ i ].first == t )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
     if( f_InitUpDownTime <= 0 )
      for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
       if( v_Y_minus[ i ].first == t )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 1 ][ i ] , -1.0 ) );
+       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
 
     Network_Const[ cnstr_idx ].set_both( -1.0 );
     Network_Const[ cnstr_idx ].set_function(
@@ -2680,11 +2700,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].first == v_nodes_plus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].second == v_nodes_plus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 1 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
 
     Network_Const[ cnstr_idx ].set_both( 0.0 );
     Network_Const[ cnstr_idx ].set_function(
@@ -2698,11 +2718,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].second == v_nodes_minus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , 1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].first == v_nodes_minus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 1 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
 
     Network_Const[ cnstr_idx ].set_both( 0.0 );
     Network_Const[ cnstr_idx ].set_function(
@@ -2716,11 +2736,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].second == t )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , 1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].second == t )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 1 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
 
     Network_Const[ cnstr_idx ].set_both( 1.0 );
     Network_Const[ cnstr_idx ].set_function(
@@ -2917,7 +2937,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].first <= t + 1 ) &&
          ( t + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_y_plus_minus[ 0 ][ j ].get_value();
+      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
 
     if( sum_y > eps ) {
 
@@ -2945,7 +2965,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
        for( int j = 0 ; j < v_Y_plus.size() ; j++ )
         if( ( v_Y_plus[ j ].first <= t + 1 ) &&
             ( t + 1 <= v_Y_plus[ j ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ j ] ,
+         vars.push_back( std::make_pair( &v_y_plus_minus[ j ][ 0 ] ,
                                          -( ( v_active_power[ t ].get_value() *
                                               v_active_power[ t ].get_value() ) /
                                             std::pow( sum_y , 2 ) ) ) );
@@ -2965,7 +2985,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
 
    for( Index j = 0 ; j < v_Y_plus.size() ; j++ )
-    if( v_y_plus_minus[ 0 ][ j ].get_value() > eps ) {
+    if( v_y_plus_minus[ j ][ 0 ].get_value() > eps ) {
 
      for( Index i = 0 ; i < v_P_h_k.size() ; i++ )
       if( v_P_h_k[ i ].second.first == v_Y_plus[ j ].first &&
@@ -2973,10 +2993,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
        auto t = v_P_h_k[ i ].first;
        pbar = v_active_power[ i ].get_value() /
-              v_y_plus_minus[ 0 ][ j ].get_value();
+              v_y_plus_minus[ j ][ 0 ].get_value();
        value = ( v_active_power[ i ].get_value() *
                  v_active_power[ i ].get_value() ) /
-               v_y_plus_minus[ 0 ][ j ].get_value();
+               v_y_plus_minus[ j ][ 0 ].get_value();
 
        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
         if( v_P_h_k[ i ].second.first == v_Z_h_k[ s ].second.first &&
@@ -2996,16 +3016,16 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
             vars.push_back( std::make_pair(
              &v_active_power[ i ] ,
              2 * ( v_active_power[ i ].get_value() /
-                   v_y_plus_minus[ 0 ][ j ].get_value() ) ) );
+                   v_y_plus_minus[ j ][ 0 ].get_value() ) ) );
 
             vars.push_back( std::make_pair( &v_cuts[ s ] , -1.0 ) );
 
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ 0 ][ j ] ,
+             &v_y_plus_minus[ j ][ 0 ] ,
              -( ( v_active_power[ i ].get_value() *
               v_active_power[ i ].get_value() ) /
-                ( v_y_plus_minus[ 0 ][ j ].get_value() *
-                  v_y_plus_minus[ 0 ][ j ].get_value() ) ) ) );
+                ( v_y_plus_minus[ j ][ 0 ].get_value() *
+                  v_y_plus_minus[ j ][ 0 ].get_value() ) ) ) );
 
             newcut.front().set_lhs( -Inf< double >() );
             newcut.front().set_rhs( 0.0 );
@@ -3027,7 +3047,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].first == v_P_h[ i ].second ) &&
          ( v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_y_plus_minus[ 0 ][ j ].get_value();
+      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
 
     if( sum_y > eps ) {
 
@@ -3062,7 +3082,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            if( v_Y_plus[ j ].first == v_P_h[ i ].second &&
                v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ 0 ][ j ] ,
+             &v_y_plus_minus[ j ][ 0 ] ,
              -( ( v_active_power[ i ].get_value() *
                   v_active_power[ i ].get_value() ) /
                 std::pow( sum_y , 2 ) ) ) );
@@ -3087,7 +3107,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].second == v_P_k[ i ].second ) &&
          ( v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first ) )
-      sum_y += v_y_plus_minus[ 0 ][ j ].get_value();
+      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
 
     if( sum_y > eps ) {
 
@@ -3121,7 +3141,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            if( v_Y_plus[ j ].second == v_P_k[ i ].second &&
                v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ 0 ][ j ] ,
+             &v_y_plus_minus[ j ][ 0 ] ,
              -( ( v_active_power[ i ].get_value() *
                   v_active_power[ i ].get_value() ) /
                 std::pow( sum_y , 2 ) ) ) );
