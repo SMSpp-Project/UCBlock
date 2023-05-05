@@ -181,8 +181,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
-{
+void DCNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" };

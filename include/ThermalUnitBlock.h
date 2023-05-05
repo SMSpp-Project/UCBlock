@@ -1728,12 +1728,6 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// stores the value of the last pbar in a p/c
- std::vector< double > v_last_v_pbar;
-
- /// TODO short description
- std::vector< double > v_psi;
-
  /// TODO short description
  std::vector< int > v_T_RU;
 
@@ -1746,6 +1740,38 @@ class ThermalUnitBlock : public UnitBlock
  /// TODO short description
  std::vector< int > v_K_SU;
 
+ /// stores the value of the last pbar in a p/c
+ std::vector< double > v_last_v_pbar;
+
+ /// TODO short description
+ std::vector< double > v_psi;
+
+ // DP formulation data
+
+ /// TODO short description
+ std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
+
+ /// TODO
+ std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
+
+ // SU formulation data
+
+ /// TODO short description
+ std::vector< std::pair< Index , Index > > v_P_h;
+
+ /// TODO short description
+ std::vector< std::pair< Index , Index > > v_Z_h;
+
+ // SD formulation data
+
+ /// TODO short description
+ std::vector< std::pair< Index , Index > > v_P_k;
+
+ /// TODO short description
+ std::vector< std::pair< Index , Index > > v_Z_k;
+
+ // DP, SU and SD formulations data
+
  /// TODO short description
  std::vector< Index > v_nodes_plus;
 
@@ -1757,18 +1783,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// TODO short description
  std::vector< std::pair< Index , Index > > v_Y_minus;
-
- /// TODO short description
- std::vector< std::pair< Index , Index > > v_P;
-
- /// TODO short description
- std::vector< std::pair< Index , Index > > v_Z;
-
- /// TODO short description
- std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
-
- /// TODO short description
- std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
 
  /// the investment cost

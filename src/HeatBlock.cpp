@@ -150,15 +150,6 @@ void HeatBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
 
 void HeatBlock::deserialize( const netCDF::NcGroup & group )
 {
-
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = {};
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = {};
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
 
