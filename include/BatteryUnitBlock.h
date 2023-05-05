@@ -1416,6 +1416,19 @@ public:
  /// the vector of demand
  std::vector< double > v_Demand;
 
+
+ /// the battery investment cost
+ double f_BattInvestmentCost{};
+
+ /// the converter investment cost
+ double f_ConvInvestmentCost{};
+
+ /// the maximum battery installable capacity by the user
+ double f_BattMaxCapacity{};
+
+ /// the maximum converter installable capacity by the user
+ double f_ConvMaxCapacity{};
+
  /// the InitialStorage value
  double f_InitialStorage{};
 
@@ -1433,18 +1446,6 @@ public:
 
  /// the scale factor
  double f_scale = 1;
-
- /// the battery investment cost
- double f_BattInvestmentCost{};
-
- /// the converter investment cost
- double f_ConvInvestmentCost{};
-
- /// the maximum battery installable capacity by the user
- double f_BattMaxCapacity{};
-
- /// the maximum converter installable capacity by the user
- double f_ConvMaxCapacity{};
 
 /*-------------------------------- variables -------------------------------*/
 

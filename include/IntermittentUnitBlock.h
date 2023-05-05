@@ -712,6 +712,13 @@ class IntermittentUnitBlock : public UnitBlock
  /// the matrix of inertia power of generators
  std::vector< double > v_InertiaPower;
 
+
+ /// the investment cost
+ double f_InvestmentCost{};
+
+ /// the maximum installable capacity by the user
+ double f_MaxCapacity{};
+
  /// the gamma value
  double f_gamma{};
 
@@ -723,12 +730,6 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// this is the value that will replace any zero value in maximum power
  double f_max_power_epsilon{};
-
- /// the investment cost
- double f_InvestmentCost{};
-
- /// the maximum installable capacity by the user
- double f_MaxCapacity{};
 
 /*-------------------------------- variables -------------------------------*/
 

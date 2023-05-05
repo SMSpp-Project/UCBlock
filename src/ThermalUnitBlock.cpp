@@ -79,7 +79,7 @@ static constexpr unsigned char z0c = 16;
 /// 5th bit of AR == 1 if we generate Z0Constraints
 
 
-int ThermalUnitBlock::f_ignore_netcdf_variables = 0;
+int ThermalUnitBlock::f_ignore_netcdf_vars = 0;
 /// this variable indicates which netCDF variables must be ignored
 
 /*--------------------------------------------------------------------------*/
@@ -155,31 +155,32 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 
 ThermalUnitBlock::~ThermalUnitBlock()
 {
- Constraint::clear( StartUp_ShutDown_Variables_Const );
+ Constraint::clear( CommitmentDesign_Const );
  Constraint::clear( StartUp_Const );
  Constraint::clear( ShutDown_Const );
- Constraint::clear( RampUp_Const );
- Constraint::clear( RampDown_Const );
+ Constraint::clear( StartUp_ShutDown_Variables_Const );
  Constraint::clear( PrimaryRho_Const );
  Constraint::clear( SecondaryRho_Const );
  Constraint::clear( MinPower_Const );
  Constraint::clear( MaxPower_Const );
- Constraint::clear( CommitmentDesign_Const );
+ Constraint::clear( RampUp_Const );
+ Constraint::clear( RampDown_Const );
+
+ Constraint::clear( Network_Const );
+ Constraint::clear( Eq_Commitment_Const );
+ Constraint::clear( Eq_StartUp_Const );
+ Constraint::clear( Eq_ShutDown_Const );
+ Constraint::clear( Eq_Power_Const );
+
+ Constraint::clear( Init_PC_Const );
+ Constraint::clear( Eq_PC_Const );
+ Constraint::clear( PC_cuts );
 
  Constraint::clear( Commitment_bound_Const );
  Constraint::clear( StartUp_Binary_bound_Const );
  Constraint::clear( ShutDown_Binary_bound_Const );
 
  Constraint::clear( Commitment_fixed_to_One_Const );
-
- Constraint::clear( Network_Const );
- Constraint::clear( Eq_Commitment_Const );
- Constraint::clear( Eq_StartUp_Const );
- Constraint::clear( Eq_ShutDown_Const );
-
- Constraint::clear( Init_PC_Const );
- Constraint::clear( Eq_PC_Const );
- Constraint::clear( PC_cuts );
 
  objective.clear();
 }
@@ -266,7 +267,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "InertiaCommitment" , v_InertiaCommitment );
 
- if( ! ( f_ignore_netcdf_variables & 1 ) ) {
+ if( ! ( f_ignore_netcdf_vars & 1 ) ) {
   ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
@@ -820,7 +821,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
                              v_DeltaRampDown[ t ] *
                              ( v_P_h_k[ j ].second.second - ( t + 1 ) ) );
 
-    if( v_P_h_k[ j ].second.first == 0 && f_InitUpDownTime > 0 )
+    if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
      v_psi[ j ] = std::min( v_psi[ j ] ,
                             f_InitialPower + v_DeltaRampUp[ t ] * ( t + 1 ) );
 
@@ -2443,7 +2444,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   if( ( AR & FormMsk ) == DPForm ) {  // pt formulation- - - - - - - - - - -
+   if( ( AR & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - - - - -
     ;  // does nothing
    } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
 
@@ -3445,18 +3446,31 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
+  && ColVariable::is_feasible( v_cuts , tol )
+  && ColVariable::is_feasible( v_y_plus_minus , tol )
   // Constraints: notice that the ZOConstraints are not checked, since the
   // corresponding check is made on the ColVariable
-  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
   && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ShutDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
   && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
   && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Network_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_Commitment_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_StartUp_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_ShutDown_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_Power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Init_PC_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_PC_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( PC_cuts , tol , rel_viol )
+  && RowConstraint::is_feasible( Commitment_bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_Binary_bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ShutDown_Binary_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )

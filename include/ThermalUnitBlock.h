@@ -812,7 +812,7 @@ class ThermalUnitBlock : public UnitBlock
   * deserialized. */
 
  static void ignore_reserve() {
-  f_ignore_netcdf_variables |= 1;
+  f_ignore_netcdf_vars |= 1;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1716,41 +1716,11 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of secondary spinning reserve linear costs
  std::vector< double > v_SecondarySpinningReserveCost;
 
- /// the InitialPower value
- double f_InitialPower{};
-
  /// the vector of fixed consumption of generator
  std::vector< double > v_FixedConsumption;
 
  /// the vector of inertia commitment of generator
  std::vector< double > v_InertiaCommitment;
-
- /// the MinUpTime value
- Index f_MinUpTime = 1;
-
- /// the MinDownTime value
- Index f_MinDownTime = 1;
-
- /// the InitUpDownTime value
- int f_InitUpDownTime{};
-
- /// variable denoting the time-steps unit is subjected to initial conditions
- Index init_t{};
-
- /// the scale factor
- double f_scale = 1;
-
- /// this variable indicates which netCDF variables must be ignored
- static int f_ignore_netcdf_variables;
-
- /// the investment cost
- double f_InvestmentCost{};
-
- /// the installable capacity by the user
- double f_Capacity{};
-
- /// this variable indicates if perspective cuts are used
- bool f_cuts;
 
  /// the vector of start-up limits
  std::vector< double > v_StartUpLimit;
@@ -1814,13 +1784,41 @@ class ThermalUnitBlock : public UnitBlock
  /// TODO short description
  std::vector< std::pair< Index , Index > > v_Y_minus;
 
+
+ /// the investment cost
+ double f_InvestmentCost{};
+
+ /// the installable capacity by the user
+ double f_Capacity{};
+
+ /// the MinUpTime value
+ Index f_MinUpTime = 1;
+
+ /// the MinDownTime value
+ Index f_MinDownTime = 1;
+
+ /// the InitUpDownTime value
+ int f_InitUpDownTime{};
+
+ /// variable denoting the time-steps unit is subjected to initial conditions
+ Index init_t{};
+
+ /// the InitialPower value
+ double f_InitialPower{};
+
+ /// the scale factor
+ double f_scale = 1;
+
+ /// this variable indicates if perspective cuts are used
+ bool f_cuts;
+
+ /// this variable indicates which netCDF variables must be ignored
+ static int f_ignore_netcdf_vars;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the design binary variable
  ColVariable design;
-
- /// the commitment variables
- std::vector< ColVariable > v_commitment;
 
  /// the start up binary variables
  std::vector< ColVariable > v_start_up;
@@ -1828,19 +1826,22 @@ class ThermalUnitBlock : public UnitBlock
  /// the shut-down binary variables
  std::vector< ColVariable > v_shut_down;
 
+ /// the commitment variables
+ std::vector< ColVariable > v_commitment;
+
+ /// the active power variables
+ std::vector< ColVariable > v_active_power;
+
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the active power variables
- std::vector< ColVariable > v_active_power;
-
  /// the perspective cuts variables
  std::vector< ColVariable > v_cuts;
 
- /// the y^+/- binary variables for DP, SU and SD formulations
+ /// the binary variables for DP, SU and SD formulations
  boost::multi_array< ColVariable , 2 > v_y_plus_minus;
 
 /*------------------------------- constraints ------------------------------*/
