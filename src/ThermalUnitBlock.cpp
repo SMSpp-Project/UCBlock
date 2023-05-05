@@ -607,7 +607,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
      var.set_type( ColVariable::kNonNegative );
     add_static_variable( v_cuts , "z_thermal" );
 
-    v_last_v_pbar.resize( f_time_horizon , 0 );
+    v_last_v_pbar.resize( f_time_horizon );
    }
 
    break;
@@ -711,7 +711,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
       var.set_type( ColVariable::kNonNegative );
      add_static_variable( v_cuts , "z_h_k_thermal" );
 
-     v_last_v_pbar.resize( v_Z_h_k.size() , 0 );
+     v_last_v_pbar.resize( v_Z_h_k.size() );
     }
 
    } else if( ( wf & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
@@ -748,7 +748,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
       var.set_type( ColVariable::kNonNegative );
      add_static_variable( v_cuts , "z_h_thermal" );
 
-     v_last_v_pbar.resize( v_Z_h.size() , 0 );
+     v_last_v_pbar.resize( v_Z_h.size() );
     }
 
    } else if( ( wf & FormMsk ) == SDForm ) {  // SD formulation - - - - - - -
@@ -785,7 +785,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
       var.set_type( ColVariable::kNonNegative );
      add_static_variable( v_cuts , "z_k_thermal" );
 
-     v_last_v_pbar.resize( v_Z_k.size() , 0 );
+     v_last_v_pbar.resize( v_Z_k.size() );
     }
    }
 
@@ -1217,9 +1217,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( ! v_DeltaRampDown.empty() ) {
 
-  RampDown_Const.resize( f_time_horizon );
-
   if( ( AR & FormMsk ) == tbinForm ) {  // 3bin formulation - - - - - - - - -
+
+   RampDown_Const.resize( f_time_horizon );
 
    for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
@@ -1244,6 +1244,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
   } else if( ( AR & FormMsk ) == TForm ) {  // T formulation- - - - - - - - -
+
+   RampDown_Const.resize( f_time_horizon );
 
    for( Index t = 0 , cnstr_idx = 0 ;
         t < f_time_horizon ; ++t , ++cnstr_idx ) {
