@@ -449,7 +449,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  UnitBlock::generate_abstract_variables( stvv );
 
- Index wf = 4;
+ Index wf = 3;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
@@ -570,8 +570,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   for( auto & var : v_z )
    var.set_type( ColVariable::kNonNegative );
   add_static_variable( v_z , "z_thermal" );
-
-  v_last_v_pbar.resize( f_time_horizon );
  }
 
  // Active Power & Prospective Cuts Variables for DP, SU and SD formulations-
@@ -580,13 +578,19 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
 
-   AR |= tbinForm;  // does nothing
+   // AR |= tbinForm;  // does nothing
+
+   if( f_cuts )
+    v_last_v_pbar.resize( f_time_horizon );
 
    break;
 
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
 
    AR |= TForm;
+
+   if( f_cuts )
+    v_last_v_pbar.resize( f_time_horizon );
 
    break;
 
@@ -668,6 +672,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    if( ( wf & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - - - - -
 
     AR |= ptForm;
+
+    if( f_cuts )
+     v_last_v_pbar.resize( f_time_horizon );
 
    } else if( ( wf & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
 
@@ -993,6 +1000,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
                                          -v_DeltaRampUp[ t ] ) );
        }
+
       RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
       RampUp_Const[ cnstr_idx ].set_rhs( 0.0 );
       RampUp_Const[ cnstr_idx ].set_function(
@@ -1463,26 +1471,26 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair upper_vars;
+   LinearFunction::v_coeff_pair vars;
 
-   upper_vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                         get_operational_max_power( t ) ) );
-   upper_vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                   get_operational_max_power( t ) ) );
+   vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
    // if UCBlock has primary demand variables
    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    upper_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                          -1.0 ) );
+    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
    // if UCBlock has secondary reserve variables
    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    upper_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                          -1.0 ) );
+    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                    -1.0 ) );
 
    MaxPower_Const[ t ].set_lhs( 0.0 );
    MaxPower_Const[ t ].set_rhs( Inf< double >() );
    MaxPower_Const[ t ].set_function(
-    new LinearFunction( std::move( upper_vars ) ) );
+    new LinearFunction( std::move( vars ) ) );
   }
 
  } else if( ( AR & FormMsk ) == TForm ) {  // T formulation - - - - - - - - -
@@ -1593,6 +1601,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       -( get_operational_max_power( t + 1 ) -
                                          v_ShutDownLimit[ t + 1 ] ) ) );
     }
+
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
     MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
     MaxPower_Const[ cnstr_idx ].set_function(
@@ -1841,8 +1850,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      }
     vars.push_back( std::make_pair( &v_p_h_k[ j ] , -1.0 ) );
 
-    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_lhs( 0.0 );
+    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
    }
   }
@@ -1871,8 +1880,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     }
    vars.push_back( std::make_pair( &v_p_h_k[ j ] , -1.0 ) );
 
-   MaxPower_Const[ j ].set_rhs( Inf< double >() );
    MaxPower_Const[ j ].set_lhs( 0.0 );
+   MaxPower_Const[ j ].set_rhs( Inf< double >() );
    MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
@@ -2004,8 +2013,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     vars.push_back( std::make_pair( &v_p_h[ j ] , -1.0 ) );
 
-    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_lhs( 0.0 );
+    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
    }
 
@@ -2044,8 +2053,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      }
     vars.push_back( std::make_pair( &v_p_k[ j ] , -1.0 ) );
 
-    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_lhs( 0.0 );
+    MaxPower_Const[ j ].set_rhs( Inf< double >() );
     MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
    }
   }
@@ -2133,8 +2142,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_h_k[ j ] , 1.0 ) );
 
-   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_lhs( 0.0 );
+   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
@@ -2154,8 +2163,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_h[ j ] , 1.0 ) );
 
-   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_lhs( 0.0 );
+   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
@@ -2175,8 +2184,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_k[ j ] , 1.0 ) );
 
-   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_lhs( 0.0 );
+   MinPower_Const[ j ].set_rhs( Inf< double >() );
    MinPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
   }
  }
@@ -2870,8 +2879,8 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     if( v_commitment[ t ].get_value() > eps ) {
 
      pbar = v_p_h_k[ t ].get_value() / v_commitment[ t ].get_value();
-     value = ( v_p_h_k[ t ].get_value() *
-               v_p_h_k[ t ].get_value() ) / v_commitment[ t ].get_value();
+     value = std::pow( v_p_h_k[ t ].get_value() , 2 ) /
+             v_commitment[ t ].get_value();
 
      if( v_z[ t ].get_value() < value - tol )
       if( ( v_last_v_pbar[ t ] == 0 ) ||
@@ -2890,11 +2899,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
        vars.push_back( std::make_pair( &v_z[ t ] , -1.0 ) );
 
-       vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                       -( ( v_p_h_k[ t ].get_value() *
-                                            v_p_h_k[ t ].get_value() ) /
-                                          ( v_commitment[ t ].get_value() *
-                                            v_commitment[ t ].get_value() ) ) ) );
+       vars.push_back( std::make_pair(
+        &v_commitment[ t ] ,
+        -( std::pow( v_p_h_k[ t ].get_value() , 2 ) /
+           std::pow( v_commitment[ t ].get_value() , 2 ) ) ) );
 
        newcut.front().set_lhs( -Inf< double >() );
        newcut.front().set_rhs( 0.0 );
@@ -2920,8 +2928,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     if( sum_y > eps ) {
 
      pbar = v_active_power[ t ].get_value() / sum_y;
-     value = ( v_active_power[ t ].get_value() *
-               v_active_power[ t ].get_value() ) / sum_y;
+     value = std::pow( v_active_power[ t ].get_value() , 2 ) / sum_y;
 
      if( v_z[ t ].get_value() < value - tol )
       if( ( v_last_v_pbar[ t ] == 0 ) ||
@@ -2943,10 +2950,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
        for( int j = 0 ; j < v_Y_plus.size() ; j++ )
         if( ( v_Y_plus[ j ].first <= t + 1 ) &&
             ( t + 1 <= v_Y_plus[ j ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ j ][ 0 ] ,
-                                         -( ( v_active_power[ t ].get_value() *
-                                              v_active_power[ t ].get_value() ) /
-                                            std::pow( sum_y , 2 ) ) ) );
+         vars.push_back( std::make_pair(
+          &v_y_plus_minus[ j ][ 0 ] ,
+          -( std::pow( v_active_power[ t ].get_value() , 2 ) /
+             std::pow( sum_y , 2 ) ) ) );
 
        newcut.front().set_lhs( -Inf< double >() );
        newcut.front().set_rhs( 0.0 );
@@ -2972,8 +2979,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
        auto t = v_P_h_k[ i ].first;
        pbar = v_p_h_k[ i ].get_value() /
               v_y_plus_minus[ j ][ 0 ].get_value();
-       value = ( v_p_h_k[ i ].get_value() *
-                 v_p_h_k[ i ].get_value() ) /
+       value = std::pow( v_p_h_k[ i ].get_value() , 2 ) /
                v_y_plus_minus[ j ][ 0 ].get_value();
 
        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
@@ -3000,10 +3006,8 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
             vars.push_back( std::make_pair(
              &v_y_plus_minus[ j ][ 0 ] ,
-             -( ( v_p_h_k[ i ].get_value() *
-                  v_p_h_k[ i ].get_value() ) /
-                ( v_y_plus_minus[ j ][ 0 ].get_value() *
-                  v_y_plus_minus[ j ][ 0 ].get_value() ) ) ) );
+             -( std::pow( v_p_h_k[ i ].get_value() , 2 ) /
+                std::pow( v_y_plus_minus[ j ][ 0 ].get_value() , 2 ) ) ) );
 
             newcut.front().set_lhs( -Inf< double >() );
             newcut.front().set_rhs( 0.0 );
@@ -3031,8 +3035,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
      auto t = v_P_h[ i ].first;
      pbar = v_p_h[ i ].get_value() / sum_y;
-     value = ( v_p_h[ i ].get_value() *
-               v_p_h[ i ].get_value() ) / sum_y;
+     value = std::pow( v_p_h[ i ].get_value() , 2 ) / sum_y;
 
      for( Index s = 0 ; s < v_P_h.size() ; ++s )
       if( v_P_h[ i ].first == v_Z_h[ s ].first &&
@@ -3061,8 +3064,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
                v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
             vars.push_back( std::make_pair(
              &v_y_plus_minus[ j ][ 0 ] ,
-             -( ( v_p_h[ i ].get_value() *
-                  v_p_h[ i ].get_value() ) /
+             -( std::pow( v_p_h[ i ].get_value() , 2 ) /
                 std::pow( sum_y , 2 ) ) ) );
 
           newcut.front().set_lhs( -Inf< double >() );
@@ -3091,8 +3093,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
      auto t = v_P_k[ i ].first;
      pbar = v_p_k[ i ].get_value() / sum_y;
-     value = ( v_p_k[ i ].get_value() *
-               v_p_k[ i ].get_value() ) / sum_y;
+     value = std::pow( v_p_k[ i ].get_value() , 2 ) / sum_y;
      for( Index s = 0 ; s < v_P_k.size() ; ++s )
       if( v_P_k[ i ].first == v_Z_k[ s ].first &&
           v_P_k[ i ].second == v_Z_k[ s ].second )
@@ -3120,8 +3121,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
                v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
             vars.push_back( std::make_pair(
              &v_y_plus_minus[ j ][ 0 ] ,
-             -( ( v_p_k[ i ].get_value() *
-                  v_p_k[ i ].get_value() ) /
+             -( std::pow( v_p_k[ i ].get_value() , 2 ) /
                 std::pow( sum_y , 2 ) ) ) );
 
           newcut.front().set_lhs( -Inf< double >() );
