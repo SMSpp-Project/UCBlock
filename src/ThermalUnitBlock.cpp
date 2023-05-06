@@ -5002,8 +5002,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< FunctionMod * >( mod ) ) {
   auto f = tmod->function();
-  if( f == static_cast< FRealObjective * >( get_objective() )->get_function()
-   ) {
+  if( f == static_cast< FRealObjective * >( get_objective() )->get_function() ) {
    handle_objective_change( tmod , chnl );
    return;
   }
@@ -5011,7 +5010,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   std::ostringstream em;
   em << *mod;
   throw( std::invalid_argument(
-   "ThermalUnitBlock: unsupported " + em.str() + "." ) );
+   "ThermalUnitBlock::guts_of_add_Modification: unsupported " + em.str() + "." ) );
   return;
  }
 
@@ -5020,7 +5019,7 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  std::ostringstream em;
  em << *mod;
  throw( std::invalid_argument(
-  "ThermalUnitBlock: unsupported " + em.str() + "." ) );
+  "ThermalUnitBlock::guts_of_add_Modification: unsupported " + em.str() + "." ) );
 
 }  // end( ThermalUnitBlock::guts_of_add_Modification )
 
@@ -5048,8 +5047,9 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   if( tmod->range().second > qf->get_num_active_var() )
    throw( std::invalid_argument(
-    "ThermalUnitBlock: invalid Range [" + std::to_string( l ) + ", "
-    + std::to_string( r ) + ") in C05FunctionModLinRngd." ) );
+    "ThermalUnitBlock::handle_objective_change: invalid Range [" +
+    std::to_string( l ) + ", " + std::to_string( r ) +
+    ") in C05FunctionModLinRngd." ) );
 
   std::vector< double > nv( r - l + 1 );
   Index gl = 0;
@@ -5124,7 +5124,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   }
 
   throw( std::invalid_argument(
-   "ThermalUnitBlock: invalid variable in C05FunctionModLinRngd." ) );
+   "ThermalUnitBlock::handle_objective_change: invalid variable in "
+   "C05FunctionModLinRngd." ) );
   return;
 
  }  // end( C05FunctionModLinRngd )
@@ -5141,7 +5142,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   if( tmod->subset().back() > qf->get_num_active_var() )
    throw( std::invalid_argument(
-    "ThermalUnitBlock: invalid Subset in C05FunctionModLinSbst." ) );
+    "ThermalUnitBlock::handle_objective_change: invalid Subset in "
+    "C05FunctionModLinSbst." ) );
 
   std::vector< double > nv( tmod->subset().size() );
   auto l = tmod->subset().begin();
@@ -5242,7 +5244,8 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 
   if( l != tmod->subset().end() )
    throw( std::invalid_argument(
-    "ThermalUnitBlock: invalid variable in C05FunctionModLinSbst." ) );
+    "ThermalUnitBlock::handle_objective_change: invalid variable in "
+    "C05FunctionModLinSbst." ) );
   return;
 
  }  // end( C05FunctionModLinSbst )
