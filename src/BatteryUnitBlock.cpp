@@ -1079,7 +1079,7 @@ void BatteryUnitBlock::update_initial_storage_in_cnstrs( c_ModParam issueAMod )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
                                             Subset && subset ,
                                             const bool ordered ,
                                             c_ModParam issuePMod ,
@@ -1118,7 +1118,7 @@ void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterato
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
                                             Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
@@ -1165,7 +1165,7 @@ void BatteryUnitBlock::update_initial_power_in_cnstrs( c_ModParam issueAMod )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
                                           Subset && subset ,
                                           const bool ordered ,
                                           c_ModParam issuePMod ,
@@ -1204,7 +1204,7 @@ void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator 
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
                                           Range rng ,
                                           c_ModParam issuePMod ,
                                           c_ModParam issueAMod )
@@ -1237,7 +1237,7 @@ void BatteryUnitBlock::set_initial_power( std::vector< double >::const_iterator 
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::scale( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::scale( MF_dbl_it values ,
                               Subset && subset ,
                               const bool ordered ,
                               c_ModParam issuePMod ,
@@ -1349,7 +1349,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
                                   Subset && subset ,
                                   const bool ordered ,
                                   ModParam issuePMod ,
@@ -1381,7 +1381,7 @@ void BatteryUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
                                   Range rng ,
                                   ModParam issuePMod ,
                                   ModParam issueAMod )

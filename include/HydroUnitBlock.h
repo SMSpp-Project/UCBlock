@@ -1565,46 +1565,46 @@ class HydroUnitBlock : public UnitBlock
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- void set_inflow( std::vector< double >::const_iterator values ,
+ void set_inflow( MF_dbl_it values ,
                   Subset && subset ,
                   const bool ordered = false ,
                   ModParam issuePMod = eNoBlck ,
                   ModParam issueAMod = eNoBlck );
 
- void set_inflow( std::vector< double >::const_iterator values ,
+ void set_inflow( MF_dbl_it values ,
                   Range rng = Range( 0 , Inf< Index >() ) ,
                   ModParam issuePMod = eNoBlck ,
                   ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values ,
+ void set_inertia_power( MF_dbl_it values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_inertia_power( std::vector< double >::const_iterator values ,
+ void set_inertia_power( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values ,
+ void set_initial_volume( MF_dbl_it values ,
                           Subset && subset ,
                           const bool ordered = false ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
- void set_initial_volume( std::vector< double >::const_iterator values ,
+ void set_initial_volume( MF_dbl_it values ,
                           Range rng = Range( 0 , Inf< Index >() ) ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+ void set_initial_flow_rate( MF_dbl_it values ,
                              Subset && subset ,
                              const bool ordered = false ,
                              ModParam issuePMod = eNoBlck ,
                              ModParam issueAMod = eNoBlck );
 
- void set_initial_flow_rate( std::vector< double >::const_iterator values ,
+ void set_initial_flow_rate( MF_dbl_it values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              ModParam issuePMod = eNoBlck ,
                              ModParam issueAMod = eNoBlck );

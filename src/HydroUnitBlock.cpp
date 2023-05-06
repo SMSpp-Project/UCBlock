@@ -1123,7 +1123,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_inflow( MF_dbl_it values ,
                                  Block::Subset && subset ,
                                  const bool ordered ,
                                  c_ModParam issuePMod ,
@@ -1193,7 +1193,7 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_inflow( MF_dbl_it values ,
                                  Block::Range rng ,
                                  c_ModParam issuePMod ,
                                  c_ModParam issueAMod )
@@ -1251,7 +1251,7 @@ void HydroUnitBlock::set_inflow( std::vector< double >::const_iterator values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
                                         Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -1311,7 +1311,7 @@ void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator va
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -1357,7 +1357,7 @@ void HydroUnitBlock::set_inertia_power( std::vector< double >::const_iterator va
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
                                          Block::Subset && subset ,
                                          const bool ordered ,
                                          c_ModParam issuePMod ,
@@ -1421,7 +1421,7 @@ void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator v
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
                                          Block::Range rng ,
                                          c_ModParam issuePMod ,
                                          c_ModParam issueAMod )
@@ -1519,7 +1519,7 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs(Block::Range arcs ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                                             Block::Subset && subset ,
                                             const bool ordered ,
                                             c_ModParam issuePMod ,
@@ -1574,7 +1574,7 @@ void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterato
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate( std::vector< double >::const_iterator values ,
+void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                                             Block::Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )

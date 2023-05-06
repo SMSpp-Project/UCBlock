@@ -564,7 +564,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
                                         Block::Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -630,7 +630,7 @@ void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )

@@ -591,7 +591,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
                                         Block::Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -663,7 +663,7 @@ void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator values ,
+void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -722,7 +722,7 @@ void DCNetworkBlock::set_active_demand( std::vector< double >::const_iterator va
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
+void DCNetworkBlock::set_kappa( MF_dbl_it values ,
                                 Block::Subset && subset ,
                                 const bool ordered ,
                                 c_ModParam issuePMod ,
@@ -802,7 +802,7 @@ void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( std::vector< double >::const_iterator values ,
+void DCNetworkBlock::set_kappa( MF_dbl_it values ,
                                 Block::Range rng ,
                                 c_ModParam issuePMod ,
                                 c_ModParam issueAMod )

@@ -1599,7 +1599,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- void scale( std::vector< double >::const_iterator values ,
+ void scale( MF_dbl_it values ,
              Subset && subset ,
              const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,

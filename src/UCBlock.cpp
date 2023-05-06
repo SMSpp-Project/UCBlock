@@ -1995,7 +1995,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand( std::vector< double >::const_iterator values ,
+void UCBlock::set_active_power_demand( MF_dbl_it values ,
                                        Block::Subset && subset ,
                                        const bool ordered ,
                                        c_ModParam issuePMod ,
@@ -2064,7 +2064,7 @@ void UCBlock::set_active_power_demand( std::vector< double >::const_iterator val
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand( std::vector< double >::const_iterator values ,
+void UCBlock::set_active_power_demand( MF_dbl_it values ,
                                        Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )

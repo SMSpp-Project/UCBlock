@@ -1199,13 +1199,13 @@ public:
 /** @name Methods for changing the data of the BatteryUnitBlock
  *  @{ */
 
- void set_initial_storage( std::vector< double >::const_iterator it ,
+ void set_initial_storage( MF_dbl_it it ,
                            Subset && subset ,
                            const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
 
- void set_initial_storage( std::vector< double >::const_iterator it ,
+ void set_initial_storage( MF_dbl_it it ,
                            Range rng = Range( 0 , Inf< Index >() ) ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
@@ -1220,7 +1220,7 @@ public:
   * zero.
   */
 
- void set_initial_power( std::vector< double >::const_iterator it ,
+ void set_initial_power( MF_dbl_it it ,
                          Subset && subset ,
                          const bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1236,7 +1236,7 @@ public:
   * Range \p rng does not contain the 0 index, this function does nothing.
   */
 
- void set_initial_power( std::vector< double >::const_iterator it ,
+ void set_initial_power( MF_dbl_it it ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -1256,7 +1256,7 @@ public:
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- void scale( std::vector< double >::const_iterator values ,
+ void scale( MF_dbl_it values ,
              Subset && subset ,
              const bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
@@ -1280,7 +1280,7 @@ public:
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( std::vector< double >::const_iterator values ,
+ void set_kappa( MF_dbl_it values ,
                  Subset && subset ,
                  const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -1302,7 +1302,7 @@ public:
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( std::vector< double >::const_iterator values ,
+ void set_kappa( MF_dbl_it values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );

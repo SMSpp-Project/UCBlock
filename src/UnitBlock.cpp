@@ -143,7 +143,7 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( std::vector< double >::const_iterator values ,
+void UnitBlock::scale( MF_dbl_it values ,
                        Range rng ,
                        c_ModParam issuePMod ,
                        c_ModParam issueAMod )

@@ -1031,7 +1031,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( std::vector< double >::const_iterator values ,
+ void set_kappa( MF_dbl_it values ,
                  Subset && subset ,
                  const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -1054,7 +1054,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( std::vector< double >::const_iterator values ,
+ void set_kappa( MF_dbl_it values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -1078,7 +1078,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( std::vector< double >::const_iterator values ,
+ void set_active_demand( MF_dbl_it values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -1101,7 +1101,7 @@ class DCNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( std::vector< double >::const_iterator values ,
+ void set_active_demand( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;

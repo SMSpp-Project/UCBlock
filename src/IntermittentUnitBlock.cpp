@@ -639,7 +639,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::scale( std::vector< double >::const_iterator values ,
+void IntermittentUnitBlock::scale( MF_dbl_it values ,
                                    Subset && subset ,
                                    const bool ordered ,
                                    c_ModParam issuePMod ,
@@ -668,7 +668,7 @@ void IntermittentUnitBlock::scale( std::vector< double >::const_iterator values 
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                        Subset && subset ,
                                        const bool ordered ,
                                        ModParam issuePMod ,
@@ -719,7 +719,7 @@ void IntermittentUnitBlock::set_kappa( std::vector< double >::const_iterator val
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa( std::vector< double >::const_iterator values ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                        Range rng ,
                                        ModParam issuePMod , ModParam issueAMod )
 {

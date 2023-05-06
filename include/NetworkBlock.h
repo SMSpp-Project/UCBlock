@@ -623,7 +623,7 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( std::vector< double >::const_iterator values ,
+ virtual void set_active_demand( MF_dbl_it values ,
                                  Subset && subset ,
                                  const bool ordered ,
                                  ModParam issuePMod ,
@@ -646,8 +646,9 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( std::vector< double >::const_iterator values ,
-                                 Range rng , ModParam issuePMod ,
+ virtual void set_active_demand( MF_dbl_it values ,
+                                 Range rng ,
+                                 ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/

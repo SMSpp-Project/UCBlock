@@ -377,7 +377,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                              ", but it must be nonnegative." ) );
  }
 
- // Quadratic term of the objective function- - - - - - - - - - - - - - - - -
+ // QuadTerm - - - - - - - - - - - - - - - -- - - - - - - - - - - - - - - - -
  if( ! v_QuadTerm.empty() ) {
   assert( v_QuadTerm.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1506,11 +1506,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     v_T_RU[ t ] = std::floor( ( get_operational_max_power( t ) -
-                                v_ShutDownLimit[ t ] ) /
-                              v_DeltaRampUp[ t ] );
+                                v_ShutDownLimit[ t ] ) / v_DeltaRampUp[ t ] );
     v_T_RD[ t ] = std::floor( ( get_operational_max_power( t ) -
-                                v_StartUpLimit[ t ] ) /
-                              v_DeltaRampDown[ t ] );
+                                v_StartUpLimit[ t ] ) / v_DeltaRampDown[ t ] );
     v_K_SD[ t ] = std::min( f_InitUpDownTime - 1 , v_T_RD[ t ] );
     v_K_SD[ t ] = std::min( ( int ) ( f_time_horizon - t ) - 1 , v_K_SD[ t ] );
     v_K_SU[ t ] = std::min( f_InitUpDownTime - 2 -
@@ -1885,7 +1883,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
- } else {  // pt, SD or SU formulations - - - - - - - - - - - - - - - - - - -
+ } else {  // pt, SU or SD formulations - - - - - - - - - - - - - - - - - - -
 
   std::vector< double > v_psi( v_P_h_k.size() );
 
@@ -2197,12 +2195,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // Initial perspective cuts constraints - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  Init_PC_Const.resize( 2 * v_active_power.size() );
-
   auto cnstr_idx = 0;
 
   if( ( ( AR & FormMsk ) == tbinForm ) ||  // 3bin formulation- - - - - - - -
       ( ( AR & FormMsk ) == TForm ) ) {  // T formulation - - - - - - - - - -
+
+   Init_PC_Const.resize( 2 * v_active_power.size() );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index k = 0 ; k <= 1 ; ++k ) {
@@ -2226,6 +2224,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     }
 
   } else if( ( AR & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - -
+
+   Init_PC_Const.resize( 2 * v_active_power.size() );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index k = 0 ; k <= 1 ; ++k ) {
@@ -2253,6 +2253,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     }
 
   } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - -
+
+   Init_PC_Const.resize( 2 * v_P_h_k.size() );
 
    for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
     for( Index k = 0 ; k <= 1 ; ++k ) {
@@ -2287,6 +2289,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation- - - - - - - -
 
+   Init_PC_Const.resize( 2 * v_P_h.size() );
+
    for( Index j = 0 ; j < v_P_h.size() ; ++j )
     for( Index k = 0 ; k <= 1 ; ++k ) {
 
@@ -2318,6 +2322,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     }
 
   } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - - -
+
+   Init_PC_Const.resize( 2 * v_P_k.size() );
 
    for( Index j = 0 ; j < v_P_k.size() ; ++j )
     for( Index k = 0 ; k <= 1 ; ++k ) {
@@ -2360,57 +2366,56 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       ( ( AR & FormMsk ) == TForm ) ||  // T formulation- - - - - - - - - - -
       ( ( AR & FormMsk ) == ptForm ) ) {  // pt formulation - - - - - - - - -
    ;  // does nothing
-  } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - -
+  } else {  // DP, SU or SD formulations- - - - - - - - - - - - - - - - - - -
 
    Eq_PC_Const.resize( f_time_horizon );
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - - - - -
 
-    LinearFunction::v_coeff_pair vars;
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
+     LinearFunction::v_coeff_pair vars;
 
-    for( Index j = 0 ; j < v_Z_h_k.size() ; ++j )
-     if( v_Z_h_k[ j ].first == t )
-      vars.push_back( std::make_pair( &v_z_h_k[ j ] , -1.0 ) );
+     vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
 
-    Eq_PC_Const[ t ].set_both( 0.0 );
-    Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
-   }
+     for( Index j = 0 ; j < v_Z_h_k.size() ; ++j )
+      if( v_Z_h_k[ j ].first == t )
+       vars.push_back( std::make_pair( &v_z_h_k[ j ] , -1.0 ) );
 
-  } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation- - - - - - - -
+     Eq_PC_Const[ t ].set_both( 0.0 );
+     Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    }
 
-   Eq_PC_Const.resize( f_time_horizon );
+   } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-    LinearFunction::v_coeff_pair vars;
+     LinearFunction::v_coeff_pair vars;
 
-    vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
+     vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
 
-    for( Index j = 0 ; j < v_Z_h.size() ; ++j )
-     if( v_Z_h[ j ].first == t )
-      vars.push_back( std::make_pair( &v_z_h[ j ] , -1.0 ) );
+     for( Index j = 0 ; j < v_Z_h.size() ; ++j )
+      if( v_Z_h[ j ].first == t )
+       vars.push_back( std::make_pair( &v_z_h[ j ] , -1.0 ) );
 
-    Eq_PC_Const[ t ].set_both( 0.0 );
-    Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
-   }
+     Eq_PC_Const[ t ].set_both( 0.0 );
+     Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    }
 
-  } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - - -
+   } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - - -
 
-   Eq_PC_Const.resize( f_time_horizon );
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     LinearFunction::v_coeff_pair vars;
 
-    LinearFunction::v_coeff_pair vars;
+     vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
+     for( Index j = 0 ; j < v_Z_k.size() ; ++j )
+      if( v_Z_k[ j ].first == t )
+       vars.push_back( std::make_pair( &v_z_k[ j ] , -1.0 ) );
 
-    vars.push_back( std::make_pair( &v_z[ t ] , 1.0 ) );
-    for( Index j = 0 ; j < v_Z_k.size() ; ++j )
-     if( v_Z_k[ j ].first == t )
-      vars.push_back( std::make_pair( &v_z_k[ j ] , -1.0 ) );
-
-    Eq_PC_Const[ t ].set_both( 0.0 );
-    Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+     Eq_PC_Const[ t ].set_both( 0.0 );
+     Eq_PC_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    }
    }
   }
 
@@ -4815,7 +4820,7 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::scale( std::vector< double >::const_iterator values ,
+void ThermalUnitBlock::scale( MF_dbl_it values ,
                               Subset && subset ,
                               const bool ordered ,
                               c_ModParam issuePMod ,

@@ -580,7 +580,7 @@ class UnitBlock : public Block
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- virtual void scale( std::vector< double >::const_iterator values ,
+ virtual void scale( MF_dbl_it values ,
                      Subset && subset ,
                      const bool ordered = false ,
                      c_ModParam issuePMod = eNoBlck ,
@@ -603,7 +603,7 @@ class UnitBlock : public Block
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- virtual void scale( std::vector< double >::const_iterator values ,
+ virtual void scale( MF_dbl_it values ,
                      Range rng = Range( 0, Inf< Index >() ) ,
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck );
