@@ -1728,15 +1728,13 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// stores the value of the last pbar in a p/c
+ /// stores the value of the last pbar in a perspective cut
  std::vector< double > v_last_v_pbar;
-
- // DP formulation data
 
  /// TODO short description
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
- /// TODO
+ /// TODO short description
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
  // SU formulation data
@@ -1906,8 +1904,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the initial perspective cuts constraints
  std::vector< FRowConstraint > Init_PC_Const;
 
- /// the constraints connecting p/c variables of
- /// 3bin with those of DP, SU and SD formulations
+ /// the constraints connecting perspective cuts variables
+ /// of 3bin with those of DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
 

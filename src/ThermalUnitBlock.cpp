@@ -591,11 +591,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    break;
 
   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
-
-   AR |= ptForm;
-
-   break;
-
+   // fall through
   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
    // fall through
   case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
@@ -656,22 +652,26 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
    v_y_plus_minus.resize(
     boost::extents[ v_Y_plus.size() ][ v_Y_minus.size() ] );
-   for( Index v_p = 0 ; v_p < v_Y_plus.size() ; ++v_p )
-    for( Index v_m = 0 ; v_m < v_Y_minus.size() ; ++v_m )
-     v_y_plus_minus[ v_p ][ v_m ].set_type( ColVariable::kBinary );
+   for( Index v_y_plus = 0 ; v_y_plus < v_Y_plus.size() ; ++v_y_plus )
+    for( Index v_y_minus = 0 ; v_y_minus < v_Y_minus.size() ; ++v_y_minus )
+     v_y_plus_minus[ v_y_plus ][ v_y_minus ].set_type( ColVariable::kBinary );
    add_static_variable( v_y_plus_minus , "y_plus_minus_thermal" );
 
-   if( ( wf & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - - - - -
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+    for( Index t = 0 ; t < f_time_horizon ; t++ )
+     if( ( v_Y_plus[ i ].first <= t + 1 ) &&
+         ( t + 1 <= v_Y_plus[ i ].second ) )
+      v_P_h_k.push_back(
+       std::make_pair( t , std::make_pair( v_Y_plus[ i ].first ,
+                                           v_Y_plus[ i ].second ) ) );
+
+   if( ( wf & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - - - - -
+
+    AR |= ptForm;
+
+   } else if( ( wf & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
 
     AR |= DPForm;
-
-    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-     for( Index t = 0 ; t < f_time_horizon ; t++ )
-      if( ( v_Y_plus[ i ].first <= t + 1 ) &&
-          ( t + 1 <= v_Y_plus[ i ].second ) )
-       v_P_h_k.push_back(
-        std::make_pair( t , std::make_pair( v_Y_plus[ i ].first ,
-                                            v_Y_plus[ i ].second ) ) );
 
     v_p_h_k.resize( v_P_h_k.size() );
     for( auto & var : v_p_h_k )
