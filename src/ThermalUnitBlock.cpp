@@ -1824,35 +1824,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      cnstr_idx++;
     }
   }
-  else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation- - - - - - - -
-
-   MaxPower_Const.resize( v_P_h_k.size() );
-
-   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
-
-    LinearFunction::v_coeff_pair vars;
-
-    auto t = v_P_h_k[ j ].first;
-    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
-      if( v_Y_plus[ i ].first == t + 1 )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
-                                       v_StartUpLimit[ t ] ) );
-      else if( v_Y_plus[ i ].second == t + 1 )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
-                                       v_ShutDownLimit[ t ] ) );
-      else
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
-                                       get_operational_max_power( t ) ) );
-     }
-    vars.push_back( std::make_pair( &v_p_h_k[ j ] , -1.0 ) );
-
-    MaxPower_Const[ j ].set_lhs( 0.0 );
-    MaxPower_Const[ j ].set_rhs( Inf< double >() );
-    MaxPower_Const[ j ].set_function( new LinearFunction( std::move( vars ) ) );
-   }
-  }
 
  } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - - -
 
@@ -4035,7 +4006,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  // this means that the start_up variable t is in position t - init_t
  // hence, those in the range [ 0 , init_t ) do not exist and their cost
  // cannot be changed
- if( rng.first < init_t )
+ if( rng.first >= v_StartUpCost.size() )
   throw( std::invalid_argument( "ThermalUnitBlock::set_startup_costs: invalid"
                                 " starting index in range." ) );
 
