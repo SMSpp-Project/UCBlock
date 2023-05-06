@@ -655,7 +655,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    for( Index v_y_plus = 0 ; v_y_plus < v_Y_plus.size() ; ++v_y_plus )
     for( Index v_y_minus = 0 ; v_y_minus < v_Y_minus.size() ; ++v_y_minus )
      v_y_plus_minus[ v_y_plus ][ v_y_minus ].set_type( ColVariable::kBinary );
-   add_static_variable( v_y_plus_minus , "y_plus_minus_thermal" );
+   add_static_variable( v_y_plus_minus , "y_thermal" );
 
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     for( Index t = 0 ; t < f_time_horizon ; t++ )

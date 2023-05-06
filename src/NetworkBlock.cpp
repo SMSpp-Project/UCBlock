@@ -66,7 +66,7 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
   for( Index t = 0 ; t < number_intervals ; ++t )
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
     v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
-  add_static_variable( v_node_injection , "S" );
+  add_static_variable( v_node_injection , "s_network" );
  }
 }  // end( NetworkBlock::generate_abstract_variables )
 

@@ -227,7 +227,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
  for( Index g = 0 ; g < f_NumberReservoirs ; ++g )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_volumetric[ g ][ t ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_volumetric , "vol" );
+ add_static_variable( v_volumetric , "v_hydro" );
 
  v_flow_rate.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  v_active_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
@@ -240,7 +240,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
  }
 
- add_static_variable( v_flow_rate , "F_hydro" );
+ add_static_variable( v_flow_rate , "f_hydro" );
  add_static_variable( v_active_power , "p_hydro" );
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve

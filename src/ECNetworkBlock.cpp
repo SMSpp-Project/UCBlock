@@ -195,7 +195,7 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
     v_micro_power_injection[ t ][ node_id ].set_type(
      ColVariable::kNonNegative );
-  add_static_variable( v_micro_power_injection , "M_injection" );
+  add_static_variable( v_micro_power_injection , "p_micro_inj_network" );
 
   // the microgrid power absorption variables
   v_micro_power_absorption.resize(
@@ -204,7 +204,7 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
     v_micro_power_absorption[ t ][ node_id ].set_type(
      ColVariable::kNonNegative );
-  add_static_variable( v_micro_power_absorption , "M_absorption" );
+  add_static_variable( v_micro_power_absorption , "p_micro_abs_network" );
  }
 
  // the public power injection variables
@@ -213,7 +213,7 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_public_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_public_power_injection , "P_injection" );
+ add_static_variable( v_public_power_injection , "p_inj_network" );
 
  // the public power absorption variables
  v_public_power_absorption.resize(
@@ -221,13 +221,13 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
  for( Index t = 0 ; t < number_intervals ; ++t )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
    v_public_power_absorption[ t ][ node_id ].set_type( ColVariable::kNonNegative );
- add_static_variable( v_public_power_absorption , "P_absorption" );
+ add_static_variable( v_public_power_absorption , "p_abs_network" );
 
  // the peak power variables
  v_peak_power.resize( number_nodes );
  for( auto & var : v_peak_power )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_peak_power , "P_peak" );
+ add_static_variable( v_peak_power , "p_peak_network" );
 
  set_variables_generated();
 

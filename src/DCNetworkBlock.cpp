@@ -253,14 +253,14 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
   v_power_flow.resize( number_lines );
   for( auto & var : v_power_flow )
    var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_power_flow , "F_power_flow" );
+  add_static_variable( v_power_flow , "p_flow_network" );
 
   if( ! f_NetworkData->get_network_cost().empty() ) {
    // the auxiliary Variable
    v_auxiliary_variable.resize( number_lines );
    for( auto & var : v_auxiliary_variable )
     var.set_type( ColVariable::kContinuous );
-   add_static_variable( v_auxiliary_variable , "V_auxiliary" );
+   add_static_variable( v_auxiliary_variable , "aux_network" );
   }
  }
 

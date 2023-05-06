@@ -355,23 +355,23 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_storage_level , "SL_battery" );
+ add_static_variable( v_storage_level , "sl_battery" );
 
  v_intake_level.resize( f_time_horizon );
  for( auto & var : v_intake_level )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_intake_level , "IL_battery" );
+ add_static_variable( v_intake_level , "il_battery" );
 
  v_outtake_level.resize( f_time_horizon );
  for( auto & var : v_outtake_level )
   var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_outtake_level , "OL_battery" );
+ add_static_variable( v_outtake_level , "ol_battery" );
 
  if( generate_binary_variables ) {
   v_battery_binary.resize( f_time_horizon );
   for( auto & var : v_battery_binary )
    var.set_type( ColVariable::kBinary );
-  add_static_variable( v_battery_binary , "BB_battery" );
+  add_static_variable( v_battery_binary , "bb_battery" );
  }
 
  // Battery Design Variable

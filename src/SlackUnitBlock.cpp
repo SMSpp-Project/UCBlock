@@ -125,7 +125,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
    v_commitment.resize( f_time_horizon );
    for( auto & i : v_commitment )
     i.set_type( ColVariable::kPosUnitary );
-   add_static_variable( v_commitment , "u_inertia_slack" );
+   add_static_variable( v_commitment , "u_slack" );
   }
  }
 
