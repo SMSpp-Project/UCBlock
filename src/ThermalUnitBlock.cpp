@@ -449,7 +449,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  UnitBlock::generate_abstract_variables( stvv );
 
- Index wf = 3;
+ Index wf = 4;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
@@ -555,39 +555,44 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
  }
 
- // Active Power & Prospective Cuts Variables - - - - - - - - - - - - - - - -
+ // Active Power Variables- - - - - - - - - - - - - - - - - - - - - - - - - -
+ v_active_power.resize( f_time_horizon );
+ for( auto & var : v_active_power )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_active_power , "p_thermal" );
+
+ // Prospective Cuts Variables- - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_cuts ) {
+
+  AR |= PCuts;
+
+  v_z.resize( f_time_horizon );
+  for( auto & var : v_z )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_z , "z_thermal" );
+
+  v_last_v_pbar.resize( f_time_horizon );
+ }
+
+ // Active Power & Prospective Cuts Variables for DP, SU and SD formulations-
  // (with auxiliary structures initialization)- - - - - - - - - - - - - - - -
  switch( wf & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
-   // fall through
+
+   AR |= tbinForm;  // does nothing
+
+   break;
+
   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
-   // fall through
+
+   AR |= TForm;
+
+   break;
+
   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
 
-   if( ( wf & FormMsk ) == tbinForm )  // 3bin formulation- - - - - - - - - -
-    ;  // AR |= tbinForm;  // does nothing
-   else if( ( wf & FormMsk ) == TForm )  // T formulation - - - - - - - - - -
-    AR |= TForm;
-   else if( ( wf & FormMsk ) == ptForm )  // pt formulation - - - - - - - - -
-    AR |= ptForm;
-
-   v_active_power.resize( f_time_horizon );
-   for( auto & var : v_active_power )
-    var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_active_power , "p_thermal" );
-
-   if( f_cuts ) {
-
-    AR |= PCuts;
-
-    v_z.resize( f_time_horizon );
-    for( auto & var : v_z )
-     var.set_type( ColVariable::kNonNegative );
-    add_static_variable( v_z , "z_thermal" );
-
-    v_last_v_pbar.resize( f_time_horizon );
-   }
+   AR |= ptForm;
 
    break;
 
@@ -675,8 +680,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     if( f_cuts ) {
 
-     AR |= PCuts;
-
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       for( Index t = 0 ; t < f_time_horizon ; t++ )
        if( ( v_Y_plus[ i ].first <= t + 1 ) &&
@@ -720,8 +723,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     if( f_cuts ) {
 
-     AR |= PCuts;
-
      v_z_h.resize( v_Z_h.size() );
      for( auto & var : v_z_h )
       var.set_type( ColVariable::kNonNegative );
@@ -756,8 +757,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     add_static_variable( v_p_k , "p_k_thermal" );
 
     if( f_cuts ) {
-
-     AR |= PCuts;
 
      v_z.resize( v_Z_k.size() );
      for( auto & var : v_z )
@@ -2424,7 +2423,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     StartUp_ShutDown_Variables_Const.resize( startup_shutdown_const_size );
 
-    for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+    for( Index t = init_t , cnstr_idx = 0 ; t < f_time_horizon ;
+         ++t , ++cnstr_idx ) {
 
      LinearFunction::v_coeff_pair vars;
 
@@ -2435,10 +2435,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       vars.push_back( std::make_pair( &v_commitment[ t - 1 ] , -1.0 ) );
 
      if( ( t == init_t ) && ( f_InitUpDownTime > 0 ) )
-      StartUp_ShutDown_Variables_Const[ t ].set_both( 1.0 );
+      StartUp_ShutDown_Variables_Const[ cnstr_idx ].set_both( 1.0 );
      else
-      StartUp_ShutDown_Variables_Const[ t ].set_both( 0.0 );
-     StartUp_ShutDown_Variables_Const[ t ].set_function(
+      StartUp_ShutDown_Variables_Const[ cnstr_idx ].set_both( 0.0 );
+     StartUp_ShutDown_Variables_Const[ cnstr_idx ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
 
@@ -2456,7 +2456,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     StartUp_Const.resize( startup_const_size );
 
-    for( Index t = ( init_t + f_MinUpTime - 1 ) ; t < f_time_horizon ; ++t ) {
+    for( Index t = ( init_t + f_MinUpTime - 1 ) , cnstr_idx = 0 ;
+         t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
      LinearFunction::v_coeff_pair vars;
 
@@ -2465,9 +2466,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
 
-     StartUp_Const[ t ].set_lhs( 0.0 );
-     StartUp_Const[ t ].set_rhs( Inf< double >() );
-     StartUp_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+     StartUp_Const[ cnstr_idx ].set_lhs( 0.0 );
+     StartUp_Const[ cnstr_idx ].set_rhs( Inf< double >() );
+     StartUp_Const[ cnstr_idx ].set_function(
+      new LinearFunction( std::move( vars ) ) );
     }
 
     add_static_constraint( StartUp_Const , "StartUp_Commitment_Const_Thermal" );
@@ -2483,7 +2485,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     ShutDown_Const.resize( shutdown_const_size );
 
-    for( Index t = ( init_t + f_MinDownTime - 1 ) ; t < f_time_horizon ; ++t ) {
+    for( Index t = ( init_t + f_MinDownTime - 1 ) , cnstr_idx = 0 ;
+         t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
      LinearFunction::v_coeff_pair vars;
 
@@ -2492,9 +2495,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
 
-     ShutDown_Const[ t ].set_lhs( -Inf< double >() );
-     ShutDown_Const[ t ].set_rhs( 1.0 );
-     ShutDown_Const[ t ].set_function(
+     ShutDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
+     ShutDown_Const[ cnstr_idx ].set_rhs( 1.0 );
+     ShutDown_Const[ cnstr_idx ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
 
@@ -2607,7 +2610,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    Eq_StartUp_Const.resize( f_time_horizon - init_t );
 
-   for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+   for( Index t = init_t , cnstr_idx = 0 ; t < f_time_horizon ;
+        ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2617,8 +2621,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( ( v_Y_plus[ i ].first == t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
-    Eq_StartUp_Const[ t ].set_both( 0.0 );
-    Eq_StartUp_Const[ t ].set_function(
+    Eq_StartUp_Const[ cnstr_idx ].set_both( 0.0 );
+    Eq_StartUp_Const[ cnstr_idx ].set_function(
      new LinearFunction( std::move( vars ) ) );
    }
 
@@ -2630,7 +2634,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    Eq_ShutDown_Const.resize( f_time_horizon - init_t );
 
-   for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+   for( Index t = init_t , cnstr_idx = 0 ; t < f_time_horizon ;
+        ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2640,8 +2645,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
 
-    Eq_ShutDown_Const[ t ].set_both( 0.0 );
-    Eq_ShutDown_Const[ t ].set_function(
+    Eq_ShutDown_Const[ cnstr_idx ].set_both( 0.0 );
+    Eq_ShutDown_Const[ cnstr_idx ].set_function(
      new LinearFunction( std::move( vars ) ) );
    }
 
@@ -2702,7 +2707,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
    }
 
-   for( Index t = f_time_horizon + 1 ; t < f_time_horizon + 2 ; ++t ) {
+   for( Index t = f_time_horizon + 1 , cnstr_idx = 0 ;
+        t < f_time_horizon + 2 ; ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2714,8 +2720,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( v_Y_minus[ i ].second == t )
       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
 
-    Network_Const[ t ].set_both( 1.0 );
-    Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    Network_Const[ cnstr_idx ].set_both( 1.0 );
+    Network_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
    }
 
    add_static_constraint( Network_Const , "Network_Const_Thermal" );
