@@ -1679,8 +1679,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( v_ShutDownLimit[ t ] != v_StartUpLimit[ t ] )
       vars.push_back( std::make_pair(
        &v_start_up[ t - init_t ] ,
-       -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) > 0
-       ? -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) : 0.0 ) );
+       -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) > 0 ?
+       -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) : 0.0 ) );
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2236,8 +2236,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      LinearFunction::v_coeff_pair vars;
 
      auto t = v_P_h_k[ j ].first;
-     auto value = ( k == 0 ? get_operational_min_power( t ) :
-                    get_operational_max_power( t ) );
+     auto value = ( k == 0 ? get_operational_min_power( t )
+                           : get_operational_max_power( t ) );
 
      vars.push_back( std::make_pair( &v_p_h_k[ j ] , 2 * value ) );
 
@@ -2271,8 +2271,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      LinearFunction::v_coeff_pair vars;
 
      auto t = v_P_h[ j ].first;
-     auto value = ( k == 0 ? get_operational_min_power( t ) :
-                    get_operational_max_power( t ) );
+     auto value = ( k == 0 ? get_operational_min_power( t )
+                           : get_operational_max_power( t ) );
 
      vars.push_back( std::make_pair( &v_p_h[ j ] , 2 * value ) );
 
@@ -2305,8 +2305,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      LinearFunction::v_coeff_pair vars;
 
      auto t = v_P_k[ j ].first;
-     auto value = ( k == 0 ? get_operational_min_power( t ) :
-                    get_operational_max_power( t ) );
+     auto value = ( k == 0 ? get_operational_min_power( t )
+                           : get_operational_max_power( t ) );
 
      vars.push_back( std::make_pair( &v_p_k[ j ] , 2 * value ) );
 
