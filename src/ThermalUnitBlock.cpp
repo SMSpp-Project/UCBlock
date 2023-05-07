@@ -654,12 +654,15 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     }
    }
 
-   v_y_plus_minus.resize(
-    boost::extents[ v_Y_plus.size() ][ v_Y_minus.size() ] );
-   for( Index v_y_plus = 0 ; v_y_plus < v_Y_plus.size() ; ++v_y_plus )
-    for( Index v_y_minus = 0 ; v_y_minus < v_Y_minus.size() ; ++v_y_minus )
-     v_y_plus_minus[ v_y_plus ][ v_y_minus ].set_type( ColVariable::kBinary );
-   add_static_variable( v_y_plus_minus , "y_thermal" );
+   v_y_plus.resize( v_Y_plus.size() );
+   for( auto & var : v_y_plus )
+    var.set_type( ColVariable::kBinary );
+   add_static_variable( v_y_plus , "y_plus_thermal" );
+
+   v_y_minus.resize( v_Y_minus.size() );
+   for( auto & var : v_y_minus )
+    var.set_type( ColVariable::kBinary );
+   add_static_variable( v_y_minus , "y_minus_thermal" );
 
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     for( Index t = 0 ; t < f_time_horizon ; t++ )
@@ -927,20 +930,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( t > 0 )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
        if( ( v_Y_plus[ i ].first <= t ) && ( t < v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -v_DeltaRampUp[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         get_operational_min_power( t - 1 ) ) );
        if( ( v_Y_plus[ i ].first == t + 1 ) &&
            ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -v_StartUpLimit[ t ] ) );
       }
      if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
        if( ( v_Y_plus[ i ].first == 0 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -f_InitialPower -
                                         v_DeltaRampUp[ t ] ) );
 
@@ -993,11 +996,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
            ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
         if( t == 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+         vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                          -v_DeltaRampUp[ t ] -
                                          f_InitialPower ) );
         if( t > 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+         vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                          -v_DeltaRampUp[ t ] ) );
        }
 
@@ -1039,7 +1042,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampUp[ t ] -
                                           f_InitialPower ) );
 
@@ -1063,11 +1066,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first ) {
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampUp[ t ] ) );
          if( t == v_Y_plus[ i ].second )
           vars.push_back( std::make_pair(
-           &v_y_plus_minus[ i ][ 0 ] ,
+           &v_y_plus[ i ] ,
            get_operational_min_power( t - 1 ) ) );
         }
 
@@ -1109,7 +1112,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampUp[ t ] -
                                           f_InitialPower ) );
 
@@ -1133,10 +1136,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampUp[ t ] ) );
          if( t + 1 == v_Y_plus[ i ].first )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_StartUpLimit[ t ] ) );
         }
 
@@ -1237,20 +1240,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( t > 0 )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
        if( ( v_Y_plus[ i ].first <= t ) && ( t < v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -v_DeltaRampDown[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -v_ShutDownLimit[ t - 1 ] ) );
        if( ( v_Y_plus[ i ].first == t + 1 ) &&
            ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         get_operational_min_power( t ) ) );
       }
      if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
        if( ( v_Y_plus[ i ].first == 0 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         f_InitialPower -
                                         v_DeltaRampDown[ t ] ) );
 
@@ -1302,11 +1305,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
            ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
         if( t == 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+         vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                          -v_DeltaRampDown[ t ] +
                                          f_InitialPower ) );
         if( t > 0 )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+         vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                          -v_DeltaRampDown[ t ] ) );
        }
 
@@ -1349,7 +1352,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampDown[ t ] +
                                           f_InitialPower ) );
 
@@ -1373,10 +1376,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first ) {
          if( t + 1 <= v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampDown[ t ] ) );
          if( t == v_Y_plus[ i ].second )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_ShutDownLimit[ t - 1 ] ) );
         }
 
@@ -1417,7 +1420,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampDown[ t ] +
                                           f_InitialPower ) );
 
@@ -1441,11 +1444,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
          if( v_Y_plus[ i ].first <= t )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           -v_DeltaRampDown[ t ] ) );
          if( t + 1 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair(
-           &v_y_plus_minus[ i ][ 0 ] ,
+           &v_y_plus[ i ] ,
            get_operational_min_power( t - 1 ) ) );
         }
 
@@ -1838,13 +1841,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
      if( v_Y_plus[ i ].first == t + 1 )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+      vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                       v_StartUpLimit[ t ] ) );
      else if( v_Y_plus[ i ].second == t + 1 )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+      vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                       v_ShutDownLimit[ t ] ) );
      else
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+      vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                       get_operational_max_power( t ) ) );
     }
    vars.push_back( std::make_pair( &v_p_h_k[ j ] , -1.0 ) );
@@ -1912,30 +1915,30 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
         if( ( v_Y_plus[ i ].first < t + 1 ) &&
             ( t + 1 < v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+         vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                          v_psi[ j ] ) );
         if( f_MinUpTime >= 2 ) {
          if( ( v_Y_plus[ i ].first == t + 1 ) &&
              ( t + 1 <= v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_StartUpLimit[ t ] ) );
          if( ( v_Y_plus[ i ].first <= t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_ShutDownLimit[ t ] ) );
         }
         if( f_MinUpTime == 1 ) {
          if( ( v_Y_plus[ i ].first == t + 1 ) &&
              ( t + 1 < v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_StartUpLimit[ t ] ) );
          if( ( v_Y_plus[ i ].first < t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_ShutDownLimit[ t ] ) );
          if( ( v_Y_plus[ i ].first == t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           std::min( v_StartUpLimit[ t ] ,
                                                     v_ShutDownLimit[ t ] ) ) );
         }
@@ -1960,22 +1963,22 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          ( t + 1 <= v_Y_plus[ i ].second ) ) {
       if( t + 1 == v_Y_plus[ i ].first ) {
        if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         v_StartUpLimit[ t ] ) );
        if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         std::min( v_StartUpLimit[ t ] ,
                                                   v_ShutDownLimit[ t ] ) ) );
       } else {
        if( t + 1 == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         v_ShutDownLimit[ t ] ) );
        if( t + 1 < v_Y_plus[ i ].second )
         for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
          if( ( t == v_P_h_k[ s ].first ) &&
              ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
              ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_psi[ s ] ) );
       }
      }
@@ -2001,22 +2004,22 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          ( v_Y_plus[ i ].first <= t + 1 ) ) {
       if( t + 1 == v_Y_plus[ i ].second ) {
        if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         v_ShutDownLimit[ t ] ) );
        if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         std::min( v_StartUpLimit[ t ] ,
                                                   v_ShutDownLimit[ t ] ) ) );
       } else {
        if( t + 1 == v_Y_plus[ i ].first )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         v_StartUpLimit[ t ] ) );
        if( v_Y_plus[ i ].first < t + 1 )
         for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
          if( ( t == v_P_h_k[ s ].first ) &&
              ( v_P_h_k[ s ].second.first == v_Y_plus[ i ].first ) &&
              ( v_P_h_k[ s ].second.second == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+          vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                           v_psi[ s ] ) );
       }
      }
@@ -2086,7 +2089,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_Y_plus[ i ].first <= t + 1 ) &&
         ( t + 1 <= v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+     vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                      -get_operational_min_power( t ) ) );
 
    MinPower_Const[ constraint_index ].set_lhs( 0.0 );
@@ -2107,7 +2110,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
         ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+     vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_h_k[ j ] , 1.0 ) );
 
@@ -2128,7 +2131,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_h[ j ].second == v_Y_plus[ i ].first ) &&
         ( t + 1 <= v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+     vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_h[ j ] , 1.0 ) );
 
@@ -2149,7 +2152,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_P_k[ j ].second == v_Y_plus[ i ].second ) &&
         ( v_Y_plus[ i ].first <= t + 1 ) )
-     vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+     vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                      -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_p_k[ j ] , 1.0 ) );
 
@@ -2212,7 +2215,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( ( v_Y_plus[ i ].first <= t + 1 ) &&
           ( t + 1 <= v_Y_plus[ i ].second ) )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+       vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                        -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2247,7 +2250,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( ( v_Y_plus[ i ].first == v_P_h_k[ j ].second.first ) &&
           ( v_Y_plus[ i ].second == v_P_h_k[ j ].second.second ) )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+       vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                        -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2281,7 +2284,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_P_h[ j ].second == v_Y_plus[ i ].first )
        if( t + 1 <= v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2315,7 +2318,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_P_k[ j ].second == v_Y_plus[ i ].second )
        if( v_Y_plus[ i ].first <= t + 1 )
-        vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] ,
+        vars.push_back( std::make_pair( &v_y_plus[ i ] ,
                                         -std::pow( value , 2 ) ) );
 
      Init_PC_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2580,7 +2583,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , -1.0 ) );
 
     Eq_Commitment_Const[ t ].set_both( 0.0 );
     Eq_Commitment_Const[ t ].set_function(
@@ -2604,7 +2607,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first == t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , -1.0 ) );
 
     Eq_StartUp_Const[ cnstr_idx ].set_both( 0.0 );
     Eq_StartUp_Const[ cnstr_idx ].set_function(
@@ -2628,7 +2631,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , -1.0 ) );
 
     Eq_ShutDown_Const[ cnstr_idx ].set_both( 0.0 );
     Eq_ShutDown_Const[ cnstr_idx ].set_function(
@@ -2649,12 +2652,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( f_InitUpDownTime > 0 )
      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
       if( v_Y_plus[ i ].first == t )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
+       vars.push_back( std::make_pair( &v_y_plus[ i ] , -1.0 ) );
 
     if( f_InitUpDownTime <= 0 )
      for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
       if( v_Y_minus[ i ].first == t )
-       vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+       vars.push_back( std::make_pair( &v_y_minus[ i ] , -1.0 ) );
 
     Network_Const[ t ].set_both( -1.0 );
     Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
@@ -2666,11 +2669,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].first == v_nodes_plus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , -1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].second == v_nodes_plus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_minus[ i ] , 1.0 ) );
 
     Network_Const[ t ].set_both( 0.0 );
     Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
@@ -2682,11 +2685,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].second == v_nodes_minus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , 1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].first == v_nodes_minus[ t ] )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_y_minus[ i ] , -1.0 ) );
 
     Network_Const[ t ].set_both( 0.0 );
     Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
@@ -2699,11 +2702,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( v_Y_plus[ i ].second == t )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ i ][ 0 ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_plus[ i ] , 1.0 ) );
 
     for( Index i = 0 ; i < v_Y_minus.size() ; ++i )
      if( v_Y_minus[ i ].second == t )
-      vars.push_back( std::make_pair( &v_y_plus_minus[ 0 ][ i ] , 1.0 ) );
+      vars.push_back( std::make_pair( &v_y_minus[ i ] , 1.0 ) );
 
     Network_Const[ cnstr_idx ].set_both( 1.0 );
     Network_Const[ cnstr_idx ].set_function(
@@ -2899,7 +2902,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].first <= t + 1 ) &&
          ( t + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
+      sum_y += v_y_plus[ j ].get_value();
 
     if( sum_y > eps ) {
 
@@ -2927,7 +2930,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
         if( ( v_Y_plus[ j ].first <= t + 1 ) &&
             ( t + 1 <= v_Y_plus[ j ].second ) )
          vars.push_back( std::make_pair(
-          &v_y_plus_minus[ j ][ 0 ] ,
+          &v_y_plus[ j ] ,
           -( std::pow( v_active_power[ t ].get_value() , 2 ) /
              std::pow( sum_y , 2 ) ) ) );
 
@@ -2946,7 +2949,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
 
    for( Index j = 0 ; j < v_Y_plus.size() ; j++ )
-    if( v_y_plus_minus[ j ][ 0 ].get_value() > eps ) {
+    if( v_y_plus[ j ].get_value() > eps ) {
 
      for( Index i = 0 ; i < v_P_h_k.size() ; i++ )
       if( v_P_h_k[ i ].second.first == v_Y_plus[ j ].first &&
@@ -2954,9 +2957,9 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
        auto t = v_P_h_k[ i ].first;
        pbar = v_p_h_k[ i ].get_value() /
-              v_y_plus_minus[ j ][ 0 ].get_value();
+              v_y_plus[ j ].get_value();
        value = std::pow( v_p_h_k[ i ].get_value() , 2 ) /
-               v_y_plus_minus[ j ][ 0 ].get_value();
+               v_y_plus[ j ].get_value();
 
        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
         if( v_P_h_k[ i ].second.first == v_Z_h_k[ s ].second.first &&
@@ -2976,14 +2979,14 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
             vars.push_back( std::make_pair(
              &v_p_h_k[ i ] ,
              2 * ( v_p_h_k[ i ].get_value() /
-                   v_y_plus_minus[ j ][ 0 ].get_value() ) ) );
+                   v_y_plus[ j ].get_value() ) ) );
 
             vars.push_back( std::make_pair( &v_z_h_k[ s ] , -1.0 ) );
 
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ j ][ 0 ] ,
+             &v_y_plus[ j ] ,
              -( std::pow( v_p_h_k[ i ].get_value() , 2 ) /
-                std::pow( v_y_plus_minus[ j ][ 0 ].get_value() , 2 ) ) ) );
+                std::pow( v_y_plus[ j ].get_value() , 2 ) ) ) );
 
             newcut.front().set_lhs( -Inf< double >() );
             newcut.front().set_rhs( 0.0 );
@@ -3005,7 +3008,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].first == v_P_h[ i ].second ) &&
          ( v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
+      sum_y += v_y_plus[ j ].get_value();
 
     if( sum_y > eps ) {
 
@@ -3039,7 +3042,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            if( v_Y_plus[ j ].first == v_P_h[ i ].second &&
                v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ j ][ 0 ] ,
+             &v_y_plus[ j ] ,
              -( std::pow( v_p_h[ i ].get_value() , 2 ) /
                 std::pow( sum_y , 2 ) ) ) );
 
@@ -3063,7 +3066,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
     for( int j = 0 ; j < v_Y_plus.size() ; j++ )
      if( ( v_Y_plus[ j ].second == v_P_k[ i ].second ) &&
          ( v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first ) )
-      sum_y += v_y_plus_minus[ j ][ 0 ].get_value();
+      sum_y += v_y_plus[ j ].get_value();
 
     if( sum_y > eps ) {
 
@@ -3096,7 +3099,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            if( v_Y_plus[ j ].second == v_P_k[ i ].second &&
                v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
             vars.push_back( std::make_pair(
-             &v_y_plus_minus[ j ][ 0 ] ,
+             &v_y_plus[ j ] ,
              -( std::pow( v_p_k[ i ].get_value() , 2 ) /
                 std::pow( sum_y , 2 ) ) ) );
 
@@ -3423,7 +3426,8 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_z , tol )
-  && ColVariable::is_feasible( v_y_plus_minus , tol )
+  && ColVariable::is_feasible( v_y_plus , tol )
+  && ColVariable::is_feasible( v_y_minus , tol )
   // Constraints: notice that the ZOConstraints are not checked, since the
   // corresponding check is made on the ColVariable
   && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
@@ -3669,7 +3673,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_availability( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_availability( MF_dbl_it values ,
+                                         Range rng ,
                                          ModParam issuePMod ,
                                          ModParam issueAMod )
 {
@@ -3947,7 +3952,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  // this means that the start_up variable t is in position t - init_t
  // hence, those in the range [ 0 , init_t ) do not exist and their cost
  // cannot be changed
- if( subset.front() < init_t )
+ if( subset.front() >= v_StartUpCost.size() )
   throw( std::invalid_argument(
    "ThermalUnitBlock::set_startup_costs: invalid starting index in subset." ) );
 
@@ -4357,7 +4362,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::set_quad_term( MF_dbl_it values , Range rng ,
+void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
+                                      Range rng ,
                                       ModParam issuePMod ,
                                       ModParam issueAMod )
 {
@@ -4842,6 +4848,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
  for( auto t : subset ) {
   if( t < init_t )
    continue;
+
   auto var_index = function->is_active( &v_start_up[ t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,

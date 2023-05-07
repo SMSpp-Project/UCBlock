@@ -1845,8 +1845,11 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< ColVariable > v_z_k;
 
 
- /// the binary variables for DP, SU and SD formulations
- boost::multi_array< ColVariable , 2 > v_y_plus_minus;
+ /// the y^+ binary variables for DP, SU and SD formulations
+ std::vector< ColVariable > v_y_plus;
+
+ /// the y^- binary variables for DP, SU and SD formulations
+ std::vector< ColVariable > v_y_minus;
 
 /*------------------------------- constraints ------------------------------*/
 
