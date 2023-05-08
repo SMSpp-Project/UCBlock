@@ -75,9 +75,6 @@ static constexpr unsigned char SDForm = 5;
 static constexpr unsigned char PCuts = 8;
 /// 4th bit of AR == 1 if the perspective cuts are used
 
-static constexpr unsigned char z0c = 16;
-/// 5th bit of AR == 1 if we generate Z0Constraints
-
 
 bool ThermalUnitBlock::f_ignore_netcdf_vars;
 /// this variable indicates which netCDF variables must be ignored
@@ -797,11 +794,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- bool z0;
+ bool generate_ZOConstraints;
  if( ( ! stcc ) && f_BlockConfig )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< bool > * >( stcc ) )
-  z0 = sci->value();
+  generate_ZOConstraints = sci->f_value;
 
  if( f_cuts ) {
   PC_cuts.clear();
@@ -2785,7 +2782,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // ZOConstraints - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( z0 & z0c ) {
+ if( generate_ZOConstraints ) {
 
   // the commitment bound constraints
   Commitment_bound_Const.resize( f_time_horizon );
