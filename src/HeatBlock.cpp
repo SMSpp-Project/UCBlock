@@ -194,31 +194,6 @@ void HeatBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-unsigned int HeatBlock::get_variables_to_be_generated( Configuration * stvv )
-{
- if( ! stvv )
-  return( 0 );
-
- // informs which variables must be generated
- int variables_to_be_generated = 0;
-
- auto tstvv = dynamic_cast< SimpleConfiguration< int > * >( stvv );
-
- if( ( ! tstvv ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration ) {
-
-  tstvv = dynamic_cast< SimpleConfiguration< int > * >
-  ( f_BlockConfig->f_static_constraints_Configuration );
- }
-
- if( tstvv )
-  variables_to_be_generated = tstvv->f_value;
-
- return( variables_to_be_generated );
-}
-
-/*--------------------------------------------------------------------------*/
-
 void HeatBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( ! v_heat.empty() )  // variables have already been generated
@@ -244,7 +219,12 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv )
     std::make_pair( v_heat_available , ColVariable::kNonNegative )
   };
 
- auto variables_to_be_generated = get_variables_to_be_generated( stvv );
+ // informs which variables must be generated
+ int variables_to_be_generated = 0;
+ if( ( ! stvv ) && f_BlockConfig )
+  stvv = f_BlockConfig->f_static_variables_Configuration;
+ if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
+  variables_to_be_generated = sci->f_value;
 
  unsigned int k = 1;
  for( auto pair : variables_and_types ) {

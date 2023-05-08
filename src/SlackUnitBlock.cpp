@@ -166,14 +166,11 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- bool generate_ZOConstraint = 0;
- auto config = dynamic_cast< SimpleConfiguration< bool > * >( stcc );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_constraints_Configuration )
-  config = dynamic_cast< SimpleConfiguration< bool > * >
-  ( f_BlockConfig->f_static_constraints_Configuration );
- if( config )
-  generate_ZOConstraint = config->f_value;
+ bool generate_ZOConstraints;
+ if( ( ! stcc ) && f_BlockConfig )
+  stcc = f_BlockConfig->f_static_constraints_Configuration;
+ if( auto sci = dynamic_cast< SimpleConfiguration< bool > * >( stcc ) )
+  generate_ZOConstraints = sci->f_value;
 
  // Initializing active power bounds constraints
  if( ActivePower_Bound_Const.size() != f_time_horizon ) {
@@ -247,7 +244,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  /*------------------------------ ZOConstraint ------------------------------*/
 
- if( generate_ZOConstraint ) {
+ if( generate_ZOConstraints ) {
 
   // the commitment bound constraints
   if( reserve_vars & 4u ) {

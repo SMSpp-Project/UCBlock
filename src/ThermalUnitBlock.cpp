@@ -856,11 +856,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     LinearFunction::v_coeff_pair vars;
 
     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
     if( t > 0 ) {
      vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
      vars.push_back( std::make_pair( &v_commitment[ t - 1 ] ,
                                      -v_DeltaRampUp[ t - 1 ] ) );
     }
+
     if( t >= init_t )
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                      -v_StartUpLimit[ t ] ) );
@@ -1168,13 +1170,15 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     LinearFunction::v_coeff_pair vars;
 
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
+    vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                    -v_DeltaRampDown[ t ] ) );
+
     if( t > 0 )
      vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , 1.0 ) );
+
     if( t >= init_t )
      vars.push_back( std::make_pair( &v_shut_down[ t - init_t ] ,
                                      -v_ShutDownLimit[ t ] ) );
-    vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                    -v_DeltaRampDown[ t ] ) );
 
     RampDown_Const[ t ].set_lhs( -Inf< double >() );
     if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
@@ -1725,11 +1729,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                          v_ShutDownLimit[ t + 1 ] ) ) );
      for( int s = 0 ; s < min_RU ; ++s )
       if( ( t - init_t ) >= s )
-       vars.push_back( std::make_pair( &v_start_up[ t - s - init_t ] ,
-                                       -( get_operational_max_power( t - s ) -
-                                          v_StartUpLimit[ t - s ] -
-                                          ( double ) ( s + 1 ) *
-                                          v_DeltaRampUp[ t - s ] ) ) );
+       vars.push_back( std::make_pair(
+        &v_start_up[ t - s - init_t ] ,
+        -( get_operational_max_power( t - s ) -
+           v_StartUpLimit[ t - s ] -
+           ( double ) ( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -1765,11 +1769,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( t >= init_t ) {
       for( int s = 0 ; s < min_RU ; ++s )
        if( ( t - init_t ) >= s )
-        vars.push_back( std::make_pair( &v_start_up[ t - s - init_t ] ,
-                                        -( get_operational_max_power( t - s ) -
-                                           v_StartUpLimit[ t - s ] -
-                                           ( double ) ( s + 1 ) *
-                                           v_DeltaRampUp[ t - s ] ) ) );
+        vars.push_back( std::make_pair(
+         &v_start_up[ t - s - init_t ] ,
+         -( get_operational_max_power( t - s ) -
+            v_StartUpLimit[ t - s ] -
+            ( double ) ( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
      }
 
      MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
