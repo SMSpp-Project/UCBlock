@@ -1728,8 +1728,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// stores the value of the last pbar in a perspective cut
- std::vector< double > v_last_v_pbar;
+ /// the vector to store the last value of \bar{p} in a perspective cut
+ std::vector< double > v_last_pbar;
 
  /// TODO short description
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
@@ -1809,9 +1809,6 @@ class ThermalUnitBlock : public UnitBlock
  /// the shut-down binary variables
  std::vector< ColVariable > v_shut_down;
 
- /// the commitment variables
- std::vector< ColVariable > v_commitment;
-
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
@@ -1819,37 +1816,40 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
 
+ /// the commitment variables for 3bin, T and pt formulations
+ std::vector< ColVariable > v_commitment;
+
+ /// the commitment binary variables for DP, SU and SD formulations
+ std::vector< ColVariable > v_commitment_plus;
+
+ /// the commitment binary variables for DP, SU and SD formulations
+ std::vector< ColVariable > v_commitment_minus;
+
+
  /// the active power variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_active_power;
 
  /// the active power variables for DP model
- std::vector< ColVariable > v_p_h_k;
+ std::vector< ColVariable > v_active_power_h_k;
 
  /// the active power variables for SU model
- std::vector< ColVariable > v_p_h;
+ std::vector< ColVariable > v_active_power_h;
 
  /// the active power variables for SD model
- std::vector< ColVariable > v_p_k;
+ std::vector< ColVariable > v_active_power_k;
 
 
  /// the perspective cuts variables for 3bin, T and pt formulations
- std::vector< ColVariable > v_z;
+ std::vector< ColVariable > v_cut;
 
  /// the perspective cuts variables for DP model
- std::vector< ColVariable > v_z_h_k;
+ std::vector< ColVariable > v_cut_h_k;
 
  /// the perspective cuts variables for SU model
- std::vector< ColVariable > v_z_h;
+ std::vector< ColVariable > v_cut_h;
 
  /// the perspective cuts variables for SD model
- std::vector< ColVariable > v_z_k;
-
-
- /// the y^+ binary variables for DP, SU and SD formulations
- std::vector< ColVariable > v_y_plus;
-
- /// the y^- binary variables for DP, SU and SD formulations
- std::vector< ColVariable > v_y_minus;
+ std::vector< ColVariable > v_cut_k;
 
 /*------------------------------- constraints ------------------------------*/
 
