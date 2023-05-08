@@ -4871,10 +4871,50 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
   return;
 
  for( auto t : subset ) {
-  auto var_index = function->is_active( &v_active_power[ t ] );
+
+  Index var_index;
+
+  switch( AR & FormMsk ) {
+
+   case( tbinForm ):  // 3bin formulation - - - - - - - - - - - - - - - - - -
+    // fall through
+   case( TForm ):  // T formulation - - - - - - - - - - - - - - - - - - - - -
+    // fall through
+   case( ptForm ):  // pt formulation - - - - - - - - - - - - - - - - - - - -
+
+    var_index = function->is_active( &v_active_power[ t ] );
+
+    break;
+
+   case( DPForm ):  // DP formulation - - - - - - - - - - - - - - - - - - - -
+
+    var_index = function->is_active( &v_p_h_k[ t ] );
+
+    break;
+
+   case( SUForm ):  // SU formulation - - - - - - - - - - - - - - - - - - - -
+
+    var_index = function->is_active( &v_p_h[ t ] );
+
+    break;
+
+   case( SDForm ):  // SD formulation - - - - - - - - - - - - - - - - - - - -
+
+    var_index = function->is_active( &v_p_k[ t ] );
+
+    break;
+
+   default:
+
+    exit( 1 );
+
+  }  // end( switch )
+
   assert( var_index < function->get_num_active_var() );
-  function->modify_term( var_index , f_scale * v_LinearTerm[ t ] ,
-                         f_scale * v_QuadTerm[ t ] , issueAMod );
+  function->modify_term( var_index ,
+                         f_scale * v_LinearTerm[ t ] ,
+                         f_scale * v_QuadTerm[ t ] ,
+                         issueAMod );
  }
 }  // end( ThermalUnitBlock::update_objective_active_power )
 
