@@ -3177,15 +3177,18 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( f_InvestmentCost != 0 )
    vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
+  // add the start-up variables - - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = init_t ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
                                     f_scale * v_StartUpCost[ t ] , 0.0 ) );
 
+  // add the active power variables - - - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_active_power[ t ] ,
                                     f_scale * v_LinearTerm[ t ] ,
                                     f_scale * v_QuadTerm[ t ] ) );
 
+  // add the commitment variables - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                     f_scale * v_ConstTerm[ t ] , 0.0 ) );
@@ -3238,72 +3241,17 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( f_InvestmentCost != 0 )
    vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
 
+  // add the start-up variables - - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = init_t ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                    f_scale * v_StartUpCost[ t ] ) );
 
-  switch( AR & FormMsk ) {
+  // add the active power variables - - - - - - - - - - - - - - - - - - - - -
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_pair( &v_active_power[ t ] ,
+                                   f_scale * v_LinearTerm[ t ] ) );
 
-   case( tbinForm ):  // 3bin formulation - - - - - - - - - - - - - - - - - -
-    // fall through
-   case( TForm ):  // T formulation - - - - - - - - - - - - - - - - - - - - -
-    // fall through
-   case( ptForm ):  // pt formulation - - - - - - - - - - - - - - - - - - - -
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                     f_scale * v_LinearTerm[ t ] ) );
-     vars.push_back( std::make_pair( &v_cut[ t ] ,
-                                     f_scale * v_QuadTerm[ t ] ) );
-    }
-
-    break;
-
-   case( DPForm ):  // DP formulation - - - - - - - - - - - - - - - - - - - -
-
-    for( Index i = 0 ; i < v_P_h_k.size() ; ++i ) {
-     vars.push_back( std::make_pair( &v_active_power_h_k[ i ] ,
-                                     f_scale *
-                                     v_LinearTerm[ v_P_h_k[ i ].first ] ) );
-     vars.push_back( std::make_pair( &v_cut_h_k[ i ] ,
-                                     f_scale *
-                                     v_QuadTerm[ v_Z_h_k[ i ].first ] ) );
-    }
-
-    break;
-
-   case( SUForm ):  // SU formulation - - - - - - - - - - - - - - - - - - - -
-
-    for( Index i = 0 ; i < v_P_h.size() ; ++i ) {
-     vars.push_back( std::make_pair( &v_active_power_h[ i ] ,
-                                     f_scale *
-                                     v_LinearTerm[ v_P_h[ i ].first ] ) );
-     vars.push_back( std::make_pair( &v_cut_h[ i ] ,
-                                     f_scale *
-                                     v_QuadTerm[ v_Z_h[ i ].first ] ) );
-    }
-
-    break;
-
-   case( SDForm ):  // SD formulation - - - - - - - - - - - - - - - - - - - -
-
-    for( Index i = 0 ; i < v_P_k.size() ; ++i ) {
-     vars.push_back( std::make_pair( &v_active_power_k[ i ] ,
-                                     f_scale *
-                                     v_LinearTerm[ v_P_k[ i ].first ] ) );
-     vars.push_back( std::make_pair( &v_cut_k[ i ] ,
-                                     f_scale *
-                                     v_QuadTerm[ v_Z_k[ i ].first ] ) );
-    }
-
-    break;
-
-   default:
-
-    exit( 1 );
-
-  }  // end( switch )
-
+  // add the commitment variables - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_pair( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] ) );
@@ -3346,6 +3294,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                                      f_scale *
                                      v_SecondarySpinningReserveCost[ t ] ) );
   }
+
+  // add the perspective cuts variables - - - - - - - - - - - - - - - - - - -
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_pair( &v_cut[ t ] ,
+                                   f_scale * v_QuadTerm[ t ] ) );
 
   objective.set_function( new LinearFunction( std::move( vars ) ) );
  }
