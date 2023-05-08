@@ -3129,6 +3129,25 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
+ // initialize Objective
+ //
+ // the order of the variables in the DQuadFunction is:
+ //
+ // - first f_time_horizon - init_t start-up variables
+ //
+ // - then f_time_horizon active power variables (which may have the
+ //   nonzero quadratic cost coefficient, while the others do not)
+ //
+ // - then f_time_horizon commitment variables
+ //
+ // - then possibly f_time_horizon primary reserve variables
+ //
+ // - then possibly f_time_horizon secondary reserve variables
+ //
+ // this arrangement is exploited in add_Modification to easily map
+ // indices in the coefficients of the DQuadFunction back into indices
+ // of the original variables (and figure out the kind of variable)
+
  if( v_commitment.size() != f_time_horizon )
   throw( std::logic_error(
    "ThermalUnitBlock::generate_objective: v_commitment must have "
