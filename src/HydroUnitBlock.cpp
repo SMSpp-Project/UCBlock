@@ -1231,13 +1231,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 ) {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
-    } else {
-     FinalVolumeReservoir_Const[ t ][ r ]
-      .set_both( v_inflows[ r ][ t ] , issueAMod );
-    }
+    if( t == 0 )
+     FinalVolumeReservoir_Const[ t ][ r ].set_both(
+      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+    else
+     FinalVolumeReservoir_Const[ t ][ r ].set_both(
+      v_inflows[ r ][ t ] , issueAMod );
    }
   }
  }

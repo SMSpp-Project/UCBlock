@@ -601,7 +601,8 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
   return;
 
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -673,7 +674,8 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
   return;
 
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values ,
+                   values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -732,7 +734,8 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values ,
   return;
 
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values ,
+                   values + subset.size() ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
@@ -812,7 +815,8 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values ,
   return;
 
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values ,
+                   values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
