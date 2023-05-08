@@ -167,7 +167,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( Eq_Commitment_Const );
  Constraint::clear( Eq_StartUp_Const );
  Constraint::clear( Eq_ShutDown_Const );
- Constraint::clear( Eq_Power_Const );
+ Constraint::clear( Eq_ActivePower_Const );
 
  Constraint::clear( Init_PC_Const );
  Constraint::clear( Eq_PC_Const );
@@ -922,6 +922,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      LinearFunction::v_coeff_pair vars;
 
      vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
      if( t > 0 ) {
       vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
@@ -937,6 +938,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                         -v_StartUpLimit[ t ] ) );
       }
      }
+
      if( ( t == 0 ) && ( f_InitUpDownTime > 0 ) )
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
        if( ( v_Y_plus[ i ].first == 0 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
@@ -989,7 +991,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
           vars.push_back( std::make_pair( &v_active_power_h_k[ s ] , -1.0 ) );
 
       for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-
        if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
            ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
         if( t == 0 )
@@ -2531,7 +2532,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     ;  // does nothing
    } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
 
-    Eq_Power_Const.resize( f_time_horizon );
+    Eq_ActivePower_Const.resize( f_time_horizon );
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -2543,14 +2544,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( v_P_h_k[ j ].first == t )
        vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , -1.0 ) );
 
-     Eq_Power_Const[ t ].set_both( 0.0 );
-     Eq_Power_Const[ t ].set_function(
+     Eq_ActivePower_Const[ t ].set_both( 0.0 );
+     Eq_ActivePower_Const[ t ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
 
    } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
 
-    Eq_Power_Const.resize( f_time_horizon );
+    Eq_ActivePower_Const.resize( f_time_horizon );
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -2562,14 +2563,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( v_P_h[ j ].first == t )
        vars.push_back( std::make_pair( &v_active_power_h[ j ] , -1.0 ) );
 
-     Eq_Power_Const[ t ].set_both( 0.0 );
-     Eq_Power_Const[ t ].set_function(
+     Eq_ActivePower_Const[ t ].set_both( 0.0 );
+     Eq_ActivePower_Const[ t ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
 
    } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation - - - - - - -
 
-    Eq_Power_Const.resize( f_time_horizon );
+    Eq_ActivePower_Const.resize( f_time_horizon );
 
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -2581,13 +2582,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( v_P_k[ j ].first == t )
        vars.push_back( std::make_pair( &v_active_power_k[ j ] , -1.0 ) );
 
-     Eq_Power_Const[ t ].set_both( 0.0 );
-     Eq_Power_Const[ t ].set_function(
+     Eq_ActivePower_Const[ t ].set_both( 0.0 );
+     Eq_ActivePower_Const[ t ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
    }
 
-   add_static_constraint( Eq_Power_Const , "Eq_Power_Const_Thermal" );
+   add_static_constraint( Eq_ActivePower_Const ,
+                          "Eq_ActivePower_Const_Thermal" );
 
    // Constraints connecting commitment variables of 3bin with those of pt,
    // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
@@ -3394,7 +3396,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( Eq_Commitment_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_StartUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_ShutDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Eq_Power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_ActivePower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Init_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PC_cuts , tol , rel_viol )

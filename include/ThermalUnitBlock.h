@@ -1728,43 +1728,41 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
+
  /// the vector to store the last value of \bar{p} in a perspective cut
  std::vector< double > v_last_pbar;
 
- /// TODO short description
+ /// the vector of index to map the active power variables of the 3bin
+ /// formulation with those of the DP formulation  // TODO check
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
- /// TODO short description
+ /// the vector of index to map the perspective cuts variables of the 3bin
+ /// formulation with those of the DP formulation  // TODO check
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
- // SU formulation data
-
- /// TODO short description
+ /// the vector of index to map the active power variables of the 3bin
+ /// formulation with those of the SU formulation  // TODO check
  std::vector< std::pair< Index , Index > > v_P_h;
 
- /// TODO short description
+ /// the vector of index to map the perspective cuts variables of the 3bin
+ /// formulation with those of the SU formulation  // TODO check
  std::vector< std::pair< Index , Index > > v_Z_h;
 
- // SD formulation data
-
- /// TODO short description
+ /// the vector of index to map the active power variables of the 3bin
+ /// formulation with those of the SD formulation  // TODO check
  std::vector< std::pair< Index , Index > > v_P_k;
 
- /// TODO short description
+ /// the vector of index to map the perspective cuts variables of the 3bin
+ /// formulation with those of the SD formulation  // TODO check
  std::vector< std::pair< Index , Index > > v_Z_k;
-
- // DP, SU and SD formulations data
 
  /// TODO short description
  std::vector< Index > v_nodes_plus;
-
- /// TODO short description
  std::vector< Index > v_nodes_minus;
 
- /// TODO short description
+ /// the vector of index to map the commitment variables of the 3bin
+ /// formulation with those of the SD, DP and SU formulations  // TODO check
  std::vector< std::pair< Index , Index > > v_Y_plus;
-
- /// TODO short description
  std::vector< std::pair< Index , Index > > v_Y_minus;
 
 
@@ -1816,13 +1814,11 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
 
- /// the commitment variables for 3bin, T and pt formulations
+ /// the commitment binary variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_commitment;
 
  /// the commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_plus;
-
- /// the commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_minus;
 
 
@@ -1887,28 +1883,28 @@ class ThermalUnitBlock : public UnitBlock
  /// the network constraints of the pt, DP, SU and SD formulations
  std::vector< FRowConstraint > Network_Const;
 
- /// the constraints connecting commitment variables of 3bin
- /// with those of pt, DP, SU and SD formulations
+ /// the constraints connecting commitment variables of 3bin and T
+ /// formulations with those of pt, DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_Commitment_Const;
 
- /// the constraints connecting start-up variables of 3bin
- /// with those of pt, DP, SU and SD formulations
+ /// the constraints connecting start-up variables of 3bin and T
+ /// formulations with those of pt, DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_StartUp_Const;
 
- /// the constraints connecting shut-down variables of 3bin
- /// with those of pt, DP, SU and SD formulations
+ /// the constraints connecting shut-down variables of 3bin and T
+ /// formulations with those of pt, DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
- /// the constraints connecting power variables of 3bin
- /// with those of DP, SU and SD formulations
- std::vector< FRowConstraint > Eq_Power_Const;
+ /// the constraints connecting power variables of 3bin, T and
+ /// pt formulations with those of DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_ActivePower_Const;
 
 
  /// the initial perspective cuts constraints
  std::vector< FRowConstraint > Init_PC_Const;
 
- /// the constraints connecting perspective cuts variables
- /// of 3bin with those of DP, SU and SD formulations
+ /// the constraints connecting perspective cuts variables of 3bin, T
+ /// and pt formulations with those of DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
 
