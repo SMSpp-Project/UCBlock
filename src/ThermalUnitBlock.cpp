@@ -3452,6 +3452,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "StartUpCost" , v_StartUpCost );
  serialize( "FixedConsumption" , v_FixedConsumption );
  serialize( "InertiaCommitment" , v_InertiaCommitment );
+ serialize( "StartUpLimit" , v_StartUpLimit );
+ serialize( "ShutDownLimit" , v_ShutDownLimit );
 
 }  // end( ThermalUnitBlock::serialize )
 
