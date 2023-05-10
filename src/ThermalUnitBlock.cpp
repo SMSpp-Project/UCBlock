@@ -515,7 +515,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   add_static_variable( v_shut_down , "w_thermal" );
  }
 
- // Possibly fixing the variables to 0 or 1 - - - - - - - - - - - - - - - - -
+ // Possibly fixing the commitment variables to 0 or 1- - - - - - - - - - - -
  if( f_InitUpDownTime > 0 ) {
 
   for( Index t = 0 ; t < init_t ; ++t ) {

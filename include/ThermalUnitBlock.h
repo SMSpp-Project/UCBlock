@@ -479,7 +479,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ \tau_0 \f$ timestamps prior to timestamp 0 (the beginning of the
   *   time horizon):
   *
-  *   - if  \f$ \tau_0 \geq \tau_+ \f$ then init_t = 0 ;
+  *   - if \f$ \tau_0 \geq \tau_+ \f$ then init_t = 0 ;
   *
   *   - otherwise init_t = \f$ \tau_+ \f$ - \f$ \tau_0 \f$ ;
   *
