@@ -467,23 +467,17 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   add_static_variable( design , "x_thermal" );
  }
 
- // Start-Up and Shut-Down Binary Variables - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ v_commitment.resize( f_time_horizon );
+ for( auto & var : v_commitment )
+  var.set_type( ColVariable::kBinary );
+ add_static_variable( v_commitment , "u_thermal" );
 
- auto startup_shutdown_size = f_time_horizon - init_t;
-
- if( startup_shutdown_size > 0 ) {
-
-  v_start_up.resize( startup_shutdown_size );
-  for( auto & var : v_start_up )
-   var.set_type( ColVariable::kBinary );
-  add_static_variable( v_start_up , "v_thermal" );
-
-  v_shut_down.resize( startup_shutdown_size );
-  for( auto & var : v_shut_down )
-   var.set_type( ColVariable::kBinary );
-  add_static_variable( v_shut_down , "w_thermal" );
- }
+ // Active Power Variables- - - - - - - - - - - - - - - - - - - - - - - - - -
+ v_active_power.resize( f_time_horizon );
+ for( auto & var : v_active_power )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_active_power , "p_thermal" );
 
  // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
  if( reserve_vars & 1u )  // if UCBlock has primary demand variables
@@ -503,13 +497,25 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    add_static_variable( v_secondary_spinning_reserve , "sc_thermal" );
   }
 
- // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
- v_commitment.resize( f_time_horizon );
- for( auto & var : v_commitment )
-  var.set_type( ColVariable::kBinary );
- add_static_variable( v_commitment , "u_thermal" );
+ // Start-Up and Shut-Down Binary Variables - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // Possibly fixing the commitment variables to 0 or 1- - - - - - - - - - - -
+ auto startup_shutdown_size = f_time_horizon - init_t;
+
+ if( startup_shutdown_size > 0 ) {
+
+  v_start_up.resize( startup_shutdown_size );
+  for( auto & var : v_start_up )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_start_up , "v_thermal" );
+
+  v_shut_down.resize( startup_shutdown_size );
+  for( auto & var : v_shut_down )
+   var.set_type( ColVariable::kBinary );
+  add_static_variable( v_shut_down , "w_thermal" );
+ }
+
+ // Possibly fixing the variables to 0 or 1 - - - - - - - - - - - - - - - - -
  if( f_InitUpDownTime > 0 ) {
 
   for( Index t = 0 ; t < init_t ; ++t ) {
@@ -551,12 +557,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    v_shut_down[ t - init_t ].is_fixed( true );
   }
  }
-
- // Active Power Variables- - - - - - - - - - - - - - - - - - - - - - - - - -
- v_active_power.resize( f_time_horizon );
- for( auto & var : v_active_power )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_active_power , "p_thermal" );
 
  // Prospective Cuts Variables- - - - - - - - - - - - - - - - - - - - - - - -
  if( f_cuts ) {
