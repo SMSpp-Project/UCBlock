@@ -2527,7 +2527,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // fall through
   case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
    // fall through
-  case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
+  case( SDForm ): {  // SD formulation- - - - - - - - - - - - - - - - - - - -
 
    // Constraints connecting power variables of 3bin with those of DP, SU and
    // SD formulations - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2672,7 +2672,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    Network_Const.resize( v_nodes_plus.size() + v_nodes_minus.size() + 2 );
 
-   for( Index t = 0 ; t < 1 ; ++t ) {
+   auto cnstr_idx = 0;
+
+   for( Index t = 0 ; t < 1 ; ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2686,11 +2688,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( v_Y_minus[ i ].first == t )
        vars.push_back( std::make_pair( &v_commitment_minus[ i ] , -1.0 ) );
 
-    Network_Const[ t ].set_both( -1.0 );
-    Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    Network_Const[ cnstr_idx ].set_both( -1.0 );
+    Network_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
    }
 
-   for( Index t = 0 ; t < v_nodes_plus.size() ; ++t ) {
+   for( Index t = 0 ; t < v_nodes_plus.size() ; ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2702,11 +2705,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( v_Y_minus[ i ].second == v_nodes_plus[ t ] )
       vars.push_back( std::make_pair( &v_commitment_minus[ i ] , 1.0 ) );
 
-    Network_Const[ t ].set_both( 0.0 );
-    Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    Network_Const[ cnstr_idx ].set_both( 0.0 );
+    Network_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
    }
 
-   for( Index t = 0 ; t < v_nodes_minus.size() ; ++t ) {
+   for( Index t = 0 ; t < v_nodes_minus.size() ; ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
 
@@ -2718,11 +2722,12 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( v_Y_minus[ i ].first == v_nodes_minus[ t ] )
       vars.push_back( std::make_pair( &v_commitment_minus[ i ] , -1.0 ) );
 
-    Network_Const[ t ].set_both( 0.0 );
-    Network_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+    Network_Const[ cnstr_idx ].set_both( 0.0 );
+    Network_Const[ cnstr_idx ].set_function(
+     new LinearFunction( std::move( vars ) ) );
    }
 
-   for( Index t = f_time_horizon + 1 , cnstr_idx = 0 ;
+   for( Index t = f_time_horizon + 1 ;
         t < f_time_horizon + 2 ; ++t , ++cnstr_idx ) {
 
     LinearFunction::v_coeff_pair vars;
@@ -2743,6 +2748,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( Network_Const , "Network_Const_Thermal" );
 
    break;
+  }
 
   default:
 
