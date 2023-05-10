@@ -524,6 +524,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     v_commitment[ t ].is_fixed( true );
    }
   }
+
   for( Index t = init_t ;
        t < std::min( init_t + f_MinDownTime , f_time_horizon ) ; ++t ) {
    v_start_up[ t - init_t ].set_value( 0.0 );
