@@ -2535,66 +2535,65 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    if( ( AR & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - - - - -
     ;  // does nothing
-   } else if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - -
+   } else {
 
     Eq_ActivePower_Const.resize( f_time_horizon );
 
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - - - - -
 
-     LinearFunction::v_coeff_pair vars;
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+      LinearFunction::v_coeff_pair vars;
 
-     for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
-      if( v_P_h_k[ j ].first == t )
-       vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , -1.0 ) );
+      vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-     Eq_ActivePower_Const[ t ].set_both( 0.0 );
-     Eq_ActivePower_Const[ t ].set_function(
-      new LinearFunction( std::move( vars ) ) );
+      for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
+       if( v_P_h_k[ j ].first == t )
+        vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , -1.0 ) );
+
+      Eq_ActivePower_Const[ t ].set_both( 0.0 );
+      Eq_ActivePower_Const[ t ].set_function(
+       new LinearFunction( std::move( vars ) ) );
+     }
+
+    } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation- - - - - - -
+
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+      LinearFunction::v_coeff_pair vars;
+
+      vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
+      for( Index j = 0 ; j < v_P_h.size() ; ++j )
+       if( v_P_h[ j ].first == t )
+        vars.push_back( std::make_pair( &v_active_power_h[ j ] , -1.0 ) );
+
+      Eq_ActivePower_Const[ t ].set_both( 0.0 );
+      Eq_ActivePower_Const[ t ].set_function(
+       new LinearFunction( std::move( vars ) ) );
+     }
+
+    } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation- - - - - - -
+
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+      LinearFunction::v_coeff_pair vars;
+
+      vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
+      for( Index j = 0 ; j < v_P_k.size() ; ++j )
+       if( v_P_k[ j ].first == t )
+        vars.push_back( std::make_pair( &v_active_power_k[ j ] , -1.0 ) );
+
+      Eq_ActivePower_Const[ t ].set_both( 0.0 );
+      Eq_ActivePower_Const[ t ].set_function(
+       new LinearFunction( std::move( vars ) ) );
+     }
     }
 
-   } else if( ( AR & FormMsk ) == SUForm ) {  // SU formulation - - - - - - -
-
-    Eq_ActivePower_Const.resize( f_time_horizon );
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     LinearFunction::v_coeff_pair vars;
-
-     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-
-     for( Index j = 0 ; j < v_P_h.size() ; ++j )
-      if( v_P_h[ j ].first == t )
-       vars.push_back( std::make_pair( &v_active_power_h[ j ] , -1.0 ) );
-
-     Eq_ActivePower_Const[ t ].set_both( 0.0 );
-     Eq_ActivePower_Const[ t ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-    }
-
-   } else if( ( AR & FormMsk ) == SDForm ) {  // SD formulation - - - - - - -
-
-    Eq_ActivePower_Const.resize( f_time_horizon );
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-     LinearFunction::v_coeff_pair vars;
-
-     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-
-     for( Index j = 0 ; j < v_P_k.size() ; ++j )
-      if( v_P_k[ j ].first == t )
-       vars.push_back( std::make_pair( &v_active_power_k[ j ] , -1.0 ) );
-
-     Eq_ActivePower_Const[ t ].set_both( 0.0 );
-     Eq_ActivePower_Const[ t ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-    }
+    add_static_constraint( Eq_ActivePower_Const ,
+                           "Eq_ActivePower_Const_Thermal" );
    }
-
-   add_static_constraint( Eq_ActivePower_Const ,
-                          "Eq_ActivePower_Const_Thermal" );
 
    // Constraints connecting commitment variables of 3bin with those of pt,
    // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
