@@ -80,7 +80,7 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
- if( auto config = dynamic_cast< SimpleConfiguration< Index > * >( csolc ) )
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   solution_type = config->f_value;
 
  Solution * sol;

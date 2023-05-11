@@ -169,7 +169,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  bool generate_ZOConstraints;
  if( ( ! stcc ) && f_BlockConfig )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< bool > * >( stcc ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stcc ) )
   generate_ZOConstraints = sci->f_value;
 
  // Initializing active power bounds constraints

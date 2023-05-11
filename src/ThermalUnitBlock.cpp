@@ -449,7 +449,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  Index wf = 1;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   wf = sci->f_value;
 
  f_cuts = wf & PCuts;
@@ -800,7 +800,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  bool generate_ZOConstraints;
  if( ( ! stcc ) && f_BlockConfig )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< bool > * >( stcc ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stcc ) )
   generate_ZOConstraints = sci->f_value;
 
  if( f_cuts ) {

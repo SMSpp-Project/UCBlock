@@ -223,7 +223,7 @@ void HeatBlock::generate_abstract_variables( Configuration * stvv )
  int variables_to_be_generated = 0;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   variables_to_be_generated = sci->f_value;
 
  unsigned int k = 1;

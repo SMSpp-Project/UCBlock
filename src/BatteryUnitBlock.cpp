@@ -326,7 +326,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  bool negative_prices = false;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   negative_prices = sci->f_value;
 
  // Binary variables must be generated if negative prices may occur and if
@@ -423,7 +423,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
  bool generate_ZOConstraints;
  if( ( ! stcc ) && f_BlockConfig )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
- if( auto sci = dynamic_cast< SimpleConfiguration< bool > * >( stcc ) )
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stcc ) )
   generate_ZOConstraints = sci->f_value;
 
  if( f_BattInvestmentCost == 0 ) {
