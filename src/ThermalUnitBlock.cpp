@@ -708,8 +708,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     AR |= SUForm;
 
-    bool check_var = true;
+    bool check_var;
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+     check_var = true;
      if( i > 0 )
       for( Index j = 0 ; j < v_P_h.size() ; ++j )
        if( v_P_h[ j ].second == v_Y_plus[ i ].first )
@@ -743,8 +744,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     AR |= SDForm;
 
-    bool check_var = true;
+    bool check_var;
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+     check_var = true;
      if( i > 0 )
       for( Index j = 0 ; j < v_P_k.size() ; ++j )
        if( v_P_k[ j ].second == v_Y_plus[ i ].second )
