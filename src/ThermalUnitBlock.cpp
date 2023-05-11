@@ -446,7 +446,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  UnitBlock::generate_abstract_variables( stvv );
 
- Index wf = 8;
+ Index wf = 1;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
