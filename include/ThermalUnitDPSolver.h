@@ -511,7 +511,7 @@ class ThermalUnitDPSolver : public Solver
 
   node( void ) : lab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
 
-  ~node() { delete DPS; }
+  ~node() { delete( DPS ); }
 
   double lab;                 ///< the label of the node
   node * pred;                ///< the predecessor of the node in the path

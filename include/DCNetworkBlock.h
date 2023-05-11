@@ -912,7 +912,7 @@ class DCNetworkBlock : public NetworkBlock
  void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
   // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
-   delete f_NetworkData;
+   delete( f_NetworkData );
 
   f_NetworkData = static_cast< DCNetworkData * >( nd );
   f_local_NetworkData = false;

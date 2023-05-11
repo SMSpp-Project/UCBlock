@@ -47,7 +47,7 @@ SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 HydroSystemUnitBlock::~HydroSystemUnitBlock()
 {
  for( auto block : v_Block )
-  delete block;
+  delete( block );
  v_Block.clear();
 
  objective.clear();
@@ -86,7 +86,7 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
 void HydroSystemUnitBlock::deserialize_sub_blocks( const netCDF::NcGroup & group )
 {
  for( auto block : v_Block )
-  delete block;
+  delete( block );
  v_Block.clear();
 
  v_Block.reserve( f_number_hydro_units + 1 );

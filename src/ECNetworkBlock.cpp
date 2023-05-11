@@ -64,7 +64,7 @@ ECNetworkBlock::~ECNetworkBlock()
 
  // Delete the ECNetworkData if it is local.
  if( f_local_NetworkData )
-  delete f_NetworkData;
+  delete( f_NetworkData );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -141,7 +141,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
   // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
   // it means that a ECNetworkData has been provided. Thus, the ECNetworkData
   // is deserialized, and it is marked as being local.
-  delete f_NetworkData;
+  delete( f_NetworkData );
   f_NetworkData = new ECNetworkData();
   f_NetworkData->deserialize( group );
   f_local_NetworkData = true;

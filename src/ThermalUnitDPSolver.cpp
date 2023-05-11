@@ -159,7 +159,7 @@ void ThermalUnitDPSolver::build_graph( void )
  // which we use as a way to indicate that the node has not been proved
  // reachable from s yet
 
- delete f_start.DPS;
+ delete( f_start.DPS );
 
  v_on_nodes.clear();  // this deletes all EDSolver
  v_on_nodes.resize( time_horizon );

@@ -77,9 +77,9 @@ UCBlock::~UCBlock()
  v_PollutantBudget_Const.clear();
 
  for( auto & block : v_Block )
-  delete block;
+  delete( block );
 
- delete f_NetworkData;
+ delete( f_NetworkData );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -121,14 +121,14 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   if( auto nbi = dynamic_cast< NetworkBlock * >(
    new_Block( sub_group , this ) ) ) {
    v_network_blocks[ i ] = nbi;
-   delete f_NetworkData;
+   delete( f_NetworkData );
    f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
     NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
    f_NetworkData->deserialize( sub_group );
    nbi->set_NetworkData( f_NetworkData );
    ++cntr;
   } else {
-   delete nbi;
+   delete( nbi );
    throw( std::invalid_argument( "UCBlock::deserialize:" + sub_group_name +
                                  " not a valid NetworkBlock" ) );
   }
@@ -358,7 +358,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  // reset all existing sub-Block, if any
  for( auto block : v_Block )
-  delete block;
+  delete( block );
  v_Block.clear();
 
  // load all UnitBlock
@@ -427,7 +427,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_network_blocks.resize( f_number_networks );
    v_Block.resize( f_number_units + f_number_networks );
 
-   delete f_NetworkData;
+   delete( f_NetworkData );
    f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
     NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
    f_NetworkData->deserialize( group );

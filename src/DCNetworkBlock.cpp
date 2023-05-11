@@ -76,7 +76,7 @@ DCNetworkBlock::~DCNetworkBlock()
 
  // Delete the DCNetworkData if it is local.
  if( f_local_NetworkData )
-  delete f_NetworkData;
+  delete( f_NetworkData );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -200,7 +200,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   // Since the dimension "NumberNodes" has been provided, it means that a
   // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
   // and it is marked as being local.
-  delete f_NetworkData;
+  delete( f_NetworkData );
   f_NetworkData = new DCNetworkData();
   f_NetworkData->deserialize( group );
   f_local_NetworkData = true;

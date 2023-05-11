@@ -124,7 +124,7 @@ class UnitBlock : public Block
 
  virtual ~UnitBlock() override {
   for( auto & block : v_Block )
-   delete block;
+   delete( block );
   v_Block.clear();
  }
 

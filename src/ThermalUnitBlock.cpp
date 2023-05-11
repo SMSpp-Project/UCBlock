@@ -446,7 +446,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  UnitBlock::generate_abstract_variables( stvv );
 
- Index wf = 0;
+ Index wf = 8;
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< Index > * >( stvv ) )
@@ -1040,6 +1040,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        LinearFunction::v_coeff_pair vars;
 
        vars.push_back( std::make_pair( &v_active_power_h[ j ] , 1.0 ) );
+
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( t + 1 <= v_Y_plus[ i ].second )
