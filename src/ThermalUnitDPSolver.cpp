@@ -71,7 +71,7 @@ void ThermalUnitDPSolver::set_Block( Block * block )
  if( block ) {
   // note that we do not use
   //
-  //    if(  ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
+  //    if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
   //
   // since we want to avoid that the check succeeds for possible derived
   // classes of ThermalUnitBlock which may have other features / constraints
