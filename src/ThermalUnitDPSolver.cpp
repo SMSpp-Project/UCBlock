@@ -69,7 +69,16 @@ void ThermalUnitDPSolver::set_Block( Block * block )
  Solver::set_Block( block );
 
  if( block ) {
-  if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
+  // note that we do not use
+  //
+  //    if(  ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
+  //
+  // since we want to avoid that the check succeeds for possible derived
+  // classes of ThermalUnitBlock which may have other features / constraints
+  // that ThermalUnitDPSolver does not know about and therefore cannot
+  // properly handle. typeid() works in this case since ThermalUnitBlock
+  // is a  polymorphic object, i.e., it has at least one virtual method
+  if( typeid( ThermalUnitBlock ) != typeid( *f_Block ) )
    throw( std::runtime_error(
     "ThermalUnitDPSolver::set_Block: ThermalUnitBlock required." ) );
   load_parameters();
