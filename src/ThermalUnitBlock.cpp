@@ -461,12 +461,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
- // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kBinary );
-  add_static_variable( design , "x_thermal" );
- }
-
  // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
  for( auto & var : v_commitment )
@@ -513,6 +507,12 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   for( auto & var : v_shut_down )
    var.set_type( ColVariable::kBinary );
   add_static_variable( v_shut_down , "w_thermal" );
+ }
+
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_InvestmentCost != 0 ) {
+  design.set_type( ColVariable::kBinary );
+  add_static_variable( design , "x_thermal" );
  }
 
  // Possibly fixing the commitment variables to 0 or 1- - - - - - - - - - - -
