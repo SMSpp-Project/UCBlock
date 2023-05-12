@@ -526,7 +526,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
 
   for( Index t = init_t ;
-       t < std::min( init_t + f_MinDownTime , f_time_horizon ) ; ++t ) {
+       t < std::min( init_t + f_MinDownTime - 1 , f_time_horizon ) ; ++t ) {
    v_start_up[ t - init_t ].set_value( 0.0 );
    v_start_up[ t - init_t ].is_fixed( true );
   }
@@ -553,7 +553,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
 
   for( Index t = init_t ;
-       t < std::min( init_t + f_MinUpTime , f_time_horizon ) ; ++t ) {
+       t < std::min( init_t + f_MinUpTime - 1 , f_time_horizon ) ; ++t ) {
    v_shut_down[ t - init_t ].set_value( 0.0 );
    v_shut_down[ t - init_t ].is_fixed( true );
   }
@@ -617,7 +617,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
      v_nodes_minus.push_back( k );
     }
 
-    for( Index h = ( init_t + f_MinDownTime + 1 ) ;  // OFF_h
+    for( Index h = ( init_t + f_MinDownTime - 1 ) ;  // OFF_h
          h <= f_time_horizon ; ++h ) {
      if( h <= f_time_horizon - f_MinUpTime + 1 )
       for( Index k = ( h + f_MinUpTime - 1 ) ;  // ON_k
@@ -641,7 +641,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
      v_nodes_plus.push_back( h );
     }
 
-    for( Index k = init_t + 1 + f_MinUpTime - 1 ;
+    for( Index k = init_t + f_MinUpTime - 1 ;
          k <= f_time_horizon ; ++k ) {  // ON_k
      if( k <= f_time_horizon - f_MinDownTime - 1 )
       for( Index h = ( k + f_MinDownTime + 1 ) ;  // OFF_h
