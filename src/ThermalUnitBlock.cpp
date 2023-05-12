@@ -3916,7 +3916,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  // this means that the start_up variable t is in position t - init_t
  // hence, those in the range [ 0 , init_t ) do not exist and their cost
  // cannot be changed
- if( subset.front() >= v_StartUpCost.size() )
+ if( subset.front() < init_t )
   throw( std::invalid_argument(
    "ThermalUnitBlock::set_startup_costs: invalid starting index in subset." ) );
 
@@ -3975,7 +3975,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  // this means that the start_up variable t is in position t - init_t
  // hence, those in the range [ 0 , init_t ) do not exist and their cost
  // cannot be changed
- if( rng.first >= v_StartUpCost.size() )
+ if( rng.first < init_t )
   throw( std::invalid_argument( "ThermalUnitBlock::set_startup_costs: invalid"
                                 " starting index in range." ) );
 
