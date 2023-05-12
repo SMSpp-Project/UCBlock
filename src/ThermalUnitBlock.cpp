@@ -526,7 +526,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   }
 
   for( Index t = init_t ;
-       t < std::min( init_t + f_MinDownTime - 1 , f_time_horizon ) ; ++t ) {
+       t < std::min( init_t + f_MinDownTime , f_time_horizon ) ; ++t ) {
    v_start_up[ t - init_t ].set_value( 0.0 );
    v_start_up[ t - init_t ].is_fixed( true );
   }
@@ -609,15 +609,15 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
     }
 
     for( Index k = init_t ; k <= f_time_horizon ; ++k ) {
-     if( k <= f_time_horizon - f_MinDownTime - 1 )
-      for( Index h = ( k + f_MinDownTime + 1 ) ;  //  OFF_h
+     if( k <= f_time_horizon - f_MinDownTime )
+      for( Index h = ( k + f_MinDownTime + 1 ) ;  // OFF_h
            h <= f_time_horizon ; ++h )
        v_Y_minus.push_back( std::make_pair( k , h ) );
      v_Y_minus.push_back( std::make_pair( k , f_time_horizon + 1 ) );
      v_nodes_minus.push_back( k );
     }
 
-    for( Index h = ( init_t + f_MinDownTime - 1 ) ;  // OFF_h
+    for( Index h = ( init_t + f_MinDownTime ) ;  // OFF_h
          h <= f_time_horizon ; ++h ) {
      if( h <= f_time_horizon - f_MinUpTime + 1 )
       for( Index k = ( h + f_MinUpTime - 1 ) ;  // ON_k
@@ -634,7 +634,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     for( Index h = init_t + 1 ; h <= f_time_horizon ; ++h ) {  // OFF_h
      if( h <= f_time_horizon - f_MinUpTime + 1 )
-      for( Index k = ( h + f_MinUpTime - 1 ) ;   // ON_k
+      for( Index k = ( h + f_MinUpTime - 1 ) ;  // ON_k
            k <= f_time_horizon ; ++k )
        v_Y_plus.push_back( std::make_pair( h , k ) );
      v_Y_plus.push_back( std::make_pair( h , f_time_horizon + 1 ) );
@@ -643,7 +643,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
     for( Index k = init_t + f_MinUpTime - 1 ;
          k <= f_time_horizon ; ++k ) {  // ON_k
-     if( k <= f_time_horizon - f_MinDownTime - 1 )
+     if( k <= f_time_horizon - f_MinDownTime )
       for( Index h = ( k + f_MinDownTime + 1 ) ;  // OFF_h
            h <= f_time_horizon ; ++h )
        v_Y_minus.push_back( std::make_pair( k , h ) );
@@ -2478,7 +2478,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      LinearFunction::v_coeff_pair vars;
 
-     for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s <= t - init_t ; ++s )
+     for( Index s = t - ( init_t + f_MinUpTime - 1 ) ; s < t - init_t ; ++s )
       vars.push_back( std::make_pair( &v_start_up[ s ] , -1.0 ) );
 
      vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
@@ -2496,18 +2496,18 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    auto shutdown_const_size =
-    static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime - 1 ) );
+    static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime ) );
 
    if( shutdown_const_size > 0 ) {
 
     ShutDown_Const.resize( shutdown_const_size );
 
-    for( Index t = ( init_t + f_MinDownTime - 1 ) , cnstr_idx = 0 ;
+    for( Index t = ( init_t + f_MinDownTime ) , cnstr_idx = 0 ;
          t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
      LinearFunction::v_coeff_pair vars;
 
-     for( Index s = t - ( init_t + f_MinDownTime - 1 ) ; s <= t - init_t ; ++s )
+     for( Index s = t - ( init_t + f_MinDownTime ) ; s < t - init_t ; ++s )
       vars.push_back( std::make_pair( &v_shut_down[ s ] , 1.0 ) );
 
      vars.push_back( std::make_pair( &v_commitment[ t ] , 1.0 ) );
