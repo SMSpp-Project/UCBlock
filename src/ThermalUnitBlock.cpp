@@ -153,24 +153,25 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 ThermalUnitBlock::~ThermalUnitBlock()
 {
  Constraint::clear( CommitmentDesign_Const );
+ Constraint::clear( StartUp_ShutDown_Variables_Const );
  Constraint::clear( StartUp_Const );
  Constraint::clear( ShutDown_Const );
- Constraint::clear( StartUp_ShutDown_Variables_Const );
- Constraint::clear( PrimaryRho_Const );
- Constraint::clear( SecondaryRho_Const );
- Constraint::clear( MinPower_Const );
- Constraint::clear( MaxPower_Const );
  Constraint::clear( RampUp_Const );
  Constraint::clear( RampDown_Const );
+ Constraint::clear( MinPower_Const );
+ Constraint::clear( MaxPower_Const );
+ Constraint::clear( PrimaryRho_Const );
+ Constraint::clear( SecondaryRho_Const );
 
- Constraint::clear( Network_Const );
+ Constraint::clear( Eq_ActivePower_Const );
  Constraint::clear( Eq_Commitment_Const );
  Constraint::clear( Eq_StartUp_Const );
  Constraint::clear( Eq_ShutDown_Const );
- Constraint::clear( Eq_ActivePower_Const );
+ Constraint::clear( Network_Const );
 
  Constraint::clear( Init_PC_Const );
  Constraint::clear( Eq_PC_Const );
+
  Constraint::clear( PC_cuts );
 
  Constraint::clear( Commitment_bound_Const );
@@ -3396,20 +3397,20 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // Constraints: notice that the ZOConstraints are not checked, since the
   // corresponding check is made on the ColVariable
   && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
   && RowConstraint::is_feasible( StartUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ShutDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( StartUp_ShutDown_Variables_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Network_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MinPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Eq_ActivePower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_Commitment_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_StartUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_ShutDown_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( Eq_ActivePower_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Network_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Init_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PC_cuts , tol , rel_viol )

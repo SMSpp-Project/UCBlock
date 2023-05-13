@@ -1852,26 +1852,14 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;
 
+ /// the connection min up and down time constraints
+ std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
+
  /// the turn on min up and down time constraints
  std::vector< FRowConstraint > StartUp_Const;
 
  /// the shut-down min up and down time constraints
  std::vector< FRowConstraint > ShutDown_Const;
-
- /// the connection min up and down time constraints
- std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
-
- /// the PrimaryRho fraction constraints
- std::vector< FRowConstraint > PrimaryRho_Const;
-
- /// the SecondaryRho fraction constraints
- std::vector< FRowConstraint > SecondaryRho_Const;
-
- /// the active power upper bound constraints
- std::vector< FRowConstraint > MinPower_Const;
-
- /// the active power lower bound constraints
- std::vector< FRowConstraint > MaxPower_Const;
 
  /// the RampUp time constraints
  std::vector< FRowConstraint > RampUp_Const;
@@ -1879,9 +1867,22 @@ class ThermalUnitBlock : public UnitBlock
  /// the RampDown time constraints
  std::vector< FRowConstraint > RampDown_Const;
 
+ /// the active power upper bound constraints
+ std::vector< FRowConstraint > MinPower_Const;
 
- /// the network constraints of the pt, DP, SU and SD formulations
- std::vector< FRowConstraint > Network_Const;
+ /// the active power lower bound constraints
+ std::vector< FRowConstraint > MaxPower_Const;
+
+ /// the PrimaryRho fraction constraints
+ std::vector< FRowConstraint > PrimaryRho_Const;
+
+ /// the SecondaryRho fraction constraints
+ std::vector< FRowConstraint > SecondaryRho_Const;
+
+
+ /// the constraints connecting power variables of 3bin, T and
+ /// pt formulations with those of DP, SU and SD formulations
+ std::vector< FRowConstraint > Eq_ActivePower_Const;
 
  /// the constraints connecting commitment variables of 3bin and T
  /// formulations with those of pt, DP, SU and SD formulations
@@ -1895,9 +1896,8 @@ class ThermalUnitBlock : public UnitBlock
  /// formulations with those of pt, DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
- /// the constraints connecting power variables of 3bin, T and
- /// pt formulations with those of DP, SU and SD formulations
- std::vector< FRowConstraint > Eq_ActivePower_Const;
+ /// the network constraints of the pt, DP, SU and SD formulations
+ std::vector< FRowConstraint > Network_Const;
 
 
  /// the initial perspective cuts constraints
