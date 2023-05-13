@@ -3363,7 +3363,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , bool > > * >( c ) ) {
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -4407,7 +4407,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero: Nothing to do
+   return;  // The given values are zero: nothing to do
 
   v_PrimarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
@@ -4552,7 +4552,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero: nothing to do
+   return;  // The given values are zero: nothing to do
 
   v_SecondarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
