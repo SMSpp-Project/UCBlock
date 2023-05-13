@@ -520,36 +520,14 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the Variable of the ECNetworkBlock
  * @{ */
 
- /// returns the vector of microgrid power injection variables
- /** Returns vector of microgrid power injection variables, which is assumed to
-  * have size get_number_intervals() by get_number_nodes(). */
-
- ColVariable * get_micro_power_injection( Index t = 0 ) {
-  if( v_micro_power_injection.empty() )
-   return( nullptr );
-  return( &( v_micro_power_injection.data()[ t * get_number_nodes() ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of microgrid power absorption variables
- /** Returns the vector of microgrid power absorption variables, which is
-  * assumed to have size get_number_intervals() by get_number_nodes(). */
-
- ColVariable * get_micro_power_absorption( Index t = 0 ) {
-  if( v_micro_power_absorption.empty() )
-   return( nullptr );
-  return( &( v_micro_power_absorption.data()[ t * get_number_nodes() ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of public power injection variables
  /** Returns the vector of public power injection variables, which is assumed
   * to have size get_number_nodes(). */
 
- ColVariable * get_public_power_injection( Index t = 0 ) {
-  if( v_public_power_injection.empty() )
+ ColVariable * get_power_injection( Index t = 0 ) {
+  if( v_power_injection.empty() )
    return( nullptr );
-  return( &( v_public_power_injection.data()[ t * get_number_nodes() ] ) );
+  return( &( v_power_injection.data()[ t * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -557,10 +535,25 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the vector of public power absorbed variables, which is assumed
   * to have size get_number_nodes(). */
 
- ColVariable * get_public_power_absorption( Index t = 0 ) {
-  if( v_public_power_absorption.empty() )
+ ColVariable * get_power_absorption( Index t = 0 ) {
+  if( v_power_absorption.empty() )
    return( nullptr );
-  return( &( v_public_power_absorption.data()[ t * get_number_nodes() ] ) );
+  return( &( v_power_absorption.data()[ t * get_number_nodes() ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of microgrid power variables
+ /** The returned std::vector< ColVariable >, say S, contains the energy shared
+  * variables and is indexed over get_number_intervals(). There are two
+  * possible cases:
+  *
+  * - if V is empty(), then this variable is not defined;
+  *
+  * - otherwise, V must have f_numer_intervals rows and S[ i ] is the
+  * energy shared within the network at interval i. */
+
+ const std::vector< ColVariable > & get_shared_power( void ) const {
+  return( v_shared_power );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -828,35 +821,31 @@ class ECNetworkBlock : public NetworkBlock
 
 /*-------------------------------- variables -------------------------------*/
 
- /// power injected (+) at each node of the network, i.e., at each user PoD,
- /// to the microgrid market / network
- boost::multi_array< ColVariable , 2 > v_micro_power_injection;
-
- /// power absorbed (-) at each node of the network, i.e., at each user PoD,
- /// from the microgrid market / network
- boost::multi_array< ColVariable , 2 > v_micro_power_absorption;
-
- /// power injected (+) at user PoD from the public market at each time
+ /// power injected (+) by the user into the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- boost::multi_array< ColVariable , 2 > v_public_power_injection;
+ boost::multi_array< ColVariable , 2 > v_power_injection;
 
- /// power absorbed (-) at user PoD from the public market at each time
+ /// power absorbed (-) by the user from the public market at each time
  /// horizon that is referred to a specific peak period, i.e., a specific
  /// interval in "NumberIntervals"
- boost::multi_array< ColVariable , 2 > v_public_power_absorption;
+ boost::multi_array< ColVariable , 2 > v_power_absorption;
 
- /// maximum power usage at user PoD of the corresponding peak power period,
- /// i.e., a specific interval in "NumberIntervals"
+
+ /// power shared into the network
+ std::vector< ColVariable > v_shared_power;
+
+ /// maximum power usage by the user at the corresponding peak period, i.e.,
+ /// a specific interval in "NumberIntervals"
  std::vector< ColVariable > v_peak_power;
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the power balance constraints within the microgrid market / network
- std::vector< FRowConstraint > micro_power_balance_const;
-
  /// the power balance constraints
  boost::multi_array< FRowConstraint , 2 > power_balance_const;
+
+ /// the shared power constraints
+ boost::multi_array< FRowConstraint , 2 > power_shared_const;
 
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
