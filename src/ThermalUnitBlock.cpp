@@ -462,6 +462,12 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_InvestmentCost != 0 ) {
+  design.set_type( ColVariable::kBinary );
+  add_static_variable( design , "x_thermal" );
+ }
+
  // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
  for( auto & var : v_commitment )
@@ -473,24 +479,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_active_power , "p_thermal" );
-
- // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
-   v_primary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_primary_spinning_reserve )
-    var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_primary_spinning_reserve , "pr_thermal" );
-  }
-
- // Secondary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - -
- if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
-   v_secondary_spinning_reserve.resize( f_time_horizon );
-   for( auto & var : v_secondary_spinning_reserve )
-    var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_secondary_spinning_reserve , "sc_thermal" );
-  }
 
  // Start-Up and Shut-Down Binary Variables - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -510,11 +498,23 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   add_static_variable( v_shut_down , "w_thermal" );
  }
 
- // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kBinary );
-  add_static_variable( design , "x_thermal" );
- }
+ // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
+ if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+  if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
+   v_primary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_primary_spinning_reserve )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_primary_spinning_reserve , "pr_thermal" );
+  }
+
+ // Secondary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - -
+ if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+  if( ! v_SecondaryRho.empty() ) {  // if unit produces any secondary reserve
+   v_secondary_spinning_reserve.resize( f_time_horizon );
+   for( auto & var : v_secondary_spinning_reserve )
+    var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_secondary_spinning_reserve , "sc_thermal" );
+  }
 
  // Possibly fixing the commitment variables to 0 or 1- - - - - - - - - - - -
  if( f_InitUpDownTime > 0 ) {
@@ -927,7 +927,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       new LinearFunction( std::move( vars ) ) );
     }
 
-    add_static_constraint( ShutDown_Const , "ShutDown_Commitment_Const_Thermal" );
+    add_static_constraint( ShutDown_Const ,
+                           "ShutDown_Commitment_Const_Thermal" );
    }
 
    break;
