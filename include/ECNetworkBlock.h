@@ -959,7 +959,7 @@ class ECNetworkBlockRngdMod : public ECNetworkBlockMod
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
  }
 
- Block::Range f_rng; ///< the range
+ Block::Range f_rng;  ///< the range
 
 };  // end( class( ECNetworkBlockRngdMod ) )
 

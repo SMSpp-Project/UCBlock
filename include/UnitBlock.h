@@ -810,7 +810,7 @@ protected:
  /// pointer to the Block to which the Modification refers
  UnitBlock * f_Block{};
 
- int f_type; ///< type of modification
+ int f_type;  ///< type of modification
 
 };  // end( class( UnitBlockMod ) )
 

@@ -446,9 +446,9 @@ class DCNetworkBlock : public NetworkBlock
   /// vector to store the network cost at each line
   std::vector< double > v_network_cost;
 
-  std::vector< std::string > v_node_names; ///< Node names
+  std::vector< std::string > v_node_names;  ///< Node names
 
-  std::vector< std::string > v_line_names; ///< Line names
+  std::vector< std::string > v_line_names;  ///< Line names
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -1276,7 +1276,7 @@ class DCNetworkBlockRngdMod : public DCNetworkBlockMod
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
  }
 
- Block::Range f_rng; ///< the range
+ Block::Range f_rng;  ///< the range
 
 };  // end( class( DCNetworkBlockRngdMod ) )
 
@@ -1309,7 +1309,7 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
   output << "(# " << f_nms.size() << ")" << std::endl;
  }
 
- Block::Subset f_nms; ///< the subset
+ Block::Subset f_nms;  ///< the subset
 
 };  // end( class( DCNetworkBlockSbstMod ) )
 

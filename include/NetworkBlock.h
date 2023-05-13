@@ -773,7 +773,7 @@ class NetworkBlockMod : public Modification
  NetworkBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
 
- int f_type; ///< type of modification
+ int f_type;  ///< type of modification
 
 };  // end( class( NetworkBlockMod ) )
 
@@ -806,7 +806,7 @@ class NetworkBlockRngdMod : public NetworkBlockMod
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
  }
 
- Block::Range f_rng; ///< the range
+ Block::Range f_rng;  ///< the range
 
 };  // end( class( NetworkBlockRngdMod ) )
 

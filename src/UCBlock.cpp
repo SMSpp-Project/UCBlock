@@ -998,7 +998,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
         auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
 
         if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-         continue; // this unit does not belong to any zone
+         continue;  // this unit does not belong to any zone
 
         if( auto ap = unit_block->get_active_power( generator ) ) {
          auto active_power = &ap[ t ];
@@ -1023,7 +1023,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
 
          auto zone_id = get_pollutant_zone()[pollutant][ h ];
          if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-          continue; // this unit does not belong to any zone
+          continue;  // this unit does not belong to any zone
 
          auto heat = get_heat_block()[ h ]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][pollutant][ h ];
@@ -1082,7 +1082,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
            auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
 
            if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-            continue; // this unit does not belong to any zone
+            continue;  // this unit does not belong to any zone
 
            if( auto ap = unit_block->get_active_power( generator ) ) {
             auto active_power = &ap[ t ];
@@ -1112,7 +1112,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
 
          auto zone_id = get_pollutant_zone()[pollutant][h];
          if( zone_id >= v_number_pollutant_zones[pollutant] )
-          continue; // this unit does not belong to any zone
+          continue;  // this unit does not belong to any zone
 
          auto heat = get_heat_block()[h]->get_heat()[ t ][ i ];
          auto rho = get_pollutant_heat_rho()[ t ][ pollutant ][ h ];
@@ -1202,7 +1202,7 @@ void UCBlock::generate_heat_constraints( void )
 
      if( heat_unit_id >=
          v_heat_blocks[ heat_block_id ]->get_number_heat_generators() )
-      continue; // unit_id does not belong to heat_block_id
+      continue;  // unit_id does not belong to heat_block_id
 
      if( ! v_power_Heat_Rho_Const[ t ][ constraint_id ].get_function() ) {
       v_power_Heat_Rho_Const[ t ][ constraint_id ].
@@ -1638,7 +1638,7 @@ void UCBlock::update_primary_demand_constraints(
 {
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
-  return; // there is nothing to be updated
+  return;  // there is nothing to be updated
 
  // Indices of the zones that are affected by the modified units.
  std::set< Index > affected_zones;
@@ -1737,7 +1737,7 @@ void UCBlock::update_secondary_demand_constraints(
 {
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
-  return; // there is nothing to be updated
+  return;  // there is nothing to be updated
 
  // Indices of the zones that are affected by the modified units.
  std::set< Index > affected_zones;
@@ -1837,7 +1837,7 @@ void UCBlock::update_inertia_demand_constraints(
 {
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
-  return; // there is nothing to be updated
+  return;  // there is nothing to be updated
 
  // Indices of the zones that are affected by the modified units.
  std::set< Index > affected_zones;
@@ -1985,7 +1985,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
     if( fc[ time ] )
      if( auto u = unit_block->get_commitment( g ) ) {
       // add the contribution of the corresponding commitment variables
-      rhs -= scale * fc[ time ]; // update the RHS
+      rhs -= scale * fc[ time ];  // update the RHS
      }
   }  // end( for( g ) )
  }  // end( for( i ) )

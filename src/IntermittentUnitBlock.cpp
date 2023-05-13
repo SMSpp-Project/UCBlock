@@ -304,7 +304,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
   active_power_bounds_design_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
-   [ 2 ][ f_time_horizon ] ); // 2 dims, i.e., the lower and upper bounds
+   [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the lower and upper bounds
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -646,13 +646,13 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
                                    c_ModParam issueAMod )
 {
  if( subset.empty() )
-  return; // Since the given Subset is empty, no operation is performed
+  return;  // Since the given Subset is empty, no operation is performed
 
  if( f_scale == *values )
-  return; // The scale factor does not change: nothing to do
+  return;  // The scale factor does not change: nothing to do
 
  if( not_dry_run( issuePMod ) )
-  f_scale = *values; // Update the scale factor
+  f_scale = *values;  // Update the scale factor
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
@@ -675,13 +675,13 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                        ModParam issueAMod )
 {
  if( subset.empty() )
-  return; // Since the given Subset is empty, no operation is performed
+  return;  // Since the given Subset is empty, no operation is performed
 
  if( f_kappa == *values )
-  return; // The kappa constant does not change: nothing to do
+  return;  // The kappa constant does not change: nothing to do
 
  if( not_dry_run( issuePMod ) ) {
-  f_kappa = *values; // Update the kappa constant
+  f_kappa = *values;  // Update the kappa constant
 
   if( not_dry_run( issueAMod ) ) {
    // Update the abstract representation
@@ -724,7 +724,7 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                        ModParam issuePMod , ModParam issueAMod )
 {
  if( rng.first >= rng.second )
-  return; // An empty Range was given: no operation is performed
+  return;  // An empty Range was given: no operation is performed
 
  Subset subset( 1 , 0 );
 

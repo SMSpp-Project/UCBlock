@@ -639,7 +639,7 @@ class HeatBlock : public Block
 
  Index f_number_heat_units;  ///< the number of units (generators) of the HB
 
- Index f_number_intervals;   ///< the number of intervals
+ Index f_number_intervals;  ///< the number of intervals
 
  std::vector< Index > v_change_intervals;  ///< the vector of change interval
 

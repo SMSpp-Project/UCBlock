@@ -2878,8 +2878,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 {
- double tol = 1e-6; // threshold parameter for p/c generation
- double eps = 1e-4; // tolerance value to consider a binary variable
+ double tol = 1e-6;  // threshold parameter for p/c generation
+ double eps = 1e-4;  // tolerance value to consider a binary variable
 
  double value , pbar , value2;
 
@@ -3614,7 +3614,7 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
  }
 
  if( identical )
-  return; // nothing changes; return
+  return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -3823,12 +3823,12 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
  auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
 
  if( index_it == subset.rend() )
-  return; // 0 is not in subset; return
+  return;  // 0 is not in subset; return
 
  std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
 
  if( f_InitialPower == *values )
-  return; // nothing changes; return
+  return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
@@ -3855,12 +3855,12 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
 {
  rng.second = std::min( rng.second , Index( 1 ) );
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
-  return; // 0 does not belong to the range; return
+  return;  // 0 does not belong to the range; return
 
  std::advance( values , -rng.first );
 
  if( f_InitialPower == *values )
-  return; // nothing changes; return
+  return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
@@ -4474,7 +4474,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
-  return; // Empty range. Return.
+  return;  // Empty range. Return.
 
  c_Index sz = rng.second - rng.first;
  if( v_PrimarySpinningReserveCost.empty() ) {
@@ -4482,7 +4482,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero. So, there is nothing to be changed.
+   return;  // The given values are zero. So, there is nothing to be changed.
 
   v_PrimarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
@@ -4623,7 +4623,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
 
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
-  return; // Empty range. Return.
+  return;  // Empty range. Return.
 
  c_Index sz = rng.second - rng.first;
  if( v_SecondarySpinningReserveCost.empty() ) {
@@ -4631,7 +4631,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   if( std::all_of( values ,
                    values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
-   return; // The given values are zero. So, there is nothing to be changed.
+   return;  // The given values are zero. So, there is nothing to be changed.
 
   v_SecondarySpinningReserveCost.assign( f_time_horizon , 0 );
  }
@@ -4703,12 +4703,12 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
  auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
 
  if( index_it == subset.rend() )
-  return; // 0 is not in subset; return
+  return;  // 0 is not in subset; return
 
  std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
 
  if( f_InitUpDownTime == *values )
-  return; // nothing changes; return
+  return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
@@ -4736,12 +4736,12 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 {
  rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
  if( ! ( rng.first <= 0 && 0 < rng.second ) )
-  return; // 0 does not belong to the range; return
+  return;  // 0 does not belong to the range; return
 
  std::advance( values , -rng.first );
 
  if( f_InitUpDownTime == *values )
-  return; // nothing changes; return
+  return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
@@ -4769,13 +4769,13 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
                               c_ModParam issueAMod )
 {
  if( subset.empty() )
-  return; // Since the given Subset is empty, no operation is performed
+  return;  // Since the given Subset is empty, no operation is performed
 
  if( f_scale == *values )
-  return; // The scale factor does not change: nothing to do
+  return;  // The scale factor does not change: nothing to do
 
  if( not_dry_run( issuePMod ) ) {
-  f_scale = *values; // Update the scale factor
+  f_scale = *values;  // Update the scale factor
 
   if( not_dry_run( issueAMod ) ) {
    // Update the abstract representation
@@ -4803,7 +4803,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
                                                   c_ModParam issueAMod )
 {
  if( ! objective_generated() )
-  return; // the Objective has not been generated: nothing to be done
+  return;  // the Objective has not been generated: nothing to be done
 
  auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 
@@ -4828,7 +4828,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
                                                       c_ModParam issueAMod )
 {
  if( ! objective_generated() )
-  return; // the Objective has not been generated: nothing to be done
+  return;  // the Objective has not been generated: nothing to be done
 
  auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 
@@ -4851,7 +4851,7 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
                                                     c_ModParam issueAMod )
 {
  if( ! objective_generated() )
-  return; // the Objective has not been generated: nothing to be done
+  return;  // the Objective has not been generated: nothing to be done
 
  auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
 

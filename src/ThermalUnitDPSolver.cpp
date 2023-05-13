@@ -823,7 +823,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   }
  else {
   m[ 0 ] = min_power[ k ];
-  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k
+  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] );  // \bar{l}_k
   }
 
  #if ( COMPUTE_DUALS )

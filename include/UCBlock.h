@@ -1554,7 +1554,7 @@ class UCBlock : public Block
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
+ unsigned char AR{};  ///< bit-wise coded: what abstract is there
 
  static constexpr unsigned char HasVar = 1;
  ///< first bit of AR == 1 if the Variables have been constructed
@@ -1821,7 +1821,7 @@ class UCBlockMod : public Modification
  UCBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
 
- int f_type; ///< type of modification
+ int f_type;  ///< type of modification
 
 };  // end( class( UCBlockMod ) )
 
@@ -1853,7 +1853,7 @@ class UCBlockRngdMod : public UCBlockMod
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
  }
 
- Block::Range f_rng; ///< the range
+ Block::Range f_rng;  ///< the range
 
 };  // end( class( UCBlockRngdMod ) )
 
@@ -1886,7 +1886,7 @@ class UCBlockSbstMod : public UCBlockMod
   output << "(# " << f_nms.size() << ")" << std::endl;
  }
 
- Block::Subset f_nms; ///< the subset
+ Block::Subset f_nms;  ///< the subset
 
 };  // end( class( UCBlockSbstMod ) )
 

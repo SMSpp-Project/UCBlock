@@ -263,7 +263,7 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  power_flow_limit_const.resize(
   boost::multi_array< FRowConstraint , 3 >::extent_gen()
-  [ number_nodes ][ number_intervals ][ 2 ] ); // 2 dims, i.e., the sign (+/-)
+  [ number_nodes ][ number_intervals ][ 2 ] );  // 2 dims, i.e., the sign (+/-)
 
  for( Index t = 0 ; t < number_intervals ; ++t )
 

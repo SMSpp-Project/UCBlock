@@ -39,7 +39,7 @@ struct ThermalUnit
  double ConstTerm{};
  double MinPower{};
  double MaxPower{};
- double InitialPower{}; // aka PZERO
+ double InitialPower{};  // aka PZERO
  double InitUpDownTime{};
  double MinUpTime{};
  double MinDownTime{};

@@ -898,7 +898,7 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
  }
 
- Block::Range f_rng; ///< the range
+ Block::Range f_rng;  ///< the range
 
 };  // end( class( IntermittentUnitBlockRngdMod ) )
 
@@ -931,7 +931,7 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod
   output << "(# " << f_nms.size() << ")" << std::endl;
  }
 
- Block::Subset f_nms; ///< the subset
+ Block::Subset f_nms;  ///< the subset
 
 };  // end( class( IntermittentUnitBlockSbstMod ) )
 

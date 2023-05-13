@@ -149,7 +149,7 @@ void UnitBlock::scale( MF_dbl_it values ,
                        c_ModParam issueAMod )
 {
  if( rng.first >= rng.second )
-  return; // An empty Range was given: no operation is performed.
+  return;  // An empty Range was given: no operation is performed.
 
  Subset subset;
 
