@@ -452,7 +452,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_peak_power )
   // Constraints
   && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
-  && FRowConstraint::is_feasible( power_shared_const , tol , rel_viol )
+  && RowConstraint::is_feasible( power_shared_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
