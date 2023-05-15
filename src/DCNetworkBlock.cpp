@@ -554,18 +554,18 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const {
-
+void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
+{
  NetworkBlock::serialize( group );
 
  if( auto network_data = get_NetworkData() )
   // If a DCNetworkData is present, serialize it.
   network_data->serialize( group );
 
+ auto NumberNodes = group.getDim( "NumberNodes" );
+
  if( ! v_ActiveDemand.empty() ) {
   // This DCNetworkBlock has active demand, so it is serialized.
-
-  auto NumberNodes = group.getDim( "NumberNodes" );
 
   if( NumberNodes.isNull() )
    /* The dimension "NumberNodes" is not present in the group (which means

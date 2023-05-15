@@ -422,7 +422,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  } else {  // number_nodes > 1
 
-  // if they don't exist, create them now as (DC/EC)NetworkBlock
+  // if they don't exist, create them now as NetworkBlock
   if( v_network_blocks.empty() ) {
    v_network_blocks.resize( f_number_networks );
    v_Block.resize( f_number_units + f_number_networks );
@@ -437,7 +437,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
 
    auto nbi = v_network_blocks[ n ];
-   if( ! nbi ) {  // NetworkBlock n does not exist: create a (DC/EC)NetworkBlock
+   if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
     nbi = dynamic_cast< NetworkBlock * >(
      new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
@@ -556,10 +556,10 @@ void UCBlock::generate_node_injection_constraints( void )
 
  if( number_nodes > 0 ) {  // well, that'd be curious, but ...
 
-  if( number_nodes == 1 ) {  // BusNetwork
-   // special case: in a BusNetwork there are no NetworkBlocks and the node
+  if( number_nodes == 1 ) {
+   // special case: in a bus network there are no NetworkBlocks and the node
    // injection constraints actually are active power demand constraints
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
     // initialise demand as active power
@@ -610,7 +610,7 @@ void UCBlock::generate_node_injection_constraints( void )
 
   } else {  // number_nodes > 1
 
-   // (DC/EC)Network needs GeneratorNode
+   // Network needs GeneratorNode
 
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n ) {
@@ -1045,7 +1045,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
      }
     }
    }
-  } else {  // (DC/EC)Network
+  } else {
 
    for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
 
@@ -1450,7 +1450,7 @@ void UCBlock::update_node_injection_constraints(
 
  if( number_nodes > 0 ) {
 
-  if( number_nodes == 1 ) {  // BusNetwork
+  if( number_nodes == 1 ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
     auto & constraint = v_node_injection_Const[ t ][ 0 ];
@@ -1532,7 +1532,7 @@ void UCBlock::update_node_injection_constraints(
 
   } else {  // number_nodes > 1
 
-   // (DC/EC)Network needs GeneratorNode
+   // Network needs GeneratorNode
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 

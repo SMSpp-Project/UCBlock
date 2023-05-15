@@ -940,7 +940,8 @@ class DCNetworkBlock : public NetworkBlock
   * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand(const std::vector< std::vector< double > > & v ) override {
+ void set_ActiveDemand(
+  const std::vector< std::vector< double > > & v ) override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand = v[ 0 ];
  }
