@@ -83,18 +83,6 @@ bool ThermalUnitBlock::f_ignore_netcdf_vars;
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static LinearFunction * LF( Function * f ) {
- return( static_cast< LinearFunction * >( f ) );
-}
-
-/*--------------------------------------------------------------------------*/
-
-static DQuadFunction * QF( Function * f ) {
- return( static_cast< DQuadFunction * >( f ) );
-}
-
-/*--------------------------------------------------------------------------*/
-
 template< typename T >
 static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
                        typename std::vector< T >::const_iterator it ) {
@@ -3441,11 +3429,11 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
  not_ModBlock( issueAMod );
 
  // MaxPower_Const: the commitment variable is in position 0
- LF( MaxPower_Const[ t ].get_function()
+ static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
  )->modify_coefficient( 0 , get_operational_max_power( t ) , issueAMod );
 
  // MinPower_Const: the commitment variable is in position 0
- LF( MinPower_Const[ t ].get_function()
+ static_cast< LinearFunction * >( MinPower_Const[ t ].get_function()
  )->modify_coefficient( 0 , -get_operational_min_power( t ) , issueAMod );
 
  // RampUp_Const
@@ -3556,7 +3544,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetAv , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetAv ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_availability( subset ) )
@@ -3657,14 +3646,15 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   // Change the abstract representation
   for( auto t : subset )
    // the commitment variable is in position 0 in the LF
-   LF( MaxPower_Const[ t ].get_function()
+   static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) ,
                           un_ModBlock( issueAMod ) );
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetMaxP , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetMaxP ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_maximum_power( subset ) )
@@ -3706,7 +3696,7 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   // Change the abstract representation
   for( Index t = rng.first ; t < rng.second ; ++t )
    // the commitment variable is in position 0 in the LF
-   LF( MaxPower_Const[ t ].get_function()
+   static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) ,
                           un_ModBlock( issueAMod ) );
 
@@ -3854,7 +3844,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
  }
@@ -3862,7 +3852,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetSUC , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetSUC ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_startup_costs( subset ) )
@@ -3914,7 +3905,7 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first - init_t ,
                                         rng.second - init_t ) ,
@@ -3981,7 +3972,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
  }
@@ -3989,7 +3980,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetConstT , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetConstT ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_const_term( subset ) )
@@ -4042,7 +4034,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   const Index dpos = 2 * f_time_horizon - init_t;
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
                                         rng.second + dpos ) ,
@@ -4107,7 +4099,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
  }
@@ -4115,7 +4107,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetLinT , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetLinT ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_linear_term( subset ) )
@@ -4164,7 +4157,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   const Index dpos = f_time_horizon - init_t;
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
                                         rng.second + dpos ) ,
@@ -4237,7 +4230,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
     *(tmplvit++) = v_LinearTerm[ t ];
   }
 
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
                    un_ModBlock( issueAMod ) );
  }
@@ -4245,7 +4238,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetQuadT , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetQuadT ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_quad_term( subset ) )
@@ -4300,7 +4294,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    std::copy( v_LinearTerm.begin() + rng.first ,
               v_LinearTerm.begin() + rng.second , tmplv.begin() );
 
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_terms( values , tmplv.begin() ,
                    Range( rng.first + dpos , rng.second + dpos ) ,
                    un_ModBlock( issueAMod ) );
@@ -4374,7 +4368,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
  }
@@ -4382,7 +4376,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetPrSpResCost , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetPrSpResCost ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
@@ -4444,7 +4439,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   const Index dpos = 3 * f_time_horizon - init_t;
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
                                         rng.second + dpos ) ,
@@ -4523,7 +4518,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
  }
@@ -4531,7 +4526,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetSecSpResCost , std::move( subset ) ) ,
+                            this , ThermalUnitBlockMod::eSetSecSpResCost ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
@@ -4598,7 +4594,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                      - init_t;
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  QF( objective.get_function()
+  static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
                                         rng.second + dpos ) ,
