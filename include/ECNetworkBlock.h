@@ -645,7 +645,7 @@ class ECNetworkBlock : public NetworkBlock
  /// method to set the MaxNodeInjection
 
  void set_max_node_injection( Index interval_id , Index node_id ,
-                            const double max_injection ) override
+                              const double max_injection ) override
  {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
