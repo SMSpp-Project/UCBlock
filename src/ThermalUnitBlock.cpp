@@ -224,17 +224,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
- if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) ) {
-  f_MinUpTime = ( f_MinUpTime > 1 ? f_MinUpTime : 1 );
-  f_MinUpTime = ( f_MinUpTime > f_time_horizon ?
-                  f_time_horizon : f_MinUpTime );
- }
+ if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
+  f_MinUpTime = std::min( f_MinUpTime , f_time_horizon );
 
- if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) ) {
-  f_MinDownTime = ( f_MinDownTime > 1 ? f_MinDownTime : 1 );
-  f_MinDownTime = ( f_MinDownTime > f_time_horizon ?
-                    f_time_horizon : f_MinDownTime );
- }
+ if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
+  f_MinDownTime = std::min( f_MinDownTime , f_time_horizon );
 
  if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
 
@@ -388,11 +382,11 @@ void ThermalUnitBlock::check_data_consistency( void ) const
  }
 
  // MinUpTime - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_MinUpTime < 0 )
+ if( f_MinUpTime < 1 )
   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
                            "minimum up time is "
                            + std::to_string( f_MinUpTime ) +
-                           ", but it must be nonnegative." ) );
+                           ", but it must be greater than 0." ) );
 
  // MinDownTime - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_MinDownTime < 0 )
