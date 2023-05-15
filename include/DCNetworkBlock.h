@@ -830,6 +830,20 @@ class DCNetworkBlock : public NetworkBlock
   return( &( v_ActiveDemand.front() ) );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum production of the electrical generators
+ /** Returns the maximum production for the given interval, which is assumed
+  * to have size get_number_nodes().
+  *
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
+
+ const double * get_max_node_injection( Index i = 0 ) const override {
+  if( v_MaxNodeInjection.empty() )
+   return( nullptr );
+  return( &( v_MaxNodeInjection.front() ) );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -946,6 +960,17 @@ class DCNetworkBlock : public NetworkBlock
    v_ActiveDemand = v[ 0 ];
  }
 
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_max_node_injection( Index interval_id , Index node_id ,
+                              const double max_injection ) override
+ {
+  if( v_MaxNodeInjection.empty() )
+   v_MaxNodeInjection.resize( get_number_nodes() );
+  v_MaxNodeInjection[ node_id ] = max_injection;
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -984,7 +1009,15 @@ class DCNetworkBlock : public NetworkBlock
   *   each line l in {0, ..., get_number_lines() - 1};
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
-  *   constant term. */
+  *   constant term;
+  *
+  * - The variable "MaxNodeInjection", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberNodes". This is meant to represent the vector MNI[
+  *   u ] that contains the upper bound of the node injection variable of the
+  *   user u. If it is not found in the NcGroup, then MNI[ u ] is set as
+  *   the sum of the maximum powers at the given time instant t of all the
+  *   electrical generators owned by the user u. [see the comments to
+  *   UCBlock::deserialize()]. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1151,6 +1184,9 @@ class DCNetworkBlock : public NetworkBlock
  /// the kappa constant for each line
  std::vector< double > v_kappa;
 
+ /// maximum production of the renewable assets
+ std::vector< double > v_MaxNodeInjection;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the power flow variables
@@ -1169,6 +1205,9 @@ class DCNetworkBlock : public NetworkBlock
 
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
+
+ /// the node injection upper bound constraints
+ std::vector< BoxConstraint > node_injection_upper_bound_const;
 
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;

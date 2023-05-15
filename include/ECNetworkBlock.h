@@ -465,6 +465,20 @@ class ECNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the maximum production of the electrical generators
+ /** Returns the maximum production for the given interval, which is assumed
+  * to have size get_number_nodes().
+  *
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
+
+ const double * get_max_node_injection( Index i = 0 ) const override {
+  if( v_MaxNodeInjection.empty() )
+   return( nullptr );
+  return( &( v_MaxNodeInjection.data()[ i * get_number_nodes() ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the energy sell price at interval i
  /** Returns the tariff that the user gains to sell electricity to the
   * public market at interval i.
@@ -627,6 +641,18 @@ class ECNetworkBlock : public NetworkBlock
   }
  }
 
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_max_node_injection( Index interval_id , Index node_id ,
+                            const double max_injection ) override
+ {
+  if( v_MaxNodeInjection.empty() )
+   v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxNodeInjection[ interval_id ][ node_id ] = max_injection;
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- OTHER INITIALIZATIONS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -690,7 +716,16 @@ class ECNetworkBlock : public NetworkBlock
    *  tariff that the user pays due to the peak power;
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
-  *   constant term, i.e., typically the fixed costs. */
+  *   constant term, i.e., typically the fixed costs;
+  *
+  * - The variable "MaxNodeInjection", of type netCDF::NcDouble and indexed over
+  *   the dimensions "NumberIntervals" and "NumberNodes". This is meant to
+  *   represent the vector MNI[ t , u ] that contains the upper bound of the
+  *   node injection variable at time instant t of the user u. If it is not
+  *   found in the NcGroup, then MNI[ t , u ] is set as the sum of the
+  *   maximum powers at the given time instant t of all the electrical
+  *   generators owned by the user u. [see the comments to
+  *   UCBlock::deserialize()]. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -819,6 +854,9 @@ class ECNetworkBlock : public NetworkBlock
  /// tariff that the user pays due to the peak power
  double f_PeakTariff{};
 
+ /// maximum production of the renewable assets
+ boost::multi_array< double , 2 > v_MaxNodeInjection;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// power injected (+) by the user into the public market at each time
@@ -850,6 +888,10 @@ class ECNetworkBlock : public NetworkBlock
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
+
+
+ /// the node injection upper bound constraints
+ boost::multi_array< BoxConstraint , 2 > node_injection_upper_bound_const;
 
 
  /// the objective function

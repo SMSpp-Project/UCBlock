@@ -481,6 +481,12 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
   const std::vector< std::vector< double > > & v ) = 0;
 
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ virtual void set_max_node_injection( Index interval_id , Index node_id ,
+                                      const double max_injection ) = 0;
+
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -528,6 +534,18 @@ class NetworkBlock : public Block
   */
 
  virtual const double * get_active_demand( Index i = 0 ) const {
+  return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum production of the electrical generators
+ /** Returns the maximum production for the given interval, which is assumed
+  * to have size get_number_nodes().
+  *
+  * @param i The interval wrt the vector of demands for each user is returned.
+  */
+
+ virtual const double * get_max_node_injection( Index i = 0 ) const {
   return( nullptr );
  }
 

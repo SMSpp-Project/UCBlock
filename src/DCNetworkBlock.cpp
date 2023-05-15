@@ -67,6 +67,7 @@ DCNetworkBlock::~DCNetworkBlock()
  Constraint::clear( v_AC_power_flow_limit_const );
  Constraint::clear( v_AC_HVDC_power_flow_limit_const );
  Constraint::clear( v_power_flow_injection_const );
+ Constraint::clear( node_injection_upper_bound_const );
 
  Constraint::clear( v_power_flow_relax_abs );
 
@@ -105,6 +106,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
+                                                     "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
@@ -189,7 +191,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "ConstantTerm" };
+                                                     "ConstantTerm" ,
+                                                     "MaxNodeInjection" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -232,6 +235,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
+
+ ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection );
 
  ::deserialize( group , f_ConstTerm , "ConstantTerm" );
 
@@ -429,6 +434,22 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  }  // end( AC/HVDC constraints)
 
+ // node injection upper bound constraints
+
+ node_injection_upper_bound_const.resize( number_nodes );
+
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+  node_injection_upper_bound_const[ node_id ].set_lhs( -Inf< double >() );
+  node_injection_upper_bound_const[ node_id ].set_rhs(
+   v_MaxNodeInjection[ node_id ] );
+  node_injection_upper_bound_const[ node_id ].set_variable(
+   &v_node_injection[ 0 ][ node_id ] );
+ }
+
+ add_static_constraint( node_injection_upper_bound_const ,
+                        "Node_Injection_Upper_Bound_Const_Network" );
+
  set_constraints_generated();
 
 }  // end( DCNetworkBlock::generate_abstract_constraints )
@@ -502,7 +523,8 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( v_HVDC_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_AC_HVDC_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_injection_const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol ) );
+  && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol )
+  && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
 
 } // end( DCNetworkBlock::is_feasible )
 
@@ -584,6 +606,9 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
+
+ ::serialize( group , "MaxNodeInjection" , netCDF::NcDouble() ,
+              NumberNodes , v_MaxNodeInjection );
 
 }  // end( DCNetworkBlock::serialize )
 
