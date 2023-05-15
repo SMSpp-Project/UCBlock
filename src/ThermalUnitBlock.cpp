@@ -3163,7 +3163,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
 
  // initialize Objective
  //
- // the order of the variables in the (DQuad/Lin)Function is:
+ // the order of the variables in the Objective Function is:
  //
  // - first f_time_horizon - init_t start-up variables
  //
@@ -3177,7 +3177,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  // - then possibly f_time_horizon secondary reserve variables
  //
  // this arrangement is exploited in add_Modification to easily map
- // indices in the coefficients of the (DQuad/Lin)Function back into
+ // indices in the coefficients of the Objective Function back into
  // indices of the original variables (and figure out the kind of variable)
 
  if( v_commitment.size() != f_time_horizon )
@@ -3195,139 +3195,72 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    "ThermalUnitBlock::generate_objective: v_start_up must have "
    "size equal to the time horizon - init_t." ) );
 
- if( ! f_cuts ) {
+ DQuadFunction::v_coeff_triple vars;
 
-  DQuadFunction::v_coeff_triple vars;
+ if( f_InvestmentCost != 0 )
+  vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
-  if( f_InvestmentCost != 0 )
-   vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
+ // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
+ for( Index t = init_t ; t < f_time_horizon ; ++t )
+  vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
+                                   f_scale * v_StartUpCost[ t ] , 0.0 ) );
 
-  // add the start-up variables - - - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = init_t ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
-                                    f_scale * v_StartUpCost[ t ] , 0.0 ) );
+ // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  vars.push_back( std::make_tuple( &v_active_power[ t ] ,
+                                   f_scale * v_LinearTerm[ t ] ,
+                                   f_cuts ? 0.0 : f_scale * v_QuadTerm[ t ] ) );
 
-  // add the active power variables - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_tuple( &v_active_power[ t ] ,
-                                    f_scale * v_LinearTerm[ t ] ,
-                                    f_scale * v_QuadTerm[ t ] ) );
+ // add the commitment variables- - - - - - - - - - - - - - - - - - - - - - -
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  vars.push_back( std::make_tuple( &v_commitment[ t ] ,
+                                   f_scale * v_ConstTerm[ t ] , 0.0 ) );
 
-  // add the commitment variables - - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
-                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
+ if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
+  // add the primary spinning reserve variables - - - - - - - - - - - - - - -
+  if( v_primary_spinning_reserve.size() != f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
+                            "spinning_reserve must have size equal to the "
+                            "time horizon." ) );
 
-  // possibly add the primary and secondary spinning reserve variables- - - -
-  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
-   // add the primary spinning reserve variables- - - - - - - - - - - - - - -
-   if( v_primary_spinning_reserve.size() != f_time_horizon )
-    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
-                             "spinning_reserve must have size equal to the "
-                             "time horizon." ) );
-
-   if( v_PrimarySpinningReserveCost.empty() )
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                      0.0 , 0.0 ) );
-   else
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                      f_scale * v_PrimarySpinningReserveCost[ t ] ,
-                                      0.0 ) );
-  }
-
-  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
-   // add the secondary spinning reserve variables- - - - - - - - - - - - - -
-   if( v_secondary_spinning_reserve.size() != f_time_horizon )
-    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
-                             "_spinning_reserve must have size equal to the "
-                             "time horizon." ) );
-
-   if( v_SecondarySpinningReserveCost.empty() )
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                      0.0 , 0.0 ) );
-   else
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                      f_scale * v_SecondarySpinningReserveCost[ t ] ,
-                                      0.0 ) );
-  }
-
-  objective.set_function( new DQuadFunction( std::move( vars ) ) );
-
- } else {
-
-  LinearFunction::v_coeff_pair vars;
-
-  if( f_InvestmentCost != 0 )
-   vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
-
-  // add the start-up variables - - - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = init_t ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
-                                   f_scale * v_StartUpCost[ t ] ) );
-
-  // add the active power variables - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                   f_scale * v_LinearTerm[ t ] ) );
-
-  // add the commitment variables - - - - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_pair( &v_commitment[ t ] ,
-                                   f_scale * v_ConstTerm[ t ] ) );
-
-  // possibly add the primary and secondary spinning reserve variables- - - -
-  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
-   // add the primary spinning reserve variables- - - - - - - - - - - - - - -
-   if( v_primary_spinning_reserve.size() != f_time_horizon )
-    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_primary_"
-                             "spinning_reserve must have size equal to the "
-                             "time horizon." ) );
-
-   if( v_PrimarySpinningReserveCost.empty() )
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     0.0 ) );
-   else
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+  if( v_PrimarySpinningReserveCost.empty() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
+                                     0.0 , 0.0 ) );
+  else
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
                                      f_scale *
-                                     v_PrimarySpinningReserveCost[ t ] ) );
-  }
-
-  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
-   // add the secondary spinning reserve variables- - - - - - - - - - - - - -
-   if( v_secondary_spinning_reserve.size() != f_time_horizon )
-    throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
-                             "_spinning_reserve must have size equal to the "
-                             "time horizon." ) );
-
-   if( v_SecondarySpinningReserveCost.empty() )
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     v_PrimarySpinningReserveCost[ t ] ,
                                      0.0 ) );
-   else
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     f_scale *
-                                     v_SecondarySpinningReserveCost[ t ] ) );
-  }
-
-  // add the perspective cuts variables - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_pair( &v_cut[ t ] ,
-                                   f_scale * v_QuadTerm[ t ] ) );
-
-  objective.set_function( new LinearFunction( std::move( vars ) ) );
  }
 
+ if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
+  // add the secondary spinning reserve variables - - - - - - - - - - - - - -
+  if( v_secondary_spinning_reserve.size() != f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::generate_objective: v_secondary"
+                            "_spinning_reserve must have size equal to the "
+                            "time horizon." ) );
+
+  if( v_SecondarySpinningReserveCost.empty() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
+                                     0.0 , 0.0 ) );
+  else
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
+                                     f_scale *
+                                     v_SecondarySpinningReserveCost[ t ] ,
+                                     0.0 ) );
+ }
+
+ if( f_cuts )
+  // add the perspective cuts variables - - - - - - - - - - - - - - - - - - -
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_tuple( &v_cut[ t ] ,
+                                    f_scale * v_QuadTerm[ t ] , 0.0 ) );
+
+ objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
 
  // set Block objective
@@ -4282,7 +4215,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
-  // the order of the variables in the (DQuad/Lin)Function is:
+  // the order of the variables in the Objective Function is:
   //
   // - first f_time_horizon - init_t start-up variables
   //
@@ -4348,7 +4281,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
-  // the order of the variables in the (DQuad/Lin)Function is:
+  // the order of the variables in the Objective Function is:
   //
   // - first f_time_horizon - init_t start-up variables
   //
@@ -4832,7 +4765,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
   assert( var_index < function->get_num_active_var() );
   function->modify_term( var_index ,
                          f_scale * v_LinearTerm[ t ] ,
-                         f_scale * v_QuadTerm[ t ] ,
+                         f_cuts ? 0.0 : f_scale * v_QuadTerm[ t ] ,
                          issueAMod );
  }
 }  // end( ThermalUnitBlock::update_objective_active_power )
