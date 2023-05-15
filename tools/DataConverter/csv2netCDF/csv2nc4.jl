@@ -302,7 +302,7 @@ function csvEC2nc4()
                         batt_max_C_dch[:] = max_C_dch
                     end
 
-                    # set a negative inital power negative to use the cyclical notation
+                    # set a negative initial power negative to use the cyclical notation
                     initial_storage = defVar(ub, "InitialStorage", Float64, ())
                     initial_storage[:] = -1
 
