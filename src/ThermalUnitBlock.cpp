@@ -3531,10 +3531,10 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
 
   auto depends_on_min_power = ( t > init_t );
   depends_on_min_power |= ( t == init_t ) &&
-                          ( ( f_InitUpDownTime < 0 &&
-                              -f_InitUpDownTime < f_MinDownTime ) ||
-                            ( f_InitUpDownTime > 0 &&
-                              f_InitUpDownTime < f_MinUpTime ) );
+                          ( ( ( f_InitUpDownTime < 0 ) &&
+                              ( -f_InitUpDownTime < f_MinDownTime ) ) ||
+                            ( ( f_InitUpDownTime > 0 ) &&
+                              ( f_InitUpDownTime < f_MinUpTime ) ) );
 
   if( depends_on_min_power ) {
 
