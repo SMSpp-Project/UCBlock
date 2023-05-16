@@ -263,10 +263,10 @@ class ThermalUnitBlock : public UnitBlock
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
-  *   each time instant t, contains the start up cost value of the unit for the
+  *   each time instant t, contains the start-up cost value of the unit for the
   *   corresponding time step. This variable is optional; if it is not provided
   *   then it is assumed that SC[ t ] == 0, i.e., this unit may not have any
-  *   start up cost. If "StartUpCost" has length 1 then SC[ t ] contains the
+  *   start-up cost. If "StartUpCost" has length 1 then SC[ t ] contains the
   *   same value for all t. Otherwise, StartUpCost[ i ] is the fixed value of
   *   SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
@@ -342,7 +342,7 @@ class ThermalUnitBlock : public UnitBlock
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
   *   time in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinDownTime == 0, which mean that the unit can start up in
+  *   taken to be MinDownTime == 0, which mean that the unit can start-up in
   *   the very same timestamp in which it shuts down.
   *
   * - The variable "FixedConsumption", of type netCDF::NcDouble and either
@@ -490,7 +490,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   - otherwise init_t = \f$ \tau_- \f$ + \f$ \tau_0 \f$;
   *
-  * - If the \f$ \tau_0 == 0 \f$ means that the unit has been just shutdown at
+  * - If the \f$ \tau_0 == 0 \f$ means that the unit has been just shut-down at
   *   the end of time instant -1, i.e., the beginning of time instant 0 and
   *   init_t == 0.
   *
@@ -526,11 +526,11 @@ class ThermalUnitBlock : public UnitBlock
   *   \f]
   *
   * - since the variables commitment \f$ u_t \f$ have full size of time horizon
-  *   and other two remain variables which are startup \f$ v_t \f$ and shutdown
+  *   and other two remain variables which are start-up \f$ v_t \f$ and shut-down
   *   \f$ w_t \f$ have size (f_time_horizon - init_t), the equalities (1) show
   *   a std::vector< FRowConstraint > with exactly (f_time_horizon - init_t)
   *   entries, the entry a = init_t, ...,(f_time_horizon - 1) being the startup
-  *   and shutdown connecting constraints at time t. According to the concept
+  *   and shut-down connecting constraints at time t. According to the concept
   *   of init_t when \f$ \tau_0 < 0 \f$  and \f$ -\tau_0 < \tau_- \f$ the
   *   commitment variables \f$ u_t \f$  are fixed to zero for init_t time
   *   steps (starting from zero till init_t - 1). When \f$ \tau_0 > 0 \f$  and
@@ -558,7 +558,7 @@ class ThermalUnitBlock : public UnitBlock
   *   Similarly for turn off inequalities (3), where it is a
   *   std::vector< FRowConstraint > with exactly
   *   (f_time_horizon - init_t - f_MinDownTime) entries, the entry
-  *   a = init_t + f_MinDownTime, ...,(f_time_horizon - 1) being the shutdown
+  *   a = init_t + f_MinDownTime, ...,(f_time_horizon - 1) being the shut-down
   *   constraints at time t. when unit in the time t is OFF (\f$ u_t = 0
   *   \f$), it could have been turned off at most once in the last
   *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
@@ -587,7 +587,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *   According to above definition about the size of variables and since the
   *   variables commitment \f$ u_t \f$ have full size of time horizon and
-  *   startup \f$ v_t \f$ variables have size (f_time_horizon - init_t).
+  *   start-up \f$ v_t \f$ variables have size (f_time_horizon - init_t).
   *   Analyzing the left hand side of the ramp-up constraint (4), in any
   *   integral feasible solution we can see that
   *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
@@ -718,14 +718,14 @@ class ThermalUnitBlock : public UnitBlock
   *   These inequalities give the active power output generation limits when
   *   unit is ON or OFF. More precisely, the unit generation limits taking into
   *   account its maximum \f$ \bar{p}_t \f$ and minimum \f$ \underline{p}_t \f$
-  *   production, as well as its startup and shutdown capabilities (here both of
-  *   them are assumed be equal with minimum production \f$ \underline{p}_t \f$)
-  *   in each time step t. Be aware that (10) may be infeasible in the event
-  *   that the unit is online for just one period. That is,
-  *   \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can be negative.
-  *   Consequently, (10) is only valid when \f$ \tau_+ \geq 2 \f$. Therefore,
-  *   the correct formulation for units with \f$ \tau_+ = 1 \f$ is given by
-  *   (11) and (12). */
+  *   production, as well as its start-up and shut-down capabilities (here
+  *   both of them are assumed be equal with minimum production \f$
+  *   \underline{p}_t \f$) in each time step t. Be aware that (10) may be
+  *   infeasible in the event that the unit is online for just one period.
+  *   That is, \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can
+  *   be negative. Consequently, (10) is only valid when \f$ \tau_+ \geq 2
+  *   \f$. Therefore, the correct formulation for units with \f$ \tau_+ = 1
+  *   \f$ is given by (11) and (12). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -1206,17 +1206,17 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of startup cost
- /** The returned vector contains to startup cost at time t. There are three
+ /// returns the vector of start-up cost
+ /** The returned vector contains to start-up cost at time t. There are three
   * possible cases:
   *
-  * - if the vector is empty, then the startup cost of the unit is 0;
+  * - if the vector is empty, then the start-up cost of the unit is 0;
   *
-  * - if the vector has only one element, then the startup cost of the unit
+  * - if the vector has only one element, then the start-up cost of the unit
   *   for all time horizon;
   *
   * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the start up cost value at time t. */
+  *   of vector represents the start-up cost value at time t. */
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
@@ -1801,7 +1801,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the design binary variable
  ColVariable design;
 
- /// the start up binary variables
+ /// the start-up binary variables
  std::vector< ColVariable > v_start_up;
 
  /// the shut-down binary variables
@@ -1915,7 +1915,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment bound constraints
  std::vector< ZOConstraint > Commitment_bound_Const;
 
- /// the startup binary bound constraints
+ /// the start-up binary bound constraints
  std::vector< ZOConstraint > StartUp_Binary_bound_Const;
 
  /// the shut-down binary bound constraints
@@ -2021,11 +2021,11 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// updates the terms of the Objective associated with the start up cost
+ /// updates the terms of the Objective associated with the start-up cost
  /** This method updates the terms of the Objective that are associated with
-  * the start up cost.
+  * the start-up cost.
   *
-  * @param subset A set of time instants at which the start up costs must be
+  * @param subset A set of time instants at which the start-up costs must be
   *        updated.
   *
   * @param issueAMod controls how abstract Modification are issued. */
@@ -2123,7 +2123,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetInitP ,                  ///< set initial power values
   eSetInitUD ,                 ///< set initial up/down times
   eSetAv ,                     ///< set availability
-  eSetSUC ,                    ///< set startup costs
+  eSetSUC ,                    ///< set start-up costs
   eSetLinT ,                   ///< set linear term
   eSetQuadT ,                  ///< set quad term
   eSetConstT ,                 ///< set constant term
@@ -2164,7 +2164,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
     output << "Set availability";
     break;
    case( eSetSUC ):
-    output << "Set startup costs";
+    output << "Set start-up costs";
     break;
    case( eSetLinT ):
     output << "Set linear term";
