@@ -117,7 +117,8 @@ class UnitBlock : public Block
   * Block and the time horizon. By default the time horizon is initialized to
   * 0, which means "not set yet". */
 
- explicit UnitBlock( Block * father_block = nullptr , Index t = 0 );
+ explicit UnitBlock( Block * father_block = nullptr , Index t = 0 )
+  : Block( father_block ) , f_time_horizon( t ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UnitBlock
@@ -722,7 +723,7 @@ class UnitBlock : public Block
  Index f_time_horizon;
 
  /// the number of intervals
- Index f_number_intervals;
+ Index f_number_intervals{};
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;

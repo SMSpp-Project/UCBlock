@@ -1184,7 +1184,7 @@ class DCNetworkBlock : public NetworkBlock
  /// the kappa constant for each line
  std::vector< double > v_kappa;
 
- /// maximum production of the renewable assets
+ /// maximum production of the electrical generators
  std::vector< double > v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/

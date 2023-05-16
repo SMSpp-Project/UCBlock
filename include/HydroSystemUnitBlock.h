@@ -231,14 +231,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  ColVariable * get_active_power( Index generator ) override {
   auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_active_power( temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( nullptr );
  }
 
@@ -247,14 +246,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_primary_spinning_reserve( temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( nullptr );
  }
 
@@ -263,14 +261,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_secondary_spinning_reserve( temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( nullptr );
  }
 
@@ -278,10 +275,9 @@ class HydroSystemUnitBlock : public UnitBlock
 
  virtual Index get_number_generators( void ) const override {
   Index number_generators = 0;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ) )
     number_generators += unit_block->get_number_generators();
-  }
   return( number_generators );
  }
 
@@ -289,14 +285,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  const double * get_inertia_power( Index generator ) const override {
   auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_inertia_power( temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( nullptr );
  }
 
@@ -304,14 +299,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  double get_min_power( Index t , Index g = 0 ) const override {
   auto temp = g;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_min_power( t, temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( 0 );
  }
 
@@ -319,14 +313,13 @@ class HydroSystemUnitBlock : public UnitBlock
 
  double get_max_power( Index t , Index g = 0 ) const override {
   auto temp = g;
-  for( auto sub_block : get_nested_Blocks() ) {
+  for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_max_power( t, temp ) );
     else
      temp = temp - unit_block->get_number_generators();
    }
-  }
   return( 0 );
  }
 
@@ -364,11 +357,9 @@ class HydroSystemUnitBlock : public UnitBlock
 
  void set_reserve_vars( unsigned char what ) override {
   reserve_vars = what;
-  for( auto * b : v_Block ) {
-   if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) ) {
+  for( auto * b : v_Block )
+   if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reserve_vars( what );
-   }
-  }
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -401,7 +392,7 @@ class HydroSystemUnitBlock : public UnitBlock
 /*---------------------------------- data ----------------------------------*/
 
  /// the number of hydro units of the problem
- Index f_number_hydro_units;
+ Index f_number_hydro_units{};
 
 /*-------------------------------- variables -------------------------------*/
 

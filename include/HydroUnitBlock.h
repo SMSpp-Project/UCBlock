@@ -1657,14 +1657,14 @@ class HydroUnitBlock : public UnitBlock
 /*---------------------------------- data ----------------------------------*/
 
  /// the number of reservoirs (nodes) of the problem
- Index f_NumberReservoirs;
+ Index f_NumberReservoirs{};
 
  /// the number of connecting arcs which are connecting the reservoirs in
  /// cascading system
- Index f_NumberArcs;
+ Index f_NumberArcs{};
 
  /// the total number of pieces
- Index f_TotalNumberPieces;
+ Index f_TotalNumberPieces{};
 
  /// the vector of UphillDelay
  std::vector< int > v_UphillDelay;

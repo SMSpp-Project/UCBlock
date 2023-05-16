@@ -58,11 +58,6 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-UnitBlock::UnitBlock( Block * father_block , Index t )
- : Block( father_block ) , f_time_horizon( t ) , f_number_intervals( 0 ) {}
-
-/*--------------------------------------------------------------------------*/
-
 void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
 {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );

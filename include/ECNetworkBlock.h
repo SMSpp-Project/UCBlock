@@ -54,11 +54,11 @@ namespace SMSpp_di_unipi_it
 /// an energy community NetworkBlock, i.e., an "EC" network
 /**
  * The ECNetworkBlock class derives from NetworkBlock, and embeds the idea
- * that a number of users with no pre-installed generation assets are joining to
- * create an energy community. Each user is connected to the public grid
- * through each own Point-of-Delivery (PoD), and each user is billed for the
- * energy he consumes and sells. The aggregation of the users, under the
- * umbrella of the formal entity Energy Community, is awarded with an
+ * that a number of users with no pre-installed electrical generators are
+ * joining to create an energy community. Each user is connected to the
+ * public grid through each own Point-of-Delivery (PoD), and each user is
+ * billed for the energy he consumes and sells. The aggregation of the users,
+ * under the umbrella of the formal entity Energy Community, is awarded with an
  * economic benefit that is proportional to the energy shared among the
  * users, which is the energy that in each time step is produced and sold by
  * users within the community. */
@@ -301,8 +301,8 @@ class ECNetworkBlock : public NetworkBlock
   *   and \f$ P_{n,t}^{M-} \f$ variables, i.e., the injection and absorption
   *   from the microgrid, to give an economic benefit to users that do not
   *   contribute to the community by sharing energy since they are unable to
-  *   install assets due to economic or space reasons; and on which,
-  *   otherwise, all the costs of the peak powers would be borne.
+  *   install electrical generators due to economic or space reasons; and on
+  *   which, otherwise, all the costs of the peak powers would be borne.
   *
   *  - The power balance within the microgrid:
   *
@@ -854,7 +854,7 @@ class ECNetworkBlock : public NetworkBlock
  /// tariff that the user pays due to the peak power
  double f_PeakTariff{};
 
- /// maximum production of the renewable assets
+ /// maximum production of the electrical generators
  boost::multi_array< double , 2 > v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/
