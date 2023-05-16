@@ -1267,6 +1267,18 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the start-up limit
+ const std::vector< double > & get_start_up_limit( void ) const {
+  return( v_StartUpLimit );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the shut-down limit
+ const std::vector< double > & get_shut_down_limit( void ) const {
+  return( v_ShutDownLimit );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the scale factor
  double get_scale( void ) const override { return( f_scale ); }
 

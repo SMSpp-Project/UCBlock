@@ -586,6 +586,8 @@ void ThermalUnitDPSolver::load_parameters( void )
  startup_costs = b->get_start_up_cost();
  min_power = b->get_min_power();
  max_power = b->get_max_power();
+ bound_on = b->get_start_up_limit();
+ bound_down = b->get_shut_down_limit();
 
  if( b->get_delta_ramp_up().empty() )
   delta_ramp_up = max_power;

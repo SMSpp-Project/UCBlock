@@ -599,12 +599,8 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > delta_ramp_down;
  std::vector< double > min_power;
  std::vector< double > max_power;
-
- // these two are identical to min_power, but we keep them for readability
- std::vector< double > & bound_on = min_power;
- std::vector< double > & bound_down = min_power;
- // TODO std::vector< double > & bound_on = max_power;
- // TODO std::vector< double > & bound_down = max_power;
+ std::vector< double > bound_on;
+ std::vector< double > bound_down;
 
  std::vector< double > quad_term;
  std::vector< double > linear_term;
