@@ -104,11 +104,11 @@ class IntermittentUnitBlock : public UnitBlock
 /** @name Constructor and Destructor
  * @{ */
 
- /// constructor, takes the father and the time horizon
+ /// constructor, takes the father block
  /** Constructor of IntermittentUnitBlock, taking possibly a pointer of its
   * father Block. */
 
- explicit IntermittentUnitBlock( Block * f_block = nullptr , Index t = 0 )
+ explicit IntermittentUnitBlock( Block * f_block = nullptr )
   : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/

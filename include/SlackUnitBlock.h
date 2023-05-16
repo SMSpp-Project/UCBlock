@@ -88,12 +88,12 @@ class SlackUnitBlock : public UnitBlock
 /** @name Constructor and Destructor
  * @{ */
 
- /// constructor, takes the father and the time horizon
- /** Constructor of SlackUnitBlock, taking possibly a pointer of its
-  * father Block and the time horizon. */
+ /// constructor, takes the father block
+ /** Constructor of SlackUnitBlock, taking possibly a pointer of its father
+  * Block. */
 
- explicit SlackUnitBlock( Block * f_block = nullptr , Index t = 0 )
-  : UnitBlock( f_block , t ) {}
+ explicit SlackUnitBlock( Block * f_block = nullptr )
+  : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of SlackUnitBlock

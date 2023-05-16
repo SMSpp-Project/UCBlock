@@ -103,12 +103,12 @@ class HydroUnitBlock : public UnitBlock
 /** @name Constructor and Destructor
  * @{ */
 
-/// constructor, takes the father and the time horizon
-/** Constructor of HydroUnitBlock, taking possibly a pointer of its
- * father Block. */
+/// constructor, takes the father block
+/** Constructor of HydroUnitBlock, taking possibly a pointer of its father
+ * Block. */
 
- explicit HydroUnitBlock( Block * f_block = nullptr , Index t = 0 )
-  : UnitBlock( f_block , t ) {}
+ explicit HydroUnitBlock( Block * f_block = nullptr )
+  : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of HydroUnitBlock

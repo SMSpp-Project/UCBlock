@@ -91,12 +91,11 @@ class HeatBlock : public Block
 /** @name Constructor and Destructor
  * @{ */
 
- /// constructor, takes the father and the time horizon
- /** Constructor of HeatBlock, taking possibly a pointer of its father
-  * Block and the time horizon. */
+ /// constructor, takes the father block
+ /** Constructor of HeatBlock, taking possibly a pointer of its father Block. */
 
- explicit HeatBlock( Block * father_block = nullptr , Index t = 0 )
-  : Block( father_block ) {}
+ explicit HeatBlock( Block * father = nullptr )
+  : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of HeatBlock

@@ -153,11 +153,11 @@ class BatteryUnitBlock : public UnitBlock
 /** @name Constructor and Destructor
  * @{ */
 
- /// constructor, takes the father and the time horizon
+ /// constructor, takes the father block
  /** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
   * Block. */
 
- explicit BatteryUnitBlock( Block * f_block = nullptr , Index t = 0 )
+ explicit BatteryUnitBlock( Block * f_block = nullptr )
   : UnitBlock( f_block ) {}
 
 /*--------------------------------------------------------------------------*/

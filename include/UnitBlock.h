@@ -112,13 +112,11 @@ class UnitBlock : public Block
 /** @name Constructor and Destructor
  * @{ */
 
- /// constructor, takes the father and the time horizon
- /** Constructor of UnitBlock, taking possibly a pointer of its father
-  * Block and the time horizon. By default the time horizon is initialized to
-  * 0, which means "not set yet". */
+ /// constructor, takes the father block
+ /** Constructor of UnitBlock, taking possibly a pointer of its father Block. */
 
- explicit UnitBlock( Block * father_block = nullptr , Index t = 0 )
-  : Block( father_block ) , f_time_horizon( t ) {}
+ explicit UnitBlock( Block * father = nullptr )
+  : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UnitBlock
@@ -720,7 +718,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  /// the time horizon of the problem
- Index f_time_horizon;
+ Index f_time_horizon{};
 
  /// the number of intervals
  Index f_number_intervals{};
