@@ -60,7 +60,7 @@ ECNetworkBlock::~ECNetworkBlock()
  Constraint::clear( power_shared_const );
  Constraint::clear( power_flow_limit_const );
 
- Constraint::clear( node_injection_upper_bound_const );
+ Constraint::clear( node_injection_bounds_const );
 
  objective.clear();
 
@@ -373,9 +373,9 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( power_flow_limit_const ,
                         "Power_Flow_Limit_Const_Network" );
 
- // node injection upper bound constraints
+ // node injection bound constraints
 
- node_injection_upper_bound_const.resize(
+ node_injection_bounds_const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ number_nodes ][ number_intervals ] );
 
@@ -383,15 +383,15 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   node_injection_upper_bound_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-   node_injection_upper_bound_const[ node_id ][ t ].set_rhs(
+   node_injection_bounds_const[ node_id ][ t ].set_lhs( 0.0 );
+   node_injection_bounds_const[ node_id ][ t ].set_rhs(
     v_MaxNodeInjection[ t ][ node_id ] );
-   node_injection_upper_bound_const[ node_id ][ t ].set_variable(
+   node_injection_bounds_const[ node_id ][ t ].set_variable(
     &v_node_injection[ t ][ node_id ] );
   }
 
- add_static_constraint( node_injection_upper_bound_const ,
-                        "Node_Injection_Upper_Bound_Const_Network" );
+ add_static_constraint( node_injection_bounds_const ,
+                        "Node_Injection_Bound_Const_Network" );
 
  set_constraints_generated();
 
@@ -483,7 +483,7 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_shared_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
-  && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( node_injection_bounds_const , tol , rel_viol ) );
 
 }  // end( ECNetworkBlock::is_feasible )
 

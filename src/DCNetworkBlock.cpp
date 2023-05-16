@@ -67,11 +67,10 @@ DCNetworkBlock::~DCNetworkBlock()
  Constraint::clear( v_AC_power_flow_limit_const );
  Constraint::clear( v_AC_HVDC_power_flow_limit_const );
  Constraint::clear( v_power_flow_injection_const );
- Constraint::clear( node_injection_upper_bound_const );
-
  Constraint::clear( v_power_flow_relax_abs );
 
  Constraint::clear( v_HVDC_power_flow_limit_const );
+ Constraint::clear( node_injection_bounds_const );
 
  objective.clear();
 
@@ -434,21 +433,21 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  }  // end( AC/HVDC constraints)
 
- // node injection upper bound constraints
+ // node injection bound constraints
 
- node_injection_upper_bound_const.resize( number_nodes );
+ node_injection_bounds_const.resize( number_nodes );
 
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-  node_injection_upper_bound_const[ node_id ].set_lhs( -Inf< double >() );
-  node_injection_upper_bound_const[ node_id ].set_rhs(
+  node_injection_bounds_const[ node_id ].set_lhs( 0.0 );
+  node_injection_bounds_const[ node_id ].set_rhs(
    v_MaxNodeInjection[ node_id ] );
-  node_injection_upper_bound_const[ node_id ].set_variable(
+  node_injection_bounds_const[ node_id ].set_variable(
    &v_node_injection[ 0 ][ node_id ] );
  }
 
- add_static_constraint( node_injection_upper_bound_const ,
-                        "Node_Injection_Upper_Bound_Const_Network" );
+ add_static_constraint( node_injection_bounds_const ,
+                        "Node_Injection_Bound_Const_Network" );
 
  set_constraints_generated();
 
@@ -520,11 +519,11 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_auxiliary_variable , tol )
   // Constraints
   && RowConstraint::is_feasible( v_AC_power_flow_limit_const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_HVDC_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_AC_HVDC_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_injection_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol )
-  && RowConstraint::is_feasible( node_injection_upper_bound_const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( v_HVDC_power_flow_limit_const , tol , rel_viol )
+  && RowConstraint::is_feasible( node_injection_bounds_const , tol , rel_viol ) );
 
 } // end( DCNetworkBlock::is_feasible )
 

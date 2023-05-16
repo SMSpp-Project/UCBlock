@@ -890,8 +890,8 @@ class ECNetworkBlock : public NetworkBlock
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
 
 
- /// the node injection upper bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_upper_bound_const;
+ /// the node injection bound constraints
+ boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
 
 
  /// the objective function

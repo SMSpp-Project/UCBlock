@@ -1206,15 +1206,15 @@ class DCNetworkBlock : public NetworkBlock
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
- /// the node injection upper bound constraints
- std::vector< BoxConstraint > node_injection_upper_bound_const;
-
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
 
  /// HVDC power flow limit constraints
  std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
+
+ /// the node injection bound constraints
+ std::vector< BoxConstraint > node_injection_bounds_const;
 
 
  /// the objective function
