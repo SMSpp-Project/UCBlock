@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 project(UCBlock
-        VERSION 0.6.1
+        VERSION 0.6.2
         DESCRIPTION "SMS++ UCBlock module"
         HOMEPAGE_URL https://gitlab.com/smspp/ucblock
         LANGUAGES C CXX)
