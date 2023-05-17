@@ -1,8 +1,8 @@
 /*--------------------------------------------------------------------------*/
-/*----------------- File BatteryUnitBlock.cpp -----------------------*/
+/*--------------------- File BatteryUnitBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the BatteryStorageUnitBlock class.
+ * Implementation of the BatteryUnitBlock class.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -221,17 +221,6 @@ void BatteryUnitBlock::check_data_consistency() const {
   }
  }
 
- if( ( ! v_storing_battery_rho.empty() ) &&
-     ( ! v_extracting_battery_rho.empty() ) ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_extracting_battery_rho[ t ] < v_storing_battery_rho[ t ] ) {
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the ine"
-                             "fficiency of storing energy must not be greater "
-                             "than the inneficiency of extracting energy." ) );
-   }
-  }
- }
-
  // Delta ramp-up
 
  if( ! v_delta_ramp_up.empty() ) {
@@ -319,21 +308,54 @@ void BatteryUnitBlock::check_data_consistency() const {
 
 void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
 {
- auto battery_type = get_battery_type();
-
  if( variables_generated() )
   return; // variables have already been generated
 
  UnitBlock::generate_abstract_variables( stvv );
 
- int relax_binary = 0;
- auto config = dynamic_cast<SimpleConfiguration<int> *>( stvv );
- if( ( ! config ) && f_BlockConfig &&
-     f_BlockConfig->f_static_variables_Configuration )
-  config = dynamic_cast< SimpleConfiguration< int > * >
-   ( f_BlockConfig->f_static_variables_Configuration );
- if( config )
-  relax_binary = config->f_value;
+ // Check if negative prices may occur and if binary variables (if generated)
+ // must be relaxed.
+
+ bool negative_prices = false;
+ bool relax_binary = false;
+
+ auto extract_parameters = [ &negative_prices , &relax_binary ]
+  ( Configuration * c ) {
+  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( c ) ) {
+   negative_prices = config->f_value;
+   return( true );
+  }
+  if( auto config = dynamic_cast< SimpleConfiguration<
+      std::pair< int , int > > * >( c ) ) {
+   negative_prices = config->f_value.first;
+   relax_binary = config->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( stvv ) ) && f_BlockConfig )
+  extract_parameters( f_BlockConfig->f_static_variables_Configuration );
+
+ // Binary variables must be generated if negative prices may occur and if
+ // there is some t such that StoringBatteryRho[ t ] < 1 <
+ // ExtractingBatterRho[ t ].
+
+ bool generate_binary_variables = false;
+
+ if( negative_prices && ( ! v_storing_battery_rho.empty() ) &&
+     ( ! v_extracting_battery_rho.empty() ) ) {
+  assert( v_storing_battery_rho.size() == f_time_horizon );
+  assert( v_extracting_battery_rho.size() == f_time_horizon );
+  for( Index t = 0 ; t < v_storing_battery_rho.size() ; ++t ) {
+   if( v_storing_battery_rho[ t ] < 1 && v_extracting_battery_rho[ t ] > 1 ) {
+    generate_binary_variables = true;
+    break;
+   }
+  }
+ }
+
+ // Add the static variables
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
@@ -353,15 +375,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
  add_static_variable( v_outtake_level , "OL_battery" );
 
 
- v_battery_binary.resize( f_time_horizon );
- for( auto & var : v_battery_binary ) {
-  if( relax_binary )
-   var.set_type( ColVariable::kPosUnitary );
-  else
-   var.set_type( ColVariable::kBinary );
- }
+ if( generate_binary_variables ) {
+  v_battery_binary.resize( f_time_horizon );
 
- if( battery_type == Binary_Variables_Constraints ) {
+  for( auto & var : v_battery_binary ) {
+   if( relax_binary )
+    var.set_type( ColVariable::kPosUnitary );
+   else
+    var.set_type( ColVariable::kBinary );
+  }
+
   add_static_variable( v_battery_binary , "BB_battery" );
  }
 
@@ -403,7 +426,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration *stvv )
 
 void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 {
- const auto battery_type = get_battery_type();
 
  if( constraints_generated() )
   return; // constraints have already been generated
@@ -663,7 +685,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  // Initializing intake_binary_Constraints
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   intake_binary_Constraints.resize( f_time_horizon );
 
@@ -704,7 +726,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( outtake_binary_Constraints ,
                          "Outtake_Binary_Constraints_Battery" );
- } // end( if( battery_type == Binary_Variables_Constraints ) )
+ } // end( if( ! v_battery_binary.empty() ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -753,7 +775,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 /*-------------------------------ZOConstraint-------------------------------*/
 
- if( battery_type == Binary_Variables_Constraints ) {
+ if( ! v_battery_binary.empty() ) {
 
   if( generate_ZOConstraint ) {
    // the battery binary bound constraints
@@ -1270,6 +1292,70 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
                                 Range( 0 , Inf< Index >() ) , issueAMod );
 
 }  // end( BatteryUnitBlock::update_objective )
+
+/*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR CHECKING THE BatteryUnitBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+
+bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc ) {
+
+ // Retrieve the tolerance and the type of violation.
+
+ double tolerance = 0;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tolerance , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tolerance = tc->f_value;
+   return true;
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+      std::pair< double , int > > * >( c ) ) {
+   tolerance = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return true;
+  }
+  return false;
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ auto is_feasible = [ tolerance , rel_viol ]( auto & constraints ) {
+  return RowConstraint::is_feasible( constraints , tolerance , rel_viol );
+ };
+
+ // Notice that there is no check for the active power variables, since they
+ // are continuous and have no bounds.
+
+ return UnitBlock::is_feasible( useabstract )
+  && ColVariable::is_feasible( v_storage_level , tolerance )
+  && ColVariable::is_feasible( v_intake_level , tolerance )
+  && ColVariable::is_feasible( v_outtake_level , tolerance )
+  && ColVariable::is_feasible( v_battery_binary , tolerance )
+  && ColVariable::is_feasible( v_primary_spinning_reserve , tolerance )
+  && ColVariable::is_feasible( v_secondary_spinning_reserve , tolerance )
+  && is_feasible( active_power_upper_bound_Constraints )
+  && is_feasible( active_power_lower_bound_Constraints )
+  && is_feasible( ramp_up_Constraints )
+  && is_feasible( ramp_down_Constraints )
+  && is_feasible( power_intake_outtake_Constraints )
+  && is_feasible( intake_upper_bound_Constraints )
+  && is_feasible( storage_intake_outtake_Constraints )
+  && is_feasible( storage_level_bounds_Constraints )
+  && is_feasible( intake_binary_Constraints )
+  && is_feasible( outtake_binary_Constraints )
+  && is_feasible( demand_Constraints )
+  && is_feasible( primary_upper_bound_Constraints )
+  && is_feasible( secondary_upper_bound_Constraints )
+  && is_feasible( battery_binary_bound_Constraints );
+
+} // end( BatteryUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File BatteryUnitBlock.cpp --------------------------*/

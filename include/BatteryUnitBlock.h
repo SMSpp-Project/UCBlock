@@ -139,19 +139,6 @@ class BatteryUnitBlock : public UnitBlock {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
- enum battery_type {
-  ///< when ExtractingBatteryRho >= 1 and StoringBatteryRho <=1
-  ASSUME_POSITIVE_PRICES,
-  ///< when ExtractingBatteryRho and StoringBatteryRho not defined(both == 1)
-  NO_Binary_Variables_Constraints,
-  ///< otherwise binary variables with related constraints are needed
-  Binary_Variables_Constraints
- };
-
-/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -401,46 +388,71 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the BatteryUnitBlock
- /** The BatteryUnitBlock class use get_variable() method to access to each
-  *  "group" of variable that may create in UnitBlock class which are:
+ /** This function generates the static variables of The BatteryUnitBlock,
+  * which are:
   *
-  *  - the primary spinning reserve variables;
+  *  - The primary spinning reserve variables.
   *
-  *  - the secondary spinning reserve variables;
+  *  - The secondary spinning reserve variables.
   *
-  *  - the active power variables; it can be positive or negative, if it is
-  *    positive the unit is giving energy to the system, if it is negative it
-  *    is taking energy away and adding to the storage. Since the storing and
-  *    extracting amount of active power are not always equal, to deal with
-  *    this issue, the usual trick of splitting the active power variable by
-  *    two new non-negative variables which are called intake and outtake
+  *  - The active power variables, which can be positive or negative. If it is
+  *    positive, the unit is giving energy to the system. If it is negative,
+  *    it is taking energy away and adding to the storage. Since the storing
+  *    and extracting amount of active power are not always equal, to deal
+  *    with this issue, the usual trick of splitting the active power variable
+  *    in two new non-negative variables which are called intake and outtake
   *    levels for each time t (see equation (5)) is used. If
-  *    "StoringBatteryRho" == "ExtractingBatterRho" == 1, we don not need to
-  *    split the active power and the constraint (5-7 and 10-11) will be
-  *    replaced by (8)).
+  *    "StoringBatteryRho" == "ExtractingBatterRho" == 1, we do not need to
+  *    split the active power and the constraints ((5)-(7) and (10)-(11)) will
+  *    be replaced by (8)).
   *
-  *  All of those variables are optional except the active power variables in
-  *  the sense that the model may just not have them and whenever a group of
-  *  above variables is created, its size will be the time horizon. Moreover,
-  *  BatteryUnitBlock defines four more groups of variables as follows:
+  *  - The storage level variables.
   *
-  *  - the storage level variables;
+  *  - The intake and outtake levels variable. They are needed to split the
+  *    active power variable (if it is needed).
   *
-  *  - the intake and outtake levels variable; they are needed to split the
-  *    active power variable (if it's needed);
-  *
-  *  - the binary variables; when "StoringBatteryRho" == "ExtractingBatterRho"
+  *  - The binary variables. When "StoringBatteryRho" == "ExtractingBatterRho"
   *    == 1, then this binary variable and all constraints which are depended
-  *    on this variable is not required to be define.
+  *    on this variable are not required to be define.
   *
-  *  These three groups of variables may have size f_time_horizon or empty
-  *  size.  All of these variables are optional, and it is also possible to
-  *  restrict which of the subsets are generated with the parameter stvv. If
-  *  stvv is not nullptr and it is a SimpleConfiguration<int>, or if
-  *  f_BlockConfig->f_static_variables_Configuration is not nullptr and it is
-  *  a SimpleConfiguration<int>, then the f_value (an int) indicates whether
-  *  each of the optional variables should be created. If the Configuration is
-  *  not available, the default value is taken to be 0. */
+  * Each of these groups of variables either has size #f_time_horizon or is
+  * empty (in case the variables have not been generated).
+  *
+  * The primary and secondary spinning reserve and the binary variables are
+  * optional:
+  *
+  *  - The primary spinning reserve variables are generated only if they were
+  *    instructed to be (see set_reserve_vars()) and "MaxPrimaryPower" is not
+  *    zero.
+  *
+  *  - The secondary spinning reserve variables are generated only if they
+  *    were instructed to be (see set_reserve_vars()) and "MaxSecondaryPower"
+  *    is not zero.
+  *
+  *  - The binary variables are generated only if negative prices may occur
+  *    (which can be informed via a Configuration; see below) and there exists
+  *    t such that StoringBatteryRho[ t ] < 1 and ExtractingBatterRho[ t ] > 1.
+  *
+  * The parameter \p stvv and the Configuration for this function presented in
+  * the BlockConfig (namely, #f_BlockConfig->f_static_variables_Configuration)
+  * can be used to indicate whether negative prices may occur. The parameter
+  * \p stvv has priority over the BlockConfig in the sense that the
+  * Configuration in the BlockConfig is only considered if no valid
+  * Configuration has been provided in \p stvv. By default, it is assumed that
+  * negative prices do not occur and, therefore, the binary variables are not
+  * generated. Two types of Configuration are allowed:
+  *
+  *  - If the Configuration is a SimpleConfiguration<int>, then a nonzero
+  *    value stored in this Configuration indicates that negative prices may
+  *    occur. The value zero indicates that negative prices do not occur.
+  *
+  *  - If the Configuration is a SimpleConfiguration<std::pair<int,int>>, then
+  *    the first value is associated with the negative prices (a nonzero value
+  *    indicates that negative prices may occur and the value zero indicates
+  *    that negative prices do not occur) and the second value indicates
+  *    whether the binary variables must have their integrality constraints
+  *    relaxed (a nonzero value for relaxing and the value zero for not
+  *    relaxing the integrality constraints). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -948,6 +960,16 @@ public:
  * std::vector< ColVariable > with the dimension time horizon.
  * @{ */
 
+ /// returns the kappa factor
+ /** This function returns the kappa factor, which multiplies the minimum and
+  * maximum active power, maximum primary and secondary reserve, and the
+  * minimum and maximum storage levels.
+  *
+  * @return The kappa factor. */
+
+ double get_kappa( void ) const { return f_kappa; }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of storage level variables
  /** This method returns a vector V containing the storage level
   * variables. There are two possible cases:
@@ -1028,27 +1050,6 @@ public:
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the type of this battery unit
- /** This method returns the type of this battery unit. */
-
- battery_type get_battery_type() const {
-
-  if( std::all_of( v_storing_battery_rho.cbegin() ,
-		   v_storing_battery_rho.cend() ,
-                   []( double s ) { return s <= 1.0; } ) &&
-      std::all_of( v_extracting_battery_rho.cbegin() ,
-		   v_extracting_battery_rho.cend() ,
-		   []( double s ) { return s >= 1.0; } ) )
-   return( ASSUME_POSITIVE_PRICES );
-
-  if( ( ! v_storing_battery_rho.empty() ) &&
-      ( ! v_extracting_battery_rho.empty() ) )
-   return( NO_Binary_Variables_Constraints );
-
-  return( Binary_Variables_Constraints );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1174,6 +1175,8 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the BatteryUnitBlock
+ *  @{ */
 
  void set_initial_storage( std::vector< double >::const_iterator it,
                            Subset && subset , bool ordered = false ,
@@ -1309,7 +1312,70 @@ public:
  // For the Range version, use the default implementation defined in UnitBlock
  using UnitBlock::scale;
 
+/** @} ---------------------------------------------------------------------*/
+/*--------------- Methods for checking the BatteryUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the BatteryUnitBlock
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this BatteryUnitBlock is approximately
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
+  *
+  *   -# each ColVariable is feasible; and
+  *
+  *   -# the violation of each Constraint of this BatteryUnitBlock is not
+  *      greater than the tolerance.
+  *
+  * Every Constraint of this BatteryUnitBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * follows:
+  *
+  *   - If \p fsbc is not a nullptr and it is a pointer to a
+  *     SimpleConfiguration< double >, then the tolerance is the value present
+  *     in that SimpleConfiguration and the relative violation is considered.
+  *
+  *   - If \p fsbc is not nullptr and it is a
+  *     SimpleConfiguration<std::pair<double, int>>, then the tolerance is
+  *     fsbc->f_value.first and the type of violation is determined by
+  *     fsbc->f_value.second (any nonzero number for relative violation and
+  *     zero for absolute violation);
+  *
+  *   - Otherwise, if both #f_BlockConfig and
+  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *     latter is a pointer to either a SimpleConfiguration<double> or to a
+  *     SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *     parameters are obtained analogously as above;
+  *
+  *   - Otherwise, by default, the tolerance is 0 and the relative violation
+  *     is considered.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, then this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Variable only. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *        and the type of violation that must be considered. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
