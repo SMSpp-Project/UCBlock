@@ -24,8 +24,8 @@
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
- * Copyright &copy by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
- *                    Donato Meoli, Tiziano Bacci
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
+ *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/

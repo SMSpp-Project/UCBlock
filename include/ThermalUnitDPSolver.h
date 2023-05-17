@@ -22,8 +22,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella,
- *                    Donato Meoli
+ * \copyright &copy; by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
