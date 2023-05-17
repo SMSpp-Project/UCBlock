@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2023-05-17
+
 ### Added
 
 - Add is_feasible() to BatteryUnitBlock, SlackUnitBlock.
@@ -109,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...develop
+[0.6.2]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...0.6.2
 [0.6.1]: https://gitlab.com/smspp/ucblock/-/compare/0.6.0...0.6.1
 [0.6.0]: https://gitlab.com/smspp/ucblock/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...0.5.0
