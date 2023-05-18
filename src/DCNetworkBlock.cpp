@@ -432,7 +432,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-  node_injection_bounds_const[ node_id ].set_lhs( 0.0 );
+  node_injection_bounds_const[ node_id ].set_lhs( -Inf< double >() );
   node_injection_bounds_const[ node_id ].set_rhs(
    v_MaxNodeInjection[ node_id ] );
   node_injection_bounds_const[ node_id ].set_variable(
