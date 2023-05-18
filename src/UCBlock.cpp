@@ -1007,8 +1007,10 @@ void UCBlock::generate_pollutant_budget_constraints( void )
 
  if( f_number_pollutants > 0 ) {
 
-  v_PollutantBudget_Const.resize
-   ( v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
+  v_PollutantBudget_Const.resize(
+   v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
+
+  LinearFunction::v_coeff_pair vars;
 
   if( number_nodes == 1 ) {
 
@@ -1018,9 +1020,6 @@ void UCBlock::generate_pollutant_budget_constraints( void )
          ++zone ) {
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-      // Terms associated with active power
-      LinearFunction::v_coeff_pair vars;
 
       for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
@@ -1089,9 +1088,6 @@ void UCBlock::generate_pollutant_budget_constraints( void )
          ++zone ) {
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-      // Terms associated with active power
-      LinearFunction::v_coeff_pair vars;
 
       Index pollutant_zone = 0;
       for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {

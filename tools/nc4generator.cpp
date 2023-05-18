@@ -106,7 +106,7 @@ struct ThermalUnit
 
  /// Generates StartUpCost from
  void generate_startup_cost( void ) {
-  if( coolAndFuelCost != 0 || hotAndFuelCost != 0 ) {
+  if( ( coolAndFuelCost != 0 ) || ( hotAndFuelCost != 0 ) ) {
    throw( std::invalid_argument(
     "Time-dependent start up costs are not allowed" ) );
   }

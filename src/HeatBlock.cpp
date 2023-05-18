@@ -247,6 +247,8 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc )
  if( ! v_HeatBounds_Const.empty() )  // constraints have already been generated
   return;                            // nothing to do
 
+ LinearFunction::v_coeff_pair vars;
+
  // Satisfaction Heat Bounds constraints
 
  v_HeatBounds_Const.resize(
@@ -289,8 +291,6 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
-
    if( t == 0 ) {
 
     vars.push_back( std::make_pair( &v_heat_available[ t ] , 1.0 ) );
@@ -332,8 +332,6 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
-
    vars.push_back( std::make_pair( &v_heat_added[ t ] , -1.0 ) );
    vars.push_back( std::make_pair( &v_heat_removed[ t ] , 1.0 ) );
    for( Index unit_id = 0 ; unit_id < f_number_heat_units ; ++unit_id )
@@ -353,8 +351,8 @@ void HeatBlock::generate_abstract_constraints( Configuration * stcc )
 
 void HeatBlock::generate_objective( Configuration * objc )
 {
- if( objective_generated() )  // Objective has already been generated
-  return;                     // nothing to do
+ if( get_objective() )  // Objective has already been generated
+  return;               // nothing to do
 
  if( v_heat.size() != f_time_horizon )
   throw( std::logic_error( "HeatBlock::generate_objective: v_heat must have "

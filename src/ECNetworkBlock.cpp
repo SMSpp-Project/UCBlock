@@ -244,6 +244,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 /*-------------------------- equality constraints --------------------------*/
 
+ LinearFunction::v_coeff_pair vars;
+
  // set the power balance, i.e.:
  //
  //    P^+ - P^- - node_injection = - active_demand   for all u, t
@@ -255,8 +257,6 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < number_intervals ; ++t )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    vars.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
                                    1.0 ) );
@@ -274,6 +274,9 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 /*------------------------- inequality constraints -------------------------*/
 
+ LinearFunction::v_coeff_pair vars_p;
+ LinearFunction::v_coeff_pair vars_n;
+
  // max shared power constraints within the microgrid market, i.e.:
  //
  //    P^M <= P^+       for all u, t     (1)
@@ -289,9 +292,6 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    [ number_intervals ][ 2 ] ); // 2 dims, i.e., injection (+) and absorption (-)
 
   for( Index t = 0 ; t < number_intervals ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars_p;
-   LinearFunction::v_coeff_pair vars_n;
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -341,9 +341,6 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < number_intervals ; ++t )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   LinearFunction::v_coeff_pair vars_p;
-   LinearFunction::v_coeff_pair vars_n;
 
    // case (1)
    vars_p.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,

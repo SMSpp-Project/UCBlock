@@ -295,6 +295,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  const auto & end_line = f_NetworkData->get_end_line();
  const auto lines_type = f_NetworkData->get_lines_type();
 
+ LinearFunction::v_coeff_pair vars;
+
  if( lines_type == kHVDC ) {  // HVDC power flow limit
 
   // HVDC power flow limit constraints
@@ -321,8 +323,6 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_power_flow_injection_const.resize( number_nodes );
 
   for( Index n = 0 ; n < number_nodes ; ++n ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
 
@@ -351,31 +351,25 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-    LinearFunction::v_coeff_pair vars_p;
-
     // F_l <= V_l
 
-    vars_p.push_back( std::make_pair( &v_power_flow[ line_id ] ,
-                                      -1.0 ) );
-    vars_p.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] ,
-                                      1.0 ) );
+    vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
+    vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+
     v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
     v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
     v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
-     new LinearFunction( std::move( vars_p ) ) );
-
-    LinearFunction::v_coeff_pair vars_n;
+     new LinearFunction( std::move( vars ) ) );
 
     // - F_l <= V_l
 
-    vars_n.push_back( std::make_pair( &v_power_flow[ line_id ] ,
-                                      1.0 ) );
-    vars_n.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] ,
-                                      1.0 ) );
+    vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+
     v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
     v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
     v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
-     new LinearFunction( std::move( vars_n ) ) );
+     new LinearFunction( std::move( vars ) ) );
    }
 
    add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
@@ -391,8 +385,6 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_AC_power_flow_limit_const.resize( get_number_lines() );
 
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    const auto kappa = get_kappa( line_id );
 

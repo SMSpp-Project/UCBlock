@@ -228,29 +228,28 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ LinearFunction::v_coeff_pair vars;
+
  // Minimum power constraints
 
  min_power_Const.resize( f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-  LinearFunction::v_coeff_pair min_power_vars;
-
-  min_power_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
   if( f_gamma != 0 ) {  // if unit produces any reserve
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    min_power_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                               -1.0 ) );
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    min_power_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                               -1.0 ) );
   }
 
   min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
   min_power_Const[ t ].set_rhs( Inf< double >() );
-  min_power_Const[ t ].set_function(
-   new LinearFunction( std::move( min_power_vars ) ) );
+  min_power_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
  }
 
  add_static_constraint( min_power_Const , "MinPower_Intermittent" );
@@ -263,21 +262,18 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair max_power_vars;
-
-   max_power_vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
+   vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
 
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    max_power_vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                              1.0 ) );
+    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                    1.0 ) );
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    max_power_vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                              1.0 ) );
+    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                    1.0 ) );
 
    max_power_Const[ t ].set_lhs( -Inf< double >() );
    max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] );
-   max_power_Const[ t ].set_function(
-    new LinearFunction( std::move( max_power_vars ) ) );
+   max_power_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
   }
 
   add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
@@ -313,32 +309,26 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
    //      v_MinPower z <= v_active_power     z \in [0,1], for all t
    // => 0 <= v_active_power - v_MinPower z   z \in [0,1], for all t
 
-   LinearFunction::v_coeff_pair lower_vars;
-
-   lower_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   lower_vars.push_back( std::make_pair( &design ,
-                                         -f_kappa * v_MinPower[ t ] ) );
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
 
    active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
    active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
    active_power_bounds_design_Const[ 0 ][ t ].set_function(
-    new LinearFunction( std::move( lower_vars ) ) );
+    new LinearFunction( std::move( vars ) ) );
 
    // Upper bound of the active power design constraints:
    //
    //      v_active_power <= v_MaxPower z     z \in [0,1], for all t
    // => v_active_power - v_MaxPower z <= 0   z \in [0,1], for all t
 
-   LinearFunction::v_coeff_pair upper_vars;
-
-   upper_vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   upper_vars.push_back( std::make_pair( &design ,
-                                         -f_kappa * v_MaxPower[ t ] ) );
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );
 
    active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
    active_power_bounds_design_Const[ 1 ][ t ].set_function(
-    new LinearFunction( std::move( upper_vars ) ) );
+    new LinearFunction( std::move( vars ) ) );
   }
 
   add_static_constraint( active_power_bounds_design_Const ,

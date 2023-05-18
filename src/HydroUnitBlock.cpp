@@ -281,6 +281,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ LinearFunction::v_coeff_pair vars;
+
  // final volume constraints for each reservoir
 
  assert( FinalVolumeReservoir_Const.empty() );
@@ -292,8 +294,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index n = 0 ; n < f_NumberReservoirs ; ++n ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    for( Index l = 0 ; l < f_NumberArcs ; ++l ) {
 
@@ -354,9 +354,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( v_MaxFlow[ t ][ arc ] <= 0 &&
-        v_MinFlow[ t ][ arc ] < 0 &&
-        v_NumberPieces[ arc ] > 1 )
+    if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
+        ( v_MinFlow[ t ][ arc ] < 0 ) &&
+        ( v_NumberPieces[ arc ] > 1 ) )
      throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
                               "for each pump when v_MinPower < 0, then "
                               "v_NumberPieces == 1." ) );
@@ -367,9 +367,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     if( ! v_PrimaryRho.empty() )
-     if( v_MaxFlow[ t ][ arc ] <= 0 &&
-         v_MinFlow[ t ][ arc ] < 0 &&
-         v_PrimaryRho[ t ][ arc ] != 0 )
+     if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
+         ( v_MinFlow[ t ][ arc ] < 0 ) &&
+         ( v_PrimaryRho[ t ][ arc ] != 0 ) )
       throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
                                "for each pump v_PrimaryRho == 0." ) );
 
@@ -393,8 +393,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
@@ -434,8 +432,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-   LinearFunction::v_coeff_pair vars;
 
    vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
@@ -480,10 +476,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-      if( v_MinFlow[ t ][ arc ] >= 0 &&
-          v_MaxFlow[ t ][ arc ] > 0 ) {  // Turbines
-
-       LinearFunction::v_coeff_pair vars;
+      if( ( v_MinFlow[ t ][ arc ] >= 0 ) &&
+          ( v_MaxFlow[ t ][ arc ] > 0 ) ) {  // Turbines
 
        vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                        v_PrimaryRho[ t ][ arc ] ) );
@@ -499,8 +493,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
           ( v_MinFlow[ t ][ arc ] < 0 ) ) {  // Pumps
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
                                        1.0 ) );
        ActivePowerPrimary_Const[ t ][ arc ].set_both( 0.0 );
@@ -510,8 +502,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       if( ( v_MaxFlow[ t ][ arc ] == 0 ) &&
           ( v_MinFlow[ t ][ arc ] == 0 ) ) {  // Nothing
-
-       LinearFunction::v_coeff_pair vars;
 
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
        ActivePowerPrimary_Const[ t ][ arc ].set_both( 0.0 );
@@ -530,8 +520,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       if( v_MaxFlow[ t ][ arc ] > 0 ) {  // Turbines
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                        v_PrimaryRho[ t ][ arc ] ) );
        vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
@@ -544,8 +532,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       }
 
       if( v_MaxFlow[ t ][ arc ] == 0 ) {  // Nothing
-
-       LinearFunction::v_coeff_pair vars;
 
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
 
@@ -581,8 +567,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( ( v_MinFlow[ t ][ arc ] >= 0 ) &&
           ( v_MaxFlow[ t ][ arc ] > 0 ) ) {  // Turbines
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                        v_SecondaryRho[ t ][ arc ] ) );
        vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
@@ -597,8 +581,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
           ( v_MinFlow[ t ][ arc ] < 0 ) ) {  // Pumps
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
                                        1.0 ) );
 
@@ -609,8 +591,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       if( ( v_MaxFlow[ t ][ arc ] == 0 ) &&
           ( v_MinFlow[ t ][ arc ] == 0 ) ) {  // Nothing
-
-       LinearFunction::v_coeff_pair vars;
 
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
 
@@ -630,8 +610,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       if( v_MaxFlow[ t ][ arc ] > 0 ) {  // Turbines
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                        v_SecondaryRho[ t ][ arc ] ) );
        vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
@@ -644,8 +622,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       }
 
       if( v_MaxFlow[ t ][ arc ] == 0 ) {  // Nothing
-
-       LinearFunction::v_coeff_pair vars;
 
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
                                        1.0 ) );
@@ -689,8 +665,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       for( ; piece < end ; ++piece , ++cnstr_idx ) {
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
        if( ! v_LinearTerm.empty() )
@@ -712,8 +686,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
      if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
          ( v_MinFlow[ t ][ arc ] < 0 ) ) {  // Pumps
 
-      LinearFunction::v_coeff_pair vars;
-
       vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
       vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
                                       -v_LinearTerm[ cnstr_idx ] ) );
@@ -728,8 +700,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      if( ( v_MaxFlow[ t ][ arc ] == 0 ) &&
          ( v_MinFlow[ t ][ arc ] == 0 ) ) {  // Nothing
-
-      LinearFunction::v_coeff_pair vars;
 
       vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
 
@@ -763,8 +733,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       for( ; piece < end ; ++piece , ++cnstr_idx) {
 
-       LinearFunction::v_coeff_pair vars;
-
        vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                        1.0 ) );
 
@@ -785,8 +753,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
      }
 
      if( v_MaxFlow[ t ][ arc ] == 0 ) {  // Nothing
-
-      LinearFunction::v_coeff_pair vars;
 
       vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
 
@@ -836,7 +802,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( FlowRateBounds_Const , "FlowRateBounds_HydroUnit" );
  }
 
-
  // ramp-up constraints
  if( ! v_DeltaRampUp.empty() ) {
 
@@ -850,19 +815,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
-   LinearFunction::v_coeff_pair init_vars;
-
-   init_vars.push_back( std::make_pair( get_flow_rate( arc , 0 ) , 1.0 ) );
+   vars.push_back( std::make_pair( get_flow_rate( arc , 0 ) , 1.0 ) );
 
    RampUp_Const[ 0 ][ arc ].set_lhs( -Inf< double >() );
    RampUp_Const[ 0 ][ arc ].set_rhs( v_DeltaRampUp[ 0 ][ arc ] +
                                      get_initial_flow_rate( arc ) );
    RampUp_Const[ 0 ][ arc ].set_function(
-    new LinearFunction( std::move( init_vars ) ) );
+    new LinearFunction( std::move( vars ) ) );
 
    for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
-
-    LinearFunction::v_coeff_pair vars;
 
     vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
     vars.push_back( std::make_pair( get_flow_rate( arc , t - 1 ) , -1.0 ) );
@@ -890,19 +851,15 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
-   LinearFunction::v_coeff_pair init_vars;
-
-   init_vars.push_back( std::make_pair( get_flow_rate( arc , 0 ) , 1.0 ) );
+   vars.push_back( std::make_pair( get_flow_rate( arc , 0 ) , 1.0 ) );
 
    RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
                                        v_DeltaRampDown[ 0 ][ arc ] );
    RampDown_Const[ 0 ][ arc ].set_rhs( Inf< double >() );
    RampDown_Const[ 0 ][ arc ].set_function(
-    new LinearFunction( std::move( init_vars ) ) );
+    new LinearFunction( std::move( vars ) ) );
 
    for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
-
-    LinearFunction::v_coeff_pair vars;
 
     vars.push_back( std::make_pair( get_flow_rate( arc , t - 1 ) , 1.0 ) );
     vars.push_back( std::make_pair( get_flow_rate( arc , t ) , -1.0 ) );
