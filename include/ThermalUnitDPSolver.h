@@ -275,8 +275,8 @@ class ThermalUnitDPSolver : public Solver
  /// returns the value of the current solution, if any
  OFValue get_var_value( void ) override { return( f_end.lab ); }
 
-/** @} ---------------------------------------------------------------------*/
-/*------------------- PROTECTED FIELDS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
@@ -584,7 +584,7 @@ class ThermalUnitDPSolver : public Solver
  }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- PRIVATE FIELDS OF THE CLASS ----------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  Index time_horizon;       ///< time horizon

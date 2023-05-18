@@ -1342,34 +1342,7 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
 
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-   *                                      &BatteryUnitBlock::set_initial_storage,
-   *                                      MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
-  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
-   "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
-
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
-   "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
-
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
-   "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
-
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
-   "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1601,55 +1574,88 @@ class BatteryUnitBlock : public UnitBlock
  void check_data_consistency( void ) const;
 
 /*--------------------------------------------------------------------------*/
+
+ static void static_initialization( void ) {
+
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
+   *                                      &BatteryUnitBlock::set_initial_storage,
+   *                                      MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< BatteryUnitBlock, MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_storage" ,
+   &BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_storage" ,
+   &BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_kappa" ,
+   &BatteryUnitBlock::set_kappa );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_kappa" ,
+   &BatteryUnitBlock::set_kappa );
+ }
+
+};  // end( class( BatteryUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BatteryUnitBlockMod ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// derived class from Modification for modifications to a BatteryUnitBlock
- class BatteryUnitBlockMod : public UnitBlockMod
+class BatteryUnitBlockMod : public UnitBlockMod
+{
+
+ public:
+
+ /// public enum for the types of BatteryUnitBlockMod
+ enum BUB_mod_type
  {
+  eSetInitS = eUBModLastParam , ///< set initial storage values
+  eSetInitP ,                   ///< set initial power values
+  eSetKappa ,                   ///< set the kappa constant
+ };
 
-  public:
+ /// constructor, takes the BatteryUnitBlock and the type
+ BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
+  : UnitBlockMod( fblock , type ) {}
 
-  /// public enum for the types of BatteryUnitBlockMod
-  enum BUB_mod_type
-  {
-   eSetInitS = eUBModLastParam , ///< set initial storage values
-   eSetInitP ,                   ///< set initial power values
-   eSetKappa ,                   ///< set the kappa constant
-  };
+ /// destructor, does nothing
+ virtual ~BatteryUnitBlockMod() override = default;
 
-  /// constructor, takes the BatteryUnitBlock and the type
-  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
-   : UnitBlockMod( fblock , type ) {}
+ /// returns the Block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
 
-  /// destructor, does nothing
-  virtual ~BatteryUnitBlockMod() override = default;
+ protected:
 
-  /// returns the Block to which the Modification refers
-  Block * get_Block( void ) const override { return( f_Block ); }
-
-  protected:
-
-  /// prints the BatteryUnitBlockMod
-  void print( std::ostream & output ) const override {
-   output << "BatteryUnitBlockMod[" << this << "]: ";
-   switch( f_type ) {
-    case( eSetInitS ):
-     output << "set initial storage values ";
-     break;
-    case( eSetInitP ):
-     output << "set initial power values ";
-     break;
-    case( eSetKappa ):
-     output << "set kappa ";
-     break;
-   }
+ /// prints the BatteryUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "BatteryUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case( eSetInitS ):
+    output << "set initial storage values ";
+    break;
+   case( eSetInitP ):
+    output << "set initial power values ";
+    break;
+   case( eSetKappa ):
+    output << "set kappa ";
+    break;
   }
+ }
 
-  BatteryUnitBlock * f_Block{};
-  ///< pointer to the Block to which the Modification refers
+ BatteryUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
 
- };  // end( class( BatteryUnitBlockMod ) )
+};  // end( class( BatteryUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS BatteryUnitBlockRngdMod ----------------------*/
@@ -1657,33 +1663,33 @@ class BatteryUnitBlock : public UnitBlock
 
 /// derived from BatteryUnitBlockMod for "ranged" modifications
  class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
- {
+{
 
-  public:
+ public:
 
-  /// constructor: takes the BatteryUnitBlock, the type, and the range
-  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock ,
-                           const int type ,
-                           Block::Range rng )
-   : BatteryUnitBlockMod( fblock , type ) , f_rng( rng ) {}
+ /// constructor: takes the BatteryUnitBlock, the type, and the range
+ BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock ,
+                          const int type ,
+                          Block::Range rng )
+  : BatteryUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
-  /// destructor, does nothing
-  virtual ~BatteryUnitBlockRngdMod() override = default;
+ /// destructor, does nothing
+ virtual ~BatteryUnitBlockRngdMod() override = default;
 
-  /// accessor to the range
-  Block::c_Range & rng( void ) { return( f_rng ); }
+ /// accessor to the range
+ Block::c_Range & rng( void ) { return( f_rng ); }
 
-  protected:
+ protected:
 
-  /// prints the BatteryUnitBlockRngdMod
-  void print( std::ostream & output ) const override {
-   BatteryUnitBlockMod::print( output );
-   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
-  }
+ /// prints the BatteryUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  BatteryUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+ }
 
-  Block::Range f_rng;  ///< the range
+ Block::Range f_rng;  ///< the range
 
- };  // end( class( BatteryUnitBlockRngdMod ) )
+};  // end( class( BatteryUnitBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS BatteryUnitBlockSbstMod ---------------------*/
@@ -1691,35 +1697,33 @@ class BatteryUnitBlock : public UnitBlock
 
 /// derived from BatteryUnitBlockMod for "subset" modifications
  class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
- {
+{
 
-  public:
+ public:
 
-  /// constructor: takes the BatteryUnitBlock, the type, and the subset
-  BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock ,
-                           const int type ,
-                           Block::Subset && nms )
-   : BatteryUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
+ /// constructor: takes the BatteryUnitBlock, the type, and the subset
+ BatteryUnitBlockSbstMod( BatteryUnitBlock * const fblock ,
+                          const int type ,
+                          Block::Subset && nms )
+  : BatteryUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
 
-  /// destructor, does nothing
-  virtual ~BatteryUnitBlockSbstMod() override = default;
+ /// destructor, does nothing
+ virtual ~BatteryUnitBlockSbstMod() override = default;
 
-  /// accessor to the subset
-  Block::c_Subset & nms( void ) { return( f_nms ); }
+ /// accessor to the subset
+ Block::c_Subset & nms( void ) { return( f_nms ); }
 
-  protected:
+ protected:
 
-  /// prints the BatteryUnitBlockSbstMod
-  void print( std::ostream & output ) const override {
-   BatteryUnitBlockMod::print( output );
-   output << "(# " << f_nms.size() << ")" << std::endl;
-  }
+ /// prints the BatteryUnitBlockSbstMod
+ void print( std::ostream & output ) const override {
+  BatteryUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+ }
 
-  Block::Subset f_nms;  ///< the subset
+ Block::Subset f_nms;  ///< the subset
 
- };  // end( class( BatteryUnitBlockSbstMod ) )
-
-};  // end( class( BatteryUnitBlock ) )
+};  // end( class( BatteryUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

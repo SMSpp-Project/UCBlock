@@ -537,7 +537,7 @@ void ThermalUnitDPSolver::compute_solutions( void )
  }  // end( ThermalUnitDPSolver::compute_solutions )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PRIVATE METHODS OF THE CLASS ------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::load_parameters( void )

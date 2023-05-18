@@ -244,7 +244,7 @@ class NetworkBlock : public Block
   // Type of the map between strings and the factory of NetworkData
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
@@ -729,7 +729,7 @@ class NetworkBlock : public Block
  private:
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- PRIVATE FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  ///< bit-wise coded: what abstract is there

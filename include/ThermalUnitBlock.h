@@ -1632,56 +1632,162 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
+ /// updates the abstract representation dependent on the availability
+ /** This method updates any part of the abstract representation that may
+  * depend on the availability of the unit at the given time \p t.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
 
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-   *                                      &ThermalUnitBlock::set_availability,
-   *                                      MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
+ void update_availability_dependents( Index t , c_ModParam issueAMod );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_availability" ,
-   &ThermalUnitBlock::set_availability );
+/*--------------------------------------------------------------------------*/
+ /// updates the constraints for the current initial power
+ /** This function updates the right-hand side of the ramp-up constraints and
+  * the left-hand side of the ramp-down constraints at time 0 (which are the
+  * constraints that depend on the initial power). */
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_availability" ,
-   &ThermalUnitBlock::set_availability );
+ void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_maximum_power" ,
-   &ThermalUnitBlock::set_maximum_power );
+/*--------------------------------------------------------------------------*/
+ /// returns true if and only if the given availability is consistent
+ /** This method checks whether the given \p availability is consistent at
+  * time \p t. An availability is consistent at a given time instant if the
+  * resulting operational minimum active power output is less than or equal to
+  * the resulting operational maximum active power at that time.
+  *
+  * @param t A time instant between 0 and get_time_horizon() - 1.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return True if and only if the given \p availability is consistent at
+  *         time \p t. */
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_maximum_power" ,
-   &ThermalUnitBlock::set_maximum_power );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_initial_power" ,
-   &ThermalUnitBlock::set_initial_power );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_initial_power" ,
-   &ThermalUnitBlock::set_initial_power );
-
-  register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
-   "ThermalUnitBlock::set_init_updown_time" ,
-   &ThermalUnitBlock::set_init_updown_time );
-
-  register_method< ThermalUnitBlock , MF_int_it , Range >(
-   "ThermalUnitBlock::set_init_updown_time" ,
-   &ThermalUnitBlock::set_init_updown_time );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+ bool availability_is_consistent( Index t , double availability ) const {
+  assert( t < get_time_horizon() );
+  const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
+                                                        availability );
+  const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
+                                                        availability );
+  return( min_power <= max_power );
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the operational minimum power
+ /** This method computes the operational minimum power for the given nominal
+  * minimum power and availability.
+  *
+  * @param min_power The nominal minimum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational minimum power. */
+
+ double compute_operational_min_power( double nominal_min_power ,
+                                       double availability ) const {
+  return( availability > 0.0 ? nominal_min_power : 0.0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the operational maximum power
+ /** This method computes the operational maximum power for the given nominal
+  * maximum power and availability.
+  *
+  * @param min_power The nominal maximum power.
+  *
+  * @param availability A number between 0 and 1.
+  *
+  * @return The operational maximum power. */
+
+ double compute_operational_max_power( double nominal_max_power ,
+                                       double availability ) const {
+  return( nominal_max_power * availability );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// updates the terms of the Objective associated with the start-up cost
+ /** This method updates the terms of the Objective that are associated with
+  * the start-up cost.
+  *
+  * @param subset A set of time instants at which the start-up costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_start_up( const Subset & subset , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the terms of the Objective associated with the active power cost
+ /** This method updates the terms of the Objective that are associated with
+  * the active power cost.
+  *
+  * @param subset A set of time instants at which the active power costs must
+  *        be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_active_power( const Subset & subset ,
+                                     c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the terms of the Objective associated with the fixed cost
+ /** This method updates the terms of the Objective that are associated with
+  * the fixed cost.
+  *
+  * @param subset A set of time instants at which the fixed costs must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_commitment( const Subset & subset ,
+                                   c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective( const Subset & subset , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the coefficients of the Objective
+ /** This method updates the coefficients of the Objective.
+  *
+  * @param subset A set of time instants at which the coefficients must be
+  *        updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective( Range rng , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// verify whether the data in this ThermalUnitBlock is consistent
+ /** This function checks whether the data in this ThermalUnitBlock is
+  * consistent. The data is consistent if all of the following conditions are
+  * met.
+  *
+  * - The minimum power is not greater than the maximum power.
+  *
+  * - The availability is between 0 and 1.
+  *
+  * - The delta ramp-up and ramp-down are nonnegative.
+  *
+  * - The quadratic term of the objective function is nonnegative.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency( void ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+ void handle_objective_change( FunctionMod * mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1959,162 +2065,56 @@ class ThermalUnitBlock : public UnitBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// updates the abstract representation dependent on the availability
- /** This method updates any part of the abstract representation that may
-  * depend on the availability of the unit at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
+ static void static_initialization( void ) {
 
- void update_availability_dependents( Index t , c_ModParam issueAMod );
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
+   *                                      &ThermalUnitBlock::set_availability,
+   *                                      MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
 
-/*--------------------------------------------------------------------------*/
- /// updates the constraints for the current initial power
- /** This function updates the right-hand side of the ramp-up constraints and
-  * the left-hand side of the ramp-down constraints at time 0 (which are the
-  * constraints that depend on the initial power). */
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_availability" ,
+   &ThermalUnitBlock::set_availability );
 
- void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_availability" ,
+   &ThermalUnitBlock::set_availability );
 
-/*--------------------------------------------------------------------------*/
- /// returns true if and only if the given availability is consistent
- /** This method checks whether the given \p availability is consistent at
-  * time \p t. An availability is consistent at a given time instant if the
-  * resulting operational minimum active power output is less than or equal to
-  * the resulting operational maximum active power at that time.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @param availability A number between 0 and 1.
-  *
-  * @return True if and only if the given \p availability is consistent at
-  *         time \p t. */
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_maximum_power" ,
+   &ThermalUnitBlock::set_maximum_power );
 
- bool availability_is_consistent( Index t , double availability ) const {
-  assert( t < get_time_horizon() );
-  const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
-                                                        availability );
-  const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
-                                                        availability );
-  return( min_power <= max_power );
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_maximum_power" ,
+   &ThermalUnitBlock::set_maximum_power );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_initial_power" ,
+   &ThermalUnitBlock::set_initial_power );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_initial_power" ,
+   &ThermalUnitBlock::set_initial_power );
+
+  register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
+   "ThermalUnitBlock::set_init_updown_time" ,
+   &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_int_it , Range >(
+   "ThermalUnitBlock::set_init_updown_time" ,
+   &ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the operational minimum power
- /** This method computes the operational minimum power for the given nominal
-  * minimum power and availability.
-  *
-  * @param min_power The nominal minimum power.
-  *
-  * @param availability A number between 0 and 1.
-  *
-  * @return The operational minimum power. */
-
- double compute_operational_min_power( double nominal_min_power ,
-                                       double availability ) const {
-  return( availability > 0.0 ? nominal_min_power : 0.0 );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the operational maximum power
- /** This method computes the operational maximum power for the given nominal
-  * maximum power and availability.
-  *
-  * @param min_power The nominal maximum power.
-  *
-  * @param availability A number between 0 and 1.
-  *
-  * @return The operational maximum power. */
-
- double compute_operational_max_power( double nominal_max_power ,
-                                       double availability ) const {
-  return( nominal_max_power * availability );
- }
-
-/*--------------------------------------------------------------------------*/
- /// updates the terms of the Objective associated with the start-up cost
- /** This method updates the terms of the Objective that are associated with
-  * the start-up cost.
-  *
-  * @param subset A set of time instants at which the start-up costs must be
-  *        updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective_start_up( const Subset & subset , c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the terms of the Objective associated with the active power cost
- /** This method updates the terms of the Objective that are associated with
-  * the active power cost.
-  *
-  * @param subset A set of time instants at which the active power costs must
-  *        be updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective_active_power( const Subset & subset ,
-                                     c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the terms of the Objective associated with the fixed cost
- /** This method updates the terms of the Objective that are associated with
-  * the fixed cost.
-  *
-  * @param subset A set of time instants at which the fixed costs must be
-  *        updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective_commitment( const Subset & subset ,
-                                   c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the coefficients of the Objective
- /** This method updates the coefficients of the Objective.
-  *
-  * @param subset A set of time instants at which the coefficients must be
-  *        updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( const Subset & subset , c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the coefficients of the Objective
- /** This method updates the coefficients of the Objective.
-  *
-  * @param subset A set of time instants at which the coefficients must be
-  *        updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( Range rng , c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// verify whether the data in this ThermalUnitBlock is consistent
- /** This function checks whether the data in this ThermalUnitBlock is
-  * consistent. The data is consistent if all of the following conditions are
-  * met.
-  *
-  * - The minimum power is not greater than the maximum power.
-  *
-  * - The availability is between 0 and 1.
-  *
-  * - The delta ramp-up and ramp-down are nonnegative.
-  *
-  * - The quadratic term of the objective function is nonnegative.
-  *
-  * If any of the above conditions are not met, an exception is thrown. */
-
- void check_data_consistency( void ) const;
-
-/*--------------------------------------------------------------------------*/
-
- void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
-
- void handle_objective_change( FunctionMod * mod , ChnlName chnl );
 
 };  // end( class( ThermalUnitBlock ) )
 

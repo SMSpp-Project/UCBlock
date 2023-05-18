@@ -642,7 +642,7 @@ class UnitBlock : public Block
  protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
  /// deserializes the time horizon from a netCDF group

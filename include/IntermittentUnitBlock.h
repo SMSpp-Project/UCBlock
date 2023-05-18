@@ -660,42 +660,7 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< IntermittentUnitBlock >
-   *                ( "IntermittentUnitBlock::set_maximum_power",
-   *                  &IntermittentUnitBlock::set_maximum_power,
-   *                  MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::scale" ,
-   &IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::scale" ,
-   &IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::set_kappa" ,
-   &IntermittentUnitBlock::set_kappa );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::set_kappa" ,
-   &IntermittentUnitBlock::set_kappa );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -819,6 +784,45 @@ class IntermittentUnitBlock : public UnitBlock
   * If any of the above conditions are not met, an exception is thrown. */
 
  void check_data_consistency( void ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization( void ) {
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< IntermittentUnitBlock >
+   *                ( "IntermittentUnitBlock::set_maximum_power",
+   *                  &IntermittentUnitBlock::set_maximum_power,
+   *                  MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_maximum_power" ,
+   &IntermittentUnitBlock::set_maximum_power );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_maximum_power" ,
+   &IntermittentUnitBlock::set_maximum_power );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::scale" ,
+   &IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::scale" ,
+   &IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_kappa" ,
+   &IntermittentUnitBlock::set_kappa );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_kappa" ,
+   &IntermittentUnitBlock::set_kappa );
+ }
 
 };  // end( class( IntermittentUnitBlock ) )
 

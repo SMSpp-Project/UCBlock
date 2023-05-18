@@ -203,7 +203,7 @@ class ECNetworkBlock : public NetworkBlock
   protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
 
@@ -810,24 +810,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
 
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
-   *                                    &ECNetworkBlock::set_active_demand,
-   *                                    MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
-
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
-   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -915,7 +898,24 @@ class ECNetworkBlock : public NetworkBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ static void static_initialization( void ) {
 
+  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   *
+   * register_method< ECNetworkBlock >( "ECNetworkBlock::set_active_demand",
+   *                                    &ECNetworkBlock::set_active_demand,
+   *                                    MS_dbl_sbst::args() );
+   *
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it. */
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_active_demand" , &ECNetworkBlock::set_active_demand );
+ }
 
 };  // end( class( ECNetworkBlock ) )
 

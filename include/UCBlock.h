@@ -1355,7 +1355,7 @@ class UCBlock : public Block
  protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
  /// states that the Variable of the UCBlock have been generated
@@ -1375,14 +1375,6 @@ class UCBlock : public Block
 
  /// indicates whether the Objective of the UCBlock has been generated
  bool objective_generated( void ) const { return( AR & HasObj ); }
-
- static void static_initialization( void ) {
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
-
-  register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1775,6 +1767,16 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_inertia_zones[ node ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization( void ) {
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
  }
 
 };  // end( class( UCBlock ) )
