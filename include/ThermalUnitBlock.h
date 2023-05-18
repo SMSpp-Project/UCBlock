@@ -920,22 +920,22 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power of the given generator at the given timestep
+ /// returns the minimum power of the given generator at the given time
 
  double get_min_power( Index t , Index g = 0 ) const override {
   return( v_MinPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the operational minimum active power output at the given time \t
+ /// returns the operational minimum active power output at the given time
  /** This method returns the operational minimum active power output of the
-  * unit at the given time \t. See get_availability() for the definition of
+  * unit at the given time. See get_availability() for the definition of
   * operational minimum power.
   *
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @return The operational minimum active power output of the unit at the
-  *         given time \t.
+  *         given time.
   */
  double get_operational_min_power( Index t ) const {
   assert( t < get_time_horizon() );
@@ -957,22 +957,22 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power of the given generator at the given timestep
+ /// returns the maximum power of the given generator at the given time
 
  double get_max_power( Index t , Index g = 0 ) const override {
   return( v_MaxPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the operational maximum active power output at the given time \t
+ /// returns the operational maximum active power output at the given time
  /** This method returns the operational maximum active power output of the
-  * unit at the given time \t. See get_availability() for the definition of
+  * unit at the given time. See get_availability() for the definition of
   * operational maximum power.
   *
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @return The operational maximum active power output of the unit at the
-  *         given time \t.
+  *         given time.
   */
  double get_operational_max_power( Index t ) const {
   assert( t < get_time_horizon() );
@@ -1014,7 +1014,7 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the availability of the unit at the given time \t
+ /// returns the availability of the unit at the given time
 
  double get_availability( Index t ) const {
   if( v_Availability.empty() )
