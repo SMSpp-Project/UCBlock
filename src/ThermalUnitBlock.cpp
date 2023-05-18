@@ -1871,8 +1871,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   LinearFunction::v_coeff_pair vars;
-
    vars.push_back( std::make_pair( &v_commitment[ t ] ,
                                    get_operational_max_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
