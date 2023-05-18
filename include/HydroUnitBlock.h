@@ -960,8 +960,8 @@ class HydroUnitBlock : public UnitBlock
   *    get_time_horizon() rows and get_number_arcs() columns and each element
   *    of M[ t , i ] gives the minimum power at time t and unit i. */
 
- double get_min_power( Index t , Index g = 0 ) const override {
-  return( *( v_MinPower.data() + g * f_time_horizon + t ) );
+ double get_min_power( Index t , Index generator = 0 ) const override {
+  return( *( v_MinPower.data() + generator * f_time_horizon + t ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -983,8 +983,8 @@ class HydroUnitBlock : public UnitBlock
   *    get_time_horizon() rows and get_number_arcs() columns and each element
   *    of M[ t , i ] gives the maximum power at time t and unit i. */
 
- double get_max_power( Index t , Index g = 0 ) const override {
-  return( *(v_MaxPower.data() + g * f_time_horizon + t) );
+ double get_max_power( Index t , Index generator = 0 ) const override {
+  return( *(v_MaxPower.data() + generator * f_time_horizon + t) );
  }
 
 /*--------------------------------------------------------------------------*/

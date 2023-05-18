@@ -401,7 +401,7 @@ class IntermittentUnitBlock : public UnitBlock
   * - otherwise, the std::vector< double > V must have size get_time_horizon()
   *   and each V[ t ] represents the minimum power value at time t. */
 
- double get_min_power( Index t , Index g = 0 ) const override {
+ double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
  }
 
@@ -418,7 +418,7 @@ class IntermittentUnitBlock : public UnitBlock
   * - otherwise, the std::vector< double > V must have size get_time_horizon()
   *   and each V[ t ] represents the maximum power value at time t. */
 
- double get_max_power( Index t , Index g = 0 ) const override {
+ double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
  }
 

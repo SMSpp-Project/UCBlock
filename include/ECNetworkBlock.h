@@ -219,7 +219,7 @@ class ECNetworkBlock : public NetworkBlock
   double f_SellPrice{};
 
   /// tariff that the user gains when it absorbs power from the microgrid
-  /// market / network (instead of from the public grid) at each time horizon
+  /// (instead of from the public grid) at each time horizon
   double f_RewardPrice{};
 
   /// tariff that the user pays due to the peak power
@@ -342,7 +342,7 @@ class ECNetworkBlock : public NetworkBlock
   *   \f$ \pi_t^{-,f} \f$ are the buy prices of the energy bought from the
   *   public market, the variable and fixed costs, i.e., the constant term,
   *   respectively, and \f$ \pi_t^r \f$ is the tariff that user gains
-  *   when it absorbs power from the microgrid market instead of from the
+  *   when it absorbs power from the microgrid instead of from the
   *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{M-} \f$
   *   are the absorption variables form the public and the microgrid market
   *   respectively; \f$ \pi_t^+ \f$ is the sell price of the energy, while
@@ -455,66 +455,56 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the active demand for the given interval, which is assumed to
   * have size get_number_intervals() by get_number_nodes().
   *
-  * @param i The interval wrt the vector of demands for each user is returned.
+  * @param interval The interval wrt the vector of demands for each user is
+  *                 returned.
   */
 
- const double * get_active_demand( Index i = 0 ) const override {
+ const double * get_active_demand( Index interval = 0 ) const override {
   if( v_ActiveDemand.empty() )
    return( nullptr );
-  return( &( v_ActiveDemand.data()[ i * get_number_nodes() ] ) );
+  return( &( v_ActiveDemand.data()[ interval * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum production of the electrical generators
- /** Returns the maximum production for the given interval, which is assumed
-  * to have size get_number_nodes().
+ /// returns the energy sell price at the given interval
+ /** Returns the tariff that the user gains to sell electricity to the
+  * public market at the given interval.
   *
-  * @param i The interval wrt the vector of demands for each user is returned.
+  * @param interval The interval wrt the sell price of the energy is returned.
   */
 
- const double * get_max_node_injection( Index i = 0 ) const override {
-  if( v_MaxNodeInjection.empty() )
-   return( nullptr );
-  return( &( v_MaxNodeInjection.data()[ i * get_number_nodes() ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the energy sell price at interval i
- /** Returns the tariff that the user gains to sell electricity to the
-  * public market at interval i.
-  *
-  * @param i The interval wrt the sell price of the energy is returned. */
-
- double get_sell_price( Index i ) const {
+ double get_sell_price( Index interval ) const {
   if( ! f_NetworkData )
-   return( v_SellPrice[ i ] );
+   return( v_SellPrice[ interval ] );
   return( f_NetworkData->get_sell_price() );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the energy buy price at interval i
+ /// returns the energy buy price at the given interval
  /** Returns the tariff that the user pays to buy electricity from the public
-  * market at interval i.
+  * market at the given interval.
   *
-  * @param i The interval wrt the buy price of the energy is returned. */
+  * @param interval The interval wrt the buy price of the energy is returned. */
 
- double get_buy_price( Index i ) const {
+ double get_buy_price( Index interval ) const {
   if( ! f_NetworkData )
-   return( v_BuyPrice[ i ] );
+   return( v_BuyPrice[ interval ] );
   return( f_NetworkData->get_buy_price() );
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// returns the energy reward price at interval i
+ /// returns the energy reward price at the given interval
  /** Returns the tariff that the user gains when it absorbs power from the
-  * microgrid market / network (instead of from the public grid) at interval i.
+  * microgrid market / network (instead of from the public grid) at the given
+  * interval.
   *
-  * @param i The interval wrt the reward price of the energy is returned. */
+  * @param interval The interval wrt the reward price of the energy is returned.
+  */
 
- double get_reward_price( Index i ) const {
+ double get_reward_price( Index interval ) const {
   if( ! f_NetworkData )
-   return( v_RewardPrice[ i ] );
+   return( v_RewardPrice[ interval ] );
   return( f_NetworkData->get_reward_price() );
  }
 
@@ -538,10 +528,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the vector of public power injection variables, which is assumed
   * to have size get_number_nodes(). */
 
- ColVariable * get_power_injection( Index t = 0 ) {
+ ColVariable * get_power_injection( Index interval = 0 ) {
   if( v_power_injection.empty() )
    return( nullptr );
-  return( &( v_power_injection.data()[ t * get_number_nodes() ] ) );
+  return( &( v_power_injection.data()[ interval * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -549,10 +539,10 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the vector of public power absorbed variables, which is assumed
   * to have size get_number_nodes(). */
 
- ColVariable * get_power_absorption( Index t = 0 ) {
+ ColVariable * get_power_absorption( Index interval = 0 ) {
   if( v_power_absorption.empty() )
    return( nullptr );
-  return( &( v_power_absorption.data()[ t * get_number_nodes() ] ) );
+  return( &( v_power_absorption.data()[ interval * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -564,7 +554,7 @@ class ECNetworkBlock : public NetworkBlock
   * - if V is empty(), then this variable is not defined;
   *
   * - otherwise, V must have f_numer_intervals rows and S[ i ] is the
-  * energy shared within the network at interval i. */
+  * energy shared within the network at the given interval. */
 
  const std::vector< ColVariable > & get_shared_power( void ) const {
   return( v_shared_power );
@@ -641,18 +631,6 @@ class ECNetworkBlock : public NetworkBlock
   }
  }
 
-/*--------------------------------------------------------------------------*/
- /// method to set the MaxNodeInjection
-
- void set_max_node_injection( Index interval_id , Index node_id ,
-                              const double max_injection ) override
- {
-  if( v_MaxNodeInjection.empty() )
-   v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
-  v_MaxNodeInjection[ interval_id ][ node_id ] = max_injection;
- }
-
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- OTHER INITIALIZATIONS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -716,16 +694,7 @@ class ECNetworkBlock : public NetworkBlock
    *  tariff that the user pays due to the peak power;
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
-  *   constant term, i.e., typically the fixed costs;
-  *
-  * - The variable "MaxNodeInjection", of type netCDF::NcDouble and indexed over
-  *   the dimensions "NumberIntervals" and "NumberNodes". This is meant to
-  *   represent the vector MNI[ t , u ] that contains the upper bound of the
-  *   node injection variable at time instant t of the user u. If it is not
-  *   found in the NcGroup, then MNI[ t , u ] is set as the sum of the
-  *   maximum powers at the given time instant t of all the electrical
-  *   generators owned by the user u. [see the comments to
-  *   UCBlock::deserialize()]. */
+  *   constant term, i.e., typically the fixed costs. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -831,14 +800,11 @@ class ECNetworkBlock : public NetworkBlock
  std::vector< double > v_SellPrice;
 
  /// tariff that the user gains when it absorbs power from the microgrid
- /// market / network (instead of from the public grid) at each time horizon
+ /// (instead of from the public grid) at each time horizon
  std::vector< double > v_RewardPrice;
 
  /// tariff that the user pays due to the peak power
  double f_PeakTariff{};
-
- /// maximum production of the electrical generators
- boost::multi_array< double , 2 > v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/
 

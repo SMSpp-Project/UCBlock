@@ -106,7 +106,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
-                                                     "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
@@ -191,8 +190,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "ConstantTerm" ,
-                                                     "MaxNodeInjection" };
+                                                     "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -235,8 +233,6 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
-
- ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection );
 
  ::deserialize( group , f_ConstTerm , "ConstantTerm" );
 
@@ -432,9 +428,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-  node_injection_bounds_const[ node_id ].set_lhs( -Inf< double >() );
+  node_injection_bounds_const[ node_id ].set_lhs(
+   v_MinNodeInjection[ 0 ][ node_id ] );
   node_injection_bounds_const[ node_id ].set_rhs(
-   v_MaxNodeInjection[ node_id ] );
+   v_MaxNodeInjection[ 0 ][ node_id ] );
   node_injection_bounds_const[ node_id ].set_variable(
    &v_node_injection[ 0 ][ node_id ] );
  }
@@ -598,9 +595,6 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
- ::serialize( group , "MaxNodeInjection" , netCDF::NcDouble() ,
-              NumberNodes , v_MaxNodeInjection );
 
 }  // end( DCNetworkBlock::serialize )
 

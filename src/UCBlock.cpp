@@ -516,7 +516,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
- // store the max node injection into each NetworkBlock
+ // store the min and max node injection into each NetworkBlock
 
  if( ! v_network_blocks.empty() ) {
 
@@ -529,6 +529,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
+     double min_node_injection = 0.0;
      double max_node_injection = 0.0;
 
      Index elc_generator = 0;
@@ -536,16 +537,23 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
       const auto unit_block = get_unit_block( unit_id );
 
-      for( Index generator = 0 ;
-           generator < unit_block->get_number_generators() ;
-           ++generator , ++elc_generator ) {
+      for( Index g = 0 ; g < unit_block->get_number_generators() ;
+           ++g , ++elc_generator ) {
 
        if( node_id != v_generator_node[ elc_generator ] )
         continue;
 
-       max_node_injection += unit_block->get_max_power( t , generator );
+       auto fixed_consumption = unit_block->get_fixed_consumption( g );
+       max_node_injection += std::max( 0.0 ,
+                                       unit_block->get_max_power( t , g ) );
+       min_node_injection += std::min( { 0.0 ,
+                                         unit_block->get_min_power( t , g ) ,
+                                         fixed_consumption ?
+                                         -fixed_consumption[ t ] : 0.0 } );
       }
      }
+     v_network_blocks[ n ]->set_min_node_injection( i , node_id ,
+                                                    min_node_injection );
      v_network_blocks[ n ]->set_max_node_injection( i , node_id ,
                                                     max_node_injection );
     }
@@ -1951,8 +1959,8 @@ void UCBlock::update_inertia_demand_constraints(
      const auto num_generators = unit_block->get_number_generators();
      auto next_var_index = inertia_var_index[ unit_id ][ zone_id ];
 
-     for( Index generator = 0 ; generator < num_generators ; ++generator ,
-      ++elc_generator ) {
+     for( Index generator = 0 ;
+          generator < num_generators ; ++generator , ++elc_generator ) {
 
       if( ! generator_belongs_to_node( elc_generator , node_id ) )
        continue;

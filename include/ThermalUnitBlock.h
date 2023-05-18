@@ -922,7 +922,7 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power of the given generator at the given time
 
- double get_min_power( Index t , Index g = 0 ) const override {
+ double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
  }
 
@@ -959,7 +959,7 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power of the given generator at the given time
 
- double get_max_power( Index t , Index g = 0 ) const override {
+ double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
  }
 

@@ -298,8 +298,8 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- double get_min_power( Index t , Index g = 0 ) const override {
-  auto temp = g;
+ double get_min_power( Index t , Index generator = 0 ) const override {
+  auto temp = generator;
   for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
@@ -312,8 +312,8 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- double get_max_power( Index t , Index g = 0 ) const override {
-  auto temp = g;
+ double get_max_power( Index t , Index generator = 0 ) const override {
+  auto temp = generator;
   for( auto sub_block : get_nested_Blocks() )
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )

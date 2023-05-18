@@ -292,14 +292,14 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power of the given generator at the given time
 
- virtual double get_min_power( Index t , Index g = 0 ) const {
+ virtual double get_min_power( Index t , Index generator = 0 ) const {
   return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power of the given generator at the given time
 
- virtual double get_max_power( Index t , Index g = 0 ) const {
+ virtual double get_max_power( Index t , Index generator = 0 ) const {
   return( 0 );
  }
 
@@ -794,7 +794,7 @@ public:
  /// accessor to the type of modification
  int type( void ) { return( f_type ); }
 
-protected:
+ protected:
 
  /// prints the UnitBlockMod
  void print( std::ostream & output ) const override {

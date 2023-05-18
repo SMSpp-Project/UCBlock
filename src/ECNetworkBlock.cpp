@@ -92,7 +92,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
                                                      "ConstantTerm" ,
-                                                     "MaxNodeInjection" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
@@ -132,8 +131,7 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
                                                      "SellPrice" ,
                                                      "RewardPrice" ,
                                                      "PeakTariff" ,
-                                                     "ConstantTerm" ,
-                                                     "MaxNodeInjection" };
+                                                     "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -156,11 +154,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
   assert( ( v_ActiveDemand.shape()[ 0 ] == f_number_intervals ) &&
           ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
  }
-
- if( ::deserialize( group , "MaxNodeInjection" , v_MaxNodeInjection ) )
-  // always check if the max node injection is given in the correct shape
-  assert( ( v_MaxNodeInjection.shape()[ 0 ] == f_number_intervals ) &&
-          ( v_MaxNodeInjection.shape()[ 1 ] == NumberNodes ) );
 
  ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
                 true , true );
@@ -199,17 +192,17 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
  // the public power injection variables
  v_power_injection.resize(
   boost::extents[ number_intervals ][ number_nodes ] );
- for( Index t = 0 ; t < number_intervals ; ++t )
+ for( Index i = 0 ; i < number_intervals ; ++i )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-   v_power_injection[ t ][ node_id ].set_type( ColVariable::kNonNegative );
+   v_power_injection[ i ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_power_injection , "p_inj_network" );
 
  // the public power absorption variables
  v_power_absorption.resize(
   boost::extents[ number_intervals ][ number_nodes ] );
- for( Index t = 0 ; t < number_intervals ; ++t )
+ for( Index i = 0 ; i < number_intervals ; ++i )
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-   v_power_absorption[ t ][ node_id ].set_type( ColVariable::kNonNegative );
+   v_power_absorption[ i ][ node_id ].set_type( ColVariable::kNonNegative );
  add_static_variable( v_power_absorption , "p_abs_network" );
 
  if( is_cooperative() ) {
@@ -254,19 +247,19 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ number_nodes ][ number_intervals ] );
 
- for( Index t = 0 ; t < number_intervals ; ++t )
+ for( Index i = 0 ; i < number_intervals ; ++i )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-   vars.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
+   vars.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
                                    1.0 ) );
-   vars.push_back( std::make_pair( &v_power_absorption[ t ][ node_id ] ,
+   vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                    -1.0 ) );
-   vars.push_back( std::make_pair( &v_node_injection[ t ][ node_id ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] , -1.0 ) );
 
-   power_balance_const[ node_id ][ t ].set_both(
-    -v_ActiveDemand[ t ][ node_id ] );
-   power_balance_const[ node_id ][ t ].set_function(
+   power_balance_const[ node_id ][ i ].set_both(
+    -v_ActiveDemand[ i ][ node_id ] );
+   power_balance_const[ node_id ][ i ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
 
@@ -291,33 +284,33 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
    [ number_intervals ][ 2 ] ); // 2 dims, i.e., injection (+) and absorption (-)
 
-  for( Index t = 0 ; t < number_intervals ; ++t ) {
+  for( Index i = 0 ; i < number_intervals ; ++i ) {
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
     // case (1)
-    vars_p.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
+    vars_p.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
                                       -1.0 ) );
 
     // case (2)
-    vars_n.push_back( std::make_pair( &v_power_absorption[ t ][ node_id ] ,
+    vars_n.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                       -1.0 ) );
    }
 
    // case (1)
-   vars_p.push_back( std::make_pair( &v_shared_power[ t ] , 1.0 ) );
+   vars_p.push_back( std::make_pair( &v_shared_power[ i ] , 1.0 ) );
 
-   power_shared_const[ t ][ 0 ].set_lhs( -Inf< double >() );
-   power_shared_const[ t ][ 0 ].set_rhs( 0.0 );
-   power_shared_const[ t ][ 0 ].set_function(
+   power_shared_const[ i ][ 0 ].set_lhs( -Inf< double >() );
+   power_shared_const[ i ][ 0 ].set_rhs( 0.0 );
+   power_shared_const[ i ][ 0 ].set_function(
     new LinearFunction( std::move( vars_p ) ) );
 
    // case (2)
-   vars_n.push_back( std::make_pair( &v_shared_power[ t ] , 1.0 ) );
+   vars_n.push_back( std::make_pair( &v_shared_power[ i ] , 1.0 ) );
 
-   power_shared_const[ t ][ 1 ].set_lhs( -Inf< double >() );
-   power_shared_const[ t ][ 1 ].set_rhs( 0.0 );
-   power_shared_const[ t ][ 1 ].set_function(
+   power_shared_const[ i ][ 1 ].set_lhs( -Inf< double >() );
+   power_shared_const[ i ][ 1 ].set_rhs( 0.0 );
+   power_shared_const[ i ][ 1 ].set_function(
     new LinearFunction( std::move( vars_n ) ) );
   }
 
@@ -338,34 +331,34 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   boost::multi_array< FRowConstraint , 3 >::extent_gen()
   [ number_nodes ][ number_intervals ][ 2 ] );  // 2 dims, i.e., the sign (+/-)
 
- for( Index t = 0 ; t < number_intervals ; ++t )
+ for( Index i = 0 ; i < number_intervals ; ++i )
 
   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
    // case (1)
-   vars_p.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
+   vars_p.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
                                      1.0 ) );
-   vars_p.push_back( std::make_pair( &v_power_absorption[ t ][ node_id ] ,
+   vars_p.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                      -1.0 ) );
    vars_p.push_back( std::make_pair( &v_peak_power[ node_id ] , 1.0 ) );
 
    // case (2)
-   vars_n.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
+   vars_n.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
                                      -1.0 ) );
-   vars_n.push_back( std::make_pair( &v_power_absorption[ t ][ node_id ] ,
+   vars_n.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                      1.0 ) );
    vars_n.push_back( std::make_pair( &v_peak_power[ node_id ] , 1.0 ) );
 
    // case (1)
-   power_flow_limit_const[ node_id ][ t ][ 0 ].set_lhs( 0.0 );
-   power_flow_limit_const[ node_id ][ t ][ 0 ].set_rhs( Inf< double >() );
-   power_flow_limit_const[ node_id ][ t ][ 0 ].set_function(
+   power_flow_limit_const[ node_id ][ i ][ 0 ].set_lhs( 0.0 );
+   power_flow_limit_const[ node_id ][ i ][ 0 ].set_rhs( Inf< double >() );
+   power_flow_limit_const[ node_id ][ i ][ 0 ].set_function(
     new LinearFunction( std::move( vars_p ) ) );
 
    // case (2)
-   power_flow_limit_const[ node_id ][ t ][ 1 ].set_lhs( 0.0 );
-   power_flow_limit_const[ node_id ][ t ][ 1 ].set_rhs( Inf< double >() );
-   power_flow_limit_const[ node_id ][ t ][ 1 ].set_function(
+   power_flow_limit_const[ node_id ][ i ][ 1 ].set_lhs( 0.0 );
+   power_flow_limit_const[ node_id ][ i ][ 1 ].set_rhs( Inf< double >() );
+   power_flow_limit_const[ node_id ][ i ][ 1 ].set_function(
     new LinearFunction( std::move( vars_n ) ) );
   }
 
@@ -380,15 +373,16 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
    [ number_nodes ][ number_intervals ] );
 
-  for( Index t = 0 ; t < number_intervals ; ++t )
+  for( Index i = 0 ; i < number_intervals ; ++i )
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    node_injection_bounds_const[ node_id ][ t ].set_lhs( -Inf< double >() );
-    node_injection_bounds_const[ node_id ][ t ].set_rhs(
-     v_MaxNodeInjection[ t ][ node_id ] );
-    node_injection_bounds_const[ node_id ][ t ].set_variable(
-     &v_node_injection[ t ][ node_id ] );
+    node_injection_bounds_const[ node_id ][ i ].set_lhs(
+     v_MinNodeInjection[ i ][ node_id ] );
+    node_injection_bounds_const[ node_id ][ i ].set_rhs(
+     v_MaxNodeInjection[ i ][ node_id ] );
+    node_injection_bounds_const[ node_id ][ i ].set_variable(
+     &v_node_injection[ i ][ node_id ] );
    }
 
   add_static_constraint( node_injection_bounds_const ,
@@ -554,9 +548,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
- ::serialize( group , "MaxNodeInjection" , netCDF::NcDouble() ,
-              { NumberIntervals , NumberNodes } , v_MaxNodeInjection );
 
 }  // end( ECNetworkBlock::serialize )
 

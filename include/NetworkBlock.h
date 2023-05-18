@@ -483,10 +483,28 @@ class NetworkBlock : public Block
   const std::vector< std::vector< double > > & v ) = 0;
 
 /*--------------------------------------------------------------------------*/
+ /// method to set the MinNodeInjection
+
+ void set_min_node_injection( Index interval , Index node ,
+                              const double min_injection )
+ {
+  if( v_MinNodeInjection.empty() )
+   v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MinNodeInjection[ interval ][ node ] = min_injection;
+ }
+
+/*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
 
- virtual void set_max_node_injection( Index interval_id , Index node_id ,
-                                      const double max_injection ) = 0;
+ void set_max_node_injection( Index interval , Index node ,
+                              const double max_injection )
+ {
+  if( v_MaxNodeInjection.empty() )
+   v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxNodeInjection[ interval ][ node ] = max_injection;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -531,11 +549,25 @@ class NetworkBlock : public Block
   *   get_number_nodes(), then the D[ i , u ] represents the active demand
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
-  * @param i The interval wrt the vector of demands for each user is returned.
-  */
+  * @param interval The interval wrt the vector of demands for each user is
+  *                 returned. */
 
- virtual const double * get_active_demand( Index i = 0 ) const {
+ virtual const double * get_active_demand( Index interval = 0 ) const {
   return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum production of the electrical generators
+ /** Returns the minimum production for the given interval, which is assumed
+  * to have size get_number_nodes().
+  *
+  * @param interval The interval wrt the vector of minimum productions for each
+  *                 user is returned. */
+
+ const double * get_min_node_injection( Index interval = 0 ) const {
+  if( v_MinNodeInjection.empty() )
+   return( nullptr );
+  return( &( v_MinNodeInjection.data()[ interval * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -543,11 +575,13 @@ class NetworkBlock : public Block
  /** Returns the maximum production for the given interval, which is assumed
   * to have size get_number_nodes().
   *
-  * @param i The interval wrt the vector of demands for each user is returned.
-  */
+  * @param interval The interval wrt the vector of maximum productions for each
+  *                 user is returned. */
 
- virtual const double * get_max_node_injection( Index i = 0 ) const {
-  return( nullptr );
+ const double * get_max_node_injection( Index interval = 0 ) const {
+  if( v_MaxNodeInjection.empty() )
+   return( nullptr );
+  return( &( v_MaxNodeInjection.data()[ interval * get_number_nodes() ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -575,13 +609,13 @@ class NetworkBlock : public Block
   *   get_number_nodes(), then the I[ i , u ] represents the node injection
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
-  * @param i The interval wrt the vector of node injections for each user is
-  *          returned. */
+  * @param interval The interval wrt the vector of node injections for each
+  *                 user is returned. */
 
- ColVariable * get_node_injection( Index t = 0 ) {
+ ColVariable * get_node_injection( Index interval = 0 ) {
   if( v_node_injection.empty() )
    return( nullptr );
-  return( &( v_node_injection.data()[ t * get_number_nodes() ] ) );
+  return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -712,6 +746,12 @@ class NetworkBlock : public Block
 
  /// the constant term
  double f_ConstTerm{};
+
+ /// minimum production of the electrical generators
+ boost::multi_array< double , 2 > v_MinNodeInjection;
+
+ /// maximum production of the electrical generators
+ boost::multi_array< double , 2 > v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/
 

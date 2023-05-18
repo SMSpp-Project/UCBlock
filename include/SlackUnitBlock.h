@@ -408,7 +408,7 @@ class SlackUnitBlock : public UnitBlock
  * - otherwise, the vector must have size get_time_horizon() and each element
  *   of vector represents the maximum power value at time t. */
 
- double get_max_power( Index t , Index g = 0 ) const override {
+ double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
  }
 
