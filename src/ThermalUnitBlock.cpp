@@ -1212,6 +1212,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( &v_commitment[ t - 1 ] ,
                                      get_operational_min_power( t - 1 ) ) );
     }
+
     if( t >= init_t )
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                      -( v_StartUpLimit[ t ] -
@@ -1964,12 +1965,17 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   Index max_power_cnstrs_size = 0;
 
-  std::vector< int > v_T_RU( f_time_horizon );
-  std::vector< int > v_T_RD( f_time_horizon );
-  std::vector< int > v_K_SD( f_time_horizon );
-  std::vector< int > v_K_SU( f_time_horizon );
+  std::vector< int > v_T_RU;
+  std::vector< int > v_T_RD;
+  std::vector< int > v_K_SD;
+  std::vector< int > v_K_SU;
 
   if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) ) {
+
+   v_T_RU.resize( f_time_horizon );
+   v_T_RD.resize( f_time_horizon );
+   v_K_SD.resize( f_time_horizon );
+   v_K_SU.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     v_T_RU[ t ] = std::floor( ( get_operational_max_power( t ) -
