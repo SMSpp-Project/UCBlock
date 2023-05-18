@@ -401,6 +401,14 @@ function csvEC2nc4()
                         thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
                                                 field_component(users_data[u], g, "nom_capacity"))
 
+                        # store the start-up limit
+                        thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
+                        thermal_start_up_limit[:] = thermal_max_power[:]
+
+                        # store the shut-down limit
+                        thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
+                        thermal_shut_up_limit[:] = thermal_max_power[:]
+
                         # store the Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                         investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
