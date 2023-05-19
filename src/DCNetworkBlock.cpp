@@ -378,7 +378,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   // AC power flow limit constraints
 
-  v_AC_power_flow_limit_const.resize( get_number_lines() );
+  /* v_AC_power_flow_limit_const.resize( get_number_lines() );
 
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
 
@@ -404,7 +404,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     new LinearFunction( std::move( vars ) ) );
   }
 
-  add_static_constraint( v_AC_power_flow_limit_const , "AC_power_flow_limit" );
+  add_static_constraint( v_AC_power_flow_limit_const ,
+                         "AC_power_flow_limit" ); */
 
  }  // end( AC_Lines constraints )
 
