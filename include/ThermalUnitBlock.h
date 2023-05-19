@@ -1640,7 +1640,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_availability_dependents( Index t , c_ModParam issueAMod );
+ virtual void update_availability_dependents( Index t , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current initial power
@@ -1648,7 +1648,7 @@ class ThermalUnitBlock : public UnitBlock
   * the left-hand side of the ramp-down constraints at time 0 (which are the
   * constraints that depend on the initial power). */
 
- void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
+ virtual void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if the given availability is consistent

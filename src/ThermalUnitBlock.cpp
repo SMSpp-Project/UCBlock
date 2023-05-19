@@ -183,21 +183,31 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- std::vector< std::string > expected_vars = { "InvestmentCost" , "Capacity" ,
-                                              "MinPower" , "MaxPower" ,
-                                              "DeltaRampUp" , "DeltaRampDown" ,
-                                              "PrimaryRho" , "SecondaryRho" ,
-                                              "LinearTerm" , "QuadTerm" ,
-                                              "ConstTerm" , "StartUpCost" ,
-                                              "FixedConsumption" ,
-                                              "InertiaCommitment" ,
-                                              "InitialPower" , "MinUpTime" ,
-                                              "MinDownTime" ,
-                                              "InitUpDownTime" ,
-                                              "Availability" ,
-                                              "StartUpLimit" ,
-                                              "ShutDownLimit" };
- check_variables( group , expected_vars , std::cerr );
+ // we only check for unexpected fields if "this" is a "true"
+ // ThermalUnitBlock, i.e., not any derived class. this is because derived
+ // classes will likely *have* other fields that tha base class does not
+ // know about, and therefore it would complain about them. the idea is that
+ // derived classes will then have to check for all expected fields,
+ // comprised those of the base class
+ // we don't do the same for dimensions as it's unlikely that derived
+ // classes will introduce entirely new dimensions
+ if( typeid( ThermalUnitBlock ) == typeid( *this ) ) {
+  std::vector< std::string > expected_vars = { "InvestmentCost" , "Capacity" ,
+                                               "MinPower" , "MaxPower" ,
+                                               "DeltaRampUp" , "DeltaRampDown" ,
+                                               "PrimaryRho" , "SecondaryRho" ,
+                                               "LinearTerm" , "QuadTerm" ,
+                                               "ConstTerm" , "StartUpCost" ,
+                                               "FixedConsumption" ,
+                                               "InertiaCommitment" ,
+                                               "InitialPower" , "MinUpTime" ,
+                                               "MinDownTime" ,
+                                               "InitUpDownTime" ,
+                                               "Availability" ,
+                                               "StartUpLimit" ,
+                                               "ShutDownLimit" };
+  check_variables( group , expected_vars , std::cerr );
+ }
 #endif
 
  UnitBlock::deserialize( group );
