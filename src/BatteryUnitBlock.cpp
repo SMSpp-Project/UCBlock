@@ -278,7 +278,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  if( ! v_MaxPrimaryPower.empty() ) {
   assert( v_MaxPrimaryPower.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   if( v_MaxPrimaryRho[ t ] < 0 )
+   if( v_MaxPrimaryPower[ t ] < 0 )
     throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
                                   "the maximum power that can be used as "
                                   "primary reserve for time " +
