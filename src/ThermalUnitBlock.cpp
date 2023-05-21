@@ -2762,299 +2762,300 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 { // TODO how to handling the different tol between this code and dblRelAcc
- double tol = 1e-6;  // threshold parameter for p/c generation
- double eps = 1e-4;  // tolerance value to consider a binary variable
+ if( f_cuts ) {
+  double tol = 1e-6;  // threshold parameter for p/c generation
+  double eps = 1e-4;  // tolerance value to consider a binary variable
 
- auto extract_parameters = [ & tol , & eps ]( Configuration * c )
-  -> bool {
-  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
-   tol = tc->f_value;
-   return( true );
-  }
-  if( auto tc = dynamic_cast<
-   SimpleConfiguration< std::pair< double , double > > * >( c ) ) {
-   tol = tc->f_value.first;
-   eps = tc->f_value.second;
-   return( true );
-  }
-  return( false );
- };
-
- if( ( ! extract_parameters( dycc ) ) && f_BlockConfig )
-  // if the given Configuration is not valid, try the one from the BlockConfig
-  extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
-
- double value , pbar , value2;
-
- LinearFunction::v_coeff_pair vars;
-
- switch( AR & FormMsk ) {
-
-  case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
-   // fall through
-  case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
-
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-
-    if( v_commitment[ t ].get_value() > eps ) {
-
-     pbar = v_active_power_h_k[ t ].get_value() / v_commitment[ t ].get_value();
-     value = std::pow( v_active_power_h_k[ t ].get_value() , 2 ) /
-             v_commitment[ t ].get_value();
-
-     if( v_cut[ t ].get_value() < value - tol )
-      if( ( v_last_pbar[ t ] == 0 ) ||
-          ( ( v_last_pbar[ t ] != 0 ) &&
-            ( std::abs( ( v_last_pbar[ t ] - pbar ) /
-                        v_last_pbar[ t ] ) > eps ) ) ) {
-
-       std::list< FRowConstraint > newcut( 1 );
-       v_last_pbar[ t ] = pbar;
-
-       vars.push_back( std::make_pair(
-        &v_active_power_h_k[ t ] ,
-        2 * ( v_active_power_h_k[ t ].get_value() /
-              v_commitment[ t ].get_value() ) ) );
-
-       vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
-
-       vars.push_back( std::make_pair(
-        &v_commitment[ t ] ,
-        -( std::pow( v_active_power_h_k[ t ].get_value() , 2 ) /
-           std::pow( v_commitment[ t ].get_value() , 2 ) ) ) );
-
-       newcut.front().set_lhs( -Inf< double >() );
-       newcut.front().set_rhs( 0.0 );
-       newcut.front().set_function(
-        new LinearFunction( std::move( vars ) , eNoMod ) );
-
-       add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-      }
-    }
-
-   break;
-
-  case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
-
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-    double sum_y = 0.0;
-    for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-     if( ( v_Y_plus[ j ].first <= t + 1 ) &&
-         ( t + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_commitment_plus[ j ].get_value();
-
-    if( sum_y > eps ) {
-
-     pbar = v_active_power[ t ].get_value() / sum_y;
-     value = std::pow( v_active_power[ t ].get_value() , 2 ) / sum_y;
-
-     if( v_cut[ t ].get_value() < value - tol )
-      if( ( v_last_pbar[ t ] == 0 ) ||
-          ( ( v_last_pbar[ t ] != 0 ) &&
-            ( std::abs( ( v_last_pbar[ t ] - pbar ) /
-                        v_last_pbar[ t ] ) > eps ) ) ) {
-
-       std::list< FRowConstraint > newcut( 1 );
-       v_last_pbar[ t ] = pbar;
-
-       vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                       2 * ( v_active_power[ t ].get_value() /
-                                             sum_y ) ) );
-
-       vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
-
-       for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-        if( ( v_Y_plus[ j ].first <= t + 1 ) &&
-            ( t + 1 <= v_Y_plus[ j ].second ) )
-         vars.push_back( std::make_pair(
-          &v_commitment_plus[ j ] ,
-          -( std::pow( v_active_power[ t ].get_value() , 2 ) /
-             std::pow( sum_y , 2 ) ) ) );
-
-       newcut.front().set_lhs( -Inf< double >() );
-       newcut.front().set_rhs( 0.0 );
-       newcut.front().set_function(
-        new LinearFunction( std::move( vars ) , eNoMod ) );
-
-       add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-      }
-    }
+  auto extract_parameters = [ & tol , & eps ]( Configuration * c )
+   -> bool {
+   if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+    tol = tc->f_value;
+    return( true );
    }
+   if( auto tc = dynamic_cast<
+    SimpleConfiguration< std::pair< double , double > > * >( c ) ) {
+    tol = tc->f_value.first;
+    eps = tc->f_value.second;
+    return( true );
+   }
+   return( false );
+  };
 
-   break;
+  if( ( ! extract_parameters( dycc ) ) && f_BlockConfig )
+   // if the given Configuration is not valid, try the one from the BlockConfig
+   extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
 
-  case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
+  double value , pbar , value2;
 
-   for( Index j = 0 ; j < v_Y_plus.size() ; ++j )
-    if( v_commitment_plus[ j ].get_value() > eps ) {
+  LinearFunction::v_coeff_pair vars;
 
-     for( Index i = 0 ; i < v_P_h_k.size() ; ++i )
-      if( v_P_h_k[ i ].second.first == v_Y_plus[ j ].first &&
-          v_P_h_k[ i ].second.second == v_Y_plus[ j ].second ) {
+  switch( AR & FormMsk ) {
 
-       auto t = v_P_h_k[ i ].first;
-       pbar = v_active_power_h_k[ i ].get_value() /
-              v_commitment_plus[ j ].get_value();
-       value = std::pow( v_active_power_h_k[ i ].get_value() , 2 ) /
+   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
+    // fall through
+   case( TForm ):  // T formulation- - - - - - - - - - - - - - - - - - - - - -
+
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+
+     if( v_commitment[ t ].get_value() > eps ) {
+
+      pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
+      value = std::pow( v_active_power[ t ].get_value() , 2 ) /
+              v_commitment[ t ].get_value();
+
+      if( v_cut[ t ].get_value() < value - tol )
+       if( ( v_last_pbar[ t ] == 0 ) ||
+           ( ( v_last_pbar[ t ] != 0 ) &&
+             ( std::abs( ( v_last_pbar[ t ] - pbar ) /
+                         v_last_pbar[ t ] ) > eps ) ) ) {
+
+        std::list< FRowConstraint > newcut( 1 );
+        v_last_pbar[ t ] = pbar;
+
+        vars.push_back( std::make_pair(
+         &v_active_power[ t ] ,
+         2 * ( v_active_power[ t ].get_value() /
+               v_commitment[ t ].get_value() ) ) );
+
+        vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
+
+        vars.push_back( std::make_pair(
+         &v_commitment[ t ] ,
+         -( std::pow( v_active_power[ t ].get_value() , 2 ) /
+            std::pow( v_commitment[ t ].get_value() , 2 ) ) ) );
+
+        newcut.front().set_lhs( -Inf< double >() );
+        newcut.front().set_rhs( 0.0 );
+        newcut.front().set_function(
+         new LinearFunction( std::move( vars ) , eNoMod ) );
+
+        add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+       }
+     }
+
+    break;
+
+   case( ptForm ):  // pt formulation- - - - - - - - - - - - - - - - - - - - -
+
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+     double sum_y = 0.0;
+     for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+      if( ( v_Y_plus[ j ].first <= t + 1 ) &&
+          ( t + 1 <= v_Y_plus[ j ].second ) )
+       sum_y += v_commitment_plus[ j ].get_value();
+
+     if( sum_y > eps ) {
+
+      pbar = v_active_power[ t ].get_value() / sum_y;
+      value = std::pow( v_active_power[ t ].get_value() , 2 ) / sum_y;
+
+      if( v_cut[ t ].get_value() < value - tol )
+       if( ( v_last_pbar[ t ] == 0 ) ||
+           ( ( v_last_pbar[ t ] != 0 ) &&
+             ( std::abs( ( v_last_pbar[ t ] - pbar ) /
+                         v_last_pbar[ t ] ) > eps ) ) ) {
+
+        std::list< FRowConstraint > newcut( 1 );
+        v_last_pbar[ t ] = pbar;
+
+        vars.push_back( std::make_pair( &v_active_power[ t ] ,
+                                        2 * ( v_active_power[ t ].get_value() /
+                                              sum_y ) ) );
+
+        vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
+
+        for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+         if( ( v_Y_plus[ j ].first <= t + 1 ) &&
+             ( t + 1 <= v_Y_plus[ j ].second ) )
+          vars.push_back( std::make_pair(
+           &v_commitment_plus[ j ] ,
+           -( std::pow( v_active_power[ t ].get_value() , 2 ) /
+              std::pow( sum_y , 2 ) ) ) );
+
+        newcut.front().set_lhs( -Inf< double >() );
+        newcut.front().set_rhs( 0.0 );
+        newcut.front().set_function(
+         new LinearFunction( std::move( vars ) , eNoMod ) );
+
+        add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+       }
+     }
+    }
+
+    break;
+
+   case( DPForm ):  // DP formulation- - - - - - - - - - - - - - - - - - - - -
+
+    for( Index j = 0 ; j < v_Y_plus.size() ; ++j )
+     if( v_commitment_plus[ j ].get_value() > eps ) {
+
+      for( Index i = 0 ; i < v_P_h_k.size() ; ++i )
+       if( v_P_h_k[ i ].second.first == v_Y_plus[ j ].first &&
+           v_P_h_k[ i ].second.second == v_Y_plus[ j ].second ) {
+
+        auto t = v_P_h_k[ i ].first;
+        pbar = v_active_power_h_k[ i ].get_value() /
                v_commitment_plus[ j ].get_value();
+        value = std::pow( v_active_power_h_k[ i ].get_value() , 2 ) /
+                v_commitment_plus[ j ].get_value();
 
-       for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-        if( v_P_h_k[ i ].second.first == v_Z_h_k[ s ].second.first &&
-            v_P_h_k[ i ].second.second == v_Z_h_k[ s ].second.second )
-         if( v_Z_h_k[ s ].first == t )
-          if( v_cut_h_k[ s ].get_value() < value - tol )
-           if( ( v_last_pbar[ i ] == 0 ) ||
-               ( ( v_last_pbar[ i ] != 0 ) &&
-                 ( std::abs( ( v_last_pbar[ i ] - pbar ) /
-                             v_last_pbar[ i ] ) > eps ) ) ) {
+        for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
+         if( v_P_h_k[ i ].second.first == v_Z_h_k[ s ].second.first &&
+             v_P_h_k[ i ].second.second == v_Z_h_k[ s ].second.second )
+          if( v_Z_h_k[ s ].first == t )
+           if( v_cut_h_k[ s ].get_value() < value - tol )
+            if( ( v_last_pbar[ i ] == 0 ) ||
+                ( ( v_last_pbar[ i ] != 0 ) &&
+                  ( std::abs( ( v_last_pbar[ i ] - pbar ) /
+                              v_last_pbar[ i ] ) > eps ) ) ) {
 
-            std::list< FRowConstraint > newcut( 1 );
-            v_last_pbar[ i ] = pbar;
+             std::list< FRowConstraint > newcut( 1 );
+             v_last_pbar[ i ] = pbar;
 
-            vars.push_back( std::make_pair(
-             &v_active_power_h_k[ i ] ,
-             2 * ( v_active_power_h_k[ i ].get_value() /
-                   v_commitment_plus[ j ].get_value() ) ) );
+             vars.push_back( std::make_pair(
+              &v_active_power_h_k[ i ] ,
+              2 * ( v_active_power_h_k[ i ].get_value() /
+                    v_commitment_plus[ j ].get_value() ) ) );
 
-            vars.push_back( std::make_pair( &v_cut_h_k[ s ] , -1.0 ) );
+             vars.push_back( std::make_pair( &v_cut_h_k[ s ] , -1.0 ) );
 
-            vars.push_back( std::make_pair(
-             &v_commitment_plus[ j ] ,
-             -( std::pow( v_active_power_h_k[ i ].get_value() , 2 ) /
-                std::pow( v_commitment_plus[ j ].get_value() , 2 ) ) ) );
+             vars.push_back( std::make_pair(
+              &v_commitment_plus[ j ] ,
+              -( std::pow( v_active_power_h_k[ i ].get_value() , 2 ) /
+                 std::pow( v_commitment_plus[ j ].get_value() , 2 ) ) ) );
 
-            newcut.front().set_lhs( -Inf< double >() );
-            newcut.front().set_rhs( 0.0 );
-            newcut.front().set_function(
-             new LinearFunction( std::move( vars ) , eNoMod ) );
+             newcut.front().set_lhs( -Inf< double >() );
+             newcut.front().set_rhs( 0.0 );
+             newcut.front().set_function(
+              new LinearFunction( std::move( vars ) , eNoMod ) );
 
-            add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-           }
-      }
+             add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+            }
+       }
+     }
+
+    break;
+
+   case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
+
+    for( Index i = 0 ; i < v_P_h.size() ; ++i ) {
+
+     double sum_y = 0.0;
+     for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+      if( ( v_Y_plus[ j ].first == v_P_h[ i ].second ) &&
+          ( v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second ) )
+       sum_y += v_commitment_plus[ j ].get_value();
+
+     if( sum_y > eps ) {
+
+      auto t = v_P_h[ i ].first;
+      pbar = v_active_power_h[ i ].get_value() / sum_y;
+      value = std::pow( v_active_power_h[ i ].get_value() , 2 ) / sum_y;
+
+      for( Index s = 0 ; s < v_P_h.size() ; ++s )
+       if( v_P_h[ i ].first == v_Z_h[ s ].first &&
+           v_P_h[ i ].second == v_Z_h[ s ].second )
+        if( v_Z_h[ s ].first == t )
+         if( v_cut_h[ s ].get_value() < value - tol )
+          if( ( v_last_pbar[ i ] == 0 ) ||
+              ( ( v_last_pbar[ i ] != 0 ) &&
+                ( std::abs( ( v_last_pbar[ i ] - pbar ) /
+                            v_last_pbar[ i ] ) > eps ) ) ) {
+
+           std::list< FRowConstraint > newcut( 1 );
+           v_last_pbar[ i ] = pbar;
+
+           vars.push_back( std::make_pair(
+            &v_active_power_h[ i ] ,
+            2 * ( v_active_power_h[ i ].get_value() /
+                  sum_y ) ) );
+
+           vars.push_back( std::make_pair( &v_cut_h[ s ] , -1.0 ) );
+
+           for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+            if( v_Y_plus[ j ].first == v_P_h[ i ].second &&
+                v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
+             vars.push_back( std::make_pair(
+              &v_commitment_plus[ j ] ,
+              -( std::pow( v_active_power_h[ i ].get_value() , 2 ) /
+                 std::pow( sum_y , 2 ) ) ) );
+
+           newcut.front().set_lhs( -Inf< double >() );
+           newcut.front().set_rhs( 0.0 );
+           newcut.front().set_function(
+            new LinearFunction( std::move( vars ) , eNoMod ) );
+
+           add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+          }
+     }
     }
 
-   break;
+    break;
 
-  case( SUForm ):  // SU formulation- - - - - - - - - - - - - - - - - - - - -
+   case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
 
-   for( Index i = 0 ; i < v_P_h.size() ; ++i ) {
+    for( Index i = 0 ; i < v_P_k.size() ; ++i ) {
 
-    double sum_y = 0.0;
-    for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-     if( ( v_Y_plus[ j ].first == v_P_h[ i ].second ) &&
-         ( v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second ) )
-      sum_y += v_commitment_plus[ j ].get_value();
+     double sum_y = 0.0;
+     for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+      if( ( v_Y_plus[ j ].second == v_P_k[ i ].second ) &&
+          ( v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first ) )
+       sum_y += v_commitment_plus[ j ].get_value();
 
-    if( sum_y > eps ) {
+     if( sum_y > eps ) {
 
-     auto t = v_P_h[ i ].first;
-     pbar = v_active_power_h[ i ].get_value() / sum_y;
-     value = std::pow( v_active_power_h[ i ].get_value() , 2 ) / sum_y;
+      auto t = v_P_k[ i ].first;
+      pbar = v_active_power_k[ i ].get_value() / sum_y;
+      value = std::pow( v_active_power_k[ i ].get_value() , 2 ) / sum_y;
+      for( Index s = 0 ; s < v_P_k.size() ; ++s )
+       if( v_P_k[ i ].first == v_Z_k[ s ].first &&
+           v_P_k[ i ].second == v_Z_k[ s ].second )
+        if( v_Z_k[ s ].first == t )
+         if( v_cut_k[ s ].get_value() < value - tol )
+          if( ( v_last_pbar[ i ] == 0 ) ||
+              ( ( v_last_pbar[ i ] != 0 ) &&
+                ( std::abs( ( v_last_pbar[ i ] - pbar ) /
+                            v_last_pbar[ i ] ) > eps ) ) ) {
 
-     for( Index s = 0 ; s < v_P_h.size() ; ++s )
-      if( v_P_h[ i ].first == v_Z_h[ s ].first &&
-          v_P_h[ i ].second == v_Z_h[ s ].second )
-       if( v_Z_h[ s ].first == t )
-        if( v_cut_h[ s ].get_value() < value - tol )
-         if( ( v_last_pbar[ i ] == 0 ) ||
-             ( ( v_last_pbar[ i ] != 0 ) &&
-               ( std::abs( ( v_last_pbar[ i ] - pbar ) /
-                           v_last_pbar[ i ] ) > eps ) ) ) {
+           std::list< FRowConstraint > newcut( 1 );
+           v_last_pbar[ i ] = pbar;
 
-          std::list< FRowConstraint > newcut( 1 );
-          v_last_pbar[ i ] = pbar;
+           vars.push_back( std::make_pair(
+            &v_active_power_k[ i ] ,
+            2 * ( v_active_power_k[ i ].get_value() /
+                  sum_y ) ) );
 
-          vars.push_back( std::make_pair(
-           &v_active_power_h[ i ] ,
-           2 * ( v_active_power_h[ i ].get_value() /
-                 sum_y ) ) );
+           vars.push_back( std::make_pair( &v_cut_k[ s ] , -1.0 ) );
 
-          vars.push_back( std::make_pair( &v_cut_h[ s ] , -1.0 ) );
+           for( int j = 0 ; j < v_Y_plus.size() ; ++j )
+            if( v_Y_plus[ j ].second == v_P_k[ i ].second &&
+                v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
+             vars.push_back( std::make_pair(
+              &v_commitment_plus[ j ] ,
+              -( std::pow( v_active_power_k[ i ].get_value() , 2 ) /
+                 std::pow( sum_y , 2 ) ) ) );
 
-          for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-           if( v_Y_plus[ j ].first == v_P_h[ i ].second &&
-               v_P_h[ i ].first + 1 <= v_Y_plus[ j ].second )
-            vars.push_back( std::make_pair(
-             &v_commitment_plus[ j ] ,
-             -( std::pow( v_active_power_h[ i ].get_value() , 2 ) /
-                std::pow( sum_y , 2 ) ) ) );
+           newcut.front().set_lhs( -Inf< double >() );
+           newcut.front().set_rhs( 0.0 );
+           newcut.front().set_function(
+            new LinearFunction( std::move( vars ) , eNoMod ) );
 
-          newcut.front().set_lhs( -Inf< double >() );
-          newcut.front().set_rhs( 0.0 );
-          newcut.front().set_function(
-           new LinearFunction( std::move( vars ) , eNoMod ) );
-
-          add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-         }
+           add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
+          }
+     }
     }
-   }
 
-   break;
+    break;
 
-  case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
+   default:
 
-   for( Index i = 0 ; i < v_P_k.size() ; ++i ) {
+    exit( 1 );
 
-    double sum_y = 0.0;
-    for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-     if( ( v_Y_plus[ j ].second == v_P_k[ i ].second ) &&
-         ( v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first ) )
-      sum_y += v_commitment_plus[ j ].get_value();
+  }  // end( switch )
 
-    if( sum_y > eps ) {
-
-     auto t = v_P_k[ i ].first;
-     pbar = v_active_power_k[ i ].get_value() / sum_y;
-     value = std::pow( v_active_power_k[ i ].get_value() , 2 ) / sum_y;
-     for( Index s = 0 ; s < v_P_k.size() ; ++s )
-      if( v_P_k[ i ].first == v_Z_k[ s ].first &&
-          v_P_k[ i ].second == v_Z_k[ s ].second )
-       if( v_Z_k[ s ].first == t )
-        if( v_cut_k[ s ].get_value() < value - tol )
-         if( ( v_last_pbar[ i ] == 0 ) ||
-             ( ( v_last_pbar[ i ] != 0 ) &&
-               ( std::abs( ( v_last_pbar[ i ] - pbar ) /
-                           v_last_pbar[ i ] ) > eps ) ) ) {
-
-          std::list< FRowConstraint > newcut( 1 );
-          v_last_pbar[ i ] = pbar;
-
-          vars.push_back( std::make_pair(
-           &v_active_power_k[ i ] ,
-           2 * ( v_active_power_k[ i ].get_value() /
-                 sum_y ) ) );
-
-          vars.push_back( std::make_pair( &v_cut_k[ s ] , -1.0 ) );
-
-          for( int j = 0 ; j < v_Y_plus.size() ; ++j )
-           if( v_Y_plus[ j ].second == v_P_k[ i ].second &&
-               v_P_k[ i ].first + 1 >= v_Y_plus[ j ].first )
-            vars.push_back( std::make_pair(
-             &v_commitment_plus[ j ] ,
-             -( std::pow( v_active_power_k[ i ].get_value() , 2 ) /
-                std::pow( sum_y , 2 ) ) ) );
-
-          newcut.front().set_lhs( -Inf< double >() );
-          newcut.front().set_rhs( 0.0 );
-          newcut.front().set_function(
-           new LinearFunction( std::move( vars ) , eNoMod ) );
-
-          add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-         }
-    }
-   }
-
-   break;
-
-  default:
-
-   exit( 1 );
-
- }  // end( switch )
-
- add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
-
+  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
+ }
 }  // end( ThermalUnitBlock::generate_dynamic_constraints )
 
 /*--------------------------------------------------------------------------*/
