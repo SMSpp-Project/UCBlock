@@ -726,8 +726,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Lower bound of the storage level design constraints:
    //
-   //      v_MinPower z <= v_storage_level     z \in [0,1], for all t
-   // => 0 <= v_storage_level - v_MinPower z   z \in [0,1], for all t
+   //      v_MinStorage z <= v_storage_level     z \in [0,1], for all t
+   // => 0 <= v_storage_level - v_MinStorage z   z \in [0,1], for all t
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
@@ -1241,19 +1241,19 @@ void BatteryUnitBlock::scale( MF_dbl_it values ,
 
 void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 {
+ if( ! intake_outtake_bounds_Const.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
+    -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] , issueAMod );
+   intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
+    f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] , issueAMod );
+  }
+
  if( ! active_power_bounds_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    active_power_bounds_Const[ 0 ][ t ].set_lhs(
     f_kappa * v_MinPower[ t ] , issueAMod );
    active_power_bounds_Const[ 1 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] , issueAMod );
-  }
-
- if( ! intake_outtake_bounds_Const.empty() )
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] , issueAMod );
-   intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
     f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
