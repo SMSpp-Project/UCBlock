@@ -852,7 +852,7 @@ class BatteryUnitBlock : public UnitBlock
   *   element represents the maximum primary power at time t. */
 
  const std::vector< double > & get_max_primary_power( void ) const {
-  return( v_MaxPrimaryRho );
+  return( v_MaxPrimaryPower );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -870,7 +870,7 @@ class BatteryUnitBlock : public UnitBlock
   *   element represents the maximum secondary power at time t. */
 
  const std::vector< double > & get_max_secondary_power( void ) const {
-  return( v_MaxSecondaryRho );
+  return( v_MaxSecondaryPower );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1365,11 +1365,11 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of ConverterMaxPower
  std::vector< double > v_ConvMaxPower;
 
- /// the vector of MaxPrimaryRho
- std::vector< double > v_MaxPrimaryRho;
+ /// the vector of MaxPrimaryPower
+ std::vector< double > v_MaxPrimaryPower;
 
- /// the vector of MaxSecondaryRho
- std::vector< double > v_MaxSecondaryRho;
+ /// the vector of MaxSecondaryPower
+ std::vector< double > v_MaxSecondaryPower;
 
  /// the vector of RampUp
  std::vector< double > v_DeltaRampUp;

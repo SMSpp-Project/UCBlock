@@ -94,17 +94,25 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
- std::vector< std::string > expected_vars =
-  { "MinStorage" , "MaxStorage" , "InitialStorage" ,
-    "MinPower" , "MaxPower" , "InitialPower" , "ConverterMaxPower" ,
-    "MaxPrimaryPower" , "MaxSecondaryPower" ,
-    "DeltaRampUp" , "DeltaRampDown" ,
-    "StoringBatteryRho" , "ExtractingBatteryRho" ,
-    "Cost" , "Demand" , "Kappa" ,
-    "MaxCRateCharge" , "MaxCRateDischarge" ,
-    "BatteryMaxCapacity" , "ConverterMaxCapacity" ,
-    "MaxIntakePower" , "MaxOuttakePower" ,
-    "BatteryInvestmentCost" , "ConverterInvestmentCost" };
+ std::vector< std::string > expected_vars = { "MinStorage" , "MaxStorage" ,
+                                              "InitialStorage" ,
+                                              "MinPower" , "MaxPower" ,
+                                              "InitialPower" ,
+                                              "ConverterMaxPower" ,
+                                              "MaxPrimaryPower" ,
+                                              "MaxSecondaryPower" ,
+                                              "DeltaRampUp" , "DeltaRampDown" ,
+                                              "StoringBatteryRho" ,
+                                              "ExtractingBatteryRho" ,
+                                              "Cost" , "Demand" , "Kappa" ,
+                                              "MaxCRateCharge" ,
+                                              "MaxCRateDischarge" ,
+                                              "BatteryMaxCapacity" ,
+                                              "ConverterMaxCapacity" ,
+                                              "MaxIntakePower" ,
+                                              "MaxOuttakePower" ,
+                                              "BatteryInvestmentCost" ,
+                                              "ConverterInvestmentCost" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -137,8 +145,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryRho );
- ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryRho );
+ ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
+ ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
 
  ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
  ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
@@ -164,8 +172,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
  decompress_vector( v_ConvMaxPower );
  decompress_vector( v_MinStorage );
  decompress_vector( v_MaxStorage );
- decompress_vector( v_MaxPrimaryRho );
- decompress_vector( v_MaxSecondaryRho );
+ decompress_vector( v_MaxPrimaryPower );
+ decompress_vector( v_MaxSecondaryPower );
  decompress_vector( v_DeltaRampUp );
  decompress_vector( v_DeltaRampDown );
  decompress_vector( v_StoringBatteryRho );
@@ -267,28 +275,28 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  // Maximum active power that can be used as primary reserve
 
- if( ! v_MaxPrimaryRho.empty() ) {
-  assert( v_MaxPrimaryRho.size() == f_time_horizon );
+ if( ! v_MaxPrimaryPower.empty() ) {
+  assert( v_MaxPrimaryPower.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_MaxPrimaryRho[ t ] < 0 )
     throw( std::invalid_argument( "BatteryUnitBlock::check_data_consistency: "
                                   "the maximum power that can be used as "
                                   "primary reserve for time " +
                                   std::to_string( t ) + " is " +
-                                  std::to_string( v_MaxPrimaryRho[ t ] ) +
+                                  std::to_string( v_MaxPrimaryPower[ t ] ) +
                                   ", but it must be nonnegative." ) );
  }
 
  // Maximum active power that can be used as secondary reserve
 
- if( ! v_MaxSecondaryRho.empty() ) {
-  assert( v_MaxSecondaryRho.size() == f_time_horizon );
+ if( ! v_MaxSecondaryPower.empty() ) {
+  assert( v_MaxSecondaryPower.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   if( v_MaxSecondaryRho[ t ] < 0 )
+   if( v_MaxSecondaryPower[ t ] < 0 )
     throw( std::invalid_argument(
      "BatteryUnitBlock::check_data_consistency: the maximum power that "
      "can be used as secondary reserve for time " + std::to_string( t ) +
-     " is " + std::to_string( v_MaxSecondaryRho[ t ] ) +
+     " is " + std::to_string( v_MaxSecondaryPower[ t ] ) +
      ", but it must be nonnegative." ) );
  }
 
@@ -392,7 +400,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Primary Spinning Reserve Variable
  if( reserve_vars & 1u )  // if UCBlock has primary demand variables
   // if unit produces any primary reserve
-  if( ! v_MaxPrimaryRho.empty() ) {
+  if( ! v_MaxPrimaryPower.empty() ) {
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
@@ -402,7 +410,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Secondary Spinning Reserve Variable
  if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
   // if unit produces any secondary reserve
-  if( ! v_MaxSecondaryRho.empty() ) {
+  if( ! v_MaxSecondaryPower.empty() ) {
    v_secondary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_secondary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
@@ -464,13 +472,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_MaxPrimaryRho.empty() )
+    if( ! v_MaxPrimaryPower.empty() )
      // if this unit produces any primary reserve
      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                      -1.0 ) );
 
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    if( ! v_MaxSecondaryRho.empty() )
+    if( ! v_MaxSecondaryPower.empty() )
      // if unit produces any secondary reserve
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      -1.0 ) );
@@ -483,13 +491,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_MaxPrimaryRho.empty() )
+    if( ! v_MaxPrimaryPower.empty() )
      // if this unit produces any primary reserve
      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                      1.0 ) );
 
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
-    if( ! v_MaxSecondaryRho.empty() )
+    if( ! v_MaxSecondaryPower.empty() )
      // if this unit produces any secondary reserve
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      1.0 ) );
@@ -781,7 +789,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // Initializing primary_upper_bound_Const
 
  if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-  if( ! v_MaxPrimaryRho.empty() ) {
+  if( ! v_MaxPrimaryPower.empty() ) {
    // if this unit produces any primary reserve
 
    primary_upper_bound_Const.resize( f_time_horizon );
@@ -789,7 +797,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     primary_upper_bound_Const[ t ].set_rhs(
-     f_kappa * v_MaxPrimaryRho[ t ] );
+     f_kappa * v_MaxPrimaryPower[ t ] );
     primary_upper_bound_Const[ t ].set_variable(
      &v_primary_spinning_reserve[ t ] );
    }
@@ -801,7 +809,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // Initializing secondary_upper_bound_Const
 
  if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-  if( ! v_MaxSecondaryRho.empty() ) {
+  if( ! v_MaxSecondaryPower.empty() ) {
    // if this unit produces any secondary reserve
 
    secondary_upper_bound_Const.resize( f_time_horizon );
@@ -809,7 +817,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     secondary_upper_bound_Const[ t ].set_rhs(
-     f_kappa * v_MaxSecondaryRho[ t ] );
+     f_kappa * v_MaxSecondaryPower[ t ] );
     secondary_upper_bound_Const[ t ].set_variable(
      &v_secondary_spinning_reserve[ t ] );
    }
@@ -999,8 +1007,8 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "MaxStorage" , v_MaxStorage );
  serialize( "MinPower" , v_MinPower );
  serialize( "MaxPower" , v_MaxPower );
- serialize( "MaxPrimaryRho" , v_MaxPrimaryRho );
- serialize( "MaxSecondaryRho" , v_MaxSecondaryRho );
+ serialize( "MaxPrimaryPower" , v_MaxPrimaryPower );
+ serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
  serialize( "DeltaRampUp" , v_DeltaRampUp );
  serialize( "DeltaRampDown" , v_DeltaRampDown );
  serialize( "StoringBatteryRho" , v_StoringBatteryRho );
@@ -1290,12 +1298,12 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
  if( ! primary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   primary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxPrimaryRho[ t ] ,
+   primary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxPrimaryPower[ t ] ,
                                            issueAMod );
 
  if( ! secondary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   secondary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxSecondaryRho[ t ] ,
+   secondary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxSecondaryPower[ t ] ,
                                              issueAMod );
 
  }  // end( BatteryUnitBlock::update_kappa_in_cnstrs )

@@ -2761,9 +2761,28 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
-{ // TODO handling the different tol between this code and dblRelAcc in CPX
+{ // TODO how to handling the different tol between this code and dblRelAcc
  double tol = 1e-6;  // threshold parameter for p/c generation
  double eps = 1e-4;  // tolerance value to consider a binary variable
+
+ auto extract_parameters = [ & tol , & eps ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast<
+   SimpleConfiguration< std::pair< double , double > > * >( c ) ) {
+   tol = tc->f_value.first;
+   eps = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( dycc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
 
  double value , pbar , value2;
 
