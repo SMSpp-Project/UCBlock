@@ -128,8 +128,12 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
-  v_MinPower.resize( f_time_horizon );
+ if( ! ::deserialize( group , "MinPower" , v_MinPower ) ) {
+  v_MinPower.resize( v_MaxPower.size() );
+  std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_MinPower.begin() );
+  std::transform( v_MinPower.cbegin() , v_MinPower.cend() , v_MinPower.begin() ,
+                  []( double p ) { return -p; } );
+ }
 
  if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) ) {
   v_ConvMaxPower.resize( v_MaxPower.size() );
@@ -449,7 +453,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-    f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] );
+    -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] );
    intake_outtake_bounds_Const[ 0 ][ t ].set_variable( &v_intake_level[ t ] );
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
@@ -523,15 +527,15 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //      v_intake_level <= v_MaxPower z     z \in [0,1], for all t
-   // => v_intake_level - v_MaxPower z <= 0   z \in [0,1], for all t
+   //      v_intake_level <= - v_MinPower z   z \in [0,1], for all t
+   // => v_intake_level + v_MinPower z <= 0   z \in [0,1], for all t
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
-                                   -f_kappa * f_MaxCRateDischarge *
-                                   v_MaxPower[ t ] ) );
+                                   f_kappa * f_MaxCRateDischarge *
+                                   v_MinPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs( 0.0 );
