@@ -1339,7 +1339,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    auto f = static_cast< LinearFunction * >(
     intake_outtake_binary_Const[ 0 ][ t ].get_function() );
 
-   const auto index = f->is_active( & v_battery_binary[ t ] );
+   const auto index = f->is_active( &v_battery_binary[ t ] );
 
    if( index == Inf< Index >() )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
@@ -1355,7 +1355,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    auto f = static_cast< LinearFunction * >
     ( intake_outtake_binary_Const[ 1 ][ t ].get_function() );
 
-   const auto index = f->is_active( & v_battery_binary[ t ] );
+   const auto index = f->is_active( &v_battery_binary[ t ] );
 
    if( index == Inf< Index >() )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
