@@ -64,6 +64,7 @@ SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
 BatteryUnitBlock::~BatteryUnitBlock()
 {
  Constraint::clear( active_power_bounds_Const );
+ Constraint::clear( active_power_bounds_design_Const );
  Constraint::clear( intake_outtake_upper_bounds_design_Const );
  Constraint::clear( storage_level_bounds_design_Const );
  Constraint::clear( intake_outtake_binary_Const );
@@ -578,6 +579,72 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( intake_outtake_upper_bounds_design_Const ,
                          "IntakeOuttake_Design_Battery" );
+
+  // Active power bounds design constraints
+
+  active_power_bounds_design_Const.resize(
+   boost::multi_array< FRowConstraint , 2 >::extent_gen()
+   [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the lower and upper bounds
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   // Lower bound of the active power design constraints:
+   //
+   //      v_minimum_power z <= v_active_power     z \in [0,1], for all t
+   // => 0 <= v_active_power - v_minimum_power z   z \in [0,1], for all t
+
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+    if( ! v_MaxPrimaryPower.empty() )
+     // if this unit produces any primary reserve
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+    if( ! v_MaxSecondaryPower.empty() )
+     // if unit produces any secondary reserve
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+
+   vars.push_back( std::make_pair( &batt_design ,
+                                   -f_kappa * v_MinPower[ t ] ) );
+
+   active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
+   active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
+   active_power_bounds_design_Const[ 0 ][ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+
+   // Upper bound of the active power design constraints:
+   //
+   //      v_active_power <= v_maximum_power z     z \in [0,1], for all t
+   // => v_active_power - v_maximum_power z <= 0   z \in [0,1], for all t
+
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
+   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+    if( ! v_MaxPrimaryPower.empty() )
+     // if this unit produces any primary reserve
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+
+   if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
+    if( ! v_MaxSecondaryPower.empty() )
+     // if this unit produces any secondary reserve
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+
+   vars.push_back( std::make_pair( &batt_design ,
+                                   -f_kappa * v_MaxPower[ t ] ) );
+
+   active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
+   active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
+   active_power_bounds_design_Const[ 1 ][ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  add_static_constraint( active_power_bounds_design_Const ,
+                         "ActivePower_Design_Battery" );
  }
 
  // Initializing power_intake_outtake_Const
@@ -912,12 +979,12 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
  return(
   UnitBlock::is_feasible( useabstract )
-  // Variables: Notice that there is no check for the v_active_power
-  // variables, since they continuous and have no bounds
+  // Variables
   && ColVariable::is_feasible( v_storage_level , tol )
   && ColVariable::is_feasible( v_intake_level , tol )
   && ColVariable::is_feasible( v_outtake_level , tol )
   && ColVariable::is_feasible( v_battery_binary , tol )
+  && ColVariable::is_feasible( v_active_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints: notice that the ZOConstraint are not checked, since the

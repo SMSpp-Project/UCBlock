@@ -1454,6 +1454,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the active power bounds constraints
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;
 
+ /// the active power bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
+
  /// the intake outtake upper bounds design constraints
  boost::multi_array< FRowConstraint , 2 > intake_outtake_upper_bounds_design_Const;
 
