@@ -544,11 +544,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
         continue;
 
        auto fixed_consumption = unit_block->get_fixed_consumption( g );
-       min_node_injection += std::min(
-        { -( *v_network_blocks[ n ]->get_active_demand( i ) ) ,
-          unit_block->get_min_power( t , g ) ,
-          fixed_consumption ? -fixed_consumption[ t ] : 0.0 } );
-
+       min_node_injection += std::min( unit_block->get_min_power( t , g ) ,
+                                       fixed_consumption
+                                       ? -fixed_consumption[ t ] : 0.0 );
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
       }
