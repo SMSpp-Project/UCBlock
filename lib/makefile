@@ -9,7 +9,7 @@
 #   These are *not* copied into $(UCBckINC): adding those -I directives to   #
 #   the compile commands will have to done by whatever "main" makefile is    #
 #   using this. Analogously, any external library and the corresponding      #
-#   -L< libdirs > will have to be added to the final linking command by      #
+#   -L<libdirs> will have to be added to the final linking command by        #
 #   whatever "main" makefile is using this.                                  #
 #                                                                            #
 #   Note that, conversely, $(SMS++INC) is also assumed to include any        #
@@ -27,17 +27,17 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                              Antonio Frangioni                             #
-#                         Dipartimento di Informatica                        #
-#                             Universita' di Pisa                            #
+#                             Antonio Frangioni                              #
+#                        Dipartimento di Informatica                         #
+#                            Universita' di Pisa                             #
 #                                                                            #
 ##############################################################################
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
-	$(UCBckDIR)obj/BusNetworkBlock.o \
 	$(UCBckDIR)obj/DCNetworkBlock.o \
+	$(UCBckDIR)obj/ECNetworkBlock.o \
 	$(UCBckDIR)obj/HydroSystemUnitBlock.o \
 	$(UCBckDIR)obj/HydroUnitBlock.o \
 	$(UCBckDIR)obj/IntermittentUnitBlock.o \
@@ -52,8 +52,8 @@ UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 UCBckINC = -I$(UCBckDIR)include/
 
 UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
-	$(UCBckDIR)include/BusNetworkBlock.h \
 	$(UCBckDIR)include/DCNetworkBlock.h \
+	$(UCBckDIR)include/ECNetworkBlock.h \
 	$(UCBckDIR)include/HydroSystemUnitBlock.h \
 	$(UCBckDIR)include/HydroUnitBlock.h \
 	$(UCBckDIR)include/IntermittentUnitBlock.h \
@@ -72,12 +72,6 @@ clean::
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
-$(UCBckDIR)obj/BusNetworkBlock.o: $(UCBckDIR)src/BusNetworkBlock.cpp \
-	$(UCBckDIR)include/BusNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
-	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/BusNetworkBlock.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
-
 $(UCBckDIR)obj/BatteryUnitBlock.o: $(UCBckDIR)src/BatteryUnitBlock.cpp \
         $(UCBckDIR)include/BatteryUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
 	$(SMS++OBJ) 
@@ -88,6 +82,12 @@ $(UCBckDIR)obj/DCNetworkBlock.o: $(UCBckDIR)src/DCNetworkBlock.cpp \
 	$(UCBckDIR)include/DCNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
 	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
+	$(UCBckINC) $(SW)
+
+$(UCBckDIR)obj/ECNetworkBlock.o: $(UCBckDIR)src/ECNetworkBlock.cpp \
+	$(UCBckDIR)include/ECNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
+	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)src/ECNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
 #$(UCBckDIR)obj/HeatBlock.o: $(UCBckDIR)src/HeatBlock.cpp \

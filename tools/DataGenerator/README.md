@@ -8,7 +8,7 @@ The main file is UC2SMSpp.m which starts with two switchable categories as below
 
 1. % Spinning reserves: 
 
-%   None                =====> There are no Primary ans Secondary Spinning reserves
+%   None                =====> There are no Primary and Secondary Spinning reserves
 
 %   Prim                =====> There are just Primary Spinning reserves
 
@@ -45,7 +45,6 @@ This section is not ready yet.
 ### Current Lead Authors
 
 - **Wim van Ackooij**  
-  *Operations Research Group*  
    Expert Researcher at EDF R&D
   
 
