@@ -1133,18 +1133,23 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // Initializing ramp-up constraints- - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) )
+ if( ! v_DeltaRampUp.empty() )
   if( f_InitUpDownTime > 0 )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( ( f_InitialPower + v_DeltaRampUp[ 0 ] <
-          get_operational_min_power( 0 ) ) ||
-        ( f_InitialPower - v_DeltaRampDown[ 0 ] >
-          get_operational_max_power( 0 ) ) )
+    if( f_InitialPower + v_DeltaRampUp[ 0 ] < get_operational_min_power( 0 ) )
      throw( std::logic_error(
-      "ThermalUnitBlock::Ramp Constraints: when f_InitUpDownTime > 0,"
-      " it must be that f_InitialPower + v_DeltaRampUp[ 0 ] >= "
-      "get_operational_min_power( 0 ) and f_InitialPower - "
-      "v_DeltaRampDown[ 0 ] <= get_operational_max_power( 0 )." ) );
+      "ThermalUnitBlock::RampUpConstraints: when f_InitUpDownTime > 0, "
+      "it must be that f_InitialPower + v_DeltaRampUp[ 0 ] >= "
+      "get_operational_min_power( 0 )." ) );
+
+ if( ! v_DeltaRampDown.empty() )
+  if( f_InitUpDownTime > 0 )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( f_InitialPower - v_DeltaRampDown[ 0 ] > get_operational_max_power( 0 ) )
+     throw( std::logic_error(
+      "ThermalUnitBlock::RampDownConstraints: when f_InitUpDownTime > 0, "
+      "it must be that f_InitialPower - v_DeltaRampDown[ 0 ] <= "
+      "get_operational_max_power( 0 )." ) );
 
  if( ! v_DeltaRampUp.empty() ) {
 
