@@ -584,7 +584,7 @@ class UnitBlock : public Block
                      Subset && subset ,
                      const bool ordered = false ,
                      c_ModParam issuePMod = eNoBlck ,
-                     c_ModParam issueAMod = eNoBlck );
+                     c_ModParam issueAMod = eNoBlck ) { }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor of this UnitBlock
