@@ -9,7 +9,7 @@
 #   These are *not* copied into $(UCBckINC): adding those -I directives to   #
 #   the compile commands will have to done by whatever "main" makefile is    #
 #   using this. Analogously, any external library and the corresponding      #
-#   -L<libdirs> will have to be added to the final linking command by        #
+#   -L< libdirs > will have to be added to the final linking command by      #
 #   whatever "main" makefile is using this.                                  #
 #                                                                            #
 #   Note that, conversely, $(SMS++INC) is also assumed to include any        #
@@ -27,13 +27,13 @@
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
 #                                                                            #
-#                             Antonio Frangioni                              #
-#                        Dipartimento di Informatica                         #
-#                            Universita' di Pisa                             #
+#                              Antonio Frangioni                             #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
 #                                                                            #
 ##############################################################################
 
-# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/DCNetworkBlock.o \
@@ -42,6 +42,7 @@ UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/HydroUnitBlock.o \
 	$(UCBckDIR)obj/IntermittentUnitBlock.o \
 	$(UCBckDIR)obj/NetworkBlock.o \
+	$(UCBckDIR)obj/NuclearUnitBlock.o \
 	$(UCBckDIR)obj/SlackUnitBlock.o \
 	$(UCBckDIR)obj/ThermalUnitBlock.o \
 	$(UCBckDIR)obj/ThermalUnitDPSolver.o \
@@ -58,6 +59,7 @@ UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
 	$(UCBckDIR)include/HydroUnitBlock.h \
 	$(UCBckDIR)include/IntermittentUnitBlock.h \
 	$(UCBckDIR)include/NetworkBlock.h \
+	$(UCBckDIR)include/NuclearUnitBlock.h \
 	$(UCBckDIR)include/SlackUnitBlock.h \
 	$(UCBckDIR)include/ThermalUnitBlock.h \
 	$(UCBckDIR)include/ThermalUnitDPSolver.h \
@@ -121,6 +123,13 @@ $(UCBckDIR)obj/NetworkBlock.o: $(UCBckDIR)src/NetworkBlock.cpp \
 	$(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)src/NetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
+
+$(UCBckDIR)obj/NuclearUnitBlock.o: $(UCBckDIR)src/NuclearUnitBlock.cpp \
+        $(UCBckDIR)include/NuclearUnitBlock.h \
+	$(UCBckDIR)include/ThermalUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+	$(SMS++OBJ) 
+	$(CC) -c $(UCBckDIR)src/NuclearUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckDIR)obj/SlackUnitBlock.o: $(UCBckDIR)src/SlackUnitBlock.cpp \
 	$(UCBckDIR)include/SlackUnitBlock.h $(UCBckDIR)include/UnitBlock.h \

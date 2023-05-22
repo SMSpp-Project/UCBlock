@@ -78,6 +78,7 @@ target_sources(${modName} PRIVATE
                src/UnitBlock.cpp
                # src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
+               src/NuclearUnitBlock.cpp
                src/ThermalUnitBlock.cpp
                src/ThermalUnitDPSolver.cpp
                src/HydroUnitBlock.cpp
