@@ -735,10 +735,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   intake_coeff = v_ExtractingBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
 
- double rhs = ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage );
  if( ! v_Demand.empty() )
-  rhs -= v_Demand[ 0 ];
- demand_Const[ 0 ].set_both( rhs );
+  demand_Const[ 0 ].set_both(
+   ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage ) - v_Demand[ 0 ] );
+ else
+  demand_Const[ 0 ].set_both(
+   ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage ) );
 
  demand_Const[ 0 ].set_function( new LinearFunction( std::move( vars ) ) );
 

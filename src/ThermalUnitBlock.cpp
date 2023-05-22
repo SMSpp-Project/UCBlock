@@ -445,8 +445,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   wf = sci->f_value;
 
- f_cuts = wf & PCuts;
-
  if( f_InitUpDownTime > 0 )
   init_t = ( f_InitUpDownTime >= f_MinUpTime ? 0 :
              f_MinUpTime - f_InitUpDownTime );
@@ -551,6 +549,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
    v_shut_down[ t - init_t ].is_fixed( true );
   }
  }
+
+ bool f_cuts = wf & PCuts;
 
  // Prospective Cuts Variables- - - - - - - - - - - - - - - - - - - - - - - -
  if( f_cuts ) {
@@ -795,11 +795,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stcc ) )
   generate_ZOConstraints = sci->f_value;
-
- if( f_cuts ) {
-  PC_cuts.clear();
-  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
- }
 
  LinearFunction::v_coeff_pair vars;
 
@@ -2537,7 +2532,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                          "Commitment_fixed_to_one_Thermal" );
  }
 
- if( f_cuts ) {
+ if( AR & PCuts ) {
 
   // Initial perspective cuts constraints - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2762,7 +2757,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 { // TODO how to handling the different tol between this code and dblRelAcc
- if( f_cuts ) {
+ if( AR & PCuts ) {
   double tol = 1e-6;  // threshold parameter for p/c generation
   double eps = 1e-4;  // tolerance value to consider a binary variable
 
@@ -3113,7 +3108,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( &v_active_power[ t ] ,
                                    f_scale * v_LinearTerm[ t ] ,
-                                   f_cuts ? 0.0 : f_scale * v_QuadTerm[ t ] ) );
+                                   AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ) );
 
  // add the commitment variables- - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -3158,7 +3153,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                                      0.0 ) );
  }
 
- if( f_cuts )
+ if( AR & PCuts )
   // add the perspective cuts variables - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_cut[ t ] ,
@@ -4677,7 +4672,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
   assert( var_index < function->get_num_active_var() );
   function->modify_term( var_index ,
                          f_scale * v_LinearTerm[ t ] ,
-                         f_cuts ? 0.0 : f_scale * v_QuadTerm[ t ] ,
+                         AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ,
                          issueAMod );
  }
 }  // end( ThermalUnitBlock::update_objective_active_power )

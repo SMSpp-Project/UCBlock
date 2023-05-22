@@ -561,7 +561,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( identical )
   return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
      constraints_generated() )
   // Change the abstract representation
   update_max_power_in_cnstrs( subset , issueAMod );
@@ -688,8 +689,8 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      min_power_Const[ t ].set_lhs
-       ( f_kappa * v_MinPower[ t ] , issueAMod );
+      min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] ,
+                                    issueAMod );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
