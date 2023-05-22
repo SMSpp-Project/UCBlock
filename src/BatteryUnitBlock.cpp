@@ -759,10 +759,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
   vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -1.0 ) );
 
-  double rhs = 0;
   if( ! v_Demand.empty() )
-   rhs = -v_Demand[ t ];
-  demand_Const[ t ].set_both( rhs );
+   demand_Const[ t ].set_both( -v_Demand[ t ] );
+  else
+   demand_Const[ t ].set_both( 0.0 );
 
   demand_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
  }
