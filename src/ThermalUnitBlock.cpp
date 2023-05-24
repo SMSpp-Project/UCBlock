@@ -223,14 +223,21 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
-  f_MinUpTime = std::min( f_MinUpTime , f_time_horizon );
+  f_MinUpTime = std::min( std::max( f_MinUpTime , ( Index ) 1 ) ,
+                          f_time_horizon );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
-  f_MinDownTime = std::min( f_MinDownTime , f_time_horizon );
+  f_MinDownTime = std::min( std::max( f_MinDownTime , ( Index ) 1 ) ,
+                            f_time_horizon );
 
- if( ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) )
+ ::deserialize( group , f_InitialPower , "InitialPower" );
 
-  ::deserialize( group , f_InitialPower , "InitialPower" );
+ if( ! ::deserialize( group , f_InitUpDownTime , "InitUpDownTime" ) ) {
+  if( f_InitialPower == 0 )
+   f_InitUpDownTime = -f_MinDownTime;
+  else
+   f_InitUpDownTime = f_MinUpTime;
+ }
 
  if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
   v_MinPower.resize( f_time_horizon );
@@ -303,11 +310,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 void ThermalUnitBlock::check_data_consistency( void ) const
 {
  // InvestmentCost- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ( f_InvestmentCost != 0 ) && ( f_InitUpDownTime != 0 ) )
+ if( ( f_InvestmentCost != 0 ) && ( f_InitUpDownTime >= 0 ) )
   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: the "
                            "presence of the investment cost of the thermal "
                            "allows the model to switch into the strategic "
-                           "scenario mode, but the presence of also the "
+                           "scenario mode, but the presence of a positive "
                            "initial up/down time, typical of the operative "
                            "scenario, is incompatible." ) );
 
@@ -378,20 +385,6 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                              std::to_string( v_QuadTerm[ t ] ) +
                              ", but it must be nonnegative." ) );
  }
-
- // MinUpTime - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_MinUpTime < 1 )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "minimum up time is "
-                           + std::to_string( f_MinUpTime ) +
-                           ", but it must be greater than 0." ) );
-
- // MinDownTime - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_MinDownTime < 0 )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "minimum down time is " +
-                           std::to_string( f_MinDownTime ) +
-                           ", but it must be nonnegative." ) );
 
  // InitialPower- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InitialPower < 0 )

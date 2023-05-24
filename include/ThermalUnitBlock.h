@@ -336,14 +336,22 @@ class ThermalUnitBlock : public UnitBlock
   * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
   *   indexed over any dimension, which indicates the minimum allowed up time
   *   in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinUpTime == 0, which mean that the unit can shut-down in the
-  *   very same timestamp in which it starts up.
+  *   taken to be MinUpTime == 1. Since MinUpTime == 0 is actually possible,
+  *   which means that the unit can shut-down in the very same timestamp in
+  *   which it starts up, we also know that starting up a unit only to
+  *   power it down again immediately is never a good idea, so we force
+  *   up-time periods to be at least of length 1, even if it is given equals
+  *   to 0.
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
   *   time in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinDownTime == 0, which mean that the unit can start-up in
-  *   the very same timestamp in which it shuts down.
+  *   taken to be MinDownTime == 1. Since MinDownTime == 0 is actually
+  *   possible, which means that the unit can start-up in the very same
+  *   timestamp in which it shuts down, we also know that shutting down a
+  *   unit only to power it up again immediately is never a good idea, so
+  *   we force down-time periods to be at least of length 1, even if it is
+  *   given equals to 0.
   *
   * - The variable "FixedConsumption", of type netCDF::NcDouble and either
   *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
@@ -1900,7 +1908,7 @@ class ThermalUnitBlock : public UnitBlock
  Index f_MinUpTime = 1;
 
  /// the MinDownTime value
- Index f_MinDownTime{};
+ Index f_MinDownTime = 1;
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
