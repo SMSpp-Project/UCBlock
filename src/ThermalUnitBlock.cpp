@@ -2617,7 +2617,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   if( ( ( AR & FormMsk ) == tbinForm ) ||  // 3bin formulation- - - - - - - -
       ( ( AR & FormMsk ) == TForm ) ) {  // T formulation - - - - - - - - - -
 
-   Init_PC_Const.resize( 2 * v_active_power.size() );
+   Init_PC_Const.resize( 2 * f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index k = 0 ; k <= 1 ; ++k ) {
@@ -2640,7 +2640,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   } else if( ( AR & FormMsk ) == ptForm ) {  // pt formulation- - - - - - - -
 
-   Init_PC_Const.resize( 2 * v_active_power.size() );
+   Init_PC_Const.resize( 2 * f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index k = 0 ; k <= 1 ; ++k ) {
