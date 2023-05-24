@@ -883,8 +883,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    auto shutdown_const_size =
     static_cast< int >( f_time_horizon - ( init_t + f_MinDownTime - 1 ) );
 
-   if( ( shutdown_const_size > 0 ) &&
-       ( shutdown_const_size <= f_time_horizon ) ) {
+   if( shutdown_const_size > 0 ) {
 
     ShutDown_Const.resize( shutdown_const_size );
 
