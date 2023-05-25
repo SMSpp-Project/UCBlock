@@ -284,12 +284,6 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
    *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
    }
-
-  // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
-  // the commitment status if fixed and start-ups are not allowed, hence
-  // the corresponding start-up variables are not even defined
-  if( t >= init_t )
-   *cfit = coeff_pair( & v_start_up[ t - init_t ] , v_StartUpLimit[ t ] );
   else {
    // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
    // so there is no explicit term in the constraint (since the variable does
@@ -302,6 +296,12 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    if( f_InitUpDownTime > 0 )
     RHS += v_modulation_ramp_up[ 0 ];
    }
+
+  // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
+  // the commitment status if fixed and start-ups are not allowed, hence
+  // the corresponding start-up variables are not even defined
+  if( t >= init_t )
+   *cfit = coeff_pair( & v_start_up[ t - init_t ] , v_StartUpLimit[ t ] );
 
   Modulation_RampUp_Constraints[ t ].set_lhs( - Inf< double >() );
   Modulation_RampUp_Constraints[ t ].set_rhs( RHS );
