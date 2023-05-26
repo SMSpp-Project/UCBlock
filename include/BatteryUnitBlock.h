@@ -551,22 +551,22 @@ class BatteryUnitBlock : public UnitBlock
   *   the UC problem, become:
   *
   *   \f[
-  *     p^+_t \leq \kappa z_b ( C^- P^{mx,b}_t )
+  *     p^+_t \leq \kappa x_b ( C^- P^{mx,b}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.3)
   *   \f]
   *
   *   \f[
-  *     p^-_t \leq \kappa z_b ( C^+ P^{mx,b}_t )
+  *     p^-_t \leq \kappa x_b ( C^+ P^{mx,b}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.4)
   *   \f]
   *
   *   \f[
-  *     p^+_t + p^-_t \leq z_c ( \kappa P^{mx,c}_t )
+  *     p^+_t + p^-_t \leq x_c ( \kappa P^{mx,c}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.5)
   *   \f]
   *
   *   where \f$ P^{mx,c}_t \f$ is the maximum power of the converter, and
-  *   \f$ z_b \f$ and \f$ z_c \f$ are the design variable the battery and the
+  *   \f$ x_b \f$ and \f$ x_c \f$ are the design variable the battery and the
   *   converter respectively.
   *
   * - storage level relation with intake and outtake levels (if any)
@@ -602,14 +602,14 @@ class BatteryUnitBlock : public UnitBlock
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
-  *    z_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq z_b ( \kappa V^{mx}_t )
+  *    x_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq x_b ( \kappa V^{mx}_t )
   *                                           \quad t \in \mathcal{T} \quad (9b)
   *   \f]
   *
   *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are the
   *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t \f$ and
   *   \f$ V^{mx}_t \f$ are the minimum and maximum storage level for each time
-  *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ z_b \f$
+  *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ x_b \f$
   *   is the design variable of the battery.
   *
   * - binary variable relation with storing and extracting energy level (if
@@ -658,12 +658,12 @@ class BatteryUnitBlock : public UnitBlock
   *   is given as follow:
   *
   *   \f[
-  *     \min ( I_b z_b + I_c z_c +
+  *     \min ( I_b x_b + I_c x_c +
   *     \sum_{ t \in \mathcal{T} } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
-  *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c \f$ are
+  *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
   *   the design variable the battery and the converter respectively, and \f$
   *   C_t \f$ is a certain proportion cost function. */
 

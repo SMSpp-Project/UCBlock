@@ -1884,6 +1884,8 @@ class ThermalUnitBlock : public UnitBlock
 
  /// TODO short description
  std::vector< Index > v_nodes_plus;
+
+ /// TODO short description
  std::vector< Index > v_nodes_minus;
 
  /// the vector of index to map the commitment variables of the 3bin
@@ -1940,8 +1942,10 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment binary variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_commitment;
 
- /// the commitment binary variables for DP, SU and SD formulations
+ /// the y^+ commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_plus;
+
+ /// the y^- commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_minus;
 
 
