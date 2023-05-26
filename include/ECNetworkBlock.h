@@ -282,43 +282,38 @@ class ECNetworkBlock : public NetworkBlock
  /// generate the static constraint of the ECNetworkBlock
  /** The constraints of an ECNetworkBlock are defined as below:
   *
+  *  - The power balance w.r.t. the load demand:
+  *
+  *    \f[
+  *     P_{n,t}^{P+} - P_{n,t}^{P-} = S_n - D_n
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (1)
+  *    \f]
+  *
   *  - The power dispatch cannot go beyond the peak power at the user PoD, and
   *    is calculated as:
   *
   *    \f[
-  *     P_n^{mx} \geq ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
-  *                   ( P_{n,t}^{P-} - P_{n,t}^{M-} )
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (1)
+  *     P_n^{mx} \geq P_{n,t}^{P+} - P_{n,t}^{P-}
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2a)
   *    \f]
   *
   *    \f[
-  *     P_n^{mx} \geq - [ ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
-  *                       ( P_{n,t}^{P-} - P_{n,t}^{M-} ) ]
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2)
+  *     P_n^{mx} \geq - ( P_{n,t}^{P+} - P_{n,t}^{P-} )
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2b)
   *    \f]
   *
-  *   The \f$ P_n^{mx} \f$ variables also depends from \f$ P_{n,t}^{M+} \f$
-  *   and \f$ P_{n,t}^{M-} \f$ variables, i.e., the injection and absorption
-  *   from the microgrid, to give an economic benefit to users that do not
-  *   contribute to the community by sharing energy since they are unable to
-  *   install electrical generators due to economic or space reasons; and on
-  *   which, otherwise, all the costs of the peak powers would be borne.
-  *
-  *  - The power balance within the microgrid:
+  *  - The max power shared within the microgrid w.r.t. the public market:
   *
   *    \f[
-  *     P_{n,t}^{M+} = P_{n,t}^{M-}
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3)
+  *     P_{n,t}^{M} \leq P_{n,t}^{P+}
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3a)
   *    \f]
-  *
-  *  - The power balance w.r.t. the load demand:
   *
   *    \f[
-  *     ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
-  *     ( P_{n,t}^{P-} - P_{n,t}^{M-} ) = = S_n - D_n
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (4)
+  *     P_{n,t}^{M} \leq P_{n,t}^{P-}
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3b)
   *    \f]
-  * */
+  */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -330,11 +325,11 @@ class ECNetworkBlock : public NetworkBlock
   *   is given as below:
   *
   *   \f[
-  *     \min ( \sum_{ n \in \mathcal{N} } ( \pi^{mx} P_n^{mx} ) +
+  *     \min ( \sum_{ n \in \mathcal{N} } \pi^{mx} P_n^{mx} +
   *         \sum_{ t \in \mathcal{T} }
-  *         ( \pi_t^{-,v} P_{n,t}^{P-} +
-  *         ( \pi_t^{-,v} - \pi_t^r ) P_{n,t}^{M-} -
-  *         \pi_t^+ P_{n,t}^{P+} - \pi_t^+ P_{n,t}^{M+} ) + \pi_t^{-,f} ) )
+  *         ( \pi_t^{-,v} P_{n,t}^{P-} -
+  *         \pi_t^+ P_{n,t}^{P+} -
+  *         \pi_t^r P_{n,t}^{M} ) + \pi_t^{-,f} ) )
   *   \f]
   *
   *   where \f$ \pi^{mx} \f$ is the cost due to peak power and \f$ P_n^{mx}
@@ -343,11 +338,11 @@ class ECNetworkBlock : public NetworkBlock
   *   public market, the variable and fixed costs, i.e., the constant term,
   *   respectively, and \f$ \pi_t^r \f$ is the tariff that user gains
   *   when it absorbs power from the microgrid instead of from the
-  *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{M-} \f$
-  *   are the absorption variables form the public and the microgrid market
-  *   respectively; \f$ \pi_t^+ \f$ is the sell price of the energy, while
-  *   \f$ P_{n,t}^{P+} \f$ and \f$ P_{n,t}^{M+} \f$ are the injection
-  *   variables from the public and the microgrid market respectively. */
+  *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{P+} \f$
+  *   are the absorption and injection variables form the public market
+  *   respectively; \f$ \pi_t^+ \f$ is the sell price of the energy, and
+  *   finally \f$ P_{n,t}^{M} \f$ are the energy shard variables into the
+  *   microgrid market. */
 
  void generate_objective( Configuration * objc ) override;
 
