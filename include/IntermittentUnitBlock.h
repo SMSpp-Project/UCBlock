@@ -242,14 +242,14 @@ class IntermittentUnitBlock : public UnitBlock
   *
   *   \f[
   *    p^{ac}_t \in [ \kappa P^{mn}_t , \kappa P^{mx}_t]
-  *                                           \quad t \in \mathcal{T} \quad (3a)
+  *                                          \quad t \in \mathcal{T} \quad (3a)
   *   \f]
   *
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
   *    x ( \kappa P^{mn}_t ) \leq p^{ac}_t \leq x ( \kappa P^{mx}_t )
-  *                                           \quad t \in \mathcal{T} \quad (3b)
+  *                                          \quad t \in \mathcal{T} \quad (3b)
   *   \f]
   *
   *   where \f$ x \f$ is the design variable. */

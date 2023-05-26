@@ -708,19 +708,19 @@ class ThermalUnitBlock : public UnitBlock
   *   \f[
   *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
   *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
-  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\} \quad  (10)
+  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\}         \quad (10)
   *   \f]
   *
   *   and in the case  \f$ \tau_+ = 1 \f$:
   *
   *   \f[
   *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
-  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\} \quad  (11)
+  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\}         \quad (11)
   *   \f]
   *
   *   \f[
   *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
-  *             \quad t \in \{t_0 + 2, ...,  \mathcal{T} - 1\} \quad  (12)
+  *             \quad t \in \{t_0 + 2, ...,  \mathcal{T} - 1\}       \quad (12)
   *   \f]
   *
   *   These inequalities give the active power output generation limits when

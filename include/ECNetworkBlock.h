@@ -294,24 +294,24 @@ class ECNetworkBlock : public NetworkBlock
   *
   *   \f[
   *    P_n^{mx} \geq P_{n,t}^{P+} - P_{n,t}^{P-}
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2a)
+  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2a)
   *   \f]
   *
   *   \f[
   *    P_n^{mx} \geq - ( P_{n,t}^{P+} - P_{n,t}^{P-} )
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2b)
+  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2b)
   *   \f]
   *
   * - The max power shared within the microgrid w.r.t. the public market:
   *
   *   \f[
   *    P_{n,t}^{M} \leq P_{n,t}^{P+}
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3a)
+  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3a)
   *   \f]
   *
   *   \f[
   *    P_{n,t}^{M} \leq P_{n,t}^{P-}
-  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3b)
+  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3b)
   *   \f]
   */
 

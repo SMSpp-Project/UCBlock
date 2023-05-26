@@ -278,15 +278,15 @@ class SlackUnitBlock : public UnitBlock
  * and Secondary spinning reserve variables as below:
  *
  * \f[
- *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}     \quad (1)
+ *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}         \quad (1)
  * \f]
  *
  * \f[
- *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}    \quad (2)
+ *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}        \quad (2)
  * \f]
  *
  * \f[
- *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}    \quad (3)
+ *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}        \quad (3)
  * \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which

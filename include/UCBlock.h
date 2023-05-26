@@ -619,7 +619,7 @@ class UCBlock : public Block
   *   \f[
   *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
   *     D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
-  *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
+  *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N})          \quad (2)
   *   \f]
   *
   * - Secondary Demand Constraints:
@@ -637,7 +637,7 @@ class UCBlock : public Block
   *   \f[
   *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
   *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
-  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
+  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N})         \quad (3)
   *   \f]
   *
   * - Inertia Demand Constraints:
@@ -656,7 +656,7 @@ class UCBlock : public Block
   *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
   *     u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
   *        \quad t \in \mathcal{T}
-  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
+  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})        \quad (4)
   *   \f]
   *
   * - Pollutant Budget Constraints:
@@ -679,7 +679,7 @@ class UCBlock : public Block
   *    \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
   *    \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
   *    \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
-  *    \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
+  *    \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P}           \quad (5)
   *   \f]
   *
   *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
@@ -700,7 +700,7 @@ class UCBlock : public Block
   *   \f[
   *    \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
   *     p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
-  *                                 \quad t \in \mathcal{T} \quad           (6)
+  *                                 \quad t \in \mathcal{T}           \quad (6)
   *   \f]
   *
   *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a

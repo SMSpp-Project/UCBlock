@@ -564,11 +564,11 @@ class DCNetworkBlock : public NetworkBlock
   *   needed:
   *
   *   \f[
-  *    F_l \leq V_l                          \quad l \in \mathcal{L} \quad (3)
+  *    F_l \leq V_l                           \quad l \in \mathcal{L} \quad (3)
   *   \f]
   *
   *   \f[
-  *    -V_l \leq F_l                         \quad l \in \mathcal{L} \quad (4)
+  *    -V_l \leq F_l                          \quad l \in \mathcal{L} \quad (4)
   *   \f]
   *
   * - DCNetworkBlock with just AC lines model.
@@ -614,7 +614,7 @@ class DCNetworkBlock : public NetworkBlock
   *      \begin{array}{cc}
   *      B & -B(A^{dc})^T \\
   *      0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
-  *      \end{array}\right]                                          \quad (6)
+  *      \end{array}\right]                                           \quad (6)
   *     \f]
   *
   *     where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
@@ -629,7 +629,7 @@ class DCNetworkBlock : public NetworkBlock
   *      a \\
   *      b
   *      \end{array}\right]
-  *      \leq  P^{mx}                                                \quad (7)
+  *      \leq  P^{mx}                                                 \quad (7)
   *     \f]
   *
   *     where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and

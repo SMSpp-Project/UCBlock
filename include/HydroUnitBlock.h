@@ -615,13 +615,13 @@ class HydroUnitBlock : public UnitBlock
   *   \f[
   *      p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (3)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (3)
   *   \f]
   *
   *   \f[
   *      p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (4)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (4)
   *   \f]
   *
   * where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
@@ -638,13 +638,13 @@ class HydroUnitBlock : public UnitBlock
   *   \f[
   *      p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-      \quad (5)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (5)
   *   \f]
   *
   *   \f[
   *      p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-     \quad (6)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (6)
   *   \f]
   *
   * - flow to active power function at each time and for each pump: this
@@ -656,7 +656,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f[
   *      p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (7)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (7)
   *   \f]
   *
   * - flow-to-active-power function at each time and for each turbine ;
@@ -664,7 +664,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f[
   *      p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
   *        \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
-  *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (8)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (8)
   *   \f]
   *
   * - flow rate variable bounds: This inequality (9) indicates upper and lower
@@ -675,7 +675,7 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f[
   *      f_{t,l} \in [ F^{mn}_{t,l} , F^{mx}_{t,l}]  \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                             \quad (9)
+  *           l \in \mathcal{L}^{hy}                                  \quad (9)
   *   \f]
   *
   * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
@@ -686,12 +686,12 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f[
   *      f_{t,l} - f_{t-1,l} \leq \Delta^{up}_{t,l} \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                             \quad (10)
+  *           l \in \mathcal{L}^{hy}                                 \quad (10)
   *   \f]
   *
   *   \f[
   *      f_{t-1,l} - f_{t,l} \leq \Delta^{dn}_{t,l} \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                             \quad (11)
+  *           l \in \mathcal{L}^{hy}                                 \quad (11)
   *   \f]
   *
   * - final volumes of each reservoir constraints: this equality (12) gives the
@@ -704,7 +704,7 @@ class HydroUnitBlock : public UnitBlock
   *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(n',n) \in
   *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(n,n') \in
   *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l , l }) \quad t \in \mathcal{T},
-  *      \quad n \in \mathcal{N}^{hy}    \quad (12)
+  *      \quad n \in \mathcal{N}^{hy}                                \quad (12)
   *   \f]
   *
   *   where in each arc \f$ l=(n,n') \in \mathcal{L}^{hy} \f$, \f$ n \f$ and
@@ -719,7 +719,7 @@ class HydroUnitBlock : public UnitBlock
   *
   *   \f[
   *      v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
-  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}            \quad (13)
+  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}                 \quad (13)
   *   \f]
   */
 

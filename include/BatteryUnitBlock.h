@@ -610,14 +610,14 @@ class BatteryUnitBlock : public UnitBlock
   *
   *   \f[
   *    v^{ba}_t \in [ \kappa V^{mn}_t , \kappa V^{mx}_t]
-  *                                           \quad t \in \mathcal{T} \quad (9a)
+  *                                          \quad t \in \mathcal{T} \quad (9a)
   *   \f]
   *
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
   *    x_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq x_b ( \kappa V^{mx}_t )
-  *                                           \quad t \in \mathcal{T} \quad (9b)
+  *                                          \quad t \in \mathcal{T} \quad (9b)
   *   \f]
   *
   *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are the
