@@ -808,7 +808,7 @@ class ThermalUnitBlock : public UnitBlock
   *     ( I x )
   *   \f]
   *
-  *  where \f$ I \f$ is the investment cost and \f$ x \f$ is the design
+  *  where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
   *  variable. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
