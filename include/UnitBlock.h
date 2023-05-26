@@ -223,12 +223,12 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the number of electrical generators of each unit in the problem
  /** Returns the number of electrical generators for this UnitBlock. Since in
-  *  most of the cases each unit has only one electrical generator, this
-  *  method in the base UnitBlock class returns to one by default. Therefore,
-  *  for all the units that have only one generator, the implementation of
-  *  this method is already done right in the base UnitBlock class. The units
-  *  that have more than one electrical generator (tied together by technical
-  *  constraints) will have to handle this number by their-self. */
+  * most of the cases each unit has only one electrical generator, this
+  * method in the base UnitBlock class returns to one by default. Therefore,
+  * for all the units that have only one generator, the implementation of
+  * this method is already done right in the base UnitBlock class. The units
+  * that have more than one electrical generator (tied together by technical
+  * constraints) will have to handle this number by their-self. */
 
  virtual Index get_number_generators( void ) const { return( 1 ); }
 
@@ -416,7 +416,7 @@ class UnitBlock : public Block
   * and ColRowSolution, but :UnitBlock may make different choices.
   *
   * The parameter for deciding which kind of Solution must be returned is a
-  * single int value. If this value is
+  * single int value. If this value is:
   *
   * - 1, then a RowConstraintSolution is returned;
   *
@@ -447,8 +447,8 @@ class UnitBlock : public Block
 
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
-  *  UnitBlock. See deserialize( const netCDF::NcGroup & ) for
-  *  details of the format of the created netCDF group. */
+  * UnitBlock. See deserialize( const netCDF::NcGroup & ) for
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

@@ -139,7 +139,7 @@ class NetworkBlock : public Block
    * If there is no class with the given name, exception is thrown.
    *
    * Note that the method is static because the factory is static, hence it is
-   * to be called as
+   * to be called as:
    *
    *  NetworkData * myNetworkData = NetworkData::new_NetworkData( some_class );
    *

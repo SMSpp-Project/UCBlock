@@ -72,23 +72,23 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for the Unit Commitment problem
 /** The class UCBlock, implements the Block concept [see Block.h] for the
- *  Unit Commitment (UC) problem in electrical power production. This is
- *  typically a short-term (across for instance one week or one day time
- *  horizon) *deterministic* problem regarding finding an optimal schedule
- *  of the production of electrical generators satisfying a (large) set of
- *  technical constraints.
+ * Unit Commitment (UC) problem in electrical power production. This is
+ * typically a short-term (across for instance one week or one day time
+ * horizon) *deterministic* problem regarding finding an optimal schedule
+ * of the production of electrical generators satisfying a (large) set of
+ * technical constraints.
  *
- *  The model is quite flexible due to the fact that different types of units
- *  and network constraints can be used by means of the fact that the class
- *  manages son Block of type UnitBlock and NetworkBlock. Also UCBlock handles
- *  a reasonably large variety of constraints, regarding not only active power
- *  but also primary and secondary reserve and inertia. Admittedly, some
- *  choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
- *  specific of the UC of the plan4res project; however, all the "nonstandard"
- *  aspects of UC can be switched away from the model (by simply not providing
- *  the data describing them).
+ * The model is quite flexible due to the fact that different types of units
+ * and network constraints can be used by means of the fact that the class
+ * manages son Block of type UnitBlock and NetworkBlock. Also UCBlock handles
+ * a reasonably large variety of constraints, regarding not only active power
+ * but also primary and secondary reserve and inertia. Admittedly, some
+ * choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
+ * specific of the UC of the plan4res project; however, all the "nonstandard"
+ * aspects of UC can be switched away from the model (by simply not providing
+ * the data describing them).
  *
- *  The main elements that UCBlock handles are:
+ * The main elements that UCBlock handles are:
  *
  * - The time horizon of the problem, i.e., a discrete set of (typically,
  *   equally-spaced) time instants at which decisions are made (like, the
@@ -166,8 +166,8 @@ class UCBlock : public Block
 
 /// extends Block::deserialize( netCDF::NcGroup )
 /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- *  the UCBlock. Besides the mandatory "type" attribute of any :Block, the
- *  group should contain the following:
+ * the UCBlock. Besides the mandatory "type" attribute of any :Block, the
+ * group should contain the following:
  *
  * - The dimension "TimeHorizon" containing the number of time steps in the
  *   problem.
@@ -521,38 +521,38 @@ class UCBlock : public Block
  /// generates the static constraint of the UCBlock
  /** This method generates the abstract constraints of the UCBlock.
   *
-  *  Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
-  *  of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
-  *  three partitions of the set of nodes which may or may not be identical:
+  * Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
+  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
+  * three partitions of the set of nodes which may or may not be identical:
   *
-  *  (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
-  *  in several zones (sets of nodes) each one being associated with one
-  *  specific primary spinning reserve requirement;
+  * (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
+  * in several zones (sets of nodes) each one being associated with one
+  * specific primary spinning reserve requirement;
   *
-  *  (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  *  \f$ in several zones each one being associated with one specific secondary
-  *  spinning reserve requirement;
+  * (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  * \f$ in several zones each one being associated with one specific secondary
+  * spinning reserve requirement;
   *
-  *  (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  *  \f$ in several zones each one being associated with one specific inertia
-  *  requirement;
+  * (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  * \f$ in several zones each one being associated with one specific inertia
+  * requirement;
   *
-  *  Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
-  *  \f$ corresponding to zones which are associated with an emissions
-  *  constraint on the specific pollutant \f$ p \f$ in the set of pollutants
-  *  \f$ \mathcal{P} \f$.
+  * Optionally we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
+  * \f$ corresponding to zones which are associated with an emissions
+  * constraint on the specific pollutant \f$ p \f$ in the set of pollutants
+  * \f$ \mathcal{P} \f$.
   *
-  *  The electrical system contains a set of “units” (e.g., power plants, load
-  *  flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
-  *  The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
-  *  \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
-  *  where the set of all electrical generators is defined by
-  *  \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
-  *  electrical generators connected to node \f$ n \in \mathcal{N} \f$.
+  * The electrical system contains a set of “units” (e.g., power plants, load
+  * flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
+  * The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
+  * \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
+  * where the set of all electrical generators is defined by
+  * \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
+  * electrical generators connected to node \f$ n \in \mathcal{N} \f$.
   *
-  *  In the UCBlock there is not defined any variable but the decision
-  *  variables here are present by using method get_variable() from UnitBlock,
-  *  HeatBlock and NetworkBlock as follow:
+  * In the UCBlock there is not defined any variable but the decision
+  * variables here are present by using method get_variable() from UnitBlock,
+  * HeatBlock and NetworkBlock as follow:
   *
   * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
@@ -585,8 +585,8 @@ class UCBlock : public Block
   *   \f$\mathcal{I}^{ho}(h)\f$  and \f$\mathcal{I}^{ec}(h)\f$ are heat-only-
   *   producing unit and electricity-producing one, respectively;
   *
-  *  The global constraints of unit commitment problem, on the time horizon
-  *  \f$ \mathcal{T} \f$ write as follow:
+  * The global constraints of unit commitment problem, on the time horizon
+  * \f$ \mathcal{T} \f$ write as follow:
   *
   * - Node injection Constraints:
   *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
@@ -600,10 +600,10 @@ class UCBlock : public Block
   *   n = 1, ..., get_number_nodes() being the node injection constraints at
   *   time t and node n as follow:
   *
-  * \f[
-  *  \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
+  *   \f[
+  *    \sum_{ g \in \mathcal{G}_n } (p^{ac}_{t,g} + P^{au}_{t , g}(1 - u_{t,g}))
   *     = S_{t,n}     \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
-  * \f]
+  *   \f]
   *
   * - Primary Demand Constraints:
   *   In the unit commitment problem, the primary demand
@@ -616,11 +616,11 @@ class UCBlock : public Block
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_primary_zones - 1 being the primary
   *   demand constraints at time t and primary zone \f$ \mathcal{B}\f$ as below;
   *
-  * \f[
-  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
-  *   D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
+  *   \f[
+  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
+  *     D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
   *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \quad          (2)
-  * \f]
+  *   \f]
   *
   * - Secondary Demand Constraints:
   *   In the unit commitment problem, the secondary demand
@@ -634,11 +634,11 @@ class UCBlock : public Block
   *   secondary demand constraints at time t and secondary zone
   *   \f$ \mathcal{B}\f$ as follow;
   *
-  * \f[
-  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
+  *   \f[
+  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
   *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
   *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N}) \quad         (3)
-  * \f]
+  *   \f]
   *
   * - Inertia Demand Constraints:
   *   In the unit commitment problem, the inertia demand
@@ -652,12 +652,12 @@ class UCBlock : public Block
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
   *   demand constraints at time t and inertia zone \f$ \mathcal{B}\f$ as below;
   *
-  * \f[
-  *  \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
-  *  u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
+  *   \f[
+  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
+  *     u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
   *        \quad t \in \mathcal{T}
   *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \quad        (4)
-  * \f]
+  *   \f]
   *
   * - Pollutant Budget Constraints:
   *   In the unit commitment problem, the pollutant budget
@@ -674,14 +674,13 @@ class UCBlock : public Block
   *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
   *   zones b as below;
   *
-  * \f[
-  *
-  *  \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
-  *  \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
-  *  \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
-  *  \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
-  *  \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
-  * \f]
+  *   \f[
+  *    \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
+  *    \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
+  *    \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
+  *    \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
+  *    \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P} \quad         (5)
+  *   \f]
   *
   *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
   *
@@ -698,11 +697,11 @@ class UCBlock : public Block
   *   constraint into an electricity generator that belongs to some HeatBlock.
   *   The Heat Constraints are defined as below:
   *
-  * \f[
-  *  \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
-  *   p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
+  *   \f[
+  *    \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
+  *     p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
   *                                 \quad t \in \mathcal{T} \quad           (6)
-  * \f]
+  *   \f]
   *
   *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
   *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
@@ -867,19 +866,19 @@ class UCBlock : public Block
   * instant t. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no primary zones are
-  *    defined, and there are no primary reserve constraints;
+  * - if the boost::multi_array<> M is empty() then no primary zones are
+  *   defined, and there are no primary reserve constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_time_horizon() and it
-  *    means there exist just one primary zone in the problem where the
-  *    node(s) belongs to that primary zone. Each element of this vector gives
-  *    the primary demand of the unique primary zone at time instant t;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_time_horizon() and it
+  *   means there exist just one primary zone in the problem where the
+  *   node(s) belongs to that primary zone. Each element of this vector gives
+  *   the primary demand of the unique primary zone at time instant t;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_primary_zones() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] gives the primary
-  *    demand of primary zone n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_primary_zones() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] gives the primary
+  *   demand of primary zone n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_primary_demand( void ) const {
   return( v_primary_demand );
@@ -892,20 +891,20 @@ class UCBlock : public Block
   * instant t. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no secondary zones are
-  *    defined, and there are no secondary reserve constraints;
+  * - if the boost::multi_array<> M is empty() then no secondary zones are
+  *   defined, and there are no secondary reserve constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_time_horizon() and it
-  *    means there exist just one secondary zone in the problem where the
-  *    node(s) belongs to that secondary zone. Each element of this vector
-  *    gives the secondary demand of the unique secondary zone at time instant
-  *    t;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_time_horizon() and it
+  *   means there exist just one secondary zone in the problem where the
+  *   node(s) belongs to that secondary zone. Each element of this vector
+  *   gives the secondary demand of the unique secondary zone at time instant
+  *   t;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_secondary_zones() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] gives the secondary
-  *    demand of secondary zone n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_secondary_zones() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] gives the secondary
+  *   demand of secondary zone n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_secondary_demand( void ) const {
   return( v_secondary_demand );
@@ -918,19 +917,19 @@ class UCBlock : public Block
   * instant t. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no inertia zones are
-  *    defined, and there are no inertia reserve constraints;
+  * - if the boost::multi_array<> M is empty() then no inertia zones are
+  *   defined, and there are no inertia reserve constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size of f_time_horizon and it
-  *    means there exist just one inertia zone in the problem where the
-  *    node(s) belongs to that inertia zone. Each element of this vector gives
-  *    the inertia demand of the unique inertia zone at time instant t;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size of f_time_horizon and it
+  *   means there exist just one inertia zone in the problem where the
+  *   node(s) belongs to that inertia zone. Each element of this vector gives
+  *   the inertia demand of the unique inertia zone at time instant t;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_inertia_zones() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] gives the inertia
-  *    demand of inertia zone n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_inertia_zones() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] gives the inertia
+  *   demand of inertia zone n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_inertia_demand( void ) const {
   return( v_inertia_demand );
@@ -952,22 +951,22 @@ class UCBlock : public Block
   * M[ p , n ] tells to which pollutant zone associated with pollutant p the
   * node n belongs. There are four possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no pollutant zones are
-  *    defined, and there are no pollutant budget constraints;
+  * - if the boost::multi_array<> M is empty() then no pollutant zones are
+  *   defined, and there are no pollutant budget constraints;
   *
-  *  - if the boost::multi_array<> M has only one row, it is a vector
-  *    with size NetworkBlock::get_number_nodes(). In this case only one
-  *    pollutant zone exists in the problem, and the nodes may belong (or not)
-  *    to that pollutant zone. Therefore, each n_th element of the vector
-  *    tells if the node n belongs to the unique pollutant zone or not;
+  * - if the boost::multi_array<> M has only one row, it is a vector
+  *   with size NetworkBlock::get_number_nodes(). In this case only one
+  *   pollutant zone exists in the problem, and the nodes may belong (or not)
+  *   to that pollutant zone. Therefore, each n_th element of the vector
+  *   tells if the node n belongs to the unique pollutant zone or not;
   *
-  *  - if the boost::multi_array<> M has only one element, the transmission
-  *    network is a bus with one pollutant zone;
+  * - if the boost::multi_array<> M has only one element, the transmission
+  *   network is a bus with one pollutant zone;
   *
-  *  - otherwise, the two-dimensional boost::multi_array<> M must have
-  *    get_number_pollutants() rows and NetworkBlock::get_number_nodes()
-  *    columns, and each element of matrix M[ p , n ] tells to which pollutant
-  *    zone associated with pollutant p the node n belongs. */
+  * - otherwise, the two-dimensional boost::multi_array<> M must have
+  *   get_number_pollutants() rows and NetworkBlock::get_number_nodes()
+  *   columns, and each element of matrix M[ p , n ] tells to which pollutant
+  *   zone associated with pollutant p the node n belongs. */
 
  const boost::multi_array< Index , 2 > & get_pollutant_zone( void ) const {
   return( v_pollutant_zones );
@@ -979,19 +978,19 @@ class UCBlock : public Block
   * V[ p ] contains the pollutant budget (across all the time horizon) for
   * all the pollutant zone of the pollutant p. There are two possible cases:
   *
-  *  - If V is empty() then no pollutant zones are defined, and there are no
-  *    pollutant budget constraints (in this case, get_number_pollutants()
-  *    must return zero).
+  * - If V is empty() then no pollutant zones are defined, and there are no
+  *   pollutant budget constraints (in this case, get_number_pollutants()
+  *   must return zero).
   *
-  *  - Otherwise, V.size() == get_number_pollutants(). For each pollutant
-  *    p = 0, ..., get_number_pollutants() - 1, V[ p ].size() is the number
-  *    of different pollutant areas for p, and V[ p ][ z ] is the pollutant
-  *    budget (across all the time horizon) for zone z of pollutant p. Note
-  *    that, therefore, get_pollutant_zone()[ p ][ i ] is either a number <
-  *    V[ p ].size(), which means that node i belongs to one particular
-  *    pollutant zone, or get_pollutant_zone()[ p ][ i ] >= V[ p ].size(),
-  *    which means that node i does not belong to any pollutant zone for
-  *    pollutant p. */
+  * - Otherwise, V.size() == get_number_pollutants(). For each pollutant
+  *   p = 0, ..., get_number_pollutants() - 1, V[ p ].size() is the number
+  *   of different pollutant areas for p, and V[ p ][ z ] is the pollutant
+  *   budget (across all the time horizon) for zone z of pollutant p. Note
+  *   that, therefore, get_pollutant_zone()[ p ][ i ] is either a number <
+  *   V[ p ].size(), which means that node i belongs to one particular
+  *   pollutant zone, or get_pollutant_zone()[ p ][ i ] >= V[ p ].size(),
+  *   which means that node i does not belong to any pollutant zone for
+  *   pollutant p. */
 
  const std::vector< std::vector< double >> &
  get_pollutant_budget( void ) const {
@@ -1031,7 +1030,7 @@ class UCBlock : public Block
   *   defined, and there are no pollutant budget constraints;
   *
   * - otherwise, two possible cases may happen to the first dimension of the
-  *    M [ t , p , g ];
+  *   M[ t , p , g ];
   *
   *   - if the first dimension of the boost::multi_array<> M has size one,
   *     then each element of the matrix M [ 0 , p , g ] gives the conversion
@@ -1065,7 +1064,7 @@ class UCBlock : public Block
  //  *     is not heat-rho-linking part;
  //  *
  //  * - otherwise, two possible cases may happen to the first dimension of the
- //  *    M [ t , p , i ];
+ //  *   M[ t , p , i ];
  //  *
  //  *   - if the first dimension of the boost::multi_array<> M has size one,
  //  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
@@ -1450,7 +1449,7 @@ class UCBlock : public Block
 
  /// vector of pointers to the NetworkBlock.
  /** This vector has size f_time_horizon. So the NetworkBlock at
-  *  position t in this vector refers to the network at the t-th time step.
+  * position t in this vector refers to the network at the t-th time step.
   */
  std::vector< NetworkBlock * > v_network_blocks;
 

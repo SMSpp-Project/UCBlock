@@ -247,14 +247,14 @@ class SlackUnitBlock : public UnitBlock
  /// generate the abstract variables of the SlackUnitBlock
  /** The SlackUnitBlock class has several different variables which are:
   *
-  *  - the commitment variables which takes the continues values between
-  *    1 and zero.
+  * - the commitment variables which takes the continues values between
+  *   1 and zero.
   *
-  *  - the primary spinning reserve variables;
+  * - the primary spinning reserve variables;
   *
-  *  - the secondary spinning reserve variables;
+  * - the secondary spinning reserve variables;
   *
-  *  - the active power variables.
+  * - the active power variables.
   *
   * Note that of these variables are optional, and it is also possible to
   * restrict which of the subsets are generated without using the parameter
@@ -277,17 +277,17 @@ class SlackUnitBlock : public UnitBlock
  * This unit just contains the bounds constraint on the ActivePower, Primary
  * and Secondary spinning reserve variables as below:
  *
- *   \f[
+ * \f[
  *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}     \quad (1)
- *   \f]
+ * \f]
  *
- *   \f[
+ * \f[
  *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}    \quad (2)
- *   \f]
+ * \f]
  *
- *   \f[
+ * \f[
  *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}    \quad (3)
- *   \f]
+ * \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which
  * is consider as a kPosUnitary and therefore has "implicit" lower and upper
@@ -341,10 +341,10 @@ class SlackUnitBlock : public UnitBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this SlackUnitBlock is not
-  *      greater than the tolerance.
+  * -# the violation of each Constraint of this SlackUnitBlock is not
+  *    greater than the tolerance.
   *
   * Every Constraint of this SlackUnitBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
@@ -355,24 +355,24 @@ class SlackUnitBlock : public UnitBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -501,9 +501,9 @@ class SlackUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution
-  *  to inertia (basically, the constants to be multiplied by the commitment
-  *  variables returned by get_commitment()) of all the generators at all time
-  *  instants. There are three possible cases:
+  * to inertia (basically, the constants to be multiplied by the commitment
+  * variables returned by get_commitment()) of all the generators at all time
+  * instants. There are three possible cases:
   *
   * - if the vector is empty, then the inertia commitment is always 0 and this
   *   function returns nullptr;

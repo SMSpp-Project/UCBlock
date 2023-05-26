@@ -515,25 +515,25 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroUnitBlock
  /** The HydroUnitBlock class has five boost::multi_array< ColVariable , 2 >
-  *  variables where the first four are:
+  * variables where the first four are:
   *
-  *  - the primary spinning reserve variables;
+  * - the primary spinning reserve variables;
   *
-  *  - the secondary spinning reserve variables;
+  * - the secondary spinning reserve variables;
   *
-  *  - the active power variables;
+  * - the active power variables;
   *
-  *  - the flow rate variables
+  * - the flow rate variables
   *
-  *   Each of the boost::multi_array< ColVariable , 2 > has as first dimension
-  *   the time horizon and as second dimension the number of arcs (or
-  *   generators, which is returned by get_number_generators()). The last
-  *   boost::multi_array< ColVariable , 2 > variable is:
+  * Each of the boost::multi_array< ColVariable , 2 > has as first dimension
+  * the time horizon and as second dimension the number of arcs (or
+  * generators, which is returned by get_number_generators()). The last
+  * boost::multi_array< ColVariable , 2 > variable is:
   *
-  *  - the volumetric variables
+  * - the volumetric variables
   *
-  *  Where its' first dimension is the number of reservoirs and the second
-  *  dimension is the time horizon. */
+  * Where its' first dimension is the number of reservoirs and the second
+  * dimension is the time horizon. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -562,9 +562,9 @@ class HydroUnitBlock : public UnitBlock
   * moreover given a cutting plane model describing power as a function of flow
   * rate as below:
   *
-  *   \f[
-  *      p^{ac}_{t,l}(f) := min \{ P_l + \rho^{hy}_{l}f_{t,l}\}
-  *   \f]
+  * \f[
+  *  p^{ac}_{t,l}(f) := min \{ P_l + \rho^{hy}_{l}f_{t,l}\}
+  * \f]
   *
   * where \f$ P_l \f$ and \f$ \rho^{hy}_{l} \f$ are considered as the constant
   * and linear multipliers of the linear function (flow-to-active-power)
@@ -624,9 +624,9 @@ class HydroUnitBlock : public UnitBlock
   *        \quad  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (4)
   *   \f]
   *
-  *  where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
-  *  possible fraction of active power at each time and each arc that can be
-  *  used as primary and secondary reserve respectively.
+  * where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
+  * possible fraction of active power at each time and each arc that can be
+  * used as primary and secondary reserve respectively.
   *
   * - primary and secondary spinning reserves at each time and for each pump:
   *   these equalities (5)-(6) ensure that the primary and secondary spinning
@@ -747,9 +747,9 @@ class HydroUnitBlock : public UnitBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this HydroUnitBlock is not
+  * -# the violation of each Constraint of this HydroUnitBlock is not
   *      greater than the tolerance.
   *
   * Every Constraint of this HydroUnitBlock is a RowConstraint and its
@@ -761,24 +761,24 @@ class HydroUnitBlock : public UnitBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -824,12 +824,12 @@ class HydroUnitBlock : public UnitBlock
   * reservoirs) or the size of number of reservoirs, then there are two
   * possible cases:
   *
-  *  - if f_NumberReservoirs == 2, this vector has size of 1 which means there
-  *    is one arc at the system (single hydro case).
+  * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
+  *   is one arc at the system (single hydro case).
   *
-  *  - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
-  *    and each element of the vectors gives starting point of each arc in the
-  *    network. */
+  * - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
+  *   and each element of the vectors gives starting point of each arc in the
+  *   network. */
 
  const std::vector< Index > & get_start_arc( void ) const {
   return( v_StartArc );
@@ -838,25 +838,25 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of end arcs
  /** Method for returning the vector of ending point of each arc. This
-  *  vector may have size of 1 (single hydro unit with just one arc between two
-  *  reservoirs) or the size of number of reservoirs, then there are two
-  *  possible cases:
+  * vector may have size of 1 (single hydro unit with just one arc between two
+  * reservoirs) or the size of number of reservoirs, then there are two
+  * possible cases:
   *
-  *  - if f_NumberReservoirs == 2, this vector has size of 1 which means there
-  *    is one arc at the system (single hydro case).
+  * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
+  *   is one arc at the system (single hydro case).
   *
-  *  - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
-  *    and each element of the vectors gives ending point of each arc in the
-  *    network. */
+  * - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
+  *   and each element of the vectors gives ending point of each arc in the
+  *   network. */
 
  const std::vector< Index > & get_end_arc( void ) const { return( v_EndArc ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia power
  /** The returned value U = get_inertia_power() contains the contribution to
-  *  inertia (basically, the constants to be multiplied by the active power
-  *  variables returned by get_active_power()) of eac arcs (generators) at each
-  *  time instants. There are three possible cases
+  * inertia (basically, the constants to be multiplied by the active power
+  * variables returned by get_active_power()) of eac arcs (generators) at each
+  * time instants. There are three possible cases:
   *
   * - if the matrix is empty, then the inertia power is 0 and this function
   *   returns a nullptr;
@@ -882,18 +882,18 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no minimum volumetric are
-  *    defined, and there are no minimum volumetric constraints;
+  * - if the boost::multi_array<> M is empty() then no minimum volumetric are
+  *   defined, and there are no minimum volumetric constraints;
   *
-  *  - if the boost::multi_array<> M has only one column which in this case the
-  *    boost::multi_array<> M is a (transpose of) vector with size
-  *    get_number_reservoirs(). Each element of M[ n , 0 ] gives the minimum
-  *    volumetric of the each reservoir n for all time instant t;
+  * - if the boost::multi_array<> M has only one column which in this case the
+  *   boost::multi_array<> M is a (transpose of) vector with size
+  *   get_number_reservoirs(). Each element of M[ n , 0 ] gives the minimum
+  *   volumetric of the each reservoir n for all time instant t;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_reservoirs() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] gives the minimum
-  *    volumetric of reservoir n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_reservoirs() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] gives the minimum
+  *   volumetric of reservoir n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_min_volumetric( void ) const {
   return( v_MinVolumetric );
@@ -906,18 +906,18 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no maximum volumetric are
-  *    defined, and there are no minimum volumetric constraints;
+  * - if the boost::multi_array<> M is empty() then no maximum volumetric are
+  *   defined, and there are no minimum volumetric constraints;
   *
-  *  - if the boost::multi_array<> M has only one column which in this case the
-  *    boost::multi_array<> M is a (transpose of) vector with size
-  *    get_number_reservoirs(). Each element of M[ n , 0 ] gives the maximum
-  *    volumetric of the each reservoir n for all time instant t;
+  * - if the boost::multi_array<> M has only one column which in this case the
+  *   boost::multi_array<> M is a (transpose of) vector with size
+  *   get_number_reservoirs(). Each element of M[ n , 0 ] gives the maximum
+  *   volumetric of the each reservoir n for all time instant t;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_reservoirs() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] gives the maximum
-  *    volumetric of reservoir n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_reservoirs() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] gives the maximum
+  *   volumetric of reservoir n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_max_volumetric( void ) const {
   return( v_MaxVolumetric );
@@ -930,12 +930,12 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no inflows are defined;
+  * - if the boost::multi_array<> M is empty() then no inflows are defined;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_number_reservoirs() row where each row must have size of
-  *    get_time_horizon() and each element of M[ n , t ] represents the inflows
-  *    of reservoir n at time instant t. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_number_reservoirs() row where each row must have size of
+  *   get_time_horizon() and each element of M[ n , t ] represents the inflows
+  *   of reservoir n at time instant t. */
 
  const boost::multi_array< double , 2 > & get_inflows( void ) const {
   return( v_inflows );
@@ -948,17 +948,17 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no minimum power are
-  *    defined, and there are no minimum power constraints;
+  * - if the boost::multi_array<> M is empty() then no minimum power are
+  *   defined, and there are no minimum power constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the minimum power for all time instant t of
-  *    each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the minimum power for all time instant t of
+  *   each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the minimum power at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the minimum power at time t and unit i. */
 
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( *( v_MinPower.data() + generator * f_time_horizon + t ) );
@@ -971,17 +971,17 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no maximum power are
-  *    defined, and there are no maximum power constraints;
+  * - if the boost::multi_array<> M is empty() then no maximum power are
+  *   defined, and there are no maximum power constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the maximum power for all time instant t of
-  *    each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the maximum power for all time instant t of
+  *   each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the maximum power at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the maximum power at time t and unit i. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( *(v_MaxPower.data() + generator * f_time_horizon + t) );
@@ -994,17 +994,17 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no minimum flow are
-  *    defined, and there are no minimum flow constraints;
+  * - if the boost::multi_array<> M is empty() then no minimum flow are
+  *   defined, and there are no minimum flow constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the minimum flow for all time instant t of
-  *    each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the minimum flow for all time instant t of
+  *   each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the minimum flow at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the minimum flow at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_min_flow( void ) const {
   return( v_MinFlow );
@@ -1017,17 +1017,17 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no maximum flow are
-  *    defined, and there are no maximum flow constraints;
+  * - if the boost::multi_array<> M is empty() then no maximum flow are
+  *   defined, and there are no maximum flow constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the maximum flow for all time instant t of
-  *    each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the maximum flow for all time instant t of
+  *   each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the maximum flow at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the maximum flow at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_max_flow( void ) const {
   return( v_MaxFlow );
@@ -1040,16 +1040,16 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no ramping constraints;
+  * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the delta ramp up value for all time instant
-  *    t of each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the delta ramp up value for all time instant
+  *   t of each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the delta ramp up value at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the delta ramp up value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
@@ -1062,16 +1062,16 @@ class HydroUnitBlock : public UnitBlock
   * (arc) i. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no ramping constraints;
+  * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the delta ramp down value for all time
-  *    instant t of each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the delta ramp down value for all time
+  *   instant t of each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the delta ramp down value at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the delta ramp down value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
@@ -1084,17 +1084,17 @@ class HydroUnitBlock : public UnitBlock
   * (arc) i. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no primary reserve
-  *    constraints;
+  * - if the boost::multi_array<> M is empty() then no primary reserve
+  *   constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the primary rho value for all time instant t
-  *    of each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the primary rho value for all time instant t
+  *   of each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the primary rho value at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the primary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
@@ -1107,17 +1107,17 @@ class HydroUnitBlock : public UnitBlock
   * (arc) i. This two-dimensional boost::multi_array<> M considers three
   * possible cases:
   *
-  *  - if the boost::multi_array<> M is empty() then no secondary reserve
-  *    constraints;
+  * - if the boost::multi_array<> M is empty() then no secondary reserve
+  *   constraints;
   *
-  *  - if the boost::multi_array<> M has only one row which in this case the
-  *    boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *    element of M[ 0 , i ] gives the secondary rho value for all time instant
-  *    t of each unit i;
+  * - if the boost::multi_array<> M has only one row which in this case the
+  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
+  *   element of M[ 0 , i ] gives the secondary rho value for all time instant
+  *   t of each unit i;
   *
-  *  - otherwise the two-dimensional boost::multi_array<> M must have
-  *    get_time_horizon() rows and get_number_arcs() columns and each element
-  *    of M[ t , i ] gives the secondary rho value at time t and unit i. */
+  * - otherwise the two-dimensional boost::multi_array<> M must have
+  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   of M[ t , i ] gives the secondary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
@@ -1297,15 +1297,15 @@ class HydroUnitBlock : public UnitBlock
  * These methods allow to read the five groups of Variable that any
  * HydroUnitBlock in principle has (although some may not):
  *
- *  - the volumetric variables;
+ * - the volumetric variables;
  *
- *  - the flow rate variables;
+ * - the flow rate variables;
  *
- *  - the active power variables;
+ * - the active power variables;
  *
- *  - the primary spinning reserve variables;
+ * - the primary spinning reserve variables;
  *
- *  - the secondary spinning reserve variables;
+ * - the secondary spinning reserve variables;
  *
  * All these five groups of variables are (if not empty)
  * boost::multi_array< ColVariable , 2 >. The volumetric variables have the

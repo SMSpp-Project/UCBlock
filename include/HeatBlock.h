@@ -325,7 +325,7 @@ class HeatBlock : public Block
  /// generate the static constraint of the HeatBlock
  /** Method that generates the static constraint of the HeatBlock.
   *
-  *  The constraints in the HeatBlock are as follows:
+  * The constraints in the HeatBlock are as follows:
   *
   * - Heat production bounds Constraints: with \f$ P^{mn}_{t,i} \f$ and
   *   \f$ P^{mx}_{t,i} \f$ denoting respectively the minimum and maximum heat
@@ -372,7 +372,7 @@ class HeatBlock : public Block
  /// generate the objective of the HeatBlock
  /** Method that generates the objective of the HeatBlock.
   *
-  * - Objective Function: the objective function of HB simply reads
+  * - Objective Function: the objective function of the HeatBlock simply reads
   *
   *   \f[
   *     \min \sum_{ i \in \mathcal{I}} \sum_{ t \in \mathcal{T}}
@@ -408,7 +408,7 @@ class HeatBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the vector of heat demand
  /** The returned vector implies the heat demand of each HeatBlock at time t.
-  *  There are two possible cases:
+  * There are two possible cases:
   *
   * - if the vector is empty, then no heat block, and no heat demand
   *   constraints;
@@ -541,11 +541,11 @@ class HeatBlock : public Block
   * heat variables and is indexed over the dimensions time horizon and
   * number of unit. There are two possible cases:
   *
-  *  - if U is empty(), then these variables are not defined;
+  * - if U is empty(), then these variables are not defined;
   *
-  *  - otherwise, U must have get_time_horizon() rows and
-  *    get_number_heat_units() columns and M[ t , i ] is the heat variable for
-  *    time step t of unit i */
+  * - otherwise, U must have get_time_horizon() rows and
+  *   get_number_heat_units() columns and M[ t , i ] is the heat variable for
+  *   time step t of unit i */
 
  const boost::multi_array< ColVariable , 2 > & get_heat( void ) const {
   return( v_heat );

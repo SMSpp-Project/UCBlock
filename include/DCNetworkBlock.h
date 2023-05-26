@@ -64,16 +64,16 @@ namespace SMSpp_di_unipi_it
  * transmission network in the Unit Commitment problem. Generally, there exist
  * three different kinds of DCNetworkBlock:
  *
- *  - DCNetworkBlock with just HVDC lines; where the susceptance for all lines
- *    is equal to zero. It's also known as the Net Transfer Capacity (NTC)
- *    model.
+ * - DCNetworkBlock with just HVDC lines; where the susceptance for all lines
+ *   is equal to zero. It's also known as the Net Transfer Capacity (NTC)
+ *   model.
  *
- *  - DCNetworkBlock with just AC lines; where the susceptance for all lines
- *    is a non-zero value.
+ * - DCNetworkBlock with just AC lines; where the susceptance for all lines
+ *   is a non-zero value.
  *
- *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines). This
- *    is a combination of first and second cases, where for some lines (not all
- *    of them) may have zero susceptance. */
+ * - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines). This
+ *   is a combination of first and second cases, where for some lines (not all
+ *   of them) may have zero susceptance. */
 
 class DCNetworkBlock : public NetworkBlock
 {
@@ -238,16 +238,16 @@ class DCNetworkBlock : public NetworkBlock
 
   /// returns the vector of start lines
   /** Method for returning the vector of starting point of each line. This
-   *  vector may have empty size (bus network) or the size of number of lines,
-   *  then there are two possible cases:
+   * vector may have empty size (bus network) or the size of number of lines,
+   * then there are two possible cases:
    *
-   *  - if f_number_nodes == 1, this vector has empty size which means there is
-   *    no line at network (bus network), and this vector is not needed to be
-   *    defined.
+   * - if f_number_nodes == 1, this vector has empty size which means there is
+   *   no line at network (bus network), and this vector is not needed to be
+   *   defined.
    *
-   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives starting point of each line in the network.
-  */
+   * - if f_number_nodes > 1, this vector have size of f_number_lines and each
+   *   element of the vectors gives starting point of each line in the network.
+   */
 
   const std::vector< Index > & get_start_line( void ) const {
    return( v_start_line );
@@ -260,12 +260,12 @@ class DCNetworkBlock : public NetworkBlock
    * may have empty size (bus network) or the size of number of lines, then
    * there are two possible cases:
    *
-   *  - if f_number_nodes == 1, this vector has empty size which means there is
-   *    no line at network (bus network), and this vector is not needed to be
-   *    defined.
+   * - if f_number_nodes == 1, this vector has empty size which means there is
+   *   no line at network (bus network), and this vector is not needed to be
+   *   defined.
    *
-   *  - if f_number_nodes > 1, this vector have size of f_number_lines and each
-   *    element of the vectors gives ending point of each line in the network.
+   * - if f_number_nodes > 1, this vector have size of f_number_lines and each
+   *   element of the vectors gives ending point of each line in the network.
    */
 
   const std::vector< Index > & get_end_line( void ) const {
@@ -276,15 +276,15 @@ class DCNetworkBlock : public NetworkBlock
 
   /// returns vector of the minimum power flow
   /** Method for returning the vector of minimum power flow of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
-   *  then there are two possible cases:
+   * vector may have empty size (bus network) or the size of number of nodes,
+   * then there are two possible cases:
    *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
+   * - if f_number_lines == 0, this vector has empty size which means there is
+   *   no line at network (bus network).
    *
-   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
-   *    element of the vector gives minimum power flow of each line in the
-   *    network. */
+   * - if f_number_lines >= 1, this vector have size of f_number_lines and each
+   *   element of the vector gives minimum power flow of each line in the
+   *   network. */
 
   const std::vector< double > & get_min_power_flow( void ) const {
    return( v_min_power_flow );
@@ -306,13 +306,13 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
   /// returns vector of the maximum power flow
   /** Method for returning the vector of maximum power flow of each line. This
-   *  vector may have empty size (bus network) or the size of number of nodes,
-   *  then there are two possible cases:
+   * vector may have empty size (bus network) or the size of number of nodes,
+   * then there are two possible cases:
    *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
+   * - if f_number_lines == 0, this vector has empty size which means there is
+   *   no line at network (bus network).
    *
-   *  - if f_number_lines >= 1, this vector have size of f_number_lines and each
+   * - if f_number_lines >= 1, this vector have size of f_number_lines and each
    *   element of the vector gives maximum power flow of each line in the
    *   network. */
 
@@ -339,12 +339,12 @@ class DCNetworkBlock : public NetworkBlock
    * may have empty size (bus network) or the size of number of nodes, then
    * there are two possible cases:
    *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
+   * - if f_number_lines == 0, this vector has empty size which means there is
+   *   no line at network (bus network).
    *
-   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
-   *    element of the vectors gives the Susceptance value for each line in the
-   *    network. */
+   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
+   *   element of the vectors gives the Susceptance value for each line in the
+   *   network. */
 
   const std::vector< double > & get_susceptance( void ) const {
    return( v_susceptance );
@@ -356,12 +356,12 @@ class DCNetworkBlock : public NetworkBlock
    * may have empty size (bus network) or the size of number of lines, then
    * there are two possible cases:
    *
-   *  - if f_number_lines == 0, this vector has empty size which means there is
-   *    no line at network (bus network).
+   * - if f_number_lines == 0, this vector has empty size which means there is
+   *   no line at network (bus network).
    *
-   *  - if f_number_lines >= 1, this vector has size of f_number_lines and each
-   *    element of the vectors gives the network cost value for each line in the
-   *    network. */
+   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
+   *   element of the vectors gives the network cost value for each line in the
+   *   network. */
 
   const std::vector< double > & get_network_cost( void ) const {
    return( v_network_cost );
@@ -535,108 +535,108 @@ class DCNetworkBlock : public NetworkBlock
   * each line \f$ l \in L \f$ are defined as \f$ S_n \f$, \f$ F_l \f$ and
   * \f$ V_l \f$ respectively.
   *
-  *  - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
-  *    model.
-  *    In this special case the susceptance value for each line is equal to
-  *    zero. In fact, this corresponds to a model with a single connected grid
-  *    composed of HVDC lines only. In this case, the flow limit equations
-  *    define as:
+  * - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
+  *   model.
+  *   In this special case the susceptance value for each line is equal to
+  *   zero. In fact, this corresponds to a model with a single connected grid
+  *   composed of HVDC lines only. In this case, the flow limit equations
+  *   define as:
   *
-  *    \f[
+  *   \f[
   *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
   *                                           \quad l \in \mathcal{L} \quad (1)
-  *    \f]
+  *   \f]
   *
   *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
   *   be the start and the end point of that respectively. Besides, the
   *   following link between power flows and injected power at each node of the
   *   grid:
   *
-  *    \f[
-  *      \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_n - D_n
+  *   \f[
+  *     \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_n - D_n
   *                                           \quad n \in \mathcal{N} \quad (2)
-  *    \f]
+  *   \f]
   *
-  *    Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
-  *    will have an objective function which is equal to multiplying
-  *    NetworkCost by the absolute value of the power flows variable. To relax
-  *    the absolute value, an auxiliary variable and constraints as below are
-  *    needed:
+  *   Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
+  *   will have an objective function which is equal to multiplying
+  *   NetworkCost by the absolute value of the power flows variable. To relax
+  *   the absolute value, an auxiliary variable and constraints as below are
+  *   needed:
   *
-  *    \f[
-  *     F_l \leq V_l                          \quad l \in \mathcal{L} \quad (3)
-  *    \f]
+  *   \f[
+  *    F_l \leq V_l                          \quad l \in \mathcal{L} \quad (3)
+  *   \f]
   *
-  *    \f[
-  *     -V_l \leq F_l                         \quad l \in \mathcal{L} \quad (4)
-  *    \f]
+  *   \f[
+  *    -V_l \leq F_l                         \quad l \in \mathcal{L} \quad (4)
+  *   \f]
   *
-  *  - DCNetworkBlock with just AC lines model.
-  *    By considering a \f$ |L| \times |N| \f$ matrix \f$ B \f$ which
-  *    constitutes the so-called Power Transfer Distribution Factor matrix
-  *    (PTDF-matrix) which represents the linear relationship between power
-  *    injections at each node of the grid and active power flows through the
-  *    transmission lines.
+  * - DCNetworkBlock with just AC lines model.
+  *   By considering a \f$ |L| \times |N| \f$ matrix \f$ B \f$ which
+  *   constitutes the so-called Power Transfer Distribution Factor matrix
+  *   (PTDF-matrix) which represents the linear relationship between power
+  *   injections at each node of the grid and active power flows through the
+  *   transmission lines.
   *
-  *  The flow limit equations can be written as follow:
+  *   The flow limit equations can be written as follow:
   *
-  *  \f[
-  *   P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
-  *   (S_n - D^{ac}_n) \leq  P^{mx}_l
+  *   \f[
+  *    P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
+  *    (S_n - D^{ac}_n) \leq  P^{mx}_l
   *                                           \quad l \in \mathcal{L} \quad (5)
-  *  \f]
+  *   \f]
   *
-  *  - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines).
-  *    This is the case of an hybrid grid constituted of both AC and HVDC (High
-  *    Voltage Direct Current) lines. The DC lines are characterized by the
-  *    fact that the flow passing through those lines is fully controllable.
-  *    However, this flow still has an impact on the flows passing through
-  *    connected AC lines. To use the matrix formalism, we first introduce some
-  *    additional notations:
+  * - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines).
+  *   This is the case of an hybrid grid constituted of both AC and HVDC (High
+  *   Voltage Direct Current) lines. The DC lines are characterized by the
+  *   fact that the flow passing through those lines is fully controllable.
+  *   However, this flow still has an impact on the flows passing through
+  *   connected AC lines. To use the matrix formalism, we first introduce some
+  *   additional notations:
   *
-  *    - Lines of the grid are indexed by \f$ l = 1,··· ,|L^{ac}| \f$ for AC
-  *      lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
-  *      refer to DC lines.
+  *   - Lines of the grid are indexed by \f$ l = 1,··· ,|L^{ac}| \f$ for AC
+  *     lines, while indexes \f$ l = |L^{ac}| + 1,··· ,|L^{ac}|+|L^{dc}| \f$
+  *     refer to DC lines.
   *
-  *    - For any \f$ l \in \{1,··· ,|L^{ac}| \}\f$ and
-  *      \f$ k \in \{1,··· ,|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
-  *      nodes related by the AC line indexed by \f$ l \f$ and
-  *      \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
-  *      line indexed by \f$ k+|L^{dc}| \f$.
+  *   - For any \f$ l \in \{1,··· ,|L^{ac}| \}\f$ and
+  *     \f$ k \in \{1,··· ,|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair of
+  *     nodes related by the AC line indexed by \f$ l \f$ and
+  *     \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
+  *     line indexed by \f$ k+|L^{dc}| \f$.
   *
-  *    - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
-  *      matrix induced by DC lines of the grid and the
-  *      \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
-  *      concatenation of bloc matrices as follows:
+  *   - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
+  *     matrix induced by DC lines of the grid and the
+  *     \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
+  *     concatenation of bloc matrices as follows:
   *
   *     \f[
-  *       A = \left[
-  *       \begin{array}{cc}
-  *       B & -B(A^{dc})^T \\
-  *       0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
-  *       \end{array}\right]                                          \quad (6)
+  *      A = \left[
+  *      \begin{array}{cc}
+  *      B & -B(A^{dc})^T \\
+  *      0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
+  *      \end{array}\right]                                          \quad (6)
   *     \f]
   *
-  *      Where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
-  *      \f$ |L^{dc}| \times |N| \f$ zero matrix and
-  *      \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
-  *      identity matrix. Therefore, the flow limit equations can be transformed
-  *      into:
+  *     where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
+  *     \f$ |L^{dc}| \times |N| \f$ zero matrix and
+  *     \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
+  *     identity matrix. Therefore, the flow limit equations can be transformed
+  *     into:
   *
-  *      \f[
-  *       P^{mn} \leq A \left[
-  *       \begin{array}{c}
-  *       a \\
-  *       b
-  *       \end{array}\right]
-  *       \leq  P^{mx}                                                \quad (7)
-  *      \f]
+  *     \f[
+  *      P^{mn} \leq A \left[
+  *      \begin{array}{c}
+  *      a \\
+  *      b
+  *      \end{array}\right]
+  *      \leq  P^{mx}                                                \quad (7)
+  *     \f]
   *
-  *      where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
-  *      \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
-  *      \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
-  *      which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
-  *      \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
+  *     where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
+  *     \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
+  *     \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
+  *     which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
+  *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -648,7 +648,7 @@ class DCNetworkBlock : public NetworkBlock
   *   is given as below:
   *
   *   \f[
-  *     \min ( \sum_{ l \in \mathcal{L} } ( NC_l V_l ) )
+  *    \min ( \sum_{ l \in \mathcal{L} } ( NC_l V_l ) )
   *   \f]
   *
   *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
@@ -668,10 +668,10 @@ class DCNetworkBlock : public NetworkBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this DCNetworkBlock is not
-  *      greater than the tolerance.
+  * -# the violation of each Constraint of this DCNetworkBlock is not
+  *    greater than the tolerance.
   *
   * Every Constraint of this DCNetworkBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
@@ -682,24 +682,24 @@ class DCNetworkBlock : public NetworkBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -985,7 +985,7 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
-  *  DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
+  * DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );

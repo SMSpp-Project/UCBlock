@@ -380,11 +380,11 @@ class ThermalUnitBlock : public UnitBlock
   *   for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
   *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0.
   *
-  *   - The variable "StartUpLimit", // TODO
+  * - The variable "StartUpLimit", // TODO
   *
-  *   - The variable "ShutDownLimit", // TODO
+  * - The variable "ShutDownLimit", // TODO
   *
-  *   */
+  */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -409,54 +409,54 @@ class ThermalUnitBlock : public UnitBlock
   * - wf & 3 == 0 is the "three binaries" (3bin) formulation. This
   * formulation of the ThermalUnitBlock class has six different variables:
   *
-  *  - the binary commitment variables which takes the value of 1 if unit is ON
-  *    at time instant t and 0 otherwise;
+  * - the binary commitment variables which takes the value of 1 if unit is ON
+  *   at time instant t and 0 otherwise;
   *
-  *  - the primary spinning reserve variables;
+  * - the primary spinning reserve variables;
   *
-  *  - the secondary spinning reserve variables;
+  * - the secondary spinning reserve variables;
   *
-  *  - the active power variables.
+  * - the active power variables.
   *
-  *  All of those variables are optional except the active power variables in
-  *  the sense that the model may just not have them and whenever a group of
-  *  above variables is created, its size will be the time horizon. Moreover,
-  *  ThermalUnitBlock is defined more groups of variables as follow:
+  * All of those variables are optional except the active power variables in
+  * the sense that the model may just not have them and whenever a group of
+  * above variables is created, its size will be the time horizon. Moreover,
+  * ThermalUnitBlock is defined more groups of variables as follow:
   *
-  *  - the binary variable start_up status of the unit which takes the value of
-  *    1 if the unit starts up at time instant t and 0 otherwise;
+  * - the binary variable start_up status of the unit which takes the value of
+  *   1 if the unit starts up at time instant t and 0 otherwise;
   *
-  *  - the binary variable shut_down status of the unit which takes the value
-  *    of 1 if the unit shuts down at time instant t and 0 otherwise;
+  * - the binary variable shut_down status of the unit which takes the value
+  *   of 1 if the unit shuts down at time instant t and 0 otherwise;
   *
-  *  These two groups of variables have size f_time_horizon - init_t, and
-  *  provide the unit commitment problem with a tight 3-binary MIP formulation.
-  *  Since these two variables may have shorter size (when init_t > 0), the
-  *  commitment variable needs to be fixed to 0 or 1 for the first init_t time
-  *  steps 0, ..., init_t - 1 (see initial time step concept in the
-  *  generate_abstract_constraints()).
+  * These two groups of variables have size f_time_horizon - init_t, and
+  * provide the unit commitment problem with a tight 3-binary MIP formulation.
+  * Since these two variables may have shorter size (when init_t > 0), the
+  * commitment variable needs to be fixed to 0 or 1 for the first init_t time
+  * steps 0, ..., init_t - 1 (see initial time step concept in the
+  * generate_abstract_constraints()).
   *
-  *  - wf & 3 == 1: the T formulation.
+  * - wf & 3 == 1: the T formulation.
   *
-  *  // TODO add here details about T formulation
+  * // TODO add here details about T formulation
   *
-  *  - wf & 3 == 2: the "dynamic programming" inspired formulation (DP).
+  * - wf & 3 == 2: the "dynamic programming" inspired formulation (DP).
   *
-  *  // TODO add here details about DP formulation
+  * // TODO add here details about DP formulation
   *
-  *  - wf & 3 == 3: the p_t formulation.
+  * - wf & 3 == 3: the p_t formulation.
   *
   *  // TODO add here details about p_t formulation
   *
-  *  - wf & 3 == 4: the "start-up" formulation (SU).
+  * - wf & 3 == 4: the "start-up" formulation (SU).
   *
-  *  // TODO add here details about SU formulation
+  * // TODO add here details about SU formulation
   *
-  *  - wf & 3 == 5: the "shut-down" formulation (SD).
+  * - wf & 3 == 5: the "shut-down" formulation (SD).
   *
-  *  // TODO add here details about SD formulation
+  * // TODO add here details about SD formulation
   *
-  *  */
+  */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -749,67 +749,67 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the ThermalUnitBlock
  /** Method that generates the objective of the ThermalUnitBlock. The objective
-  *  function of the ThermalUnitBlock representing the total power production
-  *  cost to be minimized has the form:
+  * function of the ThermalUnitBlock representing the total power production
+  * cost to be minimized has the form:
   *
-  *  \f[
-  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *    \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
-  *  \f]
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+  * \f]
   *
-  *  where \f$ v_t \f$ indicates that the unit is starting up at time
-  *  \f$ t \f$, \f$ u_t \f$ indicates that the unit is committed at time
-  *  \f$ t \f$, \f$ p_t \f$ is the active power produced at time \f$ t \f$,
-  *  \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t \f$ is the start-up
-  *  cost of the unit, which we assume to be time-independent
+  * where \f$ v_t \f$ indicates that the unit is starting up at time
+  * \f$ t \f$, \f$ u_t \f$ indicates that the unit is committed at time
+  * \f$ t \f$, \f$ p_t \f$ is the active power produced at time \f$ t \f$,
+  * \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t \f$ is the start-up
+  * cost of the unit, which we assume to be time-independent
   *
-  *  Note: time-independent means here start-up cost is "independent from how
-  *        long the unit has been off", and it is not meaning "always should
-  *        be equal at each time instant"
+  * Note: time-independent means here start-up cost is "independent from how
+  *       long the unit has been off", and it is not meaning "always should
+  *       be equal at each time instant"
   *
-  *  and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
-  *  quadratic, linear, and constant terms of the power cost function of the
-  *  unit at time period \f$ t \in \mathcal{T} \f$.
+  * and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
+  * quadratic, linear, and constant terms of the power cost function of the
+  * unit at time period \f$ t \in \mathcal{T} \f$.
   *
-  *  If the primary and/or the secondary spinning reserve variables have been
-  *  generated, it is also possible to consider them in linear form in the
-  *  objective function. This can be instructed by using either the parameter
-  *  \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
-  *  nullptr and it is a SimpleConfiguration< int >, or if
-  *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
-  *  SimpleConfiguration< int >, then the f_value of this SimpleConfiguration
-  *  (an int) indicates whether the primary and/or the secondary reserve
-  *  variables should be included in the objective function. If the
-  *  Configuration is not available, the default value is taken to be 0. If
-  *  the first bit of this int value is 1, then the primary spinning reserve
-  *  variables are added to the objective function, i.e., the following term
-  *  is added to the objective function described above:
+  * If the primary and/or the secondary spinning reserve variables have been
+  * generated, it is also possible to consider them in linear form in the
+  * objective function. This can be instructed by using either the parameter
+  * \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
+  * nullptr and it is a SimpleConfiguration< int >, or if
+  * f_BlockConfig->f_objective_Configuration is not nullptr and it is a
+  * SimpleConfiguration< int >, then the f_value of this SimpleConfiguration
+  * (an int) indicates whether the primary and/or the secondary reserve
+  * variables should be included in the objective function. If the
+  * Configuration is not available, the default value is taken to be 0. If
+  * the first bit of this int value is 1, then the primary spinning reserve
+  * variables are added to the objective function, i.e., the following term
+  * is added to the objective function described above:
   *
-  *   \f[
-  *     \sum_{ t \in \mathcal{T} } c_t^{pr} p_t^{pr}
-  *   \f]
+  * \f[
+  *    \sum_{ t \in \mathcal{T} } c_t^{pr} p_t^{pr}
+  * \f]
   *
-  *  If the second bit of this int value is 1, then the secondary spinning
-  *  reserve variables are added to the objective function, i.e., the following
-  *  term is added to the objective function described above:
+  * If the second bit of this int value is 1, then the secondary spinning
+  * reserve variables are added to the objective function, i.e., the following
+  * term is added to the objective function described above:
   *
-  *   \f[
-  *     \sum_{ t \in \mathcal{T} } c_t^{sc} p_t^{sc}
-  *   \f]
+  * \f[
+  *    \sum_{ t \in \mathcal{T} } c_t^{sc} p_t^{sc}
+  * \f]
   *
-  *  If the primary and/or secondary spinning reserve variables are included in
-  *  the objective function, their coefficients can be set by the
-  *  set_primary_spinning_reserve_cost() and
-  *  set_secondary_spinning_reserve_cost() methods, respectively.
-  *  In the the design scenario of the UC problem, an additional cost is
-  *  added to the objective, i.e.:
+  * If the primary and/or secondary spinning reserve variables are included in
+  * the objective function, their coefficients can be set by the
+  * set_primary_spinning_reserve_cost() and
+  * set_secondary_spinning_reserve_cost() methods, respectively.
+  * In the the design scenario of the UC problem, an additional cost is
+  * added to the objective, i.e.:
   *
-  *   \f[
-  *     ( I x )
-  *   \f]
+  * \f[
+  *    ( I x )
+  * \f]
   *
-  *  where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
-  *  variable. */
+  * where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
+  * variable. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -835,10 +835,10 @@ class ThermalUnitBlock : public UnitBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this ThermalUnitBlock is not
-  *      greater than the tolerance.
+  * -# the violation of each Constraint of this ThermalUnitBlock is not
+  *    greater than the tolerance.
   *
   * Every Constraint of this ThermalUnitBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
@@ -849,24 +849,24 @@ class ThermalUnitBlock : public UnitBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -1233,9 +1233,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of fixed consumption
  /** The returned value U = get_fixed_consumption() contains the contribution
-  *  to fixed consumption (basically, the constants to be multiplied by the
-  *  commitment variables returned by get_commitment()) of all the generators
-  *  at all time instants. There are three possible cases:
+  * to fixed consumption (basically, the constants to be multiplied by the
+  * commitment variables returned by get_commitment()) of all the generators
+  * at all time instants. There are three possible cases:
   *
   * - if the vector is empty, then the fixed consumption is always 0 and this
   *   function returns nullptr;
@@ -1255,9 +1255,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia commitment
  /** The returned value U = get_inertia_commitment() contains the contribution
-  *  to inertia (basically, the constants to be multiplied by the commitment
-  *  variables returned by get_commitment()) of all the generators at all time
-  *  instants. There are three possible cases:
+  * to inertia (basically, the constants to be multiplied by the commitment
+  * variables returned by get_commitment()) of all the generators at all time
+  * instants. There are three possible cases:
   *
   * - if the vector is empty, then the inertia commitment is always 0 and this
   *   functions returns nullptr;

@@ -282,37 +282,37 @@ class ECNetworkBlock : public NetworkBlock
  /// generate the static constraint of the ECNetworkBlock
  /** The constraints of an ECNetworkBlock are defined as below:
   *
-  *  - The power balance w.r.t. the load demand:
+  * - The power balance w.r.t. the load demand:
   *
-  *    \f[
-  *     P_{n,t}^{P+} - P_{n,t}^{P-} = S_n - D_n
+  *   \f[
+  *    P_{n,t}^{P+} - P_{n,t}^{P-} = S_n - D_n
   *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (1)
-  *    \f]
+  *   \f]
   *
-  *  - The power dispatch cannot go beyond the peak power at the user PoD, and
-  *    is calculated as:
+  * - The power dispatch cannot go beyond the peak power at the user PoD, and
+  *   is calculated as:
   *
-  *    \f[
-  *     P_n^{mx} \geq P_{n,t}^{P+} - P_{n,t}^{P-}
+  *   \f[
+  *    P_n^{mx} \geq P_{n,t}^{P+} - P_{n,t}^{P-}
   *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2a)
-  *    \f]
+  *   \f]
   *
-  *    \f[
-  *     P_n^{mx} \geq - ( P_{n,t}^{P+} - P_{n,t}^{P-} )
+  *   \f[
+  *    P_n^{mx} \geq - ( P_{n,t}^{P+} - P_{n,t}^{P-} )
   *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2b)
-  *    \f]
+  *   \f]
   *
-  *  - The max power shared within the microgrid w.r.t. the public market:
+  * - The max power shared within the microgrid w.r.t. the public market:
   *
-  *    \f[
-  *     P_{n,t}^{M} \leq P_{n,t}^{P+}
+  *   \f[
+  *    P_{n,t}^{M} \leq P_{n,t}^{P+}
   *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3a)
-  *    \f]
+  *   \f]
   *
-  *    \f[
-  *     P_{n,t}^{M} \leq P_{n,t}^{P-}
+  *   \f[
+  *    P_{n,t}^{M} \leq P_{n,t}^{P-}
   *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3b)
-  *    \f]
+  *   \f]
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
@@ -344,7 +344,7 @@ class ECNetworkBlock : public NetworkBlock
   *   finally \f$ P_{n,t}^{M} \f$ are the energy shard variables into the
   *   microgrid market. */
 
- void generate_objective( Configuration * objc ) override;
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- Methods for checking the ECNetworkBlock -----------------*/
@@ -358,10 +358,10 @@ class ECNetworkBlock : public NetworkBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this ECNetworkBlock is not
-  *      greater than the tolerance.
+  * -# the violation of each Constraint of this ECNetworkBlock is not
+  *    greater than the tolerance.
   *
   * Every Constraint of this ECNetworkBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
@@ -372,24 +372,24 @@ class ECNetworkBlock : public NetworkBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -686,7 +686,7 @@ class ECNetworkBlock : public NetworkBlock
   *   RewardP[ t ] contains the same value for all t;
   *
   * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
-   *  tariff that the user pays due to the peak power;
+  *   tariff that the user pays due to the peak power;
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term, i.e., typically the fixed costs. */
@@ -696,7 +696,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// loads the ECNetworkBlock instance from an input standard stream.
  /** Like load( std::istream & ), if there is any Solver attached to this
-  *  ECNetworkBlock then a NBModification (the "nuclear option") is issued. */
+  * ECNetworkBlock then a NBModification (the "nuclear option") is issued. */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "ECNetworkBlock::load() not implemented yet" ) );
