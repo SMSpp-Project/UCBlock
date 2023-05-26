@@ -220,7 +220,8 @@ class BatteryUnitBlock : public UnitBlock
   *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] <= 0 for
   *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
   *   the mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  *   not loaded. If "MinPower" is not provided, then MinP[ t ] is taken to
+  *   be equal to -MaxP[ t ] for all t.
   *
   * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -489,18 +490,31 @@ class BatteryUnitBlock : public UnitBlock
   *   energy that unit can produce (or use) when it is on (or off).
   *
   *   \f[
-  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq P^{mx,b}_t
+  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq \kappa P^{mx,b}_t
   *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
-  *     P^{mn,b}_t \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
+  *     \kappa P^{mn,b}_t \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
   *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
   *   where \f$ P^{mx,b}_t \f$ and \f$ P^{mn,b}_t \f$ are the maximum and
   *   minimum power output parameters for each time t of the time horizon \f$
-  *   \mathcal{T} \f$ respectively.
+  *   \mathcal{T} \f$ respectively. In the design scenario of the UC problem,
+  *   they become respectively:
+  *
+  *   \f[
+  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq x_b ( \kappa P^{mx,b}_t )
+  *                                           \quad t \in \mathcal{T} \quad (1)
+  *   \f]
+  *
+  *   \f[
+  *     x_b ( \kappa P^{mn,b}_t ) \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
+  *                                           \quad t \in \mathcal{T} \quad (2)
+  *   \f]
+  *
+  *   where \f$ x_b \f$ is the design variable of the battery.
   *
   * - ramp-up and ramp-down constraints are presented in (3)-(4). Each of them
   *   is a std::vector< FRowConstraint >; with the dimension of f_time_horizon,
@@ -537,7 +551,7 @@ class BatteryUnitBlock : public UnitBlock
   *   outtake level at each time instant t:
   *
   *   \f[
-  *    p^+_t \leq \kappa C^- P^{mx,b}_t
+  *    p^+_t \leq \kappa C^- P^{mn,b}_t
   *                                         \quad t \in \mathcal{T} \quad (6.1)
   *   \f]
   *
@@ -551,7 +565,7 @@ class BatteryUnitBlock : public UnitBlock
   *   the UC problem, become:
   *
   *   \f[
-  *     p^+_t \leq \kappa x_b ( C^- P^{mx,b}_t )
+  *     p^+_t \leq \kappa x_b ( C^- P^{mn,b}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.3)
   *   \f]
   *
@@ -566,8 +580,8 @@ class BatteryUnitBlock : public UnitBlock
   *   \f]
   *
   *   where \f$ P^{mx,c}_t \f$ is the maximum power of the converter, and
-  *   \f$ x_b \f$ and \f$ x_c \f$ are the design variable the battery and the
-  *   converter respectively.
+  *   \f$ x_b \f$ and \f$ x_c \f$ are the battery and converter design variable
+  *   respectively.
   *
   * - storage level relation with intake and outtake levels (if any)
   *   constraints in Battery unit are presented in (7). That is a
@@ -665,8 +679,8 @@ class BatteryUnitBlock : public UnitBlock
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
   *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
-  *   the design variable the battery and the converter respectively, and \f$
-  *   C_t \f$ is a certain proportion cost function. */
+  *   the battery and converter design variable respectively, and \f$ C_t \f$
+  *   is a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
