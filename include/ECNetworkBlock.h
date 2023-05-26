@@ -288,13 +288,13 @@ class ECNetworkBlock : public NetworkBlock
   *    \f[
   *     P_n^{mx} \geq ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
   *                   ( P_{n,t}^{P-} - P_{n,t}^{M-} )
-  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (1)
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (1)
   *    \f]
   *
   *    \f[
   *     P_n^{mx} \geq - [ ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
   *                       ( P_{n,t}^{P-} - P_{n,t}^{M-} ) ]
-  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (2)
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2)
   *    \f]
   *
   *   The \f$ P_n^{mx} \f$ variables also depends from \f$ P_{n,t}^{M+} \f$
@@ -308,7 +308,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   *    \f[
   *     P_{n,t}^{M+} = P_{n,t}^{M-}
-  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (3)
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3)
   *    \f]
   *
   *  - The power balance w.r.t. the load demand:
@@ -316,7 +316,7 @@ class ECNetworkBlock : public NetworkBlock
   *    \f[
   *     ( P_{n,t}^{P+} + P_{n,t}^{M+} ) -
   *     ( P_{n,t}^{P-} - P_{n,t}^{M-} ) = = S_n - D_n
-  *                         \quad n \in \mathal{N}, t \in \mathcal{T} \quad (4)
+  *                        \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (4)
   *    \f]
   * */
 
