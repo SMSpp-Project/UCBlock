@@ -805,7 +805,7 @@ class ThermalUnitBlock : public UnitBlock
   * added to the objective, i.e.:
   *
   * \f[
-  *    ( I x )
+  *    I x
   * \f]
   *
   * where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
