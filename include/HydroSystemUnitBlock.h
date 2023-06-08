@@ -201,7 +201,7 @@ class HydroSystemUnitBlock : public UnitBlock
   *
   * - Objective function: the objective function of the HydroSystemUnitBlock is
   *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  *   variables). */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -332,8 +332,8 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /// extends Block::serialize( netCDF::NcGroup )
 /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
- *  HydroSystemUnitBlock. See HydroSystemUnitBlock::deserialize( netCDF::
- *  NcGroup ) for details of the format of the created netCDF group. */
+ * HydroSystemUnitBlock. See HydroSystemUnitBlock::deserialize( netCDF::
+ * NcGroup ) for details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

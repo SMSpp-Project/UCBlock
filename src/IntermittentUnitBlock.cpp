@@ -306,8 +306,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Lower bound of the active power design constraints:
    //
-   //      v_MinPower z <= v_active_power     z \in [0,1], for all t
-   // => 0 <= v_active_power - v_MinPower z   z \in [0,1], for all t
+   //      v_MinPower x <= v_active_power     x \in {0,1}, for all t
+   // => 0 <= v_active_power - v_MinPower x   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
@@ -319,8 +319,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_MaxPower z     z \in [0,1], for all t
-   // => v_active_power - v_MaxPower z <= 0   z \in [0,1], for all t
+   //      v_active_power <= v_MaxPower x     x \in {0,1}, for all t
+   // => v_active_power - v_MaxPower x <= 0   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );
@@ -561,7 +561,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( identical )
   return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+ if( not_dry_run( issuePMod ) &&
+     not_dry_run( issueAMod ) &&
      constraints_generated() )
   // Change the abstract representation
   update_max_power_in_cnstrs( subset , issueAMod );
@@ -679,6 +680,7 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
     // Update the constraints
 
     if( ! active_power_bounds_Const.empty() )
+
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs(
        f_kappa * v_MinPower[ t ] , issueAMod );
@@ -686,10 +688,42 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
        f_kappa * v_MaxPower[ t ] , issueAMod );
      }
 
+    else if( ! active_power_bounds_design_Const.empty() )
+
+     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      auto f0 = static_cast< LinearFunction * >(
+       active_power_bounds_design_Const[ 0 ][ t ].get_function() );
+
+      const auto design_idx0 = f0->is_active( &design );
+
+      if( design_idx0 == Inf< Index >() )
+       throw( std::logic_error("IntermittentUnitBlock::set_kappa: expected "
+                               "Variable not found in "
+                               "active_power_bounds_design_Const." ) );
+
+      f0->modify_coefficient( design_idx0 ,
+                              -f_kappa * v_MinPower[ t ] ,
+                              issueAMod );
+
+      auto f1 = static_cast< LinearFunction * >(
+       active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+
+      const auto design_idx1 = f1->is_active( &design );
+
+      if( design_idx1 == Inf< Index >() )
+       throw( std::logic_error( "IntermittentUnitBlock::set_kappa: expected "
+                                "Variable not found in "
+                                "active_power_bounds_design_Const." ) );
+
+      f1->modify_coefficient( design_idx1 ,
+                              -f_kappa * v_MaxPower[ t ] ,
+                              issueAMod );
+     }
+
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      min_power_Const[ t ].set_lhs
-       ( f_kappa * v_MinPower[ t ] , issueAMod );
+      min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] ,
+                                    issueAMod );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )

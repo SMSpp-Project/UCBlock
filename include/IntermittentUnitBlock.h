@@ -194,19 +194,19 @@ class IntermittentUnitBlock : public UnitBlock
  /// generate the abstract variables of the IntermittentUnitBlock
  /** The IntermittentUnitBlock class has three different variables which are:
   *
-  *  - the primary spinning reserve variables;
+  * - the primary spinning reserve variables;
   *
-  *  - the secondary spinning reserve variables;
+  * - the secondary spinning reserve variables;
   *
-  *  - the active power variables.
+  * - the active power variables.
   *
-  *  All of those variables are optional except the active power variables in
-  *  the sense that the model may just not have them and whenever a group of
-  *  above variables is created, its size will be the time horizon.
+   of those variables are optional except the active power variables in
+  * the sense that the model may just not have them and whenever a group of
+  * above variables is created, its size will be the time horizon.
   *
-  *  In the design scenario of the UC problem, i.e., if an investment cost
-  *  is given for this IntermittentUnitBlock, an additional binary variable
-  *  is needed in order to let the model infer how much capacity to install. */
+  * In the design scenario of the UC problem, i.e., if an investment cost
+  * is given for this IntermittentUnitBlock, an additional binary variable
+  * is needed in order to let the model infer how much capacity to install. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -242,14 +242,14 @@ class IntermittentUnitBlock : public UnitBlock
   *
   *   \f[
   *    p^{ac}_t \in [ \kappa P^{mn}_t , \kappa P^{mx}_t]
-  *                                           \quad t \in \mathcal{T} \quad (3a)
+  *                                          \quad t \in \mathcal{T} \quad (3a)
   *   \f]
   *
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
   *    x ( \kappa P^{mn}_t ) \leq p^{ac}_t \leq x ( \kappa P^{mx}_t )
-  *                                           \quad t \in \mathcal{T} \quad (3b)
+  *                                          \quad t \in \mathcal{T} \quad (3b)
   *   \f]
   *
   *   where \f$ x \f$ is the design variable. */
@@ -258,20 +258,18 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the IntermittentUnitBlock
- /** Method that generates the objective of the IntermittentUnitBlock.
+ /** Method that generates the objective of the IntermittentUnitBlock. The
+  * objective function of the IntermittentUnitBlock in the design scenario of
+  * the UC problem is given as follow:
   *
-  * - Objective function: the objective function of the IntermittentUnitBlock
-  *   in the design scenario of the UC problem is given as follow:
+  * \f[
+  *   \min ( I x )
+  * \f]
   *
-  *   \f[
-  *     \min ( ( I + M ) x )
-  *   \f]
-  *
-  *   where \f$ I \f$ is the investment cost, \f$ M \f$ is the operation and
-  *   maintenance cost and \f$ x \f$ is the design variable.
-  *   Otherwise, the objective function of the IntermittentUnitBlock is
-  *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables). */
+  * where \f$ I \f$ is the investment cost and \f$ x \f$ is the design variable.
+  * Otherwise, the objective function of the IntermittentUnitBlock is "empty"
+  * (a FRealObjective with a LinearFunction inside with no active variables).
+  */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -318,9 +316,9 @@ class IntermittentUnitBlock : public UnitBlock
   * approximately feasible within the given tolerance. That is, a solution is
   * considered feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this IntermittentUnitBlock is not
+  * -# the violation of each Constraint of this IntermittentUnitBlock is not
   *      greater than the tolerance.
   *
   * Every Constraint of this IntermittentUnitBlock is a RowConstraint and its
@@ -332,24 +330,24 @@ class IntermittentUnitBlock : public UnitBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
@@ -425,9 +423,9 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia power
  /** The returned value U = get_inertia_power() contains the contribution to
-  *  inertia (basically, the constants to be multiplied by the active power
-  *  variables returned by get_active_power()) of all the generators at all
-  *  time instants. There are four possible cases:
+  * inertia (basically, the constants to be multiplied by the active power
+  * variables returned by get_active_power()) of all the generators at all
+  * time instants. There are four possible cases:
   *
   * - if the matrix is empty, then the inertia power is always 0 and this
   *   function returns nullptr;

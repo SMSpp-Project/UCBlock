@@ -381,7 +381,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
   v_battery_binary.resize( f_time_horizon );
   for( auto & var : v_battery_binary )
    var.set_type( ColVariable::kBinary );
-  add_static_variable( v_battery_binary , "bb_battery" );
+  add_static_variable( v_battery_binary , "b_battery" );
  }
 
  // Battery Design Variable
@@ -528,8 +528,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //      v_intake_level <= - v_MinPower z   z \in [0,1], for all t
-   // => v_intake_level + v_MinPower z <= 0   z \in [0,1], for all t
+   //      v_intake_level <= - v_MinPower x   x \in {0,1}, for all t
+   // => v_intake_level + v_MinPower x <= 0   x \in {0,1}, for all t
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
@@ -545,8 +545,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the outtake level design constraints:
    //
-   //      v_outtake_level <= v_MaxPower z     z \in [0,1], for all t
-   // => v_outtake_level - v_MaxPower z <= 0   z \in [0,1], for all t
+   //      v_outtake_level <= v_MaxPower x     x \in {0,1}, for all t
+   // => v_outtake_level - v_MaxPower x <= 0   x \in {0,1}, for all t
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
@@ -562,9 +562,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake + outtake level design constraints:
    //
-   //      v_intake_level + v_outtake_level <= v_ConvMaxPower z
-   // => v_intake_level + v_outtake_level - v_ConvMaxPower z <= 0
-   //                 z \in [0,1], for all t
+   //      v_intake_level + v_outtake_level <= v_ConvMaxPower x
+   // => v_intake_level + v_outtake_level - v_ConvMaxPower x <= 0
+   //                 x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
@@ -590,8 +590,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Lower bound of the active power design constraints:
    //
-   //      v_minimum_power z <= v_active_power     z \in [0,1], for all t
-   // => 0 <= v_active_power - v_minimum_power z   z \in [0,1], for all t
+   //      v_minimum_power x <= v_active_power     x \in {0,1}, for all t
+   // => 0 <= v_active_power - v_minimum_power x   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
@@ -617,8 +617,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_maximum_power z     z \in [0,1], for all t
-   // => v_active_power - v_maximum_power z <= 0   z \in [0,1], for all t
+   //      v_active_power <= v_maximum_power x     x \in {0,1}, for all t
+   // => v_active_power - v_maximum_power x <= 0   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
@@ -735,10 +735,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   intake_coeff = v_ExtractingBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
 
- double rhs = ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage );
  if( ! v_Demand.empty() )
-  rhs -= v_Demand[ 0 ];
- demand_Const[ 0 ].set_both( rhs );
+  demand_Const[ 0 ].set_both(
+   ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage ) - v_Demand[ 0 ] );
+ else
+  demand_Const[ 0 ].set_both(
+   ( f_InitialStorage < 0 ? 0.0 : f_InitialStorage ) );
 
  demand_Const[ 0 ].set_function( new LinearFunction( std::move( vars ) ) );
 
@@ -757,10 +759,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
   vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -1.0 ) );
 
-  double rhs = 0;
   if( ! v_Demand.empty() )
-   rhs = -v_Demand[ t ];
-  demand_Const[ t ].set_both( rhs );
+   demand_Const[ t ].set_both( -v_Demand[ t ] );
+  else
+   demand_Const[ t ].set_both( 0.0 );
 
   demand_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
  }
@@ -793,8 +795,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Lower bound of the storage level design constraints:
    //
-   //      v_MinStorage z <= v_storage_level     z \in [0,1], for all t
-   // => 0 <= v_storage_level - v_MinStorage z   z \in [0,1], for all t
+   //      v_MinStorage x <= v_storage_level     x \in {0,1}, for all t
+   // => 0 <= v_storage_level - v_MinStorage x   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
@@ -807,8 +809,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the storage level design constraints:
    //
-   //      v_storage_level <= v_MaxPower z     z \in [0,1], for all t
-   // => v_storage_level - v_MaxPower z <= 0   z \in [0,1], for all t
+   //      v_storage_level <= v_MaxPower x     x \in {0,1}, for all t
+   // => v_storage_level - v_MaxPower x <= 0   x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
@@ -834,6 +836,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
+   // v_intake_level <= v_MaxPower b   b \in {0,1}, for all t
+
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
                                    -f_kappa * v_MaxPower[ t ] ) );
@@ -842,6 +846,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    intake_outtake_binary_Const[ 0 ][ t ].set_rhs( 0.0 );
    intake_outtake_binary_Const[ 0 ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
+
+   //      v_outtake_level <= - v_MinPower ( 1 - b )
+   // => v_outtake_level - v_MinPower b <= - v_MinPower
+   //             b \in [0,1], for all t
 
    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
@@ -1309,6 +1317,7 @@ void BatteryUnitBlock::scale( MF_dbl_it values ,
 void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 {
  if( ! intake_outtake_bounds_Const.empty() )
+
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
     -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] , issueAMod );
@@ -1316,7 +1325,55 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] , issueAMod );
   }
 
+ else if( ! intake_outtake_upper_bounds_design_Const.empty() )
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f0 = static_cast< LinearFunction * >(
+    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].get_function() );
+
+   const auto batt_design_idx0 = f0->is_active( &batt_design );
+
+   if( batt_design_idx0 == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "intake_outtake_upper_bounds_design_Const." ) );
+
+   f0->modify_coefficient( batt_design_idx0 ,
+                           f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ,
+                           issueAMod );
+
+   auto f1 = static_cast< LinearFunction * >(
+    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].get_function() );
+
+   const auto batt_design_idx1 = f1->is_active( &batt_design );
+
+   if( batt_design_idx1 == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "intake_outtake_upper_bounds_design_Const." ) );
+
+   f1->modify_coefficient( batt_design_idx1 ,
+                           -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ,
+                           issueAMod );
+
+   auto f2 = static_cast< LinearFunction * >(
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].get_function() );
+
+   const auto conv_design_idx2 = f2->is_active( &conv_design );
+
+   if( conv_design_idx2 == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                              "expected Variable not found in "
+                              "intake_outtake_upper_bounds_design_Const." ) );
+
+   f2->modify_coefficient( conv_design_idx2 ,
+                           -f_kappa * v_ConvMaxPower[ t ] ,
+                           issueAMod );
+  }
+
  if( ! active_power_bounds_Const.empty() )
+
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    active_power_bounds_Const[ 0 ][ t ].set_lhs(
     f_kappa * v_MinPower[ t ] , issueAMod );
@@ -1324,12 +1381,78 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
+ else if( ! active_power_bounds_design_Const.empty() )
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   auto f0 = static_cast< LinearFunction * >(
+    active_power_bounds_design_Const[ 0 ][ t ].get_function() );
+
+   const auto batt_design_idx0 = f0->is_active( &batt_design );
+
+   if( batt_design_idx0 == Inf< Index >() )
+    throw ( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                              "expected Variable not found in "
+                              "active_power_bounds_design_Const." ) );
+
+   f0->modify_coefficient( batt_design_idx0 ,
+                           -f_kappa * v_MinPower[ t ] ,
+                           issueAMod );
+
+   auto f1 = static_cast< LinearFunction * >(
+    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+
+   const auto batt_design_idx1 = f1->is_active( &batt_design );
+
+   if( batt_design_idx1 == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "active_power_bounds_design_Const." ) );
+
+   f1->modify_coefficient( batt_design_idx1 ,
+                           -f_kappa * v_MaxPower[ t ] ,
+                           issueAMod );
+  }
+
  if( ! storage_level_bounds_Const.empty() )
+
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    storage_level_bounds_Const[ t ].set_lhs(
     f_kappa * v_MinStorage[ t ] , issueAMod );
    storage_level_bounds_Const[ t ].set_rhs(
     f_kappa * v_MaxStorage[ t ] , issueAMod );
+  }
+
+ else if( ! storage_level_bounds_design_Const.empty() )
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+   auto f0 = static_cast< LinearFunction * >(
+    storage_level_bounds_design_Const[ 0 ][ t ].get_function() );
+
+   const auto batt_design_idx0 = f0->is_active( &batt_design );
+
+   if( batt_design_idx0 == Inf< Index >() )
+    throw ( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                              "expected Variable not found in "
+                              "storage_level_bounds_design_Const." ) );
+
+   f0->modify_coefficient( batt_design_idx0 ,
+                           -f_kappa * v_MinStorage[ t ] ,
+                           issueAMod );
+
+   auto f1 = static_cast< LinearFunction * >(
+    storage_level_bounds_design_Const[ 1 ][ t ].get_function() );
+
+   const auto batt_design_idx1 = f1->is_active( &batt_design );
+
+   if( batt_design_idx1 == Inf< Index >() )
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "storage_level_bounds_design_Const." ) );
+
+   f1->modify_coefficient( batt_design_idx1 ,
+                           -f_kappa * v_MaxStorage[ t ] ,
+                           issueAMod );
   }
 
  if( ! intake_outtake_binary_Const[ 0 ].empty() )

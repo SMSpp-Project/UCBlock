@@ -220,7 +220,8 @@ class BatteryUnitBlock : public UnitBlock
   *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MinP[ t ] <= 0 for
   *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
   *   the mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  *   not loaded. If "MinPower" is not provided, then MinP[ t ] is taken to
+  *   be equal to -MaxP[ t ] for all t.
   *
   * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -409,29 +410,29 @@ class BatteryUnitBlock : public UnitBlock
  /** This function generates the static variables of The BatteryUnitBlock,
   * which are:
   *
-  *  - The primary spinning reserve variables.
+  * - The primary spinning reserve variables.
   *
-  *  - The secondary spinning reserve variables.
+  * - The secondary spinning reserve variables.
   *
-  *  - The active power variables, which can be positive or negative. If it is
-  *    positive, the unit is giving energy to the system. If it is negative,
-  *    it is taking energy away and adding to the storage. Since the storing
-  *    and extracting amount of active power are not always equal, to deal
-  *    with this issue, the usual trick of splitting the active power variable
-  *    in two new non-negative variables which are called intake and outtake
-  *    levels for each time t (see equation (5)) is used. If
-  *    "StoringBatteryRho" == "ExtractingBatterRho" == 1, we do not need to
-  *    split the active power and the constraints ((5)-(7) and (10)-(11)) will
-  *    be replaced by (8)).
+  * - The active power variables, which can be positive or negative. If it is
+  *   positive, the unit is giving energy to the system. If it is negative,
+  *   it is taking energy away and adding to the storage. Since the storing
+  *   and extracting amount of active power are not always equal, to deal
+  *   with this issue, the usual trick of splitting the active power variable
+  *   in two new non-negative variables which are called intake and outtake
+  *   levels for each time t (see equation (5)) is used. If
+  *   "StoringBatteryRho" == "ExtractingBatterRho" == 1, we do not need to
+  *   split the active power and the constraints ((5)-(7) and (10)-(11)) will
+  *   be replaced by (8)).
   *
-  *  - The storage level variables.
+  * - The storage level variables.
   *
-  *  - The intake and outtake levels variable. They are needed to split the
-  *    active power variable (if it is needed).
+  * - The intake and outtake levels variable. They are needed to split the
+  *   active power variable (if it is needed).
   *
-  *  - The binary variables. When "StoringBatteryRho" == "ExtractingBatterRho"
-  *    == 1, then this binary variable and all constraints which are depended
-  *    on this variable are not required to be define.
+  * - The binary variables. When "StoringBatteryRho" == "ExtractingBatterRho"
+  *   == 1, then this binary variable and all constraints which are depended
+  *   on this variable are not required to be define.
   *
   * Each of these groups of variables either has size #f_time_horizon or is
   * empty (in case the variables have not been generated).
@@ -439,17 +440,17 @@ class BatteryUnitBlock : public UnitBlock
   * The primary and secondary spinning reserve and the binary variables are
   * optional:
   *
-  *  - The primary spinning reserve variables are generated only if they were
-  *    instructed to be (see set_reserve_vars()) and "MaxPrimaryPower" is not
-  *    zero.
+  * - The primary spinning reserve variables are generated only if they were
+  *   instructed to be (see set_reserve_vars()) and "MaxPrimaryPower" is not
+  *   zero.
   *
-  *  - The secondary spinning reserve variables are generated only if they
-  *    were instructed to be (see set_reserve_vars()) and "MaxSecondaryPower"
-  *    is not zero.
+  * - The secondary spinning reserve variables are generated only if they
+  *   were instructed to be (see set_reserve_vars()) and "MaxSecondaryPower"
+  *   is not zero.
   *
-  *  - The binary variables are generated only if negative prices may occur
-  *    (which can be informed via a Configuration; see below) and there exists
-  *    t such that StoringBatteryRho[ t ] < 1 and ExtractingBatterRho[ t ] > 1.
+  * - The binary variables are generated only if negative prices may occur
+  *   (which can be informed via a Configuration; see below) and there exists
+  *   t such that StoringBatteryRho[ t ] < 1 and ExtractingBatterRho[ t ] > 1.
   *
   * Notice that despite the BatteryUnitBlock being a single logical unit, in
   * fact a battery is made up of the battery itself responsible for the
@@ -489,18 +490,31 @@ class BatteryUnitBlock : public UnitBlock
   *   energy that unit can produce (or use) when it is on (or off).
   *
   *   \f[
-  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq P^{mx,b}_t
+  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq \kappa P^{mx,b}_t
   *                                           \quad t \in \mathcal{T} \quad (1)
   *   \f]
   *
   *   \f[
-  *     P^{mn,b}_t \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
+  *     \kappa P^{mn,b}_t \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
   *                                           \quad t \in \mathcal{T} \quad (2)
   *   \f]
   *
   *   where \f$ P^{mx,b}_t \f$ and \f$ P^{mn,b}_t \f$ are the maximum and
   *   minimum power output parameters for each time t of the time horizon \f$
-  *   \mathcal{T} \f$ respectively.
+  *   \mathcal{T} \f$ respectively. In the design scenario of the UC problem,
+  *   they become respectively:
+  *
+  *   \f[
+  *      p^{ac}_t + p^{pr}_t + p^{sc}_t \leq x_b ( \kappa P^{mx,b}_t )
+  *                                           \quad t \in \mathcal{T} \quad (1)
+  *   \f]
+  *
+  *   \f[
+  *     x_b ( \kappa P^{mn,b}_t ) \leq p^{ac}_t - p^{pr}_t - p^{sc}_t
+  *                                           \quad t \in \mathcal{T} \quad (2)
+  *   \f]
+  *
+  *   where \f$ x_b \f$ is the design variable of the battery.
   *
   * - ramp-up and ramp-down constraints are presented in (3)-(4). Each of them
   *   is a std::vector< FRowConstraint >; with the dimension of f_time_horizon,
@@ -537,7 +551,7 @@ class BatteryUnitBlock : public UnitBlock
   *   outtake level at each time instant t:
   *
   *   \f[
-  *     p^+_t \leq \kappa C^- P^{mx,b}_t
+  *    p^+_t \leq \kappa C^- P^{mn,b}_t
   *                                         \quad t \in \mathcal{T} \quad (6.1)
   *   \f]
   *
@@ -551,23 +565,23 @@ class BatteryUnitBlock : public UnitBlock
   *   the UC problem, become:
   *
   *   \f[
-  *     p^+_t \leq \kappa z_b ( C^- P^{mx,b}_t )
+  *     p^+_t \leq \kappa x_b ( C^- P^{mn,b}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.3)
   *   \f]
   *
   *   \f[
-  *     p^-_t \leq \kappa z_b ( C^+ P^{mx,b}_t )
+  *     p^-_t \leq \kappa x_b ( C^+ P^{mx,b}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.4)
   *   \f]
   *
   *   \f[
-  *     p^+_t + p^-_t \leq z_c ( \kappa P^{mx,c}_t )
+  *     p^+_t + p^-_t \leq x_c ( \kappa P^{mx,c}_t )
   *                                         \quad t \in \mathcal{T} \quad (6.5)
   *   \f]
   *
   *   where \f$ P^{mx,c}_t \f$ is the maximum power of the converter, and
-  *   \f$ z_b \f$ and \f$ z_c \f$ are the design variable the battery and the
-  *   converter respectively.
+  *   \f$ x_b \f$ and \f$ x_c \f$ are the battery and converter design variable
+  *   respectively.
   *
   * - storage level relation with intake and outtake levels (if any)
   *   constraints in Battery unit are presented in (7). That is a
@@ -596,20 +610,20 @@ class BatteryUnitBlock : public UnitBlock
   *
   *   \f[
   *    v^{ba}_t \in [ \kappa V^{mn}_t , \kappa V^{mx}_t]
-  *                                           \quad t \in \mathcal{T} \quad (9a)
+  *                                          \quad t \in \mathcal{T} \quad (9a)
   *   \f]
   *
   *   which, in the design scenario of the UC problem, become:
   *
   *   \f[
-  *    z_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq z_b ( \kappa V^{mx}_t )
-  *                                           \quad t \in \mathcal{T} \quad (9b)
+  *    x_b ( \kappa V^{mn}_t ) \leq v^{ba}_t \leq x_b ( \kappa V^{mx}_t )
+  *                                          \quad t \in \mathcal{T} \quad (9b)
   *   \f]
   *
   *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are the
   *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t \f$ and
   *   \f$ V^{mx}_t \f$ are the minimum and maximum storage level for each time
-  *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ z_b \f$
+  *   t of the time horizon \f$ \mathcal{T} \f$ respectively; and \f$ x_b \f$
   *   is the design variable of the battery.
   *
   * - binary variable relation with storing and extracting energy level (if
@@ -654,18 +668,19 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the BatteryUnitBlock
  /** Method that generates the objective of the BatteryUnitBlock.
+  *
   * - Objective function: the objective function of the BatteryUnitBlock
   *   is given as follow:
   *
   *   \f[
-  *     \min ( I_b z_b + I_c z_c +
+  *     \min ( I_b x_b + I_c x_c +
   *     \sum_{ t \in \mathcal{T} } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
   *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
-  *   battery and the converter respectively, \f$ z_b \f$ and \f$ z_c \f$ are
-  *   the design variable the battery and the converter respectively, and \f$
-  *   C_t \f$ is a certain proportion cost function. */
+  *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
+  *   the battery and converter design variable respectively, and \f$ C_t \f$
+  *   is a certain proportion cost function. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -681,10 +696,10 @@ class BatteryUnitBlock : public UnitBlock
   * feasible within the given tolerance. That is, a solution is considered
   * feasible if and only if
   *
-  *   -# each ColVariable is feasible; and
+  * -# each ColVariable is feasible; and
   *
-  *   -# the violation of each Constraint of this BatteryUnitBlock is not
-  *      greater than the tolerance.
+  * -# the violation of each Constraint of this BatteryUnitBlock is not
+  *    greater than the tolerance.
   *
   * Every Constraint of this BatteryUnitBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
@@ -695,24 +710,24 @@ class BatteryUnitBlock : public UnitBlock
   * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
-  *   - If \p fsbc is not a nullptr and it is a pointer to a
-  *     SimpleConfiguration< double >, then the tolerance is the value present
-  *     in that SimpleConfiguration and the relative violation is considered.
+  * - If \p fsbc is not a nullptr and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
   *
-  *   - If \p fsbc is not nullptr and it is a
-  *     SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *     fsbc->f_value.first and the type of violation is determined by
-  *     fsbc->f_value.second (any nonzero number for relative violation and
-  *     zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
   *
-  *   - Otherwise, if both #f_BlockConfig and
-  *     f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *     latter is a pointer to either a SimpleConfiguration< double > or to a
-  *     SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *     parameters are obtained analogously as above;
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
   *
-  *   - Otherwise, by default, the tolerance is 0 and the relative violation
-  *     is considered.
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
   *
   * This function currently considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is

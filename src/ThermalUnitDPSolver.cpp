@@ -956,9 +956,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
 
    /* Compute the maximum value for \bar{p} such that:
-    *  - p^*_k(\bar{p}) stays in the q-th interval;
-    *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible. */
+    * - p^*_k(\bar{p}) stays in the q-th interval;
+    * - unc_p stays out of the admissible range;
+    * - \bar{p} stays admissible. */
 
    if( m[ qm + 1 ] - delta_ramp_down[ k - 1 ] <
        unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ] - f_solver->eps ) {
@@ -1006,8 +1006,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * unc_p[ k - 1 ] + coeffs[ q ].gamma;
 
    /* compute the maximum value for \bar{p} such that:
-    *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible. */
+    * - unc_p stays out of the admissible range;
+    * - \bar{p} stays admissible. */
 
    p_bar = std::min( u_bar , unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] );
 
@@ -1043,8 +1043,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * delta_ramp_up[ k - 1 ];
 
    /* Compute the maximum value for \bar{p} such that:
-    *  - p^*_k(\bar{p}) stays in the q-th interval;
-    *  - \bar{p} stays admissible. */
+    * - p^*_k(\bar{p}) stays in the q-th interval;
+    * - \bar{p} stays admissible. */
 
    p_bar = std::min( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] , u_bar );
 
