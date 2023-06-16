@@ -2866,9 +2866,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
       vars.push_back( std::make_pair( &v_active_power[ t ] ,
                                       2 * ( v_active_power[ t ].get_value() /
                                             v_commitment[ t ].get_value() ) ) );
-
       vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
-
       vars.push_back(
        std::make_pair( &v_commitment[ t ] ,
                        -( std::pow( v_active_power[ t ].get_value() , 2 ) /
