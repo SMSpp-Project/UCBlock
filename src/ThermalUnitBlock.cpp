@@ -2169,7 +2169,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       -( get_operational_max_power( t + 1 ) -
                                          v_ShutDownLimit[ t + 1 ] ) ) );
      for( int s = 0 ; s < min_RU ; ++s )
-      if( ( t - init_t ) >= s )
+      if( t - init_t >= s )
        vars.push_back( std::make_pair(
         &v_start_up[ t - s - init_t ] ,
         -( get_operational_max_power( t - s ) -
@@ -2206,7 +2206,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
      if( t >= init_t ) {
       for( int s = 0 ; s < min_RU ; ++s )
-       if( ( t - init_t ) >= s )
+       if( t - init_t >= s )
         vars.push_back( std::make_pair(
          &v_start_up[ t - s - init_t ] ,
          -( get_operational_max_power( t - s ) -
@@ -2252,7 +2252,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
             ( int ) ( s + 1 ) * v_DeltaRampDown[ t + 1 + s ] ) ) );
 
       for( int s = 0 ; s < v_K_SU[ t ] ; ++s )
-       if( ( t - init_t ) >= s )
+       if( t - init_t >= s )
         vars.push_back( std::make_pair(
          &v_start_up[ t - s - init_t ] ,
          -( get_operational_max_power( t - s ) -
@@ -4112,7 +4112,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                             std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4184,7 +4184,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                             this , ThermalUnitBlockMod::eSetPrSpResCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_primary_spinning_reserve_cost( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4262,7 +4262,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                             std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4339,7 +4339,7 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                             this , ThermalUnitBlockMod::eSetSecSpResCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost )
+}  // end( ThermalUnitBlock::set_secondary_spinning_reserve_cost( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4378,7 +4378,7 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_init_updown_time )
+}  // end( ThermalUnitBlock::set_init_updown_time( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4411,7 +4411,7 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( ThermalUnitBlock::set_init_updown_time )
+}  // end( ThermalUnitBlock::set_init_updown_time( range ) )
 
 /*--------------------------------------------------------------------------*/
 
