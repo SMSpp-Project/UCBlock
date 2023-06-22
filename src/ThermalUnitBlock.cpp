@@ -3949,22 +3949,49 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   //
   // - then possibly the rest
   //
-  // hence, the active power variables, whose quadratic coefficient is
-  // the quadratic term of the cost, start from position
-  // f_time_horizon - init_t
-  const Index dpos = f_time_horizon - init_t;
+  // hence, if no perspective cuts are used, then the active power variables,
+  // whose quadratic coefficient is the quadratic term of the cost, start
+  // from position f_time_horizon - init_t, else the quadratic coefficient
+  // become the quadratic term of the perspective cut variables, start from
+  // position
+  // 5 * f_time_horizon - init_t if both primary and secondary reserve are
+  // defined, and
+  // 4 * f_time_horizon - init_t if just one between primary or secondary
+  // reverse is defined, and
+  // 3 * f_time_horizon - init_t otherwise
+  const Index dpos = ! ( AR & PCuts ) ? f_time_horizon - init_t :
+                     ( ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
+                             ( reserve_vars & 1u ) ) &&
+                           ( ( ! v_secondary_spinning_reserve.empty() ) &&
+                             ( reserve_vars & 2u ) ) ) ? 5 :
+                         ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
+                               ( reserve_vars & 1u ) ) ||
+                             ( ( ! v_secondary_spinning_reserve.empty() ) &&
+                               ( reserve_vars & 2u ) ) ) ? 4 : 3 ) ) *
+                       f_time_horizon - init_t );
 
   Subset tmps = subset_add( subset , dpos );
-  DQuadFunction::Vec_FunctionValue tmplv( subset.size() , 0 );
-  if( ! v_LinearTerm.empty() ) {
-   auto tmplvit = tmplv.begin();
-   for( auto t : subset )
-    *(tmplvit++) = v_LinearTerm[ t ];
-  }
 
-  static_cast< DQuadFunction * >( objective.get_function()
-  )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
-                   un_ModBlock( issueAMod ) );
+  if( ! ( AR & PCuts ) ) {
+
+   DQuadFunction::Vec_FunctionValue tmplv( subset.size() , 0 );
+   if( ! v_LinearTerm.empty() ) {
+    auto tmplvit = tmplv.begin();
+    for( auto t : subset )
+     *(tmplvit++) = v_LinearTerm[ t ];
+   }
+
+   static_cast< DQuadFunction * >( objective.get_function()
+   )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
+                    un_ModBlock( issueAMod ) );
+
+  } else {
+
+   DQuadFunction::Vec_FunctionValue tmplv( values , values + subset.size() );
+   static_cast< DQuadFunction * >( objective.get_function()
+   )->modify_linear_coefficients( std::move( tmplv ) , std::move( tmps ) ,
+                                  true , un_ModBlock( issueAMod ) );
+  }
  }
 
  if( issue_pmod( issuePMod ) )
@@ -4016,20 +4043,48 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   //
   // - then possibly the rest
   //
-  // hence, the active power variables, whose quadratic coefficient is
-  // the quadratic term of the cost, start from position
-  // f_time_horizon - init_t
-  const Index dpos = f_time_horizon - init_t;
+  // hence, if no perspective cuts are used, then the active power variables,
+  // whose quadratic coefficient is the quadratic term of the cost, start
+  // from position f_time_horizon - init_t, else the quadratic coefficient
+  // become the quadratic term of the perspective cut variables, start from
+  // position
+  // 5 * f_time_horizon - init_t if both primary and secondary reserve are
+  // defined, and
+  // 4 * f_time_horizon - init_t if just one between primary or secondary
+  // reverse is defined, and
+  // 3 * f_time_horizon - init_t otherwise
+  const Index dpos = ! ( AR & PCuts ) ? f_time_horizon - init_t :
+                     ( ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
+                             ( reserve_vars & 1u ) ) &&
+                           ( ( ! v_secondary_spinning_reserve.empty() ) &&
+                             ( reserve_vars & 2u ) ) ) ? 5 :
+                         ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
+                               ( reserve_vars & 1u ) ) ||
+                             ( ( ! v_secondary_spinning_reserve.empty() ) &&
+                               ( reserve_vars & 2u ) ) ) ? 4 : 3 ) ) *
+                       f_time_horizon - init_t );
 
-  DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
-  if( ! v_LinearTerm.empty() )
-   std::copy( v_LinearTerm.begin() + rng.first ,
-              v_LinearTerm.begin() + rng.second , tmplv.begin() );
+  if( ! ( AR & PCuts ) ) {
 
-  static_cast< DQuadFunction * >( objective.get_function()
-  )->modify_terms( values , tmplv.begin() ,
-                   Range( rng.first + dpos , rng.second + dpos ) ,
-                   un_ModBlock( issueAMod ) );
+   DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
+   if( ! v_LinearTerm.empty() )
+    std::copy( v_LinearTerm.begin() + rng.first ,
+               v_LinearTerm.begin() + rng.second , tmplv.begin() );
+
+   static_cast< DQuadFunction * >( objective.get_function()
+   )->modify_terms( values , tmplv.begin() ,
+                    Range( rng.first + dpos , rng.second + dpos ) ,
+                    un_ModBlock( issueAMod ) );
+
+  } else {
+
+   DQuadFunction::Vec_FunctionValue tmplv( values , values + sz );
+   static_cast< DQuadFunction * >( objective.get_function()
+   )->modify_linear_coefficients( std::move( tmplv ) ,
+                                  Range( rng.first + dpos ,
+                                         rng.second + dpos ) ,
+                                  un_ModBlock( issueAMod ) );
+  }
  }
 
  if( issue_pmod( issuePMod ) )
@@ -4245,8 +4300,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   // 4 * f_time_horizon - init_t if primary reserve is defined, and
   // 3 * f_time_horizon - init_t otherwise
   const Index dpos = ( v_primary_spinning_reserve.empty() ||
-                       ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) * f_time_horizon
-                     - init_t;
+                       ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) *
+                     f_time_horizon - init_t;
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -4322,8 +4377,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   // 4 * f_time_horizon - init_t if primary reserve is defined, and
   // 3 * f_time_horizon - init_t otherwise
   const Index dpos = ( v_primary_spinning_reserve.empty() ||
-                       ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) * f_time_horizon
-                     - init_t;
+                       ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) *
+                     f_time_horizon - init_t;
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   static_cast< DQuadFunction * >( objective.get_function()
