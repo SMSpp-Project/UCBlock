@@ -550,8 +550,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
   AR |= PCuts;
 
-  v_last_pbar.resize( f_time_horizon );
-
   v_cut.resize( f_time_horizon );
   for( auto & var : v_cut )
    var.set_type( ColVariable::kNonNegative );
@@ -2820,7 +2818,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 {
  if( AR & PCuts ) {
-  double tol = 1e-6;  // threshold parameter for p/c generation
+  double tol = 1e-3;  // threshold parameter for p/c generation
   double eps = 1e-4;  // tolerance value to consider a binary variable
 
   auto extract_parameters = [ & tol , & eps ]( Configuration * c )
@@ -2842,43 +2840,34 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
    // if the given Configuration is not valid, try the one from the BlockConfig
    extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
 
-  double value , pbar , value2;
-
   LinearFunction::v_coeff_pair vars;
 
   for( Index t = 0 ; t < f_time_horizon ; ++t )
 
    if( v_commitment[ t ].get_value() > eps ) {
 
-    pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
-    value = std::pow( v_active_power[ t ].get_value() , 2 ) /
-            v_commitment[ t ].get_value();
+    if( v_cut[ t ].get_value() <
+        ( std::pow( v_active_power[ t ].get_value() , 2 ) /
+          v_commitment[ t ].get_value() ) - tol ) {
 
-    if( v_cut[ t ].get_value() < value - tol )
-     if( ( v_last_pbar[ t ] == 0 ) ||
-         ( ( v_last_pbar[ t ] != 0 ) &&
-           ( std::abs( ( v_last_pbar[ t ] - pbar ) /
-                       v_last_pbar[ t ] ) > eps ) ) ) {
+     std::list< FRowConstraint > cut( 1 );
 
-      std::list< FRowConstraint > newcut( 1 );
-      v_last_pbar[ t ] = pbar;
+     vars.push_back( std::make_pair( &v_active_power[ t ] ,
+                                     2 * ( v_active_power[ t ].get_value() /
+                                           v_commitment[ t ].get_value() ) ) );
+     vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
+     vars.push_back(
+      std::make_pair( &v_commitment[ t ] ,
+                      -( std::pow( v_active_power[ t ].get_value() , 2 ) /
+                         std::pow( v_commitment[ t ].get_value() , 2 ) ) ) );
 
-      vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                      2 * ( v_active_power[ t ].get_value() /
-                                            v_commitment[ t ].get_value() ) ) );
-      vars.push_back( std::make_pair( &v_cut[ t ] , -1.0 ) );
-      vars.push_back(
-       std::make_pair( &v_commitment[ t ] ,
-                       -( std::pow( v_active_power[ t ].get_value() , 2 ) /
-                          std::pow( v_commitment[ t ].get_value() , 2 ) ) ) );
+     cut.front().set_lhs( -Inf< double >() );
+     cut.front().set_rhs( 0.0 );
+     cut.front().set_function(
+      new LinearFunction( std::move( vars ) , eNoMod ) );
 
-      newcut.front().set_lhs( -Inf< double >() );
-      newcut.front().set_rhs( 0.0 );
-      newcut.front().set_function(
-       new LinearFunction( std::move( vars ) , eNoMod ) );
-
-      add_dynamic_constraints( PC_cuts , newcut , eNoBlck );
-     }
+     add_dynamic_constraints( PC_cuts , cut , eNoBlck );
+    }
    }
 
   add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );

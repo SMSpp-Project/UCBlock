@@ -1855,9 +1855,6 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_ShutDownLimit;
 
 
- /// the vector to store the last value of \bar{p} in a perspective cut
- std::vector< double > v_last_pbar;
-
  /// the vector of index to map the active power variables of the 3bin
  /// formulation with those of the DP formulation  // TODO check
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
