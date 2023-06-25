@@ -1390,9 +1390,9 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    const auto batt_design_idx0 = f0->is_active( &batt_design );
 
    if( batt_design_idx0 == Inf< Index >() )
-    throw ( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                              "expected Variable not found in "
-                              "active_power_bounds_design_Const." ) );
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "active_power_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
                            -f_kappa * v_MinPower[ t ] ,
@@ -1432,9 +1432,9 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    const auto batt_design_idx0 = f0->is_active( &batt_design );
 
    if( batt_design_idx0 == Inf< Index >() )
-    throw ( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
-                              "expected Variable not found in "
-                              "storage_level_bounds_design_Const." ) );
+    throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
+                             "expected Variable not found in "
+                             "storage_level_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
                            -f_kappa * v_MinStorage[ t ] ,
