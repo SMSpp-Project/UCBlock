@@ -77,22 +77,28 @@ conduct, and the process for submitting merge requests to us.
 ### Current Lead Authors
 
 - **Antonio Frangioni**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 
 - **Rafael Durbano Lobato**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Alì Ghezelsoflu**  
-  *Operations Research Group*  
+- **Donato Meoli**  
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Niccolò Iardella**  
-  *Operations Research Group*  
+- **Tiziano Bacci**  
+  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
+  Consiglio Nazionale delle Ricerche
+
+### Previous Contributors
+
+- **Ali Ghezelsoflu**  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+- **Niccolo' Iardella**  
   Dipartimento di Informatica  
   Università di Pisa
 
