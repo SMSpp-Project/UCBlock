@@ -83,17 +83,24 @@ conduct, and the process for submitting merge requests to us.
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Alì Ghezelsoflu**  
-  Dipartimento di Informatica  
-  Università di Pisa
-
-- **Niccolò Iardella**  
-  Dipartimento di Informatica  
-  Università di Pisa
-
 - **Donato Meoli**  
   Dipartimento di Informatica  
   Università di Pisa
+
+- **Tiziano Bacci**  
+  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
+  Consiglio Nazionale delle Ricerche
+
+### Previous Contributors
+
+- **Ali Ghezelsoflu**  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+- **Niccolo' Iardella**  
+  Dipartimento di Informatica  
+  Università di Pisa
+
 
 ## License
 
