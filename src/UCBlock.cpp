@@ -91,7 +91,7 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
 {
  auto sz = v_Block.size();
  v_Block.resize( sz + num_sub_blocks );
- for( int i = 0 ; i < num_sub_blocks ; ++i ) {
+ for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
   std::string sub_group_name = prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
   if( sub_group.isNull() )
@@ -480,7 +480,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    nbi->set_ActiveDemand( ap_v );
   }
 
-  int sum_intervals = std::accumulate(
+  Index sum_intervals = std::accumulate(
    v_network_blocks.begin() , v_network_blocks.end() , 0 ,
    []( int init , const NetworkBlock * nb ) {
     return( init + nb->get_number_intervals() );
