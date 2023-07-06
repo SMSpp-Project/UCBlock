@@ -33,7 +33,7 @@
 #                                                                            #
 ##############################################################################
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
 	$(UCBckDIR)obj/DCNetworkBlock.o \
