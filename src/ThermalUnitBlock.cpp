@@ -2818,7 +2818,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 {
  if( AR & PCuts ) {
-  double tol = 1e-3;  // threshold parameter for p/c generation
+  double tol = 1e-3;  // threshold parameter for P/C separation
   double eps = 1e-4;  // tolerance value to consider a binary variable
 
   auto extract_parameters = [ & tol , & eps ]( Configuration * c )
