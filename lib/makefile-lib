@@ -17,11 +17,11 @@
 ##############################################################################
 
 ifndef UCBckDIR
-UCBckDIR = ../
+UCBckDIR = ..
 endif
 
 # module name
-NAME = $(UCBckDIR)lib/libUCBck.a
+NAME = $(UCBckDIR)/lib/libUCBck.a
 
 # debug switches
 SW = -g -std=c++17
@@ -47,8 +47,8 @@ clean::
 # install - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 install:
-	mv $(NAME) $(UCBckDIR)../lib
-	cp $(UCBckH) $(UCBckDIR)../include
+	mv $(NAME) $(UCBckDIR)/../lib
+	cp $(UCBckH) $(UCBckDIR)/../include
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
 # if a module is not used in the current configuration, just comment out the
@@ -60,7 +60,7 @@ install:
 # *INC is the -I<include directories>
 
 # libUCBck (complete with external libraries)
-include $(UCBckDIR)lib/makefile-c
+include $(UCBckDIR)/lib/makefile-c
 
 # archive the library - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
