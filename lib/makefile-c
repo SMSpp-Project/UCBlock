@@ -27,7 +27,7 @@
 # if a module is not used in the current configuration, just comment out the
 # corresponding include line
 # each module outputs some macros to be used here:
-# *INC are the -I<include directories>
+# *INC are the -I< include directories >
 # *LIB are the external libraries + -L< libdirs >
 
 # define input macros for SMS++ complete makefile, then include it
