@@ -29,6 +29,16 @@
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#ifdef __GNUC__
+#define ALIGN8( __Declaration__ ) __Declaration__ __attribute__((aligned(8)))
+#define ALIGN32( __Declaration__ ) __Declaration__ __attribute__((aligned(32)))
+#endif
+
+#ifdef _MSC_VER
+#define ALIGN8( __Declaration__ ) __Declaration__ __declspec(align(8))
+#define ALIGN32( __Declaration__ ) __Declaration__ __declspec(align(32))
+#endif
+
 #ifndef __ThermalUnitDPSolver
  #define __ThermalUnitDPSolver
                       /* self-identification: #endif at the end of the file */
@@ -448,22 +458,22 @@ class ThermalUnitDPSolver : public Solver
   protected:
 
   /// coefficients for a variable of the objective function
-  struct coeff_t
-  {
-   double alfa;
-   double beta;
-   double gamma;
-  } __attribute__((aligned(32)));
+  ALIGN32( struct coeff_t
+            {
+             double alfa;
+             double beta;
+             double gamma;
+            } );
 
   /// cost coefficients of the objective function
   std::vector< coeff_t > coeffs;
 
   /// indices for a piece of the (piece-wise) objective function
-  struct pos_t
-  {
-   int begt;
-   int begm;
-  } __attribute__((aligned(8)));
+  ALIGN8( struct pos_t
+           {
+            int begt;
+            int begm;
+           } );
 
   /** For each k = h, ..., n - 1 the vector contains the indices of the pieces
    * of the objective function. */
