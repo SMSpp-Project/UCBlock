@@ -402,7 +402,7 @@ class ThermalUnitBlock : public UnitBlock
   *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
   *   SimpleConfiguration< int >
   *
-  * - otherwise, wf is 0, i.e., the default formulation is the 3bin.
+  * - otherwise, wf is 0, i.e., the default is the T formulation.
   *
   * The list of supported formulations is:
   *

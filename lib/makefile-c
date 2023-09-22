@@ -1,13 +1,12 @@
 ##############################################################################
 ################################ makefile-c ##################################
 ##############################################################################
-#									                                         #
-#   complete makefile of the core SMS++                                      #
-#									                                         #
+#                                                                            #
+#   complete makefile of UCBlock                                             #
+#                                                                            #
 #   The makefile defines internally all external libraries required by       #
-#   the core SMS++ library. Accordingly, all necessary OBJ, H, -I            #
-#   directives, and external libraries + -L<libdirs> are added to the        #
-#   corresponding SMS++* macros.                                             #
+#   UCBlock. Accordingly, all necessary OBJ, H, -I directives, and external  #
+#   libraries + -L< libdirs > are added to the corresponding UCBck* macros   #
 #                                                                            #
 #   Input:  $(CC)       = compiler command                                   #
 #           $(SW)       = compiler options                                   #
@@ -16,7 +15,7 @@
 #   Output: $(UCBckOBJ) = the final object(s) / library                      #
 #           $(UCBckH)   = the .h files to include                            #
 #           $(UCBckINC) = the -I$( source directory )                        #
-#           $(UCBckLIB) = the external libraries + -L<libdirs>               #
+#           $(UCBckLIB) = the external libraries + -L< libdirs >             #
 #                                                                            #
 #                             Antonio Frangioni                              #
 #                        Dipartimento di Informatica                         #
@@ -28,15 +27,15 @@
 # if a module is not used in the current configuration, just comment out the
 # corresponding include line
 # each module outputs some macros to be used here:
-# *INC are the -I<include directories>
-# *LIB are the external libraries + -L<libdirs>
+# *INC are the -I< include directories >
+# *LIB are the external libraries + -L< libdirs >
 
 # define input macros for SMS++ complete makefile, then include it
-SMS++SDR = $(UCBckDIR)../SMS++/
-include $(SMS++SDR)lib/makefile-inc
+SMS++SDR = $(UCBckDIR)/../SMS++
+include $(SMS++SDR)/lib/makefile-inc
 
 # include the UCBlock makefile requiring all external modules in input
-include $(UCBckDIR)lib/makefile
+include $(UCBckDIR)/lib/makefile
 
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

@@ -680,11 +680,11 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_modulation_ramp_up.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && constraints_generated() ){
+ if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampUp_Constraint[ t ]. note
-  // that the \Delta^M_{t+} appears as the coeeficient of u_{t-1} (if t > 0),
-  // with opposite sign, and in the coeeficient
+  // that the \Delta^M_{t+} appears as the coefficient of u_{t-1} (if t > 0),
+  // with opposite sign, and in the coefficient
   // ( \Delta_{t+} - \Delta^M_{t+} ) of m_t, again with opposite sign
   // these are respectively the coefficient 1 and 3 (the latter, only if
   // t > 0) of the LinearFunction in the FRowConstraint
@@ -838,7 +838,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   std::copy( values , values + ( rng.second - rng.first ) ,
              v_modulation_ramp_down.begin() + rng.first );
 
- if( not_dry_run( issueAMod ) && constraints_generated() ){
+ if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
   // that the \Delta^M_{t-} appears as the coeeficient of u_t, with opposite
