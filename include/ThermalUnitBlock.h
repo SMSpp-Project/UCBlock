@@ -463,7 +463,7 @@ class ThermalUnitBlock : public UnitBlock
 // TODO following the code-flow / order, add in the method blow, for each
 //  constraint, i.e., start-up / shut-down cnstrs, min/max power cnstrs, etc.,
 //  the details about all the other formulations, and all the new other cnstrs
-//  added, i.e., p/c cnstrs.
+//  added, i.e., P/C cnstrs.
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the ThermalUnitBlock
  /** This method generates the abstract constraints of the ThermalUnitBlock.
@@ -1854,10 +1854,10 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
- /// the vector of max_Ramp_Steps (RU formulation)
+ /// the vector of max ramps steps (SUSD formulation)
  std::vector< int > v_MaxRampSteps;
 
-  /// the vector of max_Ramp_Down_Steps (RU formulation)
+  /// the vector of max ramp down steps (SUSD formulation)
  std::vector< int > v_MaxRampDownSteps;
  
  /// the vector of index to map the active power variables of the 3bin
@@ -2039,9 +2039,9 @@ class ThermalUnitBlock : public UnitBlock
  /// and pt formulations with those of DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
- //// Constraints connecting variables of the RU formulations with the
- //// maximum of the perspective funtion of the SU and the SD formulations - -  
- std::vector< FRowConstraint > MAX_SUSD_PC_Const;  
+ //// Constraints connecting variables of the SUSD formulations with the
+ //// maximum of the perspective funtion of the SU and the SD formulations
+ std::vector< FRowConstraint > Max_SUSD_PC_Const;
 
  /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;
