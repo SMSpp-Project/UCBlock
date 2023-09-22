@@ -1854,7 +1854,12 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
+ /// the vector of max_Ramp_Steps (RU formulation)
+ std::vector< int > v_MaxRampSteps;
 
+  /// the vector of max_Ramp_Down_Steps (RU formulation)
+ std::vector< int > v_MaxRampDownSteps;
+ 
  /// the vector of index to map the active power variables of the 3bin
  /// formulation with those of the DP formulation  // TODO check
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
@@ -1971,6 +1976,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the perspective cuts variables for SD model
  std::vector< ColVariable > v_cut_k;
 
+ /// the perspective cuts variables for SUSD model
+ std::vector< ColVariable > v_cut_teta;
+  
 /*------------------------------- constraints ------------------------------*/
 
  /// the commitment design constraints
@@ -2031,6 +2039,9 @@ class ThermalUnitBlock : public UnitBlock
  /// and pt formulations with those of DP, SU and SD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
+ //// Constraints connecting variables of the RU formulations with the
+ //// maximum of the perspective funtion of the SU and the SD formulations - -  
+ std::vector< FRowConstraint > MAX_SUSD_PC_Const;  
 
  /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;
