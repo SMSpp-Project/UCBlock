@@ -1944,10 +1944,10 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment binary variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_commitment;
 
- /// the y^+ commitment binary variables for DP, SU and SD formulations
+ /// the y^+ commitment binary variables for DP, SU, SD and SUSD formulations
  std::vector< ColVariable > v_commitment_plus;
 
- /// the y^- commitment binary variables for DP, SU and SD formulations
+ /// the y^- commitment binary variables for DP, SU, SD and SUSD formulations
  std::vector< ColVariable > v_commitment_minus;
 
 
@@ -2013,22 +2013,22 @@ class ThermalUnitBlock : public UnitBlock
 
 
  /// the constraints connecting power variables of 3bin, T and
- /// pt formulations with those of DP, SU and SD formulations
+ /// pt formulations with those of DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_ActivePower_Const;
 
  /// the constraints connecting commitment variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU , SD and SUSD formulations
  std::vector< FRowConstraint > Eq_Commitment_Const;
 
  /// the constraints connecting start-up variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU , SD and SUSD formulations
  std::vector< FRowConstraint > Eq_StartUp_Const;
 
  /// the constraints connecting shut-down variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU , SD and SUSD formulations
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
- /// the network constraints of the pt, DP, SU and SD formulations
+ /// the network constraints of the pt, DP, SU , SD and SUSD formulations
  std::vector< FRowConstraint > Network_Const;
 
 
@@ -2036,7 +2036,7 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< FRowConstraint > Init_PC_Const;
 
  /// the constraints connecting perspective cuts variables of 3bin, T
- /// and pt formulations with those of DP, SU and SD formulations
+ /// and pt formulations with those of DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
  //// Constraints connecting variables of the SUSD formulations with the
