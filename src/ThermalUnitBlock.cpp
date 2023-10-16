@@ -3498,22 +3498,25 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  if( f_InvestmentCost != 0 )
   vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
- // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
+
+  // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
  // add start-up variables for tbin and T formulations
- if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm )
+ //if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm )
   for( Index t = init_t ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_start_up[ t - init_t ] ,
                                     f_scale * v_StartUpCost[ t ] , 0.0 ) );
  // add start-up variables for pt, DP, SU, SD and SUSD formulations
+ /* 
  if( ( AR & FormMsk ) == ptForm || ( AR & FormMsk ) == DPForm ||
      ( AR & FormMsk ) == SUForm || ( AR & FormMsk ) == SDForm ||
      ( AR & FormMsk ) == SUSDForm )
-  for( Index j = 0 ; j < v_Y_minus.size() ; ++j )
+   for( Index j = 0 ; j < v_Y_minus.size() ; ++j )
    if( v_Y_minus[ j ].second != f_time_horizon + 1 )
     vars.push_back( std::make_tuple( &v_commitment_minus[ j ] ,
                                      f_scale *
                                      v_StartUpCost[ v_Y_minus[ j ].second -
                                                     1 ] , 0.0 ) );
+ */
 
  // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
 
@@ -3614,6 +3617,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
     vars.push_back( std::make_tuple( &v_cut_teta[ t ] ,
                                      f_scale * v_QuadTerm[ t ] , 0.0 ) );
  }
+
+ 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
 
