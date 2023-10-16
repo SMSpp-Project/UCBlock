@@ -5,10 +5,13 @@
 # This is needed for setting the runtime path when installing.
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# ----- Requirements -------------------------------------------------------- #
+find_library(GETOPT_LIBRARY getopt)
+
 # ----- nc4generator -------------------------------------------------------- #
 add_executable(nc4generator nc4generator.cpp)
 target_compile_features(nc4generator PRIVATE cxx_std_17)
-target_link_libraries(nc4generator PRIVATE SMS++::SMS++)
+target_link_libraries(nc4generator PRIVATE SMS++::SMS++ ${GETOPT_LIBRARY})
 
 # ----- Install instructions ------------------------------------------------ #
 include(GNUInstallDirs)
