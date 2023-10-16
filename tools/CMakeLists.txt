@@ -6,7 +6,9 @@
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # ----- Requirements -------------------------------------------------------- #
-find_library(GETOPT_LIBRARY getopt)
+if (MSVC)
+    find_library(GETOPT_LIBRARY getopt)
+endif ()
 
 # ----- nc4generator -------------------------------------------------------- #
 add_executable(nc4generator nc4generator.cpp)
