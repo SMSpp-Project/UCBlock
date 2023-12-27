@@ -7,7 +7,7 @@
  * defines the standard linear constraints corresponding to the "DC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \author Antonio Frangioni \n
+ * \author Antonio Frafngioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -35,6 +35,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
+#include "LinearFunction.h"
 
 #include "FRowConstraint.h"
 
@@ -235,6 +237,13 @@ class DCNetworkBlock : public NetworkBlock
   Index get_number_lines( void ) const { return( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
+/// returns the reference node of the network
+/** Method for returning the reference node of the network.*/
+
+  Index get_reference_node() const { return( f_reference_node ); }
+
+
+/*--------------------------------------------------------------------------*/
 
   /// returns the vector of start lines
   /** Method for returning the vector of starting point of each line. This
@@ -429,6 +438,8 @@ class DCNetworkBlock : public NetworkBlock
   /// number of lines of the network
   Index f_number_lines{};
 
+  Index f_reference_node;    ///< reference node (used in the PTDF matrix)
+
   /// vector of starting lines
   std::vector< Index > v_start_line;
 
@@ -521,6 +532,37 @@ class DCNetworkBlock : public NetworkBlock
   * will not be defined. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
+ /*--------------------------------------------------------------------------*/
+///generate PTDF matrix of DCNetworkBlock
+/** The function constructs an Eigen-type PTDF (Power Transfer Distribution 
+ * Factor) matrix of the AC part of the Network.
+ * Denoting by \f$\mathfrak{S}_l\f$ the susceptance of the line \f$l\f$, the 
+ * PTDF matrix \f$ B \f$ is computed as 
+ * \f$ B = (\hat{B}I_{n_0})(I_{n_0}^T\bar{B}I_{n_0})^{-1} \f$, where
+ * f$ n_0 \f$ is the reference node of the network. The matrix \f$ \hat{B} \f$ 
+ * is defined as
+ * \f$ (\hat{B})_{(l=(n,n'),n)} = \mathfrak{S}_l \f$, 
+ * \f$ (\hat{B})_{(l=(n',n),n)} = -\mathfrak{S}_l \f$ and \f$ 0 \f$ otherwise.
+ *    
+ * The matrix \f$ \bar{B} \f$ is defined as 
+ * 
+ * \f[
+ *   (\bar{B})_{(n,n')} = \begin{cases}
+ *      \mathfrak{S}_{l=(n,n')} \textnormal{ if } (n,n')\in L\\
+ *      \mathfrak{S}_{l=(n,n')} \textnormal{ if } (n',n)\in L\\
+ *      \sum_{l=(n,\cdot)\in L} \mathfrak{S}_{l} 
+ *            + \sum_{l=(\cdot,n)\in L} \mathfrak{S}_{l} 
+ *      \textnormal{ if } n = n'               \quad n,n' \in N
+ *  \f] */
+
+ Eigen::MatrixXd get_PTDF(const std::vector<Index>& AC_lines);
+
+ Eigen::MatrixXd get_PTDF(){
+    std::vector<Index> all_lines(get_number_lines());
+    std::iota(all_lines.begin(), all_lines.end(), 0);
+    return get_PTDF(all_lines);
+ }
 
 /*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
@@ -735,6 +777,37 @@ class DCNetworkBlock : public NetworkBlock
   if( ! f_NetworkData )
    return( 1 );
   return( f_NetworkData->get_number_nodes() );
+ }
+
+ /*--------------------------------------------------------------------------*/
+
+ /// returns the AC lines
+ /** This function returns the AC lines in the transmission network.
+  * @return the AC lines in the network. */
+
+ std::vector<Index> get_AC_lines(){
+    std::vector<Index> AC_lines;
+    const auto& susceptance = f_NetworkData->get_susceptance();
+    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
+      if (susceptance[node_id] > 0.)   AC_lines.push_back(node_id);
+    }
+    return AC_lines;
+ }
+
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the DC lines
+ /** This function returns the DC lines in the transmission network.
+  * @return the DC lines in the network. */
+
+ std::vector<Index> get_DC_lines(){
+    std::vector<Index> DC_lines;
+    const auto& susceptance = f_NetworkData->get_susceptance();
+    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
+      if (susceptance[node_id] == 0.)   DC_lines.push_back(node_id);
+    }
+    return DC_lines;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1053,6 +1126,51 @@ class DCNetworkBlock : public NetworkBlock
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the power flow limit constraints
+ /** This function changes the abstract representation of the power flow limit 
+  * constraints for indices in \p modified_lines.
+  *
+  * @param modified_lines A vector of the indices of constraints that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_power_flow_limit_constraints( 
+                const std::vector<Index>& modified_lines, 
+                c_ModParam issueAMod);
+
+/*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the constraints on the auxiliary variables
+ /** This function changes the abstract representation of the constraints on the
+  * auxiliary variables for indices in \p modified_lines.
+  *
+  * @param modified_lines A vector of the indices of constraints that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_relax_abs_constraints(
+                const std::vector<Index>& modified_lines, 
+                c_ModParam issueAMod);
+
+  /*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the power flow injection constraints
+ /** This function changes the abstract representation of the power flow injection 
+  * constraints for indices in \p modified_nodes.
+  *
+  * @param modified_nodes A vector of the indices of nodes that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_DC_power_flow_injection_constraints(
+                const std::vector<Index>& modified_nodes, 
+                c_ModParam issueAMod);
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p subset
