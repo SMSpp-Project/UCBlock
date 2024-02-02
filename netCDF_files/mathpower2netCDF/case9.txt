@@ -1,0 +1,53 @@
+netcdf case9 {
+:SMS++_file_type = 1 ;
+group: Block_0 {
+dimensions:
+	NumberElectricalGenerators = 3 ;
+	NumberNodes = 9 ;
+	NumberLines = 9 ;
+
+variables:
+	double NodeConductance(NumberNodes) ;
+	double NodeSusceptance(NumberNodes) ;
+	uint GeneratorNode(NumberElectricalGenerators) ;
+	double GenMW(NumberElectricalGenerators) ;
+	double GenMVAR(NumberElectricalGenerators) ;
+	double GenMaxVAR(NumberElectricalGenerators) ;
+	double GenMinMVAR(NumberElectricalGenerators) ;
+	double GenVoltage(NumberElectricalGenerators) ;
+	double GenMaxMW(NumberElectricalGenerators) ;
+	double GenMinMW(NumberElectricalGenerators) ;
+	uint StartLine(NumberLines) ;
+	uint EndLine(NumberLines) ;
+	double LineResistance(NumberLines) ;
+	double LineReactance(NumberLines) ;
+	double LineCharging(NumberLines) ;
+	double LineShiftAngle(NumberLines) ;
+	double LineMinAngle(NumberLines) ;
+	double LineMaxAngle(NumberLines) ;
+
+	// group attributes:
+		:id = "0" ;
+		:type = "UCBlock" ;
+
+data:
+	NodeConductance = 0,0,0,0,0,0,0,0,0;
+	NodeSusceptance = 0,0,0,0,0,0,0,0,0;
+	GeneratorNode = 1,2,3;
+	GenMW = 0,163,85;
+	GenMVAR = 0,0,0;
+	GenMaxVAR = 300,300,300;
+	GenMinMVAR = -300,-300,-300;
+	GenVoltage = 1,1,1;
+	GenMaxMW = 250,300,270;
+	GenMinMW = 10,10,10;
+	StartLine = 1,4,5,3,6,7,8,8,9;
+	EndLine = 4,5,6,6,7,8,2,9,4;
+	LineResistance = 0,0,0,0,0,0,0,0,0;
+	LineReactance = 0,0,0,0,0,0,0,0,0;
+	LineCharging = 0,0,0,0,0,0,0,0,0;
+	LineShiftAngle = 0,0,0,0,0,0,0,0,0;
+	LineMinAngle = -360,-360,-360,-360,-360,-360,-360,-360,-360;
+	LineMaxAngle = 360,360,360,360,360,360,360,360,360;
+}
+}
