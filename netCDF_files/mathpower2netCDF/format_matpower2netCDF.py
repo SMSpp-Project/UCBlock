@@ -1,54 +1,57 @@
 # author: Quentin Jacquet
 #
-# For each "labels_*" list:
+# For each "labels[*]" list:
 # 	-> The first attribute of the ith pair contains the label (which will be used in the netCDF file) corresponding 
 # 	   to the ith column of the matpower matrix.
 #	-> If the second attribute of the ith pair is None, it means that the data in the ith colum of the matpower 
 #	   matrix will not be used in the netCDF format. Otherwise, it contains the type of the attribute (as a string).
 
-labels_bus = [
-	("NodeNumber", None), 
-	("NodeType", None), 
-	("NodeLoadMW", None), 
-	("NodeLoadMVAR", None), 
-	("NodeConductance", "double"), 
-	("NodeSusceptance", "double"), 
-	("NodeAreaNumber", None), 
-	("NodeVoltageMagnitude", None), 
-	("NodeVoltageAngle", None), 
-	("NodeName", None), 
-	("NodeBaseVoltage", None), 
-	("NodeZone", None)
-]
-
-labels_gen = [
-	("GeneratorNode", "uint"),
-	("GenMW", "double"),
-	("GenMVAR", "double"),
-	("GenMaxVAR", "double"),
-	("GenMinMVAR", "double"),
-	("GenVoltage", "double"),
-	("GenMBASE", None),
-	("GenStatus", None),
-	("GenMaxMW", "double"),
-	("GenMinMW", "double")
-]
-
-labels_branch = [
-	("StartLine", "uint"),
-	("EndLine", "uint"),
-	("LineResistance", "double"),
-	("LineReactance", "double"),
-	("LineCharging", "double"),
-	("LineRATEA", None),
-	("LineRATEB", None),
-	("LineRATEC", None),
-	("LineRATIO", None),
-	("LineShiftAngle", "double"),
-	("LineStatus", None),
-	("LineMinAngle", "double"),
-	("LineMaxAngle", "double"),
-]
+labels = {
+"bus":
+	[
+		("NodeNumber", None), 
+		("NodeType", None), 
+		("NodeLoadMW", None), 
+		("NodeLoadMVAR", None), 
+		("NodeConductance", "double"), 
+		("NodeSusceptance", "double"), 
+		("NodeAreaNumber", None), 
+		("NodeVoltageMagnitude", None), 
+		("NodeVoltageAngle", None), 
+		("NodeName", None), 
+		("NodeBaseVoltage", None), 
+		("NodeZone", None)
+	],
+"gen":
+	[
+		("GeneratorNode", "uint"),
+		("GenMW", "double"),
+		("GenMVAR", "double"),
+		("GenMaxVAR", "double"),
+		("GenMinMVAR", "double"),
+		("GenVoltage", "double"),
+		("GenMBASE", None),
+		("GenStatus", None),
+		("GenMaxMW", "double"),
+		("GenMinMW", "double")
+	],
+"branch": 
+	[
+		("StartLine", "uint"),
+		("EndLine", "uint"),
+		("LineResistance", "double"),
+		("LineReactance", "double"),
+		("LineCharging", "double"),
+		("LineRATEA", None),
+		("LineRATEB", None),
+		("LineRATEC", None),
+		("LineRATIO", None),
+		("LineShiftAngle", "double"),
+		("LineStatus", None),
+		("LineMinAngle", "double"),
+		("LineMaxAngle", "double"),
+	]
+}
 
 #    A MATPOWER case file is an M-file or MAT-file that defines or returns
 #    a struct named mpc, referred to as a "MATPOWER case struct". The fields

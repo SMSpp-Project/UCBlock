@@ -69,15 +69,15 @@ class ConverterMathpower2netCDF:
         block += "\n\nvariables:"
 
         # Nodes/Bus
-        for k,v in labels_bus:
+        for k,v in labels["bus"]:
             if v is not None:
                 block += "\n\t{0} {1}(NumberNodes) ;".format(v,k)
         # Generators
-        for k,v in labels_gen:
+        for k,v in labels["gen"]:
             if v is not None:
                 block += "\n\t{0} {1}(NumberElectricalGenerators) ;".format(v,k) 
         # Branches/Lines
-        for k,v in labels_branch:
+        for k,v in labels["branch"]:
             if v is not None:
                 block += "\n\t{0} {1}(NumberLines) ;".format(v,k) 
 
@@ -88,30 +88,19 @@ class ConverterMathpower2netCDF:
         # ===== DATA
         block += "\n\ndata:"
         
-        # info buses
-        for idx,t in enumerate(labels_bus):
-            k,v = t
-            if v is not None:
-                block += "\n\t{0} = ".format(k)
-                for i,l in enumerate(self.attrs["mpc.bus"]):
-                    block += "{0},".format(int(l[idx]))
-                block = block[:-1] + ";"
-        # info generator
-        for idx,t in enumerate(labels_gen):
-            k,v = t
-            if v is not None:
-                block += "\n\t{0} = ".format(k)
-                for i,l in enumerate(self.attrs["mpc.gen"]):
-                    block += "{0},".format(int(l[idx]))
-                block = block[:-1] + ";"
-        # info branch
-        for idx,t in enumerate(labels_branch):
-            k,v = t
-            if v is not None:
-                block += "\n\t{0} = ".format(k)
-                for i,l in enumerate(self.attrs["mpc.branch"]):
-                    block += "{0},".format(int(l[idx]))
-                block = block[:-1] + ";"
+        # info buses, generators and branches
+        for l_name, l_tab in labels.items():
+            for idx,t in enumerate(l_tab):
+                k,v = t # k = label of the netCDF list, v is the type (or None)
+                if v is not None:
+                    block += "\n\t{0} = ".format(k)
+                    for i,l in enumerate(self.attrs["mpc.{0}".format(l_name)]):
+                        if "int" in v:
+                            block += "{0},".format(int(l[idx]))
+                        if "double" in v:
+                            block += "{0},".format(float(l[idx]))
+                    block = block[:-1] + ";"
+
         # fermeture du block
         block += "\n}"
 
