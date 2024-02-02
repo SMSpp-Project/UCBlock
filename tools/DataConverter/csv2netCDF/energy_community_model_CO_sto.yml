@@ -4,12 +4,14 @@ general: # general input parameters
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
   user_list: [ user1, user2, user3, user4, user5, user6, user7, user8, user9, user10 ]  # list of users for the simulation
-  scen_s_sample: 1  # number of scenarios s to be extracted
+  scen_s_sample: 3  # number of scenarios s to be extracted
   scen_eps_sample: 1  # number of scenarios eps to be extracted
+  sigma_load: 0.3  # standard deviation associated with load in long period uncertainty
+  sigma_ren: 0.2  # standard deviation associated with renewable production in long period uncertainty
 
   optional_datasets: # optional csv files storing data
-    - input_resource.csv
-    - market_data.csv
+    - input_resource_sto.csv
+    - market_data_sto.csv
 
 market: # market characteristics
   profile:
@@ -17,6 +19,7 @@ market: # market characteristics
     sell_price: sell_price  # name of the column for the selling electricity price
     consumption_price: consumption_price  # name of the column for the consumption price
     reward_price: reward_price  # name of the column describing the reward value
+    penalty_price: penalty_price # name of the column describing the penalty price for energy squilibrium
     peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
     peak_tariff: # peak power tariff described by a dictionary: loaded by performing a custom data parsing
       function: parse_peak_quantity_by_time_vectors
@@ -44,6 +47,7 @@ users: # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     generator: # component (bio)gas microturbine
       type: thermal  # type of component
@@ -63,6 +67,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user1
+        std: std_load_user1
 
   user2: # name of the user
     # list of components
@@ -75,6 +80,7 @@ users: # list of users and the corresponding assets
       max_capacity: 80  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     batt: # component battery
       type: battery  # type of component
@@ -105,6 +111,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user2
+        std: std_load_user2
 
   user3: # name of the user
     # list of components
@@ -117,6 +124,7 @@ users: # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     wind: # component wind
       type: renewable  # type of component
@@ -126,6 +134,7 @@ users: # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
+        std: std_wind
 
     batt: # component battery
       type: battery  # type of component
@@ -156,6 +165,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user3
+        std: std_load_user3
 
   user4: # name of the user
     # list of components
@@ -168,12 +178,14 @@ users: # list of users and the corresponding assets
       max_capacity: 40  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     load: # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user4
+        std: std_load_user4
 
   user5: # name of the user
     # list of components
@@ -183,6 +195,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user5
+        std: std_load_user5
 
   user6: # name of the user
     # list of components
@@ -195,6 +208,7 @@ users: # list of users and the corresponding assets
       max_capacity: 60  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     batt: # component battery
       type: battery  # type of component
@@ -225,6 +239,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user6
+        std: std_load_user6
 
   user7: # name of the user
     # list of components
@@ -234,6 +249,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user7
+        std: std_load_user7
 
   user8: # name of the user
     # list of components
@@ -246,6 +262,7 @@ users: # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     wind: # component wind
       type: renewable  # type of component
@@ -255,6 +272,7 @@ users: # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
+        std: std_wind
 
     batt: # component battery
       type: battery  # type of component
@@ -285,6 +303,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user8
+        std: std_load_user8
 
   user9: # name of the user
     # list of components
@@ -297,6 +316,7 @@ users: # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity to install
       profile: # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
+        std: std_pv
 
     batt: # component battery
       type: battery  # type of component
@@ -327,6 +347,7 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user9
+        std: std_load_user9
 
   user10: # name of the user
     # list of components
@@ -336,3 +357,4 @@ users: # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user10
+        std: std_load_user10
