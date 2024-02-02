@@ -6,15 +6,22 @@
 #	-> If the second attribute of the ith pair is None, it means that the data in the ith colum of the matpower 
 #	   matrix will not be used in the netCDF format. Otherwise, it contains the type of the attribute (as a string).
 
+dim_labels = {
+			"mpc.gen": 		"NumberElectricalGenerators", 	# generators
+            "mpc.bus":		"NumberNodes",					# nodes
+            "mpc.branch":	"NumberLines",					# lines
+            "mpc.gencost":	"NumberCostCoeffs"				# cost coeffs
+}
+
 labels = {
-"bus":
+"mpc.bus":
 	[
 		("NodeNumber", None), 
 		("NodeType", None), 
-		("NodeLoadMW", None), 
-		("NodeLoadMVAR", None), 
-		("NodeConductance", "double"), 
-		("NodeSusceptance", "double"), 
+		("ActiveDemand", "double"), 
+		("ReactiveDemand", "double"), 
+		("Conductance", "double"), 
+		("Susceptance", "double"), 
 		("NodeAreaNumber", None), 
 		("NodeVoltageMagnitude", None), 
 		("NodeVoltageAngle", None), 
@@ -22,12 +29,12 @@ labels = {
 		("NodeBaseVoltage", None), 
 		("NodeZone", None)
 	],
-"gen":
+"mpc.gen":
 	[
 		("GeneratorNode", "uint"),
 		("GenMW", "double"),
 		("GenMVAR", "double"),
-		("GenMaxVAR", "double"),
+		("GenMaxMVAR", "double"),
 		("GenMinMVAR", "double"),
 		("GenVoltage", "double"),
 		("GenMBASE", None),
@@ -35,7 +42,7 @@ labels = {
 		("GenMaxMW", "double"),
 		("GenMinMW", "double")
 	],
-"branch": 
+"mpc.branch": 
 	[
 		("StartLine", "uint"),
 		("EndLine", "uint"),
@@ -50,6 +57,12 @@ labels = {
 		("LineStatus", None),
 		("LineMinAngle", "double"),
 		("LineMaxAngle", "double"),
+	],
+"mpc.gencost":
+	[
+		("CostModel", "uint"),
+		("Startup", "double"),
+		("Shutdown", "double"),
 	]
 }
 

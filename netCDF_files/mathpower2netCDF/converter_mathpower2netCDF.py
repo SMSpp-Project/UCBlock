@@ -1,12 +1,13 @@
 # author : Quentin Jacquet
-import sys,os
+import sys,os,argparse
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(current_dir,'..'))
 from format_matpower2netCDF import *
 
 class ConverterMathpower2netCDF:
-    def __init__(self, file_name):
+    def __init__(self, file_name, mode = 'DC'):
         self.str_file = None
+        self.mode = mode
         self.attrs = {}
 
         with open(file_name,'r') as f:
@@ -57,33 +58,30 @@ class ConverterMathpower2netCDF:
         
         # ===== DIMENSIONS
         dimensions = {
-            "NumberElectricalGenerators": len(self.attrs["mpc.gen"]),
-            "NumberNodes": len(self.attrs["mpc.bus"]),
-            "NumberLines": len(self.attrs["mpc.branch"])
+            "mpc.gen":      len(self.attrs["mpc.gen"]),
+            "mpc.bus":      len(self.attrs["mpc.bus"]),
+            "mpc.branch":   len(self.attrs["mpc.branch"]),
+            "mpc.gencost":  int(self.attrs["mpc.gencost"][0][3]) 
+            # assumption: same number of coeffs for each generator cost function
         }
         block += "\ndimensions:"
         for k,v in dimensions.items():
-            block += "\n\t{0} = {1} ;".format(k,v)
+            block += "\n\t{0} = {1} ;".format(dim_labels[k],v)
 
         # ===== VARIABLES
         block += "\n\nvariables:"
+        for l1,l2 in dim_labels.items():
+            for k,v in labels[l1]:
+                if v is not None:
+                    block += "\n\t{0} {1}({2}) ;".format(v,k,l2) 
+        block += "\n\tdouble PowerCostCoeffs({0},{1}) ;".format(dim_labels["mpc.gen"],dim_labels["mpc.gencost"])
 
-        # Nodes/Bus
-        for k,v in labels["bus"]:
-            if v is not None:
-                block += "\n\t{0} {1}(NumberNodes) ;".format(v,k)
-        # Generators
-        for k,v in labels["gen"]:
-            if v is not None:
-                block += "\n\t{0} {1}(NumberElectricalGenerators) ;".format(v,k) 
-        # Branches/Lines
-        for k,v in labels["branch"]:
-            if v is not None:
-                block += "\n\t{0} {1}(NumberLines) ;".format(v,k) 
+        # Reference node
+        block += "\n\tuint ReferenceNode ;"
 
         block += '\n\n\t// group attributes:'
         block += '\n\t\t:id = "0" ;'
-        block += '\n\t\t:type = "UCBlock" ;'
+        block += '\n\t\t:type = "{0}NetworkBlock" ;'.format(self.mode)
 
         # ===== DATA
         block += "\n\ndata:"
@@ -94,12 +92,25 @@ class ConverterMathpower2netCDF:
                 k,v = t # k = label of the netCDF list, v is the type (or None)
                 if v is not None:
                     block += "\n\t{0} = ".format(k)
-                    for i,l in enumerate(self.attrs["mpc.{0}".format(l_name)]):
+                    for i,l in enumerate(self.attrs[l_name]):
                         if "int" in v:
                             block += "{0},".format(int(l[idx]))
                         if "double" in v:
                             block += "{0},".format(float(l[idx]))
                     block = block[:-1] + ";"
+
+        # Cost coeffs for generator (assumption: no reactive power cost, only active power cost)
+        block += "\n\tPowerCostCoeffs = "
+        for i,l in enumerate(self.attrs["mpc.gencost"]):
+            for idx in range(4,4+dimensions["mpc.gencost"]):
+                block += "{0},".format(float(l[idx]))
+        block = block[:-1] + ";"
+
+        # for reference node
+        for i,l in enumerate(self.attrs["mpc.bus"]):
+            if l[1] == 3:
+                block += "\n\tReferenceNode = {0} ;".format(int(l[0]))
+                break
 
         # fermeture du block
         block += "\n}"
@@ -111,11 +122,20 @@ class ConverterMathpower2netCDF:
         
 
 if __name__.endswith("__main__"):
-    if len(sys.argv) == 1:
-        print("You must provide a matlab file name (.m)")
-        sys.exit()
-    file_name = sys.argv[1]
-    if len(sys.argv) > 2:   output_file_name = sys.argv[2]
-    else:                   output_file_name = file_name[:file_name.rfind(".m")]+".txt"
-    converter = ConverterMathpower2netCDF(file_name)
-    converter.create_nc_file(output_file_name)
+    parser = argparse.ArgumentParser(
+                    prog='ConverterMathpower2netCDF',
+                    description='Converter Mathpower -> netCDF',
+                    epilog='')
+    parser.add_argument('filename', metavar = "<input>.m", type=str,
+                        help = 'input file path')
+    parser.add_argument('-o', '--output', metavar = "<output>.txt", type=str,
+                        help = 'output file path (default: <input>.txt)')
+    parser.add_argument('-t', '--type', choices = ['AC', 'DC'], default = 'DC',
+                        help = 'type of instance')
+
+    args = parser.parse_args()
+    output_filename = args.output
+    if output_filename is None:
+        output_filename = "{0}_{1}.txt".format(args.filename[:args.filename.rfind(".m")], args.type)
+    converter = ConverterMathpower2netCDF(args.filename, mode = args.type)
+    converter.create_nc_file(output_filename)
