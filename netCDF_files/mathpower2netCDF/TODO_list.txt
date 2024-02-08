@@ -20,12 +20,12 @@ Bus Data Format
 
     Generator Data Format
         1   bus number															-> GeneratorNode
-    (-)     (machine identifier, 0-9, A-Z)										-> not yet in NetworkBlock
-        2   Pg, real power output (MW)											-> not yet in NetworkBlock
-        3   Qg, reactive power output (MVAr)									-> not yet in NetworkBlock
-        4   Qmax, maximum reactive power output (MVAr)							-> not yet in NetworkBlock
+    (-)     (machine identifier, 0-9, A-Z)										-> InitialPower (in ThermalUnitBlock)
+        2   Pg, real power output (MW)											-> to add in ThermalUnitBlock
+        3   Qg, reactive power output (MVAr)									-> to add in ThermalUnitBlock
+        4   Qmax, maximum reactive power output (MVAr)							-> to add in ThermalUnitBlock
         5   Qmin, minimum reactive power output (MVAr)
-        6   Vg, voltage magnitude setpoint (p.u.)								-> not yet in NetworkBlock
+        6   Vg, voltage magnitude setpoint (p.u.)								-> to add in ThermalUnitBlock
     (-)     (remote controlled bus index)
         7   mBase, total MVA base of this machine, defaults to baseMVA
     (-)     (machine impedance, p.u. on mBase)
@@ -35,8 +35,8 @@ Bus Data Format
                      <= 0 - machine out of service
     (-)     (% of total VAr's to come from this gen in order to hold V at
                 remote bus controlled by several generators)
-        9   Pmax, maximum real power output (MW)								-> not yet in NetworkBlock
-        10  Pmin, minimum real power output (MW)								-> not yet in NetworkBlock
+        9   Pmax, maximum real power output (MW)								-> MaxPower (in ThermalUnitBlock)
+        10  Pmin, minimum real power output (MW)								-> MinPower (in ThermalUnitBlock)
     (2) 11  Pc1, lower real power output of PQ capability curve (MW)			-> Usefull ?
     (2) 12  Pc2, upper real power output of PQ capability curve (MW)			-> Usefull ?
     (2) 13  Qc1min, minimum reactive power output at Pc1 (MVAr)				-> Usefull ?
@@ -84,12 +84,12 @@ Bus Data Format
         1   model, 1 - piecewise linear, 2 - polynomial
         2   startup, startup cost in US dollars
         3   shutdown, shutdown cost in US dollars
-        4   N, number of cost coefficients to follow for polynomial
-            cost function, or number of data points for piecewise linear
-        5 and following, parameters defining total cost function f(p),
-            units of f and p are $/hr and MW (or MVAr), respectively.
-            (MODEL = 1) : p0, f0, p1, f1, ..., pn, fn
-                where p0 < p1 < ... < pn and the cost f(p) is defined by
+        4   N, number of cost coefficients to follow for polynomial             -> in ThermalUnitBlock:
+            cost function, or number of data points for piecewise linear            * CostModel (to add)
+        5 and following, parameters defining total cost function f(p),              * StartUp (already in)
+            units of f and p are $/hr and MW (or MVAr), respectively.               * Shutdown (to add)
+            (MODEL = 1) : p0, f0, p1, f1, ..., pn, fn                               * PowerCostCoeffs[NumberCostCoeffs] (to add)
+                where p0 < p1 < ... < pn and the cost f(p) is defined by            * Reactive part to add
                 the coordinates (p0,f0), (p1,f1), ..., (pn,fn) of the
                 end/break-points of the piecewise linear cost function
             (MODEL = 2) : cn, ..., c1, c0
