@@ -1,11 +1,16 @@
 # author : Quentin Jacquet
-import sys,os,argparse
+import sys, os, subprocess, argparse
+import netCDF4
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(current_dir,'..'))
 from format_matpower2netCDF import *
 
 class ConverterMathpower2netCDF:
     def __init__(self, file_name, mode = 'DC'):
+        """
+        Parse the .m file and fill self.attrs such that:
+        self.attrs = {"mpc.key": [line for line in range(nb_of_key)]}
+        """
         self.str_file = None
         self.mode = mode
         self.attrs = {}
@@ -32,6 +37,8 @@ class ConverterMathpower2netCDF:
         while i < len(self.str_file):
             l  = self.str_file[i]
             key = l[0][:l[0].find("=")]
+
+            # if data given by a tabular
             if "[" in self.str_file[i][0]:
                 tab = []
                 j = i
@@ -44,6 +51,8 @@ class ConverterMathpower2netCDF:
                     j += 1
                 i = j + 1
                 self.attrs[key] = tab
+
+            # if data is a just a value
             else:
                 val = l[0][l[0].find("=")+1:]
                 try:
@@ -51,91 +60,105 @@ class ConverterMathpower2netCDF:
                 except:
                     self.attrs[key] = val
                 i += 1
+        print("INFO: Input file has been correcty read")
 
 
-    def create_nc_file(self, file_name):
-        block = "group: Block_0 {"
+    def create_nc_file(self, file_name, txt_output = False):
+        """
+        Write the .nc file corresponding the instance previously loaded.
+        If 'txt_output' is True, the exe 'ncdump.exe' has to be defined in the env variables.
+        """
+        rootgrp = netCDF4.Dataset("{0}.nc".format(file_name), "w", format="NETCDF4")
+        rootgrp.setncatts({'SMS++_file_type':1}) # global attribute
         
-        # ===== DIMENSIONS
-        dimensions = {
-            "mpc.gen":      len(self.attrs["mpc.gen"]),
-            "mpc.bus":      len(self.attrs["mpc.bus"]),
-            "mpc.branch":   len(self.attrs["mpc.branch"]),
-            "mpc.gencost":  int(self.attrs["mpc.gencost"][0][3]) 
-            # assumption: same number of coeffs for each generator cost function
+        maingrp = rootgrp.createGroup("Block_0") # main block
+        dimensions = {  "mpc.gen":      len(self.attrs["mpc.gen"]),
+                        "mpc.bus":      len(self.attrs["mpc.bus"]),
+                        "mpc.branch":   len(self.attrs["mpc.branch"])
         }
-        block += "\ndimensions:"
-        for k,v in dimensions.items():
-            block += "\n\t{0} = {1} ;".format(dim_labels[k],v)
+        for mpc_lab, d in dimensions.items():
+            maingrp.createDimension(dim_labels[mpc_lab], d)
 
-        # ===== VARIABLES
-        block += "\n\nvariables:"
-        for l1,l2 in dim_labels.items():
-            for k,v in labels[l1]:
-                if v is not None:
-                    block += "\n\t{0} {1}({2}) ;".format(v,k,l2) 
-        block += "\n\tdouble PowerCostCoeffs({0},{1}) ;".format(dim_labels["mpc.gen"],dim_labels["mpc.gencost"])
+        # subgroups by generator
+        subgroups = []
+        for i in range(dimensions["mpc.gen"]):
+            subgroups.append(maingrp.createGroup("UnitBlock_{0}".format(i)))
+            subgroups[-1].setncatts({'type':"ThermalUnitBlock"})
 
-        # Reference node
-        block += "\n\tuint ReferenceNode ;"
+        # create variables and fill data
+        for mpc_lab in ["mpc.gen","mpc.bus","mpc.branch"]:
+            lab_tab = var_labels[mpc_lab]
+            for idx,t in enumerate(lab_tab):
+                k,v,*g = t # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+                
+                # for main group
+                if v is not None and len(g) == 0:
+                    var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
+                    for i,l in enumerate(self.attrs[mpc_lab]):
+                        if "int" in v:      var[i] = int(l[idx])
+                        if "double" in v:   var[i] = float(l[idx])
+                # for subgroups
+                if v is not None and len(g) > 0:
+                    for i,l in enumerate(self.attrs[mpc_lab]):
+                        var = subgroups[i].createVariable(k,v)
+                        if "int" in v:      var[0] = int(l[idx])
+                        if "double" in v:   var[0] = float(l[idx])
 
-        block += '\n\n\t// group attributes:'
-        block += '\n\t\t:id = "0" ;'
-        block += '\n\t\t:type = "{0}NetworkBlock" ;'.format(self.mode)
+        # add costs in each subgroup ThermalUnitBlock
+        mpc_lab = "mpc.gencost"
+        lab_tab = var_labels[mpc_lab]
+        idx = 0
+        gen_dim = dimensions["mpc.gen"]
+        while idx < len(lab_tab):
+            k,v,*g = lab_tab[idx] # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+            if v is not None and len(g) > 0:
+                for i,l in enumerate(self.attrs[mpc_lab]):
+                    if i < gen_dim:
+                        var = subgroups[i].createVariable(k,v)
+                    elif i < 2*gen_dim: # for reactive coeffs (optional)
+                        var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v)
+                    if "int" in v:      var[0] = int(l[idx])
+                    if "double" in v:   var[0] = float(l[idx])
+            idx += 1
 
-        # ===== DATA
-        block += "\n\ndata:"
-        
-        # info buses, generators and branches
-        for l_name, l_tab in labels.items():
-            for idx,t in enumerate(l_tab):
-                k,v = t # k = label of the netCDF list, v is the type (or None)
-                if v is not None:
-                    block += "\n\t{0} = ".format(k)
-                    for i,l in enumerate(self.attrs[l_name]):
-                        if "int" in v:
-                            block += "{0},".format(int(l[idx]))
-                        if "double" in v:
-                            block += "{0},".format(float(l[idx]))
-                    block = block[:-1] + ";"
+        # add costs coefficients
+        for i,l in enumerate(self.attrs[mpc_lab]):
+            if i < gen_dim:
+                nb_coeff_cost = int(l[idx])
+                subgroups[i].createDimension("NumberCostCoeffs", nb_coeff_cost)
+                var = subgroups[i].createVariable("PowerCostCoeffs", "double", "NumberCostCoeffs")
+                for k in range(nb_coeff_cost):
+                    var[k] = float(l[idx + k + 1])
+            elif i < 2*gen_dim: # for reactive coeffs (optional)
+                nb_coeff_cost = int(l[idx])
+                subgroups[i%gen_dim].createDimension("NumberReactiveCostCoeffs", nb_coeff_cost)
+                var = subgroups[i%gen_dim].createVariable(  "ReactivePowerCostCoeffs", "double", "NumberReactiveCostCoeffs")
+                for k in range(nb_coeff_cost):
+                    var[k] = float(l[idx + k + 1])
 
-        # Cost coeffs for generator (assumption: no reactive power cost, only active power cost)
-        block += "\n\tPowerCostCoeffs = "
-        for i,l in enumerate(self.attrs["mpc.gencost"]):
-            for idx in range(4,4+dimensions["mpc.gencost"]):
-                block += "{0},".format(float(l[idx]))
-        block = block[:-1] + ";"
+        rootgrp.close()
+        print("INFO: File '{0}.nc' written".format(file_name))
 
-        # for reference node
-        for i,l in enumerate(self.attrs["mpc.bus"]):
-            if l[1] == 3:
-                block += "\n\tReferenceNode = {0} ;".format(int(l[0]))
-                break
-
-        # fermeture du block
-        block += "\n}"
-
-
-        # ===== WRITING FILE        
-        with open(file_name, "w") as f:
-            f.write("netcdf " + self.attrs["mpc.name"] + " {\n:SMS++_file_type = 1 ;\n" + block + "\n}")
-        
+        if txt_output:
+            with open("{0}.txt".format(file_name), "w") as txt_file:
+                p = subprocess.Popen(["ncdump.exe", "{0}.nc".format(file_name)], stdout=txt_file, stderr=subprocess.PIPE)
+            
 
 if __name__.endswith("__main__"):
-    parser = argparse.ArgumentParser(
-                    prog='ConverterMathpower2netCDF',
-                    description='Converter Mathpower -> netCDF',
-                    epilog='')
+    parser = argparse.ArgumentParser(   prog='ConverterMathpower2netCDF',
+                                        description='Converter Mathpower -> netCDF')
     parser.add_argument('filename', metavar = "<input>.m", type=str,
                         help = 'input file path')
-    parser.add_argument('-o', '--output', metavar = "<output>.txt", type=str,
-                        help = 'output file path (default: <input>.txt)')
+    parser.add_argument('-o', '--output', metavar = "<output>", type=str,
+                        help = 'output file path (default: <input>)')
     parser.add_argument('-t', '--type', choices = ['AC', 'DC'], default = 'DC',
                         help = 'type of instance')
+    parser.add_argument('-f', '--format', choices = ['txt', 'nconly'], default = 'nconly',
+                        help = "format of the output")
 
     args = parser.parse_args()
     output_filename = args.output
     if output_filename is None:
-        output_filename = "{0}_{1}.txt".format(args.filename[:args.filename.rfind(".m")], args.type)
+        output_filename = "{0}_{1}".format(args.filename[:args.filename.rfind(".m")], args.type)
     converter = ConverterMathpower2netCDF(args.filename, mode = args.type)
-    converter.create_nc_file(output_filename)
+    converter.create_nc_file(output_filename, txt_output = (args.format == "txt"))

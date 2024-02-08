@@ -1,68 +1,222 @@
-netcdf case9 {
-:SMS++_file_type = 1 ;
+netcdf case9_DC {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+
 group: Block_0 {
-dimensions:
-	NumberElectricalGenerators = 3 ;
-	NumberNodes = 9 ;
-	NumberLines = 9 ;
-	NumberCostCoeffs = 3 ;
+  dimensions:
+  	NumberElectricalGenerators = 3 ;
+  	NumberNodes = 9 ;
+  	NumberLines = 9 ;
+  variables:
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActiveDemand(NumberNodes) ;
+  	double ReactiveDemand(NumberNodes) ;
+  	double Conductance(NumberNodes) ;
+  	double Susceptance(NumberNodes) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineCharging(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
+  data:
 
-variables:
-	uint GeneratorNode(NumberElectricalGenerators) ;
-	double GenMW(NumberElectricalGenerators) ;
-	double GenMVAR(NumberElectricalGenerators) ;
-	double GenMaxMVAR(NumberElectricalGenerators) ;
-	double GenMinMVAR(NumberElectricalGenerators) ;
-	double GenVoltage(NumberElectricalGenerators) ;
-	double GenMaxMW(NumberElectricalGenerators) ;
-	double GenMinMW(NumberElectricalGenerators) ;
-	double ActiveDemand(NumberNodes) ;
-	double ReactiveDemand(NumberNodes) ;
-	double Conductance(NumberNodes) ;
-	double Susceptance(NumberNodes) ;
-	uint StartLine(NumberLines) ;
-	uint EndLine(NumberLines) ;
-	double LineResistance(NumberLines) ;
-	double LineReactance(NumberLines) ;
-	double LineCharging(NumberLines) ;
-	double LineShiftAngle(NumberLines) ;
-	double LineMinAngle(NumberLines) ;
-	double LineMaxAngle(NumberLines) ;
-	uint CostModel(NumberCostCoeffs) ;
-	double Startup(NumberCostCoeffs) ;
-	double Shutdown(NumberCostCoeffs) ;
-	double PowerCostCoeffs(NumberElectricalGenerators,NumberCostCoeffs) ;
-	uint ReferenceNode ;
+   GeneratorNode = 1, 2, 3 ;
 
-	// group attributes:
-		:id = "0" ;
-		:type = "DCNetworkBlock" ;
+   ActiveDemand = 0, 0, 0, 0, 90, 0, 100, 0, 125 ;
 
-data:
-	ActiveDemand = 0.0,0.0,0.0,0.0,90.0,0.0,100.0,0.0,125.0;
-	ReactiveDemand = 0.0,0.0,0.0,0.0,30.0,0.0,35.0,0.0,50.0;
-	Conductance = 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0;
-	Susceptance = 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0;
-	GeneratorNode = 1,2,3;
-	GenMW = 0.0,163.0,85.0;
-	GenMVAR = 0.0,0.0,0.0;
-	GenMaxMVAR = 300.0,300.0,300.0;
-	GenMinMVAR = -300.0,-300.0,-300.0;
-	GenVoltage = 1.0,1.0,1.0;
-	GenMaxMW = 250.0,300.0,270.0;
-	GenMinMW = 10.0,10.0,10.0;
-	StartLine = 1,4,5,3,6,7,8,8,9;
-	EndLine = 4,5,6,6,7,8,2,9,4;
-	LineResistance = 0.0,0.017,0.039,0.0,0.0119,0.0085,0.0,0.032,0.01;
-	LineReactance = 0.0576,0.092,0.17,0.0586,0.1008,0.072,0.0625,0.161,0.085;
-	LineCharging = 0.0,0.158,0.358,0.0,0.209,0.149,0.0,0.306,0.176;
-	LineShiftAngle = 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0;
-	LineMinAngle = -360.0,-360.0,-360.0,-360.0,-360.0,-360.0,-360.0,-360.0,-360.0;
-	LineMaxAngle = 360.0,360.0,360.0,360.0,360.0,360.0,360.0,360.0,360.0;
-	CostModel = 2,2,2;
-	Startup = 1500.0,2000.0,3000.0;
-	Shutdown = 0.0,0.0,0.0;
-	PowerCostCoeffs = 0.11,5.0,150.0,0.085,1.2,600.0,0.1225,1.0,335.0;
-	ReferenceNode = 1 ;
-}
+   ReactiveDemand = 0, 0, 0, 0, 30, 0, 35, 0, 50 ;
+
+   Conductance = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   Susceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   StartLine = 1, 4, 5, 3, 6, 7, 8, 8, 9 ;
+
+   EndLine = 4, 5, 6, 6, 7, 8, 2, 9, 4 ;
+
+   LineResistance = 0, 0.017, 0.039, 0, 0.0119, 0.0085, 0, 0.032, 0.01 ;
+
+   LineReactance = 0.0576, 0.092, 0.17, 0.0586, 0.1008, 0.072, 0.0625, 0.161, 
+      0.085 ;
+
+   LineCharging = 0, 0.158, 0.358, 0, 0.209, 0.149, 0, 0.306, 0.176 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360 ;
+
+  group: UnitBlock_0 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    	NumberReactiveCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower ;
+    	double MinReactivePower ;
+    	double VoltageMagnitude ;
+    	double MaxPower ;
+    	double MinPower ;
+    	uint CostModel ;
+    	uint ReactiveCostModel ;
+    	double Startup ;
+    	double ReactiveStartup ;
+    	double Shutdown ;
+    	double ReactiveShutdown ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double ReactivePowerCostCoeffs(NumberReactiveCostCoeffs) ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 300 ;
+
+     MinReactivePower = -300 ;
+
+     VoltageMagnitude = 1 ;
+
+     MaxPower = 250 ;
+
+     MinPower = 10 ;
+
+     CostModel = 2 ;
+
+     ReactiveCostModel = 2 ;
+
+     Startup = 1500 ;
+
+     ReactiveStartup = 1500 ;
+
+     Shutdown = 0 ;
+
+     ReactiveShutdown = 0 ;
+
+     PowerCostCoeffs = 0.11, 5, 150 ;
+
+     ReactivePowerCostCoeffs = 0.11, 5, 150 ;
+    } // group UnitBlock_0
+
+  group: UnitBlock_1 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    	NumberReactiveCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower ;
+    	double MinReactivePower ;
+    	double VoltageMagnitude ;
+    	double MaxPower ;
+    	double MinPower ;
+    	uint CostModel ;
+    	uint ReactiveCostModel ;
+    	double Startup ;
+    	double ReactiveStartup ;
+    	double Shutdown ;
+    	double ReactiveShutdown ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double ReactivePowerCostCoeffs(NumberReactiveCostCoeffs) ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 163 ;
+
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 300 ;
+
+     MinReactivePower = -300 ;
+
+     VoltageMagnitude = 1 ;
+
+     MaxPower = 300 ;
+
+     MinPower = 10 ;
+
+     CostModel = 2 ;
+
+     ReactiveCostModel = 2 ;
+
+     Startup = 2000 ;
+
+     ReactiveStartup = 2000 ;
+
+     Shutdown = 0 ;
+
+     ReactiveShutdown = 0 ;
+
+     PowerCostCoeffs = 0.085, 1.2, 600 ;
+
+     ReactivePowerCostCoeffs = 0.085, 1.2, 600 ;
+    } // group UnitBlock_1
+
+  group: UnitBlock_2 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    	NumberReactiveCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower ;
+    	double MinReactivePower ;
+    	double VoltageMagnitude ;
+    	double MaxPower ;
+    	double MinPower ;
+    	uint CostModel ;
+    	uint ReactiveCostModel ;
+    	double Startup ;
+    	double ReactiveStartup ;
+    	double Shutdown ;
+    	double ReactiveShutdown ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double ReactivePowerCostCoeffs(NumberReactiveCostCoeffs) ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 85 ;
+
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 300 ;
+
+     MinReactivePower = -300 ;
+
+     VoltageMagnitude = 1 ;
+
+     MaxPower = 270 ;
+
+     MinPower = 10 ;
+
+     CostModel = 2 ;
+
+     ReactiveCostModel = 2 ;
+
+     Startup = 3000 ;
+
+     ReactiveStartup = 3000 ;
+
+     Shutdown = 0 ;
+
+     ReactiveShutdown = 0 ;
+
+     PowerCostCoeffs = 0.1225, 1, 335 ;
+
+     ReactivePowerCostCoeffs = 0.1225, 1, 335 ;
+    } // group UnitBlock_2
+  } // group Block_0
 }

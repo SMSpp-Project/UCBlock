@@ -5,6 +5,8 @@
 # 	   to the ith column of the matpower matrix.
 #	-> If the second attribute of the ith pair is None, it means that the data in the ith colum of the matpower 
 #	   matrix will not be used in the netCDF format. Otherwise, it contains the type of the attribute (as a string).
+#
+# If there is a third parameter, it means that the attribute must belong to sub groups (e.g., ThermalUnitGroup)
 
 dim_labels = {
 			"mpc.gen": 		"NumberElectricalGenerators", 	# generators
@@ -13,7 +15,7 @@ dim_labels = {
             "mpc.gencost":	"NumberCostCoeffs"				# cost coeffs
 }
 
-labels = {
+var_labels = {
 "mpc.bus":
 	[
 		("NodeNumber", None), 
@@ -32,15 +34,15 @@ labels = {
 "mpc.gen":
 	[
 		("GeneratorNode", "uint"),
-		("GenMW", "double"),
-		("GenMVAR", "double"),
-		("GenMaxMVAR", "double"),
-		("GenMinMVAR", "double"),
-		("GenVoltage", "double"),
-		("GenMBASE", None),
-		("GenStatus", None),
-		("GenMaxMW", "double"),
-		("GenMinMW", "double")
+		("InitialPower", "double", 1),
+		("InitialReactivePower", "double", 1),
+		("MaxReactivePower", "double", 1),
+		("MinReactivePower", "double", 1),
+		("VoltageMagnitude", "double", 1),
+		("GenMBASE", None, 1),
+		("GenStatus", None, 1),
+		("MaxPower", "double", 1),
+		("MinPower", "double", 1)
 	],
 "mpc.branch": 
 	[
@@ -60,9 +62,9 @@ labels = {
 	],
 "mpc.gencost":
 	[
-		("CostModel", "uint"),
-		("Startup", "double"),
-		("Shutdown", "double"),
+		("CostModel", "uint",1),
+		("Startup", "double",1),
+		("Shutdown", "double",1),
 	]
 }
 
