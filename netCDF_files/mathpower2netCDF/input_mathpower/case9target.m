@@ -1,8 +1,8 @@
-function mpc = case9
-%CASE9    Power flow data for 9 bus, 3 generator case.
+function mpc = case9target
+%CASE9TARGET    Target injection power flow data for 9 bus, 3 generator case.
 %   Please see CASEFORMAT for details on the case file format.
 %
-%   Based on data from Joe H. Chow's book, p. 70.
+%   Modified version of case9.m used as target for example CPF.
 
 %   MATPOWER
 
@@ -20,19 +20,19 @@ mpc.bus = [
 	2	2	0	0	0	0	1	1	0	345	1	1.1	0.9;
 	3	2	0	0	0	0	1	1	0	345	1	1.1	0.9;
 	4	1	0	0	0	0	1	1	0	345	1	1.1	0.9;
-	5	1	90	30	0	0	1	1	0	345	1	1.1	0.9;
+	5	1	305.4	123.15	0	0	1	1	0	345	1	1.1	0.9;
 	6	1	0	0	0	0	1	1	0	345	1	1.1	0.9;
-	7	1	100	35	0	0	1	1	0	345	1	1.1	0.9;
+	7	1	214.11	71.09	0	0	1	1	0	345	1	1.1	0.9;
 	8	1	0	0	0	0	1	1	0	345	1	1.1	0.9;
-	9	1	125	50	0	0	1	1	0	345	1	1.1	0.9;
+	9	1	235.61	81.44	0	0	1	1	0	345	1	1.1	0.9;
 ];
 
 %% generator data
 %	bus	Pg	Qg	Qmax	Qmin	Vg	mBase	status	Pmax	Pmin	Pc1	Pc2	Qc1min	Qc1max	Qc2min	Qc2max	ramp_agc	ramp_10	ramp_30	ramp_q	apf
 mpc.gen = [
-	1	0	0	300	-300	1	100	1	250	10	0	0	0	0	0	0	0	0	0	0	0;
-	2	163	0	300	-300	1	100	1	300	10	0	0	0	0	0	0	0	0	0	0	0;
-	3	85	0	300	-300	1	100	1	270	10	0	0	0	0	0	0	0	0	0	0	0;
+	1	72.3	27.03	300	-300	1.04	100	1	250	10	0	0	0	0	0	0	0	0	0	0	0;
+	2	248	0	300	-300	1.025	100	1	300	10	0	0	0	0	0	0	0	0	0	0	0;
+	3	124.59	0	300	-300	1.025	100	1	270	10	0	0	0	0	0	0	0	0	0	0	0;
 ];
 
 %% branch data
@@ -54,9 +54,6 @@ mpc.branch = [
 %	1	startup	shutdown	n	x1	y1	...	xn	yn
 %	2	startup	shutdown	n	c(n-1)	...	c0
 mpc.gencost = [
-	2	1500	0	3	0.11	5	150;
-	2	2000	0	3	0.085	1.2	600;
-	2	3000	0	3	0.1225	1	335;
 	2	1500	0	3	0.11	5	150;
 	2	2000	0	3	0.085	1.2	600;
 	2	3000	0	3	0.1225	1	335;
