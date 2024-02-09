@@ -4667,7 +4667,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.1 ;
+     InitialPower = 0 ;
 
      MaxPower = 2.7 ;
 
@@ -4772,7 +4772,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.66 ;
+     InitialPower = 0 ;
 
      MaxPower = 16 ;
 
@@ -5157,7 +5157,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.62 ;
+     InitialPower = 0 ;
 
      MaxPower = 10.33 ;
 
@@ -5192,7 +5192,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.22 ;
+     InitialPower = 0 ;
 
      MaxPower = 10.33 ;
 
@@ -5332,7 +5332,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.18 ;
+     InitialPower = 0 ;
 
      MaxPower = 1.2 ;
 
@@ -5892,7 +5892,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.71 ;
+     InitialPower = 0 ;
 
      MaxPower = 7.2 ;
 
@@ -6137,7 +6137,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.64 ;
+     InitialPower = 0 ;
 
      MaxPower = 11.5 ;
 
@@ -6487,7 +6487,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -1.06 ;
+     InitialPower = 0 ;
 
      MaxPower = 2.3 ;
 
@@ -6942,7 +6942,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.88 ;
+     InitialPower = 0 ;
 
      MaxPower = 17.25 ;
 
@@ -7887,7 +7887,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.83 ;
+     InitialPower = 0 ;
 
      MaxPower = 10 ;
 
@@ -7922,7 +7922,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.34 ;
+     InitialPower = 0 ;
 
      MaxPower = 12 ;
 
@@ -7957,7 +7957,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.6 ;
+     InitialPower = 0 ;
 
      MaxPower = 2 ;
 
@@ -10757,7 +10757,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.68 ;
+     InitialPower = 0 ;
 
      MaxPower = 41.4 ;
 
@@ -11177,11 +11177,11 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -5.91 ;
+     InitialPower = 0 ;
 
      MaxPower = 0 ;
 
-     MinPower = -7 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -11212,11 +11212,11 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -5.91 ;
+     InitialPower = 0 ;
 
      MaxPower = 0 ;
 
-     MinPower = -7 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -11247,7 +11247,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -1.27 ;
+     InitialPower = 0 ;
 
      MaxPower = 21 ;
 
@@ -11737,7 +11737,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.41 ;
+     InitialPower = 0 ;
 
      MaxPower = 40.8 ;
 
@@ -14362,7 +14362,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.41 ;
+     InitialPower = 0 ;
 
      MaxPower = 6 ;
 
@@ -15482,11 +15482,11 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -8 ;
+     InitialPower = 0 ;
 
      MaxPower = 0 ;
 
-     MinPower = -8 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -15937,7 +15937,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -0.43 ;
+     InitialPower = 0 ;
 
      MaxPower = 3 ;
 
@@ -16182,7 +16182,7 @@ group: Block_0 {
     		:type = "ThermalUnitBlock" ;
     data:
 
-     InitialPower = -2.99 ;
+     InitialPower = 0 ;
 
      MaxPower = 8.6 ;
 

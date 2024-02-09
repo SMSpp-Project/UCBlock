@@ -6480,7 +6480,7 @@ group: Block_0 {
 
      MaxPower = 135 ;
 
-     MinPower = -135 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -6515,7 +6515,7 @@ group: Block_0 {
 
      MaxPower = 135 ;
 
-     MinPower = -135 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -6550,7 +6550,7 @@ group: Block_0 {
 
      MaxPower = 135 ;
 
-     MinPower = -135 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -6585,7 +6585,7 @@ group: Block_0 {
 
      MaxPower = 135 ;
 
-     MinPower = -135 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -7495,7 +7495,7 @@ group: Block_0 {
 
      MaxPower = 179 ;
 
-     MinPower = -200 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -7530,7 +7530,7 @@ group: Block_0 {
 
      MaxPower = 179 ;
 
-     MinPower = -200 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -7565,7 +7565,7 @@ group: Block_0 {
 
      MaxPower = 179 ;
 
-     MinPower = -200 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -7600,7 +7600,7 @@ group: Block_0 {
 
      MaxPower = 179 ;
 
-     MinPower = -200 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -11415,7 +11415,7 @@ group: Block_0 {
 
      MaxPower = 31 ;
 
-     MinPower = -32 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -11450,7 +11450,7 @@ group: Block_0 {
 
      MaxPower = 31 ;
 
-     MinPower = -32 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -15510,7 +15510,7 @@ group: Block_0 {
 
      MaxPower = 28 ;
 
-     MinPower = -10 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -15580,7 +15580,7 @@ group: Block_0 {
 
      MaxPower = 28 ;
 
-     MinPower = -10 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -22020,7 +22020,7 @@ group: Block_0 {
 
      MaxPower = 52 ;
 
-     MinPower = -69 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 
@@ -22090,7 +22090,7 @@ group: Block_0 {
 
      MaxPower = 51 ;
 
-     MinPower = -69 ;
+     MinPower = 0 ;
 
      StartUpCost = 0 ;
 

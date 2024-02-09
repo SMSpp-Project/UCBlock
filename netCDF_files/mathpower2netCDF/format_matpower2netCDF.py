@@ -92,6 +92,10 @@ has_TimeHorizon_dim = {
 	"MinPower", "MaxPower"
 }
 
+positive_fields = {
+	"MinPower", "InitialPower"
+}
+
 
 
 #    A MATPOWER case file is an M-file or MAT-file that defines or returns

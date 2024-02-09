@@ -94,6 +94,7 @@ class ConverterMathpower2netCDF:
             subgroups[i].setncatts({'type':"ThermalUnitBlock"})
 
         # create variables and fill data
+        negative_values = False
         for mpc_lab in ["mpc.gen","mpc.bus","mpc.branch"]:
             lab_tab = var_labels[mpc_lab]
             for idx,t in enumerate(lab_tab):
@@ -106,7 +107,13 @@ class ConverterMathpower2netCDF:
                     else:
                         var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
                     if "int" in v:      var[:] = [int(l[idx])-1 for l in self.attrs[mpc_lab]]
-                    if "double" in v:   var[:] = [float(l[idx]) for l in self.attrs[mpc_lab]]
+                    if "double" in v:
+                        if k in positive_fields:  
+                            var[:] = [max(float(l[idx]),0.) for l in self.attrs[mpc_lab]]
+                            if sum(max(float(l[idx]),0.) for l in self.attrs[mpc_lab]) != sum(float(l[idx]) for l in self.attrs[mpc_lab]):
+                                negative_values = True
+                        else:
+                            var[:] = [float(l[idx]) for l in self.attrs[mpc_lab]]
                     if self.convert_kW2MW and "PowerDemand" in k: # PATCH : convert loads from kW to MW
                         var[:] = var[:]/1e3
 
@@ -119,7 +126,15 @@ class ConverterMathpower2netCDF:
                         else:
                             var = subgroups[i].createVariable(k,v)
                         if "int" in v:      var[:] = int(l[idx])-1
-                        if "double" in v:   var[:] = float(l[idx])
+                        if "double" in v:   
+                            if k in positive_fields:
+                                var[:] = max(float(l[idx]),0.)
+                                if max(float(l[idx]),0.) != float(l[idx]):
+                                    negative_values = True
+                            else:
+                                var[:] = float(l[idx])
+        if negative_values:
+            print("\tWARNING : correction of negative values")
 
         # add costs in each subgroup ThermalUnitBlock
         #mpc_lab = "mpc.gencost"
