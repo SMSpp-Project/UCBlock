@@ -1,0 +1,3926 @@
+netcdf case_ACTIVSg500 {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+
+group: Block_0 {
+  dimensions:
+  	NumberElectricalGenerators = 90 ;
+  	NumberNodes = 500 ;
+  	NumberLines = 597 ;
+  	TimeHorizon = 1 ;
+  	NumberUnits = 90 ;
+  variables:
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double MinPowerFlow(NumberLines) ;
+  	double MaxPowerFlow(NumberLines) ;
+  	double Susceptance(NumberLines) ;
+
+  // group attributes:
+  		:type = "UCBlock" ;
+  		:id = "0" ;
+  data:
+
+   GeneratorNode = 8, 15, 16, 17, 48, 49, 62, 70, 71, 72, 81, 124, 125, 126, 
+      127, 143, 144, 166, 167, 168, 196, 197, 221, 222, 223, 224, 230, 247, 
+      248, 249, 253, 254, 255, 256, 257, 263, 264, 274, 300, 301, 304, 305, 
+      318, 349, 350, 351, 352, 360, 361, 362, 387, 388, 389, 390, 391, 392, 
+      393, 394, 395, 408, 409, 410, 411, 412, 413, 429, 430, 431, 432, 433, 
+      434, 435, 436, 437, 438, 441, 442, 443, 454, 455, 457, 462, 479, 480, 
+      481, 482, 483, 493, 496, 497 ;
+
+   ActivePowerDemand =
+  0,
+  42.8,
+  0,
+  132.69,
+  0,
+  3.21,
+  0,
+  0,
+  0,
+  0,
+  2.47,
+  0,
+  37.16,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  4.54,
+  0,
+  148.7,
+  0,
+  0,
+  2.28,
+  21.66,
+  0,
+  62.93,
+  0,
+  99.97,
+  0,
+  9.76,
+  0,
+  25,
+  0,
+  43.35,
+  0,
+  0.13,
+  0,
+  0,
+  57.99,
+  0,
+  4.46,
+  0,
+  2.03,
+  0,
+  43.41,
+  0,
+  0,
+  0,
+  0.35,
+  23.39,
+  0,
+  34.81,
+  0,
+  2.25,
+  0,
+  0,
+  140.94,
+  0,
+  0.2,
+  0,
+  0,
+  34.78,
+  0,
+  0,
+  4.57,
+  0,
+  16.96,
+  0,
+  0,
+  0,
+  0,
+  0,
+  5.3,
+  0,
+  6.95,
+  0,
+  0.38,
+  0,
+  0,
+  0,
+  0,
+  61.41,
+  0,
+  17.59,
+  0,
+  5.25,
+  0,
+  5.9,
+  0,
+  65.03,
+  0,
+  5.21,
+  0,
+  34,
+  0,
+  37.09,
+  0,
+  13.52,
+  0.89,
+  0,
+  38.8,
+  0,
+  80.33,
+  0,
+  16.01,
+  0,
+  47.58,
+  0,
+  62.29,
+  0,
+  45.99,
+  0,
+  5.06,
+  3.1,
+  0,
+  8.83,
+  0,
+  31.65,
+  0,
+  53.36,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  103.24,
+  0,
+  25.2,
+  0,
+  42.65,
+  0,
+  26.76,
+  0,
+  78.71,
+  0,
+  0.26,
+  0,
+  161.34,
+  0,
+  0,
+  0,
+  0,
+  0,
+  57.42,
+  0,
+  1.5,
+  0,
+  0,
+  93.15,
+  0,
+  66.84,
+  0,
+  105.45,
+  0,
+  22.85,
+  0,
+  25.95,
+  0,
+  0,
+  98.15,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  12.38,
+  0,
+  3.14,
+  7.3,
+  0,
+  0,
+  8.78,
+  6.81,
+  0,
+  14.14,
+  0,
+  82.61,
+  0,
+  30.18,
+  0,
+  45.35,
+  0,
+  11.05,
+  0,
+  14.07,
+  0,
+  16.44,
+  0,
+  28.69,
+  0,
+  0,
+  0,
+  0,
+  86.39,
+  0,
+  8.89,
+  0,
+  4.69,
+  45.67,
+  0,
+  3.01,
+  22.57,
+  0,
+  81.85,
+  0,
+  34.28,
+  0,
+  97.48,
+  0,
+  84.48,
+  0,
+  55.1,
+  0,
+  0.33,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  5.42,
+  0,
+  54.09,
+  0,
+  0,
+  0,
+  0,
+  59.96,
+  0,
+  0,
+  2.71,
+  0,
+  39.13,
+  0,
+  19.74,
+  0,
+  74.47,
+  0,
+  11.83,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  118.68,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  8.16,
+  0,
+  18.68,
+  0,
+  0,
+  0,
+  0,
+  61.78,
+  0,
+  117.15,
+  0,
+  6.8,
+  0,
+  0,
+  9.49,
+  0,
+  0,
+  0,
+  0.41,
+  5.77,
+  0,
+  16.94,
+  0,
+  117.3,
+  0,
+  32.65,
+  0,
+  8.27,
+  0,
+  58.11,
+  0,
+  3.69,
+  0,
+  7.62,
+  0,
+  25.6,
+  0,
+  7.79,
+  0,
+  0,
+  14.57,
+  0,
+  0,
+  0,
+  86.76,
+  0,
+  0,
+  0,
+  76.04,
+  0,
+  9.03,
+  0,
+  43.83,
+  0,
+  12.44,
+  0,
+  0.43,
+  0,
+  3.75,
+  0,
+  0,
+  0,
+  150.42,
+  0,
+  45.27,
+  0,
+  103.46,
+  0,
+  121.07,
+  0,
+  26.02,
+  0,
+  57.17,
+  0,
+  0,
+  0.5,
+  0.83,
+  0,
+  5.67,
+  0,
+  75.1,
+  0,
+  24.22,
+  0,
+  2.51,
+  2.43,
+  0,
+  47.58,
+  0,
+  86.4,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  19.97,
+  0,
+  55.73,
+  0,
+  14.59,
+  0,
+  0,
+  0,
+  0,
+  30.44,
+  0,
+  56.49,
+  0,
+  11.45,
+  0,
+  35.6,
+  0,
+  0,
+  28.84,
+  0,
+  24.76,
+  0,
+  90.39,
+  0,
+  13.01,
+  0,
+  10.13,
+  0,
+  29.95,
+  0,
+  36.62,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  39.95,
+  16.77,
+  0,
+  23.03,
+  0,
+  88.35,
+  0,
+  19.77,
+  0,
+  5.25,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  6.06,
+  0,
+  63.62,
+  0,
+  5.23,
+  0,
+  49.18,
+  0,
+  157.1,
+  0,
+  0,
+  14.43,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  88.68,
+  0,
+  57.56,
+  0,
+  1.12,
+  2.21,
+  11.16,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  74.47,
+  26.34,
+  91.72,
+  0,
+  0,
+  0,
+  12.52,
+  43.34,
+  0.81,
+  3.76,
+  128.53,
+  42.56,
+  0,
+  49.71,
+  1,
+  167.22,
+  0.16,
+  59.86,
+  31.33,
+  9.16,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  27.88,
+  68.54,
+  11.67,
+  97.9,
+  3.68,
+  29.81,
+  119.53,
+  59.54,
+  4.05,
+  0,
+  75.17,
+  0,
+  0,
+  0,
+  122.33,
+  23.43 ;
+
+   StartLine = 1, 43, 420, 3, 61, 2, 5, 315, 400, 7, 8, 8, 6, 6, 7, 7, 10, 
+      341, 9, 12, 11, 11, 11, 14, 15, 16, 16, 17, 385, 385, 14, 14, 366, 14, 
+      14, 19, 18, 192, 18, 21, 20, 20, 23, 150, 22, 22, 22, 24, 25, 209, 23, 
+      27, 26, 26, 29, 453, 28, 31, 30, 103, 30, 30, 30, 266, 33, 82, 111, 35, 
+      190, 34, 37, 75, 36, 39, 38, 38, 40, 39, 42, 80, 41, 44, 43, 46, 45, 
+      237, 48, 49, 50, 51, 357, 418, 53, 232, 52, 55, 54, 54, 57, 57, 56, 
+      439, 58, 57, 321, 321, 60, 59, 465, 62, 63, 286, 61, 65, 79, 64, 66, 
+      65, 68, 67, 67, 70, 71, 72, 215, 69, 74, 73, 239, 76, 451, 78, 77, 77, 
+      80, 81, 406, 148, 83, 82, 85, 271, 87, 86, 86, 422, 89, 88, 88, 91, 90, 
+      93, 268, 335, 95, 94, 94, 97, 180, 357, 99, 100, 98, 471, 102, 101, 
+      418, 104, 103, 106, 105, 235, 108, 107, 107, 110, 273, 109, 112, 192, 
+      111, 111, 371, 111, 114, 115, 113, 113, 117, 116, 489, 119, 118, 252, 
+      121, 120, 120, 123, 124, 125, 126, 127, 164, 123, 123, 129, 303, 323, 
+      131, 130, 133, 132, 132, 472, 135, 134, 134, 137, 136, 136, 136, 139, 
+      138, 428, 141, 299, 143, 143, 144, 144, 142, 142, 142, 495, 146, 145, 
+      145, 147, 474, 149, 292, 488, 151, 427, 152, 237, 154, 153, 153, 156, 
+      487, 158, 157, 157, 160, 159, 159, 162, 162, 161, 161, 161, 163, 199, 
+      165, 166, 167, 168, 164, 165, 259, 165, 170, 169, 172, 173, 201, 171, 
+      175, 174, 176, 177, 317, 179, 178, 344, 178, 181, 180, 183, 182, 182, 
+      185, 444, 184, 187, 186, 189, 191, 190, 190, 193, 195, 196, 197, 370, 
+      198, 200, 202, 203, 379, 205, 206, 204, 208, 321, 355, 210, 487, 212, 
+      211, 407, 214, 213, 216, 218, 217, 220, 221, 222, 223, 223, 224, 224, 
+      219, 220, 220, 220, 226, 228, 227, 227, 230, 284, 232, 261, 231, 231, 
+      233, 232, 235, 234, 234, 236, 282, 238, 240, 239, 242, 241, 241, 244, 
+      243, 246, 247, 248, 249, 249, 245, 427, 245, 251, 250, 416, 253, 254, 
+      255, 256, 257, 258, 252, 252, 260, 262, 263, 264, 265, 262, 262, 262, 
+      262, 267, 311, 269, 474, 271, 272, 274, 276, 277, 275, 275, 279, 278, 
+      278, 281, 309, 280, 280, 283, 285, 284, 287, 286, 286, 289, 467, 291, 
+      293, 295, 313, 294, 476, 297, 424, 296, 298, 297, 300, 301, 302, 404, 
+      299, 304, 305, 306, 308, 307, 310, 357, 312, 398, 314, 316, 318, 317, 
+      377, 320, 322, 323, 324, 326, 490, 328, 330, 332, 448, 332, 331, 333, 
+      334, 336, 377, 491, 338, 337, 340, 459, 342, 343, 345, 344, 347, 346, 
+      349, 350, 351, 352, 348, 354, 420, 478, 356, 355, 358, 360, 361, 362, 
+      363, 359, 365, 364, 364, 367, 366, 366, 369, 371, 372, 374, 376, 375, 
+      375, 375, 375, 378, 380, 492, 382, 384, 440, 386, 386, 387, 388, 389, 
+      390, 391, 392, 393, 394, 395, 439, 396, 397, 386, 386, 399, 407, 401, 
+      403, 405, 491, 407, 408, 409, 410, 411, 412, 413, 415, 417, 416, 416, 
+      416, 419, 421, 423, 422, 425, 426, 428, 429, 430, 431, 432, 433, 434, 
+      435, 436, 437, 438, 428, 440, 441, 442, 443, 445, 444, 447, 449, 450, 
+      494, 453, 454, 455, 484, 457, 458, 462, 461, 461, 464, 470, 469, 471, 
+      475, 479, 480, 481, 482, 483, 484, 499, 493, 496, 497 ;
+
+   EndLine = 0, 0, 0, 2, 2, 478, 4, 4, 4, 6, 6, 6, 231, 261, 286, 456, 9, 9, 
+      348, 11, 215, 303, 440, 13, 13, 13, 13, 13, 13, 13, 90, 229, 14, 368, 
+      472, 18, 111, 18, 271, 20, 111, 195, 22, 22, 385, 463, 470, 23, 23, 23, 
+      359, 26, 67, 381, 28, 28, 490, 30, 84, 30, 188, 204, 217, 30, 32, 32, 
+      32, 34, 34, 398, 36, 36, 175, 38, 331, 427, 39, 130, 41, 41, 190, 43, 
+      199, 45, 155, 45, 47, 47, 47, 47, 47, 47, 52, 52, 275, 54, 65, 499, 56, 
+      56, 122, 56, 57, 252, 57, 57, 59, 130, 59, 61, 61, 61, 456, 64, 64, 
+      296, 65, 307, 67, 294, 313, 69, 69, 69, 69, 489, 73, 188, 73, 75, 75, 
+      77, 327, 386, 79, 79, 79, 80, 82, 341, 84, 84, 86, 140, 142, 86, 88, 
+      186, 456, 90, 132, 92, 92, 92, 94, 169, 368, 96, 96, 96, 98, 98, 464, 
+      98, 101, 307, 101, 103, 190, 105, 190, 105, 107, 471, 494, 109, 109, 
+      315, 111, 111, 235, 282, 111, 498, 113, 113, 190, 311, 116, 425, 116, 
+      118, 128, 118, 120, 275, 286, 122, 122, 122, 122, 122, 122, 259, 368, 
+      128, 128, 128, 130, 332, 132, 225, 368, 132, 134, 286, 456, 136, 213, 
+      425, 425, 138, 375, 138, 140, 140, 142, 142, 142, 142, 337, 400, 451, 
+      142, 145, 161, 194, 146, 146, 148, 148, 148, 150, 150, 151, 151, 153, 
+      428, 487, 155, 155, 157, 232, 290, 159, 211, 398, 161, 161, 194, 219, 
+      231, 162, 162, 164, 164, 164, 164, 385, 227, 165, 288, 169, 225, 171, 
+      171, 171, 243, 174, 219, 175, 175, 175, 178, 290, 178, 373, 180, 486, 
+      182, 246, 273, 184, 184, 466, 186, 453, 188, 190, 204, 292, 192, 194, 
+      194, 194, 194, 195, 199, 201, 201, 201, 204, 204, 311, 207, 207, 207, 
+      209, 209, 211, 398, 211, 213, 402, 215, 217, 398, 219, 219, 219, 219, 
+      219, 219, 219, 470, 446, 477, 492, 225, 227, 467, 473, 229, 229, 231, 
+      231, 370, 452, 232, 485, 234, 270, 406, 235, 235, 237, 239, 271, 241, 
+      286, 319, 243, 425, 245, 245, 245, 245, 245, 331, 245, 470, 250, 359, 
+      250, 252, 252, 252, 252, 252, 252, 346, 416, 259, 261, 261, 261, 262, 
+      275, 325, 475, 490, 266, 266, 268, 268, 270, 271, 273, 275, 275, 319, 
+      484, 278, 339, 467, 280, 280, 327, 383, 282, 284, 486, 286, 414, 475, 
+      288, 288, 290, 292, 294, 294, 446, 294, 296, 296, 439, 297, 425, 299, 
+      299, 299, 299, 477, 303, 303, 303, 307, 499, 309, 309, 311, 311, 313, 
+      315, 317, 335, 317, 319, 321, 321, 323, 325, 325, 327, 329, 329, 329, 
+      331, 470, 332, 332, 335, 335, 335, 337, 458, 339, 339, 341, 341, 344, 
+      414, 346, 416, 348, 348, 348, 348, 402, 353, 353, 353, 355, 381, 357, 
+      359, 359, 359, 359, 416, 364, 373, 453, 366, 460, 467, 368, 370, 371, 
+      373, 375, 428, 459, 468, 494, 377, 379, 379, 381, 383, 383, 385, 385, 
+      385, 385, 385, 385, 385, 385, 385, 385, 385, 385, 386, 386, 466, 469, 
+      398, 398, 400, 402, 404, 404, 406, 406, 406, 406, 406, 406, 406, 414, 
+      416, 467, 468, 473, 418, 420, 422, 495, 424, 425, 427, 427, 427, 427, 
+      427, 427, 427, 427, 427, 427, 427, 465, 439, 439, 439, 439, 444, 460, 
+      446, 448, 448, 448, 452, 452, 452, 453, 456, 495, 461, 464, 476, 463, 
+      463, 466, 470, 485, 478, 478, 478, 478, 478, 498, 488, 492, 495, 495 ;
+
+   MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000 ;
+
+   MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000 ;
+
+   Susceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+  group: UnitBlock_0 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 771.8 ;
+
+     MaxPower = 771.8 ;
+
+     MinPower = 231.54 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_0
+
+  group: UnitBlock_1 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 444.45 ;
+
+     MaxPower = 444.45 ;
+
+     MinPower = 133.33 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_1
+
+  group: UnitBlock_2 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 888.9 ;
+
+     MaxPower = 888.9 ;
+
+     MinPower = 266.67 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_2
+
+  group: UnitBlock_3 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 157.6 ;
+
+     MaxPower = 157.6 ;
+
+     MinPower = 47.28 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_3
+
+  group: UnitBlock_4 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1.3 ;
+
+     MaxPower = 1.3 ;
+
+     MinPower = 0.39 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_4
+
+  group: UnitBlock_5 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2.6 ;
+
+     MaxPower = 2.6 ;
+
+     MinPower = 0.78 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_5
+
+  group: UnitBlock_6 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 3.2 ;
+
+     MinPower = 0.96 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_6
+
+  group: UnitBlock_7 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 4 ;
+
+     MaxPower = 4 ;
+
+     MinPower = 1.2 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_7
+
+  group: UnitBlock_8 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2 ;
+
+     MaxPower = 2 ;
+
+     MinPower = 0.6 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_8
+
+  group: UnitBlock_9 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1.4 ;
+
+     MaxPower = 1.4 ;
+
+     MinPower = 0.42 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_9
+
+  group: UnitBlock_10 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 361.9 ;
+
+     MaxPower = 361.9 ;
+
+     MinPower = 108.57 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_10
+
+  group: UnitBlock_11 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 162 ;
+
+     MinPower = 48.6 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_11
+
+  group: UnitBlock_12 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 162 ;
+
+     MinPower = 48.6 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_12
+
+  group: UnitBlock_13 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 162 ;
+
+     MaxPower = 162 ;
+
+     MinPower = 48.6 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_13
+
+  group: UnitBlock_14 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 162 ;
+
+     MaxPower = 162 ;
+
+     MinPower = 48.6 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_14
+
+  group: UnitBlock_15 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 602.55 ;
+
+     MaxPower = 602.55 ;
+
+     MinPower = 180.76 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_15
+
+  group: UnitBlock_16 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 300.55 ;
+
+     MaxPower = 602.55 ;
+
+     MinPower = 180.76 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_16
+
+  group: UnitBlock_17 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 193.5 ;
+
+     MaxPower = 193.5 ;
+
+     MinPower = 58.05 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_17
+
+  group: UnitBlock_18 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 193.5 ;
+
+     MaxPower = 193.5 ;
+
+     MinPower = 58.05 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_18
+
+  group: UnitBlock_19 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 387 ;
+
+     MaxPower = 387 ;
+
+     MinPower = 116.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_19
+
+  group: UnitBlock_20 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 293.6 ;
+
+     MaxPower = 293.6 ;
+
+     MinPower = 88.08 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_20
+
+  group: UnitBlock_21 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 207.3 ;
+
+     MaxPower = 207.3 ;
+
+     MinPower = 62.19 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_21
+
+  group: UnitBlock_22 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 5.2 ;
+
+     MaxPower = 5.2 ;
+
+     MinPower = 1.56 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_22
+
+  group: UnitBlock_23 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 18 ;
+
+     MaxPower = 18 ;
+
+     MinPower = 5.4 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_23
+
+  group: UnitBlock_24 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 511.2 ;
+
+     MaxPower = 511.2 ;
+
+     MinPower = 153.36 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_24
+
+  group: UnitBlock_25 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 514.8 ;
+
+     MaxPower = 514.8 ;
+
+     MinPower = 154.44 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_25
+
+  group: UnitBlock_26 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2.9 ;
+
+     MaxPower = 2.9 ;
+
+     MinPower = 0.87 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_26
+
+  group: UnitBlock_27 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 133.2 ;
+
+     MinPower = 39.96 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_27
+
+  group: UnitBlock_28 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 133.2 ;
+
+     MinPower = 39.96 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_28
+
+  group: UnitBlock_29 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 532.8 ;
+
+     MinPower = 159.84 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_29
+
+  group: UnitBlock_30 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 4.1 ;
+
+     MinPower = 1.23 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_30
+
+  group: UnitBlock_31 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 3.3 ;
+
+     MinPower = 0.99 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_31
+
+  group: UnitBlock_32 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 2.9 ;
+
+     MinPower = 0.87 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_32
+
+  group: UnitBlock_33 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 5.4 ;
+
+     MinPower = 1.62 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_33
+
+  group: UnitBlock_34 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1.1 ;
+
+     MaxPower = 1.1 ;
+
+     MinPower = 0.33 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_34
+
+  group: UnitBlock_35 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 39.2 ;
+
+     MinPower = 11.76 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_35
+
+  group: UnitBlock_36 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 10.6 ;
+
+     MinPower = 3.18 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_36
+
+  group: UnitBlock_37 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 101.2 ;
+
+     MinPower = 30.36 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_37
+
+  group: UnitBlock_38 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2.9 ;
+
+     MaxPower = 2.9 ;
+
+     MinPower = 0.87 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_38
+
+  group: UnitBlock_39 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2.9 ;
+
+     MaxPower = 2.9 ;
+
+     MinPower = 0.87 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_39
+
+  group: UnitBlock_40 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1 ;
+
+     MaxPower = 1 ;
+
+     MinPower = 0.3 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_40
+
+  group: UnitBlock_41 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 2.4 ;
+
+     MaxPower = 2.4 ;
+
+     MinPower = 0.72 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_41
+
+  group: UnitBlock_42 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 42.3 ;
+
+     MaxPower = 42.3 ;
+
+     MinPower = 12.69 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_42
+
+  group: UnitBlock_43 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 15 ;
+
+     MaxPower = 15 ;
+
+     MinPower = 4.5 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_43
+
+  group: UnitBlock_44 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 6.2 ;
+
+     MaxPower = 6.2 ;
+
+     MinPower = 1.86 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_44
+
+  group: UnitBlock_45 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 14.4 ;
+
+     MaxPower = 14.4 ;
+
+     MinPower = 4.32 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_45
+
+  group: UnitBlock_46 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 74 ;
+
+     MaxPower = 74 ;
+
+     MinPower = 22.2 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_46
+
+  group: UnitBlock_47 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 1.6 ;
+
+     MinPower = 0.48 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_47
+
+  group: UnitBlock_48 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 11 ;
+
+     MinPower = 3.3 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_48
+
+  group: UnitBlock_49 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 3.2 ;
+
+     MinPower = 0.96 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_49
+
+  group: UnitBlock_50 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 10 ;
+
+     MinPower = 3 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_50
+
+  group: UnitBlock_51 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 173.33 ;
+
+     MinPower = 52 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_51
+
+  group: UnitBlock_52 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 173.33 ;
+
+     MinPower = 52 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_52
+
+  group: UnitBlock_53 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 173.33 ;
+
+     MinPower = 52 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_53
+
+  group: UnitBlock_54 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 116.4 ;
+
+     MinPower = 34.92 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_54
+
+  group: UnitBlock_55 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 116.4 ;
+
+     MinPower = 34.92 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_55
+
+  group: UnitBlock_56 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 116.4 ;
+
+     MinPower = 34.92 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_56
+
+  group: UnitBlock_57 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 116.4 ;
+
+     MinPower = 34.92 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_57
+
+  group: UnitBlock_58 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 116.4 ;
+
+     MinPower = 34.92 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_58
+
+  group: UnitBlock_59 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 100 ;
+
+     MinPower = 30 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_59
+
+  group: UnitBlock_60 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 77.97 ;
+
+     MaxPower = 136.95 ;
+
+     MinPower = 41.08 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_60
+
+  group: UnitBlock_61 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 79.43 ;
+
+     MaxPower = 136.95 ;
+
+     MinPower = 41.08 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_61
+
+  group: UnitBlock_62 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 79.43 ;
+
+     MaxPower = 136.95 ;
+
+     MinPower = 41.08 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_62
+
+  group: UnitBlock_63 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 60.26 ;
+
+     MaxPower = 136.95 ;
+
+     MinPower = 41.08 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_63
+
+  group: UnitBlock_64 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 111.1 ;
+
+     MinPower = 33.33 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_64
+
+  group: UnitBlock_65 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1 ;
+
+     MaxPower = 1 ;
+
+     MinPower = 0.3 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_65
+
+  group: UnitBlock_66 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 3.3 ;
+
+     MaxPower = 3.3 ;
+
+     MinPower = 0.99 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_66
+
+  group: UnitBlock_67 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 1.2 ;
+
+     MaxPower = 1.2 ;
+
+     MinPower = 0.36 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_67
+
+  group: UnitBlock_68 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 6.7 ;
+
+     MaxPower = 6.7 ;
+
+     MinPower = 2.01 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_68
+
+  group: UnitBlock_69 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 4.3 ;
+
+     MaxPower = 4.3 ;
+
+     MinPower = 1.29 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_69
+
+  group: UnitBlock_70 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 197 ;
+
+     MinPower = 59.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_70
+
+  group: UnitBlock_71 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 197 ;
+
+     MinPower = 59.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_71
+
+  group: UnitBlock_72 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 197 ;
+
+     MaxPower = 197 ;
+
+     MinPower = 59.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_72
+
+  group: UnitBlock_73 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 197 ;
+
+     MaxPower = 197 ;
+
+     MinPower = 59.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_73
+
+  group: UnitBlock_74 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 197 ;
+
+     MaxPower = 197 ;
+
+     MinPower = 59.1 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_74
+
+  group: UnitBlock_75 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 108 ;
+
+     MinPower = 32.4 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_75
+
+  group: UnitBlock_76 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 175 ;
+
+     MinPower = 52.5 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_76
+
+  group: UnitBlock_77 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 3.3 ;
+
+     MinPower = 0.99 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_77
+
+  group: UnitBlock_78 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 66.85 ;
+
+     MaxPower = 222.83 ;
+
+     MinPower = 66.85 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_78
+
+  group: UnitBlock_79 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 133.7 ;
+
+     MaxPower = 445.67 ;
+
+     MinPower = 133.7 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_79
+
+  group: UnitBlock_80 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 109.6 ;
+
+     MaxPower = 109.6 ;
+
+     MinPower = 32.88 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_80
+
+  group: UnitBlock_81 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 7.2 ;
+
+     MinPower = 2.16 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_81
+
+  group: UnitBlock_82 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 56 ;
+
+     MaxPower = 56 ;
+
+     MinPower = 16.8 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_82
+
+  group: UnitBlock_83 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 45 ;
+
+     MaxPower = 45 ;
+
+     MinPower = 13.5 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_83
+
+  group: UnitBlock_84 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 45 ;
+
+     MaxPower = 45 ;
+
+     MinPower = 13.5 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_84
+
+  group: UnitBlock_85 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 24 ;
+
+     MaxPower = 24 ;
+
+     MinPower = 7.2 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_85
+
+  group: UnitBlock_86 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 28 ;
+
+     MaxPower = 28 ;
+
+     MinPower = 8.4 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_86
+
+  group: UnitBlock_87 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 5.8 ;
+
+     MinPower = 1.74 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_87
+
+  group: UnitBlock_88 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 60 ;
+
+     MaxPower = 60 ;
+
+     MinPower = 18 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_88
+
+  group: UnitBlock_89 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 18 ;
+
+     MaxPower = 18 ;
+
+     MinPower = 5.4 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_89
+  } // group Block_0
+}

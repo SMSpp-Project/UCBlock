@@ -1,0 +1,221 @@
+netcdf case5 {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+
+group: Block_0 {
+  dimensions:
+  	NumberElectricalGenerators = 5 ;
+  	NumberNodes = 5 ;
+  	NumberLines = 6 ;
+  	TimeHorizon = 1 ;
+  	NumberUnits = 5 ;
+  variables:
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double MinPowerFlow(NumberLines) ;
+  	double MaxPowerFlow(NumberLines) ;
+  	double Susceptance(NumberLines) ;
+
+  // group attributes:
+  		:type = "UCBlock" ;
+  		:id = "0" ;
+  data:
+
+   GeneratorNode = 0, 0, 2, 3, 4 ;
+
+   ActivePowerDemand =
+  0,
+  300,
+  300,
+  400,
+  0 ;
+
+   StartLine = 0, 0, 0, 1, 2, 3 ;
+
+   EndLine = 1, 3, 4, 2, 3, 4 ;
+
+   MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000 ;
+
+   MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000 ;
+
+   Susceptance = 0, 0, 0, 0, 0, 0 ;
+
+  group: UnitBlock_0 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 40 ;
+
+     MaxPower = 40 ;
+
+     MinPower = 0 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_0
+
+  group: UnitBlock_1 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 170 ;
+
+     MaxPower = 170 ;
+
+     MinPower = 0 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_1
+
+  group: UnitBlock_2 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 323.49 ;
+
+     MaxPower = 520 ;
+
+     MinPower = 0 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_2
+
+  group: UnitBlock_3 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     MaxPower = 200 ;
+
+     MinPower = 0 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_3
+
+  group: UnitBlock_4 {
+    variables:
+    	double InitialPower ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	double StartUpCost ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 466.51 ;
+
+     MaxPower = 600 ;
+
+     MinPower = 0 ;
+
+     StartUpCost = 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_4
+  } // group Block_0
+}

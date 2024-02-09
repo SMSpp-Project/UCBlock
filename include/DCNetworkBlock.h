@@ -788,8 +788,8 @@ class DCNetworkBlock : public NetworkBlock
  std::vector<Index> get_AC_lines(){
     std::vector<Index> AC_lines;
     const auto& susceptance = f_NetworkData->get_susceptance();
-    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-      if (susceptance[node_id] > 0.)   AC_lines.push_back(node_id);
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+      if (susceptance[line_id] > 0.)   AC_lines.push_back(line_id);
     }
     return AC_lines;
  }
@@ -804,8 +804,8 @@ class DCNetworkBlock : public NetworkBlock
  std::vector<Index> get_DC_lines(){
     std::vector<Index> DC_lines;
     const auto& susceptance = f_NetworkData->get_susceptance();
-    for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-      if (susceptance[node_id] == 0.)   DC_lines.push_back(node_id);
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+      if (susceptance[line_id] == 0.)   DC_lines.push_back(line_id);
     }
     return DC_lines;
  }

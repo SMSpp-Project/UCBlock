@@ -1,6 +1,6 @@
 # author: Quentin Jacquet
 #
-# For each "labels[*]" list:
+# For each "var_labels[*]" list:
 # 	-> The first attribute of the ith pair contains the label (which will be used in the netCDF file) corresponding 
 # 	   to the ith column of the matpower matrix.
 #	-> If the second attribute of the ith pair is None, it means that the data in the ith colum of the matpower 
@@ -20,10 +20,10 @@ var_labels = {
 	[
 		("NodeNumber", None), 
 		("NodeType", None), 
-		("ActiveDemand", "double"), 
-		("ReactiveDemand", "double"), 
-		("Conductance", "double"), 
-		("Susceptance", "double"), 
+		("ActivePowerDemand", "double"), 
+		("ReactivePowerDemand", None), 
+		("Conductance", None), 
+		("Susceptance", None), 
 		("NodeAreaNumber", None), 
 		("NodeVoltageMagnitude", None), 
 		("NodeVoltageAngle", None), 
@@ -34,39 +34,65 @@ var_labels = {
 "mpc.gen":
 	[
 		("GeneratorNode", "uint"),
-		("InitialPower", "double", 1),
-		("InitialReactivePower", "double", 1),
-		("MaxReactivePower", "double", 1),
-		("MinReactivePower", "double", 1),
-		("VoltageMagnitude", "double", 1),
-		("GenMBASE", None, 1),
-		("GenStatus", None, 1),
-		("MaxPower", "double", 1),
-		("MinPower", "double", 1)
+		("InitialPower", "double", True),
+		("InitialReactivePower", None, True),
+		("MaxReactivePower", None, True),
+		("MinReactivePower", None, True),
+		("VoltageMagnitude", None, True),
+		("GenMBASE", None, True),
+		("GenStatus", None, True),
+		("MaxPower", "double", True),
+		("MinPower", "double", True)
 	],
 "mpc.branch": 
 	[
 		("StartLine", "uint"),
 		("EndLine", "uint"),
-		("LineResistance", "double"),
-		("LineReactance", "double"),
-		("LineCharging", "double"),
+		("LineResistance", None),
+		("LineReactance", None),
+		("Susceptance", None),			# QJ: to force DC line (see below)
 		("LineRATEA", None),
 		("LineRATEB", None),
 		("LineRATEC", None),
 		("LineRATIO", None),
-		("LineShiftAngle", "double"),
+		("LineShiftAngle", None),
 		("LineStatus", None),
-		("LineMinAngle", "double"),
-		("LineMaxAngle", "double"),
+		("LineMinAngle", None),
+		("LineMaxAngle", None),
 	],
 "mpc.gencost":
 	[
-		("CostModel", "uint",1),
-		("Startup", "double",1),
-		("Shutdown", "double",1),
+		("CostModel", None, True),
+		("Startup", None, True),
+		("Shutdown", None, True),
 	]
 }
+
+patch_labels = { # same structure as var_labels, but the third element is the default value and 
+				 # the fourth the paramter for subgroups
+"mpc.gen":
+	[
+	 ("StartUpCost", "double", 0, True),
+     ("LinearTerm", "double", 1, True),
+     ("MinUpTime", "double", 1, True),
+     ("MinDownTime", "double", 1, True),
+     ("InitUpDownTime", "double", 1, True),
+     ("InertiaCommitment", "double", 1, True)
+	],
+"mpc.branch": 
+	[
+		("MinPowerFlow", "double", -10000.),
+		("MaxPowerFlow", "double", 10000.),
+		("Susceptance", "double", 0.)			# QJ: to force DC line
+	],
+}
+
+has_TimeHorizon_dim = {
+	"ActivePowerDemand", "ReactivePowerDemand",
+	"MinPower", "MaxPower"
+}
+
+
 
 #    A MATPOWER case file is an M-file or MAT-file that defines or returns
 #    a struct named mpc, referred to as a "MATPOWER case struct". The fields

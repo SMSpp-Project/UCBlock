@@ -12,11 +12,16 @@ class ConverterMathpower2netCDF:
         self.attrs = {"mpc.key": [line for line in range(nb_of_key)]}
         """
         self.str_file = None
+        self.convert_kW2MW = False
         self.mode = mode
         self.attrs = {}
 
         with open(filepath,'r') as f:
             self.str_file = f.read().replace(" ", "")
+
+        if "convertloadsfromkWtoMW" in self.str_file:
+            self.convert_kW2MW = True
+            print("\tConversion kW -> MW ON")
 
         # name of the instance on first line
         self.attrs["mpc.name"] = self.str_file[self.str_file.find("=")+1:self.str_file.find("\n")]
@@ -72,12 +77,15 @@ class ConverterMathpower2netCDF:
         rootgrp.setncatts({'SMS++_file_type':1}) # global attribute
         
         maingrp = rootgrp.createGroup("Block_0") # main block
+        maingrp.setncatts({'type':"UCBlock", 'id':"0"})
         dimensions = {  "mpc.gen":      len(self.attrs["mpc.gen"]),
                         "mpc.bus":      len(self.attrs["mpc.bus"]),
                         "mpc.branch":   len(self.attrs["mpc.branch"])
         }
         for mpc_lab, d in dimensions.items():
             maingrp.createDimension(dim_labels[mpc_lab], d)
+        maingrp.createDimension("TimeHorizon", 1)
+        maingrp.createDimension("NumberUnits", dimensions["mpc.gen"])
 
         # subgroups by generator
         subgroups = []
@@ -93,46 +101,72 @@ class ConverterMathpower2netCDF:
                 
                 # for main group
                 if v is not None and len(g) == 0:
-                    var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
-                    if "int" in v:      var[:] = [int(l[idx]) for l in self.attrs[mpc_lab]]
+                    if k in has_TimeHorizon_dim:
+                        var = maingrp.createVariable(k,v,(dim_labels[mpc_lab],"TimeHorizon"))
+                    else:
+                        var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
+                    if "int" in v:      var[:] = [int(l[idx])-1 for l in self.attrs[mpc_lab]]
                     if "double" in v:   var[:] = [float(l[idx]) for l in self.attrs[mpc_lab]]
+                    if self.convert_kW2MW and "PowerDemand" in k: # PATCH : convert loads from kW to MW
+                        var[:] = var[:]/1e3
+
+            
                 # for subgroups
                 if v is not None and len(g) > 0:
                     for i,l in enumerate(self.attrs[mpc_lab]):
-                        var = subgroups[i].createVariable(k,v,chunksizes=(1,))
-                        if "int" in v:      var[:] = int(l[idx])
+                        if k in has_TimeHorizon_dim:
+                            var = subgroups[i].createVariable(k,v,"TimeHorizon")
+                        else:
+                            var = subgroups[i].createVariable(k,v)
+                        if "int" in v:      var[:] = int(l[idx])-1
                         if "double" in v:   var[:] = float(l[idx])
 
         # add costs in each subgroup ThermalUnitBlock
-        mpc_lab = "mpc.gencost"
-        if mpc_lab in self.attrs:
-            lab_tab = var_labels[mpc_lab]
-            idx = 0
-            gen_dim = dimensions["mpc.gen"]
-            while idx < len(lab_tab):
-                k,v,*g = lab_tab[idx] # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+        #mpc_lab = "mpc.gencost"
+        #if mpc_lab in self.attrs:
+        #    lab_tab = var_labels[mpc_lab]
+        #    idx = 0
+        #    gen_dim = dimensions["mpc.gen"]
+        #    while idx < len(lab_tab):
+        #        k,v,*g = lab_tab[idx] # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+        #        if v is not None and len(g) > 0:
+        #            for i,l in enumerate(self.attrs[mpc_lab]):
+        #                if i < gen_dim:
+        #                    var = subgroups[i].createVariable(k,v,chunksizes=(1,))
+        #                elif i < 2*gen_dim: # for reactive coeffs (optional)
+        #                    var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v,chunksizes=(1,))
+        #                if "int" in v:      var[:] = int(l[idx])-1
+        #                if "double" in v:   var[:] = float(l[idx])
+        #        idx += 1
+        #        
+        #    # add costs coefficients
+        #    for i,l in enumerate(self.attrs[mpc_lab]):
+        #        if i < gen_dim:
+        #            nb_coeff_cost = int(l[idx])
+        #            subgroups[i].createDimension("NumberCostCoeffs", nb_coeff_cost)
+        #            var = subgroups[i].createVariable("PowerCostCoeffs", "double", "NumberCostCoeffs")
+        #            var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
+        #        elif i < 2*gen_dim: # for reactive coeffs (optional)
+        #            nb_coeff_cost = int(l[idx])
+        #            subgroups[i%gen_dim].createDimension("NumberReactiveCostCoeffs", nb_coeff_cost)
+        #            var = subgroups[i%gen_dim].createVariable(  "ReactivePowerCostCoeffs", "double", "NumberReactiveCostCoeffs")
+        #            var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
+
+
+        # PATCH : add empty power flow 
+        for mpc_lab, lab_tab in patch_labels.items():
+            for idx,t in enumerate(lab_tab):
+                k,v,val,*g = t # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+                
+                # for main group
+                if v is not None and len(g) == 0:
+                    var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
+                    var[:] = [val for l in self.attrs[mpc_lab]]
+                # for subgroups
                 if v is not None and len(g) > 0:
                     for i,l in enumerate(self.attrs[mpc_lab]):
-                        if i < gen_dim:
-                            var = subgroups[i].createVariable(k,v,chunksizes=(1,))
-                        elif i < 2*gen_dim: # for reactive coeffs (optional)
-                            var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v,chunksizes=(1,))
-                        if "int" in v:      var[:] = int(l[idx])
-                        if "double" in v:   var[:] = float(l[idx])
-                idx += 1
-
-            # add costs coefficients
-            for i,l in enumerate(self.attrs[mpc_lab]):
-                if i < gen_dim:
-                    nb_coeff_cost = int(l[idx])
-                    subgroups[i].createDimension("NumberCostCoeffs", nb_coeff_cost)
-                    var = subgroups[i].createVariable("PowerCostCoeffs", "double", "NumberCostCoeffs")
-                    var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
-                elif i < 2*gen_dim: # for reactive coeffs (optional)
-                    nb_coeff_cost = int(l[idx])
-                    subgroups[i%gen_dim].createDimension("NumberReactiveCostCoeffs", nb_coeff_cost)
-                    var = subgroups[i%gen_dim].createVariable(  "ReactivePowerCostCoeffs", "double", "NumberReactiveCostCoeffs")
-                    var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
+                        var = subgroups[i].createVariable(k,v)
+                        var[:] = val
 
         rootgrp.close()
         print("INFO: File '{0}.nc' written".format(filepath))
@@ -158,9 +192,6 @@ if __name__.endswith("__main__"):
         for i, name in enumerate(files):
             filepath = os.path.join(root, name)
             if filepath.endswith(".m"):
-                try:
-                    output_filename = "{0}".format(filepath[:-2], args.type)
-                    converter = ConverterMathpower2netCDF(filepath, mode = args.type)
-                    converter.create_nc_file(output_filename, txt_output = (args.format == "txt"))
-                except:
-                    print("Somethings goes wrong with '{0}'".format(filepath))
+                output_filename = "{0}".format(filepath[:-2], args.type)
+                converter = ConverterMathpower2netCDF(filepath, mode = args.type)
+                converter.create_nc_file(output_filename, txt_output = (args.format == "txt"))
