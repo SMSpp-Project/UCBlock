@@ -565,6 +565,8 @@ class DCNetworkBlock : public NetworkBlock
  }
 
 /*--------------------------------------------------------------------------*/
+
+ int get_reducedIdx(int idx);
  /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below.
   * The topology of the transmission network is defined by a set of nodes

@@ -3,17 +3,17 @@ import sys, os, subprocess, argparse
 import netCDF4
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(current_dir,'..'))
+ncdump_path = r"C:\Users\H91980\msys64\mingw64\bin\ncdump.exe"  # change manually
 from format_matpower2netCDF import *
 
 class ConverterMathpower2netCDF:
-    def __init__(self, filepath, mode = 'DC'):
+    def __init__(self, filepath):
         """
         Parse the .m file and fill self.attrs such that:
         self.attrs = {"mpc.key": [line for line in range(nb_of_key)]}
         """
         self.str_file = None
         self.convert_kW2MW = False
-        self.mode = mode
         self.attrs = {}
 
         with open(filepath,'r') as f:
@@ -65,8 +65,6 @@ class ConverterMathpower2netCDF:
                 except:
                     self.attrs[key] = val
                 i += 1
-        print("INFO: Input file '{0}' has been correcty read".format(filepath))
-
 
     def create_nc_file(self, filepath, txt_output = False):
         """
@@ -187,8 +185,9 @@ class ConverterMathpower2netCDF:
         print("INFO: File '{0}.nc' written".format(filepath))
 
         if txt_output:
+
             with open("{0}.txt".format(filepath), "w") as txt_file:
-                p = subprocess.Popen(["ncdump.exe", "{0}.nc".format(filepath)], stdout=txt_file, stderr=subprocess.PIPE)
+                p = subprocess.Popen([ncdump_path, "{0}.nc".format(filepath)], stdout=txt_file, stderr=subprocess.PIPE)
             
 
 if __name__.endswith("__main__"):
@@ -196,8 +195,6 @@ if __name__.endswith("__main__"):
                                         description='Converter Mathpower -> netCDF')
     parser.add_argument('folder', metavar = "<input_folder>", type=str,
                         help = 'input folder path')
-    parser.add_argument('-t', '--type', choices = ['AC', 'DC'], default = 'DC',
-                        help = 'type of instance')
     parser.add_argument('-f', '--format', choices = ['txt', 'nconly'], default = 'nconly',
                         help = "format of the output")
 
@@ -207,6 +204,6 @@ if __name__.endswith("__main__"):
         for i, name in enumerate(files):
             filepath = os.path.join(root, name)
             if filepath.endswith(".m"):
-                output_filename = "{0}".format(filepath[:-2], args.type)
-                converter = ConverterMathpower2netCDF(filepath, mode = args.type)
+                output_filename = "{0}".format(filepath[:-2])
+                converter = ConverterMathpower2netCDF(filepath)
                 converter.create_nc_file(output_filename, txt_output = (args.format == "txt"))

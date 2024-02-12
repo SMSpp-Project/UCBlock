@@ -254,7 +254,7 @@ Eigen::MatrixXd DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines ){
   const auto & end_line = f_NetworkData->get_end_line();
   
   // construct the matrix using two sub-matrices B_bar and B_hat
-  Eigen::MatrixXd B_hat = Eigen::MatrixXd::Zero(AC_lines.size(),number_nodes);
+  Eigen::MatrixXd B_hat = Eigen::MatrixXd::Zero(number_lines,number_nodes);
   for( auto& line_id : AC_lines) {
     B_hat(line_id,start_line[line_id]) =  susceptance[line_id];
     B_hat(line_id,end_line[line_id])   = -susceptance[line_id];
@@ -303,7 +303,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  if( number_lines > 0 ) {
   // the power flow Variable
-  v_power_flow.resize( get_DC_lines().size() ); // only needed for DC lines
+  v_power_flow.resize( number_lines ); // TODO: only needed for DC lines
   for( auto & var : v_power_flow )
    var.set_type( ColVariable::kContinuous );
   add_static_variable( v_power_flow , "p_flow_network" );
@@ -322,6 +322,10 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 }  // end( DCNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
+int DCNetworkBlock::get_reducedIdx(int idx){
+  if (idx > f_NetworkData->get_reference_node()) return idx -1;
+  return idx;
+}
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
@@ -345,6 +349,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // Splitting AC and DC part
  std::vector<Index> AC_lines = get_AC_lines();
+ Eigen::MatrixXd PTDF_matrix = get_PTDF(AC_lines);
  std::vector<Index> DC_lines = get_DC_lines();
 
  // ===== auxiliary variables for nonempty cost
@@ -371,16 +376,17 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
    // AC part
-   Eigen::MatrixXd PTDF_matrix = get_PTDF(AC_lines);
    for( auto& line_id : AC_lines){
     auto lfunc_1 = new LinearFunction();
     auto lfunc_2 = new LinearFunction();
     double constant_term = 0;
     for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-     double coefficient = PTDF_matrix(line_id,node_id);
-     lfunc_1->add_variable( &v_node_injection[0][node_id], -coefficient );
-     lfunc_2->add_variable( &v_node_injection[0][node_id], coefficient );
-     constant_term -= coefficient * v_ActiveDemand[node_id];
+      if (node_id != f_NetworkData->get_reference_node()){
+       double coefficient = PTDF_matrix(line_id, get_reducedIdx(node_id));
+       lfunc_1->add_variable( &v_node_injection[0][node_id], -coefficient );
+       lfunc_2->add_variable( &v_node_injection[0][node_id], coefficient );
+       constant_term -= coefficient * v_ActiveDemand[node_id];
+     }
     } // for each node
     lfunc_1->add_variable( &v_auxiliary_variable[ line_id ] , 1.0);
     v_power_flow_relax_abs[0][ line_id ].set_lhs( constant_term );
@@ -451,16 +457,15 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // ===== constraints on AC Part
  if( lines_type == kAC || lines_type == kAC_HVDC) {
-  Eigen::MatrixXd PTDF_matrix = get_PTDF(AC_lines);
   Eigen::MatrixXd linkingMat;
   if (lines_type == kAC_HVDC){
     // linking constraints between AC and HVDC
-    Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes,DC_lines.size());
+    Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1,number_lines);
     for( auto& line_id : DC_lines) {
-      A_DC(start_line[line_id],line_id) = 1.;
-      A_DC(end_line[line_id],line_id)   = -1.; // QJ_TOCHECK 1 or -1 ? 
+      A_DC(get_reducedIdx(start_line[line_id]),line_id) = 1.;
+      A_DC(get_reducedIdx(end_line[line_id]),line_id)   = -1.; // QJ_TOCHECK 1 or -1 ? 
     }
-    linkingMat = - PTDF_matrix*A_DC.transpose();
+    linkingMat = - PTDF_matrix*A_DC;
   }
 
   // Flow limit constraints
@@ -471,9 +476,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     double constant_term = 0;
 
     for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-     double coefficient = PTDF_matrix(line_id,node_id);  // Distribution Factor Matrix
-     lfunc->add_variable( &v_node_injection[0][node_id], coefficient );
-     constant_term -= coefficient * v_ActiveDemand[node_id];
+      if (node_id != f_NetworkData->get_reference_node()){
+       double coefficient = PTDF_matrix(line_id, get_reducedIdx(node_id));  // Distribution Factor Matrix
+       lfunc->add_variable( &v_node_injection[0][node_id], coefficient );
+       constant_term -= coefficient * v_ActiveDemand[node_id];
+     }
     } // for each node
 
     if (lines_type == kAC_HVDC){

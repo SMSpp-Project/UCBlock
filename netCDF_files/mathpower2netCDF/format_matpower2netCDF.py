@@ -50,7 +50,7 @@ var_labels = {
 		("EndLine", "uint"),
 		("LineResistance", None),
 		("LineReactance", None),
-		("Susceptance", None),			# QJ: to force DC line (see below)
+		("Susceptance", "double"),			# QJ: to force DC line (see below)
 		("LineRATEA", None),
 		("LineRATEB", None),
 		("LineRATEC", None),
@@ -83,7 +83,7 @@ patch_labels = { # same structure as var_labels, but the third element is the de
 	[
 		("MinPowerFlow", "double", -10000.),
 		("MaxPowerFlow", "double", 10000.),
-		("Susceptance", "double", 0.)			# QJ: to force DC line
+		#("Susceptance", "double", 0.)			# QJ: to force DC line
 	],
 }
 

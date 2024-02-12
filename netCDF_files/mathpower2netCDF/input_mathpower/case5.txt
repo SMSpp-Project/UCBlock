@@ -15,9 +15,9 @@ group: Block_0 {
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
+  	double Susceptance(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
-  	double Susceptance(NumberLines) ;
 
   // group attributes:
   		:type = "UCBlock" ;
@@ -37,11 +37,11 @@ group: Block_0 {
 
    EndLine = 1, 3, 4, 2, 3, 4 ;
 
+   Susceptance = 0.00712, 0.00658, 0.03126, 0.01852, 0.00674, 0.00674 ;
+
    MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000 ;
 
    MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000 ;
-
-   Susceptance = 0, 0, 0, 0, 0, 0 ;
 
   group: UnitBlock_0 {
     variables:
