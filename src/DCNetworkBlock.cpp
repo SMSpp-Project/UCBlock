@@ -506,6 +506,17 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   else
     add_static_constraint( v_AC_power_flow_limit_const, "AC_power_low_limits" );
 
+  auto lfunc = new LinearFunction();
+  double constant_term = 0.;
+  for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
+    lfunc->add_variable( &v_node_injection[0][node_id], 1. );
+    constant_term += v_ActiveDemand[node_id];
+  }
+  overall_balanced_const.set_function( lfunc );
+  overall_balanced_const.set_lhs( constant_term );
+  overall_balanced_const.set_rhs( constant_term );
+  add_static_constraint( overall_balanced_const, "overall_balanced_const");
+
  } // ===== end AC and AC-HVDC constraints
 
  // node injection bound constraints

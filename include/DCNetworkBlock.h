@@ -1277,6 +1277,9 @@ class DCNetworkBlock : public NetworkBlock
  /// the node injection bound constraints
  std::vector< BoxConstraint > node_injection_bounds_const;
 
+ /// injection equals to demand
+ FRowConstraint overall_balanced_const;
+
 
  /// the objective function
  FRealObjective objective;
