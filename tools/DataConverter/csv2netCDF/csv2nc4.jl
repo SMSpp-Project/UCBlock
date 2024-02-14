@@ -497,7 +497,7 @@ function csvEC2nc4(deterministic::Bool=false)
         include("point_scen_eps_sampler.jl")
 
         # The mode "c" stands for creating a new file (clobber)
-        tssb_ds = NCDataset(string("../../../netCDF_files/EC_Data/stochastic/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb_ds = NCDataset(string("../../../netCDF_files/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tss_block = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
         defDim(tss_block, "NumberScenarios", scen_s_sample)
@@ -530,7 +530,7 @@ function csvEC2nc4(deterministic::Bool=false)
 
         for i_s in 1:scen_s_sample
 
-            ds = NCDataset(string("../../../netCDF_files/stochastic/EC_Data/EC", middle, "Test", last, "_$(i_s-1)", ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+            ds = NCDataset(string("../../../netCDF_files/EC_Data/EC", middle, "Test", last, "_$(i_s-1)", ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
             block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
             # Store the number of nodes
