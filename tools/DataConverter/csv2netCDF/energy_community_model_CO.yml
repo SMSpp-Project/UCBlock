@@ -4,8 +4,6 @@ general: # general input parameters
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
   user_list: [ user1, user2, user3, user4, user5, user6, user7, user8, user9, user10 ]  # list of users for the simulation
-  scen_s_sample: 1  # number of scenarios s to be extracted
-  scen_eps_sample: 1  # number of scenarios eps to be extracted
 
   optional_datasets: # optional csv files storing data
     - input_resource.csv

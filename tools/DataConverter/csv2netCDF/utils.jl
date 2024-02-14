@@ -1,3 +1,6 @@
+using Parameters, DataFrames
+import XLSX, JLD2, YAML, CSV
+
 
 @enum ASSET_TYPE LOAD = 0 REN = 1 BATT = 2 CONV = 3 THER = 4
 ANY = collect(instances(ASSET_TYPE))  # all assets code
@@ -295,14 +298,4 @@ function parse_peak_quantity_by_time_vectors(
     end
 
     return peak_tariffs_by_category
-end
-
-# function used to convert array in dictionary
-function array2dict(p::Array{Float64})
-	A = Dict{Int,Float64}()
-	n = length(p)
-	for i = 1:n
-		A[i] = p[i]
-	end
-	return A
 end

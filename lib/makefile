@@ -50,7 +50,7 @@ UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
 	$(UCBckDIR)/obj/UnitBlock.o
 #	$(UCBckDIR)/obj/HeatBlock.o
 
-UCBckINC = -I$(UCBckDIR)/include
+UCBckINC = -I$(UCBckDIR)/include/
 
 UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
 	$(UCBckDIR)/include/DCNetworkBlock.h \
