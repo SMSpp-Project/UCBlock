@@ -428,11 +428,11 @@ function csvEC2nc4(deterministic::Bool=false)
 
                             # store the start-up limit
                             thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                            thermal_start_up_limit[:] = thermal_max_power[:]
+                            thermal_start_up_limit[:] = thermal_max_power
 
                             # store the shut-down limit
                             thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                            thermal_shut_up_limit[:] = thermal_max_power[:]
+                            thermal_shut_up_limit[:] = thermal_max_power
 
                             # store the Net Present Value of the thermal
                             investment_cost = defVar(ub, "InvestmentCost", Float64, ())
@@ -930,11 +930,11 @@ function csvEC2nc4(deterministic::Bool=false)
 
                                 # store the start-up limit
                                 thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                                thermal_start_up_limit[:] = thermal_max_power[:]
+                                thermal_start_up_limit[:] = thermal_max_power
 
                                 # store the shut-down limit
                                 thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                                thermal_shut_up_limit[:] = thermal_max_power[:]
+                                thermal_shut_up_limit[:] = thermal_max_power
 
                                 # store the Net Present Value of the thermal
                                 investment_cost = defVar(ub, "InvestmentCost", Float64, ())
