@@ -18,7 +18,7 @@ using StochasticPrograms
 
 using Random
 
-# include additional usefull functions, i.e., main type definitions and read data
+# include additional useful functions, i.e., main type definitions and read data
 include("utils.jl")
 
 # setting the seed
