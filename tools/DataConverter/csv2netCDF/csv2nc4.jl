@@ -190,11 +190,250 @@ function csvEC2nc4()
                 sell_price[:] = sell_price_data[last_t:last_i]
             end
 
-            # `RewardPrice`, i.e., the reward awarded to the community...
-            if (allequal(reward_price_data[last_t:last_i]))
-                if reward_price_data[last_t] > 0 # ... if any
-                    reward_price = defVar(ecnb, "RewardPrice", Float64, ())
-                    reward_price[:] = reward_price_data[last_t]
+        # --------------------------------------------------------------------------------------- #
+
+        # Create g `UnitBlock`(s) for each electrical generator/device
+
+        n_devices = reduce(+, [d != "generator" ? 1 :
+                               div(field_component(users_data[u], d, "max_capacity"), field_component(users_data[u], d, "nom_capacity"))
+                               for u in user_set
+                               for d in asset_names(users_data[u], SMSPP_DEVICES)], init=0)
+        # number of UnitBlock
+        defDim(block, "NumberUnits", n_devices)
+
+        if n_devices > 0
+
+            # each UnitBlock has just one electrical generator
+            defDim(block, "NumberElectricalGenerators", n_devices)
+
+            # `GeneratorNode` is a 1D variable that represent the node/user owner
+            # of each electrical generator/device
+            generator_node = defVar(block, "GeneratorNode", UInt32, ("NumberElectricalGenerators",))
+
+            last_g = 1
+            for (i_u, u) in enumerate(user_set)
+
+                for g in asset_names(users_data[u], SMSPP_DEVICES)
+
+                    if g in ("PV", "wind")
+
+                        ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
+
+                        # store the maximum installable capacity of the pv/wind asset
+                        max_capacity = defVar(ub, "MaxCapacity", Float64, ())
+                        max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                        # store the maximum power of the pv/wind asset
+                        max_power_data = [field_component(users_data[u], g, "max_capacity") *
+                                          profile_component(users_data[u], g, "ren_pu")[t]
+                                          for t in time_set]
+                        if (allequal(max_power_data))
+                            max_power = defVar(ub, "MaxPower", Float64, ())
+                            max_power[:] = max_power_data[1]
+                        else
+                            max_power = defVar(ub, "MaxPower", Float64, ("TimeHorizon",))
+                            max_power[:] = max_power_data[:]
+                        end
+
+                        # store the Net Present Value of the pv/wind asset
+                        investment_cost = defVar(ub, "InvestmentCost", Float64, ())
+                        investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                 ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                    field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                    field_component(users_data[u], g, "CAPEX_lin") *
+                                                    (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                           field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                  (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                             field_component(users_data[u], g, "max_capacity")
+
+                        generator_node[last_g] = i_u - 1 # assign the ownership of the current pv/wind asset to the respective user
+                        last_g += 1
+
+                    elseif g == "batt"
+
+                        ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
+
+                        # ----------- Battery -----------
+
+                        # store the maximum installable capacity of the battery
+                        batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
+                        batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                        # store the maximum power of the battery
+                        batt_max_power = defVar(ub, "MaxPower", Float64, ())
+                        batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
+
+                        # store the maximum C-rate of the battery in charge
+                        max_C_ch = field_component(users_data[u], g, "max_C_ch")
+                        if max_C_ch > 1
+                            batt_max_C_ch = defVar(ub, "MaxCRateCharge", Float64, ())
+                            batt_max_C_ch[:] = max_C_ch
+                        end
+
+                        # store the maximum C-rate of the battery in discharge
+                        max_C_dch = field_component(users_data[u], g, "max_C_dch")
+                        if max_C_dch > 1
+                            batt_max_C_dch = defVar(ub, "MaxCRateDischarge", Float64, ())
+                            batt_max_C_dch[:] = max_C_dch
+                        end
+
+                        # set a negative initial power negative to use the cyclical notation
+                        initial_storage = defVar(ub, "InitialStorage", Float64, ())
+                        initial_storage[:] = -1
+
+                        # store the minimum storage of the battery
+                        min_storage_data = [field_component(users_data[u], g, "min_SOC") /
+                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                            for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                        if (allequal(min_storage_data))
+                            min_storage = defVar(ub, "MinStorage", Float64, ())
+                            min_storage[:] = min_storage_data[1]
+                        else
+                            min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
+                            min_storage[:] = min_storage_data[:]
+                        end
+
+                        # store the maximum storage of the battery
+                        max_storage_data = [field_component(users_data[u], g, "max_SOC") /
+                                            profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                            for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                        if (allequal(max_storage_data))
+                            max_storage = defVar(ub, "MaxStorage", Float64, ())
+                            max_storage[:] = max_storage_data[1]
+                        else
+                            max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
+                            max_storage[:] = max_storage_data[:]
+                        end
+
+                        # store the Net Present Value of the battery
+                        batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
+                        batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                       ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                         ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                          field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                         ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                          field_component(users_data[u], g, "CAPEX_lin") *
+                                                          (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                                 field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                        (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                   field_component(users_data[u], g, "max_capacity"))
+
+                        # ---------- Converter ----------
+
+                        g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
+
+                        # store the maximum installable capacity of the converter
+                        conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
+                        conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
+
+                        # store the maximum power of the converter
+                        conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
+                        conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
+
+                        # store the intake roundtrip efficiency of the battery
+                        intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
+                        intake_coeff[:] = 1 / (sqrt(field_component(users_data[u], g, "eta")) *
+                                               field_component(users_data[u], g_conv, "eta")) # corresponding converter, i.e., "conv"
+
+                        # store the outtake roundtrip efficiency of the battery
+                        outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ())
+                        outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
+                                           field_component(users_data[u], g_conv, "eta") # corresponding converter, i.e., "conv"
+
+                        # store the Net Present Value of the converter
+                        conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
+                        conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
+                                                       ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                                                         ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                          field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                         ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                          field_component(users_data[u], g_conv, "CAPEX_lin") *
+                                                          (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
+                                                                 field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                        (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                   field_component(users_data[u], g_conv, "max_capacity"))
+
+                        generator_node[last_g] = i_u - 1 # assign the ownership of the current battery to the respective user
+                        last_g += 1
+
+                    elseif g == "generator"
+
+                        for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
+
+                            ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
+
+                            # store the installable capacity of the thermal
+                            thermal_capacity = defVar(ub, "Capacity", Float64, ())
+                            thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+
+                            # store the minimum power of the thermal
+                            thermal_min_power = defVar(ub, "MinPower", Float64, ())
+                            thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
+                                                    field_component(users_data[u], g, "nom_capacity"))
+
+                            # store the maximum power of the thermal
+                            thermal_max_power = defVar(ub, "MaxPower", Float64, ())
+                            thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
+                                                    field_component(users_data[u], g, "nom_capacity"))
+
+                            # store the start-up limit
+                            thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
+                            thermal_start_up_limit[:] = thermal_max_power
+
+                            # store the shut-down limit
+                            thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
+                            thermal_shut_up_limit[:] = thermal_max_power
+
+                            # store the Net Present Value of the thermal
+                            investment_cost = defVar(ub, "InvestmentCost", Float64, ())
+                            investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                     ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                        field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                       ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                        field_component(users_data[u], g, "CAPEX_lin") *
+                                                        (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                               field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                      (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                 field_component(users_data[u], g, "nom_capacity")
+
+                            # store the linear term of the thermal
+                            linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
+                                                     field_component(users_data[u], g, "slope_map")) *
+                                                    profile(market_data, "energy_weight")[t] *
+                                                    profile(market_data, "time_res")[t]
+                                                    for t in time_set] *
+                                                   (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                            if (allequal(linear_term_data))
+                                linear_term = defVar(ub, "LinearTerm", Float64, ())
+                                linear_term[:] = linear_term_data[1]
+                            else
+                                linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
+                                linear_term[:] = linear_term_data[:]
+                            end
+
+                            # store the constant term of the thermal
+                            const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                    (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
+                                                     field_component(users_data[u], g, "inter_map"))) *
+                                                   profile(market_data, "energy_weight")[t] *
+                                                   profile(market_data, "time_res")[t]
+                                                   for t in time_set] *
+                                                  (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
+                                              field_component(users_data[u], g, "nom_capacity")
+                            if (allequal(const_term_data))
+                                const_term = defVar(ub, "ConstTerm", Float64, ())
+                                const_term[:] = const_term_data[1]
+                            else
+                                const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
+                                const_term[:] = const_term_data[:]
+                            end
+
+                            generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
+                            last_g += 1
+                        end
+                    end
                 end
             else
                 reward_price = defVar(ecnb, "RewardPrice", Float64, ("NumberIntervals",))
@@ -436,21 +675,184 @@ function csvEC2nc4()
                             linear_term[:] = linear_term_data[:]
                         end
 
-                        # store the constant term of the thermal
-                        const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                                (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
-                                                 field_component(users_data[u], g, "inter_map"))) *
-                                               profile(market_data, "energy_weight")[t] *
-                                               profile(market_data, "time_res")[t]
-                                               for t in time_set] *
-                                              (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
-                                          field_component(users_data[u], g, "nom_capacity")
-                        if (allequal(const_term_data))
-                            const_term = defVar(ub, "ConstTerm", Float64, ())
-                            const_term[:] = const_term_data[1]
-                        else
-                            const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
-                            const_term[:] = const_term_data[:]
+                            # ----------- Battery -----------
+
+                            # store the maximum installable capacity of the battery
+                            batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
+                            batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
+
+                            # store the maximum power of the battery
+                            batt_max_power = defVar(ub, "MaxPower", Float64, ())
+                            batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
+
+                            # store the maximum C-rate of the battery in charge
+                            max_C_ch = field_component(users_data[u], g, "max_C_ch")
+                            if max_C_ch > 1
+                                batt_max_C_ch = defVar(ub, "MaxCRateCharge", Float64, ())
+                                batt_max_C_ch[:] = max_C_ch
+                            end
+
+                            # store the maximum C-rate of the battery in discharge
+                            max_C_dch = field_component(users_data[u], g, "max_C_dch")
+                            if max_C_dch > 1
+                                batt_max_C_dch = defVar(ub, "MaxCRateDischarge", Float64, ())
+                                batt_max_C_dch[:] = max_C_dch
+                            end
+
+                            # set a negative initial power negative to use the cyclical notation
+                            initial_storage = defVar(ub, "InitialStorage", Float64, ())
+                            initial_storage[:] = -1
+
+                            # store the minimum storage of the battery
+                            min_storage_data = [field_component(users_data[u], g, "min_SOC") /
+                                                profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                                for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                            if (allequal(min_storage_data))
+                                min_storage = defVar(ub, "MinStorage", Float64, ())
+                                min_storage[:] = min_storage_data[1]
+                            else
+                                min_storage = defVar(ub, "MinStorage", Float64, ("TimeHorizon",))
+                                min_storage[:] = min_storage_data[:]
+                            end
+
+                            # store the maximum storage of the battery
+                            max_storage_data = [field_component(users_data[u], g, "max_SOC") /
+                                                profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                                for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                            if (allequal(max_storage_data))
+                                max_storage = defVar(ub, "MaxStorage", Float64, ())
+                                max_storage[:] = max_storage_data[1]
+                            else
+                                max_storage = defVar(ub, "MaxStorage", Float64, ("TimeHorizon",))
+                                max_storage[:] = max_storage_data[:]
+                            end
+
+                            # store the Net Present Value of the battery
+                            batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
+                            batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                           ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                             ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                              field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                             ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                              field_component(users_data[u], g, "CAPEX_lin") *
+                                                              (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                                     field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                            (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                       field_component(users_data[u], g, "max_capacity"))
+
+                            # ---------- Converter ----------
+
+                            g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
+
+                            # store the maximum installable capacity of the converter
+                            conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
+                            conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
+
+                            # store the maximum power of the converter
+                            conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
+                            conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
+
+                            # store the intake roundtrip efficiency of the battery
+                            intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
+                            intake_coeff[:] = 1 / (sqrt(field_component(users_data[u], g, "eta")) *
+                                                   field_component(users_data[u], g_conv, "eta")) # corresponding converter, i.e., "conv"
+
+                            # store the outtake roundtrip efficiency of the battery
+                            outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ())
+                            outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
+                                               field_component(users_data[u], g_conv, "eta") # corresponding converter, i.e., "conv"
+
+                            # store the Net Present Value of the converter
+                            conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
+                            conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
+                                                           ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                                                             ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                              field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                             ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                              field_component(users_data[u], g_conv, "CAPEX_lin") *
+                                                              (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
+                                                                     field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                            (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                       field_component(users_data[u], g_conv, "max_capacity"))
+
+                            generator_node[last_g] = i_u - 1 # assign the ownership of the current battery to the respective user
+                            last_g += 1
+
+                        elseif g == "generator"
+
+                            for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
+
+                                ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
+
+                                # store the installable capacity of the thermal
+                                thermal_capacity = defVar(ub, "Capacity", Float64, ())
+                                thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+
+                                # store the minimum power of the thermal
+                                thermal_min_power = defVar(ub, "MinPower", Float64, ())
+                                thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
+                                                        field_component(users_data[u], g, "nom_capacity"))
+
+                                # store the maximum power of the thermal
+                                thermal_max_power = defVar(ub, "MaxPower", Float64, ())
+                                thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
+                                                        field_component(users_data[u], g, "nom_capacity"))
+
+                                # store the start-up limit
+                                thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
+                                thermal_start_up_limit[:] = thermal_max_power
+
+                                # store the shut-down limit
+                                thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
+                                thermal_shut_up_limit[:] = thermal_max_power
+
+                                # store the Net Present Value of the thermal
+                                investment_cost = defVar(ub, "InvestmentCost", Float64, ())
+                                investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                         ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                            field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                           ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                            field_component(users_data[u], g, "CAPEX_lin") *
+                                                            (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                                   field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                          (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                                     field_component(users_data[u], g, "nom_capacity")
+
+                                # store the linear term of the thermal
+                                linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
+                                                         field_component(users_data[u], g, "slope_map")) *
+                                                        profile(market_data, "energy_weight")[t] *
+                                                        profile(market_data, "time_res")[t]
+                                                        for t in time_set] *
+                                                       (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                                if (allequal(linear_term_data))
+                                    linear_term = defVar(ub, "LinearTerm", Float64, ())
+                                    linear_term[:] = linear_term_data[1]
+                                else
+                                    linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
+                                    linear_term[:] = linear_term_data[:]
+                                end
+
+                                # store the constant term of the thermal
+                                const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                                                        (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
+                                                         field_component(users_data[u], g, "inter_map"))) *
+                                                       profile(market_data, "energy_weight")[t] *
+                                                       profile(market_data, "time_res")[t]
+                                                       for t in time_set] *
+                                                      (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
+                                                  field_component(users_data[u], g, "nom_capacity")
+                                if (allequal(const_term_data))
+                                    const_term = defVar(ub, "ConstTerm", Float64, ())
+                                    const_term[:] = const_term_data[1]
+                                else
+                                    const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
+                                    const_term[:] = const_term_data[:]
+                                end
+
+                                generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
+                                last_g += 1
+                            end
                         end
 
                         generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
