@@ -155,7 +155,6 @@ $(UCBckDIR)/obj/UCBlock.o: $(UCBckDIR)/src/UCBlock.cpp \
 
 $(UCBckDIR)/obj/UnitBlock.o: $(UCBckDIR)/src/UnitBlock.cpp \
 	$(UCBckDIR)/include/UnitBlock.h $(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)/src/UnitBlock.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
+	$(CC) -c $(UCBckDIR)/src/UnitBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
 
 ########################## End of makefile ###################################
