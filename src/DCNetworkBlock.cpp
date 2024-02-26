@@ -111,7 +111,16 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "GeneratorNode" ,
                                                      "NetworkConstantTerms" ,
                                                      "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" };
+                                                     "NetworkDataClassname",
+                                                     // vars for AC Mode
+                                                     "ReactivePowerDemand"
+                                                     "Conductance"
+                                                     "NodeVoltageMagnitude"
+                                                     "NodeVoltageAngle",
+                                                     "LineResistance", 
+                                                     "LineReactance",  
+                                                     "LineMinAngle", 
+                                                     "LineMaxAngle" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -126,9 +135,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
                  true );
+  assert(("Label of nodes in 'StartLine' must be smaller than nb of nodes",
+          *max_element(v_start_line.begin(), v_start_line.end()) < f_number_nodes
+        ));
 
   ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
                  true );
+  assert(("Label of nodes in 'EndLine' must be smaller than nb of nodes",
+          *max_element(v_end_line.begin(), v_end_line.end()) < f_number_nodes 
+        ));
 
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
                  true , true );
@@ -145,6 +160,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   if( ! ::deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
     f_reference_node = 0;
  }
+
+ // TODO add variables for AC elements
 
  const auto get_string_array =
   [ &group ]( const std::string & var_name ,

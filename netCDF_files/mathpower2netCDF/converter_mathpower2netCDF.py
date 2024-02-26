@@ -76,6 +76,9 @@ class ConverterMathpower2netCDF:
         
         maingrp = rootgrp.createGroup("Block_0") # main block
         maingrp.setncatts({'type':"UCBlock", 'id':"0"})
+
+        var = maingrp.createVariable("NetworkBlockClassname",'<U13')
+        var[0] = "ACNetworkBlock"
         dimensions = {  "mpc.gen":      len(self.attrs["mpc.gen"]),
                         "mpc.bus":      len(self.attrs["mpc.bus"]),
                         "mpc.branch":   len(self.attrs["mpc.branch"])

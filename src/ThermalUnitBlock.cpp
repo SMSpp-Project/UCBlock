@@ -205,7 +205,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "InitUpDownTime" ,
                                                "Availability" ,
                                                "StartUpLimit" ,
-                                               "ShutDownLimit" };
+                                               "ShutDownLimit",
+                                               "InitialReactivePower", 
+                                               "MaxReactivePower",
+                                               "MinReactivePower", 
+                                               "VoltageMagnitude" };
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
@@ -269,6 +273,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
+
+ // TODO add variables for AC elements
 
  // Decompress vectors
  decompress_vector( v_MinPower );

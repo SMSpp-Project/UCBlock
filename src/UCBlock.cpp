@@ -221,6 +221,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize( group , network_block_classname ,
                       "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
+
+ std::cout << "QJ " << network_block_classname << std::endl;
  if( ! ::deserialize( group , network_data_classname ,
                       "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
