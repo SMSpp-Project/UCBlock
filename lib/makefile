@@ -50,7 +50,7 @@ UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
 	$(UCBckDIR)/obj/UnitBlock.o
 #	$(UCBckDIR)/obj/HeatBlock.o
 
-UCBckINC = -I$(UCBckDIR)/include/
+UCBckINC = -I$(UCBckDIR)/include
 
 UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
 	$(UCBckDIR)/include/DCNetworkBlock.h \
@@ -155,7 +155,6 @@ $(UCBckDIR)/obj/UCBlock.o: $(UCBckDIR)/src/UCBlock.cpp \
 
 $(UCBckDIR)/obj/UnitBlock.o: $(UCBckDIR)/src/UnitBlock.cpp \
 	$(UCBckDIR)/include/UnitBlock.h $(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)/src/UnitBlock.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
+	$(CC) -c $(UCBckDIR)/src/UnitBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
 
 ########################## End of makefile ###################################

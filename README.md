@@ -51,7 +51,6 @@ To disable them, set the option `BUILD_TESTING` to `OFF`.
 ## Tools
 
 We provide a simple tool that converts .dat and .mod files into netCDF files.
-TODO: Info on .dat and .mod format.
 
 You can run the tool from the `<build-dir>/tools` directory or install it
 with the library (see above).

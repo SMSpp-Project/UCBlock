@@ -88,13 +88,13 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// auxiliary class holding basic data about the community network
  /** The ECNetworkData class is a nested sub-class which only serves to have a
-  * quick way to load all the basic data (topology and electrical
-  * characteristics) that describe the community network. The rationale is
-  * that while often the network does not change during the (short) time
-  * horizon of UC, it makes sense to allow for this to happen. This means that
-  * individual NetworkBlock objects may in principle have different
-  * ECNetworkData, but most often they can share the same. By bunching all the
-  * information together we make it easy for this sharing to happen. */
+  * quick way to load all the basic data that describe the energy community.
+  * The rationale is that while often the network does not change during the
+  * (short) time horizon of UC, it makes sense to allow for this to happen.
+  * This means that individual NetworkBlock objects may in principle have
+  * different ECNetworkData, but most often they can share the same. By
+  * bunching all the information together we make it easy for this sharing to
+  * happen. */
 
  class ECNetworkData : public NetworkBlock::NetworkData
  {
