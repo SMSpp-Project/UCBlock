@@ -102,12 +102,14 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
+ // Mandatory variables
 
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes );
+ ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
+
+ // Optional variables
 
  ::deserialize( group , f_BuyPrice , "BuyPrice" );
  ::deserialize( group , f_SellPrice , "SellPrice" );
