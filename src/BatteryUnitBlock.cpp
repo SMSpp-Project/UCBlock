@@ -1455,7 +1455,8 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                            issueAMod );
   }
 
- if( ! intake_outtake_binary_Const[ 0 ].empty() )
+ if( ( ! intake_outtake_binary_Const.empty() ) &&
+     ( ! intake_outtake_binary_Const[ 0 ].empty() ) )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -1471,7 +1472,8 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    f->modify_coefficient( index , -f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
- if( ! intake_outtake_binary_Const[ 1 ].empty() )
+ if( ( ! intake_outtake_binary_Const.empty() ) &&
+     ( ! intake_outtake_binary_Const[ 1 ].empty() ) )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
