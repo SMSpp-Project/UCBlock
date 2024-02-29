@@ -7,108 +7,170 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added 
+
+### Changed 
+
+### Fixed 
+
+## [0.6.3] - 2024-02-29
+
+### Added 
+
+- design variables in ThermalUnitBlock, BatteryUnitBlock,
+  IntermittentUnitBlock
+
+- tools/DataConverter from Energy Community Julia codebase
+
+- `netCDF_files/EC_Data` test data sets
+
+- ECNetworkBlock
+
+### Changed 
+
+- adapted to new CMake / makefile organisation
+
+- NetworkBlock can now span multiple time instants
+
+- updated Julia and nc4 files with the stochastic logic
+
 ### Fixed
 
-- Fix bug in ThermalUnitBlock::update_objective_start_up(), in which
-  the v_start_up vector was being accessed at a wrong index.
+- bug in `ThermalUnitBlock::update_objective_start_up()` in which
+  the `v_start_up` vector was being accessed at a wrong index
+
+- bugs when retrieving and checking constraints in BatteryUnitBlock
+
+- bug in ThermalUnitBlock::update_objective_start_up()
+
+- separation of Perspective Cuts in ThermalUnitBlock
+
+- the 3bin formulation including the start-up and shut-down limits
+  cnstrs even if the ramp ones are not present
+
+- default value for f_MinDownTime
+
+- too many minor others to list
+
+### Removed
+
+- test/ moved to ThermalUnitBlock_Solver in test repository
+
+- useless test_package
+
 
 ## [0.6.2] - 2023-05-17
 
 ### Added
 
-- Add is_feasible() to BatteryUnitBlock, SlackUnitBlock.
-- IntermittentUnitBlock::set_BlockConfig().
+- NuclearUnitBlock (didactic)
+
+- is_feasible() to BatteryUnitBlock, SlackUnitBlock
+
+- IntermittentUnitBlock::set_BlockConfig()
 
 ### Changed
 
-- Update is_feasible() in HydroUnitBlock, DCNetworkBlock,
-  IntermittentUnitBlock, ThermalUnitBlock, and BatteryUnitBlock.
-- Remove "battery_type" from BatteryUnitBlock and check if negative prices may
-  occur.
+- updated is_feasible() in HydroUnitBlock, DCNetworkBlock,
+  IntermittentUnitBlock, ThermalUnitBlock, and BatteryUnitBlock
+
+- removed "battery_type" from BatteryUnitBlock and check if negative prices may
+  occur
 
 ## [0.6.1] - 2022-07-01
 
 ### Added
 
-- UnitBlock can be scaled (replicated).
+- UnitBlock can be scaled (replicated)
+
 - BatteryUnitBlock, IntermittentUnitBlock, and ThermalUnitBlock implement
-  scale().
+  scale()
+
 - BatteryUnitBlock and IntermittentUnitBlock can have their minimum and
-  maximum power and storage levels scaled.
+  maximum power and storage levels scaled (set_kappa())
 
 ### Changed
 
-- Improved UCBlock abstract constraints code.
+- improved UCBlock abstract constraints code
 
 ### Fixed
 
-- Serialization of BatteryUnitBlock, HydroUnitBlock, IntermittentUnitBlock,
-  NetworkBlock, ThermalUnitBlock, UCBlock.
+- serialization of BatteryUnitBlock, HydroUnitBlock, IntermittentUnitBlock,
+  NetworkBlock, ThermalUnitBlock, UCBlock
 
-- Deserialization of DCNetworkBlock and NetworkBlock.
+- deserialization of DCNetworkBlock and NetworkBlock
 
 ## [0.6.0] - 2021-12-08
 
 ### Added
 
-- ThermalUnitDPSolver.
-- Option to add spinning reserve variables to the Objective of ThermalUnitBlock.
-- is_feasible() to UnitBlocks.
+- ThermalUnitDPSolver
+
+- Option to add spinning reserve variables to the Objective of ThermalUnitBlock
+
+- is_feasible() to UnitBlocks
 
 ### Fixed
 
-- Bugs in deserialization.
-- Bug in the Objective of ThermalUnitBlock.
-- Bugs in Constraints.
-- Bugs in methods that are used to retrieve data.
-- Bugs in methods to change the physical representation.
+- bugs in deserialization
+
+- bug in the Objective of ThermalUnitBlock
+
+- bugs in Constraints
+
+- bugs in methods that are used to retrieve data
+
+- bugs in methods to change the physical representation
 
 ## [0.5.0] - 2021-05-02
 
 ### Fixed
 
-- Too many fixes to list.
+- too many fixes to list
 
 ## [0.4.1] - 2020-09-16
 
 ### Fixed
 
-- Generation of abstract Constraint in UCBlock
+- generation of abstract Constraint in UCBlock
 
 ## [0.4.0] - 2020-09-16
 
 ### Added
 
-- Support for Hydro[System]UnitBlock.
+- support for Hydro[System]UnitBlock.
 
 ## [0.3.1] - 2020-07-17
 
-### Fixed
+### Removed
 
-- Removed a bugged test file.
+- a bugged test file
 
 ## [0.3.0] - 2020-07-15
 
 ### Added
 
-- Methods for changing data after deserialization.
-- ThermalUnitBlock unit tests.
-- Added all the UCBlock codes.
+- methods for changing data after deserialization
+
+- ThermalUnitBlock unit tests
+
+- all the UCBlock codes
 
 ### Changed
 
-- Some getter methods for ThermalUnitBlock data.
+- some getter methods for ThermalUnitBlock data
 
 ## [0.2.0] - 2020-03-06
 
 ### Added
 
-- HydroSystemUnitBlock.
-- Conan recipe.
+- HydroSystemUnitBlock
+
+- Conan recipe
 
 ### Fixed
 
-- Minor bugs.
+- minor bugs
 
 ## [0.1.0] - 2020-02-06
 
@@ -116,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...develop
+[0.6.3]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...0.6.3
 [0.6.2]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...0.6.2
 [0.6.1]: https://gitlab.com/smspp/ucblock/-/compare/0.6.0...0.6.1
 [0.6.0]: https://gitlab.com/smspp/ucblock/-/compare/0.5.0...0.6.0
