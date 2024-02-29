@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix bug in ThermalUnitBlock::update_objective_start_up(), in which
+  the v_start_up vector was being accessed at a wrong index.
+
 ## [0.6.2] - 2023-05-17
 
 ### Added
