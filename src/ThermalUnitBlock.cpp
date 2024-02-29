@@ -4522,7 +4522,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
   if( t < init_t )
    continue;
 
-  auto var_index = function->is_active( &v_start_up[ t ] );
+  auto var_index = function->is_active( &v_start_up[ t - init_t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
                                        f_scale * v_StartUpCost[ t ] ,
