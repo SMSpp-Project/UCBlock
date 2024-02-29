@@ -1453,9 +1453,11 @@ class UCBlock : public Block
   */
  std::vector< NetworkBlock * > v_network_blocks;
 
- /// the matrix of ActivePowerDemand
+ /// the matrix of ActivePowerDemand and the matrix of ReactivePowerDemand
  /** Indexed over the dimensions NumberNodes and TimeHorizon. */
  boost::multi_array< double , 2 > v_active_power_demand;
+ boost::multi_array< double , 2 > v_reactive_power_demand;
+
 
  /// the vector of PrimaryZones
  std::vector< Index > v_primary_zones;

@@ -359,6 +359,26 @@ class DCNetworkBlock : public NetworkBlock
    return( v_susceptance );
   }
 
+  const std::vector< double > & get_line_susceptance( void ) const {
+   return( v_line_susceptance );
+  }
+
+  const std::vector< double > & get_node_susceptance( void ) const {
+   return( v_node_susceptance );
+  }
+
+  const std::vector< double > & get_node_conductance( void ) const {
+   return( v_node_conductance );
+  }
+
+  const std::vector< double > & get_line_reactance( void ) const {
+   return( v_line_reactance );
+  }
+
+  const std::vector< double > & get_line_resistance( void ) const {
+   return( v_line_resistance );
+  }
+
 /*--------------------------------------------------------------------------*/
   /// returns vector of the network cost
   /** Method for returning the vector of network cost for each line. This vector
@@ -461,6 +481,14 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< std::string > v_node_names;  ///< Node names
 
   std::vector< std::string > v_line_names;  ///< Line names
+
+  std::vector< double > v_line_susceptance;
+  std::vector< double > v_line_reactance;
+  std::vector< double > v_line_resistance;
+  std::vector< double > v_node_susceptance;
+  std::vector< double > v_node_conductance;
+
+
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

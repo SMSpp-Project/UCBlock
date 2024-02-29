@@ -11,11 +11,16 @@ group: Block_0 {
   	TimeHorizon = 1 ;
   	NumberUnits = 2 ;
   variables:
+  	string NetworkBlockClassname ;
   	uint GeneratorNode(NumberElectricalGenerators) ;
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double NodeConductance(NumberNodes) ;
+  	double NodeSusceptance(NumberNodes) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
-  	double Susceptance(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
 
@@ -23,6 +28,8 @@ group: Block_0 {
   		:type = "UCBlock" ;
   		:id = "0" ;
   data:
+
+   NetworkBlockClassname = "ACNetworkBlock" ;
 
    GeneratorNode = 3, 0 ;
 
@@ -32,11 +39,19 @@ group: Block_0 {
   200,
   80 ;
 
+   NodeConductance = 0, 0, 0, 0 ;
+
+   NodeSusceptance = 0, 0, 0, 0 ;
+
    StartLine = 0, 0, 1, 2 ;
 
    EndLine = 1, 2, 3, 3 ;
 
-   Susceptance = 0.1025, 0.0775, 0.0775, 0.1275 ;
+   LineResistance = 0.01008, 0.00744, 0.00744, 0.01272 ;
+
+   LineReactance = 0.0504, 0.0372, 0.0372, 0.0636 ;
+
+   LineSusceptance = 0.1025, 0.0775, 0.0775, 0.1275 ;
 
    MinPowerFlow = -10000, -10000, -10000, -10000 ;
 
@@ -45,9 +60,12 @@ group: Block_0 {
   group: UnitBlock_0 {
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -60,11 +78,17 @@ group: Block_0 {
 
      InitialPower = 318 ;
 
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 100 ;
+
+     MinReactivePower = -100 ;
+
+     VoltageMagnitude = 1.02 ;
+
      MaxPower = 318 ;
 
      MinPower = 0 ;
-
-     StartUpCost = 0 ;
 
      LinearTerm = 1 ;
 
@@ -80,9 +104,12 @@ group: Block_0 {
   group: UnitBlock_1 {
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -95,11 +122,17 @@ group: Block_0 {
 
      InitialPower = 0 ;
 
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 100 ;
+
+     MinReactivePower = -100 ;
+
+     VoltageMagnitude = 1 ;
+
      MaxPower = 0 ;
 
      MinPower = 0 ;
-
-     StartUpCost = 0 ;
 
      LinearTerm = 1 ;
 

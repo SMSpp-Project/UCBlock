@@ -11,11 +11,16 @@ group: Block_0 {
   	TimeHorizon = 1 ;
   	NumberUnits = 23 ;
   variables:
+  	string NetworkBlockClassname ;
   	uint GeneratorNode(NumberElectricalGenerators) ;
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double NodeConductance(NumberNodes) ;
+  	double NodeSusceptance(NumberNodes) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
-  	double Susceptance(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
 
@@ -23,6 +28,8 @@ group: Block_0 {
   		:type = "UCBlock" ;
   		:id = "0" ;
   data:
+
+   NetworkBlockClassname = "ACNetworkBlock" ;
 
    GeneratorNode = 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 
       51, 52, 53, 54, 55, 56, 57, 58, 59 ;
@@ -89,6 +96,15 @@ group: Block_0 {
   0,
   0 ;
 
+   NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeSusceptance = -340.12, 0, 0, 150, 200, 0, 100, 200, 200, 0, 0, -400, 
+      0, 200, 0, 200, 100, 0, 100, 0, 0, 0, -100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0 ;
+
    StartLine = 0, 0, 1, 1, 2, 2, 24, 24, 4, 4, 4, 4, 5, 5, 5, 6, 6, 9, 9, 25, 
       25, 25, 25, 22, 22, 26, 26, 29, 27, 27, 30, 30, 31, 30, 32, 28, 33, 28, 
       34, 13, 13, 14, 14, 15, 15, 15, 35, 35, 36, 36, 36, 16, 19, 20, 20, 11, 
@@ -101,16 +117,35 @@ group: Block_0 {
       12, 12, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 
       53, 54, 55, 56, 57, 58, 59, 0, 1, 3, 9, 7, 7, 8, 8 ;
 
-   Susceptance = 0.013804, 0.013804, 0.018052, 0.018052, 0.010088, 0.010088, 
-      0.030263, 0.030263, 0.012211, 0.012211, 0.024954, 0.024954, 0.059995, 
-      0.059995, 0.059995, 0.015928, 0.015928, 0.015205, 0.015205, 0.201062, 
-      1.799488, 1.201344, 1.4024, 1.05056, 1.49792, 1.201344, 3.000864, 0, 
-      1.201344, 1.201344, 0.301594, 2.397664, 0, 2.397664, 0, 2.000576, 0, 
-      2.397664, 0, 0.899744, 1.301888, 0.497632, 0.598176, 0.301594, 
-      0.301594, 0.598176, 0.598176, 0.598176, 1.201344, 1.201344, 2.397664, 
-      0.497632, 0.598176, 0.899744, 0.899744, 3.000864, 3.000864, 0, 0, 0, 0, 
+   LineResistance = 0.01, 0.01, 0.014024, 0.014024, 0.006982, 0.006982, 0.03, 
+      0.03, 0.01, 0.01, 0.01497, 0.01497, 0.037988, 0.037988, 0.05, 0.01, 
+      0.01, 0.012004, 0.012004, 0.001, 0.006, 0.004, 0.005, 0.004, 0.005, 
+      0.004, 0.01, 0, 0.004, 0.004, 0.001, 0.006, 0, 0.006, 0, 0.01, 0, 
+      0.006, 0, 0.003, 0.006, 0.002, 0.002, 0.001, 0.001, 0.002, 0.002, 
+      0.002, 0.004, 0.004, 0.011, 0.001, 0.002, 0.003, 0.003, 0.003, 0.003, 
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-      0, 0, 0 ;
+      0, 0, 0, 0, 0, 0, 0 ;
+
+   LineReactance = 0.07, 0.07, 0.09, 0.09, 0.05, 0.05, 0.2, 0.2, 0.06, 0.06, 
+      0.12, 0.12, 0.28, 0.28, 0.3, 0.08, 0.08, 0.09, 0.09, 0.008, 0.06, 0.04, 
+      0.045, 0.035, 0.05, 0.04, 0.1, -0.04, 0.04, 0.04, 0.01, 0.08, -0.04, 
+      0.08, -0.04, 0.066669, -0.026669, 0.08, -0.03, 0.03, 0.045, 0.015, 
+      0.02, 0.01, 0.01, 0.02, 0.02, 0.02, 0.04, 0.04, 0.08, 0.015, 0.02, 
+      0.03, 0.03, 0.03, 0.03, 0.01875, 0.025, 0.021429, 0.025, 0.06, 0.0375, 
+      0.075, 0.017647, 0.015, 0.01875, 0.05, 0.042857, 0.033333, 0.021429, 
+      0.025, 0.025, 0.021429, 0.021429, 0.025, 0.025, 0.025, 0.03, 0.003333, 
+      0.008, 0.008, 0.012, 0.012, 0.01, 0.01, 0.01, 0.01 ;
+
+   LineSusceptance = 0.013804, 0.013804, 0.018052, 0.018052, 0.010088, 
+      0.010088, 0.030263, 0.030263, 0.012211, 0.012211, 0.024954, 0.024954, 
+      0.059995, 0.059995, 0.059995, 0.015928, 0.015928, 0.015205, 0.015205, 
+      0.201062, 1.799488, 1.201344, 1.4024, 1.05056, 1.49792, 1.201344, 
+      3.000864, 0, 1.201344, 1.201344, 0.301594, 2.397664, 0, 2.397664, 0, 
+      2.000576, 0, 2.397664, 0, 0.899744, 1.301888, 0.497632, 0.598176, 
+      0.301594, 0.301594, 0.598176, 0.598176, 0.598176, 1.201344, 1.201344, 
+      2.397664, 0.497632, 0.598176, 0.899744, 0.899744, 3.000864, 3.000864, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0 ;
 
    MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
       -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
@@ -134,11 +169,19 @@ group: Block_0 {
       10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000 ;
 
   group: UnitBlock_0 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -151,11 +194,23 @@ group: Block_0 {
 
      InitialPower = 362.8692 ;
 
+     InitialReactivePower = -66.767236 ;
+
+     MaxReactivePower = 720 ;
+
+     MinReactivePower = -720 ;
+
+     VoltageMagnitude = 1.07 ;
+
      MaxPower = 720 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -169,11 +224,19 @@ group: Block_0 {
     } // group UnitBlock_0
 
   group: UnitBlock_1 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -186,11 +249,23 @@ group: Block_0 {
 
      InitialPower = 272.1519 ;
 
+     InitialReactivePower = -7.123284 ;
+
+     MaxReactivePower = 540 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.055 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 2, 0 ;
 
      LinearTerm = 1 ;
 
@@ -204,11 +279,19 @@ group: Block_0 {
     } // group UnitBlock_1
 
   group: UnitBlock_2 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -221,11 +304,23 @@ group: Block_0 {
 
      InitialPower = 357.5106 ;
 
+     InitialReactivePower = -22.670573 ;
+
+     MaxReactivePower = 630 ;
+
+     MinReactivePower = -630 ;
+
+     VoltageMagnitude = 1.06 ;
+
      MaxPower = 630 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -239,11 +334,19 @@ group: Block_0 {
     } // group UnitBlock_2
 
   group: UnitBlock_3 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -256,11 +359,23 @@ group: Block_0 {
 
      InitialPower = 302.1519 ;
 
+     InitialReactivePower = -11.549816 ;
+
+     MaxReactivePower = 540 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.07 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 3, 0 ;
 
      LinearTerm = 1 ;
 
@@ -274,11 +389,19 @@ group: Block_0 {
     } // group UnitBlock_3
 
   group: UnitBlock_4 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -291,11 +414,23 @@ group: Block_0 {
 
      InitialPower = 188.3966 ;
 
+     InitialReactivePower = -38.335054 ;
+
+     MaxReactivePower = 325 ;
+
+     MinReactivePower = -225 ;
+
+     VoltageMagnitude = 1.07 ;
+
      MaxPower = 475 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -309,11 +444,19 @@ group: Block_0 {
     } // group UnitBlock_4
 
   group: UnitBlock_5 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -326,11 +469,23 @@ group: Block_0 {
 
      InitialPower = 314.5454 ;
 
+     InitialReactivePower = 68.564837 ;
+
+     MaxReactivePower = 560 ;
+
+     MinReactivePower = -360 ;
+
+     VoltageMagnitude = 1.063348 ;
+
      MaxPower = 560 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 2, 0 ;
 
      LinearTerm = 1 ;
 
@@ -344,11 +499,19 @@ group: Block_0 {
     } // group UnitBlock_5
 
   group: UnitBlock_6 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -361,11 +524,23 @@ group: Block_0 {
 
      InitialPower = 187.2727 ;
 
+     InitialReactivePower = 7.501724 ;
+
+     MaxReactivePower = 360 ;
+
+     MinReactivePower = -280 ;
+
+     VoltageMagnitude = 1.05399 ;
+
      MaxPower = 380 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -379,11 +554,19 @@ group: Block_0 {
     } // group UnitBlock_6
 
   group: UnitBlock_7 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -396,11 +579,23 @@ group: Block_0 {
 
      InitialPower = 510.5485 ;
 
+     InitialReactivePower = -61.467132 ;
+
+     MaxReactivePower = 965 ;
+
+     MinReactivePower = -765 ;
+
+     VoltageMagnitude = 1.0042 ;
+
      MaxPower = 965 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 3, 0 ;
 
      LinearTerm = 1 ;
 
@@ -414,11 +609,19 @@ group: Block_0 {
     } // group UnitBlock_7
 
   group: UnitBlock_8 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -431,11 +634,23 @@ group: Block_0 {
 
      InitialPower = 435.5865 ;
 
+     InitialReactivePower = 99.922135 ;
+
+     MaxReactivePower = 900 ;
+
+     MinReactivePower = -900 ;
+
+     VoltageMagnitude = 0.9989 ;
+
      MaxPower = 900 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -449,11 +664,19 @@ group: Block_0 {
     } // group UnitBlock_8
 
   group: UnitBlock_9 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -466,11 +689,23 @@ group: Block_0 {
 
      InitialPower = 402.8692 ;
 
+     InitialReactivePower = 101.789384 ;
+
+     MaxReactivePower = 720 ;
+
+     MinReactivePower = -720 ;
+
+     VoltageMagnitude = 1.0019 ;
+
      MaxPower = 720 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -484,11 +719,19 @@ group: Block_0 {
     } // group UnitBlock_9
 
   group: UnitBlock_10 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -501,11 +744,23 @@ group: Block_0 {
 
      InitialPower = 236.0759 ;
 
+     InitialReactivePower = -60.248316 ;
+
+     MaxReactivePower = 570 ;
+
+     MinReactivePower = -370 ;
+
+     VoltageMagnitude = 1.0336 ;
+
      MaxPower = 570 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 2, 0 ;
 
      LinearTerm = 1 ;
 
@@ -519,11 +774,19 @@ group: Block_0 {
     } // group UnitBlock_10
 
   group: UnitBlock_11 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -536,11 +799,23 @@ group: Block_0 {
 
      InitialPower = 293.7553 ;
 
+     InitialReactivePower = -75.795423 ;
+
+     MaxReactivePower = 515 ;
+
+     MinReactivePower = -415 ;
+
+     VoltageMagnitude = 1.0141 ;
+
      MaxPower = 575 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -554,11 +829,19 @@ group: Block_0 {
     } // group UnitBlock_11
 
   group: UnitBlock_12 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -571,11 +854,23 @@ group: Block_0 {
 
      InitialPower = 0 ;
 
+     InitialReactivePower = -243.210921 ;
+
+     MaxReactivePower = 570 ;
+
+     MinReactivePower = -570 ;
+
+     VoltageMagnitude = 1 ;
+
      MaxPower = 0 ;
 
      MinPower = 0 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 3, 0 ;
 
      LinearTerm = 1 ;
 
@@ -589,11 +884,19 @@ group: Block_0 {
     } // group UnitBlock_12
 
   group: UnitBlock_13 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -606,11 +909,23 @@ group: Block_0 {
 
      InitialPower = 340.4546 ;
 
+     InitialReactivePower = -220.947271 ;
+
+     MaxReactivePower = 630 ;
+
+     MinReactivePower = -630 ;
+
+     VoltageMagnitude = 1.0113 ;
+
      MaxPower = 630 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -624,11 +939,19 @@ group: Block_0 {
     } // group UnitBlock_13
 
   group: UnitBlock_14 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -641,11 +964,23 @@ group: Block_0 {
 
      InitialPower = 1462.87562 ;
 
+     InitialReactivePower = 356.714649 ;
+
+     MaxReactivePower = 1840 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.0611 ;
+
      MaxPower = 2800 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 2, 0 ;
 
      LinearTerm = 1 ;
 
@@ -659,11 +994,19 @@ group: Block_0 {
     } // group UnitBlock_14
 
   group: UnitBlock_15 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -676,11 +1019,23 @@ group: Block_0 {
 
      InitialPower = 296.8182 ;
 
+     InitialReactivePower = 116.288946 ;
+
+     MaxReactivePower = 580 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.0611 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -694,11 +1049,19 @@ group: Block_0 {
     } // group UnitBlock_15
 
   group: UnitBlock_16 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -711,11 +1074,23 @@ group: Block_0 {
 
      InitialPower = 320.4545 ;
 
+     InitialReactivePower = -0.927939 ;
+
+     MaxReactivePower = 630 ;
+
+     MinReactivePower = -630 ;
+
+     VoltageMagnitude = 1.0447 ;
+
      MaxPower = 630 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -729,11 +1104,19 @@ group: Block_0 {
     } // group UnitBlock_16
 
   group: UnitBlock_17 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -746,11 +1129,23 @@ group: Block_0 {
 
      InitialPower = 350 ;
 
+     InitialReactivePower = -36.553736 ;
+
+     MaxReactivePower = 630 ;
+
+     MinReactivePower = -630 ;
+
+     VoltageMagnitude = 1.0369 ;
+
      MaxPower = 630 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 3, 0 ;
 
      LinearTerm = 1 ;
 
@@ -764,11 +1159,19 @@ group: Block_0 {
     } // group UnitBlock_17
 
   group: UnitBlock_18 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -781,11 +1184,23 @@ group: Block_0 {
 
      InitialPower = 300.8182 ;
 
+     InitialReactivePower = -56.742588 ;
+
+     MaxReactivePower = 540 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.0116 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -799,11 +1214,19 @@ group: Block_0 {
     } // group UnitBlock_18
 
   group: UnitBlock_19 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -816,11 +1239,23 @@ group: Block_0 {
 
      InitialPower = 300.8182 ;
 
+     InitialReactivePower = 75.346059 ;
+
+     MaxReactivePower = 540 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.029 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 2, 0 ;
 
      LinearTerm = 1 ;
 
@@ -834,11 +1269,19 @@ group: Block_0 {
     } // group UnitBlock_19
 
   group: UnitBlock_20 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -851,11 +1294,23 @@ group: Block_0 {
 
      InitialPower = 300.8182 ;
 
+     InitialReactivePower = 75.346059 ;
+
+     MaxReactivePower = 540 ;
+
+     MinReactivePower = -540 ;
+
+     VoltageMagnitude = 1.029 ;
+
      MaxPower = 540 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 
@@ -869,11 +1324,19 @@ group: Block_0 {
     } // group UnitBlock_20
 
   group: UnitBlock_21 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -886,11 +1349,23 @@ group: Block_0 {
 
      InitialPower = 246.7932 ;
 
+     InitialReactivePower = 140.896249 ;
+
+     MaxReactivePower = 520 ;
+
+     MinReactivePower = -450 ;
+
+     VoltageMagnitude = 1.03 ;
+
      MaxPower = 560 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 3, 0 ;
 
      LinearTerm = 1 ;
 
@@ -904,11 +1379,19 @@ group: Block_0 {
     } // group UnitBlock_21
 
   group: UnitBlock_22 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
     variables:
     	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
-    	double StartUpCost ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
     	double MinDownTime ;
@@ -921,11 +1404,23 @@ group: Block_0 {
 
      InitialPower = 1296.3868 ;
 
+     InitialReactivePower = 454.44114 ;
+
+     MaxReactivePower = 4000 ;
+
+     MinReactivePower = -2050 ;
+
+     VoltageMagnitude = 1.0185 ;
+
      MaxPower = 4500 ;
 
      MinPower = 10 ;
 
-     StartUpCost = 0 ;
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 1, 0 ;
 
      LinearTerm = 1 ;
 

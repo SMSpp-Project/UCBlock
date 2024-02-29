@@ -102,7 +102,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
-                                                     "Susceptance" ,
+                                                     "LineSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
@@ -113,8 +113,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkBlockClassname" ,
                                                      "NetworkDataClassname",
                                                      // vars for AC Mode
-                                                     "ReactivePowerDemand"
-                                                     "Conductance"
+                                                     "ReactivePowerDemand",
+                                                     "NodeConductance",
+                                                     "NodeSusceptance",
                                                      "NodeVoltageMagnitude"
                                                      "NodeVoltageAngle",
                                                      "LineResistance", 
@@ -151,9 +152,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
                  true , true );
 
-  ::deserialize( group , "Susceptance" , f_number_lines , v_susceptance ,
-                 true , true );
-
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
                  true , true );
 
@@ -161,7 +159,24 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
     f_reference_node = 0;
  }
 
- // TODO add variables for AC elements
+  // AC vars
+  ::deserialize( group , "LineSusceptance" , f_number_lines , v_susceptance ,
+                 true , true );
+
+  ::deserialize( group , "LineSusceptance" , f_number_lines , v_line_susceptance ,
+                 true , true );
+
+  ::deserialize( group , "LineReactance" , f_number_lines , v_line_reactance ,
+                 true , true );
+
+  ::deserialize( group , "LineResistance" , f_number_lines , v_line_resistance ,
+                 true , true );
+
+  ::deserialize( group , "NodeConductance" , f_number_nodes , v_node_conductance ,
+                 true , true );
+
+  ::deserialize( group , "NodeSusceptance" , f_number_nodes , v_node_susceptance ,
+                 true , true );
 
  const auto get_string_array =
   [ &group ]( const std::string & var_name ,

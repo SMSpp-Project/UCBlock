@@ -33,6 +33,7 @@
 
 #include "FRealObjective.h"
 
+#include <iostream>
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -49,38 +50,58 @@ class ACNetworkBlock : public DCNetworkBlock
 
  public:
 
+  struct GeneratorData 
+  {
+    double f_MinPower;
+    double f_MaxPower;
+    double f_MinReactivePower;
+    double f_MaxReactivePower;
+    double f_VoltageMagnitude;
+    std::vector<double> v_PowerCostCoeffs;
+    Index f_CostModel;
+    Index f_NumberCostCoeffs;
+  };
+
 explicit ACNetworkBlock( Block * f_block = nullptr )
   : DCNetworkBlock( f_block ) {}
 
-/*--------------------------------------------------------------------------*/
- /// destructor of DCNetworkBlock
-
- virtual ~ACNetworkBlock() override;
-
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
+virtual void add_generator_data(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) override 
+{
+  GeneratorData gdata;
+  gdata.f_MinPower = unit_block->get_min_power(t, g);
+  gdata.f_MaxPower = unit_block->get_max_power(t, g);
+  gdata.f_MinReactivePower = unit_block->get_min_reactive_power(t, g);
+  gdata.f_MaxReactivePower = unit_block->get_max_reactive_power(t, g);
+  gdata.f_VoltageMagnitude = unit_block->get_voltage_magnitude(t, g);
+  gdata.f_NumberCostCoeffs = unit_block->get_number_cost_coeffs();
+  gdata.f_CostModel = unit_block->get_cost_model();
+  for (int i = 0; i < gdata.f_NumberCostCoeffs; ++i){
+    gdata.v_PowerCostCoeffs.push_back(unit_block->get_cost_coeff(i,g));
+  }
+
+  auto it = m_generators.find(std::make_pair(node,interval));
+  if (it != m_generators.end()){
+    it->second.push_back(gdata);
+  }
+  else {
+    std::vector<GeneratorData> v_gdata = {gdata};
+    m_generators[std::make_pair(node,interval)] = v_gdata; 
+  }
+};
+
  
  protected:
 
-  std::string _test;
+ std::map<std::pair<Index,Index>, std::vector<GeneratorData>> m_generators;
  
  private:
-
-
 
  SMSpp_insert_in_factory_h;
 
 
  static void static_initialization( void ) {
-
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-   *                                    &DCNetworkBlock::set_active_demand,
-   *                                    MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
 
   register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
    "DCNetworkBlock::set_active_demand" , &ACNetworkBlock::set_active_demand );

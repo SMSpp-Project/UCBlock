@@ -138,35 +138,35 @@ class ConverterMathpower2netCDF:
             print("\tWARNING : correction of negative values")
 
         # add costs in each subgroup ThermalUnitBlock
-        #mpc_lab = "mpc.gencost"
-        #if mpc_lab in self.attrs:
-        #    lab_tab = var_labels[mpc_lab]
-        #    idx = 0
-        #    gen_dim = dimensions["mpc.gen"]
-        #    while idx < len(lab_tab):
-        #        k,v,*g = lab_tab[idx] # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
-        #        if v is not None and len(g) > 0:
-        #            for i,l in enumerate(self.attrs[mpc_lab]):
-        #                if i < gen_dim:
-        #                    var = subgroups[i].createVariable(k,v,chunksizes=(1,))
-        #                elif i < 2*gen_dim: # for reactive coeffs (optional)
-        #                    var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v,chunksizes=(1,))
-        #                if "int" in v:      var[:] = int(l[idx])-1
-        #                if "double" in v:   var[:] = float(l[idx])
-        #        idx += 1
-        #        
-        #    # add costs coefficients
-        #    for i,l in enumerate(self.attrs[mpc_lab]):
-        #        if i < gen_dim:
-        #            nb_coeff_cost = int(l[idx])
-        #            subgroups[i].createDimension("NumberCostCoeffs", nb_coeff_cost)
-        #            var = subgroups[i].createVariable("PowerCostCoeffs", "double", "NumberCostCoeffs")
-        #            var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
-        #        elif i < 2*gen_dim: # for reactive coeffs (optional)
-        #            nb_coeff_cost = int(l[idx])
-        #            subgroups[i%gen_dim].createDimension("NumberReactiveCostCoeffs", nb_coeff_cost)
-        #            var = subgroups[i%gen_dim].createVariable(  "ReactivePowerCostCoeffs", "double", "NumberReactiveCostCoeffs")
-        #            var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
+        mpc_lab = "mpc.gencost"
+        if mpc_lab in self.attrs:
+            lab_tab = var_labels[mpc_lab]
+            idx = 0
+            gen_dim = dimensions["mpc.gen"]
+            while idx < len(lab_tab):
+                k,v,*g = lab_tab[idx] # k = label of the netCDF list, v is the type (or None), len(g) > 0 means that it is in generator subgroup
+                if v is not None and len(g) > 0:
+                    for i,l in enumerate(self.attrs[mpc_lab]):
+                        if i < gen_dim:
+                            var = subgroups[i].createVariable(k,v,chunksizes=(1,))
+                        elif i < 2*gen_dim: # for reactive coeffs (optional)
+                            var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v,chunksizes=(1,))
+                        if "int" in v:      var[:] = int(l[idx])-1
+                        if "double" in v:   var[:] = float(l[idx])
+                idx += 1
+                
+            # add costs coefficients
+            for i,l in enumerate(self.attrs[mpc_lab]):
+                if i < gen_dim:
+                    nb_coeff_cost = int(l[idx])
+                    subgroups[i].createDimension("NumberCostCoeffs", nb_coeff_cost)
+                    var = subgroups[i].createVariable("PowerCostCoeffs", "double", "NumberCostCoeffs")
+                    var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
+                elif i < 2*gen_dim: # for reactive coeffs (optional)
+                    nb_coeff_cost = int(l[idx])
+                    subgroups[i%gen_dim].createDimension("NumberReactiveCostCoeffs", nb_coeff_cost)
+                    var = subgroups[i%gen_dim].createVariable(  "ReactivePowerCostCoeffs", "double", "NumberReactiveCostCoeffs")
+                    var[:] = [float(l[idx + k + 1]) for k in range(nb_coeff_cost)]
 
 
         # PATCH : add empty power flow 

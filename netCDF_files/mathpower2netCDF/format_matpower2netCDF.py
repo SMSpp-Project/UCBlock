@@ -22,8 +22,8 @@ var_labels = {
 		("NodeType", None), 
 		("ActivePowerDemand", "double"), 
 		("ReactivePowerDemand", None), 
-		("Conductance", None), 
-		("Susceptance", None), 
+		("NodeConductance", "double"), 
+		("NodeSusceptance", "double"), 
 		("NodeAreaNumber", None), 
 		("NodeVoltageMagnitude", None), 
 		("NodeVoltageAngle", None), 
@@ -35,10 +35,10 @@ var_labels = {
 	[
 		("GeneratorNode", "uint"),
 		("InitialPower", "double", True),
-		("InitialReactivePower", None, True),
-		("MaxReactivePower", None, True),
-		("MinReactivePower", None, True),
-		("VoltageMagnitude", None, True),
+		("InitialReactivePower", "double", True),
+		("MaxReactivePower", "double", True),
+		("MinReactivePower", "double", True),
+		("VoltageMagnitude", "double", True),
 		("GenMBASE", None, True),
 		("GenStatus", None, True),
 		("MaxPower", "double", True),
@@ -48,9 +48,9 @@ var_labels = {
 	[
 		("StartLine", "uint"),
 		("EndLine", "uint"),
-		("LineResistance", None),
-		("LineReactance", None),
-		#("Susceptance", "double"),			# QJ: comment to force DC line (see below)
+		("LineResistance", "double"),
+		("LineReactance", "double"),
+		("LineSusceptance", "double"),			# QJ: comment to force DC line (see below)
 		("LineRATEA", None),
 		("LineRATEB", None),
 		("LineRATEC", None),
@@ -62,8 +62,8 @@ var_labels = {
 	],
 "mpc.gencost":
 	[
-		("CostModel", None, True),
-		("Startup", None, True),
+		("CostModel", "uint", True),
+		("StartupCost", "double", True),
 		("Shutdown", None, True),
 	]
 }
@@ -72,7 +72,6 @@ patch_labels = { # same structure as var_labels, but the third element is the de
 				 # the fourth the paramter for subgroups
 "mpc.gen":
 	[
-	 ("StartUpCost", "double", 0, True),
      ("LinearTerm", "double", 1, True),
      ("MinUpTime", "double", 1, True),
      ("MinDownTime", "double", 1, True),
@@ -83,13 +82,15 @@ patch_labels = { # same structure as var_labels, but the third element is the de
 	[
 		("MinPowerFlow", "double", -10000.),
 		("MaxPowerFlow", "double", 10000.),
-		("Susceptance", "double", 0.)			# QJ: uncomment to force DC line
+		#("LineSusceptance", "double", 0.)			# QJ: uncomment to force DC line
 	],
 }
 
 has_TimeHorizon_dim = {
 	"ActivePowerDemand", "ReactivePowerDemand",
-	"MinPower", "MaxPower"
+	"MinPower", "MaxPower",
+	"MinReactivePower", "MaxReactivePower",
+	"VoltageMagnitude",
 }
 
 positive_fields = {
