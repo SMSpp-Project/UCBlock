@@ -15,11 +15,11 @@
 #          keep it in mind when editing it.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.19)
 cmake_policy(VERSION 3.12)
 project(UCBlock
         VERSION 0.6.2
@@ -75,10 +75,11 @@ target_sources(${modName} PRIVATE
                src/UCBlock.cpp
                src/NetworkBlock.cpp
                src/DCNetworkBlock.cpp
-               src/BusNetworkBlock.cpp
+               src/ECNetworkBlock.cpp
                src/UnitBlock.cpp
                #src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
+               src/NuclearUnitBlock.cpp
                src/ThermalUnitBlock.cpp
                src/ThermalUnitDPSolver.cpp
                src/HydroUnitBlock.cpp
@@ -115,10 +116,6 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- Subdirectories ------------------------------------------------------ #
 add_subdirectory(tools)
 
-if (BUILD_TESTING)
-    add_subdirectory(test)
-endif ()
-
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
 # and its CMake configuration files on the system.
@@ -133,7 +130,7 @@ install(TARGETS ${modName}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Install the headers
-install(DIRECTORY include/
+install(DIRECTORY include
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).
@@ -189,7 +186,7 @@ endif ()
 # Using this with the umbrella project is too messy.
 if (NOT hasParent)
     set(CPACK_PACKAGE_VENDOR "SMS++ Team")
-    set(CPACK_PACKAGE_CONTACT "Niccolò Iardella")
+    set(CPACK_PACKAGE_CONTACT "Niccolo' Iardella")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")

@@ -33,120 +33,128 @@
 #                                                                            #
 ##############################################################################
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-UCBckOBJ = $(UCBckDIR)obj/BatteryUnitBlock.o \
-	$(UCBckDIR)obj/BusNetworkBlock.o \
-	$(UCBckDIR)obj/DCNetworkBlock.o \
-	$(UCBckDIR)obj/HydroSystemUnitBlock.o \
-	$(UCBckDIR)obj/HydroUnitBlock.o \
-	$(UCBckDIR)obj/IntermittentUnitBlock.o \
-	$(UCBckDIR)obj/NetworkBlock.o \
-	$(UCBckDIR)obj/SlackUnitBlock.o \
-	$(UCBckDIR)obj/ThermalUnitBlock.o \
-	$(UCBckDIR)obj/ThermalUnitDPSolver.o \
-	$(UCBckDIR)obj/UCBlock.o \
-	$(UCBckDIR)obj/UnitBlock.o
-#	$(UCBckDIR)obj/HeatBlock.o
+UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
+	$(UCBckDIR)/obj/DCNetworkBlock.o \
+	$(UCBckDIR)/obj/ECNetworkBlock.o \
+	$(UCBckDIR)/obj/HydroSystemUnitBlock.o \
+	$(UCBckDIR)/obj/HydroUnitBlock.o \
+	$(UCBckDIR)/obj/IntermittentUnitBlock.o \
+	$(UCBckDIR)/obj/NetworkBlock.o \
+	$(UCBckDIR)/obj/NuclearUnitBlock.o \
+	$(UCBckDIR)/obj/SlackUnitBlock.o \
+	$(UCBckDIR)/obj/ThermalUnitBlock.o \
+	$(UCBckDIR)/obj/ThermalUnitDPSolver.o \
+	$(UCBckDIR)/obj/UCBlock.o \
+	$(UCBckDIR)/obj/UnitBlock.o
+#	$(UCBckDIR)/obj/HeatBlock.o
 
-UCBckINC = -I$(UCBckDIR)include/
+UCBckINC = -I$(UCBckDIR)/include
 
-UCBckH = $(UCBckDIR)include/BatteryUnitBlock.h \
-	$(UCBckDIR)include/BusNetworkBlock.h \
-	$(UCBckDIR)include/DCNetworkBlock.h \
-	$(UCBckDIR)include/HydroSystemUnitBlock.h \
-	$(UCBckDIR)include/HydroUnitBlock.h \
-	$(UCBckDIR)include/IntermittentUnitBlock.h \
-	$(UCBckDIR)include/NetworkBlock.h \
-	$(UCBckDIR)include/SlackUnitBlock.h \
-	$(UCBckDIR)include/ThermalUnitBlock.h \
-	$(UCBckDIR)include/ThermalUnitDPSolver.h \
-	$(UCBckDIR)include/UCBlock.h \
-	$(UCBckDIR)include/UnitBlock.h
-#	$(UCBckDIR)include/HeatBlock.h
+UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
+	$(UCBckDIR)/include/DCNetworkBlock.h \
+	$(UCBckDIR)/include/ECNetworkBlock.h \
+	$(UCBckDIR)/include/HydroSystemUnitBlock.h \
+	$(UCBckDIR)/include/HydroUnitBlock.h \
+	$(UCBckDIR)/include/IntermittentUnitBlock.h \
+	$(UCBckDIR)/include/NetworkBlock.h \
+	$(UCBckDIR)/include/NuclearUnitBlock.h \
+	$(UCBckDIR)/include/SlackUnitBlock.h \
+	$(UCBckDIR)/include/ThermalUnitBlock.h \
+	$(UCBckDIR)/include/ThermalUnitDPSolver.h \
+	$(UCBckDIR)/include/UCBlock.h \
+	$(UCBckDIR)/include/UnitBlock.h
+#	$(UCBckDIR)/include/HeatBlock.h
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
-	rm -f $(UCBckDIR)*.o $(UCBckDIR)*~
+	rm -f $(UCBckDIR)/*.o $(UCBckDIR)/*~
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
-$(UCBckDIR)obj/BusNetworkBlock.o: $(UCBckDIR)src/BusNetworkBlock.cpp \
-	$(UCBckDIR)include/BusNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
-	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/BusNetworkBlock.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
-
-$(UCBckDIR)obj/BatteryUnitBlock.o: $(UCBckDIR)src/BatteryUnitBlock.cpp \
-        $(UCBckDIR)include/BatteryUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/BatteryUnitBlock.o: $(UCBckDIR)/src/BatteryUnitBlock.cpp \
+        $(UCBckDIR)/include/BatteryUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
 	$(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/BatteryUnitBlock.cpp -o $@ \
+	$(CC) -c $(UCBckDIR)/src/BatteryUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/DCNetworkBlock.o: $(UCBckDIR)src/DCNetworkBlock.cpp \
-	$(UCBckDIR)include/DCNetworkBlock.h $(UCBckDIR)include/UCBlock.h \
-	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
+$(UCBckDIR)/obj/DCNetworkBlock.o: $(UCBckDIR)/src/DCNetworkBlock.cpp \
+	$(UCBckDIR)/include/DCNetworkBlock.h $(UCBckDIR)/include/UCBlock.h \
+	$(UCBckDIR)/include/NetworkBlock.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)/src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
-#$(UCBckDIR)obj/HeatBlock.o: $(UCBckDIR)src/HeatBlock.cpp \
-#	$(UCBckDIR)include/HeatBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/ECNetworkBlock.o: $(UCBckDIR)/src/ECNetworkBlock.cpp \
+	$(UCBckDIR)/include/ECNetworkBlock.h $(UCBckDIR)/include/UCBlock.h \
+	$(UCBckDIR)/include/NetworkBlock.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)/src/ECNetworkBlock.cpp -o $@ $(SMS++INC) \
+	$(UCBckINC) $(SW)
+
+#$(UCBckDIR)/obj/HeatBlock.o: $(UCBckDIR)/src/HeatBlock.cpp \
+#	$(UCBckDIR)/include/HeatBlock.h $(UCBckDIR)/include/UnitBlock.h \
 #	$(SMS++OBJ) 
-#	$(CC) -c $(UCBckDIR)src/HeatBlock.cpp -o $@ \
+#	$(CC) -c $(UCBckDIR)/src/HeatBlock.cpp -o $@ \
 #	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/HydroSystemUnitBlock.o: $(UCBckDIR)src/HydroSystemUnitBlock.cpp \
-        $(UCBckDIR)include/HydroSystemUnitBlock.h \
-	$(UCBckDIR)include/HydroUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/HydroSystemUnitBlock.o: $(UCBckDIR)/src/HydroSystemUnitBlock.cpp \
+        $(UCBckDIR)/include/HydroSystemUnitBlock.h \
+	$(UCBckDIR)/include/HydroUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
 	$(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/HydroSystemUnitBlock.cpp -o $@ \
+	$(CC) -c $(UCBckDIR)/src/HydroSystemUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/HydroUnitBlock.o: $(UCBckDIR)src/HydroUnitBlock.cpp \
-	$(UCBckDIR)include/HydroUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/HydroUnitBlock.o: $(UCBckDIR)/src/HydroUnitBlock.cpp \
+	$(UCBckDIR)/include/HydroUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
 	$(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/HydroUnitBlock.cpp -o $@ \
+	$(CC) -c $(UCBckDIR)/src/HydroUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/IntermittentUnitBlock.o: \
-	$(UCBckDIR)src/IntermittentUnitBlock.cpp \
-	$(UCBckDIR)include/IntermittentUnitBlock.h \
-	$(UCBckDIR)include/UnitBlock.h $(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/IntermittentUnitBlock.cpp -o $@ \
+$(UCBckDIR)/obj/IntermittentUnitBlock.o: \
+	$(UCBckDIR)/src/IntermittentUnitBlock.cpp \
+	$(UCBckDIR)/include/IntermittentUnitBlock.h \
+	$(UCBckDIR)/include/UnitBlock.h $(SMS++OBJ) 
+	$(CC) -c $(UCBckDIR)/src/IntermittentUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/NetworkBlock.o: $(UCBckDIR)src/NetworkBlock.cpp \
-	$(UCBckDIR)include/NetworkBlock.h $(UCBckDIR)include/UCBlock.h \
+$(UCBckDIR)/obj/NetworkBlock.o: $(UCBckDIR)/src/NetworkBlock.cpp \
+	$(UCBckDIR)/include/NetworkBlock.h $(UCBckDIR)/include/UCBlock.h \
 	$(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/NetworkBlock.cpp -o $@ $(SMS++INC) \
+	$(CC) -c $(UCBckDIR)/src/NetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/SlackUnitBlock.o: $(UCBckDIR)src/SlackUnitBlock.cpp \
-	$(UCBckDIR)include/SlackUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/NuclearUnitBlock.o: $(UCBckDIR)/src/NuclearUnitBlock.cpp \
+        $(UCBckDIR)/include/NuclearUnitBlock.h \
+	$(UCBckDIR)/include/ThermalUnitBlock.h \
+	$(UCBckDIR)/include/UnitBlock.h $(SMS++OBJ) 
+	$(CC) -c $(UCBckDIR)/src/NuclearUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
+
+$(UCBckDIR)/obj/SlackUnitBlock.o: $(UCBckDIR)/src/SlackUnitBlock.cpp \
+	$(UCBckDIR)/include/SlackUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
 	$(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/SlackUnitBlock.cpp -o $@ \
+	$(CC) -c $(UCBckDIR)/src/SlackUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/ThermalUnitBlock.o: $(UCBckDIR)src/ThermalUnitBlock.cpp \
-        $(UCBckDIR)include/ThermalUnitBlock.h $(UCBckDIR)include/UnitBlock.h \
+$(UCBckDIR)/obj/ThermalUnitBlock.o: $(UCBckDIR)/src/ThermalUnitBlock.cpp \
+        $(UCBckDIR)/include/ThermalUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
 	$(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/ThermalUnitBlock.cpp -o $@ \
+	$(CC) -c $(UCBckDIR)/src/ThermalUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/ThermalUnitDPSolver.o: $(UCBckDIR)src/ThermalUnitDPSolver.cpp \
-        $(UCBckDIR)include/ThermalUnitDPSolver.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/ThermalUnitDPSolver.cpp -o $@ \
+$(UCBckDIR)/obj/ThermalUnitDPSolver.o: $(UCBckDIR)/src/ThermalUnitDPSolver.cpp \
+        $(UCBckDIR)/include/ThermalUnitDPSolver.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)/src/ThermalUnitDPSolver.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/UCBlock.o: $(UCBckDIR)src/UCBlock.cpp \
-	$(UCBckDIR)include/UCBlock.h $(UCBckDIR)include/UnitBlock.h \
-	$(UCBckDIR)include/NetworkBlock.h $(SMS++OBJ)
-	$(CC) -c $(UCBckDIR)src/UCBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
+$(UCBckDIR)/obj/UCBlock.o: $(UCBckDIR)/src/UCBlock.cpp \
+	$(UCBckDIR)/include/UCBlock.h $(UCBckDIR)/include/UnitBlock.h \
+	$(UCBckDIR)/include/NetworkBlock.h $(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)/src/UCBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
 
-$(UCBckDIR)obj/UnitBlock.o: $(UCBckDIR)src/UnitBlock.cpp \
-	$(UCBckDIR)include/UnitBlock.h $(SMS++OBJ) 
-	$(CC) -c $(UCBckDIR)src/UnitBlock.cpp -o $@ $(SMS++INC) \
-	$(UCBckINC) $(SW)
+$(UCBckDIR)/obj/UnitBlock.o: $(UCBckDIR)/src/UnitBlock.cpp \
+	$(UCBckDIR)/include/UnitBlock.h $(SMS++OBJ) 
+	$(CC) -c $(UCBckDIR)/src/UnitBlock.cpp -o $@ $(SMS++INC) $(UCBckINC) $(SW)
 
 ########################## End of makefile ###################################

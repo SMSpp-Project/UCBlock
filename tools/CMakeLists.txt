@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-#    CMake file for tools                                                     #
+#    CMake file for UCBlock/tools                                             #
 # --------------------------------------------------------------------------- #
 
 # This is needed for setting the runtime path when installing.

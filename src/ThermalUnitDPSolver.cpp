@@ -2,23 +2,26 @@
 /*----------------------- File ThermalUnitDPSolver.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the EDPSolver class.
+ * Implementation of the ThermalUnitDPSolver class.
  *
  * \author Claudio Gentile \n
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Niccolo' Iardella \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; Claudio Gentile, Antonio Frangioni, Niccolo' Iardella
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Claudio Gentile, Antonio Frangioni, Niccolo' Iardella,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -27,7 +30,7 @@
 /*--------------------------------------------------------------------------*/
 
 #define COMPUTE_DUALS 0
-/* If COMPUTE_DUALS > 0, the ED solver allocates more memory and store more
+/* If COMPUTE_DUALS > 0, the solver allocates more memory and store more
  * information about the solution process in such a way as to make it possible
  * to reconstruct the optimal dual solution in the end. However, this is not
  * implemented yet, so that currently the setting makes no sense. */
@@ -46,6 +49,12 @@
 
 using namespace SMSpp_di_unipi_it;
 
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register ThermalUnitDPSolver to the Block factory
+
 SMSpp_insert_in_factory_cpp_0( ThermalUnitDPSolver );
 
 /*--------------------------------------------------------------------------*/
@@ -62,7 +71,7 @@ void ThermalUnitDPSolver::set_Block( Block * block )
  if( block ) {
   // note that we do not use
   //
-  //    if(  ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
+  //    if( ! dynamic_cast< ThermalUnitBlock * >( f_Block ) )
   //
   // since we want to avoid that the check succeeds for possible derived
   // classes of ThermalUnitBlock which may have other features / constraints
@@ -70,8 +79,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
   // properly handle. typeid() works in this case since ThermalUnitBlock
   // is a  polymorphic object, i.e., it has at least one virtual method
   if( typeid( ThermalUnitBlock ) != typeid( *f_Block ) )
-   throw( std::runtime_error( "ThermalUnitDPSolver requires ThermalUnitBlock"
-			      ) );
+   throw( std::runtime_error(
+    "ThermalUnitDPSolver::set_Block: ThermalUnitBlock required." ) );
   load_parameters();
   }
  }
@@ -92,7 +101,7 @@ int ThermalUnitDPSolver::compute( bool changedvars )
   }
 
  unlock();  // unlock the mutex
- 
+
  assert( stage == sol_OK );
  return( f_end.lab == TUDPINF ? kInfeasible : kOK );
  }
@@ -104,50 +113,50 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  // lock the Block
  bool owned = f_Block->is_owned_by( f_id );
  if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
-  throw( std::runtime_error( "Unable to lock the Block" ) );
+  throw( std::runtime_error(
+   "ThermalUnitDPSolver::get_var_solution: unable to lock the Block." ) );
 
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
  // set active power variables, if any
  if( auto pow_it = b->get_active_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
-   (pow_it++)->set_value( P[ i++ ] );
+   ( pow_it++ )->set_value( P[ i++ ] );
 
  // set unit commitment variables, if any
  if( auto com_it = b->get_commitment( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
-   (com_it++)->set_value( U[ i++ ] ? 1 : 0 );
+   ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
 
  // set start_up variables, if any, but note that start_up variables are
  // only defined from t_init onwards, so skip all i <= t_init
  if( auto sup_it = b->get_start_up() ) {
-  // startup at 0 iif the unit was off at the start and it is on at 0
+  // startup at 0 iif the unit was off at the start, and it is on at 0
   if( ! t_init )
-   (sup_it++)->set_value( ( init_up_down_time <= 0 ) && U[ 0 ] ? 1 : 0 );
+   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && ( U[ 0 ] ? 1 : 0 ) );
 
-  // startup at i iff the unit was off at i - 1 and it is on at i
+  // startup at i iff the unit was off at i - 1, and it is on at i
   for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sup_it++)->set_value( U[ i ] && ( ! U[ i - 1 ] ) ? 1 : 0 );
+   ( sup_it++ )->set_value( ( U[ i ] ) && ( ! U[ i - 1 ] ) ? 1 : 0 );
   }
 
  // set shut_down variables, if any, but note that start_up variables are
  // only defined from t_init onwards, so skip all i <= t_init
  if( auto sdn_it = b->get_shut_down() ) {
-  // shutdown at 0 iif the unit was on at the start and it is off at 0
+  // shutdown at 0 iif the unit was on at the start, and it is off at 0
   if( ! t_init )
-   (sdn_it++)->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] )
-			  ? 1 : 0 );
+   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] ) ? 1 : 0 );
 
-  // shutdown at i iff the unit was on at i - 1 and it is off at i
+  // shutdown at i iff the unit was on at i - 1, and it is off at i
   for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   (sdn_it++)->set_value( ( ! U[ i ] ) && U[ i - 1 ] ? 1 : 0 );
+   ( sdn_it++ )->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
   }
 
  // unlock the Block
  if( ! owned )
   f_Block->unlock( f_id );
 
- }  // end( ThermalUnitDPSolver::get_var_solution( )
+ }  // end( ThermalUnitDPSolver::get_var_solution )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ BUILDING AND SOLVING THE DP PROBLEM -------------------*/
@@ -159,15 +168,15 @@ void ThermalUnitDPSolver::build_graph( void )
  // which we use as a way to indicate that the node has not been proved
  // reachable from s yet
 
- delete f_start.DPS;
- 
+ delete( f_start.DPS );
+
  v_on_nodes.clear();  // this deletes all EDSolver
  v_on_nodes.resize( time_horizon );
  v_off_nodes.resize( time_horizon );
 
  // now rebuild the graph: start from s- - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- 
+
  if( init_up_down_time > 0 ) {
   // the unit is already on- - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -189,7 +198,7 @@ void ThermalUnitDPSolver::build_graph( void )
   if( kMin > time_horizon )  // weird case: the unit must remain on for
    kMin = time_horizon;      // more than the time horizon, i.e., for all
                              // (and only) the time horizon
- 
+
   // allocate the set of arcs: these are
   //
   //       time_horizon - kMin + 1
@@ -205,11 +214,11 @@ void ThermalUnitDPSolver::build_graph( void )
   // are ( s , 3 ), ( s, 4 ), ( s, 5 ), ( s, d ) These are 6 - 3 + 1 = 4.
   //
   // note the weird case where kMin == 0, i.e., ( s , 0 ) exists, i.e.,
-  // the unit is on but it is immediately turned off: this "oddball"
+  // the unit is on, but it is immediately turned off: this "oddball"
   // arc corresponds to an empty ED and always has 0 cost
 
   double fc = 0;             // compute the fixed-cost component of the cost
-  Index j = 0;               // this surely comprises the fixed costs 
+  Index j = 0;               // this surely comprises the fixed costs
   while( j < kMin )          // between 0 (included) and kMin (excluded)
    fc += const_term[ j++ ];  // since the unit is on in that period
 
@@ -243,7 +252,7 @@ void ThermalUnitDPSolver::build_graph( void )
   // (note that t_init <= time_horizon, so at least one arc is there)
   // where note that t_init == 0 is now possible meaning that
   // init_up_down_time == min_down_time == 0; this implies that the first
-  // arc is ( s , 0 ), i.e., "the unit was off at the beginning but it
+  // arc is ( s , 0 ), i.e., "the unit was off at the beginning, but it
   // starts up immediately". Apart from this the structure of the arcs is
   // analogous as in the init_up_down_time > 0 case, except of course they
   // go to the ON nodes
@@ -271,7 +280,7 @@ void ThermalUnitDPSolver::build_graph( void )
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // we do this in the order i = 0, 1, ..., n - 1: since the graph is
  // acyclic, if the lab of the node is still 0 when we process it then the
- // node is unreachable from d and we need not construct any arc
+ // node is unreachable from d, and we need not construct any arc
 
  const Index mut = std::max( min_up_time , Index( 1 ) );
  // min up-time of 0 makes no sense
@@ -388,28 +397,29 @@ void ThermalUnitDPSolver::build_graph( void )
 
  stage = graph_OK;  // update stage
 
- }  // end( build_graph )
+ }  // end( ThermalUnitDPSolver::build_graph )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::compute_EDPs( void )
 {
  if( stage < graph_OK )
-  throw( std::logic_error( "compute_EDPs(): graph not ready" ) );
+  throw( std::logic_error(
+   "ThermalUnitDPSolver::compute_EDPs: graph not ready." ) );
 
  std::vector< double > cost( time_horizon );
 
  // update variable costs in the arcs outgoing from s
- if( f_start.DPS ) {                    // f_start is a ON node
-  f_start.DPS->compute_costs( cost );   // solve EDPs, retrieve optimal costs
+ if( f_start.DPS ) {                   // f_start is a ON node
+  f_start.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
 
   // index of first tail node (note: one arc surely exists)
   Index h = h_of_node( f_start.v_arcs.front().tail );
 
   // the cost of ( s , h ) is found in cost[ h - 1 ]: however, one must
   // be careful of the weird case where ( s , 0 ) is present, i.e.,
-  // the unit is on but it immediately shuts down. this arc has cost 0
-  // as "nothing happens there". this is how the arc cost is initialized
+  // the unit is on, but it immediately shuts down. this arc has cost 0
+  // as "nothing happens there". this is how the arc cost is initialized,
   // and it is never changed, so one just need to skip it
   auto ai = f_start.v_arcs.begin();
   if( h )
@@ -444,14 +454,15 @@ void ThermalUnitDPSolver::compute_EDPs( void )
 
  stage = edps_OK;  // update stage
 
- }  // end( compute_EDPs )
+ }  // end( ThermalUnitDPSolver::compute_EDPs )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::min_path( void )
 {
  if( stage < edps_OK )
-  throw( std::logic_error( "min_path: graph and/or EDPs not ready" ) );
+  throw( std::logic_error(
+   "ThermalUnitDPSolver::min_path: graph and/or EDPs not ready." ) );
 
  // reset labels and predecessors for all nodes (except f_start, that will
  // always have lab == 0 and predecessor == nullptr)
@@ -476,15 +487,15 @@ void ThermalUnitDPSolver::min_path( void )
 
  stage = path_OK;  // all done: update stage
 
- }  // end( min_path )
+ }  // end( ThermalUnitDPSolver::min_path )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::compute_solutions( void )
 {
  if( stage < edps_OK )
-  throw( std::logic_error( "compute_solutions: graph and/or path not ready"
-			   ) );
+  throw( std::logic_error(
+   "ThermalUnitDPSolver::compute_solutions: graph and/or path not ready." ) );
 
  std::fill( P.begin() , P.end() , 0 );
  std::fill( U.begin() , U.end() , false );
@@ -493,13 +504,13 @@ void ThermalUnitDPSolver::compute_solutions( void )
  auto n = f_end.pred;
 
  if( ! n )
-  throw( std::logic_error(
-     "compute_solutions: called when has_var_solution() == false" ) );
+  throw( std::logic_error( "ThermalUnitDPSolver::compute_solutions: called "
+                           "when has_var_solution() == false." ) );
 
  // compute the solution by visiting the optimal path backward from f_end
 
  do {
-  Index h = h_of_node( n );   // the current arc is ( h , k )
+  Index h = h_of_node( n );  // the current arc is ( h , k )
   if( n->DPS && k ) {
    // n is ON( h ), or the source (if h == 0) that works as an ON node
    // the power and commitment variables of this arc are these with index
@@ -509,24 +520,24 @@ void ThermalUnitDPSolver::compute_solutions( void )
    // variables
    // get optimal values of power variables out of the EDSolver
    n->DPS->compute_power_variables( k - 1 , P );
-   for( Index i = h ; i < k ; )   // set all commitment variables to true
+   for( Index i = h ; i < k ; )  // set all commitment variables to true
     U[ i++ ] = true;
    }
   // else n is OFF( h ), or the source (if h == 0) that works as an OFF
   // node: P[ i ] = U[ i ] = 0 for i = h, ..., k - 1, but these already
   // have those values
 
-  k = h;         // the previous beginning will be the end
-  n = n->pred;   // back one arc
+  k = h;        // the previous beginning will be the end
+  n = n->pred;  // back one arc
 
   } while( n );  // ... until we hit f_start that has pred == nullptr
 
  stage = sol_OK;  // all done: update stage
 
- }  // end( compute_solutions )
+ }  // end( ThermalUnitDPSolver::compute_solutions )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PRIVATE METHODS OF THE CLASS ------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::load_parameters( void )
@@ -534,19 +545,22 @@ void ThermalUnitDPSolver::load_parameters( void )
  // locking the Block
  bool owned = f_Block->is_owned_by( f_id );
  if( ( ! owned ) && ( ! f_Block->read_lock() ) )
-  throw( std::runtime_error( "Unable to lock the Block" ) );
+  throw( std::runtime_error(
+   "ThermalUnitDPSolver::load_parameters: unable to lock the Block." ) );
 
  // casting has been checked in set_Block() already
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
  // sanity checks
  if( ! b->get_primary_rho().empty() )
-  throw( std::invalid_argument(
-	     "ThermalUnitDPSolver does not handle primary reserve yet" ) );
- 
+  throw( std::invalid_argument( "ThermalUnitDPSolver::load_parameters: "
+                                "ThermalUnitDPSolver does not handle primary "
+                                "reserve yet." ) );
+
  if( ! b->get_secondary_rho().empty() )
-  throw( std::invalid_argument(
-	   "ThermalUnitDPSolver does not handle secondary reserve yet" ) );
+  throw( std::invalid_argument( "ThermalUnitDPSolver::load_parameters: "
+                                "ThermalUnitDPSolver does not handle "
+                                "secondary reserve yet." ) );
 
  // scalar values
  time_horizon = b->get_time_horizon();
@@ -572,6 +586,8 @@ void ThermalUnitDPSolver::load_parameters( void )
  startup_costs = b->get_start_up_cost();
  min_power = b->get_min_power();
  max_power = b->get_max_power();
+ bound_on = b->get_start_up_limit();
+ bound_down = b->get_shut_down_limit();
 
  if( b->get_delta_ramp_up().empty() )
   delta_ramp_up = max_power;
@@ -625,7 +641,7 @@ void ThermalUnitDPSolver::process_modifications( void )
  if( reload )
   load_parameters();
 
- }  // end( process_modifications )
+ }  // end( ThermalUnitDPSolver::process_modifications )
 
 /*--------------------------------------------------------------------------*/
 
@@ -637,7 +653,7 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 
  // GroupModification
  if( const auto gm = dynamic_cast< GroupModification * >( mod ) ) {
-  bool reload = false; 
+  bool reload = false;
   for( const auto & submod : gm->sub_Modifications() )
    if( guts_of_process_modifications( submod.get() ) )
     reload = true;
@@ -650,18 +666,18 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
    auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
    switch( tubm->type() ) {
-    case ThermalUnitBlockMod::eSetMaxP:
+    case( ThermalUnitBlockMod::eSetMaxP ):
      max_power = b->get_max_power();
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetInitP:
+    case( ThermalUnitBlockMod::eSetInitP ):
      initial_power = b->get_initial_power();
      stage = start;
      return( false );
 
-    case ThermalUnitBlockMod::eSetInitUD:
+    case( ThermalUnitBlockMod::eSetInitUD ):
      init_up_down_time = b->get_init_up_down_time();
      min_up_time = b->get_min_up_time();
      min_down_time = b->get_min_down_time();
@@ -678,28 +694,28 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      stage = start;
      return( false );
 
-    case ThermalUnitBlockMod::eSetAv:
+    case( ThermalUnitBlockMod::eSetAv ):
      return( true );  // TODO
 
-    case ThermalUnitBlockMod::eSetSUC:
+    case( ThermalUnitBlockMod::eSetSUC ):
      startup_costs = b->get_start_up_cost();
      if( stage > edps_OK )
       stage = edps_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetLinT:
+    case( ThermalUnitBlockMod::eSetLinT ):
      retrieve_term( linear_term, b->get_linear_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetQuadT:
+    case( ThermalUnitBlockMod::eSetQuadT ):
      retrieve_term( quad_term, b->get_quad_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
-    case ThermalUnitBlockMod::eSetConstT:
+    case( ThermalUnitBlockMod::eSetConstT ):
      retrieve_term( const_term, b->get_const_term() );
      stage = start;
      return( false );
@@ -717,8 +733,7 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
-                                         const std::vector< double > & in )
- const
+                                         const std::vector< double > & in ) const
 {
  if( in.empty() ) {
   out.resize( time_horizon );
@@ -740,14 +755,14 @@ void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
 /*--------------------------------------------------------------------------*/
 
 ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
-					     ThermalUnitDPSolver * s )
+                                             ThermalUnitDPSolver * s )
  : EDSolver( h , s )
 {
  auto & time_horizon = f_solver->time_horizon;
 
  #if( COMPUTE_DUALS )
   Index coeffsize = time_horizon * time_horizon +f_h * f_h -
-                    2 * f_h * time_horizon;  
+                    2 * f_h * time_horizon;
  #else
   // Index coeffsize = 4 * ( time_horizon - f_h + 1 );
   // the theory says it should work, but it does not
@@ -772,7 +787,7 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::DPEDSolver::compute_costs(
-					      std::vector< double > & costs )
+ std::vector< double > & costs )
 {
  // scalar values
  auto time_horizon = f_solver->time_horizon;
@@ -810,7 +825,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   }
  else {
   m[ 0 ] = min_power[ k ];
-  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] ); // \bar{l}_k
+  m[ 1 ] = std::min( bound_on[ k ] , max_power[ k ] );  // \bar{l}_k
   }
 
  #if ( COMPUTE_DUALS )
@@ -831,9 +846,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   // initialize the vector pos containing the initial indices of the pieces.
   pos[ 0 ].begm = 0;
   pos[ 0 ].begt = 0;
- #endif 
+ #endif
 
- // initialize the vector of unconstrained power values, i.e., 
+ // initialize the vector of unconstrained power values, i.e.,
  // power values are not constrained by bound_down[ k ]
  if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
   unc_p[ k ] = ( coeffs[ 0 ].beta <= 0 ? m[ 1 ] : m[ 0 ] );
@@ -891,11 +906,11 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   #if( COMPUTE_DUALS )
    Index qm = pos[ k - 1 ].begm;
-  
+
    while( ( pstar >= m[ qm + 1 ] ) && ( qm < pos[ k ].begm - 2 ) )
     ++qm;
 
-   Index q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;    
+   Index q = qm - pos[ k - 1 ].begm + pos[ k - 1 ].begt;
 
    // compute the last endpoint of the piece, \bar{u}
    double u_bar = std::min( max_power[ k ] ,
@@ -904,7 +919,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    Index qm = pos[ 1 - nextk ].begm;
    /*!!
    Index poslim = pos[ 1 - nextk ].begm + ( v[ 1 - nextk ] + 1 ) + 1 - 2;
-  
+
    while( ( pstar >= m[ qm + 1 ] ) && ( qm < poslim ) )
     ++qm;
     !!*/
@@ -917,7 +932,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
      ++qm;
     }
 
-   Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;    
+   Index q = qm - pos[ 1 - nextk ].begm + pos[ 1 - nextk ].begt;
 
    // compute the last endpoint of the piece, \bar{u}
    double u_bar = std::min( max_power[ k ] ,
@@ -941,9 +956,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
 
    /* Compute the maximum value for \bar{p} such that:
-    *  - p^*_k(\bar{p}) stays in the q-th interval;
-    *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible. */
+    * - p^*_k(\bar{p}) stays in the q-th interval;
+    * - unc_p stays out of the admissible range;
+    * - \bar{p} stays admissible. */
 
    if( m[ qm + 1 ] - delta_ramp_down[ k - 1 ] <
        unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ] - f_solver->eps ) {
@@ -963,7 +978,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    // compute unc_p, unconstrained optimal value for z_{hk}
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];
@@ -991,8 +1006,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * unc_p[ k - 1 ] + coeffs[ q ].gamma;
 
    /* compute the maximum value for \bar{p} such that:
-    *  - unc_p stays out of the admissible range;
-    *  - \bar{p} stays admissible. */
+    * - unc_p stays out of the admissible range;
+    * - \bar{p} stays admissible. */
 
    p_bar = std::min( u_bar , unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] );
 
@@ -1000,7 +1015,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    m[ mcnt++ ] = p_bar;
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];
@@ -1028,8 +1043,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     coeffs[ q ].beta * delta_ramp_up[ k - 1 ];
 
    /* Compute the maximum value for \bar{p} such that:
-    *  - p^*_k(\bar{p}) stays in the q-th interval;
-    *  - \bar{p} stays admissible. */
+    * - p^*_k(\bar{p}) stays in the q-th interval;
+    * - \bar{p} stays admissible. */
 
    p_bar = std::min( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] , u_bar );
 
@@ -1039,7 +1054,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    ++qm;
 
    if( firstTime &&
-       2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) {
+       ( 2 * coeffs[ coeffcnt ].alfa * p_bar + coeffs[ coeffcnt ].beta > 0 ) ) {
     if( std::abs( coeffs[ coeffcnt ].alfa ) <= 1e-16 ) {
      if( coeffs[ coeffcnt ].beta >= 0 )
       unc_p[ k ] = m[ mcnt - 2 ];
@@ -1054,8 +1069,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    ++coeffcnt;
 
    }  // end( while( CASE 3 ) )
-
-  // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
+   // end of the tree cases - - - - - - - - - - - - - - - - - - - - - - - - -
 
   #if( COMPUTE_DUALS )
    v[ k ] = v_bar - 1;
@@ -1079,10 +1093,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    con_p[ k ] = bound_down[ k + 1 ];
   else
    con_p[ k ] = unc_p[ k ];
- 
+
   // compute the cost for the node (h,k) in costs[]
 
-  #if( COMPUTE_DUALS ) 
+  #if( COMPUTE_DUALS )
     qm = pos[ k ].begm;
   #else
     qm = pos[ nextk ].begm;
@@ -1105,12 +1119,12 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
                coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
 
   }  // end( for( k ) )
- }  // end( compute_costs )
+ }  // end( ThermalUnitDPSolver::compute_costs )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
-						  std::vector< double > & p )
+                                                               std::vector< double > & p )
 {
  auto & delta_ramp_up = f_solver->delta_ramp_up;
  auto & delta_ramp_down = f_solver->delta_ramp_down;
@@ -1139,7 +1153,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables( Index k ,
    else
     p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
   }
- }  // end( compute_power_variables )
+ }  // end( ThermalUnitDPSolver::compute_power_variables )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File ThermalUnitDPSolver.cpp -----------------------*/

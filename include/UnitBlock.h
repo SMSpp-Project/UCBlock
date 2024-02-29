@@ -36,7 +36,7 @@
  *         Universita' di Pisa \n
  *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                   Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -50,20 +50,24 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it
 {
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlock -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// Implementation of the Block concept for "a generic unit" in UC
+/// implementation of the Block concept for "a generic unit" in UC
 /** The class UnitBlock, which derives from the Block, defines a base class
  * for any possible "unit" that can be attached to a UCBlock. A unit is in
  * general a set of electrical generators tied together by some technical
@@ -96,6 +100,7 @@ namespace SMSpp_di_unipi_it
 
 class UnitBlock : public Block
 {
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -106,88 +111,87 @@ class UnitBlock : public Block
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
- *  @{ */
+ * @{ */
 
- /// Constructor, takes the father and the time horizon
- /** Constructor of UnitBlock, taking possibly a pointer of its father
-  * Block and the time horizon. By default the time horizon is initialized to
-  * 0, which means "not set yet". */
+ /// constructor, takes the father block
+ /** Constructor of UnitBlock, taking possibly a pointer of its father Block. */
 
- explicit UnitBlock( Block * father_block = nullptr , Index t = 0 );
+ explicit UnitBlock( Block * father = nullptr )
+  : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
- /// Destructor of UnitBlock
+ /// destructor of UnitBlock
 
  virtual ~UnitBlock() override {
   for( auto & block : v_Block )
-   delete block;
+   delete( block );
   v_Block.clear();
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ * @{ */
 
-/// Extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the UnitBlock. Besides the mandatory "type" attribute of any :Block, the
- * group should contain the following:
- *
- * - The dimension "TimeHorizon" containing the time horizon. The dimension
- *   is optional because the same information may be passed via the method
- *   set_time_horizon(), or directly retrieved from the father if it is a
- *   UCBlock; see the comments to set_time_horizon() for details.
- *
- * - The dimension "NumberIntervals", that is provided to allow that all
- *   time-dependent data in the UnitBlock can only change at a subset of
- *   the time instants of the time interval, being therefore
- *   piecewise-constant (possibly, constant). "NumberIntervals" should
- *   therefore be <= "TimeHorizon", with four distinct cases:
- *
- *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
- *        time instants, *but not all of them*, the values of some of the
- *        relevant data are changing; the intervals are then described in
- *        variable "ChangeIntervals".
- *
- *   ii) "NumberIntervals" == 1, which means that the value of each relevant
- *        data in the UnitBlock is the same for each time instant 0, ...,
- *        "TimeHorizon" - 1 in the time horizon. In this case, the variable
- *        "ChangeIntervals" (see below) is ignored.
- *
- *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
- *        relevant data changes at every time interval (in principle; of
- *        course there is nothing preventing the same value to be repeated in
- *        the netCDF input). Also in this case the variable "ChangeIntervals"
- *        is ignored, since it is useless.
- *
- *   iv)  The dimension "NumberIntervals" is not provided, which means that
- *        the values of the relevant data may be the same for each time
- *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
- *        case iii above). Also in this case, of course, "ChangeIntervals"
- *        (see below) is ignored, and therefore it can (and should) not be
- *        present.
- *
- *   Note that this (together with "ChangeIntervals", if defined) obviously
- *   sets the "maximum frequency" at which data can change; if some data
- *   changes less frequently (say, it is constant), then the same value
- *   will have to be repeated. Individual data can also have specific
- *   provisions for the case where the data is all equal despite
- *   "NumberIntervals" saying differently.
- *
- * - The variable "ChangeIntervals", of type integer and indexed over the
- *   dimension "NumberIntervals". The time horizon is subdivided into
- *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ...  [
- *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
- *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
- *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
- *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
- *   NumberIntervals - 1 ], is ignored and does not need to be set (although
- *   the variable has actually "NumberIntervals" elements). Anyway, the whole
- *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
- *   not defined), or "NumberIntervals" >= "TimeHorizon".
- */
+ /// extends Block::deserialize( netCDF::NcGroup )
+ /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+  * the UnitBlock. Besides the mandatory "type" attribute of any :Block, the
+  * group should contain the following:
+  *
+  * - The dimension "TimeHorizon" containing the time horizon. The dimension
+  *   is optional because the same information may be passed via the method
+  *   set_time_horizon(), or directly retrieved from the father if it is a
+  *   UCBlock; see the comments to set_time_horizon() for details.
+  *
+  * - The dimension "NumberIntervals", that is provided to allow that all
+  *   time-dependent data in the UnitBlock can only change at a subset of
+  *   the time instants of the time interval, being therefore
+  *   piecewise-constant (possibly, constant). "NumberIntervals" should
+  *   therefore be <= "TimeHorizon", with four distinct cases:
+  *
+  *   i)   1 < "NumberIntervals" < "TimeHorizon", which means that at some
+  *        time instants, *but not all of them*, the values of some of the
+  *        relevant data are changing; the intervals are then described in
+  *        variable "ChangeIntervals".
+  *
+  *   ii) "NumberIntervals" == 1, which means that the value of each relevant
+  *        data in the UnitBlock is the same for each time instant 0, ...,
+  *        "TimeHorizon" - 1 in the time horizon. In this case, the variable
+  *        "ChangeIntervals" (see below) is ignored.
+  *
+  *   iii) "NumberIntervals" == "TimeHorizon", which means that values of the
+  *        relevant data changes at every time interval (in principle; of
+  *        course there is nothing preventing the same value to be repeated in
+  *        the netCDF input). Also in this case the variable "ChangeIntervals"
+  *        is ignored, since it is useless.
+  *
+  *   iv)  The dimension "NumberIntervals" is not provided, which means that
+  *        the values of the relevant data may be the same for each time
+  *        instant (as in case ii above) or indexed over "TimeHorizon" (as in
+  *        case iii above). Also in this case, of course, "ChangeIntervals"
+  *        (see below) is ignored, and therefore it can (and should) not be
+  *        present.
+  *
+  *   Note that this (together with "ChangeIntervals", if defined) obviously
+  *   sets the "maximum frequency" at which data can change; if some data
+  *   changes less frequently (say, it is constant), then the same value
+  *   will have to be repeated. Individual data can also have specific
+  *   provisions for the case where the data is all equal despite
+  *   "NumberIntervals" saying differently.
+  *
+  * - The variable "ChangeIntervals", of type integer and indexed over the
+  *   dimension "NumberIntervals". The time horizon is subdivided into
+  *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ... [
+  *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
+  *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
+  *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
+  *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
+  *   NumberIntervals - 1 ], is ignored and does not need to be set (although
+  *   the variable has actually "NumberIntervals" elements). Anyway, the whole
+  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
+  *   not defined), or "NumberIntervals" >= "TimeHorizon". */
+
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -214,17 +218,17 @@ class UnitBlock : public Block
  * @{ */
 
  /// returns the time horizon of the problem
- Index get_time_horizon() const { return f_time_horizon; }
+ Index get_time_horizon( void ) const { return( f_time_horizon ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of electrical generators of each unit in the problem
  /** Returns the number of electrical generators for this UnitBlock. Since in
-  *  most of the cases each unit has only one electrical generator, this
-  *  method in the base UnitBlock class returns to one by default. Therefore,
-  *  for all the units that have only one generator, the implementation of
-  *  this method is already done right in the base UnitBlock class. The units
-  *  that have more than one electrical generator (tied together by technical
-  *  constraints) will have to handle this number by their-self. */
+  * most of the cases each unit has only one electrical generator, this
+  * method in the base UnitBlock class returns to one by default. Therefore,
+  * for all the units that have only one generator, the implementation of
+  * this method is already done right in the base UnitBlock class. The units
+  * that have more than one electrical generator (tied together by technical
+  * constraints) will have to handle this number by their-self. */
 
  virtual Index get_number_generators( void ) const { return( 1 ); }
 
@@ -241,12 +245,11 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose fixed consumption is
-  *        desired. */
+  *                  desired. */
 
- virtual double * get_fixed_consumption( Index generator )
- {
+ virtual const double * get_fixed_consumption( Index generator ) const {
   return( nullptr );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia commitment of the given generator
@@ -261,12 +264,11 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose inertia commitment is
-  *        desired. */
+  *                  desired. */
 
- virtual double *  get_inertia_commitment( Index generator )
- {
+ virtual const double * get_inertia_commitment( Index generator ) const {
   return( nullptr );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia power of the given generator
@@ -281,12 +283,25 @@ class UnitBlock : public Block
   * classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose inertia power is
-  *        desired. */
+  *                  desired. */
 
- virtual double * get_inertia_power( Index generator )
- {
+ virtual const double * get_inertia_power( Index generator ) const {
   return( nullptr );
-  }
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power of the given generator at the given time
+
+ virtual double get_min_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power of the given generator at the given time
+
+ virtual double get_max_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
@@ -308,14 +323,14 @@ class UnitBlock : public Block
  /// returns the array of commitment variables
  /** This method returns a pointer to the array containing the commitment
   * variables of the given \p generator at all time instants. Being C the
-  * value returned by this method, C[t] is the commitment variable at time t
+  * value returned by this method, C[ t ] is the commitment variable at time t
   * for each t in {0, ..., time_horizon - 1}.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the commitment variable (if any).
   *
   * @param generator The index of the generator whose commitment variables are
-  *        desired. */
+  *                  desired. */
 
  virtual ColVariable * get_commitment( Index generator ) {
   return( nullptr );
@@ -334,7 +349,7 @@ class UnitBlock : public Block
   * any).
   *
   * @param generator The index of the generator whose primary spinning reserve
-  *        variables are desired. */
+  *                  variables are desired. */
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
@@ -353,7 +368,7 @@ class UnitBlock : public Block
   * any).
   *
   * @param generator The index of the generator whose secondary spinning
-  *        reserve variables are desired. */
+  *                  reserve variables are desired. */
 
  virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
   return( nullptr );
@@ -370,14 +385,13 @@ class UnitBlock : public Block
   * classes will have to handle the active power variable (if any).
   *
   * @param generator The index of the generator whose active power variables
-  *        are desired. */
+  *                  are desired. */
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the scale factor of this UnitBlock
  /** This method returns the scale factor of this UnitBlock. Since not every
   * UnitBlock may support the notion of scaling, this method has a default
@@ -385,15 +399,16 @@ class UnitBlock : public Block
   * override this method. See UnitBlock::scale() for more details about the
   * scaling of a UnitBlock.
   *
-  * @return The sacaling factor number of this UnitBlock. */
+  * @return The scaling factor number of this UnitBlock. */
 
- virtual double get_scale() const { return 1; }
+ virtual double get_scale( void ) const { return( 1 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
- *  @{ */
+ * @{ */
+
  /// returns a Solution representing the current solution of this UnitBlock
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this UnitBlock. The base
@@ -401,7 +416,7 @@ class UnitBlock : public Block
   * and ColRowSolution, but :UnitBlock may make different choices.
   *
   * The parameter for deciding which kind of Solution must be returned is a
-  * single int value. If this value is
+  * single int value. If this value is:
   *
   * - 1, then a RowConstraintSolution is returned;
   *
@@ -428,20 +443,20 @@ class UnitBlock : public Block
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the UnitBlock
- *  @{ */
+ * @{ */
 
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
-  *  UnitBlock. See deserialize( const netCDF::NcGroup & ) for
-  *  details of the format of the created netCDF group. */
+  * UnitBlock. See deserialize( const netCDF::NcGroup & ) for
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE UnitBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Methods for modifying the UnitBlock
-  *  @{ */
+/** @name Methods for modifying the UnitBlock
+ * @{ */
 
  /// sets the time horizon method
  /** This method can be called *before* that deserialize() is called to
@@ -494,14 +509,13 @@ class UnitBlock : public Block
   * - 4 the unit could have inertia reserve variables.
   *
   * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there.*/
+  * reserve variables; it cannot create them if they are not there. */
 
  virtual void set_reserve_vars( unsigned char what ) {
   reserve_vars = what;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the scale factor of this UnitBlock
  /** Some situations may require the presence of multiple identical units. By
   * identical units we mean units that represent the exactly same mathematical
@@ -557,7 +571,8 @@ class UnitBlock : public Block
   * @param values An iterator to a vector containing the scale factor.
   *
   * @param subset If non-empty, the scale factor must be set to the value
-  *        pointed by \p values. If empty, no operation must be performed.
+  *               pointed by \p values. If empty, no operation must be
+  *               performed.
   *
   * @param ordered This parameter is ignored.
   *
@@ -565,13 +580,13 @@ class UnitBlock : public Block
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- virtual void scale( std::vector< double >::const_iterator values ,
-                     Subset && subset , const bool ordered = false ,
+ virtual void scale( MF_dbl_it values ,
+                     Subset && subset ,
+                     const bool ordered = false ,
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck ) { }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the scale factor of this UnitBlock
  /** This method sets the scale factor of this UnitBlock. A default
   * implementation is provided which simply call the Subset version of this
@@ -582,19 +597,18 @@ class UnitBlock : public Block
   * @param values An iterator to a vector containing the scale factor.
   *
   * @param rng If non-empty, the scale factor is set to the value pointed by
-  *        \p values. If empty, no operation is performed.
+  *            \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modification are issued.
   *
   * @param issueAMod Controls how abstract Modification are issued. */
 
- virtual void scale( std::vector< double >::const_iterator values ,
+ virtual void scale( MF_dbl_it values ,
                      Range rng = Range( 0, Inf< Index >() ) ,
                      c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the scale factor of this UnitBlock
  /** This method sets the scale factor of this UnitBlock. A default
   * implementation is provided which simply call the Subset version of this
@@ -614,21 +628,21 @@ class UnitBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Handling the data of the UnitBlock
-    @{ */
+/** @name Handling the data of the UnitBlock
+ * @{ */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
-  }
+ }
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED METHODS OF THE CLASS ----------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
  /// deserializes the time horizon from a netCDF group
@@ -638,38 +652,86 @@ class UnitBlock : public Block
  void deserialize_change_intervals( const netCDF::NcGroup & group );
 
  /// states that the Variable of the UnitBlock have been generated
- void set_variables_generated() { AR |= HasVar; }
+ void set_variables_generated( void ) { AR |= HasVar; }
 
  /// states that the Constraint of the UnitBlock have been generated
- void set_constraints_generated() { AR |= HasCst; }
+ void set_constraints_generated( void ) { AR |= HasCst; }
 
  /// states that the Objective of the UnitBlock has been generated
- void set_objective_generated() { AR |= HasObj; }
+ void set_objective_generated( void ) { AR |= HasObj; }
 
  /// indicates whether the Variable of the UnitBlock have been generated
- bool variables_generated() const { return( AR & HasVar ); }
+ bool variables_generated( void ) const { return( AR & HasVar ); }
 
  /// indicates whether the Constraint of the UnitBlock have been generated
- bool constraints_generated() const { return( AR & HasCst ); }
+ bool constraints_generated( void ) const { return( AR & HasCst ); }
 
  /// indicates whether the Objective of the UnitBlock has been generated
- bool objective_generated() const { return( AR & HasObj ); }
+ bool objective_generated( void ) const { return( AR & HasObj ); }
+
+ /// resizes a vector to time_horizon by using change_intervals
+ template< typename T >
+ void decompress_vector( std::vector< T > & v ) {
+  if( v.empty() )
+   return;
+
+  if( v.size() == 1 ) {
+   // The given vector has a single element. Thus, for each time instant, the
+   // value is equal to that single given element.
+   v.resize( f_time_horizon , v[ 0 ] );
+  } else if( v.size() < f_time_horizon ) {
+   // Since the number of elements is greater than 1 and less than the time
+   // horizon, it must be equal to the number of change intervals.
+   if( v.size() != v_change_intervals.size() ) {
+    throw( std::logic_error
+     ( classname() + "::decompress_vector: invalid number of elements" +
+       " (" + std::to_string( v.size() ) + ") for some variable. It should be " +
+       "equal to the number of change intervals (" +
+       std::to_string( v_change_intervals.size() ) + ")" ) );
+   }
+
+   // For each time instant t, the value associated with time t is equal to
+   // given_vector[ k ], where k is such that t belongs to the closed interval
+   // [i_{k-1} + 1, i_k] and i_k is the k-th element of v_change_intervals
+   // (starting from k = 0) and i_{-1} = -1 by definition. We resize the vector
+   // so that its size becomes f_time_horizon and copy the given data.
+
+   std::vector< T > given_vector = v;
+   v.resize( f_time_horizon );
+   Index t = 0;
+   for( Index k = 0 ; k < v_change_intervals.size() ; ++k ) {
+    auto upper_endpoint = v_change_intervals[ k ];
+    if( k == v_change_intervals.size() - 1 )
+     // The upper endpoint of the last interval must be time_horizon - 1. Since
+     // it may not be provided in v_change_intervals (the value for the last
+     // element of v_change_intervals is not required), we manually set it
+     // here.
+     upper_endpoint = f_time_horizon - 1;
+    for( ; t <= upper_endpoint ; ++t ) {
+     v[ t ] = given_vector[ k ];
+    }
+   }
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
  /// the time horizon of the problem
- Index f_time_horizon;
+ Index f_time_horizon{};
 
  /// the number of intervals
- Index f_number_intervals;
+ Index f_number_intervals{};
 
  /// the vector of change intervals
  std::vector< Index > v_change_intervals;
 
  /// bit-wise coded: which reserve variables generate
  unsigned char reserve_vars{};
+
+ ///< bit-wise coded: what abstract is there
+ unsigned char AR{};
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -678,41 +740,40 @@ class UnitBlock : public Block
  private:
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- PRIVATE FIELDS -------------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- unsigned char AR{}; ///< bit-wise coded: what abstract is there
+ static constexpr unsigned char HasVar = 16;
+ ///< 5th bit of AR == 1 if the Variables have been constructed
 
- static constexpr unsigned char HasVar = 1;
- ///< first bit of AR == 1 if the Variables have been constructed
- static constexpr unsigned char HasCst = 2;
- ///< second bit of AR == 1 if the Constraints have been constructed
- static constexpr unsigned char HasObj = 4;
- ///< third bit of AR == 1 if the Objective has been constructed
+ static constexpr unsigned char HasCst = 32;
+ ///< 6th bit of AR == 1 if the Constraints have been constructed
+
+ static constexpr unsigned char HasObj = 64;
+ ///< 7th bit of AR == 1 if the Objective has been constructed
 
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( UnitBlock ) )
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------------------------------------------------------*/
+
+};  // end( class( UnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlockMod ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// Derived class from Modification for modifications to a UnitBlock
+/// derived class from Modification for modifications to a UnitBlock
 class UnitBlockMod : public Modification {
 
 public:
 
- /// Public enum for the types of UnitBlockMod
+ /// public enum for the types of UnitBlockMod
  enum UB_mod_type {
-  eScale = 0 ,    ///< Set the scale factor
+  eScale = 0 ,    ///< set the scale factor
                   /**< This indicates that the scale factor of the UnitBlock
                    * has been modified. See UnitBlock::scale(). */
   eUBModLastParam ///< first allowed parameter value for derived classes
@@ -720,26 +781,26 @@ public:
                    * extend the set of types of UnitBlockMod. */
  };
 
- /// Constructor, takes the UnitBlock and the type
+ /// constructor, takes the UnitBlock and the type
  UnitBlockMod( UnitBlock * const fblock, const int type )
   : f_Block( fblock ), f_type( type ) {}
 
- /// Destructor, default version
+ /// destructor, default version
  virtual ~UnitBlockMod() override = default;
 
- /// Returns the Block to which the Modification refers
- Block * get_Block() const override { return ( f_Block ); }
+ /// returns the Block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
 
- /// Accessor to the type of modification
- int type() { return ( f_type ); }
+ /// accessor to the type of modification
+ int type( void ) { return( f_type ); }
 
-protected:
+ protected:
 
  /// prints the UnitBlockMod
  void print( std::ostream & output ) const override {
   output << "UnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case eScale:
+   case( eScale ):
     output << "Set the scale factor";
     break;
    default:;
@@ -749,8 +810,9 @@ protected:
  /// pointer to the Block to which the Modification refers
  UnitBlock * f_Block{};
 
- int f_type; ///< type of modification
-}; // end( class( UnitBlockMod ) )
+ int f_type;  ///< type of modification
+
+};  // end( class( UnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
