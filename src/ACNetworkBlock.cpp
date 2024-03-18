@@ -42,25 +42,34 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   std::cout << "NodeSuceptance size : "  << f_NetworkData->get_node_susceptance().size() << std::endl;
   std::cout << "NodeConductance size : " << f_NetworkData->get_node_conductance().size() << std::endl;
 
-  for (auto it_map = m_generators.begin(); it_map != m_generators.end(); ++it_map){
-    std::cout << "Generator data for node " << it_map->first.first << ", interval " << it_map->first.second << " is :" << std::endl;
-    for (auto& generator : it_map->second){
-      std::cout << "\tMinPower: "           << generator.f_MinPower << std::endl;
-      std::cout << "\tMaxPower: "           << generator.f_MaxPower << std::endl;
-      std::cout << "\tMinReactivePower: "   << generator.f_MinReactivePower << std::endl;
-      std::cout << "\tMaxReactivePower: "   << generator.f_MaxReactivePower << std::endl;
-      std::cout << "\tCost Model: "         << generator.f_CostModel << std::endl;
-      std::cout << "\tNumber cost coeffs: " << generator.f_NumberCostCoeffs << std::endl;
-      int i = 0;
-      for (auto & coeff : generator.v_PowerCostCoeffs){
-        std::cout << "\t\tPower cost coeffs " << i << ": " << coeff << std::endl;
-        ++i;
-      }
-    }
-  }
-
   DCNetworkBlock::generate_abstract_variables(stvv);
 }
+
+ void generate_abstract_constraints( Configuration * stcc = nullptr ){
+  if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
+
+ const auto number_nodes = get_number_nodes();
+
+ if( number_nodes <= 1 )
+  return;
+
+ const auto number_lines = get_number_lines();
+
+ if( number_lines <= 0 )
+  throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
+                           "number of lines of DCNetworkBlock is not set" ) );
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+
+ std::vector<Index> AC_lines = get_AC_lines();
+
+
+ // TODO
+
+
+ };
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/

@@ -379,6 +379,14 @@ class DCNetworkBlock : public NetworkBlock
    return( v_line_resistance );
   }
 
+  const std::vector< double > & get_line_ratio( void ) const {
+   return( v_line_ratio );
+  }
+
+  const std::vector< double > & get_line_angle( void ) const {
+   return( v_line_angle );
+  }
+
 /*--------------------------------------------------------------------------*/
   /// returns vector of the network cost
   /** Method for returning the vector of network cost for each line. This vector
@@ -485,6 +493,8 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< double > v_line_susceptance;
   std::vector< double > v_line_reactance;
   std::vector< double > v_line_resistance;
+  std::vector< double > v_line_ratio;
+  std::vector< double > v_line_angle;
   std::vector< double > v_node_susceptance;
   std::vector< double > v_node_conductance;
 

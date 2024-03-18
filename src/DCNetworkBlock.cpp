@@ -120,6 +120,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NodeVoltageAngle",
                                                      "LineResistance", 
                                                      "LineReactance",  
+                                                     "LineRatio",
+                                                     "LineShiftAngle",
                                                      "LineMinAngle", 
                                                      "LineMaxAngle" };
  check_variables( group , expected_vars , std::cerr );
@@ -170,6 +172,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                  true , true );
 
   ::deserialize( group , "LineResistance" , f_number_lines , v_line_resistance ,
+                 true , true );
+
+  ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
+                 true , true );
+
+  ::deserialize( group , "LineShiftAngle" , f_number_lines , v_line_angle ,
                  true , true );
 
   ::deserialize( group , "NodeConductance" , f_number_nodes , v_node_conductance ,

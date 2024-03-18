@@ -511,7 +511,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to add data of a generator to a given node
 
- virtual void add_generator_data(Index i, Index node_id, UnitBlock* unit_block, Index t, Index g ){};
+ virtual void add_ACdata(Index i, Index node_id, UnitBlock* unit_block, Index t, Index g ){};
  
 
 /**@} ----------------------------------------------------------------------*/
