@@ -62,8 +62,7 @@
 namespace SMSpp_di_unipi_it
 {
 
-// TODO commented away until HeatBlock are properly managed
-//class HeatBlock;     // forward declaration of HeatBlock
+class HeatBlock;     // forward declaration of HeatBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
@@ -998,26 +997,24 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
+ /// returns the vector of HeatSet
+ /** The method returns a std::vector< Index > V such that each element
+  * implies which heat generator is also an electrical generator. There are
+  * three possible cases:
+  *
+  * - if V is empty, then no HeatSet is defined, and there is no heat linking
+  *   constraints;
+  *
+  * - if V has only one element, then there is just one heat generator in
+  *   heat blocks which is also an electrical generator;
+  *
+  * - otherwise, V.size() == NumberHeatGenerators (see the comments to
+  *   deserialize()), and each element of V[ h ] tells which heat generator
+  *   is also an electrical generator. */
 
- // /// returns the vector of HeatSet
- // /** The method returns a std::vector< Index > V such that each element
- //  * implies which heat generator is also an electrical generator. There are
- //  * three possible cases:
- //  *
- //  * - if V is empty, then no HeatSet is defined, and there is no heat linking
- //  *   constraints;
- //  *
- //  * - if V has only one element, then there is just one heat generator in
- //  *   heat blocks which is also an electrical generator;
- //  *
- //  * - otherwise, V.size() == NumberHeatGenerators (see the comments to
- //  *   deserialize()), and each element of V[ h ] tells which heat generator
- //  *   is also an electrical generator. */
-
- // const std::vector< Index > & get_heat_set( void ) const {
- //  return( v_heat_set );
- // }
+ const std::vector< Index > & get_heat_set( void ) const {
+  return( v_heat_set );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant rho
@@ -1046,40 +1043,38 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
+ /// returns the matrix of pollutant heat rho
+ /** The method returned a three-dimensional boost::multi_array<> M such that
+  * M[ t , p , i ] gives the conversion factor of the given pollutant p due to
+  * the generation of every heat-only unit i in the given heat block h at the
+  * given time t. This three-dimensional boost::multi_array<> M considers two
+  * possible cases:
+  *
+  * - if the boost::multi_array<> M is empty() then two possible cases are:
+  *
+  *   - there is no pollutant zone, hence there are not defined any pollutant
+  *     budget constraints;
+  *
+  *   - there is no HeatBlock, hence in pollutant budget constraints there
+  *     is not heat-rho-linking part;
+  *
+  * - otherwise, two possible cases may happen to the first dimension of the
+  *   M[ t , p , i ];
+  *
+  *   - if the first dimension of the boost::multi_array<> M has size one,
+  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
+  *     factor of pollutant p due to the of every heat-only unit i in the
+  *     given heat block h;
+  *
+  *   - if the first dimension of the boost::multi_array<> M has full size
+  *     then, each element of the matrix M[ t , p , i ] gives the conversion
+  *     factor of pollutant p due to the generation of every heat-only unit i
+  *     in the given heat block h for time instant t. */
 
- // /// returns the matrix of pollutant heat rho
- // /** The method returned a three-dimensional boost::multi_array<> M such that
- //  * M[ t , p , i ] gives the conversion factor of the given pollutant p due to
- //  * the generation of every heat-only unit i in the given heat block h at the
- //  * given time t. This three-dimensional boost::multi_array<> M considers two
- //  * possible cases:
- //  *
- //  * - if the boost::multi_array<> M is empty() then two possible cases are:
- //  *
- //  *   - there is no pollutant zone, hence there are not defined any pollutant
- //  *     budget constraints;
- //  *
- //  *   - there is no HeatBlock, hence in pollutant budget constraints there
- //  *     is not heat-rho-linking part;
- //  *
- //  * - otherwise, two possible cases may happen to the first dimension of the
- //  *   M[ t , p , i ];
- //  *
- //  *   - if the first dimension of the boost::multi_array<> M has size one,
- //  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
- //  *     factor of pollutant p due to the of every heat-only unit i in the
- //  *     given heat block h;
- //  *
- //  *   - if the first dimension of the boost::multi_array<> M has full size
- //  *     then, each element of the matrix M[ t , p , i ] gives the conversion
- //  *     factor of pollutant p due to the generation of every heat-only unit i
- //  *     in the given heat block h for time instant t. */
-
- // const boost::multi_array< double, 3 > & get_pollutant_heat_rho( void )
- // const {
- //  return( v_pollutant_heat_rho );
- // }
+ const boost::multi_array< double, 3 > & get_pollutant_heat_rho( void )
+ const {
+  return( v_pollutant_heat_rho );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the u-th UnitBlock
@@ -1103,22 +1098,20 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
+ /// returns the vector of (pointers to) HeatBlock elements.
+ /** The vector of heat blocks in the problem. There are three possible cases:
+  *
+  * - if the vector is empty, then the there is no heat block;
+  *
+  * - if the vector only has one element, then there is just one heat block in
+  *   the problem;
+  *
+  * - otherwise the vector must have the size of the number of heat blocks,
+  *   and the h-th entry gives the corresponding heat block h. */
 
- // /// returns the vector of (pointers to) HeatBlock elements.
- // /** The vector of heat blocks in the problem. There are three possible cases:
- //  *
- //  * - if the vector is empty, then the there is no heat block;
- //  *
- //  * - if the vector only has one element, then there is just one heat block in
- //  *   the problem;
- //  *
- //  * - otherwise the vector must have the size of the number of heat blocks,
- //  *   and the h-th entry gives the corresponding heat block h. */
-
- // const std::vector< HeatBlock * > & get_heat_block( void ) const {
- //  return( v_heat_blocks );
- // }
+ const std::vector< HeatBlock * > & get_heat_block( void ) const {
+  return( v_heat_blocks );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of generator node
@@ -1137,24 +1130,22 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
+ /// returns the vector of electrical-power-to-heat ratio
+ /** The method returned a std::vector< double > V and each element of V
+  * contains the electrical-power-to-heat ratio for each unit i of heat block
+  * h. There are three possible cases:
+  *
+  * - if V is empty, then the there is no heat block;
+  *
+  * - if V only has one element, then the power heat rho is always equal to
+  *   the value of that element;
+  *
+  * - otherwise the vector must have the size of the number of units, and the
+  *   V[ i ] gives the power heat rho for each heat block h. */
 
- // /// returns the vector of electrical-power-to-heat ratio
- // /** The method returned a std::vector< double > V and each element of V
- //  * contains the electrical-power-to-heat ratio for each unit i of heat block
- //  * h. There are three possible cases:
- //  *
- //  * - if V is empty, then the there is no heat block;
- //  *
- //  * - if V only has one element, then the power heat rho is always equal to
- //  *   the value of that element;
- //  *
- //  * - otherwise the vector must have the size of the number of units, and the
- //  *   V[ i ] gives the power heat rho for each heat block h. */
-
- // const std::vector< double > & get_power_heat_rho( void ) const {
- //  return( v_power_heat_rho );
- // }
+ const std::vector< double > & get_power_heat_rho( void ) const {
+  return( v_power_heat_rho );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
@@ -1401,10 +1392,8 @@ class UCBlock : public Block
  /// the number of electrical generators of the problem
  Index f_number_elc_generators{};
 
- /* TODO commented away until HeatBlock are properly managed
  /// the number of heat generators of the problem
  Index f_number_heat_generators;
- */
 
  /// the total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones{};
@@ -1412,10 +1401,8 @@ class UCBlock : public Block
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
- /* TODO commented away until HeatBlock are properly managed
  /// the number of heat block
  Index f_number_heat_blocks;
- */
 
  /// the number of nodes in primary zones of the network
  Index f_number_primary_zones{};
@@ -1435,10 +1422,8 @@ class UCBlock : public Block
  /// the constant terms of each NetworkBlock
  std::vector< double > v_network_constant_terms;
 
- /* TODO commented away until HeatBlock are properly managed
  /// the set of HeatBlock
  std::vector< HeatBlock * > v_heat_blocks;
- */
 
  /// the number of pollutant zones of each pollutant
  std::vector< Index > v_number_pollutant_zones;
@@ -1486,29 +1471,21 @@ class UCBlock : public Block
  /** Indexed over TimeHorizon, NumberPollutants, and NumberElcGenerators. */
  boost::multi_array< double , 3 > v_pollutant_rho;
 
- /* TODO commented away until HeatBlock are properly managed
  /// the PollutantHeatRho matrix
  /// Indexed over TimeHorizon, NumberPollutants, and NumberHeatBlocks.
  boost::multi_array< double, 3 > v_pollutant_heat_rho;
- */
 
  /// v_generator_node[ g ] tells to which node generator g belongs
  std::vector< Index > v_generator_node;
 
- /* TODO commented away until HeatBlock are properly managed
  /// v_heat_node[ h ] tells to which node the heat block h belongs
  std::vector< Index > v_heat_node;
- */
 
- /* TODO commented away until HeatBlock are properly managed
  /// the HeatSet vector, indexed over NumberHeatGenerators
  std::vector< Index > v_heat_set;
- */
 
- /* TODO commented away until HeatBlock are properly managed
  /// vector of heat rho
  std::vector< double > v_power_heat_rho;
- */
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1528,10 +1505,8 @@ class UCBlock : public Block
  /// inertia demand constraints for each time and inertia zone
  boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
 
- /* TODO commented away until HeatBlock are properly managed
  /// heat constraints for each time and index unit
  boost::multi_array< FRowConstraint , 2 > v_power_Heat_Rho_Const;
- */
 
  /// pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
