@@ -62,9 +62,6 @@
 namespace SMSpp_di_unipi_it
 {
 
-// TODO commented away until HeatBlock are properly managed
-//class HeatBlock;     // forward declaration of HeatBlock
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -82,11 +79,7 @@ namespace SMSpp_di_unipi_it
  * and network constraints can be used by means of the fact that the class
  * manages son Block of type UnitBlock and NetworkBlock. Also UCBlock handles
  * a reasonably large variety of constraints, regarding not only active power
- * but also primary and secondary reserve and inertia. Admittedly, some
- * choices in UCBlock (like HeatBlock, pollution constraints, ...) are quite
- * specific of the UC of the plan4res project; however, all the "nonstandard"
- * aspects of UC can be switched away from the model (by simply not providing
- * the data describing them).
+ * but also primary and secondary reserve and inertia.
  *
  * The main elements that UCBlock handles are:
  *
@@ -103,15 +96,6 @@ namespace SMSpp_di_unipi_it
  *   basically "empty" if the capacity of the transmission network is such
  *   as to never really impact generation decisions (a "bus").
  *
- * - An optional set of HeatBlock, each representing the satisfaction of
- *   some specific "type of heat" on a close geographical area by
- *   heat-generating units possibly coupled with a heat storage. The link
- *   with the rest of the UC model lies in the fact that some of the
- *   heat-generating units in a HeatBlock may also be electricity generating
- *   ones (i.e., a UnitBlock); actually, the same UnitBlock can generate
- *   heat of "different types", and therefore appear as a heat-generating
- *   units in more than one HeatBlock.
- *
  * - Constraints linking the production decisions at the units and ensuring:
  *
  *   - balance between production of active power and injection in the
@@ -127,11 +111,7 @@ namespace SMSpp_di_unipi_it
  *
  *   - possibly, constraints maximum pollutants emission for different kinds
  *     of pollutant, each "zone" (appropriately defined subset of the nodes
- *     of the transmission network) and for each time instant;
- *
- *   - possibly, constraints linking the electricity production of some
- *     UnitBlock with the heat production of some unit in a HeatBlock,
- *     for the appropriate units and for each time instant. */
+ *     of the transmission network) and for each time instant. */
 
 class UCBlock : public Block
 {
@@ -220,46 +200,6 @@ class UCBlock : public Block
  *   which of course boils down to "g = i" when each UnitBlock has exactly one
  *   electrical generator.
  *
- * - The dimension "NumberHeatBlocks" containing the number of heat blocks in
- *   the problem. The dimension is optional: if it is not provided then it is
- *   taken to be 0, which means that there is no heat block in the problem.
- *
- * - The groups "HeatBlock_0", "HeatBlock_1", ..., "HeatBlock_n" with
- *   n == NumberHeatBlocks - 1, containing each one a HeatBlock. When
- *   NumberHeatBlocks == 0, these groups need not be there since they are not
- *   read. If, instead, NumberHeatBlocks > 0, it is an error if the
- *   corresponding groups are not there. Since each HeatBlock can have more
- *   than one heat generator (cf. HeatBlock::get_number_heat_generators()),
- *   a value that is useful in the following (cf. "HeatSet") is the total
- *   number of those. We will refer to such number as "NumberHeatGenerators",
- *   which is computed by just calling get_number_heat_generators() on each
- *   of the HeatBlock and summing all the results. Clearly,
- *   NumberHeatGenerators >= NumberHeatBlock. Some of the HeatBlock may have
- *   just one heat generator; if this happens for all the heat blocks (but
- *   this is not likely), then NumberHeatGenerators ==  NumberHeatBlocks. It
- *   is then useful (cf. "HeatNode") to be able to assign a unique index
- *   h = 0, 1, ..., NumberHeatGenerators - 1 to each of the heat generators in
- *   the UCBlock. When NumberHeatGenerators == NumberHeatBlocks the index is
- *   the same as b = 0, 1, ..., NumberHeatBlock - 1 (there is a one-to-one
- *   correspondence between HeatBlock and heat generators, but this is not
- *   likely to happen). When, instead, NumberHeatGenerators > HeatBlock, a
- *   mapping must be defined. The mapping is the obvious one: HeatBlock have
- *   an ordering b = 0, 1, ..., NumberHeatBlocks - 1 (cf. the groups
- *   "HeatBlock_0", "HeatBlock_1", ... above), and the heat generators into
- *   each HeatBlock also have some natural ordering (corresponding to the
- *   columns of the matrices of variables, cf. e.g., HeatBlock::get_heat()).
- *   Thus, in general the mapping is:
- *     heat generator 0 = first generator of HeatBlock_0
- *     heat generator 1 = second generator of HeatBlock_0
- *     ...
- *     heat generator k = k-th generator of HeatBlock_0
- *                    k = HeatBlock_0->get_number_heat_units()
- *     heat generator k + 1 = first generator of HeatBlock_1
- *     heat generator k + 2 = second generator of HeatBlock_1
- *     ...
- *   which of course boils down to "h = b" when each HeatBlock has exactly
- *   one heat generator (but this is not assumed to happen).
- *
  * - Optionally, the dimensions and variables necessary to deserialize a
  *   NetworkData object that describes the transmission network; see
  *   NetworkBlock::NetworkData::deserialize() for details. If that is not
@@ -320,48 +260,6 @@ class UCBlock : public Block
  *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
  *   is not provided at all), then this variable need not be defined, since it
  *   is not loaded.
- *
- * - The variable "HeatNode", of type netCDF::NcUint and indexed over the
- *   dimension "NumberHeatBlocks"; the entry HeatNode[ h ] tells to which node
- *   of the transmission network *all* the heat generators that are also
- *   electrical generators in the HeatBlock h belong. Note that this implies
- *   that, unlike electrical generators in a UnitBlock, heat generators in a
- *   HeatBlock are always "geographically near to each other" so that they are
- *   necessarily attached to the same node of the transmission network (which
- *   is a reasonable assumption since heat, unlike say water, usually cannot
- *   travel much far). If NumberHeatBlocks == 0 (say, it is not provided at
- *   all), then this variable need not be defined, since it is not loaded.
- *   This information is actually only used to determine in which Pollutant
- *   Zone a HeatBlock is located, in order to add the corresponding heat
- *   generators (that are not also electricity generators) to the pollution
- *   constraints. This means that also if NumberPollutants == 0 (say, it is
- *   not provided at all) this variable is useless and therefore need not be
- *   defined, since it is not loaded. Finally, notice that for heat generators
- *   into a HeatBlock that also are electrical generators, this variable
- *   provides again an information that is already known, i.e., to which node
- *   they belong to (cf. "GeneratorNode" above). Of course *the two
- *   information must agree*, otherwise the input file is ill-defined and
- *   exception is thrown.
- *
- * - The variable "HeatSet", of type netCDF::NcUint and indexed over the set
- *   { 0 , ... , NumberHeatGenerators - 1 }. If HeatSet[ h ] = k <
- *   NumberElectricalGenerators, then k is the unique name of the electrical
- *   generator corresponding to the heat generator h; otherwise the heat
- *   generator h is not also an electrical generator. If NumberHeatBlocks == 0
- *   (there is no HeatBlock) then this variable need not be defined, since it
- *   is not loaded. It is possible that different heat generators correspond
- *   to the same electrical generator (that is, HeatSet[ h1 ] == HeatSet[ h2 ]
- *   for some h1 != h2), but not vice-versa: a heat generator either
- *   corresponds to a specific electrical generator, or to no electrical
- *   generator (it is an heat-only generator).
- *
- * - The variable "PowerHeatRho", of type netCDF::NcDouble and indexed over
- *   the dimension "NumberUnits": entry PowerHeatRho[ i ] is assumed to
- *   contain the electrical-power-to-heat ratio for *all generators* within
- *   unit i (most likely, a single generator). This is only used in the
- *   constraints linking electrical units to heat units, hence if
- *   NumberHeatBlocks == 0 (there are no HeatBlock) then this variable need
- *   not be defined, since it is not loaded.
  *
  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
  *   reserve zones" are there in the problem. The dimension is optional, if it
@@ -551,8 +449,8 @@ class UCBlock : public Block
   * electrical generators connected to node \f$ n \in \mathcal{N} \f$.
   *
   * In the UCBlock there is not defined any variable but the decision
-  * variables here are present by using method get_variable() from UnitBlock,
-  * HeatBlock and NetworkBlock as follow:
+  * variables here are present by using method get_variable() from UnitBlock
+  * and NetworkBlock as follow:
   *
   * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
@@ -577,13 +475,6 @@ class UCBlock : public Block
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
   *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
   *   method;
-  *
-  * - \f$ p^{he}_{t,i} \f$ : the heat variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each heat unit
-  *   \f$ i \in \mathcal{I}(h)= \mathcal{I}^{ho}(h) \cup \mathcal{I}^{ec}(h)\f$
-  *   is called from HeatBlock by get_heat() method, where
-  *   \f$\mathcal{I}^{ho}(h)\f$  and \f$\mathcal{I}^{ec}(h)\f$ are heat-only-
-  *   producing unit and electricity-producing one, respectively;
   *
   * The global constraints of unit commitment problem, on the time horizon
   * \f$ \mathcal{T} \f$ write as follow:
@@ -658,58 +549,7 @@ class UCBlock : public Block
   *        \quad t \in \mathcal{T}
   *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})        \quad (4)
   *   \f]
-  *
-  * - Pollutant Budget Constraints:
-  *   In the unit commitment problem, the pollutant budget
-  *   \f$ \mathcal{O}_{\mathcal{B},p} \f$ which is specified on each pollutant
-  *   \f$ p \in \mathcal{P} \f$ in each pollutant zone
-  *   \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$  with two parameters
-  *   \f$ \rho_{t , p , g} \f$ and \f$ \gamma_{t , p , h} \f$ where considered
-  *   as pollutant ratio and pollutant heat ratio respectively. So, if the
-  *   f_number_pollutants > 0, a std::vector< std::vector< FRowConstraint > >;
-  *   with two dimensions which are f_number_pollutants and
-  *   v_number_pollutant_zones entries, that the entry
-  *   p = 0, ..., f_number_pollutants - 1 and the entry
-  *   \f$ \mathcal{B}\f$ = 0, ..., v_number_pollutant_zones - 1 being the
-  *   pollutant budget constraints at pollutant \f$ \mathcal{B}\f$ and pollutant
-  *   zones b as below;
-  *
-  *   \f[
-  *    \sum_{n \in \mathcal{B}}\sum_{ t \in \mathcal{T} }( \sum_{ g \in
-  *    \mathcal{G}_n } \rho_{t , p , g} p^{ac}_{t,g} + \sum_{h \in \mathcal{H}_n}
-  *    \sum_{ j \in \mathcal{I}^{ho}(h)} \gamma_{t , p , h} p^{h,he}_{t,j} )
-  *    \leq \mathcal{O}_{\mathcal{B},p}  \quad \mathcal{B} \in
-  *    \mathcal{B}^{p}(\mathcal{N}) \quad p \in \mathcal{P}           \quad (5)
-  *   \f]
-  *
-  *   where \f$ \mathcal{H} \f$ is the set of Heat Blocks.
-  *
-  * - Heat Constraints:
-  *   In the unit commitment problem, the Heat Constraints link the UCBlock
-  *   variables with the HeatBlock, where for each heat block
-  *   \f$ h \in \mathcal{H} \f$ and each electrical-power-to-heat ratio \f$
-  *   \varrho_{g} \f$ of each electrical generator \f$ g \in \mathcal{G} \f$.
-  *   Therefore, if the f_number_heat_blocks > 0, a
-  *   boost::multi_array< FRowConstraint , 2 > with two dimensions which are
-  *   f_time_horizon and the number of electrical generators that belong to
-  *   some HeatBlock; the constraint at position ( t, g ) being the heat
-  *   constraints at time t and heat generator M[ g ], where M maps the
-  *   constraint into an electricity generator that belongs to some HeatBlock.
-  *   The Heat Constraints are defined as below:
-  *
-  *   \f[
-  *    \sum_{h \in \mathcal{H} , j \in \mathcal{G}^{ec}(h): e^h(j)=g}
-  *     p^{h , he}_{t , j}  \leq \varrho_g p^{ac}_{t,g} \quad g \in \mathcal{G}
-  *                                 \quad t \in \mathcal{T}           \quad (6)
-  *   \f]
-  *
-  *   where \f$ j \in \mathcal{G}^{ec}(h) \f$ is an electricity generator in a
-  *   heat block \f$ h \in \mathcal{H} \f$. For \f$ j \in
-  *   \mathcal{G}^{ec}(h) \f$, there is the need to know which electrical
-  *   generator \f$ j \f$ is representing. Thus, we need a mapping
-  *   \f$ e^h : \mathcal{G}^{ec}(h) \to \mathcal{G} \f$, where \f$ \mathcal{G}
-  *   \f$ is the set of electricity generators (standard electrical generators
-  *   in UC parlance). */
+  */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -998,28 +838,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
-
- // /// returns the vector of HeatSet
- // /** The method returns a std::vector< Index > V such that each element
- //  * implies which heat generator is also an electrical generator. There are
- //  * three possible cases:
- //  *
- //  * - if V is empty, then no HeatSet is defined, and there is no heat linking
- //  *   constraints;
- //  *
- //  * - if V has only one element, then there is just one heat generator in
- //  *   heat blocks which is also an electrical generator;
- //  *
- //  * - otherwise, V.size() == NumberHeatGenerators (see the comments to
- //  *   deserialize()), and each element of V[ h ] tells which heat generator
- //  *   is also an electrical generator. */
-
- // const std::vector< Index > & get_heat_set( void ) const {
- //  return( v_heat_set );
- // }
-
-/*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant rho
  /** The method returned a three-dimensional boost::multi_array<> M such that
   * M[ t , p , g ] gives the production of pollutant p from electrical
@@ -1046,42 +864,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
-
- // /// returns the matrix of pollutant heat rho
- // /** The method returned a three-dimensional boost::multi_array<> M such that
- //  * M[ t , p , i ] gives the conversion factor of the given pollutant p due to
- //  * the generation of every heat-only unit i in the given heat block h at the
- //  * given time t. This three-dimensional boost::multi_array<> M considers two
- //  * possible cases:
- //  *
- //  * - if the boost::multi_array<> M is empty() then two possible cases are:
- //  *
- //  *   - there is no pollutant zone, hence there are not defined any pollutant
- //  *     budget constraints;
- //  *
- //  *   - there is no HeatBlock, hence in pollutant budget constraints there
- //  *     is not heat-rho-linking part;
- //  *
- //  * - otherwise, two possible cases may happen to the first dimension of the
- //  *   M[ t , p , i ];
- //  *
- //  *   - if the first dimension of the boost::multi_array<> M has size one,
- //  *     then each element of the matrix M [ 0 , p , i ] gives the conversion
- //  *     factor of pollutant p due to the of every heat-only unit i in the
- //  *     given heat block h;
- //  *
- //  *   - if the first dimension of the boost::multi_array<> M has full size
- //  *     then, each element of the matrix M[ t , p , i ] gives the conversion
- //  *     factor of pollutant p due to the generation of every heat-only unit i
- //  *     in the given heat block h for time instant t. */
-
- // const boost::multi_array< double, 3 > & get_pollutant_heat_rho( void )
- // const {
- //  return( v_pollutant_heat_rho );
- // }
-
-/*--------------------------------------------------------------------------*/
  /// returns the u-th UnitBlock
 
  UnitBlock * get_unit_block( Index u ) const {
@@ -1103,24 +885,6 @@ class UCBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
-
- // /// returns the vector of (pointers to) HeatBlock elements.
- // /** The vector of heat blocks in the problem. There are three possible cases:
- //  *
- //  * - if the vector is empty, then the there is no heat block;
- //  *
- //  * - if the vector only has one element, then there is just one heat block in
- //  *   the problem;
- //  *
- //  * - otherwise the vector must have the size of the number of heat blocks,
- //  *   and the h-th entry gives the corresponding heat block h. */
-
- // const std::vector< HeatBlock * > & get_heat_block( void ) const {
- //  return( v_heat_blocks );
- // }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of generator node
  /** This method returns a vector V that indicates to which node of the
   * transmission network each electrical generator belongs. There are two
@@ -1135,26 +899,6 @@ class UCBlock : public Block
  const std::vector< Index > & get_generator_node( void ) const {
   return( v_generator_node );
  }
-
-/*--------------------------------------------------------------------------*/
- // TODO commented away until HeatBlock are properly managed
-
- // /// returns the vector of electrical-power-to-heat ratio
- // /** The method returned a std::vector< double > V and each element of V
- //  * contains the electrical-power-to-heat ratio for each unit i of heat block
- //  * h. There are three possible cases:
- //  *
- //  * - if V is empty, then the there is no heat block;
- //  *
- //  * - if V only has one element, then the power heat rho is always equal to
- //  *   the value of that element;
- //  *
- //  * - otherwise the vector must have the size of the number of units, and the
- //  *   V[ i ] gives the power heat rho for each heat block h. */
-
- // const std::vector< double > & get_power_heat_rho( void ) const {
- //  return( v_power_heat_rho );
- // }
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
@@ -1401,21 +1145,11 @@ class UCBlock : public Block
  /// the number of electrical generators of the problem
  Index f_number_elc_generators{};
 
- /* TODO commented away until HeatBlock are properly managed
- /// the number of heat generators of the problem
- Index f_number_heat_generators;
- */
-
  /// the total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones{};
 
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
-
- /* TODO commented away until HeatBlock are properly managed
- /// the number of heat block
- Index f_number_heat_blocks;
- */
 
  /// the number of nodes in primary zones of the network
  Index f_number_primary_zones{};
@@ -1434,11 +1168,6 @@ class UCBlock : public Block
 
  /// the constant terms of each NetworkBlock
  std::vector< double > v_network_constant_terms;
-
- /* TODO commented away until HeatBlock are properly managed
- /// the set of HeatBlock
- std::vector< HeatBlock * > v_heat_blocks;
- */
 
  /// the number of pollutant zones of each pollutant
  std::vector< Index > v_number_pollutant_zones;
@@ -1486,29 +1215,8 @@ class UCBlock : public Block
  /** Indexed over TimeHorizon, NumberPollutants, and NumberElcGenerators. */
  boost::multi_array< double , 3 > v_pollutant_rho;
 
- /* TODO commented away until HeatBlock are properly managed
- /// the PollutantHeatRho matrix
- /// Indexed over TimeHorizon, NumberPollutants, and NumberHeatBlocks.
- boost::multi_array< double, 3 > v_pollutant_heat_rho;
- */
-
  /// v_generator_node[ g ] tells to which node generator g belongs
  std::vector< Index > v_generator_node;
-
- /* TODO commented away until HeatBlock are properly managed
- /// v_heat_node[ h ] tells to which node the heat block h belongs
- std::vector< Index > v_heat_node;
- */
-
- /* TODO commented away until HeatBlock are properly managed
- /// the HeatSet vector, indexed over NumberHeatGenerators
- std::vector< Index > v_heat_set;
- */
-
- /* TODO commented away until HeatBlock are properly managed
- /// vector of heat rho
- std::vector< double > v_power_heat_rho;
- */
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1527,11 +1235,6 @@ class UCBlock : public Block
 
  /// inertia demand constraints for each time and inertia zone
  boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
-
- /* TODO commented away until HeatBlock are properly managed
- /// heat constraints for each time and index unit
- boost::multi_array< FRowConstraint , 2 > v_power_Heat_Rho_Const;
- */
 
  /// pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
@@ -1648,11 +1351,6 @@ class UCBlock : public Block
  /// generate the pollutant budget constraints
 
  void generate_pollutant_budget_constraints( void );
-
-/*--------------------------------------------------------------------------*/
- /// generate the heat constraints
-
- void generate_heat_constraints( void );
 
 /*--------------------------------------------------------------------------*/
  /// updates the node injection constraints
