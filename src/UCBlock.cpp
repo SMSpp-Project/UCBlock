@@ -280,7 +280,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                  v_number_pollutant_zones , true , true );
 
  if( ! ::deserialize_dim( group , "TotalNumberPollutantZones" ,
-                          f_total_number_pollutant_zones ) ) {
+                         f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
@@ -292,14 +292,20 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  if( f_total_number_pollutant_zones ) {
   ::deserialize( group , "PollutantZones" , v_pollutant_zones , true , true );
 
+  /* TODO commented away until this is properly managed
+  ::deserialize( group , "PollutantBudget" ,
+                 { f_total_number_pollutant_zones } ,
+                 v_pollutant_budget , true , false );
+  */
+
   ::deserialize( group , "PollutantRho" , v_pollutant_rho , true , true );
+
  } else {
   v_pollutant_zones.resize(
    boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
   v_pollutant_budget.clear();
   v_pollutant_rho.resize(
    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
- }
 
  // reset all existing sub-Block, if any
  for( auto block : v_Block )
@@ -1125,6 +1131,11 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "PollutantZones" , netCDF::NcUint() ,
               { NumberPollutants , NumberNodes } , v_pollutant_zones );
+
+ /* TODO commented away until this is properly managed
+ ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
+              TotalNumberPollutantZones , v_pollutant_budget );
+ */
 
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
               { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
