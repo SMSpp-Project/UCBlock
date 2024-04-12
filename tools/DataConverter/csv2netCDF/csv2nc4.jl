@@ -508,6 +508,9 @@ function csvEC2nc4(deterministic::Bool=false)
             sb = defGroup(tss_block, "StochasticBlock_$(i_s-1)", attrib=OrderedDict("type" => "StochasticBlock"))
 
 
+
+            ucb = defGroup(sb, "Block", attrib=OrderedDict("id" => "$(i_s-1)", "filename" => string("EC", middle, "Test", last, "_$(i_s-1)", ".nc4[0]")))
+
         end
 
         # Extraction of the point used to sample the distributions associated to the long period uncertainty
@@ -530,7 +533,7 @@ function csvEC2nc4(deterministic::Bool=false)
 
         for i_s in 1:scen_s_sample
 
-            ds = NCDataset(string("../../../netCDF_files/stochastic/EC_Data/EC", middle, "Test", last, "_$(i_s-1)", ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+            ds = NCDataset(string("../../../netCDF_files/EC_Data/stochastic/EC", middle, "Test", last, "_$(i_s-1)", ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
             block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
             # Store the number of nodes
