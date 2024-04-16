@@ -118,6 +118,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NodeSusceptance",
                                                      "NodeVoltageMagnitude"
                                                      "NodeVoltageAngle",
+                                                     "NodeMaxVoltage",
+                                                     "NodeMinVoltage",
                                                      "LineResistance", 
                                                      "LineReactance",  
                                                      "LineRatio",
@@ -184,6 +186,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                  true , true );
 
   ::deserialize( group , "NodeSusceptance" , f_number_nodes , v_node_susceptance ,
+                 true , true );
+
+  ::deserialize( group , "NodeMaxVoltage" , f_number_nodes , v_node_max_voltage ,
+                 true , true );
+
+  ::deserialize( group , "NodeMinVoltage" , f_number_nodes , v_node_min_voltage ,
                  true , true );
 
  const auto get_string_array =

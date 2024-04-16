@@ -27,9 +27,10 @@ var_labels = {
 		("NodeAreaNumber", None), 
 		("NodeVoltageMagnitude", None), 
 		("NodeVoltageAngle", None), 
-		("NodeName", None), 
 		("NodeBaseVoltage", None), 
-		("NodeZone", None)
+		("NodeZone", None),
+		("NodeMaxVoltage", "double"),
+		("NodeMinVoltage", "double"),
 	],
 "mpc.gen":
 	[
@@ -57,8 +58,8 @@ var_labels = {
 		("LineRatio", "double"),
 		("LineShiftAngle", "double"),
 		("LineStatus", None),
-		("LineMinAngle", None),
-		("LineMaxAngle", None),
+		("LineMinAngle", "double"),
+		("LineMaxAngle", "double"),
 	],
 "mpc.gencost":
 	[
