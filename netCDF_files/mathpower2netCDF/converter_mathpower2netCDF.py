@@ -72,7 +72,7 @@ class ConverterMathpower2netCDF:
         If 'txt_output' is True, the exe 'ncdump.exe' has to be defined in the env variables.
         """
         rootgrp = netCDF4.Dataset("{0}.nc".format(filepath), "w", format="NETCDF4")
-        rootgrp.setncatts({'SMS++_file_type':1}) # global attribute
+        rootgrp.setncatts({'SMS++_file_type':1, 'baseMVA':self.attrs['mpc.baseMVA']}) # global attribute
         
         maingrp = rootgrp.createGroup("Block_0") # main block
         maingrp.setncatts({'type':"UCBlock", 'id':"0"})

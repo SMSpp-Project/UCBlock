@@ -2,6 +2,7 @@ netcdf case30Q {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
+		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -16,11 +17,18 @@ group: Block_0 {
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
   	double LineResistance(NumberLines) ;
   	double LineReactance(NumberLines) ;
   	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
 
@@ -71,6 +79,14 @@ group: Block_0 {
    NodeSusceptance = 0, 0, 0, 0, 0.19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
       0, 0, 0, 0, 0, 0.04, 0, 0, 0, 0, 0, 0 ;
 
+   NodeMaxVoltage = 1.05, 1.1, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 
+      1.05, 1.05, 1.05, 1.1, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 
+      1.1, 1.1, 1.05, 1.05, 1.05, 1.1, 1.05, 1.05, 1.05 ;
+
+   NodeMinVoltage = 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 
+      0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 
+      0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95 ;
+
    StartLine = 0, 0, 1, 2, 1, 1, 3, 4, 5, 5, 5, 5, 8, 8, 3, 11, 11, 11, 11, 
       13, 15, 14, 17, 18, 9, 9, 9, 9, 20, 14, 21, 22, 23, 24, 24, 27, 26, 26, 
       28, 7, 5 ;
@@ -92,6 +108,26 @@ group: Block_0 {
    LineSusceptance = 0.03, 0.02, 0.02, 0, 0.02, 0.02, 0, 0.01, 0.01, 0, 0, 0, 
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
       0, 0, 0, 0.02, 0.01 ;
+
+   LineRATEA = 130, 130, 65, 130, 130, 65, 90, 70, 130, 32, 65, 32, 65, 65, 
+      65, 65, 32, 32, 32, 16, 16, 16, 16, 32, 32, 32, 32, 32, 32, 16, 16, 16, 
+      16, 16, 16, 65, 16, 16, 16, 32, 32 ;
+
+   LineRatio = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360 ;
 
    MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
       -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 

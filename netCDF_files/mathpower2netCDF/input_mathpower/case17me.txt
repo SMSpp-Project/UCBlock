@@ -2,6 +2,7 @@ netcdf case17me {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
+		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -16,11 +17,18 @@ group: Block_0 {
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
   	double LineResistance(NumberLines) ;
   	double LineReactance(NumberLines) ;
   	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
 
@@ -56,6 +64,12 @@ group: Block_0 {
 
    NodeSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
+   NodeMaxVoltage = 1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 
+      1.1, 1.1, 1.1, 1.1, 1.1 ;
+
+   NodeMinVoltage = 1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 
+      0.9, 0.9, 0.9, 0.9, 0.9 ;
+
    StartLine = 0, 1, 2, 3, 3, 5, 6, 7, 7, 9, 2, 11, 12, 13, 13, 15 ;
 
    EndLine = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ;
@@ -67,6 +81,18 @@ group: Block_0 {
       0.11, 0.04, 0.12, 0.11, 0.11, 0.04 ;
 
    LineSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRATEA = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRatio = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360 ;
 
    MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
       -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000 ;

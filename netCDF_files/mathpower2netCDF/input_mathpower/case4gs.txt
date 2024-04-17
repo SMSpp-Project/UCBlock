@@ -2,6 +2,7 @@ netcdf case4gs {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
+		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -16,11 +17,18 @@ group: Block_0 {
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
   	uint StartLine(NumberLines) ;
   	uint EndLine(NumberLines) ;
   	double LineResistance(NumberLines) ;
   	double LineReactance(NumberLines) ;
   	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
 
@@ -43,6 +51,10 @@ group: Block_0 {
 
    NodeSusceptance = 0, 0, 0, 0 ;
 
+   NodeMaxVoltage = 1.1, 1.1, 1.1, 1.1 ;
+
+   NodeMinVoltage = 0.9, 0.9, 0.9, 0.9 ;
+
    StartLine = 0, 0, 1, 2 ;
 
    EndLine = 1, 2, 3, 3 ;
@@ -52,6 +64,16 @@ group: Block_0 {
    LineReactance = 0.0504, 0.0372, 0.0372, 0.0636 ;
 
    LineSusceptance = 0.1025, 0.0775, 0.0775, 0.1275 ;
+
+   LineRATEA = 250, 250, 250, 250 ;
+
+   LineRatio = 0, 0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360 ;
 
    MinPowerFlow = -10000, -10000, -10000, -10000 ;
 

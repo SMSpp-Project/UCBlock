@@ -18,6 +18,10 @@
 
 #include "FRealObjective.h"
 
+#include "DQuadFunction.h"
+
+#include "QuadFunction.h"
+
 #include <Eigen/Sparse>
 
 
@@ -53,6 +57,10 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   std::cout << "LineSusceptance size : " << f_NetworkData->get_line_susceptance().size() << std::endl;
   std::cout << "NodeSuceptance size : "  << f_NetworkData->get_node_susceptance().size() << std::endl;
   std::cout << "NodeConductance size : " << f_NetworkData->get_node_conductance().size() << std::endl;
+  std::cout << "NodeMinVoltage size : "  << f_NetworkData->get_node_min_voltage().size() << std::endl;
+  std::cout << "NodeMaxVoltage size : "  << f_NetworkData->get_node_max_voltage().size() << std::endl;
+  std::cout << "LineMinAngle size : "    << f_NetworkData->get_line_min_angle().size() << std::endl;
+  std::cout << "LineMaxAngle size : "    << f_NetworkData->get_line_max_angle().size() << std::endl;
 
   DCNetworkBlock::generate_abstract_variables(stvv);
 
@@ -60,10 +68,9 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
 
-  // voltage relaxation matrix W = V.V^H
+  // ----- voltage relaxation matrix W = V.V^H
   W_voltage_real.resize( boost::extents[ number_nodes ][ number_nodes ] );
   W_voltage_imag.resize( boost::extents[ number_nodes ][ number_nodes ] );
-
   for( Index p = 0 ; p < number_nodes ; ++p ) {
     for( Index n = 0 ; n < number_nodes ; ++n ) {
       W_voltage_real[ p ][ n ].set_type( ColVariable::kContinuous );
@@ -72,7 +79,22 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   }
   add_static_variable( W_voltage_real , "W_voltage_real" );
   add_static_variable( W_voltage_imag , "W_voltage_imag" );
-}
+
+  // ----- complex power flow (real and imaginary part for both directions)
+  S_power_flow.resize( boost::extents[ 2 ][ 2*number_lines ] );
+  for( int i = 0; i < 2; ++i ) {
+    for( Index line_id = 0 ; line_id < 2*number_lines ; ++line_id ) {
+      S_power_flow[ i ][ line_id ].set_type( ColVariable::kContinuous );
+    }
+  }
+  add_static_variable( S_power_flow , "S_power_flow" );
+};
+
+// ---------------------------------------
+void ACNetworkBlock::generate_objective( Configuration * objc){
+  // TODO : use the coefficient of the matpower instance
+  DCNetworkBlock::generate_objective(objc);
+};
 
 
 // ---------------------------------------
@@ -106,7 +128,29 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     v_voltage_bounds_const[ n ].set_rhs( pow(max_voltage[n],2) );
     v_voltage_bounds_const[ n ].set_variable( & W_voltage_real[n][n] );
   }
+  add_static_constraint( v_voltage_bounds_const, "AC_voltage_bounds_limit" );
 
+  // ----- Angle bounds
+  v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+  const auto & min_angle = f_NetworkData->get_line_min_angle();
+  const auto & max_angle = f_NetworkData->get_line_max_angle();
+  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & W_voltage_imag[p][n], 1.0);
+    lfunc_1->add_variable( & W_voltage_real[p][n], -tan(min_angle[line_id]));
+    v_angle_bounds_const[0][ line_id ].set_lhs( 0.0 );
+    v_angle_bounds_const[0][ line_id ].set_rhs( Inf< double >() );
+    v_angle_bounds_const[0][ line_id ].set_function( lfunc_1 );
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & W_voltage_imag[p][n], 1.0);
+    lfunc_2->add_variable( & W_voltage_real[p][n], -tan(max_angle[line_id]));
+    v_angle_bounds_const[1][ line_id ].set_lhs( -Inf< double >() );
+    v_angle_bounds_const[1][ line_id ].set_rhs( 0.0 );
+    v_angle_bounds_const[1][ line_id ].set_function( lfunc_2 );
+  }
+  add_static_constraint( v_angle_bounds_const, "AC_angle_bounds_limit" );
 
   // ----- Active and Reactive Power conservation: "Supply - Demand = <M,W>_F"
   v_power_flow_injection_const.resize(2*number_nodes);
@@ -132,18 +176,95 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
       lfunc->add_variable( & W_voltage_real[p][n] , -ACdata.M.coeff(p,n).imag() );
       lfunc->add_variable( & W_voltage_imag[p][n] , ACdata.M.coeff(p,n).real() );
     }
-    v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] ); // TODO must be ReactiveDemand
+    v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] ); // TODO must be ReactiveDemand (need modifications to be taken into account)
     v_power_flow_injection_const[ p ].set_function( lfunc );
   }
+  add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
 
+  // ----- Definition of complex power flow
+  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
+  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & W_voltage_real[p][p], ACdata.Yff.coeff(p,n).real());
+    lfunc_1->add_variable( & W_voltage_real[p][n], ACdata.Yft.coeff(p,n).real());
+    lfunc_1->add_variable( & W_voltage_imag[p][p], ACdata.Yff.coeff(p,n).imag());
+    lfunc_1->add_variable( & W_voltage_imag[p][n], ACdata.Yft.coeff(p,n).imag());
+    lfunc_1->add_variable( & S_power_flow[0][line_id], -1.0);
+    v_voltage_definition_const[0][ line_id ].set_both(0.0);
+    v_voltage_definition_const[0][ line_id ].set_function( lfunc_1 );
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & W_voltage_imag[p][p],  ACdata.Yff.coeff(p,n).real());
+    lfunc_2->add_variable( & W_voltage_imag[p][n],  ACdata.Yft.coeff(p,n).real());
+    lfunc_2->add_variable( & W_voltage_real[p][p], -ACdata.Yff.coeff(p,n).imag());
+    lfunc_2->add_variable( & W_voltage_real[p][n], -ACdata.Yft.coeff(p,n).imag());
+    lfunc_1->add_variable( & S_power_flow[1][line_id], -1.0);
+    v_voltage_definition_const[1][ line_id ].set_both(0.0);
+    v_voltage_definition_const[1][ line_id ].set_function( lfunc_2 );
+  }
+  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & W_voltage_real[p][p], ACdata.Ytt.coeff(n,p).real());
+    lfunc_1->add_variable( & W_voltage_real[p][n], ACdata.Ytf.coeff(n,p).real());
+    lfunc_1->add_variable( & W_voltage_imag[p][p], ACdata.Ytt.coeff(n,p).imag());
+    lfunc_1->add_variable( & W_voltage_imag[p][n], ACdata.Ytf.coeff(n,p).imag());
+    lfunc_1->add_variable( & S_power_flow[0][number_lines + line_id], -1.0);
+    v_voltage_definition_const[0][ number_lines + line_id ].set_both(0.0);
+    v_voltage_definition_const[0][ number_lines + line_id ].set_function( lfunc_1 );
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & W_voltage_imag[p][p],  ACdata.Ytt.coeff(n,p).real());
+    lfunc_2->add_variable( & W_voltage_imag[p][n],  ACdata.Ytf.coeff(n,p).real());
+    lfunc_2->add_variable( & W_voltage_real[p][p], -ACdata.Ytt.coeff(n,p).imag());
+    lfunc_2->add_variable( & W_voltage_real[p][n], -ACdata.Ytf.coeff(n,p).imag());
+    lfunc_1->add_variable( & S_power_flow[1][number_lines + line_id], -1.0);
+    v_voltage_definition_const[1][ number_lines + line_id ].set_both(0.0);
+    v_voltage_definition_const[1][ number_lines + line_id ].set_function( lfunc_2 );
+  }
+  add_static_constraint( v_voltage_definition_const, "AC_voltage_defintion_const" );
 
+  // ----- Thermal limit on lines
+  v_thermal_limit.resize(2*number_lines);
+  const auto & rate_A = f_NetworkData->get_line_rate_A();
+  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto qfunc_1 = new DQuadFunction();
+    qfunc_1->add_variable( & S_power_flow[0][line_id], 1.0, 0.0);
+    qfunc_1->add_variable( & S_power_flow[1][line_id], 1.0, 0.0);
+    v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
+    v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be devided by baseMVA
+    v_thermal_limit[ line_id ].set_function( qfunc_1 );
+    auto qfunc_2 = new DQuadFunction();
+    qfunc_2->add_variable( & S_power_flow[0][number_lines + line_id], 1.0, 0.0);
+    qfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], 1.0, 0.0);
+    v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
+    v_thermal_limit[ number_lines + line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be devided by baseMVA
+    v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
+  }
+  add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
+
+  // ----- Rotated SOCP cone for W matrix
+  v_socp_const.resize(number_lines);
+  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto qfunc = new QuadFunction();
+    qfunc->add_variable( & W_voltage_real[p][n], 1.0, 0.0);
+    qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0);
+    v_socp_const[ line_id ].set_lhs( -Inf< double >() );
+    v_socp_const[ line_id ].set_lhs( 0.0 );
+    v_socp_const[ line_id ].set_function( qfunc );
+  }
+  add_static_constraint(v_socp_const, "AC_socp_const" );
  };
 
 
 
 // ---------------------------------------
 void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) { 
-  std::cout << "Add ACdata to node " << node << std::endl;
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
   const auto number_nodes = get_number_nodes();
@@ -201,9 +322,6 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
   ACdata.HM = 0.5*(ACdata.M + ACdata.M.conjugate());
   ACdata.ZM = 0.5*(ACdata.M - ACdata.M.conjugate());
 
-
-
-  std::cout << "ACdata added" << std::endl;
 };
 
 /*--------------------------------------------------------------------------*/

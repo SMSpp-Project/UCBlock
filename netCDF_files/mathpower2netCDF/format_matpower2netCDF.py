@@ -52,7 +52,7 @@ var_labels = {
 		("LineResistance", "double"),
 		("LineReactance", "double"),
 		("LineSusceptance", "double"),			# QJ: comment to force DC line (see below)
-		("LineRATEA", None),
+		("LineRATEA", "double"),
 		("LineRATEB", None),
 		("LineRATEC", None),
 		("LineRatio", "double"),

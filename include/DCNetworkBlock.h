@@ -391,8 +391,20 @@ class DCNetworkBlock : public NetworkBlock
    return( v_line_ratio );
   }
 
+  const std::vector< double > & get_line_rate_A( void ) const {
+   return( v_line_rate_A );
+  }
+
   const std::vector< double > & get_line_angle( void ) const {
    return( v_line_angle );
+  }
+
+  const std::vector< double > & get_line_min_angle( void ) const {
+   return( v_line_min_angle );
+  }
+
+  const std::vector< double > & get_line_max_angle( void ) const {
+   return( v_line_max_angle );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -502,7 +514,10 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< double > v_line_reactance;
   std::vector< double > v_line_resistance;
   std::vector< double > v_line_ratio;
+  std::vector< double > v_line_rate_A;
   std::vector< double > v_line_angle;
+  std::vector< double > v_line_min_angle;
+  std::vector< double > v_line_max_angle;
   std::vector< double > v_node_susceptance;
   std::vector< double > v_node_conductance;
   std::vector< double > v_node_max_voltage; 
