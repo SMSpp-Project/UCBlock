@@ -511,10 +511,10 @@ function csvEC2nc4(deterministic::Bool=false)
         path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
         path_node_types[:] = collect("BBBV"^path_dim)[:] # repeat BBBV path_dim times
 
-        fillvalue = typemax(UInt32) # 0xFFFFFFFF
+        fillvalue = typemax(UInt32) # 0xffffffff
 
         path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
-        path_group_idx[:] = reduce(vcat, ([0, 0, i, fillvalue] for i in 0:path_dim-1))[:] # 0, 0, i wrt B, _ wrt V
+        path_group_idx[:] = reduce(vcat, ([0, 0, i, fillvalue] for i in 0:path_dim-1), init=Int32[])[:] # 0, 0, i wrt B, _ wrt V
 
         path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
         path_element_idx[:] = repeat([fillvalue, fillvalue, fillvalue, 0], outer=path_dim) # _, _, _ wrt B, 0 wrt V
