@@ -599,9 +599,9 @@ void ThermalUnitDPSolver::load_parameters( void )
  else
   delta_ramp_down = b->get_delta_ramp_down();
 
- retrieve_term( quad_term, b->get_quad_term() );
- retrieve_term( linear_term, b->get_linear_term() );
- retrieve_term( const_term, b->get_const_term() );
+ retrieve_term( quad_term , b->get_quad_term() );
+ retrieve_term( linear_term , b->get_linear_term() );
+ retrieve_term( const_term , b->get_const_term() );
 
  // unlock the Block
  if( ! owned )
