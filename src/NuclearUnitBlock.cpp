@@ -346,7 +346,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  
   Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
   // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
-  // so there is no explicit term in the constraint (since the variable does
+  // there is no explicit term in the constraint (since the variable does
   // not exist) and the RHS becomes - f_InitialPower
   Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
   Modulation_RampDown_Constraints[ t ].set_function(
@@ -384,7 +384,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // the unit is not modulating while starting up
  // note: these only have to be constructed for t >= init_t, as for
  // t < init_t u_t is fixed (no matter if to 0 or 1) and therefore no
- // start-up can ever occur; in facy, the start-up variables are not even
+ // start-up can ever occur; in fact, the start-up variables are not even
  // defined for t < init_t. it may also be that the m_t are fixed for those
  // t: this happens if u_t is fixed to 0, but not if u_t is fixed to 1, in
  // which case modulations can occur within the first init_t periods unless
@@ -601,8 +601,8 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampUp_Constraint[ t ]. note
-  // that the \Delta^M_{t+} appears as the coeeficient of u_{t-1} (if t > 0),
-  // with opposite sign, and in the coeeficient
+  // that the \Delta^M_{t+} appears as the coefficient of u_{t-1} (if t > 0),
+  // with opposite sign, and in the coefficient
   // ( \Delta_{t+} - \Delta^M_{t+} ) of m_t, again with opposite sign
   // these are respectively the coefficient 1 and 3 (the latter, only if
   // t > 0) of the LinearFunction in the FRowConstraint
@@ -768,8 +768,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coeeficient of u_t, with opposite
-  // sign, and in the coeeficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
+  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
+  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
   // again with opposite sign. these are respectively the coefficient 1 and 2
   // of the LinearFunction in the FRowConstraint
 
@@ -841,8 +841,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coeeficient of u_t, with opposite
-  // sign, and in the coeeficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
+  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
+  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
   // again with opposite sign. these are respectively the coefficient 1 and 2
   // of the LinearFunction in the FRowConstraint
 
@@ -885,7 +885,7 @@ void NuclearUnitBlock::update_initial_power_in_cnstrs( ModParam issueAMod )
  //   ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 );
  // - the RHS of Modulation_RampDown_Constraints[ 0 ] is - f_InitialPower
 
- // TODO: pack the two Modificaton into a GroupModification
+ // TODO: pack the two Modification into a GroupModification
  Modulation_RampUp_Constraints[ 0 ].set_rhs( f_InitialPower +
       ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 ) , issueAMod );
 

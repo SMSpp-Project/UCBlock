@@ -490,13 +490,13 @@ function csvEC2nc4(deterministic::Bool=false)
 
         # The mode "c" stands for creating a new file (clobber)
         tssb_ds = NCDataset(string("../../../netCDF_files/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-        tss_block = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
-        defDim(tss_block, "NumberScenarios", scen_s_sample)
-        # defDim(tss_block, "ScenarioSize", )
+        defDim(tssb, "NumberScenarios", scen_s_sample)
+        # defDim(tssb, "ScenarioSize", )
 
         # AbstractPath
-        ap = defGroup(tss_block, "AbstractPath")
+        ap = defGroup(tssb, "AbstractPath")
 
         path_dim = n_devices
         defDim(ap, "PathDim", path_dim)
@@ -520,7 +520,33 @@ function csvEC2nc4(deterministic::Bool=false)
         path_element_idx[:] = repeat([fillvalue, fillvalue, fillvalue, 0], outer=path_dim) # _, _, _ wrt B, 0 wrt V
 
         # StochasticBlock
-        sb = defGroup(tss_block, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+
+        # SimpleDataMapping
+
+        number_mappings = n_devices
+        defDim(sb, "NumberDataMappings", number_mappings)
+
+        data_type = defVar(sb, "DataType", Char, ("NumberDataMappings",))
+        data_type[:] = collect("D"^number_mappings)[:] # repeat D number_mappings times
+
+        function_name = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
+        function_name[:] = fill("UCBlock::set_active_power_demand", number_mappings)[:]
+
+        caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
+        # caller[:] =
+
+        # defDim(sb, "SetSizeSize",)
+
+        # set_size = defVar(sb, "SetSize", UInt32, ("SetSizeSize",))
+        # set_size[:] =
+
+        # defDim(sb, "SetElementSize",)
+
+        # set_element = defVar(sb, "SetElements", UInt32, ("SetElementSize",))
+        # set_element[:] =
+
+        # UCBlock nc4 file
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
 
         close(tssb_ds)
@@ -540,7 +566,7 @@ OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
 
 file_name = !isempty(NO_OPTION_ARGS) ?
             string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
-            "energy_community_model_CO_sto.yml"
+            "energy_community_model_CO.yml"
 
 ## Initialization
 
