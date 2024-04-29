@@ -501,7 +501,7 @@ function csvEC2nc4(deterministic::Bool=false)
         path_dim = n_devices
         defDim(ap, "PathDim", path_dim)
 
-        path_length = 4 # 3 B + 1 V for each path
+        path_length = 2 # 1 B (UnitBlock_*) + 1 V (x_design) for each path
         total_length = path_length * path_dim
         defDim(ap, "TotalLength", total_length)
 
@@ -509,31 +509,29 @@ function csvEC2nc4(deterministic::Bool=false)
         path_start[:] = collect(0:path_length:total_length-1)[:] # range from 0 to total_length each path_length
 
         path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
-        path_node_types[:] = collect("BBBV"^path_dim)[:] # repeat BBBV path_dim times
-
-        fillvalue = typemax(UInt32) # 0xffffffff
+        path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
 
         path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
-        path_group_idx[:] = reduce(vcat, ([0, 0, i, fillvalue] for i in 0:path_dim-1), init=Int32[])[:] # 0, 0, i wrt B, _ wrt V
+        path_group_idx[:] = reduce(vcat, ([i, 0] for i in 0:path_dim-1), init=Int32[])[:] # [i, 0], i.e., i wrt B, 0 wrt V
 
         path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
-        path_element_idx[:] = repeat([fillvalue, fillvalue, fillvalue, 0], outer=path_dim) # _, _, _ wrt B, 0 wrt V
+        path_element_idx[:] = repeat([typemax(UInt32), 0], outer=path_dim) # [_, 0], i.e., _ wrt B, 0 wrt V
 
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
 
         # SimpleDataMapping
 
-        number_mappings = n_devices
-        defDim(sb, "NumberDataMappings", number_mappings)
+        # number_mappings = n_devices
+        # defDim(sb, "NumberDataMappings", number_mappings)
 
-        data_type = defVar(sb, "DataType", Char, ("NumberDataMappings",))
-        data_type[:] = collect("D"^number_mappings)[:] # repeat D number_mappings times
+        # data_type = defVar(sb, "DataType", Char, ("NumberDataMappings",))
+        # data_type[:] = collect("D"^number_mappings)[:] # repeat D number_mappings times
 
-        function_name = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
-        function_name[:] = fill("UCBlock::set_active_power_demand", number_mappings)[:]
+        # function_name = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
+        # function_name[:] = fill("UCBlock::set_active_power_demand", number_mappings)[:]
 
-        caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
+        # caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
         # caller[:] =
 
         # defDim(sb, "SetSizeSize",)

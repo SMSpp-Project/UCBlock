@@ -360,7 +360,17 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
    }
  }
 
- // Add the static variables
+ // Battery Design Variable
+ if( f_BattInvestmentCost != 0 ) {
+  batt_design.set_type( ColVariable::kPosUnitary );
+  add_static_variable( batt_design , "x_battery" );
+ }
+
+ // Converter Design Variable
+ if( f_ConvInvestmentCost != 0 ) {
+  conv_design.set_type( ColVariable::kPosUnitary );
+  add_static_variable( conv_design , "x_converter" );
+ }
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
@@ -382,18 +392,6 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
   for( auto & var : v_battery_binary )
    var.set_type( ColVariable::kBinary );
   add_static_variable( v_battery_binary , "b_battery" );
- }
-
- // Battery Design Variable
- if( f_BattInvestmentCost != 0 ) {
-  batt_design.set_type( ColVariable::kPosUnitary );
-  add_static_variable( batt_design , "x_battery" );
- }
-
- // Converter Design Variable
- if( f_ConvInvestmentCost != 0 ) {
-  conv_design.set_type( ColVariable::kPosUnitary );
-  add_static_variable( conv_design , "x_converter" );
  }
 
  // Active Power Variable
