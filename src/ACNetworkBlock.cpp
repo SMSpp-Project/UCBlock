@@ -52,6 +52,7 @@ SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
 
 void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
+  // QJ: print for debug
   std::cout << "LineResistance size : "  << f_NetworkData->get_line_resistance().size() << std::endl;
   std::cout << "LineReactance size : "   << f_NetworkData->get_line_reactance().size() << std::endl;
   std::cout << "LineSusceptance size : " << f_NetworkData->get_line_susceptance().size() << std::endl;
@@ -62,13 +63,20 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   std::cout << "LineMinAngle size : "    << f_NetworkData->get_line_min_angle().size() << std::endl;
   std::cout << "LineMaxAngle size : "    << f_NetworkData->get_line_max_angle().size() << std::endl;
 
+  // generate first the same variables as in the DCNetwork
   DCNetworkBlock::generate_abstract_variables(stvv);
 
 
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
 
-  // ----- voltage relaxation matrix W = V.V^H
+  // ----- Voltage relaxation matrix W.
+  /* We aim to impose W = V.V^H, where V is the vector of voltage for each bus/node. 
+  This nonlinear constraint will be replaced by SOCP relaxation.
+  As the matrix W is a complex matrix, we define in the optimization model two matrices:
+    - W_voltage_real for the real part
+    - W_woltage_imag for the imaginary part
+  */
   W_voltage_real.resize( boost::extents[ number_nodes ][ number_nodes ] );
   W_voltage_imag.resize( boost::extents[ number_nodes ][ number_nodes ] );
   for( Index p = 0 ; p < number_nodes ; ++p ) {
@@ -81,6 +89,10 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   add_static_variable( W_voltage_imag , "W_voltage_imag" );
 
   // ----- complex power flow (real and imaginary part for both directions)
+  /*
+  S denotes the AC power for each line, therefore it is a 2-dimensional vector 
+  (real and imaginary part).
+  */
   S_power_flow.resize( boost::extents[ 2 ][ 2*number_lines ] );
   for( int i = 0; i < 2; ++i ) {
     for( Index line_id = 0 ; line_id < 2*number_lines ; ++line_id ) {
@@ -120,6 +132,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 
 
   // ----- Voltage bounds
+  /*
+  We ensure that the voltage magnitude is bounded between min_voltage and max_voltage.
+  To this aim, W_{n,n} = (V_n).(V_n)^H = |V_n|^2 so we impose the bounds directly on W_{n,n}.
+  */
   v_voltage_bounds_const.resize(number_nodes);
   const auto & min_voltage = f_NetworkData->get_node_min_voltage();
   const auto & max_voltage = f_NetworkData->get_node_max_voltage();
@@ -131,6 +147,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   add_static_constraint( v_voltage_bounds_const, "AC_voltage_bounds_limit" );
 
   // ----- Angle bounds
+  /*
+  We aim to incorporate Phase Angle Differnce (PAD) constraints for each line = (start,end):
+    min_angle_{line} <= angle(V_{end}) - angle(V_{start}) <= max_angle_{line}
+  This constraint can be taken into account using:
+     tan(min_angle_{line}) Real(W_{start,end})<= Imag(W_{start,end}) <= max_angle_{line} Real(W_{start,end})
+  */
   v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
   const auto & min_angle = f_NetworkData->get_line_min_angle();
   const auto & max_angle = f_NetworkData->get_line_max_angle();
@@ -152,9 +174,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   }
   add_static_constraint( v_angle_bounds_const, "AC_angle_bounds_limit" );
 
-  // ----- Active and Reactive Power conservation: "Supply - Demand = <M,W>_F"
+  // ----- Active and Reactive Power conservation:
+  /*
+  We define 
+    M_{b} = Ys_b E_{bb} + \sum_{a:(b,a) in lines} (Yff_{ba}E_{bb} + Yft_{ba}E_{ba}) 
+          + \sum_{a:(a,b) in lines} (Ytt_{ba}E_{aa} + Ytf_{ba}E_{ab})
+  where Ys is the shunt admittance, Yff, Yft, Ytt, Ytf are the line impedances and E_{ab} is the classical basis matrices.
+
+  Then, the power conservation constraint can be written
+    Supply - Demand = <M,W>_F
+
+  The complex matrix product <M,W>_F is then decomposed into a real part and an imaginary part.
+  */
   v_power_flow_injection_const.resize(2*number_nodes);
 
+  // real part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 );
@@ -167,6 +201,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] );
     v_power_flow_injection_const[ p ].set_function( lfunc );
   }
+  // imaginary part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 1 ][ p ] , -1.0 );
@@ -182,6 +217,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
 
   // ----- Definition of complex power flow
+  /*
+  We define the complex power flow S_{line} for each line = (start,end) as 
+    S_{start,end} = Yff_{start,end} W_{start,start} + Yft_{start,end}W_{start,end}
+    S_{end,start} = Ytt_{start,end} W_{start,start} + Ytf_{start,end}W_{end,end}
+  Onece, again, we then split into two constraints (one for real and one for imaginary part)
+  */
   v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
   for (Index line_id = 0; line_id < number_lines; ++line_id) {
     Index p = start_line[line_id];
@@ -226,6 +267,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   add_static_constraint( v_voltage_definition_const, "AC_voltage_defintion_const" );
 
   // ----- Thermal limit on lines
+  /*
+  We impose that |S_{line}| <= rateA_{line}, which corresponds to a thermal limitation.
+  Then, to take into account this constraint, we use a DQuadfunction:
+    Real(S_{line})^2 + Imag(S_{line})^2 <= rateA_{line}^2
+  */
   v_thermal_limit.resize(2*number_lines);
   const auto & rate_A = f_NetworkData->get_line_rate_A();
   for (Index line_id = 0; line_id < number_lines; ++line_id) {
@@ -235,7 +281,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     qfunc_1->add_variable( & S_power_flow[0][line_id], 1.0, 0.0);
     qfunc_1->add_variable( & S_power_flow[1][line_id], 1.0, 0.0);
     v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
-    v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be devided by baseMVA
+    v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be divided by baseMVA
     v_thermal_limit[ line_id ].set_function( qfunc_1 );
     auto qfunc_2 = new DQuadFunction();
     qfunc_2->add_variable( & S_power_flow[0][number_lines + line_id], 1.0, 0.0);
@@ -247,6 +293,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
 
   // ----- Rotated SOCP cone for W matrix
+  /*
+  As we cannot take into account the true constraint W = V.V^H, we replace it by a SOCP relaxation:
+    |W_{ab}|^2 <= W_{aa}W_{bb}
+  */
   v_socp_const.resize(number_lines);
   for (Index line_id = 0; line_id < number_lines; ++line_id) {
     Index p = start_line[line_id];
@@ -269,7 +319,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
   const auto & end_line = f_NetworkData->get_end_line();
   const auto number_nodes = get_number_nodes();
 
-  // classical quantities for AC network
+  // Line impedances for AC network
   ACdata.Yff = SpCMat(number_nodes,number_nodes);
   ACdata.Yft = SpCMat(number_nodes,number_nodes);
   ACdata.Ytf = SpCMat(number_nodes,number_nodes);
@@ -290,7 +340,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
     ACdata.Ytt.insert(i,j) = 1./(r+1i*x) + 1i*b/2.;
   }
 
-  // line shunt
+  // Shunt admittance
   for(Index n = 0; n < number_nodes; ++n){
     double Gs = f_NetworkData->get_node_conductance().at(n);
     double Bs = f_NetworkData->get_node_susceptance().at(n);
