@@ -1773,30 +1773,6 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary spinning reserve costs
- /** This function returns the vector of primary spinning reserve costs. If it
-  * is empty, then the costs are all zero. Otherwise, it has size
-  * get_time_horizon() and its t-th element is the linear cost of the primary
-  * spinning reserve variable at time t.
-  *
-  * @return The vector containing the primary spinning reserve costs. */
-
- const std::vector< double > & get_primary_spinning_reserve_cost( void )
- const { return( v_PrimarySpinningReserveCost ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of secondary spinning reserve costs
- /** This function returns the vector of secondary spinning reserve costs. If
-  * it is empty, then the costs are all zero. Otherwise, it has size
-  * get_time_horizon() and its t-th element is the linear cost of the
-  * secondary spinning reserve variable at time t.
-  *
-  * @return The vector containing the secondary spinning reserve costs. */
-
- const std::vector< double > & get_secondary_spinning_reserve_cost( void )
- const { return( v_SecondarySpinningReserveCost ); }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -2558,12 +2534,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
-
- /// the vector of primary spinning reserve linear costs
- std::vector< double > v_PrimarySpinningReserveCost;
-
- /// the vector of secondary spinning reserve linear costs
- std::vector< double > v_SecondarySpinningReserveCost;
 
  /// the vector of fixed consumption of generator
  std::vector< double > v_FixedConsumption;

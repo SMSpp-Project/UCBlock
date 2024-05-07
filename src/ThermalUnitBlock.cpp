@@ -3790,15 +3790,14 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                             "spinning_reserve must have size equal to the "
                             "time horizon." ) );
 
-  if( v_PrimarySpinningReserveCost.empty() )
+  if( v_PrimaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
                                      0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                     f_scale *
-                                     v_PrimarySpinningReserveCost[ t ] ,
+                                     f_scale * v_PrimaryRho[ t ] ,
                                      0.0 ) );
  }
 
@@ -3809,15 +3808,14 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                             "_spinning_reserve must have size equal to the "
                             "time horizon." ) );
 
-  if( v_SecondarySpinningReserveCost.empty() )
+  if( v_SecondaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
                                      0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                     f_scale *
-                                     v_SecondarySpinningReserveCost[ t ] ,
+                                     f_scale * v_SecondaryRho[ t ] ,
                                      0.0 ) );
  }
 
@@ -4983,30 +4981,30 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
- if( v_PrimarySpinningReserveCost.empty() ) {
+ if( v_PrimaryRho.empty() ) {
   // The primary spinning reserve costs are currently all zero.
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;  // The given values are zero: nothing to do
 
-  v_PrimarySpinningReserveCost.assign( f_time_horizon , 0 );
+  v_PrimaryRho.assign( f_time_horizon , 0 );
  }
 
  if( ! ordered )
   std::sort( subset.begin() , subset.end() );
 
- if( subset.back() >= v_PrimarySpinningReserveCost.size() )
+ if( subset.back() >= v_PrimaryRho.size() )
   throw( std::invalid_argument(
    "ThermalUnitBlock::set_primary_spinning_reserve_cost: "
    "invalid index in subset." ) );
 
- if( identical( v_PrimarySpinningReserveCost , subset , values ) )
+ if( identical( v_PrimaryRho , subset , values ) )
   return;
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
-  assign( v_PrimarySpinningReserveCost , subset , values );
+  assign( v_PrimaryRho , subset , values );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
@@ -5058,27 +5056,27 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   return;  // Empty range. Return.
 
  c_Index sz = rng.second - rng.first;
- if( v_PrimarySpinningReserveCost.empty() ) {
+ if( v_PrimaryRho.empty() ) {
   // The primary spinning reserve costs are currently all zero.
   if( std::all_of( values ,
                    values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;  // The given values are zero. So, there is nothing to be changed.
 
-  v_PrimarySpinningReserveCost.assign( f_time_horizon , 0 );
+  v_PrimaryRho.assign( f_time_horizon , 0 );
  }
 
  // If nothing changes, return
  if( std::equal( values ,
                  values + sz ,
-                 v_PrimarySpinningReserveCost.begin() + rng.first ) )
+                 v_PrimaryRho.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
   std::copy( values ,
              values + sz ,
-             v_PrimarySpinningReserveCost.begin() + rng.first );
+             v_PrimaryRho.begin() + rng.first );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
@@ -5129,29 +5127,29 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
- if( v_SecondarySpinningReserveCost.empty() ) {
+ if( v_SecondaryRho.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
   if( std::all_of( values ,
                    values + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;  // The given values are zero: nothing to do
 
-  v_SecondarySpinningReserveCost.assign( f_time_horizon , 0 );
+  v_SecondaryRho.assign( f_time_horizon , 0 );
  }
 
  if( ! ordered )
   std::sort( subset.begin() , subset.end() );
 
- if( subset.back() >= v_SecondarySpinningReserveCost.size() )
+ if( subset.back() >= v_SecondaryRho.size() )
   throw( std::invalid_argument( "ThermalUnitBlock::set_secondary_spinning_"
-                                 "reserve_cost: invalid index in subset." ) );
+                                "reserve_cost: invalid index in subset." ) );
 
- if( identical( v_SecondarySpinningReserveCost , subset , values ) )
+ if( identical( v_SecondaryRho , subset , values ) )
   return;
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
-  assign( v_SecondarySpinningReserveCost , subset , values );
+  assign( v_SecondaryRho , subset , values );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
@@ -5208,27 +5206,27 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   return;  // Empty range. Return.
 
  c_Index sz = rng.second - rng.first;
- if( v_SecondarySpinningReserveCost.empty() ) {
+ if( v_SecondaryRho.empty() ) {
   // The secondary spinning reserve costs are currently all zero.
   if( std::all_of( values ,
                    values + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;  // The given values are zero. So, there is nothing to be changed.
 
-  v_SecondarySpinningReserveCost.assign( f_time_horizon , 0 );
+  v_SecondaryRho.assign( f_time_horizon , 0 );
  }
 
  // If nothing changes, return
  if( std::equal( values ,
                  values + sz ,
-                 v_SecondarySpinningReserveCost.begin() + rng.first ) )
+                 v_SecondaryRho.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) )
   // Change the physical representation
   std::copy( values ,
              values + sz ,
-             v_SecondarySpinningReserveCost.begin() + rng.first );
+             v_SecondaryRho.begin() + rng.first );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
@@ -5298,8 +5296,8 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 
  if( not_dry_run( issueAMod ) && variables_generated() )  // TODO
   throw( std::logic_error( "ThermalUnitBlock::set_init_updown_time: it is "
-                            "currently not possible to update the abstract "
-                            "representation." ) );
+                           "currently not possible to update the abstract "
+                           "representation." ) );
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
@@ -5331,8 +5329,8 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 
  if( not_dry_run( issueAMod ) && variables_generated() )  // TODO
   throw( std::logic_error( "ThermalUnitBlock::set_init_updown_time: it is "
-                            "currently not possible to update the abstract "
-                            "representation." ) );
+                           "currently not possible to update the abstract "
+                           "representation." ) );
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
