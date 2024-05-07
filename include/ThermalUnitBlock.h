@@ -446,7 +446,7 @@ class ThermalUnitBlock : public UnitBlock
   * - the secondary spinning reserve variables;
   *
   * - the active power variables \f$ p_t \f$ denoting the power production
-  * of the unit at time istant t.
+  * of the unit at time instant t.
   *
   * All of those variables are optional except the active power variables in
   * the sense that the model may just not have them and whenever a group of
@@ -474,17 +474,18 @@ class ThermalUnitBlock : public UnitBlock
   * formulation of the ThermalUnitBlock class has exactly the same variables of the
   * 3bin formulation (wf & 3 == 0), plus three different variables:
   *
-  * - bynary commitment variables \f$ y_+^{hk} \f$ which takes the value of 
-  * 1 if unit starts-up at time istant h, shuts-down at time istant k and is ON 
-  * from time instant h up to time istant k, and 0 otherwise;
+  * - binary commitment variables \f$ y_+^{hk} \f$ which takes the value of
+  * 1 if unit starts-up at time instant h, shuts-down at time instant k and is ON
+  * from time instant h up to time instant k, and 0 otherwise;
   * 
-  * - bynary commitment variable \f$ y_-^{hk} \f$ which takes the value of 
-  * 1 if unit shuts-down at time istant k, starts-up at time istant h and is OFF 
-  * from time instant k+1 up to time istant h-1, and 0 otherwise;
+  * - binary commitment variable \f$ y_-^{hk} \f$ which takes the value of
+  * 1 if unit shuts-down at time instant k, starts-up at time instant h and is OFF
+  * from time instant k+1 up to time instant h-1, and 0 otherwise;
   * 
   * - the active power variables \f$ p_t^{hk} \f$ denoting the power production
-  * of the unit at time istant t when it statrs-up at time istant h and shuts-down
-  * at time istant k.
+  * of the unit at time instant t when it starts-up at time instant h and
+  * shuts-down
+  * at time instant k.
   *
   * - wf & 3 == 3: the p_t formulation. This formulation of the 
   * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
@@ -497,7 +498,7 @@ class ThermalUnitBlock : public UnitBlock
   * formulation (wf & 3 == 2), plus
   *
   * - the active power variables \f$ p_t^h \f$ denoting the power production
-  * of the unit at time istant t when it starts-up at time istant h
+  * of the unit at time instant t when it starts-up at time instant h
   *
   * - wf & 3 == 5: the "shut-down" formulation (SD). This formulation of the 
   * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
@@ -505,7 +506,7 @@ class ThermalUnitBlock : public UnitBlock
   * formulation (wf & 3 == 2), plus
   *
   * - the active power variables \f$ \tilde p_t^k \f$ denoting the power production
-  * of the unit at time istant t when it shuts-down at time istant k
+  * of the unit at time instant t when it shuts-down at time instant k
   *
   * - wf & 3 == 6: the "start-up/shut-down" formulation (SUSD). This formulation of the 
   * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
@@ -514,54 +515,54 @@ class ThermalUnitBlock : public UnitBlock
   * the \f$ \tilde p_t^k \f$ of the SD formulation (wf & 3 == 5)
   *
   * The value wf also regulates the use of the perspective cuts and the relative
-  * perspective funtion in the objective function. Precisely, the above listed values
-  * of wf set formulations without the use of the prespective cuts. By adding 8 to
+  * perspective function in the objective function. Precisely, the above listed values
+  * of wf set formulations without the use of the perspective cuts. By adding 8 to
   * the above listed values the corresponding formulation uses the perspective cuts
   * and new variables are added.
   *
-  * - wf & 3 == 8 is the "three binaries" (3bin) formulation with prespective cuts. 
+  * - wf & 3 == 8 is the "three binaries" (3bin) formulation with perspective cuts.
   * This formulation of the ThermalUnitBlock class has exactly the same variables of the
   * 3bin formulation (wf & 3 == 0), plus  
   *
   * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ p_t \f$
   *
-  * - wf & 3 == 9 is the "model T" (T) formulation with prespective cuts. This formulation
+  * - wf & 3 == 9 is the "model T" (T) formulation with perspective cuts. This formulation
   *  of the ThermalUnitBlock class has exactly the same variables of the T formulation 
   * (wf & 3 == 1), plus
   *
   * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ p_t \f$
   *
-  * - wf & 3 == 10 is the "dynamic programming" inspired formulation (DP) with prespective
+  * - wf & 3 == 10 is the "dynamic programming" inspired formulation (DP) with perspective
   * cuts. This formulation of the ThermalUnitBlock class has exactly the same variables of 
   * the DP formulation (wf & 3 == 2), plus
   *
   * - the perspective cuts variables \f$ z_t^{hk} \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ p_t^{hk} \f$
   *
-  * - wf & 3 == 11 is the p_t formulation with prespective cuts. This formulation
+  * - wf & 3 == 11 is the p_t formulation with perspective cuts. This formulation
   *  of the ThermalUnitBlock class has exactly the same variables of the pt formulation 
   * (wf & 3 == 3), plus
   *
   * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ p_t \f$
   *
-  * - wf & 3 == 12 is the "start-up" formulation (SU) with prespective cuts. This formulation
+  * - wf & 3 == 12 is the "start-up" formulation (SU) with perspective cuts. This formulation
   *  of the ThermalUnitBlock class has exactly the same variables of the SU formulation 
   * (wf & 3 == 4), plus
   *
   * - the perspective cuts variables \f$ z_t^h \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ p_t^h \f$
   *
-  * - wf & 3 == 13 is the "shut-down" formulation (SD) with prespective cuts. This formulation
+  * - wf & 3 == 13 is the "shut-down" formulation (SD) with perspective cuts. This formulation
   *  of the ThermalUnitBlock class has exactly the same variables of the SD formulation 
   * (wf & 3 == 5), plus
   *
   * - the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
   * objective function of the power variable \f$ \tilde p_t^k \f$
   *
-  * - wf & 3 == 14 is the "start-up/shut-down" formulation (SUSD) with prespective cuts. This 
+  * - wf & 3 == 14 is the "start-up/shut-down" formulation (SUSD) with perspective cuts. This
   * formulation of the ThermalUnitBlock class has exactly the same variables of the SUSD formulation 
   * (wf & 3 == 6), plus
   *
@@ -770,7 +771,7 @@ class ThermalUnitBlock : public UnitBlock
   *   ( OFF\f$_t\f$ , d ). Finally, the single arc ( s , d ) means that the unit remains with 
   *   the same status for all the time horizon, and it is an ON- or OFF-arc according to the 
   *   fact that the unit is, respectively, on or off at time 0. Then, the dynamic
-  *   programming inspired formulations include netwok constrains that define the shortest
+  *   programming inspired formulations include network constrains that define the shortest
   *   path formulation on the state space graph as follows: 
   * 
   *   \f[
@@ -792,11 +793,11 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining minimum 
   *   and maximum output respectively, \f$ \bar l_t \f$ and \f$ \bar u_t \f$ are the
   *   StartUpLimit and the ShutDownLimit. The ramp-up constraints set that the maximum
-  *   increasing in power output between two time istants \f$ t+j \f$ and \f$ t \f$, 
+  *   increasing in power output between two time instants \f$ t+j \f$ and \f$ t \f$,
   *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^+_t, |\mathcal{T}| - t\} \f$
   *   must be at most equal to \f$ j \Delta^+_t \f$.
   *
-  * - Ramp-up constrants (3bin formulation):
+  * - Ramp-up constraints (3bin formulation):
   * 
   *   \f[
   *     p_{t+1} - p_t \leq \Delta^+_t u_{t}
@@ -804,7 +805,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (1)
   *   \f]
   *
-  * - Ramp-up constrants (T formulation):
+  * - Ramp-up constraints (T formulation):
   * 
   *   \f[
   *     p_{t+1} - p_t \leq (\Delta^+_t + \underline{p}) u_{t+1}
@@ -813,7 +814,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (2)
   *   \f]
   *
-  * - Ramp-up constrants (pt formulation):
+  * - Ramp-up constraints (pt formulation):
   * 
   *   \f[
   *     p_{t+1} - p_t \leq \Delta^+_t \sum_{(h,k): h \le t < k} y_+^{hk} 
@@ -822,7 +823,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (3)
   *   \f]
   *
-  * - Ramp-up constrants (DP formulation):
+  * - Ramp-up constraints (DP formulation):
   * 
   *   \f[
   *     p_{t+1}^{hk} - p_t^{hk} \leq \Delta^+_t y_+^{hk} 
@@ -830,7 +831,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad (h,k) : h \le t < k \quad (4)
   *   \f]
   *
-  * - Ramp-up constrants (SU formulation):
+  * - Ramp-up constraints (SU formulation):
   * 
   *   \f[
   *     p_{t+1}^{h} - p_t^{h} \leq \Delta^+_t \sum_{ k: t+1 \le k} y_+^{hk}
@@ -839,7 +840,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad h : h \le t \quad (5)
   *   \f]
   *
-  * - Ramp-up constrants (SD formulation):
+  * - Ramp-up constraints (SD formulation):
   * 
   *   \f[
   *     \tilde p_{t+1}^{k} - \tilde p_t^{k} \leq \Delta^+_t \sum_{ h: h \le t} y_+^{hk}
@@ -848,7 +849,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad k : t+1 \le k \quad (6)
   *   \f]
   *
-  * - Ramp-up constrants (SUSD formulation):
+  * - Ramp-up constraints (SUSD formulation):
   * 
   *   \f[
   *       p_{t+j}^{h} - p_t^{h} \leq j \Delta^+_t \sum_{ k: t+j \le k} y_+^{hk}
@@ -866,7 +867,7 @@ class ThermalUnitBlock : public UnitBlock
   *   two time instant \f$ t \f$ and \f$ t+j \f$ must be at most equal to \f$ j \Delta^-_t \f$, 
   *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^-_t, |\mathcal{T}| - t\} \f$
   *
-  * - Ramp-down constrants (3bin formulation):
+  * - Ramp-down constraints (3bin formulation):
   *
   *   \f[
   *     p_t - p_{t+1} \leq \Delta^-_t u_{t+1}
@@ -874,7 +875,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (1)
   *   \f]
   *
-  * - Ramp-down constrants (T formulation):
+  * - Ramp-down constraints (T formulation):
   *
   *   \f[
   *     p_t - p_{t+1} \leq (\Delta^-_t + \underline{p}_{t+1})  u_{t}
@@ -883,7 +884,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (2)
   *   \f]
   *
-  * - Ramp-down constrants (pt formulation):
+  * - Ramp-down constraints (pt formulation):
   *
   *   \f[
   *     p_t - p_{t+1} \leq \Delta^-_t \sum_{(h,k): h \le t < k}  y_+^{hk}
@@ -892,7 +893,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (3)
   *   \f]
   *
-  * - Ramp-down constrants (DP formulation):
+  * - Ramp-down constraints (DP formulation):
   *
   *   \f[
   *     p_t^{hk} - p_{t+1}^{hk} \leq \Delta^-_t y_+^{hk}
@@ -900,7 +901,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad (h,k) : h \le t < k \quad (4)
   *   \f]
   *
-  * - Ramp-down constrants (SU formulation):
+  * - Ramp-down constraints (SU formulation):
   *
   *   \f[
   *     p_t^h - p_{t+1}^h \leq \Delta^-_t \sum_{k: t+1 \le k}  y_+^{hk}
@@ -909,7 +910,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad h : h \le t \quad (5)
   *   \f]
   *
-  * - Ramp-down constrants (SD formulation):
+  * - Ramp-down constraints (SD formulation):
   *
   *   \f[
   *     \tilde p_t^k - \tilde p_{t+1}^k \leq \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
@@ -918,7 +919,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad k : t+1 \le k \quad (6)
   *   \f]
   *
-  * - Ramp-down constrants (SUSD formulation):
+  * - Ramp-down constraints (SUSD formulation):
   *
   *   \f[
   *     \tilde p_t^k - \tilde p_{t+j}^k \leq j \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
@@ -934,21 +935,21 @@ class ThermalUnitBlock : public UnitBlock
   *   the maximum (or minimum) amount of energy that unit can produce 
   *   when it is on.
   *
-  * - Minimum power output constrants (3bin and T formulations):
+  * - Minimum power output constraints (3bin and T formulations):
   *
   *   \f[
   *      \underline{p_t} \leq p_t            
   *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
   *   \f]
   *
-  * - Minimum power output constrants (pt formulation):
+  * - Minimum power output constraints (pt formulation):
   *
   *   \f[
   *      \underline{p_t} \sum_{(h,k): h \leq t \leq k} y_+^{hk} \leq p_t
   *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2) 
   *   \f]
   *
-  * - Minimum power output constrants (DP formulation):
+  * - Minimum power output constraints (DP formulation):
   *
   *   \f[
   *      \underline{p_t} y_+^{hk} \leq p_t^{hk}
@@ -957,7 +958,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f]
   *
   *
-  * - Minimum power output constrants (SU and SUSD formulations):
+  * - Minimum power output constraints (SU and SUSD formulations):
   *
   *   \f[
   *      \underline{p_t} \sum_{k: t \leq k} y_+^{hk} \leq p_t^h
@@ -965,7 +966,7 @@ class ThermalUnitBlock : public UnitBlock
   *                           h : h \leq t                  \quad (4) 
   *   \f]
   *
-  * - Minimum power output constrants (SD and SUSD formulations):
+  * - Minimum power output constraints (SD and SUSD formulations):
   *
   *   \f[
   *      \underline{p_t} \sum_{h: h \leq t} y_+^{hk} \leq \tilde p_t^k
@@ -974,7 +975,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f]
   *
   *
-  * - Maximum power output constrants (3bin formulation):
+  * - Maximum power output constraints (3bin formulation):
   *
   *   \f[
   *      p_t \leq \bar{p_t} u_t            
@@ -1006,7 +1007,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } = 1 \quad (6) 
   *   \f]
   *
-  * - Maximum power output constrants (T formulation):
+  * - Maximum power output constraints (T formulation):
   *
   *   \f[
   *      p_t \leq \bar{p_t} u_t            
@@ -1044,7 +1045,7 @@ class ThermalUnitBlock : public UnitBlock
   *   \f]
   *
   *
-  * The following sets of contraints are defined int the T formulation only when it includes ramp-up and/or ramp-down
+  * The following sets of constraints are defined int the T formulation only when it includes ramp-up and/or ramp-down
   * constraints 
   *
   * For \f$ t \in \{1,...,\mathcal{T}\}\f$, let
@@ -1089,7 +1090,7 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}\} : KSD_t > 0 \quad (11) 
   *   \f]
   *
-  * - Maximum power output constrants (DP formulation):
+  * - Maximum power output constraints (DP formulation):
   *
   *   \f[
   *       p_t^{tk} \leq \bar l_t y_+^{tk}
@@ -1109,7 +1110,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        h : h < t \quad (3) 
   *   \f]
   *
-  * - Maximum power output constrants (pt formulation):
+  * - Maximum power output constraints (pt formulation):
   *
   * Let 
   *
@@ -1135,7 +1136,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        \mbox{ MinUpTime } = 1 \quad (2) 
   *   \f]
   *
-  * - Maximum power output constrants (SU and SUSD formulation):
+  * - Maximum power output constraints (SU and SUSD formulation):
   *
   *   \f[
   *       p_t^t \leq \sum_{k: t < k} \bar l_t y_+^{tk}  +  \min\{\bar l_t, \bar u_t\} y_+^{tt}
@@ -1149,7 +1150,7 @@ class ThermalUnitBlock : public UnitBlock
   *                        h: h < t \quad (2) 
   *   \f]
   *
-  * - Maximum power output constrants (SD and SUSD formulation):
+  * - Maximum power output constraints (SD and SUSD formulation):
   *
   *   \f[
   *       \tilde p_t^t \leq \sum_{h: h < t} \bar u_t y_+^{ht}  +  \min\{\bar l_t, \bar u_t\} y_+^{tt}
@@ -1174,7 +1175,7 @@ class ThermalUnitBlock : public UnitBlock
   *   perspective variables with the power output variable, set the values for \f$\theta_t\f$
   *   and for set the initial conditions of the perspective cuts.
   *
-  * - Initial conditions perspective cuts: thse constraints set the perspective variable for
+  * - Initial conditions perspective cuts: those constraints set the perspective variable for
   *   each formulation when the variable for the power output is equal to the maximum or the
   *   minimum
   *
@@ -1284,14 +1285,14 @@ class ThermalUnitBlock : public UnitBlock
   *   are defined for each formulation when the perspective function in the
   *   objective is defined (i.e. when parameter PCuts = 1). In the current
   *   solution obtained during the resolution a tolerance value ('eps', that is
-  *   tipically set to 1e-6) for a binary variable is considered variable. Then,
+  *   typically set to 1e-6) for a binary variable is considered variable. Then,
   *   the relative perspective cut is added according to a threshold value ('tol',
-  *   tipically set to 1e-4) for the separation. In the following, we denote by 
+  *   typically set to 1e-4) for the separation. In the following, we denote by
   *   x.get_value() the value retrieved by the current solution analyzed. While
-  *   separating perspective cuts it is possbile that the procedure incurs in a loop,
-  *   i.e. it tries to add continuously the same cut. Thus, two differente procedures
+  *   separating perspective cuts it is possible that the procedure incurs in a loop,
+  *   i.e. it tries to add continuously the same cut. Thus, two different procedures
   *   are defined for separating the cuts. Neither procedure seems to be effective
-  *   in general and the better choice depens on the specific instance. These two
+  *   in general and the better choice depends on the specific instance. These two
   *   procedures are regulated by binary parameter 'check_loop'. When check_loop = 1
   *   a vector std::vector< double >  prevpbar with dimension \f$\mathcal{T}\f$ is
   *   used for saving, for each time period, the last tolerance tracking the last 
@@ -1304,7 +1305,7 @@ class ThermalUnitBlock : public UnitBlock
   * - For each time period \f$t\f$, the procedure checks if a relative perspective cut
   *   could be added according to several checks
   *
-  * - According to a fist check, a pespective cut is possibly added only if
+  * - According to a fist check, a perspective cut is possibly added only if
   *
   *   \f$u_t\mbox{.get_value()} > \mbox{eps}\f$.
   *
@@ -1330,11 +1331,11 @@ class ThermalUnitBlock : public UnitBlock
   * - For each time period \f$t\f$, the procedure checks if a relative perspective cut
   *   could be added according to several checks
   *
-  * - According to a fist check, a pespective cut is possibly added only if
+  * - According to a fist check, a perspective cut is possibly added only if
   *
   *   \f$\sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
   *
-  * - According to a second check, a pespective cut is possibly added only if
+  * - According to a second check, a perspective cut is possibly added only if
   *
   *   \f$ 2 \cdot (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t\mbox{.get_value()} + (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
   *
@@ -1350,11 +1351,11 @@ class ThermalUnitBlock : public UnitBlock
   * - For each variable \f$p_t^{hk}\f$, the procedure checks if a relative perspective cut
   *   could be added according to several checks
   *
-  * - According to a fist check, a pespective cut is possibly added only if
+  * - According to a fist check, a perspective cut is possibly added only if
   *
   *   \f$y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
   *
-  * - According to a second check, a pespective cut is possibly added only if
+  * - According to a second check, a perspective cut is possibly added only if
   *
   *   \f$ 2 \cdot (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()}) \cdot p_t^{hk}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{hk}\mbox{.get_value()} + (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()})^2 \cdot y_+^{hk}\mbox{.get_value()}\} \f$
   *
@@ -1370,11 +1371,11 @@ class ThermalUnitBlock : public UnitBlock
   * - For each variable \f$p_t^{h}\f$, the procedure checks if a relative perspective cut
   *   could be added according to several checks
   *
-  * - According to a fist check, a pespective cut is possibly added only if
+  * - According to a fist check, a perspective cut is possibly added only if
   *
   *   \f$\sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
   *
-  * - According to a second check, a pespective cut is possibly added only if
+  * - According to a second check, a perspective cut is possibly added only if
   *
   *   \f$ 2 \cdot (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t^{h}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{h}\mbox{.get_value()} + (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
   *
@@ -1390,11 +1391,11 @@ class ThermalUnitBlock : public UnitBlock
   * - For each variable \f$\tilde p_t^{k}\f$, the procedure checks if a relative perspective cut
   *   could be added according to several checks
   *
-  * - According to a fist check, a pespective cut is possibly added only if
+  * - According to a fist check, a perspective cut is possibly added only if
   *
   *   \f$\sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
   *
-  * - According to a second check, a pespective cut is possibly added only if
+  * - According to a second check, a perspective cut is possibly added only if
   *
   *   \f$ 2 \cdot (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}) \cdot \tilde p_t^{k}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,\tilde z_t^{k}\mbox{.get_value()} + (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}\} \f$
   *
@@ -1475,7 +1476,7 @@ class ThermalUnitBlock : public UnitBlock
   * where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
   * variable. 
   *
-  * The objective function (1) is modyfied according to which formulations
+  * The objective function (1) is modified according to which formulations
   * is used and the use of the perspective function (i.e. if PCuts = 1 or 0)
   *
   * - Objective function 3bin, T and pt formulations: in this case the objective
@@ -2561,29 +2562,29 @@ class ThermalUnitBlock : public UnitBlock
   std::vector< double >  prevpbar;
   
  /// the vector of index of the variables \f$p_t^{hk} of the DP formulation.
- /// In paticular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
+ /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
  /// v_P_h_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
  /// the vector of index of the variables \f$z_t^{hk} of the DP formulation.
- /// In paticular, v_Z_h_k.fist = t, v_Z_h_k.second.fist = h,
+ /// In particular, v_Z_h_k.fist = t, v_Z_h_k.second.fist = h,
  /// v_P_Z_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
  /// the vector of index of the variables \f$p_t^{h} of the SU formulation.
- /// In paticular, v_P_h.fist = t, v_P_h.second = h
+ /// In particular, v_P_h.fist = t, v_P_h.second = h
  std::vector< std::pair< Index , Index > > v_P_h;
 
  /// the vector of index of the variables \f$z_t^{h} of the SU formulation.
- /// In paticular, v_Z_h.fist = t, v_Z_h.second = h
+ /// In particular, v_Z_h.fist = t, v_Z_h.second = h
  std::vector< std::pair< Index , Index > > v_Z_h;
 
  /// the vector of index of the variables \f$\tilde p_t^{k} of the SD
- /// formulation. In paticular, v_P_k.fist = t, v_P_k.second = k
+ /// formulation. In particular, v_P_k.fist = t, v_P_k.second = k
  std::vector< std::pair< Index , Index > > v_P_k;
 
  /// the vector of index of the variables \f$\tilde z_t^{k} of the SD
- /// formulation. In paticular, v_Z_k.fist = t, v_Z_k.second = k
+ /// formulation. In particular, v_Z_k.fist = t, v_Z_k.second = k
  std::vector< std::pair< Index , Index > > v_Z_k;
 
  /// the vector of index of the ON nodes in the state-space graph
@@ -2593,12 +2594,12 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< Index > v_nodes_minus;
 
  /// the vector of index of the variables \f$y_+^{hk} of the DP, pt, SU,
- /// SD and SUSD formulations. In paticular, v_Y_plus.fist = h,
+ /// SD and SUSD formulations. In particular, v_Y_plus.fist = h,
  /// v_Y_plus.second = k
  std::vector< std::pair< Index , Index > > v_Y_plus;
 
  /// the vector of index of the variables \f$y_-^{hk} of the DP, pt, SU,
- /// SD and SUSD formulations. In paticular, v_Y_minus.fist = h,
+ /// SD and SUSD formulations. In particular, v_Y_minus.fist = h,
  /// v_Y_minus.second = k  
  std::vector< std::pair< Index , Index > > v_Y_minus;
 
@@ -2732,10 +2733,10 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< FRowConstraint > Eq_StartUp_Const;
 
  /// the constraints connecting shut-down variables of 3bin and T
- /// formulations with those of pt, DP, SU, SD  and SUSD formulations
+ /// formulations with those of pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
- /// the network constraints of the pt, DP, SU, SD  and SUSD formulations
+ /// the network constraints of the pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Network_Const;
 
 
@@ -2743,11 +2744,11 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< FRowConstraint > Init_PC_Const;
 
  /// the constraints connecting perspective cuts variables of 3bin, T
- /// and pt formulations with those of DP, SU, SD  and SUSD formulations
+ /// and pt formulations with those of DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
  //// Constraints connecting variables of the SUSD formulations with the
- //// maximum of the perspective funtion of the SU and the SD formulations
+ //// maximum of the perspective function of the SU and the SD formulations
  std::vector< FRowConstraint > Max_SUSD_PC_Const;
 
  /// the perspective dynamic cuts constraints
