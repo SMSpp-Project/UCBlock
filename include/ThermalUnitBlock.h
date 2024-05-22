@@ -201,7 +201,7 @@ class ThermalUnitBlock : public UnitBlock
   *   the unit for the corresponding time step, i.e., the maximum possible
   *   decrease of active power production w.r.t. the power that had been
   *   produced in time instant t - 1, if any. This variable is optional; if
-  *   it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
+  *   it is not provided then it is assumed that DM[ t ] == MxP[ t ], i.e.,
   *   the unit can ramp down an arbitrary amount, i.e., there are no
   *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
   *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
@@ -1783,12 +1783,34 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the delta ramp-up at the given time instant
+ /** This function return the delta ramp-up at the given time instant,
+  * which is assumed to be between 0 and get_time_horizon() - 1. */
+
+ double get_delta_ramp_up( Index t ) const {
+  if( v_DeltaRampUp.empty() )
+   return( get_max_power( t ) );
+  return( v_DeltaRampUp[ t ] );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the delta ramp-down at the given time instant
+ /** This function return the delta ramp-down at the given time instant,
+  * which is assumed to be between 0 and get_time_horizon() - 1. */
+
+ double get_delta_ramp_down( Index t ) const {
+  if( v_DeltaRampDown.empty() )
+   return( get_max_power( t ) );
+  return( v_DeltaRampDown[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
