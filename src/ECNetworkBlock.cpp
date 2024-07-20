@@ -410,7 +410,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
    vars.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
                                    -get_sell_price( t ) ) );
 
-   if( is_coop )
+   if( node_id == 0 && is_coop )
     vars.push_back( std::make_pair( &v_shared_power[ t ] ,
                                     -get_reward_price( t ) ) );
   }
