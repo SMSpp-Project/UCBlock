@@ -113,14 +113,11 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   if( sub_group.isNull() )
    continue;
 
-  if( auto nbi = dynamic_cast< NetworkBlock * >(
-   new_Block( sub_group , this ) ) ) {
+  auto res = almost_new_Block( sub_group , this );
+  if( auto nbi = dynamic_cast< NetworkBlock* >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
-   delete( f_NetworkData );
-   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
-   f_NetworkData->deserialize( sub_group );
    nbi->set_NetworkData( f_NetworkData );
+   nbi->deserialize( res.first );
    ++cntr;
   } else {
    delete( nbi );
@@ -379,8 +376,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_Block.resize( f_number_units + f_number_networks );
 
    delete( f_NetworkData );
-   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
+   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData( network_data_classname );
    f_NetworkData->deserialize( group );
   }
 
