@@ -3,6 +3,9 @@ default:
 
 before_script:
   - apt-get update
+  - apt-get install -y software-properties-common
+  - add-apt-repository ppa:kitware/cmake
+  - apt-get update
   - apt-get install -y cmake
 
 cache:
