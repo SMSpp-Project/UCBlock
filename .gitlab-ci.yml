@@ -1,6 +1,12 @@
 default:
   image: registry.gitlab.com/smspp/smspp
 
+before_script:
+  - apt-get update
+  - apt-get install -y doxygen git wget build-essential
+  - wget https://github.com/Kitware/CMake/releases/download/v3.19.0/cmake-3.19.0-Linux-x86_64.sh
+  - sh cmake-3.19.0-Linux-x86_64.sh --skip-license --prefix=/usr/local
+
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
