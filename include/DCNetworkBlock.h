@@ -908,7 +908,10 @@ class DCNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = static_cast< DCNetworkData * >( nd );
+  f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument(
+    "DCNetworkBlock::set_NetworkData: wrong NetworkData passed to DCNetworkBlock" ) );
   f_local_NetworkData = false;
  }
 

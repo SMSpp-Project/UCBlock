@@ -431,6 +431,7 @@ class ECNetworkBlock : public NetworkBlock
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
+   //return( 1 );
    throw( std::invalid_argument( "ECNetworkBlock::get_number_nodes: cannot "
                                  "create an Energy Community with just one "
                                  "user" ) );
@@ -581,7 +582,10 @@ class ECNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = static_cast< ECNetworkData * >( nd );
+  f_NetworkData = dynamic_cast< ECNetworkData * >( nd );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument(
+    "ECNetworkBlock::set_NetworkData: wrong NetworkData passed to ECNetworkBlock" ) );
   f_local_NetworkData = false;
  }
 

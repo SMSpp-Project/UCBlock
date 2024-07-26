@@ -199,7 +199,10 @@ class NetworkBlock : public Block
 
   /// deserialize a NetworkData out of a netCDF::NcGroup
 
-  virtual void deserialize( const netCDF::NcGroup & group ) {}
+  virtual void deserialize( const netCDF::NcGroup & group ) {
+   if( ! deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+    f_number_nodes = 1;
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -223,7 +226,9 @@ class NetworkBlock : public Block
    * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
    * of the format of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup & group ) const = 0;
+  virtual void serialize( netCDF::NcGroup& group ) const {
+   group.addDim( "NumberNodes" , f_number_nodes );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/

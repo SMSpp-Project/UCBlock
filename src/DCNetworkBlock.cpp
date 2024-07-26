@@ -115,10 +115,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
+ NetworkData::deserialize( group );
 
- if( ! ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
-  f_number_nodes = 1;
+ // Optional variables
 
  if( f_number_nodes > 1 ) {
 
@@ -221,8 +220,13 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   if( f_local_NetworkData )
    // if the NetworkData has not been passed from UCBlock, then delete it
    delete( f_NetworkData );
-  f_NetworkData = new DCNetworkData();
-  f_NetworkData->deserialize( group );
+  auto DCND = new DCNetworkData();
+  DCND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "DCNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = DCND;
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
@@ -543,7 +547,7 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
 void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
 
- auto NumberNodes = group.addDim( "NumberNodes" , f_number_nodes );
+ NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
   auto NumberLines = group.addDim( "NumberLines" );
@@ -575,6 +579,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
  }
 
  if( ! v_node_names.empty() ) {
+  auto NumberNodes = group.getDim( "NumberNodes" );
   assert( v_node_names.size() == NumberNodes.getSize() );
   auto NodeName = group.addVar( "NodeName" , netCDF::NcString() , NumberNodes );
   for( Index i = 0 ; i < v_node_names.size() ; ++i )

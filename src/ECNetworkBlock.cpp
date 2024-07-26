@@ -102,9 +102,10 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ NetworkData::deserialize( group );
+
  // Mandatory variables
 
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
@@ -149,8 +150,13 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
   if( f_local_NetworkData )
    // if the NetworkData has not been passed from UCBlock, then delete it
    delete( f_NetworkData );
-  f_NetworkData = new ECNetworkData();
-  f_NetworkData->deserialize( group );
+  auto ECND = new ECNetworkData();
+  ECND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != ECND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "ECNetworkBlock::deferialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = ECND;
   f_local_NetworkData = true;
   // An ECNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
@@ -489,7 +495,8 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
 void ECNetworkData::serialize( netCDF::NcGroup & group ) const
 {
- group.addDim( "NumberNodes" , f_number_nodes );
+
+ ECNetworkData::serialize( group );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
  ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );

@@ -211,15 +211,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   network_block_classname = "DCNetworkBlock";
  if( ! ::deserialize( group , network_data_classname ,
                       "NetworkDataClassname" ) )
-  network_data_classname = "DCNetworkData";
+  network_data_classname = "NetworkData";
 
  Index number_nodes;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
-  // cannot create an Energy Community with just one user
-  if( network_block_classname != "ECNetworkBlock" )
-   number_nodes = 1;
+  number_nodes = 1;
  } else {
-  delete( f_NetworkData );
   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
    network_data_classname );
   if( ! f_NetworkData )
