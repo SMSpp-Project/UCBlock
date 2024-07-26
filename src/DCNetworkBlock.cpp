@@ -132,15 +132,18 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
     throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
-                                  "wrong start node number " + v_start_line[ i ] ) );
+                                  "wrong start node number " +
+                                  std::to_string( v_start_line[ i ] ) ) );
 
    if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
     throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
-                                  "wrong end node number" + v_end_line[ i ] ) );
+                                  "wrong end node number" +
+                                  std::to_string( v_end_line[ i ] ) ) );
 
    if( v_start_line[ i ] == v_end_line[ i ] )
     throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
-                                  "start node == end node for line" + v_end_line[ i ] ) );
+                                  "start node == end node for line" +
+                                  std::to_string( v_end_line[ i ] ) ) );
   }
 
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
