@@ -96,7 +96,7 @@ class ECNetworkBlock : public NetworkBlock
   * bunching all the information together we make it easy for this sharing to
   * happen. */
 
- class ECNetworkData : public NetworkBlock::NetworkData
+ class ECNetworkData : public NetworkData
  {
 
 /*--------------------------------------------------------------------------*/

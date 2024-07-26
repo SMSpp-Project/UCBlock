@@ -121,7 +121,7 @@ class DCNetworkBlock : public NetworkBlock
   * DCNetworkData, but most often they can share the same. By bunching all the
   * information together we make it easy for this sharing to happen. */
 
- class DCNetworkData : public NetworkBlock::NetworkData
+ class DCNetworkData : public NetworkData
  {
 
 /*--------------------------------------------------------------------------*/
