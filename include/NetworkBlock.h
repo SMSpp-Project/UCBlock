@@ -74,7 +74,7 @@ namespace SMSpp_di_unipi_it
  * is actually bunched together in a small "passive" NetworkData object (no
  * methods, just a data repository) that can be either de-serialized or
  * passed ready-made (typically, by the UCBlock). Details of the kind of
- * network that is implemented ("bus", DC equations, AC equations, OPF, ...)
+ * network that is implemented (DC equations, AC equations, OPF, ...)
  * are entirely demanded to derived objects. The interface between a
  * NetworkBlock and the rest of the UC is just the vector of node injection
  * variables, which will have to satisfy the technical constraints of the
@@ -208,9 +208,7 @@ class NetworkBlock : public Block
  * @{ */
 
   /// returns the number of nodes of the network
-  /** Method for returning the number of nodes of the network. When it is equal
-   * to one, it means that the network is bus, and therefore all the rest of
-   * the data is meaningless. */
+  /** Method for returning the number of nodes of the network. */
 
   Index get_number_nodes( void ) const { return( f_number_nodes ); }
 
@@ -438,10 +436,7 @@ class NetworkBlock : public Block
   * NetworkBlock, it is the NetworkBlock's responsibility to delete it during
   * this call. This is not done in the base NetworkBlock class because it has
   * no data structures to hold the NetworkData pointer (in fact, this method is
-  * pure virtual), so it is demanded to derived classes.
-  *
-  * The default implementation of this method is empty, which is OK for a
-  * NetworkBlock which only handles the "bus" case. */
+  * pure virtual), so it is demanded to derived classes. */
 
  virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
 
@@ -529,8 +524,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
  /** The method of the base class always returns nullptr, because the base
-  * class does not handle the NetworkData object. This is OK for derived
-  * classes that only handle the "bus" case. */
+  * class does not handle the NetworkData object. */
 
  virtual NetworkData * get_NetworkData( void ) const { return( nullptr ); }
 

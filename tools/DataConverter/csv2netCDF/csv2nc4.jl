@@ -47,10 +47,6 @@ function csvEC2nc4(deterministic::Bool=false)
     ds = NCDataset(string("../../../netCDF_files/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
-    # Store the number of nodes
-    n_users = length(user_set)
-    defDim(block, "NumberNodes", n_users)
-
     # Store the number of time steps/horizons
     defDim(block, "TimeHorizon", n_steps)
 
@@ -120,6 +116,10 @@ function csvEC2nc4(deterministic::Bool=false)
         allequal(buy_price_data) &&
         allequal(peak_tariff_data) &&
         allequal(reward_price_data))
+
+        # Store the number of nodes
+        n_users = length(user_set)
+        defDim(block, "NumberNodes", n_users)
 
         # Store the first index (-1 since in C++ the array's indexing starts from
         # zero) of each peak period/category, i.e., of each `ECNetworkBlock`

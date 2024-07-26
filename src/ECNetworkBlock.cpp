@@ -111,10 +111,10 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- ::deserialize( group , f_BuyPrice , "BuyPrice" );
- ::deserialize( group , f_SellPrice , "SellPrice" );
- ::deserialize( group , f_RewardPrice , "RewardPrice" );
- ::deserialize( group , f_PeakTariff , "PeakTariff" );
+ ::deserialize( group , f_BuyPrice , "BuyPrice" , false );
+ ::deserialize( group , f_SellPrice , "SellPrice" , false );
+ ::deserialize( group , f_RewardPrice , "RewardPrice" , true );
+ ::deserialize( group , f_PeakTariff , "PeakTariff" , false );
 
 }  // end( ECNetworkData::deserialize )
 

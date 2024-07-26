@@ -113,14 +113,11 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   if( sub_group.isNull() )
    continue;
 
-  if( auto nbi = dynamic_cast< NetworkBlock * >(
-   new_Block( sub_group , this ) ) ) {
+  auto res = almost_new_Block( sub_group , this );
+  if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
-   delete( f_NetworkData );
-   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
-   f_NetworkData->deserialize( sub_group );
    nbi->set_NetworkData( f_NetworkData );
+   nbi->deserialize( res.first );
    ++cntr;
   } else {
    delete( nbi );
@@ -217,12 +214,23 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   network_data_classname = "DCNetworkData";
 
  Index number_nodes;
- if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) )
-  number_nodes = 1;
- if( ( network_block_classname == "ECNetworkBlock" ) &&
+ if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
+ number_nodes = 1;
+ } else { // the global NetworkData should be provided in UCBlock
+
+  if( ( network_block_classname == "ECNetworkBlock" ) &&
      ( number_nodes == 1 ) )
-  throw( std::invalid_argument( "UCBlock::deserialize: cannot create "
-                                "a community network with just one user" ) );
+   throw( std::invalid_argument( "UCBlock::deserialize: cannot create "
+                                 "an Energy Community with just one user" ) );
+
+  delete( f_NetworkData );
+  f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
+   network_data_classname );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument(
+    "UCBlock::deserialize: NetworkData missing in UCBlock" ) );
+  f_NetworkData->deserialize( group );
+ }
 
  if( ::deserialize( group , "ActivePowerDemand" , v_active_power_demand ) ) {
 
@@ -379,8 +387,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_Block.resize( f_number_units + f_number_networks );
 
    delete( f_NetworkData );
-   f_NetworkData = static_cast< NetworkBlock::NetworkData * >(
-    NetworkBlock::NetworkData::new_NetworkData( network_data_classname ) );
+   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
+    network_data_classname );
    f_NetworkData->deserialize( group );
   }
 

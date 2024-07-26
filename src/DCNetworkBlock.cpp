@@ -175,6 +175,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
    }
   };
 
+ // ::deserialize( group , "NodeName" , v_node_names );
+ // ::deserialize( group , "LineName" , v_line_names );
+
  get_string_array( "NodeName" , v_node_names , f_number_nodes );
  get_string_array( "LineName" , v_line_names );
 
