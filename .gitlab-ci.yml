@@ -3,10 +3,12 @@ default:
 
 before_script:
   - apt-get update
-  - apt-get install -y software-properties-common
-  - add-apt-repository ppa:kitware/cmake
-  - apt-get update
-  - apt-get install -y cmake
+  - apt-get install -y doxygen git wget build-essential
+  - wget https://github.com/Kitware/CMake/releases/download/v3.19.0/cmake-3.19.0-Linux-x86_64.sh
+  - sh cmake-3.19.0-Linux-x86_64.sh --skip-license --prefix=/usr/local
+  - export PATH=/usr/local/bin:$PATH
+  - echo $PATH
+  - which cmake
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
