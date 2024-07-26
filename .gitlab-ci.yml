@@ -3,7 +3,7 @@ default:
 
 before_script:
   - apt-get update
-  - apt-get install -y cmake
+  - apt-get install -y cmake openssh-client
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
