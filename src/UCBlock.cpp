@@ -215,14 +215,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  Index number_nodes;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
- number_nodes = 1;
- } else { // the global NetworkData should be provided in UCBlock
-
-  if( ( network_block_classname == "ECNetworkBlock" ) &&
-     ( number_nodes == 1 ) )
-   throw( std::invalid_argument( "UCBlock::deserialize: cannot create "
-                                 "an Energy Community with just one user" ) );
-
+  // cannot create an Energy Community with just one user
+  if( network_block_classname != "ECNetworkBlock" )
+   number_nodes = 1;
+ } else {
   delete( f_NetworkData );
   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
    network_data_classname );
@@ -480,7 +476,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
         i < v_network_blocks[ n ]->get_number_intervals() ;
         ++i , ++t )
 
-    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+    for( Index node_id = 0 ;
+         node_id < v_network_blocks[ n ]->get_number_nodes() ;
+         ++node_id ) {
 
      double min_node_injection = 0.0;
      double max_node_injection = 0.0;
@@ -643,14 +641,13 @@ void UCBlock::generate_node_injection_constraints( void )
          lf->add_variable( active_power , scale , eNoMod );
         }
 
-        if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
+        if( auto fc = unit_block->get_fixed_consumption( generator ) )
          if( auto c = unit_block->get_commitment( generator ) ) {
           auto fixed_consumption = fc[ t ] * scale;
           auto commitment = &c[ t ];
           lf->add_variable( commitment , -fixed_consumption , eNoMod );
           rhs -= fixed_consumption;
          }
-        }
        }
       }
       v_node_injection_Const[ t ][ node_id ].set_both( rhs , eNoMod );

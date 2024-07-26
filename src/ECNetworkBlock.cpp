@@ -145,8 +145,10 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
      ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) ) {
   // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
   // it means that a ECNetworkData has been provided. Thus, the ECNetworkData
-  // is deserialized, and it is marked as being local.
-  delete( f_NetworkData );
+  // is deserialized, and it is marked as being local
+  if( f_local_NetworkData )
+   // if the NetworkData is not global and passed from UCBlock, then delete it
+   delete( f_NetworkData );
   f_NetworkData = new ECNetworkData();
   f_NetworkData->deserialize( group );
   f_local_NetworkData = true;
