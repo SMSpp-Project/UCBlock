@@ -36,8 +36,6 @@
 
 #include <map>
 
-#include "LinearFunction.h"
-
 #include "NetworkBlock.h"
 
 #include "RowConstraintSolution.h"
