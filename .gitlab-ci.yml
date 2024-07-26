@@ -3,7 +3,7 @@ default:
 
 before_script:
   - apt-get update
-  - apt-get install -y cmake openssh-client
+  - apt-get install -y doxygen git wget build-essential cmake openssh-client
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
