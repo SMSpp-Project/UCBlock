@@ -205,7 +205,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
   // and it is marked as being local
   if( f_local_NetworkData )
-   // if the NetworkData is not global and passed from UCBlock, then delete it
+   // if the NetworkData has not been passed from UCBlock, then delete it
    delete( f_NetworkData );
   f_NetworkData = new DCNetworkData();
   f_NetworkData->deserialize( group );
