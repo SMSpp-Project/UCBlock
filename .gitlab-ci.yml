@@ -3,6 +3,7 @@ default:
 
 before_script:
   - apt-get update
+  - apt-get remove -y cmake
   - apt-get install -y doxygen git wget build-essential
   - wget https://github.com/Kitware/CMake/releases/download/v3.19.0/cmake-3.19.0-Linux-x86_64.sh
   - sh cmake-3.19.0-Linux-x86_64.sh --skip-license --prefix=/usr/local
@@ -28,18 +29,12 @@ fetch_smspp:
     - ssh-add <(echo "$SMSPP_DEPLOY_KEY")
     - mkdir -p ~/.ssh && ssh-keyscan -H gitlab.com >> ~/.ssh/known_hosts
     - if [ -d smspp ]; then (cd smspp && git pull); else git clone --branch develop git@gitlab.com:smspp/smspp.git; fi
-    - export PATH=/usr/local/bin:$PATH
-    - echo $PATH
-    - which cmake
     - cmake -S smspp -B smspp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
     - cmake --build smspp/build
 
 build:
   stage: build
   before_script:
-    - export PATH=/usr/local/bin:$PATH
-    - echo $PATH
-    - which cmake
     - cmake --build smspp/build --target install
   script:
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -62,9 +57,6 @@ build:
 test:
   stage: test
   before_script:
-    - export PATH=/usr/local/bin:$PATH
-    - echo $PATH
-    - which cmake
     - cmake --build smspp/build --target install
   script:
     - cmake --build build --target test
