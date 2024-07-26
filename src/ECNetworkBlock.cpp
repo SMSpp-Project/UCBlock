@@ -109,12 +109,13 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
 
- // Optional variables
-
  ::deserialize( group , f_BuyPrice , "BuyPrice" , false );
  ::deserialize( group , f_SellPrice , "SellPrice" , false );
- ::deserialize( group , f_RewardPrice , "RewardPrice" , true );
  ::deserialize( group , f_PeakTariff , "PeakTariff" , false );
+
+ // Optional variables
+
+ ::deserialize( group , f_RewardPrice , "RewardPrice" , true );
 
 }  // end( ECNetworkData::deserialize )
 
