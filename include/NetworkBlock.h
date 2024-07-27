@@ -324,9 +324,15 @@ class NetworkBlock : public Block
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  // Definition of State::private_name() (pure virtual)
+  // ad-hoc version of SMSpp_insert_in_factory_h, differing for the
+  // fact that private_name() must be defined rather than overridden
+  // since this is the base class
 
-  virtual const std::string & private_name( void ) const = 0;
+  static class _init { public:  _init(); } _initializer;
+
+  [[nodiscard]] virtual const std::string & private_name( void ) const;
+
+  static const std::string & _private_name( void );
 
  };  // end( class( NetworkData ) )
 
