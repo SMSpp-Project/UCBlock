@@ -1,9 +1,5 @@
 default:
-  image: ubuntu:latest
-
-before_script:
-  - apt-get update
-  - apt-get install -y doxygen git wget build-essential cmake openssh-client
+  image: registry.gitlab.com/smspp/smspp
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
