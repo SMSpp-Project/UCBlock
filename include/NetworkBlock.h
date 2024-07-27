@@ -129,28 +129,28 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
+
   NetworkData( void ) {}
 
 /*--------------------------------------------------------------------------*/
-
   /// construct a :NetworkData of specific type using the Block factory
   /** Use the NetworkData factory to construct a :NetworkData object of type
    * specified by classname (a std::string with the name of the class inside).
    * If there is no class with the given name, exception is thrown.
    *
-   * Note that the method is static because the factory is static, hence it is
-   * to be called as:
+   * Note that the method is static because the factory is static, hence it
+   * is to be called as:
    *
-   *  NetworkData * myNetworkData = NetworkData::new_NetworkData( some_class );
+   *  auto myNetworkData = NetworkData::new_NetworkData( some_class );
    *
    * i.e., without any reference to any specific NetworkData (and, therefore,
    * it can be used to construct the very first NetworkData if needed).
    *
    * Note that the :NetworkData returned my this method is "empty": it
-   * contains no (instance) data, and therefore it has to be explicitly
-   * initialized with any of the corresponding methods (operator>>, serialize
-   * (), anything that the specific :NetworkData class provides) before it
-   * can be used.
+   * contains no (network) data, and therefore it has to be explicitly
+   * initialized with any one of the corresponding methods (operator>>,
+   * serialize(), anything that the specific :NetworkData class provides)
+   * before it can be used.
    *
    * For this to work, each :NetworkData has to:
    *
@@ -162,31 +162,31 @@ class NetworkBlock : public Block
    *
    * - add the line
    *
-   *       SMSpp_insert_in_factory_cpp_1( name_of_the_class );
+   *       SMSpp_insert_in_factory_cpp_0( name_of_the_class );
    *
    *   to exactly *one* .cpp file, typically that :NetworkData .cpp file. If
    *   the name of the class contains any parentheses, then one must enclose
    *   the name of the class in parentheses and instead add the line
    *
-   *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
+   *       SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
    *
    * Any whitespaces that the given \p classname may contain is ignored. So,
    * for example, to create an instance of the class MyNetworkData< int > one
-   * could pass "MyNetworkData< int >" or "MyNetworkData< int >"
-   * (even " M y B l o c k < int > " would work).
+   * could pass "MyNetworkData< int >" or "MyNetworkData<int>"
+   * (even " M y N e t w o r k D a t a < i n t > " would work).
    *
    * @param classname The name of the :NetworkData class that must be
    *                  constructed. */
 
   static NetworkData * new_NetworkData( const std::string & classname ) {
    const std::string classname_( SMSpp_classname_normalise(
-    std::string( classname ) ) );
+                                                std::string( classname ) ) );
    const auto it = NetworkData::f_factory().find( classname_ );
    if( it == NetworkData::f_factory().end() )
     throw( std::invalid_argument( classname +
                                    " not present in NetworkData factory" ) );
-   return( ( it->second )( nullptr ) );
-  }
+   return( ( it->second )() );
+   }
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
@@ -198,13 +198,22 @@ class NetworkBlock : public Block
  * @{ */
 
   /// deserialize a NetworkData out of a netCDF::NcGroup
+  /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should
+   * contain the following:
+   *
+   * - The dimension "NumberNodes" containing the number of nodes in the
+   *   problem; this dimension is optional, if it is not provided then it is
+   *   taken to be equal to 1.
+   *
+   * No other information is present in the base class, derived ones will
+   * add the information that they need. */
 
   virtual void deserialize( const netCDF::NcGroup & group ) {
    if( ! deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
     f_number_nodes = 1;
-  }
+   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkData
@@ -215,20 +224,20 @@ class NetworkBlock : public Block
 
   Index get_number_nodes( void ) const { return( f_number_nodes ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the NetworkData
  * @{ */
 
-  /// serialize a NetworkData out of a netCDF::NcGroup
-  /** Serialize a NetworkData out of a netCDF::NcGroup to the specific format of
-   * a NetworkData. See NetworkBlock::deserialize( netCDF::NcGroup ) for details
-   * of the format of the created netCDF group. */
+  /// serialize a NetworkData into a netCDF::NcGroup
+  /** Serialize a NetworkData into a netCDF::NcGroup; see
+   * NetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
+   * of the created netCDF group. */
 
   virtual void serialize( netCDF::NcGroup& group ) const {
    group.addDim( "NumberNodes" , f_number_nodes );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -240,7 +249,7 @@ class NetworkBlock : public Block
 /*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  typedef boost::function< NetworkData *( NetworkData * ) > NetworkDataFactory;
+  typedef boost::function< NetworkData *( void ) > NetworkDataFactory;
   // type of the factory of NetworkData
 
   typedef std::map< std::string , NetworkDataFactory > NetworkDataFactoryMap;
@@ -259,41 +268,31 @@ class NetworkBlock : public Block
   /// method encapsulating the NetworkData factory
   /** This method returns the NetworkData factory, which is a static object.
    * The rationale for using a method is that this is the "Construct On
-   * First Use Idiom" that solves the "static initialization order problem". */
+   * First Use Idiom" that solves the "static initialization order problem".
+   */
 
   static NetworkDataFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
-
   /// empty placeholder for class-specific static initialization
   /** The method static_initialization() is an empty placeholder which is made
    * available to derived classes that need to perform some class-specific
-   * static initialization besides these of any :NetworkBlock::NetworkData
-   * class, i.e., the management of the factory. This method is invoked by the
-   * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+   * static initialization besides these of any :NetworkData class, i.e.,
+   * the management of the factory. This method is invoked by the
+   * SMSpp_insert_in_factory_cpp_0() macros [see SMSTypedefs.h] during the
    * standard initialization procedures. If a derived class needs to perform
    * any static initialization it just have to do this into its version of
    * this method; if not it just has nothing to do, as the (empty) method of
    * the base class will be called.
    *
-   * This mechanism has a potential drawback in that a redefined
-   * static_initialization() may be called multiple times. Assume that a
-   * derived class X redefines the method to perform something, and that a
-   * further class Y is derived from X that has to do nothing, and that
-   * therefore will not define Y::static_initialization(): them, within the
-   * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
-   * called again.
-   *
-   * If this is undesirable, X will have to explicitly instruct derived classes
-   * to redefine their (empty) static_initialization(). Alternatively,
-   * X::static_initialization() may contain mechanisms to ensure that it will
-   * actually do things only the very first time it is called. One standard
-   * trick is to do everything within the initialisation of a static local
-   * variable of X::static_initialization(): this is guaranteed by the
-   * compiler to happen only once, regardless of how many times the function
-   * is called. Alternatively, an explicit static boolean could be used (this
-   * may just be the same as what the compiler does during the initialization
-   * of static variables without telling you). */
+   * This method is here basically just because it is assumed to be present
+   * in the macros of SMSTypedefs.h, and it's simpler to define it once (as
+   * empty) in the base class than having separate versions of the macros
+   * that do not assume its existence. It can be expected that the call to
+   * the empty method will be optimized away by the compiler, and even if
+   * not it's called once at program startup. It's not expected that a
+   * :NetworkData class may have to perform any other complex initialization
+   * (although the future is uncertain and always full of surprises). */
 
   static void static_initialization( void ) {}
 
@@ -301,18 +300,7 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*---------------------------------- data ----------------------------------*/
-
-  /// number of nodes of the network
-  Index f_number_nodes{};
-
-/*-------------------------------- variables -------------------------------*/
-
-
-
-/*------------------------------- constraints ------------------------------*/
-
-
+  Index f_number_nodes{};  ///< number of nodes of the network
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -323,10 +311,10 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
-
-  // ad-hoc version of SMSpp_insert_in_factory_h, differing for the
-  // fact that private_name() must be defined rather than overridden
-  // since this is the base class
+  // ad-hoc version of SMSpp_insert_in_factory_h, differing for the fact that
+  // private_name() must be defined rather than overridden since this is the
+  // base class and it is not pure virtual, hence it has to be added to the
+  // factory as well (unlike, say, Block which is pure virtual)
 
   static class _init { public:  _init(); } _initializer;
 
@@ -334,7 +322,7 @@ class NetworkBlock : public Block
 
   static const std::string & _private_name( void );
 
- };  // end( class( NetworkData ) )
+  };  // end( class( NetworkData ) )
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -362,8 +350,8 @@ class NetworkBlock : public Block
 
  /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
-  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block, the
-  * group should contain the following:
+  * the NetworkBlock. Besides the mandatory "type" attribute of any :Block,
+  * the group should contain the following:
   *
   * - Optionally, the dimensions and variables necessary to a NetworkData
   *   object, that describe the network; see NetworkData::deserialize() for
@@ -379,15 +367,14 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
  /** The base NetworkBlock class has just the node injection variables, which
-  * are mandatory as that's how the NetworkBlock is linked to the rest of the UC
-  * model. */
+  * are mandatory since they are how the NetworkBlock is linked to the rest
+  * of the UC model. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-
- /**
-  * Loads a NetworkBlock from a input standard stream.
+ /// loads a NetworkBlock from a input standard stream.
+ /** Loads a NetworkBlock from a input standard stream.
   *
   * @warning This method is not implemented yet.
   *
@@ -398,7 +385,7 @@ class NetworkBlock : public Block
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
@@ -407,13 +394,13 @@ class NetworkBlock : public Block
  * @{ */
 
  /// method to set the NetworkData object
- /** This method can be called *before* that deserialize() is called to provide
-  * the NetworkBlock with the data corresponding to the network description.
-  * This allows the information not to be duplicated in the netCDF group that
-  * describes the NetworkBlock, since usually (but not necessarily) a
-  * NetworkBlock is deserialized inside a UCBlock, and all networks have the
-  * same data, that can therefore be read once and for all by the father
-  * UCBlock.
+ /** This method can be called *before* that deserialize() is called to
+  * provide the NetworkBlock with the data corresponding to the network
+  * description. This allows the information not to be duplicated in the
+  * netCDF group that  describes the NetworkBlock, since usually (but not
+  * necessarily) a NetworkBlock is deserialized inside a UCBlock, and all
+  * networks have the same data, that can therefore be read once and for all
+  * by the father UCBlock.
   *
   * If this method is *not* called, which means that no NetworkData has been
   * provided, then when deserialize() is called the information has to be
@@ -429,25 +416,25 @@ class NetworkBlock : public Block
   *      NetworkBlock has a father at all, or the father is a UCBlock.
   *
   * If this method *is* called, which has to happen before that deserialize()
-  * is called, then if the data for the NetworkData is present in netCDF input,
-  * then it is used by the NetworkBlock, disregarding the NetworkData object
-  * that was passed with this method. If the data for the NetworkData is not
-  * present in netCDF input, it must have been passed from outside with this
-  * method.
+  * is called, then if the data for the NetworkData is present in netCDF
+  * input, then it is used by the NetworkBlock, disregarding the NetworkData
+  * object that was passed with this method. If the data for the NetworkData
+  * is not present in netCDF input, it must have been passed from outside
+  * with this method.
   *
   * If this method is called *after* that deserialize() is called, this is
   * taken to mean that the NetworkBlock is being "reset", and that immediately
-  * after deserialize() will be called again. The same rules as above are to be
-  * followed for that subsequent call to deserialize().
+  * after deserialize() will be called again. The same rules as above are to
+  * be followed for that subsequent call to deserialize().
   *
   * Note that passing a new NetworkData causes all references to any previous
-  * NetworkData to be lost. If the NetworkData was an "externally provided" one
-  * this is no problem, but it means that it is responsibility of who set it in
-  * the first place to delete it. If the NetworkData was created by the
+  * NetworkData to be lost. If the NetworkData was an "externally provided"
+  * one this is no problem, but it means that it is responsibility of who set
+  * it in the first place to delete it. If the NetworkData was created by the
   * NetworkBlock, it is the NetworkBlock's responsibility to delete it during
   * this call. This is not done in the base NetworkBlock class because it has
-  * no data structures to hold the NetworkData pointer (in fact, this method is
-  * pure virtual), so it is demanded to derived classes. */
+  * no data structures to hold the NetworkData pointer, so it is demanded
+  * to derived classes. */
 
  virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
 
@@ -461,7 +448,7 @@ class NetworkBlock : public Block
 
  void set_constant_term( const double const_term ) {
   f_ConstTerm = const_term;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
@@ -477,16 +464,16 @@ class NetworkBlock : public Block
   * data set by this method.
   *
   * Similarly, if this method is called *after* deserialize(), but some the
-  * ActiveDemand was already present in the NcGroup, then that data is kept and
-  * the call to this method does nothing.
+  * ActiveDemand was already present in the NcGroup, then that data is kept
+  * and the call to this method does nothing.
   *
   * When this method is called, if it is empty it is written into, otherwise
-  * nothing happens. In deserialize(), if the data is there in the NcGroup then
-  * it is written in v_ActiveDemand (which therefore is no longer empty),
+  * nothing happens. In deserialize(), if the data is there in the NcGroup
+  * then it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand(
-  const std::vector< std::vector< double > > & v ) = 0;
+                        const std::vector< std::vector< double > > & v ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
@@ -496,9 +483,10 @@ class NetworkBlock : public Block
  {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
   v_MinNodeInjection[ interval ][ node ] = min_injection;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
@@ -508,9 +496,10 @@ class NetworkBlock : public Block
  {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -546,8 +535,8 @@ class NetworkBlock : public Block
   * There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the active demand for each user u is D[ 0 , u ] for all intervals t,
-  *   which means that the second dimension has size get_number_nodes().
+  *   then the active demand for each user u is D[ 0 , u ] for all intervals
+  *   t, which means that the second dimension has size get_number_nodes().
   *   This will be the default case;
   *
   * - otherwise, the matrix has size get_number_intervals() per
@@ -559,35 +548,35 @@ class NetworkBlock : public Block
 
  virtual const double * get_active_demand( Index interval = 0 ) const {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum production of the electrical generators
  /** Returns the minimum production for the given interval, which is assumed
   * to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of minimum productions for each
-  *                 user is returned. */
+  * @param interval The interval wrt the vector of minimum productions for
+  *                 each user is returned. */
 
  const double * get_min_node_injection( Index interval = 0 ) const {
   if( v_MinNodeInjection.empty() )
    return( nullptr );
   return( &( v_MinNodeInjection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum production of the electrical generators
  /** Returns the maximum production for the given interval, which is assumed
   * to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of maximum productions for each
-  *                 user is returned. */
+  * @param interval The interval wrt the vector of maximum productions for
+                    each user is returned. */
 
  const double * get_max_node_injection( Index interval = 0 ) const {
   if( v_MaxNodeInjection.empty() )
    return( nullptr );
   return( &( v_MaxNodeInjection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the constant term
@@ -602,13 +591,13 @@ class NetworkBlock : public Block
 
  /// returns the matrix of node injection variables
  /** Method for returning the node injection variables for the given interval,
-  * which is assumed to have size get_number_intervals() by get_number_nodes().
-  * There are two possible cases:
+  * which is assumed to have size get_number_intervals() by
+  * get_number_nodes(). There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the node injection for each user u is I[ 0 , u ] for all intervals t,
-  *   which means that the second dimension has size get_number_nodes().
-  *   This will be the default case;
+  *   then the node injection for each user u is I[ 0 , u ] for all
+  *   intervals t, which means that the second dimension has siz
+  *   get_number_nodes(). This will be the default case;
   *
   * - otherwise, the matrix has size get_number_intervals() per
   *   get_number_nodes(), then the I[ i , u ] represents the node injection
@@ -621,7 +610,7 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -681,10 +670,8 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( MF_dbl_it values ,
-                                 Subset && subset ,
-                                 const bool ordered ,
-                                 ModParam issuePMod ,
+ virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
+				 bool ordered , ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
@@ -704,10 +691,9 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( MF_dbl_it values ,
-                                 Range rng ,
+ virtual void set_active_demand( MF_dbl_it values , Range rng ,
                                  ModParam issuePMod ,
-                                 ModParam issueAMod ) = 0;
+				 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
@@ -765,8 +751,6 @@ class NetworkBlock : public Block
 
 /*------------------------------- constraints ------------------------------*/
 
-
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -789,7 +773,7 @@ class NetworkBlock : public Block
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
-};  // end( class( NetworkBlock ) )
+ };  // end( class( NetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NetworkBlockMod --------------------------*/
@@ -808,7 +792,7 @@ class NetworkBlockMod : public Modification
   eNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of NetworkBlockMod. */
- };
+  };
 
  /// constructor, takes the NetworkBlock and the type
  NetworkBlockMod( NetworkBlock * const fblock , const int type )
@@ -831,15 +815,15 @@ class NetworkBlockMod : public Modification
   switch( f_type ) {
    default:
     output << "Set active demand values ";
+   }
   }
- }
 
  NetworkBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
 
  int f_type;  ///< type of modification
 
-};  // end( class( NetworkBlockMod ) )
+ };  // end( class( NetworkBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
@@ -868,11 +852,11 @@ class NetworkBlockRngdMod : public NetworkBlockMod
  void print( std::ostream & output ) const override {
   NetworkBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
-};  // end( class( NetworkBlockRngdMod ) )
+ };  // end( class( NetworkBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS NetworkBlockSbstMod -----------------------*/
@@ -901,11 +885,11 @@ class NetworkBlockSbstMod : public NetworkBlockMod
  void print( std::ostream & output ) const override {
   NetworkBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
- }
+  }
 
  Block::Subset f_nms;  ///< the subset
 
-};  // end( class( NetworkBlockSbstMod ) )
+ };  // end( class( NetworkBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
