@@ -129,8 +129,15 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-
   NetworkData( void ) {}
+
+  /// copy constructor of NetworkData
+  NetworkData( NetworkData * nd ) {
+   f_number_nodes = nd->get_number_nodes();
+  }
+
+  /// destructor of NetworkData: it is virtual, and empty
+  virtual ~NetworkData() = default;
 
 /*--------------------------------------------------------------------------*/
   /// construct a :NetworkData of specific type using the Block factory
@@ -187,9 +194,6 @@ class NetworkBlock : public Block
                                    " not present in NetworkData factory" ) );
    return( ( it->second )() );
    }
-
-  /// destructor of NetworkData: it is virtual, and empty
-  virtual ~NetworkData() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

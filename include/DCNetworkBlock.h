@@ -140,9 +140,7 @@ class DCNetworkBlock : public NetworkBlock
   DCNetworkData( void ) {}
 
   /// copy constructor of DCNetworkData
-  DCNetworkData( NetworkData * nd ) {
-   f_number_nodes = nd->get_number_nodes();
-  }
+  DCNetworkData( NetworkData * nd ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
   virtual ~DCNetworkData() = default;

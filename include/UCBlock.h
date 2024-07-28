@@ -400,7 +400,12 @@ class UCBlock : public Block
  * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
  *   indexed over the dimension "NumberNetworks"; the entry
  *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
- *   fixed costs, of the NetworkBlock n. */
+ *   fixed costs, of the NetworkBlock n.
+  *
+  * - The variable "NetworkDataClassname", of type netCDF::NcString specify
+  *   the classname of the specific NetworkData to be instantiate. For backward
+  *   compatibility reasons w.r.t. the netCDF input data files already given,
+  *   the default value is "DCNetworkData". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

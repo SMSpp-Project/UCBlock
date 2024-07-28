@@ -115,9 +115,7 @@ class ECNetworkBlock : public NetworkBlock
   ECNetworkData( void ) {}
 
   /// copy constructor of ECNetworkData
-  ECNetworkData( NetworkData * nd ) {
-   f_number_nodes = nd->get_number_nodes();
-  }
+  ECNetworkData( NetworkData * nd ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
   virtual ~ECNetworkData() = default;
