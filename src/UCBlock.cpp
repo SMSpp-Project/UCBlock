@@ -168,6 +168,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "PollutantRho" ,
                                                      "StartNetworkIntervals" ,
                                                      "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" ,
                                                      // DCNetworkBlockData
                                                      "StartLine" ,
                                                      "EndLine" ,
