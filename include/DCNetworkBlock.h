@@ -143,7 +143,7 @@ class DCNetworkBlock : public NetworkBlock
   explicit DCNetworkData( const NetworkData * nd ) : NetworkData( nd ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
-  ~DCNetworkData() override = default;
+  virtual ~DCNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
