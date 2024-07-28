@@ -357,7 +357,7 @@ class NetworkBlock : public Block
   *   the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead. */
 
- void deserialize( const netCDF::NcGroup & group );
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -648,12 +648,12 @@ class NetworkBlock : public Block
 /** @name Methods for loading, printing & saving the NetworkBlock
  * @{ */
 
-  /// serialize a NetworkBlock into a netCDF::NcGroup
-  /** Serialize a NetworkBlock into a netCDF::NcGroup; see
-   * NetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
-   * of the created netCDF group. */
+ /// serialize a NetworkBlock into a netCDF::NcGroup
+ /** Serialize a NetworkBlock into a netCDF::NcGroup; see
+  * NetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
+  * of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup& group ) const;
+ virtual void serialize( netCDF::NcGroup& group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
