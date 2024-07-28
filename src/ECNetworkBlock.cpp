@@ -96,7 +96,8 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
                                                      "StartNetworkIntervals" ,
-                                                     "NetworkConstantTerms" };
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 

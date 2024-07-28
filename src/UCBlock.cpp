@@ -207,6 +207,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                       v_network_constant_terms ) )
   v_network_constant_terms.resize( f_number_networks );
 
+ if( ! ::deserialize( group , network_block_classname , "NetworkBlockClassname" ) )
+  network_block_classname = "DCNetworkBlock";
+
  Index number_nodes;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
   number_nodes = 1;
@@ -379,7 +382,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
     nbi = dynamic_cast< NetworkBlock * >(
-     new_Block( "ECNetworkBlock" , this ) );
+     new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
    }
@@ -1149,6 +1152,10 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
                   []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "NetworkConstantTerms" , netCDF::NcDouble() ,
                NumberNetworks , v_network_constant_terms );
+
+ if( network_block_classname != "DCNetworkBlock" )
+  ::serialize( group , "NetworkBlockClassname" , netCDF::NcString() ,
+               network_block_classname );
 
  ::serialize( group , "GeneratorNode" , netCDF::NcUint() ,
               NumberElectricalGenerators , v_generator_node );

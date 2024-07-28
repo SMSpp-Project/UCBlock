@@ -1114,6 +1114,10 @@ class UCBlock : public Block
 
 /*---------------------------------- data ----------------------------------*/
 
+ /// the specific classname of the networks that need to be instantiated,
+ /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
+ std::string network_block_classname;
+
  /// the time horizon of the problem
  Index f_time_horizon{};
 

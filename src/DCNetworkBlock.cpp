@@ -110,7 +110,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
-                                                     "NetworkConstantTerms" };
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
