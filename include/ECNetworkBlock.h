@@ -429,9 +429,8 @@ class ECNetworkBlock : public NetworkBlock
  /// returns true if the the energy is shared between users in the community
 
  bool is_cooperative( void ) const {
-  return( std::any_of( f_NetworkData->get_reward_price().begin() ,
-                       f_NetworkData->get_reward_price().end() ,
-                       []( double cst ) { return( cst != 0 ); } ) );
+  return( std::ranges::any_of( f_NetworkData->get_reward_price() ,
+                               []( double cst ) { return( cst != 0 ); } ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
