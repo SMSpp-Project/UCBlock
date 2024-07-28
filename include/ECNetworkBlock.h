@@ -115,10 +115,10 @@ class ECNetworkBlock : public NetworkBlock
   ECNetworkData( void ) {}
 
   /// copy constructor of ECNetworkData
-  explicit ECNetworkData( const NetworkData * nd ) {}
+  explicit ECNetworkData( const NetworkData * nd ) : NetworkData( nd ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
-  virtual ~ECNetworkData() override = default;
+  ~ECNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

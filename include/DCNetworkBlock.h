@@ -140,10 +140,10 @@ class DCNetworkBlock : public NetworkBlock
   DCNetworkData( void ) {}
 
   /// copy constructor of DCNetworkData
-  explicit DCNetworkData( const NetworkData * nd ) {}
+  explicit DCNetworkData( const NetworkData * nd ) : NetworkData( nd ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
-  virtual ~DCNetworkData() override = default;
+  ~DCNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
