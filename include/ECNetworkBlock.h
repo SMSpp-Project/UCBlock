@@ -115,10 +115,10 @@ class ECNetworkBlock : public NetworkBlock
   ECNetworkData( void ) {}
 
   /// copy constructor of ECNetworkData
-  ECNetworkData( NetworkData * nd ) {}
+  explicit ECNetworkData( const NetworkData * nd ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
-  virtual ~ECNetworkData() = default;
+  virtual ~ECNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -428,7 +428,7 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns true if the the energy is shared between users in the community
 
- bool is_cooperative( void ) {
+ bool is_cooperative( void ) const {
   return( std::any_of( f_NetworkData->get_reward_price().begin() ,
                        f_NetworkData->get_reward_price().end() ,
                        []( double cst ) { return( cst != 0 ); } ) );

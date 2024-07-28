@@ -132,7 +132,7 @@ class NetworkBlock : public Block
   NetworkData( void ) {}
 
   /// copy constructor of NetworkData
-  NetworkData( NetworkData * nd ) {
+  explicit NetworkData( const NetworkData * nd ) {
    f_number_nodes = nd->get_number_nodes();
   }
 
