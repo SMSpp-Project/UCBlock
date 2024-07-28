@@ -137,10 +137,12 @@ class DCNetworkBlock : public NetworkBlock
  * @{ */
 
   /// constructor of DCNetworkData, does nothing
-  DCNetworkData( void ) : NetworkBlock::NetworkData() {}
+  DCNetworkData( void ) {}
 
-  /// copy constructor of DCNetworkData, does nothing
-  DCNetworkData( NetworkData * dc_network_data ) {}
+  /// copy constructor of DCNetworkData
+  DCNetworkData( NetworkData * nd ) {
+   f_number_nodes = nd->get_number_nodes();
+  }
 
   /// destructor of DCNetworkData: it is virtual, and empty
   virtual ~DCNetworkData() = default;
@@ -903,15 +905,12 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the DCNetworkBlock
  * @{ */
 
- void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
+ void set_NetworkData( NetworkData * nd = nullptr ) override {
   // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
-  if( ! f_NetworkData )
-   throw( std::invalid_argument(
-    "DCNetworkBlock::set_NetworkData: wrong NetworkData passed to DCNetworkBlock" ) );
+  f_NetworkData = new DCNetworkData( nd );
   f_local_NetworkData = false;
  }
 

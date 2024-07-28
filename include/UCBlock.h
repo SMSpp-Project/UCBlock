@@ -400,18 +400,7 @@ class UCBlock : public Block
  * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
  *   indexed over the dimension "NumberNetworks"; the entry
  *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
- *   fixed costs, of the NetworkBlock n.
- *
- * - The variable "NetworkBlockClassname", of type netCDF::NcString specify
- *   the classname of the specific NetworkBlock to be instantiate if no one is
- *   explicitly given in input. For backward compatibility reasons w.r.t. the
- *   netCDF input data files already given, the default value is
- *   "DCNetworkBlock".
- *
- * - The variable "NetworkDataClassname", of type netCDF::NcString specify
- *   the classname of the specific NetworkData to be instantiate. For backward
- *   compatibility reasons w.r.t. the netCDF input data files already given,
- *   the default value is "DCNetworkData". */
+ *   fixed costs, of the NetworkBlock n. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1127,14 +1116,6 @@ class UCBlock : public Block
 
  /// the time horizon of the problem
  Index f_time_horizon{};
-
- /// the specific classname of the networks that need to be instantiated,
- /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
- // Used in case of no `NetworkBlock`s were given since there is just one
- // node, i.e., the network is a bus, or all the nodes share the same data in
- // `NetworkData`.
- std::string network_block_classname;
- std::string network_data_classname;
 
  /// the number of the networks of the problem
  Index f_number_networks{};

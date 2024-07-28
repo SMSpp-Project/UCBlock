@@ -168,14 +168,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "PollutantRho" ,
                                                      "StartNetworkIntervals" ,
                                                      "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" ,
                                                      // DCNetworkBlockData
-                                                     "StartLine" , "EndLine" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
                                                      "Susceptance" ,
                                                      "NetworkCost" ,
+                                                     "NodeName" ,
+                                                     "LineName" ,
                                                      // ECNetworkBlockData
                                                      "BuyPrice" ,
                                                      "SellPrice" ,
@@ -206,19 +207,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                       v_network_constant_terms ) )
   v_network_constant_terms.resize( f_number_networks );
 
- if( ! ::deserialize( group , network_block_classname ,
-                      "NetworkBlockClassname" ) )
-  network_block_classname = "DCNetworkBlock";
- if( ! ::deserialize( group , network_data_classname ,
-                      "NetworkDataClassname" ) )
-  network_data_classname = "NetworkData";
-
  Index number_nodes;
  if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
   number_nodes = 1;
  } else {
-  f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
-   network_data_classname );
+  f_NetworkData = NetworkBlock::NetworkData::new_NetworkData();
   if( ! f_NetworkData )
    throw( std::invalid_argument(
     "UCBlock::deserialize: NetworkData missing in UCBlock" ) );
@@ -378,11 +371,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   if( v_network_blocks.empty() ) {
    v_network_blocks.resize( f_number_networks );
    v_Block.resize( f_number_units + f_number_networks );
-
-   delete( f_NetworkData );
-   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
-    network_data_classname );
-   f_NetworkData->deserialize( group );
   }
 
   Index t = 0;
@@ -391,14 +379,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
     nbi = dynamic_cast< NetworkBlock * >(
-     new_Block( network_block_classname , this ) );
+     new_Block( "ECNetworkBlock" , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
-    // since the ECNetworkBlock does not exist before, and we just created it,
-    // we need to set its "NumberIntervals" and "ConstantTerm"
-    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
-                               v_start_network_intervals[ n ] );
-    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
 
    if( ! nbi->get_NetworkData() ) {
@@ -407,6 +390,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                    "missing in NetworkBlock " +
                                    std::to_string( n ) + " and in UCBlock" ) );
     nbi->set_NetworkData( f_NetworkData );
+    // since the NetworkBlock does not exist before, and we just created it,
+    // we need to set its "NumberIntervals" and "ConstantTerm"...
+    nbi->set_number_intervals( v_start_network_intervals[ n + 1 ] -
+                               v_start_network_intervals[ n ] );
+    nbi->set_constant_term( v_network_constant_terms[ n ] );
+    // ... and then deserialize its NetworkData
+    nbi->get_NetworkData()->deserialize( group );
    }
 
    std::vector< std::vector< double > > ap_v;
@@ -1159,14 +1149,6 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
                   []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "NetworkConstantTerms" , netCDF::NcDouble() ,
                NumberNetworks , v_network_constant_terms );
-
- if( network_block_classname != "DCNetworkBlock" )
-  ::serialize( group , "NetworkBlockClassname" , netCDF::NcString() ,
-               network_block_classname );
-
- if( network_data_classname != "DCNetworkData" )
-  ::serialize( group , "NetworkDataClassname" , netCDF::NcString() ,
-               network_data_classname );
 
  ::serialize( group , "GeneratorNode" , netCDF::NcUint() ,
               NumberElectricalGenerators , v_generator_node );

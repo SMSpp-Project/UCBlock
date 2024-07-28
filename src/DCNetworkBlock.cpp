@@ -57,7 +57,7 @@ SMSpp_insert_in_factory_cpp_0( DCNetworkBlock );
 
 typedef DCNetworkBlock::DCNetworkData DCNetworkData;
 
-SMSpp_insert_in_factory_cpp_1( DCNetworkData );
+SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
@@ -106,12 +106,11 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
+                                                     "ConstantTerm" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" };
+                                                     "NetworkConstantTerms" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -137,12 +136,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
    if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
     throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
-                                  "wrong end node number" +
+                                  "wrong end node number " +
                                   std::to_string( v_end_line[ i ] ) ) );
 
    if( v_start_line[ i ] == v_end_line[ i ] )
     throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
-                                  "start node == end node for line" +
+                                  "start node == end node for line " +
                                   std::to_string( v_end_line[ i ] ) ) );
   }
 
@@ -205,13 +204,24 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" };
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberLines" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
+                                                     "MinPowerFlow" ,
+                                                     "MaxPowerFlow" ,
+                                                     "Susceptance" ,
+                                                     "NetworkCost" ,
+                                                     "NodeName" ,
+                                                     "LineName" ,
                                                      "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ NetworkBlock::deserialize( group );
 
  // Optional variables
 
@@ -259,9 +269,6 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
-
- ::deserialize( group , f_ConstTerm , "ConstantTerm" );
-
 }  // end( DCNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -548,8 +555,8 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
-
+void DCNetworkData::serialize( netCDF::NcGroup & group ) const
+{
  NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
@@ -620,10 +627,6 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
  }
-
- if( f_ConstTerm != 0 )
-  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
 }  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

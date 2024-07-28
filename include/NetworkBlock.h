@@ -178,7 +178,7 @@ class NetworkBlock : public Block
    * @param classname The name of the :NetworkData class that must be
    *                  constructed. */
 
-  static NetworkData * new_NetworkData( const std::string & classname ) {
+  static NetworkData * new_NetworkData( const std::string & classname = "NetworkData" ) {
    const std::string classname_( SMSpp_classname_normalise(
                                                 std::string( classname ) ) );
    const auto it = NetworkData::f_factory().find( classname_ );
@@ -208,10 +208,7 @@ class NetworkBlock : public Block
    * No other information is present in the base class, derived ones will
    * add the information that they need. */
 
-  virtual void deserialize( const netCDF::NcGroup & group ) {
-   if( ! deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
-    f_number_nodes = 1;
-   }
+  virtual void deserialize( const netCDF::NcGroup & group );
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -235,9 +232,7 @@ class NetworkBlock : public Block
    * NetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
    * of the created netCDF group. */
 
-  virtual void serialize( netCDF::NcGroup& group ) const {
-   group.addDim( "NumberNodes" , f_number_nodes );
-   }
+  virtual void serialize( netCDF::NcGroup& group ) const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -362,7 +357,7 @@ class NetworkBlock : public Block
   *   the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead. */
 
- void deserialize( const netCDF::NcGroup & group ) override {}
+ void deserialize( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -486,7 +481,7 @@ class NetworkBlock : public Block
                               [ get_number_intervals() ][ get_number_nodes() ]
 			      );
   v_MinNodeInjection[ interval ][ node ] = min_injection;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
@@ -496,10 +491,9 @@ class NetworkBlock : public Block
  {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ]
-			      );
+                              [ get_number_intervals() ][ get_number_nodes() ] );
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -519,7 +513,7 @@ class NetworkBlock : public Block
  /// returns the number of intervals spanned by the network
  /** Method for returning the number of intervals spanned by this network. */
 
- Index get_number_intervals( void ) const { return( f_number_intervals ); }
+ virtual Index get_number_intervals( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
@@ -562,7 +556,7 @@ class NetworkBlock : public Block
   if( v_MinNodeInjection.empty() )
    return( nullptr );
   return( &( v_MinNodeInjection.data()[ interval * get_number_nodes() ] ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum production of the electrical generators
@@ -610,7 +604,7 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -648,6 +642,19 @@ class NetworkBlock : public Block
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
+/** @} ---------------------------------------------------------------------*/
+/*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the NetworkBlock
+ * @{ */
+
+  /// serialize a NetworkBlock into a netCDF::NcGroup
+  /** Serialize a NetworkBlock into a netCDF::NcGroup; see
+   * NetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
+   * of the created netCDF group. */
+
+  virtual void serialize( netCDF::NcGroup& group ) const;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -671,7 +678,7 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
-				 bool ordered , ModParam issuePMod ,
+                                 bool ordered , ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
@@ -693,7 +700,7 @@ class NetworkBlock : public Block
 
  virtual void set_active_demand( MF_dbl_it values , Range rng ,
                                  ModParam issuePMod ,
-				 ModParam issueAMod ) = 0;
+				                             ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
@@ -728,9 +735,6 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 
 /*---------------------------------- data ----------------------------------*/
-
- /// number of intervals
- Index f_number_intervals = 1;
 
  /// true if the NetworkData object has not been passed from outside
  bool f_local_NetworkData;
