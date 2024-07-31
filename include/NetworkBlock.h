@@ -207,10 +207,6 @@ class NetworkBlock : public Block
    *   problem; this dimension is optional, if it is not provided then it is
    *   taken to be equal to 1.
    *
-   * - The dimension "NumberIntervals" containing the number of intervals
-   *   spanned by this network block; this dimension is optional, if it is
-   *   not provided then it is taken to be equal to 1.
-   *
    * No other information is present in the base class, derived ones will
    * add the information that they need. */
 

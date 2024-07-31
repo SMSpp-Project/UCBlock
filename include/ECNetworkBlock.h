@@ -132,6 +132,10 @@ class ECNetworkBlock : public NetworkBlock
    * problem, so they were given just one time in the netCDF, at the head of
    * the hierarchy, which should contain the following:
    *
+   *  - The dimension "NumberIntervals" containing the number of intervals
+   *   spanned by this network block; this dimension is optional, if it is
+   *   not provided then it is taken to be equal to 1;
+   *
    * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
    *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
    *   is not provided, then this variable must be of size 1). This is meant to
