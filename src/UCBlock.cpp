@@ -34,9 +34,9 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "BlockInspection.h"
-
 #include "LinearFunction.h"
+
+#include "BlockInspection.h"
 
 #include "Objective.h"
 
