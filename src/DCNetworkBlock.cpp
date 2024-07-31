@@ -111,7 +111,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
                                                      "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" };
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 

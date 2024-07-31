@@ -95,9 +95,10 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
-                                                     "StartNetworkIntervals" ,
                                                      "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" };
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname" };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -106,6 +107,11 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
+
+ // Optional variables
+
+ if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+  f_number_intervals = 1;
 
  // Mandatory variables
 
@@ -164,12 +170,6 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
    // if the NetworkData has not been passed from UCBlock, then delete it
    delete( f_NetworkData );
   auto ECND = new ECNetworkData();
-  // set the number of intervals before deserializing the NetworkData, do *not*
-  // deserialize this dimension directly in the ECNetworkData::deserialize( )
-  // because it assumes that the number of intervals is already set by UCBlock
-  // when it creates the NetworkBlocks if they are not given in input the nc4
-  // file, or here if they are given instead
-  ECND->set_number_intervals( NumberIntervals );
   ECND->deserialize( group );
   if( f_NetworkData &&
     ( f_NetworkData->get_number_nodes() != ECND->get_number_nodes() ) )
@@ -496,7 +496,7 @@ void ECNetworkData::serialize( netCDF::NcGroup & group ) const
 
  NetworkData::serialize( group );
 
- auto NumberIntervals = group.getDim( "NumberIntervals" );
+ auto NumberIntervals = group.addDim( "NumberIntervals" , f_number_intervals );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_BuyPrice );

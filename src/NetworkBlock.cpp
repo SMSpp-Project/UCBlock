@@ -137,7 +137,8 @@ void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup& group ) const {
- group.addDim( "NumberNodes" , f_number_nodes );
+ if( f_number_nodes > 1 )
+  group.addDim( "NumberNodes" , f_number_nodes );
 }
 
 /*--------------------------------------------------------------------------*/

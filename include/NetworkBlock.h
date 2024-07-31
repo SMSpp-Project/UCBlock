@@ -131,10 +131,8 @@ class NetworkBlock : public Block
   /// constructor of NetworkData, does nothing
   NetworkData( void ) {}
 
-  /// copy constructor of NetworkData
-  explicit NetworkData( const NetworkData * nd ) {
-   f_number_nodes = nd->get_number_nodes();
-  }
+  /// copy constructor of NetworkData, does nothing
+  explicit NetworkData( const NetworkData * nd ) {}
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
@@ -185,7 +183,7 @@ class NetworkBlock : public Block
    * @param classname The name of the :NetworkData class that must be
    *                  constructed. */
 
-  static NetworkData * new_NetworkData( const std::string & classname = "NetworkData" ) {
+  static NetworkData * new_NetworkData( const std::string & classname ) {
    const std::string classname_( SMSpp_classname_normalise(
                                                 std::string( classname ) ) );
    const auto it = NetworkData::f_factory().find( classname_ );
@@ -208,6 +206,10 @@ class NetworkBlock : public Block
    * - The dimension "NumberNodes" containing the number of nodes in the
    *   problem; this dimension is optional, if it is not provided then it is
    *   taken to be equal to 1.
+   *
+   * - The dimension "NumberIntervals" containing the number of intervals
+   *   spanned by this network block; this dimension is optional, if it is
+   *   not provided then it is taken to be equal to 1.
    *
    * No other information is present in the base class, derived ones will
    * add the information that they need. */
@@ -436,11 +438,6 @@ class NetworkBlock : public Block
   * to derived classes. */
 
  virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
-
-/*--------------------------------------------------------------------------*/
- /// method to set the number of intervals
-
- virtual void set_number_intervals( const Index i ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term

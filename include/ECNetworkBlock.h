@@ -114,8 +114,8 @@ class ECNetworkBlock : public NetworkBlock
   /// constructor of ECNetworkData, does nothing
   ECNetworkData( void ) {}
 
-  /// copy constructor of ECNetworkData
-  explicit ECNetworkData( const NetworkData * nd ) : NetworkData( nd ) {}
+  /// copy constructor of ECNetworkData, does nothing
+  explicit ECNetworkData( const NetworkData * ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
   virtual ~ECNetworkData() override = default;
@@ -132,19 +132,31 @@ class ECNetworkBlock : public NetworkBlock
    * problem, so they were given just one time in the netCDF, at the head of
    * the hierarchy, which should contain the following:
    *
-   * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is mandatory and it cannot be equals to 1
-   *   since cannot exists an Energy Community with just one user;
+   * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
+   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+   *   is not provided, then this variable must be of size 1). This is meant to
+   *   represent the vector BuyP[ t ] that, for each time instant t, contains
+   *   the tariff that the user pays to buy electricity from the public market
+   *   for the corresponding time step. If "BuyPrice" has length 1 then
+   *   BuyP[ t ] contains the same value for all t;
    *
-   * - The variable "BuyPrice", of type netCDF::NcDouble and containing the
-   *   tariff that the user pays to buy electricity from the public market;
+   * - The variable "SellPrice", of type netCDF::NcDouble and either of size
+   *   1 or indexed over the dimension "NumberIntervals" (if
+   *   "NumberIntervals" is not provided, then this variable must be of size
+   *   1). This is meant to represent the vector SellP[ t ] that, for each
+   *   time instant t, contains the tariff that the user gains to sell
+   *   electricity to the public market for the corresponding time step. If
+   *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
+   *   all t;
    *
-   * - The variable "SellPrice", of type netCDF::NcDouble and containing the
-   *   tariff that the user gains to sell electricity to the public market;
-   *
-   * - The variable "RewardPrice", of type netCDF::NcDouble and containing the
-   *   reward benefit awarded to the energy community for the energy consumed
-   *   within the community itself;
+   * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
+   *   1 or indexed over the dimension "NumberIntervals" (if
+   *   "NumberIntervals" is not provided, then this variable must be of size
+   *   1). This is meant to represent the vector RewardP[ t ] that, for each
+   *   time instant t, contains the reward benefit awarded to the energy
+   *   community for the energy consumed within the community itself, for the
+   *   corresponding time step. If "RewardPrice" has length 1 then
+   *   RewardP[ t ] contains the same value for all t;
    *
    * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
    *   tariff that the user pays due to the peak power. */
@@ -202,16 +214,6 @@ class ECNetworkBlock : public NetworkBlock
 
   virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/** @} ---------------------------------------------------------------------*/
-/*------------------------ METHODS FOR CHANGING DATA -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-  /// method to set the number of intervals
-
-  void set_number_intervals( const Index i ) {
-   f_number_intervals = i;
-  }
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -228,7 +230,7 @@ class ECNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  Index f_number_intervals = 1;  ///< number of intervals
+  Index f_number_intervals{};  ///< number of intervals
 
   /// tariff that the user pays to buy electricity at each time horizon
   std::vector< double > v_BuyPrice;
@@ -602,15 +604,11 @@ class ECNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = new ECNetworkData( nd );
+  f_NetworkData = dynamic_cast< ECNetworkData * >( nd );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument(
+    "ECNetworkBlock::set_NetworkData: wrong NetworkData passed to ECNetworkBlock" ) );
   f_local_NetworkData = false;
- }
-
-/*--------------------------------------------------------------------------*/
- /// method to set the number of intervals
-
- void set_number_intervals( const Index i ) override {
-  f_NetworkData->set_number_intervals( i );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -659,10 +657,6 @@ class ECNetworkBlock : public NetworkBlock
   * so they were explicitly given in each netCDF, each of which should contain
   * the following:
   *
-  * - The dimension "NumberIntervals" containing the number of intervals
-  *   spanned by this network block; this dimension is optional, if it is
-  *   not provided then it is taken to be equal to 1;
-  *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
   *   the dimensions "NumberIntervals" and "NumberNodes".
   *   If the NetworkData object description is present in the NcGroup this is
@@ -679,35 +673,6 @@ class ECNetworkBlock : public NetworkBlock
   *   to be there*, and in fact UCBlock has provisions for the NcGroup
   *   describing the NetworkBlock to be optional [see the comments to
   *   UCBlock::deserialize()];
-  *
-  * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
-  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable must be of size 1). This is meant to
-  *   represent the vector BuyP[ t ] that, for each time instant t, contains
-  *   the tariff that the user pays to buy electricity from the public market
-  *   for the corresponding time step. If "BuyPrice" has length 1 then
-  *   BuyP[ t ] contains the same value for all t;
-  *
-  * - The variable "SellPrice", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable must be of size
-  *   1). This is meant to represent the vector SellP[ t ] that, for each
-  *   time instant t, contains the tariff that the user gains to sell
-  *   electricity to the public market for the corresponding time step. If
-  *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
-  *   all t;
-  *
-  * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable must be of size
-  *   1). This is meant to represent the vector RewardP[ t ] that, for each
-  *   time instant t, contains the reward benefit awarded to the energy
-  *   community for the energy consumed within the community itself, for the
-  *   corresponding time step. If "RewardPrice" has length 1 then
-  *   RewardP[ t ] contains the same value for all t;
-  *
-  * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
-  *   tariff that the user pays due to the peak power;
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term, i.e., typically the fixed costs. */

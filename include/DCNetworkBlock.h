@@ -139,8 +139,8 @@ class DCNetworkBlock : public NetworkBlock
   /// constructor of DCNetworkData, does nothing
   DCNetworkData( void ) {}
 
-  /// copy constructor of DCNetworkData
-  explicit DCNetworkData( const NetworkData * nd ) : NetworkData( nd ) {}
+  /// copy constructor of DCNetworkData, does nothing
+  explicit DCNetworkData( const NetworkData * ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
   virtual ~DCNetworkData() override = default;
@@ -908,7 +908,10 @@ class DCNetworkBlock : public NetworkBlock
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = new DCNetworkData( nd );
+  f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
+  if( ! f_NetworkData )
+   throw( std::invalid_argument(
+    "DCNetworkBlock::set_NetworkData: wrong NetworkData passed to DCNetworkBlock" ) );
   f_local_NetworkData = false;
  }
 

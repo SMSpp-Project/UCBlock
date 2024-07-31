@@ -47,16 +47,12 @@ function csvEC2nc4(deterministic::Bool=false)
     ds = NCDataset(string("../../../netCDF_files/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
+    # Store the number of nodes
+    n_users = length(user_set)
+    defDim(block, "NumberNodes", n_users)
+
     # Store the number of time steps/horizons
     defDim(block, "TimeHorizon", n_steps)
-
-    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
-    # inform UCBlock about the specific type of network (since it deals with both transmission and
-    # community networks)
-    network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
-    network_block_classname[1] = "ECNetworkBlock"
-    network_data_classname = defVar(block, "NetworkDataClassname", String, ())
-    network_data_classname[1] = "ECNetworkData"
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
     peak_categories = profile(market_data, "peak_categories")[time_set]
@@ -117,15 +113,17 @@ function csvEC2nc4(deterministic::Bool=false)
         allequal(peak_tariff_data) &&
         allequal(reward_price_data))
 
-        # Store the number of nodes
-        n_users = length(user_set)
-        defDim(block, "NumberNodes", n_users)
+        n_intervals = [count(x -> x == w, peak_categories) for w in peak_set]
+        @assert length(unique(n_intervals)) == 1 "The values of n_intervals are not all equal"
+        defDim(block, "NumberIntervals", n_intervals[1])
 
-        # Store the first index (-1 since in C++ the array's indexing starts from
-        # zero) of each peak period/category, i.e., of each `ECNetworkBlock`
-        peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
-        peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
-                             for w in peak_set]
+        # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
+        # inform UCBlock about the specific type of network (since it deals with both transmission and
+        # community networks)
+        network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
+        network_block_classname[1] = "ECNetworkBlock"
+        network_data_classname = defVar(block, "NetworkDataClassname", String, ())
+        network_data_classname[1] = "ECNetworkData"
 
         # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
         ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
