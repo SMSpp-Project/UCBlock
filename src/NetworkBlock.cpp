@@ -111,7 +111,36 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
 }
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
+ SMSpp_di_unipi_it::deserialize( group , f_ConstTerm , "ConstantTerm" );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group ) {
+ if( ! deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+  f_number_nodes = 1;
+}
+
+/*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE NetworkBlock -------*/
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
+ if( f_ConstTerm != 0 )
+  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::NetworkData::serialize( netCDF::NcGroup& group ) const {
+ if( f_number_nodes > 1 )
+  group.addDim( "NumberNodes" , f_number_nodes );
+}
+
 /*--------------------------------------------------------------------------*/
 
 NetworkBlock::NetworkData::NetworkDataFactoryMap &
