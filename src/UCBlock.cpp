@@ -116,7 +116,11 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   auto res = almost_new_Block( sub_group , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
+   // first, try to deserialize the entire NetworkBlock with its NetworkData...
    nbi->deserialize( res.first );
+   // ... but if the NetworkBlock does not have its own NetworkData, then set
+   // the UCBlock one
+   nbi->set_NetworkData( f_NetworkData );
    ++cntr;
   } else {
    delete( nbi );
@@ -384,11 +388,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     v_Block[ f_number_units + n ] = nbi;
    }
 
+   // if the NetworkBlock does not have its own NetworkData...
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                    "missing in NetworkBlock " +
                                    std::to_string( n ) + " and in UCBlock" ) );
+    // ... then set the UCBlock one
     nbi->set_NetworkData( f_NetworkData );
    }
 
