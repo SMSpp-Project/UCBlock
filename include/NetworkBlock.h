@@ -132,7 +132,7 @@ class NetworkBlock : public Block
   NetworkData( void ) {}
 
   /// copy constructor of NetworkData, does nothing
-  explicit NetworkData( const NetworkData * nd ) {}
+  explicit NetworkData( const NetworkData * ) {}
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
