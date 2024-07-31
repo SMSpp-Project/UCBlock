@@ -360,8 +360,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
      for( Index i = 0 ;
           i < v_network_blocks[ n ]->get_number_intervals() ;
           ++i , ++t ) {
-      auto ad = v_network_blocks[ n ]->get_active_demand( i );
-      if( ad )
+      if( auto ad = v_network_blocks[ n ]->get_active_demand( i ) )
        v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
      }
     }
