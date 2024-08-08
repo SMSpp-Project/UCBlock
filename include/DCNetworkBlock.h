@@ -909,7 +909,7 @@ class DCNetworkBlock : public NetworkBlock
    delete( f_NetworkData );
 
   f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
-  f_local_NetworkData = ( f_NetworkData != nullptr );
+  f_local_NetworkData = false;
  }
 
 /*--------------------------------------------------------------------------*/

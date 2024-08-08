@@ -116,9 +116,10 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   auto res = almost_new_Block( sub_group , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
-   // first, try to set the global NetworkData if it is the right type...
+   // first, try to set the global NetworkData if it is of the right type...
    nbi->set_NetworkData( f_NetworkData );
-   // ... otherwise, it will be nullptr inside so we deserialize the entire NetworkBlock
+   // ... otherwise, the NetworkData will be nullptr inside,
+   // so we deserialize the entire NetworkBlock
    nbi->deserialize( res.first );
    ++cntr;
   } else {
