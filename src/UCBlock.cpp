@@ -116,11 +116,10 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   auto res = almost_new_Block( sub_group , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
-   // first, try to deserialize the entire NetworkBlock with its NetworkData...
-   nbi->deserialize( res.first );
-   // ... but if the NetworkBlock does not have its own NetworkData, then set
-   // the UCBlock one
+   // first, try to set the global NetworkData if it is the right type...
    nbi->set_NetworkData( f_NetworkData );
+   // ... otherwise, it will be nullptr inside so we deserialize the entire NetworkBlock
+   nbi->deserialize( res.first );
    ++cntr;
   } else {
    delete( nbi );
@@ -393,11 +392,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                    "missing in NetworkBlock " +
                                    std::to_string( n ) + " and in UCBlock" ) );
-    // ... then set the UCBlock one
+    // ... then set the UCBlock global one
     nbi->set_NetworkData( f_NetworkData );
+    // assert that the global NetworkData passed is of the right type
+    assert( nbi->get_NetworkData() != nullptr );
+    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
-
-   nbi->set_constant_term( v_network_constant_terms[ n ] );
 
    std::vector< std::vector< double > > ap_v;
    ap_v.resize( v_network_blocks[ n ]->get_number_intervals() ,

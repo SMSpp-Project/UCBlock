@@ -904,17 +904,12 @@ class DCNetworkBlock : public NetworkBlock
  * @{ */
 
  void set_NetworkData( NetworkData * nd = nullptr ) override {
-  // if there was a previous NetworkData, and it was local, then return, because
-  // it's not allowed for UCBlock to set its NetworkData if the NetworkBlock has
-  // its own
+  // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
-   return;
+   delete( f_NetworkData );
 
   f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
-  if( ! f_NetworkData )
-   throw( std::invalid_argument(
-    "DCNetworkBlock::set_NetworkData: wrong NetworkData passed to DCNetworkBlock" ) );
-  f_local_NetworkData = false;
+  f_local_NetworkData = ( f_NetworkData != nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
