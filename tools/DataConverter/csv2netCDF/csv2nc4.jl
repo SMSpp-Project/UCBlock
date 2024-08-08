@@ -166,6 +166,12 @@ function csvEC2nc4(deterministic::Bool=false)
 
     else
 
+        # Store the specific classname of the NetworkData to inform UCBlock
+        # about the specific type of network (since it deals with both
+        # transmission and community networks)
+        network_data_classname = defVar(block, "NetworkDataClassname", String, ())
+        network_data_classname[1] = "NetworkData"
+
         # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time steps/horizons
         last_t = 1
         for (i_w, w) in enumerate(peak_set)
