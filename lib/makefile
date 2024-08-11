@@ -72,7 +72,7 @@ UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
 clean::
 	rm -f $(UCBckDIR)/*.o $(UCBckDIR)/*~
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 $(UCBckDIR)/obj/BatteryUnitBlock.o: $(UCBckDIR)/src/BatteryUnitBlock.cpp \
         $(UCBckDIR)/include/BatteryUnitBlock.h $(UCBckDIR)/include/UnitBlock.h \
