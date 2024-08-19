@@ -506,8 +506,8 @@ void ECNetworkData::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
 
- if( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
-                  []( double cst ) { return( cst != 0 ); } ) )
+ if( std::ranges::any_of( v_RewardPrice ,
+                          []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
                v_RewardPrice );
 

@@ -48,7 +48,6 @@ UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
 	$(UCBckDIR)/obj/ThermalUnitDPSolver.o \
 	$(UCBckDIR)/obj/UCBlock.o \
 	$(UCBckDIR)/obj/UnitBlock.o
-#	$(UCBckDIR)/obj/HeatBlock.o
 
 UCBckINC = -I$(UCBckDIR)/include
 
@@ -65,7 +64,6 @@ UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
 	$(UCBckDIR)/include/ThermalUnitDPSolver.h \
 	$(UCBckDIR)/include/UCBlock.h \
 	$(UCBckDIR)/include/UnitBlock.h
-#	$(UCBckDIR)/include/HeatBlock.h
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -91,12 +89,6 @@ $(UCBckDIR)/obj/ECNetworkBlock.o: $(UCBckDIR)/src/ECNetworkBlock.cpp \
 	$(UCBckDIR)/include/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)/src/ECNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
-
-#$(UCBckDIR)/obj/HeatBlock.o: $(UCBckDIR)/src/HeatBlock.cpp \
-#	$(UCBckDIR)/include/HeatBlock.h $(UCBckDIR)/include/UnitBlock.h \
-#	$(SMS++OBJ) 
-#	$(CC) -c $(UCBckDIR)/src/HeatBlock.cpp -o $@ \
-#	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckDIR)/obj/HydroSystemUnitBlock.o: $(UCBckDIR)/src/HydroSystemUnitBlock.cpp \
         $(UCBckDIR)/include/HydroSystemUnitBlock.h \
