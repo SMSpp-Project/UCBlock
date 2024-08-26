@@ -77,7 +77,6 @@ target_sources(${modName} PRIVATE
                src/DCNetworkBlock.cpp
                src/ECNetworkBlock.cpp
                src/UnitBlock.cpp
-               #src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
                src/NuclearUnitBlock.cpp
                src/ThermalUnitBlock.cpp
