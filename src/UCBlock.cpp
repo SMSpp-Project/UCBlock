@@ -1134,8 +1134,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
               { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
               v_pollutant_rho );
 
- if( std::ranges::any_of( v_network_constant_terms ,
-                          []( double cst ) { return( cst != 0 ); } ) )
+ if( std::any_of( v_network_constant_terms.begin() ,
+                  v_network_constant_terms.end() ,
+                  []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "NetworkConstantTerms" , netCDF::NcDouble() ,
                NumberNetworks , v_network_constant_terms );
 
