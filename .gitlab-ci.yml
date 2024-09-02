@@ -1,5 +1,5 @@
 default:
-  image: registry.gitlab.com/smspp/smspp
+  image: registry.gitlab.com/smspp/smspp-project
 
 cache:
   key: ${CI_COMMIT_REF_SLUG}
