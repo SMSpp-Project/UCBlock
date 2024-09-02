@@ -11,19 +11,13 @@ stages:
   - test
   - deploy
 
-fetch_smspp_project:
-  stage: .pre
+build:
+  stage: build
   script:
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SMSPP_DEPLOY_KEY")
     - mkdir -p ~/.ssh && ssh-keyscan -H gitlab.com >> ~/.ssh/known_hosts
     - if [ -d smspp-project ]; then (cd smspp-project && git pull); else git clone --branch develop git@gitlab.com:smspp/smspp-project.git; fi
-    - cmake -S smspp-project -B smspp-project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_MILPSolver=ON -DBUILD_BundleSolver=ON -DBUILD_tests=ON
-    - cmake --build smspp-project/build
-
-build:
-  stage: build
-  script:
     - cmake -S smspp-project -B smspp-project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_MILPSolver=ON -DBUILD_BundleSolver=ON -DBUILD_tests=ON
     - cmake --build smspp-project/build --target install
   artifacts:
@@ -44,7 +38,7 @@ build:
 test:
   stage: test
   script:
-    - ctest -V -C Debug --test-dir smspp-project/build
+    - ctest -V -C Release --test-dir smspp-project/build
   only:
     refs:
       - develop
