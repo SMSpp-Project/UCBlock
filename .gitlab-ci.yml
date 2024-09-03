@@ -37,6 +37,7 @@ build:
 
 test:
   stage: test
+  timeout: 24h
   script:
     - ctest -V -C Release --test-dir smspp-project/build
   only:
