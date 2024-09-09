@@ -10,13 +10,13 @@ base class `UnitBlock`; several of these are available, such as
 `ThermalUnitBlock`, `HydroUnitBlock`, `BatteryUnitBlock` and others. Also,
 `UCBlock` knows that energy must flow between generating units and consumption
 points through an energy network, represented by concrete class deriving from
-the abstract base class `NetworkBlock` (unless there is no networ, i.e., the
+the abstract base class `NetworkBlock` (unless there is no network, i.e., the
 "bus" case, which is handled directly by `UCBlock`); some of these are
 available, such as `DCNetworkBlock` for the linear DC or HVDC (or hybrid)
 cases and `ECNetworkBlock` for Energy Communities having to share the
 energy between users and then with the external grid. Other kinds of
 units and networks can easily be added, and specialised solution methods for
-certaint units and networks (e.g., `ThermalUnitDPSolver` for
+certain units and networks (e.g., `ThermalUnitDPSolver` for
 `ThermalUnitBlock`) can be developed.
 
 
