@@ -73,6 +73,7 @@ UCBlock::~UCBlock()
 
  for( auto & block : v_Block )
   delete( block );
+ v_Block.clear();
 
  delete( f_NetworkData );
 }
