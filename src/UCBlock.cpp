@@ -188,6 +188,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "MaxPowerFlow" ,
                                                      "LineSusceptance" ,
                                                      "NetworkCost" ,
+                                                     "NodeName" ,
+                                                     "LineName" ,													 
                                                      // vars for AC Mode
                                                      "ReactivePowerDemand" ,
                                                      "NodeConductance" ,
