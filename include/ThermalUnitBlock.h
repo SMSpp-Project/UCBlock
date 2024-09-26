@@ -1658,6 +1658,47 @@ class ThermalUnitBlock : public UnitBlock
   return( v_MinPower[ t ] );
  }
 
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of the given generator at the given time
+
+ double get_min_reactive_power( Index t , Index generator = 0 ) const override {
+    return( (v_MinReactivePower.size() >= t) ? v_MinReactivePower[ t ] : 0. );
+ }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of the given generator at the given time
+
+ double get_max_reactive_power( Index t , Index generator = 0 ) const override {
+    return( (v_MaxReactivePower.size() >= t) ? v_MaxReactivePower[ t ] : 0. );
+ }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the voltage magnitude of the given generator at the given time
+
+ double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
+    return( (v_VoltageMagnitude.size() >= t) ? v_VoltageMagnitude[ t ] : 0. );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of cost coefficients of the given generator
+
+ Index get_number_cost_coeffs(Index generator = 0) override { return f_number_cost_coeffs; }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the ith cost coefficient of the given generator 
+
+ double get_cost_coeff(Index i, Index generator = 0) override { 
+    return( (v_PowerCostCoeffs.size() >= i) ? v_PowerCostCoeffs[ i ] : 0. );
+}
+
+/*--------------------------------------------------------------------------*/
+ /// returns the cost model of the given generator
+
+ Index get_cost_model(Index generator = 0) override { return f_CostModel; }
+
 /*--------------------------------------------------------------------------*/
  /// returns the operational minimum active power output at the given time
  /** This method returns the operational minimum active power output of the
@@ -2580,9 +2621,21 @@ class ThermalUnitBlock : public UnitBlock
  /// denotes the maximum number of ramp down steps from time period \f$t\f$ 
  std::vector< int > v_MaxRampDownSteps;
 
-  // the vector for separating PC-cuts
-  std::vector< double >  prevpbar;
-  
+ /// the vector of MinReactivePower
+ std::vector< double > v_MinReactivePower;
+
+ /// the vector of MaxReactivePower
+ std::vector< double > v_MaxReactivePower;
+
+ /// the vector of VoltageMagnitude
+ std::vector< double > v_VoltageMagnitude;
+
+ /// the vector of coefficients for the cost
+ std::vector< double > v_PowerCostCoeffs;
+
+ // the vector for separating PC-cuts
+ std::vector< double >  prevpbar;
+
  /// the vector of index of the variables \f$p_t^{hk} of the DP formulation.
  /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
  /// v_P_h_k.second.second = k
@@ -2643,6 +2696,12 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the MinDownTime value
  Index f_MinDownTime = 1;
+
+ /// Number of coefficients for cost
+ Index f_number_cost_coeffs = 0;
+
+ /// Type of cost model
+ Index f_CostModel = 0;
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};

@@ -179,7 +179,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 #ifndef NDEBUG
  std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                              "NumberIntervals" };
+                                              "NumberIntervals",
+                                              "NumberCostCoeffs" };
  check_dimensions( group , expected_dims , std::cerr );
 
  // we only check for unexpected fields if "this" is a "true"
@@ -205,13 +206,23 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "Availability" ,
                                                "StartUpLimit" ,
                                                "ShutDownLimit" ,
-					                                          "MaxRampUpSteps" ,
-					                                          "MaxRampDownSteps" };
+                                               "MaxRampUpSteps" ,
+                                               "MaxRampDownSteps" ,
+                                               "InitialReactivePower",
+                                               "MaxReactivePower",
+                                               "MinReactivePower",
+                                               "VoltageMagnitude",
+                                               // cost model
+                                               "CostModel",
+                                               "PowerCostCoeffs" };
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
 
  UnitBlock::deserialize( group );
+
+ // Dimensions
+ ::deserialize_dim( group , "NumberCostCoeffs" , f_number_cost_coeffs );
 
  // Mandatory variables
 
@@ -276,6 +287,13 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
+
+ // variables forAC elements
+ ::deserialize( group, "MaxReactivePower", v_MaxReactivePower);
+ ::deserialize( group, "MinReactivePower", v_MinReactivePower);
+ ::deserialize( group, "VoltageMagnitude", v_VoltageMagnitude);
+ ::deserialize( group, "PowerCostCoeffs", v_PowerCostCoeffs);
+ ::deserialize( group, f_CostModel, "CostModel");
 
  // Decompress vectors
  decompress_vector( v_MinPower );

@@ -178,10 +178,20 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
-                                                     "Susceptance" ,
+                                                     "LineSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
-                                                     "LineName" ,
+                                                     "LineName" ,													 
+                                                     // vars for AC Mode
+                                                     "ReactivePowerDemand" ,
+                                                     "NodeConductance" ,
+                                                     "NodeSusceptance" ,
+                                                     "NodeVoltageMagnitude" ,
+                                                     "NodeVoltageAngle" ,
+                                                     "LineResistance" , 
+                                                     "LineReactance" ,  
+                                                     "LineMinAngle" , 
+                                                     "LineMaxAngle" ,
                                                      // ECNetworkBlockData
                                                      "BuyPrice" ,
                                                      "SellPrice" ,
@@ -207,6 +217,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize( group , network_block_classname ,
                       "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
+
  if( ! ::deserialize( group , network_data_classname ,
                       "NetworkDataClassname" ) )
   network_data_classname = "DCNetworkData";
@@ -241,6 +252,27 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   // always check if the demand is given in the correct shape
   assert( ( v_active_power_demand.shape()[ 0 ] == number_nodes ) &&
           ( v_active_power_demand.shape()[ 1 ] == f_time_horizon ) );
+ }
+
+ // for AC
+ if( ::deserialize( group , "ReactivePowerDemand" , v_reactive_power_demand ) ) {
+
+  // when the network is a bus, the "ActivePowerDemand" variable in the nc4
+  // input file could be provided as a simple 1D array of `f_time_horizon`
+  // size, so we reshape `v_active_power_demand` in order to make it available
+  // in the expected shape, i.e., `number_nodes` (= 1) x `f_time_horizon`
+  if( ( number_nodes == 1 ) &&
+      // ensure if is in fact provided as a 1D array, ignore if it is given
+      // in the correct shape
+      ( v_reactive_power_demand.shape()[ 0 ] == f_time_horizon ) ) {
+   using index = decltype( v_reactive_power_demand )::index;
+   std::vector< index > shape = { 1 , f_time_horizon };
+   v_reactive_power_demand.reshape( shape );
+  }
+
+  // always check if the demand is given in the correct shape
+  assert( ( v_reactive_power_demand.shape()[ 0 ] == number_nodes ) &&
+          ( v_reactive_power_demand.shape()[ 1 ] == f_time_horizon ) );
  }
 
  // Optional dimensions
@@ -489,6 +521,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                        ? -fixed_consumption[ t ] : 0.0 );
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
+
+       v_network_blocks[ n ]->add_ACdata(i, node_id, unit_block, t, g);
       }
      }
 

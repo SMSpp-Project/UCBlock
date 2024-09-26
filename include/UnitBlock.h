@@ -303,6 +303,44 @@ class UnitBlock : public Block
   return( 0 );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of the given generator at the given time
+
+  virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of the given generator at the given time
+
+ virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the voltage magnitude of the given generator at the given time
+
+  virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of cost coefficients of the given generator
+
+ virtual Index get_number_cost_coeffs(Index generator = 0) { return 0; }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the ith cost coefficient of the given generator 
+
+ virtual double get_cost_coeff(Index i, Index generator = 0) { 
+    return( 0. );
+}
+
+/*--------------------------------------------------------------------------*/
+ /// returns the cost model of the given generator
+
+ virtual Index get_cost_model(Index generator = 0) { return 0; }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/

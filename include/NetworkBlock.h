@@ -46,6 +46,8 @@
 
 #include "Block.h"
 
+#include "UnitBlock.h"
+
 #include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -491,6 +493,12 @@ class NetworkBlock : public Block
                               [ get_number_intervals() ][ get_number_nodes() ] );
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to add data of a generator to a given node
+
+ virtual void add_ACdata(Index i, Index node_id, UnitBlock* unit_block, Index t, Index g ){};
+ 
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/

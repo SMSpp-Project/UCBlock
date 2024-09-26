@@ -7,7 +7,7 @@
  * defines the standard linear constraints corresponding to the "DC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \author Antonio Frangioni \n
+ * \author Antonio Frafngioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -35,6 +35,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
+#include "LinearFunction.h"
 
 #include "FRowConstraint.h"
 
@@ -235,6 +237,13 @@ class DCNetworkBlock : public NetworkBlock
   Index get_number_lines( void ) const { return( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
+/// returns the reference node of the network
+/** Method for returning the reference node of the network.*/
+
+  Index get_reference_node() const { return( f_reference_node ); }
+
+
+/*--------------------------------------------------------------------------*/
 
   /// returns the vector of start lines
   /** Method for returning the vector of starting point of each line. This
@@ -350,6 +359,54 @@ class DCNetworkBlock : public NetworkBlock
    return( v_susceptance );
   }
 
+  const std::vector< double > & get_line_susceptance( void ) const {
+   return( v_line_susceptance );
+  }
+
+  const std::vector< double > & get_node_susceptance( void ) const {
+   return( v_node_susceptance );
+  }
+
+  const std::vector< double > & get_node_conductance( void ) const {
+   return( v_node_conductance );
+  }
+
+  const std::vector< double > & get_node_max_voltage( void ) const {
+   return( v_node_max_voltage );
+ }
+
+  const std::vector< double > & get_node_min_voltage( void ) const {
+   return( v_node_min_voltage );
+ }
+
+  const std::vector< double > & get_line_reactance( void ) const {
+   return( v_line_reactance );
+  }
+
+  const std::vector< double > & get_line_resistance( void ) const {
+   return( v_line_resistance );
+  }
+
+  const std::vector< double > & get_line_ratio( void ) const {
+   return( v_line_ratio );
+  }
+
+  const std::vector< double > & get_line_rate_A( void ) const {
+   return( v_line_rate_A );
+  }
+
+  const std::vector< double > & get_line_angle( void ) const {
+   return( v_line_angle );
+  }
+
+  const std::vector< double > & get_line_min_angle( void ) const {
+   return( v_line_min_angle );
+  }
+
+  const std::vector< double > & get_line_max_angle( void ) const {
+   return( v_line_max_angle );
+  }
+
 /*--------------------------------------------------------------------------*/
   /// returns vector of the network cost
   /** Method for returning the vector of network cost for each line. This vector
@@ -429,6 +486,8 @@ class DCNetworkBlock : public NetworkBlock
   /// number of lines of the network
   Index f_number_lines{};
 
+  Index f_reference_node;    ///< reference node (used in the PTDF matrix)
+
   /// vector of starting lines
   std::vector< Index > v_start_line;
 
@@ -450,6 +509,21 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< std::string > v_node_names;  ///< Node names
 
   std::vector< std::string > v_line_names;  ///< Line names
+
+  std::vector< double > v_line_susceptance;
+  std::vector< double > v_line_reactance;
+  std::vector< double > v_line_resistance;
+  std::vector< double > v_line_ratio;
+  std::vector< double > v_line_rate_A;
+  std::vector< double > v_line_angle;
+  std::vector< double > v_line_min_angle;
+  std::vector< double > v_line_max_angle;
+  std::vector< double > v_node_susceptance;
+  std::vector< double > v_node_conductance;
+  std::vector< double > v_node_max_voltage; 
+  std::vector< double > v_node_min_voltage;
+
+
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -522,7 +596,40 @@ class DCNetworkBlock : public NetworkBlock
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
+ /*--------------------------------------------------------------------------*/
+///generate PTDF matrix of DCNetworkBlock
+/** The function constructs an Eigen-type PTDF (Power Transfer Distribution 
+ * Factor) matrix of the AC part of the Network.
+ * Denoting by \f$\mathfrak{S}_l\f$ the susceptance of the line \f$l\f$, the 
+ * PTDF matrix \f$ B \f$ is computed as 
+ * \f$ B = (\hat{B}I_{n_0})(I_{n_0}^T\bar{B}I_{n_0})^{-1} \f$, where
+ * f$ n_0 \f$ is the reference node of the network. The matrix \f$ \hat{B} \f$ 
+ * is defined as
+ * \f$ (\hat{B})_{(l=(n,n'),n)} = \mathfrak{S}_l \f$, 
+ * \f$ (\hat{B})_{(l=(n',n),n)} = -\mathfrak{S}_l \f$ and \f$ 0 \f$ otherwise.
+ *    
+ * The matrix \f$ \bar{B} \f$ is defined as 
+ * 
+ * \f[
+ *   (\bar{B})_{(n,n')} = \begin{cases}
+ *      \mathfrak{S}_{l=(n,n')} \textnormal{ if } (n,n')\in L\\
+ *      \mathfrak{S}_{l=(n,n')} \textnormal{ if } (n',n)\in L\\
+ *      \sum_{l=(n,\cdot)\in L} \mathfrak{S}_{l} 
+ *            + \sum_{l=(\cdot,n)\in L} \mathfrak{S}_{l} 
+ *      \textnormal{ if } n = n'               \quad n,n' \in N
+ *  \f] */
+
+ Eigen::MatrixXd get_PTDF(const std::vector<Index>& AC_lines);
+
+ Eigen::MatrixXd get_PTDF(){
+    std::vector<Index> all_lines(get_number_lines());
+    std::iota(all_lines.begin(), all_lines.end(), 0);
+    return get_PTDF(all_lines);
+ }
+
 /*--------------------------------------------------------------------------*/
+
+ int get_reducedIdx(int idx);
  /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below.
   * The topology of the transmission network is defined by a set of nodes
@@ -735,6 +842,37 @@ class DCNetworkBlock : public NetworkBlock
   if( ! f_NetworkData )
    return( 1 );
   return( f_NetworkData->get_number_nodes() );
+ }
+
+ /*--------------------------------------------------------------------------*/
+
+ /// returns the AC lines
+ /** This function returns the AC lines in the transmission network.
+  * @return the AC lines in the network. */
+
+ std::vector<Index> get_AC_lines(){
+    std::vector<Index> AC_lines;
+    const auto& susceptance = f_NetworkData->get_susceptance();
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+      if (susceptance[line_id] > 0.)   AC_lines.push_back(line_id);
+    }
+    return AC_lines;
+ }
+
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the DC lines
+ /** This function returns the DC lines in the transmission network.
+  * @return the DC lines in the network. */
+
+ std::vector<Index> get_DC_lines(){
+    std::vector<Index> DC_lines;
+    const auto& susceptance = f_NetworkData->get_susceptance();
+    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+      if (susceptance[line_id] == 0.)   DC_lines.push_back(line_id);
+    }
+    return DC_lines;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1055,6 +1193,51 @@ class DCNetworkBlock : public NetworkBlock
                  c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the power flow limit constraints
+ /** This function changes the abstract representation of the power flow limit 
+  * constraints for indices in \p modified_lines.
+  *
+  * @param modified_lines A vector of the indices of constraints that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_power_flow_limit_constraints( 
+                const std::vector<Index>& modified_lines, 
+                c_ModParam issueAMod);
+
+/*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the constraints on the auxiliary variables
+ /** This function changes the abstract representation of the constraints on the
+  * auxiliary variables for indices in \p modified_lines.
+  *
+  * @param modified_lines A vector of the indices of constraints that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_relax_abs_constraints(
+                const std::vector<Index>& modified_lines, 
+                c_ModParam issueAMod);
+
+  /*--------------------------------------------------------------------------*/
+
+ /// change the abstract representation of the power flow injection constraints
+ /** This function changes the abstract representation of the power flow injection 
+  * constraints for indices in \p modified_nodes.
+  *
+  * @param modified_nodes A vector of the indices of nodes that 
+  *                         have to be modified. 
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_DC_power_flow_injection_constraints(
+                const std::vector<Index>& modified_nodes, 
+                c_ModParam issueAMod);
+
+/*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p subset
  /** This function sets the active demand at each node in the given \p
   * subset. The active demand at the node whose index is specified by the i-th
@@ -1156,6 +1339,9 @@ class DCNetworkBlock : public NetworkBlock
 
  /// the node injection bound constraints
  std::vector< BoxConstraint > node_injection_bounds_const;
+
+ /// injection equals to demand
+ FRowConstraint overall_balanced_const;
 
 
  /// the objective function
