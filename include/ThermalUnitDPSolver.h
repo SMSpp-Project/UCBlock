@@ -244,7 +244,7 @@ class ThermalUnitDPSolver : public Solver
 /** @name Constructor and destructor
  * @{ */
 
- ThermalUnitDPSolver( void ) : Solver() {};
+ ThermalUnitDPSolver( void ) {};
 
  ~ThermalUnitDPSolver() override = default;
 

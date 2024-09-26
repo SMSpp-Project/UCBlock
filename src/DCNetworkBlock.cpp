@@ -49,7 +49,7 @@ using namespace SMSpp_di_unipi_it;
 
 // register DCNetworkBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
+SMSpp_insert_in_factory_cpp_0( DCNetworkBlock );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -57,7 +57,7 @@ SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 typedef DCNetworkBlock::DCNetworkData DCNetworkData;
 
-SMSpp_insert_in_factory_cpp_1( DCNetworkData );
+SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
@@ -106,6 +106,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
+                                                     "ConstantTerm" ,
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
@@ -130,10 +131,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
+ NetworkData::deserialize( group );
 
- if( ! ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
-  f_number_nodes = 1;
+ // Optional variables
 
  if( f_number_nodes > 1 ) {
 
@@ -150,6 +150,23 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   assert(("Label of nodes in 'EndLine' must be smaller than nb of nodes",
           *max_element(v_end_line.begin(), v_end_line.end()) < f_number_nodes 
         ));
+
+  for( Index i = 0 ; i < f_number_lines ; ++i ) {
+   if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
+    throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
+                                  "wrong start node number " +
+                                  std::to_string( v_start_line[ i ] ) ) );
+
+   if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
+    throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
+                                  "wrong end node number " +
+                                  std::to_string( v_end_line[ i ] ) ) );
+
+   if( v_start_line[ i ] == v_end_line[ i ] )
+    throw( std::invalid_argument( "DCNetworkBlock::DCNetworkData::deserialize: "
+                                  "start node == end node for line " +
+                                  std::to_string( v_end_line[ i ] ) ) );
+  }
 
   ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
                  true , true );
@@ -236,6 +253,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
    }
   };
 
+ // ::deserialize( group , "NodeName" , v_node_names );
+ // ::deserialize( group , "LineName" , v_line_names );
+
  get_string_array( "NodeName" , v_node_names , f_number_nodes );
  get_string_array( "LineName" , v_line_names );
 
@@ -247,13 +267,24 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" };
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberLines" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
+                                                     "MinPowerFlow" ,
+                                                     "MaxPowerFlow" ,
+                                                     "Susceptance" ,
+                                                     "NetworkCost" ,
+                                                     "NodeName" ,
+                                                     "LineName" ,
                                                      "ConstantTerm" };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ NetworkBlock::deserialize( group );
 
  // Optional variables
 
@@ -261,10 +292,17 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
   // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
-  // and it is marked as being local.
-  delete( f_NetworkData );
-  f_NetworkData = new DCNetworkData();
-  f_NetworkData->deserialize( group );
+  // and it is marked as being local
+  if( f_local_NetworkData )
+   // if the NetworkData has not been passed from UCBlock, then delete it
+   delete( f_NetworkData );
+  auto DCND = new DCNetworkData();
+  DCND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "DCNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = DCND;
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
@@ -294,9 +332,6 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    ActiveDemand.getVar( v_ActiveDemand.data() );
   }
  }
-
- ::deserialize( group , f_ConstTerm , "ConstantTerm" );
-
 }  // end( DCNetworkBlock::deserialize )
 
 Eigen::MatrixXd DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines ){
@@ -675,9 +710,9 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
-
- auto NumberNodes = group.addDim( "NumberNodes" , f_number_nodes );
+void DCNetworkData::serialize( netCDF::NcGroup & group ) const
+{
+ NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
   auto NumberLines = group.addDim( "NumberLines" );
@@ -709,6 +744,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const {
  }
 
  if( ! v_node_names.empty() ) {
+  auto NumberNodes = group.getDim( "NumberNodes" );
   assert( v_node_names.size() == NumberNodes.getSize() );
   auto NodeName = group.addVar( "NodeName" , netCDF::NcString() , NumberNodes );
   for( Index i = 0 ; i < v_node_names.size() ; ++i )
@@ -746,10 +782,6 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
  }
-
- if( f_ConstTerm != 0 )
-  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
 }  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

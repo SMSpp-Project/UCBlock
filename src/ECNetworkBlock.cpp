@@ -40,7 +40,7 @@ using namespace SMSpp_di_unipi_it;
 
 // register ECNetworkBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
+SMSpp_insert_in_factory_cpp_0( ECNetworkBlock );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -48,7 +48,7 @@ SMSpp_insert_in_factory_cpp_1( ECNetworkBlock );
 
 typedef ECNetworkBlock::ECNetworkData ECNetworkData;
 
-SMSpp_insert_in_factory_cpp_1( ECNetworkData );
+SMSpp_insert_in_factory_cpp_0( ECNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ECNetworkBlock ------------------------*/
@@ -95,24 +95,45 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
                                                      // if called from UCBlock:
                                                      "ActivePowerDemand" ,
                                                      "GeneratorNode" ,
-                                                     "StartNetworkIntervals" ,
                                                      "NetworkConstantTerms" ,
                                                      "NetworkBlockClassname" ,
                                                      "NetworkDataClassname" };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
+ NetworkData::deserialize( group );
 
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes );
  if( f_number_nodes == 1 )
   throw( std::invalid_argument( "ECNetworkBlock::deserialize: cannot create "
                                 "an Energy Community with just one user" ) );
 
- ::deserialize( group , f_BuyPrice , "BuyPrice" );
- ::deserialize( group , f_SellPrice , "SellPrice" );
- ::deserialize( group , f_RewardPrice , "RewardPrice" );
- ::deserialize( group , f_PeakTariff , "PeakTariff" );
+ // Optional variables
+
+ if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+  f_number_intervals = 1;
+
+ // Mandatory variables
+
+ ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
+               false , true );
+ if( v_BuyPrice.size() == 1 )
+  v_BuyPrice.resize( f_number_intervals , v_BuyPrice[ 0 ] );
+
+ ::deserialize( group , "SellPrice" , f_number_intervals , v_SellPrice ,
+                false , true );
+ if( v_SellPrice.size() == 1 )
+  v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
+
+ ::deserialize( group , f_PeakTariff , "PeakTariff" , false );
+
+ // Optional variables
+
+ if( ! ::deserialize( group , "RewardPrice" , f_number_intervals ,
+                      v_RewardPrice , true , true ) )
+  v_RewardPrice.resize( f_number_intervals , 0 );
+ else if( v_RewardPrice.size() == 1 )
+  v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
 
 }  // end( ECNetworkData::deserialize )
 
@@ -135,46 +156,34 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ NetworkBlock::deserialize( group );
+
  // Optional variables
 
- Index NumberNodes;
+ Index NumberNodes, NumberIntervals;
  if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) &&
-     ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) ) {
+     ::deserialize_dim( group , "NumberIntervals" , NumberIntervals ) ) {
   // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
   // it means that a ECNetworkData has been provided. Thus, the ECNetworkData
-  // is deserialized, and it is marked as being local.
-  delete( f_NetworkData );
-  f_NetworkData = new ECNetworkData();
-  f_NetworkData->deserialize( group );
+  // is deserialized, and it is marked as being local
+  if( f_local_NetworkData )
+   // if the NetworkData has not been passed from UCBlock, then delete it
+   delete( f_NetworkData );
+  auto ECND = new ECNetworkData();
+  ECND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != ECND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "ECNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = ECND;
   f_local_NetworkData = true;
   // An ECNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , v_ActiveDemand );
   // always check if the demand is given in the correct shape
-  assert( ( v_ActiveDemand.shape()[ 0 ] == f_number_intervals ) &&
+  assert( ( v_ActiveDemand.shape()[ 0 ] == NumberIntervals ) &&
           ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
  }
-
- ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
-                true , true );
- if( v_BuyPrice.size() == 1 )
-  v_BuyPrice.resize( f_number_intervals , v_BuyPrice[ 0 ] );
-
- ::deserialize( group , "SellPrice" , f_number_intervals , v_SellPrice ,
-                true , true );
- if( v_SellPrice.size() == 1 )
-  v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
-
- if( ! ::deserialize( group , "RewardPrice" , f_number_intervals ,
-                     v_RewardPrice , true , true ) )
-  v_RewardPrice.resize( f_number_intervals , 0 );
- else if( v_RewardPrice.size() == 1 )
-  v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
-
- ::deserialize( group , f_PeakTariff , "PeakTariff" );
-
- ::deserialize( group , f_ConstTerm , "ConstantTerm" );
-
 }  // end( ECNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -408,7 +417,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
    vars.push_back( std::make_pair( &v_power_injection[ t ][ node_id ] ,
                                    -get_sell_price( t ) ) );
 
-   if( is_coop )
+   if( node_id == 0 && is_coop )
     vars.push_back( std::make_pair( &v_shared_power[ t ] ,
                                     -get_reward_price( t ) ) );
   }
@@ -484,24 +493,10 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
 void ECNetworkData::serialize( netCDF::NcGroup & group ) const
 {
- group.addDim( "NumberNodes" , f_number_nodes );
 
- ::serialize( group , "BuyPrice" , netCDF::NcDouble() , f_BuyPrice );
- ::serialize( group , "SellPrice" , netCDF::NcDouble() , f_SellPrice );
- ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
+ NetworkData::serialize( group );
 
- if( f_RewardPrice != 0 )
-  ::serialize( group , "RewardPrice" , netCDF::NcDouble() , f_RewardPrice );
-
-}  // end( ECNetworkData::serialize )
-
-/*--------------------------------------------------------------------------*/
-
-void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
-{
- NetworkBlock::serialize( group );
-
- auto NumberIntervals = group.getDim( "NumberIntervals" );
+ auto NumberIntervals = group.addDim( "NumberIntervals" , f_number_intervals );
 
  ::serialize( group , "BuyPrice" , netCDF::NcDouble() , NumberIntervals ,
               v_BuyPrice );
@@ -510,6 +505,19 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
               v_SellPrice );
 
  ::serialize( group , "PeakTariff" , netCDF::NcDouble() , f_PeakTariff );
+
+ if( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
+                  []( double cst ) { return( cst != 0 ); } ) )
+  ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
+               v_RewardPrice );
+
+}  // end( ECNetworkData::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
+{
+ NetworkBlock::serialize( group );
 
  if( auto network_data = get_NetworkData() )
   // If an ECNetworkData is present, serialize it.
@@ -535,15 +543,6 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
-
- if( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
-                  []( double cst ) { return( cst != 0 ); } ) )
-  ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
-               v_RewardPrice );
-
- if( f_ConstTerm != 0 )
-  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-
 }  // end( ECNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -566,7 +565,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    return;
 
   v_ActiveDemand.resize(
-   boost::extents[ f_number_intervals ][ get_number_nodes() ] );
+   boost::extents[ get_number_intervals() ][ get_number_nodes() ] );
  }
 
  bool identical = true;
@@ -621,7 +620,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
- rng.second = std::min( rng.second , f_number_intervals * get_number_nodes() );
+ rng.second = std::min( rng.second , get_number_intervals() * get_number_nodes() );
  if( rng.second <= rng.first )
   return;
 
@@ -632,7 +631,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    return;
 
   v_ActiveDemand.resize(
-   boost::extents[ f_number_intervals ][ get_number_nodes() ] );
+   boost::extents[ get_number_intervals() ][ get_number_nodes() ] );
  }
 
  // If nothing changes, return

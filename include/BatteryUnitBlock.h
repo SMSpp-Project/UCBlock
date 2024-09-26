@@ -1114,36 +1114,80 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the minimum power output constraints
 
  const FRowConstraint * get_min_power_constraints( void ) const {
-  if( active_power_bounds_Const[ 0 ].empty() )
+  if( active_power_bounds_Const.empty() ||
+      active_power_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum power output constraint associated with time t
+
+ const FRowConstraint * get_min_power_constraint( Index t ) const {
+  if( active_power_bounds_Const.empty() ||
+      active_power_bounds_Const[ 0 ].empty() )
+   return( nullptr );
+  return( &( active_power_bounds_Const[ 0 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power output constraints
 
  const FRowConstraint * get_max_power_constraints( void ) const {
-  if( active_power_bounds_Const[ 1 ].empty() )
+  if( active_power_bounds_Const.empty() ||
+      active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum power output constraint associated with time t
+
+ const FRowConstraint * get_max_power_constraint( Index t ) const {
+  if( active_power_bounds_Const.empty() ||
+      active_power_bounds_Const[ 1 ].empty() )
+   return( nullptr );
+  return( &( active_power_bounds_Const[ 1 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints with binary variables
 
  const FRowConstraint * get_max_intake_binary_constraints( void ) const {
-  if( intake_outtake_binary_Const[ 0 ].empty() )
+  if( intake_outtake_binary_Const.empty() ||
+      intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraint with binary variables for time t
+
+ const FRowConstraint * get_max_intake_binary_constraint( Index t ) const {
+  if( intake_outtake_binary_Const.empty() ||
+      intake_outtake_binary_Const[ 0 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_binary_Const[ 0 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints with binary variables
 
  const FRowConstraint * get_max_outtake_binary_constraints( void ) const {
-  if( intake_outtake_binary_Const[ 1 ].empty() )
+  if( intake_outtake_binary_Const.empty() ||
+      intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the outtake upper bound constraint with binary variables for time t
+
+ const FRowConstraint * get_max_outtake_binary_constraints( Index t ) const {
+  if( intake_outtake_binary_Const.empty() ||
+      intake_outtake_binary_Const[ 1 ].empty() )
+   return( nullptr );
+  return( &( intake_outtake_binary_Const[ 1 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1157,18 +1201,40 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the intake upper bound constraints
 
  const LB0Constraint * get_max_intake_bounds( void ) const {
-  if( intake_outtake_bounds_Const[ 0 ].empty() )
+  if( intake_outtake_bounds_Const.empty() ||
+      intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the intake upper bound constraint associated with time t
+
+ const LB0Constraint * get_max_intake_bound( Index t ) const {
+  if( intake_outtake_bounds_Const.empty() ||
+      intake_outtake_bounds_Const[ 0 ].empty() )
+    return( nullptr );
+  return( & ( intake_outtake_bounds_Const[ 0 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
 
  const LB0Constraint * get_max_outtake_bounds( void ) const {
-  if( intake_outtake_bounds_Const[ 1 ].empty() )
+  if( intake_outtake_bounds_Const.empty() ||
+      intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the outtake upper bound constraint associated with time t
+
+ const LB0Constraint * get_max_outtake_bound( Index t ) const {
+  if( intake_outtake_bounds_Const.empty() ||
+      intake_outtake_bounds_Const[ 1 ].empty() )
+    return( nullptr );
+  return( & ( intake_outtake_bounds_Const[ 1 ][ t ] ) );
  }
 
 /*--------------------------------------------------------------------------*/

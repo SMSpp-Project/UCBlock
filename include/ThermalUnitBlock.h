@@ -201,7 +201,7 @@ class ThermalUnitBlock : public UnitBlock
   *   the unit for the corresponding time step, i.e., the maximum possible
   *   decrease of active power production w.r.t. the power that had been
   *   produced in time instant t - 1, if any. This variable is optional; if
-  *   it is not provided then it is assumed that DP[ t ] == MxP[ t ], i.e.,
+  *   it is not provided then it is assumed that DM[ t ] == MxP[ t ], i.e.,
   *   the unit can ramp down an arbitrary amount, i.e., there are no
   *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
   *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
@@ -380,10 +380,39 @@ class ThermalUnitBlock : public UnitBlock
   *   for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
   *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0.
   *
-  * - The variable "StartUpLimit", // TODO
+  * - The variable "StartUpLimit", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   SC[ t ] that, for each time instant t, contains the start-up limit of
+  *   the unit for the corresponding time step, i.e., the maximum possible
+  *   power production when the unit starts up at time period t. This variable 
+  *   is optional; if it is not provided then it is assumed that 
+  *   SC[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
+  *   equal to the minimum power allowed at time t. If "StartUpLimit" 
+  *   has length 1 then SC[ t ] contains the same value for all t. Otherwise, 
+  *   StartUpLimit[ i ] is the fixed value of SC[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption 
+  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals
+  *    >= TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
+  *    which in fact is not loaded.
   *
-  * - The variable "ShutDownLimit", // TODO
-  *
+  * - The variable "ShutDownLimit", of type netCDF::NcDouble and either of
+  *   size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   SD[ t ] that, for each time instant t, contains the shut-down limit of
+  *   the unit for the corresponding time step, i.e., the maximum possible
+  *   power production when the unit shuts down at time period t. This variable 
+  *   is optional; if it is not provided then it is assumed that 
+  *   SD[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
+  *   equal to the minimum power allowed at time t. If "ShutDownLimit" 
+  *   has length 1 then SD[ t ] contains the same value for all t. Otherwise, 
+  *   ShutDownLimit[ i ] is the fixed value of SD[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption 
+  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals
+  *    >= TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
+  *    which in fact is not loaded.
   */
 
  void deserialize( const netCDF::NcGroup & group ) override;
@@ -409,25 +438,26 @@ class ThermalUnitBlock : public UnitBlock
   * - wf & 3 == 0 is the "three binaries" (3bin) formulation. This
   * formulation of the ThermalUnitBlock class has six different variables:
   *
-  * - the binary commitment variables which takes the value of 1 if unit is ON
-  *   at time instant t and 0 otherwise;
+  * - the binary commitment variables \f$ u_t \f$ which takes the value of 
+  *   1 if unit is ON at time instant t and 0 otherwise;
   *
   * - the primary spinning reserve variables;
   *
   * - the secondary spinning reserve variables;
   *
-  * - the active power variables.
+  * - the active power variables \f$ p_t \f$ denoting the power production
+  * of the unit at time instant t.
   *
   * All of those variables are optional except the active power variables in
   * the sense that the model may just not have them and whenever a group of
   * above variables is created, its size will be the time horizon. Moreover,
   * ThermalUnitBlock is defined more groups of variables as follow:
   *
-  * - the binary variable start_up status of the unit which takes the value of
-  *   1 if the unit starts up at time instant t and 0 otherwise;
+  * - the binary variable start_up status \f$ v_t \f$ of the unit which takes 
+  * the value of 1 if the unit starts up at time instant t and 0 otherwise;
   *
-  * - the binary variable shut_down status of the unit which takes the value
-  *   of 1 if the unit shuts down at time instant t and 0 otherwise;
+  * - the binary variable shut_down status \f$ w_t \f$ of the unit which takes 
+  * the value of 1 if the unit shuts down at time instant t and 0 otherwise;
   *
   * These two groups of variables have size f_time_horizon - init_t, and
   * provide the unit commitment problem with a tight 3-binary MIP formulation.
@@ -436,34 +466,122 @@ class ThermalUnitBlock : public UnitBlock
   * steps 0, ..., init_t - 1 (see initial time step concept in the
   * generate_abstract_constraints()).
   *
-  * - wf & 3 == 1: the T formulation.
+  * - wf & 3 == 1 is the "model T" (T) formulation. This formulation of the 
+  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
+  * (wf & 3 == 0).
   *
-  * // TODO add here details about T formulation
+  * - wf & 3 == 2 is the "dynamic programming" inspired formulation (DP). This 
+  * formulation of the ThermalUnitBlock class has exactly the same variables of the
+  * 3bin formulation (wf & 3 == 0), plus three different variables:
   *
-  * - wf & 3 == 2: the "dynamic programming" inspired formulation (DP).
+  * - binary commitment variables \f$ y_+^{hk} \f$ which takes the value of
+  * 1 if unit starts-up at time instant h, shuts-down at time instant k and is ON
+  * from time instant h up to time instant k, and 0 otherwise;
+  * 
+  * - binary commitment variable \f$ y_-^{hk} \f$ which takes the value of
+  * 1 if unit shuts-down at time instant k, starts-up at time instant h and is OFF
+  * from time instant k+1 up to time instant h-1, and 0 otherwise;
+  * 
+  * - the active power variables \f$ p_t^{hk} \f$ denoting the power production
+  * of the unit at time instant t when it starts-up at time instant h and
+  * shuts-down
+  * at time instant k.
   *
-  * // TODO add here details about DP formulation
+  * - wf & 3 == 3: the p_t formulation. This formulation of the 
+  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
+  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
+  * formulation (wf & 3 == 2)
   *
-  * - wf & 3 == 3: the p_t formulation.
+  * - wf & 3 == 4: the "start-up" formulation (SU). This formulation of the 
+  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
+  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
+  * formulation (wf & 3 == 2), plus
   *
-  *  // TODO add here details about p_t formulation
+  * - the active power variables \f$ p_t^h \f$ denoting the power production
+  * of the unit at time instant t when it starts-up at time instant h
   *
-  * - wf & 3 == 4: the "start-up" formulation (SU).
+  * - wf & 3 == 5: the "shut-down" formulation (SD). This formulation of the 
+  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
+  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
+  * formulation (wf & 3 == 2), plus
   *
-  * // TODO add here details about SU formulation
+  * - the active power variables \f$ \tilde p_t^k \f$ denoting the power production
+  * of the unit at time instant t when it shuts-down at time instant k
   *
-  * - wf & 3 == 5: the "shut-down" formulation (SD).
+  * - wf & 3 == 6: the "start-up/shut-down" formulation (SUSD). This formulation of the 
+  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation 
+  * (wf & 3 == 0), the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
+  * formulation (wf & 3 == 4), the \f$ p_t^h \f$ of the SU formulation (wf & 3 == 2) and
+  * the \f$ \tilde p_t^k \f$ of the SD formulation (wf & 3 == 5)
   *
-  * // TODO add here details about SD formulation
+  * The value wf also regulates the use of the perspective cuts and the relative
+  * perspective function in the objective function. Precisely, the above listed values
+  * of wf set formulations without the use of the perspective cuts. By adding 8 to
+  * the above listed values the corresponding formulation uses the perspective cuts
+  * and new variables are added.
+  *
+  * - wf & 3 == 8 is the "three binaries" (3bin) formulation with perspective cuts.
+  * This formulation of the ThermalUnitBlock class has exactly the same variables of the
+  * 3bin formulation (wf & 3 == 0), plus  
+  *
+  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t \f$
+  *
+  * - wf & 3 == 9 is the "model T" (T) formulation with perspective cuts. This formulation
+  *  of the ThermalUnitBlock class has exactly the same variables of the T formulation 
+  * (wf & 3 == 1), plus
+  *
+  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t \f$
+  *
+  * - wf & 3 == 10 is the "dynamic programming" inspired formulation (DP) with perspective
+  * cuts. This formulation of the ThermalUnitBlock class has exactly the same variables of 
+  * the DP formulation (wf & 3 == 2), plus
+  *
+  * - the perspective cuts variables \f$ z_t^{hk} \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t^{hk} \f$
+  *
+  * - wf & 3 == 11 is the p_t formulation with perspective cuts. This formulation
+  *  of the ThermalUnitBlock class has exactly the same variables of the pt formulation 
+  * (wf & 3 == 3), plus
+  *
+  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t \f$
+  *
+  * - wf & 3 == 12 is the "start-up" formulation (SU) with perspective cuts. This formulation
+  *  of the ThermalUnitBlock class has exactly the same variables of the SU formulation 
+  * (wf & 3 == 4), plus
+  *
+  * - the perspective cuts variables \f$ z_t^h \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t^h \f$
+  *
+  * - wf & 3 == 13 is the "shut-down" formulation (SD) with perspective cuts. This formulation
+  *  of the ThermalUnitBlock class has exactly the same variables of the SD formulation 
+  * (wf & 3 == 5), plus
+  *
+  * - the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ \tilde p_t^k \f$
+  *
+  * - wf & 3 == 14 is the "start-up/shut-down" formulation (SUSD) with perspective cuts. This
+  * formulation of the ThermalUnitBlock class has exactly the same variables of the SUSD formulation 
+  * (wf & 3 == 6), plus
+  *
+  * - the perspective cuts variables \f$ z_t^h \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ p_t^h \f$
+  *
+  * - the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
+  * objective function of the power variable \f$ \tilde p_t^k \f$
+  *
+  * - the variables \f$\theta_t\f$ for each time period \f$t\f$. These variables substitute \f$z_t^h\f$
+  *   and \f$\tilde z_t^k\f$ for regulating the quadratic part of variables 
+  *   \f$p_t = \sum_{h : h \leq t} p_t^h = \sum_{k : t \leq k} \tilde p_t^k\f$. In fact, variables
+  *   \f$\theta_t\f$ measure the maximum between \f$\sum_{h : h \leq t} p_t^h\f$ and 
+  *   \f$\sum_{k : t \leq k} \tilde p_t^k\f$ (see method 'generate_abstract_constraints') 
   *
   */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
-// TODO following the code-flow / order, add in the method blow, for each
-//  constraint, i.e., start-up / shut-down cnstrs, min/max power cnstrs, etc.,
-//  the details about all the other formulations, and all the new other cnstrs
-//  added, i.e., p/c cnstrs.
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the ThermalUnitBlock
  /** This method generates the abstract constraints of the ThermalUnitBlock.
@@ -509,12 +627,12 @@ class ThermalUnitBlock : public UnitBlock
   *   constraints of the ColVariable corresponding to the active power
   *   production of the unit (put init_t := \f$ t_0 \f$).
   *
-  * Then the main thermal unit constraints with three 3 binary variables
-  * \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are are presented as following:
+  * The following describes the constraints defined for a unit, and for each group,
+  * it specifies in which formulations they are defined.
   *
-  * - Min Up/Down-time Constraints: a thermal unit may have minimum up and down
-  *   time constraints and one possible representation of the constraints could
-  *   be as below:
+  * - Min Up/Down-time Constraints (3bin and T formulations): a thermal unit may 
+  * have minimum up and down time constraints and one possible representation of 
+  * the constraints could be as below:
   *
   *   \f[
   *     u_t - u_{t-1} = v_t - w_t
@@ -573,175 +691,721 @@ class ThermalUnitBlock : public UnitBlock
   *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
   *   off in the last \f$ \tau_- \f$ periods (including period t).
   *
+  * - Equality power, commitment, start-up, shut-down constraints (pt, SU, SD
+  *   SUSD formulations): these constraints connects power and commitment 
+  *   variables of the 3bin and T formulations with those of the pt, SU, SD, 
+  *   SUSD formulations
+  *
+  * - Connection power 3bin with power DP variables
+  *
+  *   \f[
+  *    p_t = \sum_{ (h,k) : h \le t \le k } p_t^{hk} 
+  *    \quad t \in \{ 1, ..., \mathcal{T} \}
+  *                                                                   \quad (1)
+  *   \f]
+  *
+  * - Connection power 3bin with power SU, SUSD variables
+  *
+  *   \f[
+  *    p_t = \sum_{ h : h \le t } p_t^{h} 
+  *    \quad t \in \{ 1, ..., \mathcal{T} \}
+  *                                                                   \quad (2)
+  *   \f]
+  *
+  * - Connection power 3bin with power SD, SUSD variables
+  *
+  *   \f[
+  *    p_t = \sum_{ k : t \le k } \tilde p_t^{k} 
+  *    \quad t \in \{ 1, ..., \mathcal{T} \}
+  *                                                                   \quad (3)
+  *   \f]
+  *
+  * - Connection commitment 3bin with commitment pt, SU, SD, SUSD variables
+  *
+  *   \f[
+  *    u_t = \sum_{ (h,k) : h \le t \le k } y_+^{hk} 
+  *    \quad t \in \{ 1, ..., \mathcal{T} \}
+  *                                                                   \quad (4)
+  *   \f]
+  *
+  * - Connection start-up 3bin with commitment pt, SU, SD, SUSD variables
+  *
+  *   \f[
+  *    v_t = \sum_{ (h,k) : t \le k } y_+^{tk} 
+  *    \quad t \in \{ \mbox{init_t}, ..., \mathcal{T} \}
+  *                                                                   \quad (5)
+  *   \f]
+  *
+  * - Connection shut-down 3bin with commitment pt, SU, SD, SUSD variables
+  *
+  *   \f[
+  *    w_{t+1} = \sum_{ (h,k) : h \le t } y_+^{ht} 
+  *    \quad t \in \{ \mbox{init_t}, ..., \mathcal{T}-1 \}
+  *                                                                   \quad (6)
+  *   \f]
+  *
+  * - Network constrains:
+  *
+  *   The DP, pt, SU, SD and SUSD formulations are dynamic programming based
+  *   formulations, in the sense that they include constrains for a shortest
+  *   path in a state-space graph. A path in the state-space graph represents
+  *   a feasible schedule of ON and OFF states of a unit with the relative
+  *   cost. We then define a state-space graph G = ( N , A ). 
+  *   The nodes in N are of two types: ON\f$_t\f$ and OFF\f$_t\f$ for each 
+  *   \f$t \in \mathcal{T}\f$ , plus two special nodes, the source s and the 
+  *   sink d. The arcs in A are of two types: ON-arcs ( OFF\f$_h\f$ , ON\f$_k\f$ ),
+  *   denoting that the unit is turned on at the beginning of period \f$h\f$ and 
+  *   unit remains on until the end of period \f$k\f$, and OFF-arcs ( ON\f$_k\f$ , OFF\f$_r\f$ ), 
+  *   denoting that the unit is off from period \f$k+1\f$ to period \f$r-1\f$. 
+  *   Both on- and off-arcs are only constructed, obviously, if they satisfy the minimum 
+  *   (respectively) up- and down-time constraints. Moreover, there are the connections 
+  *   between the source node s and the ON and OFF nodes defined according to the initial 
+  *   state of the unit. That is, if the unit is on since \f$\tau_0\f$ periods, then there 
+  *   is an on-arc from s to each node ON\f$_k\f$ such that \f$k + \tau_0 \geq \tau_+\f$. 
+  *   If, instead, the unit is off since \f$-\tau_0\f$ periods, then there is an off-arc 
+  *   from s to each node OFF\f$_h\f$ such that \f$h - \tau_0 - 1 \geq \tau_-\f$. 
+  *   ON-arcs ( OFF\f$_h\f$ , ON\f$_k\f$ ) are labeled with costs \f$\gamma_{ON}\f$
+  *   computed as the fixed cost \f$c\f$ multiplied by \f$k - h + 1\f$ plus variable costs.
+  *   OFF-arcs are labeled with \f$\gamma_{OFF}\f$ corresponding to the start-up cost. 
+  *   All nodes are then connected to the sink node d: OFF-arcs ( ON\f$_t\f$ , d ) and ON-arcs 
+  *   ( OFF\f$_t\f$ , d ). Finally, the single arc ( s , d ) means that the unit remains with 
+  *   the same status for all the time horizon, and it is an ON- or OFF-arc according to the 
+  *   fact that the unit is, respectively, on or off at time 0. Then, the dynamic
+  *   programming inspired formulations include network constrains that define the shortest
+  *   path formulation on the state space graph as follows: 
+  * 
+  *   \f[
+  *     Ey = \delta, \quad y \geq 0
+  *   \f]
+  *   
+  *   where E is the node-arcs incidence matrix of G = ( N , A ), \f$y\f$ is the vector of 
+  *   arc flow variables, and \f$\delta\f$ is the vector with all zero entries except 
+  *   \f$\delta_s\f$ = −1 and \f$\delta_d = 1\f$. Within the vector y, we denote with 
+  *   \f$y_+^{hk}\f$ the variable associated with an ON-arc ( OFF\f$_h\f$ , ON\f$_k\f$ ) \f$\in\f$ A. 
+  *
   * - Ramp Up/Down-time Constraints:
   *
   *   Another set of constraints where each thermal unit may have are ramping
   *   constraints. The ramp-up constraints is a std::vector< FRowConstraint >
-  *   with exactly f_time_horizon entries, which are
-  *   a = 0, ..., (f_time_horizon - 1). The one possible implementation in
-  *   terms of the three binary variables for ramp-up constraints is:
+  *   with exactly f_time_horizon entries. Constraints are defined in the
+  *   following for each formulation, where \f$ \Delta^+_t \f$ and 
+  *   \f$ \Delta^-_t \f$ are the constants defining ramp-up threshold, 
+  *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining minimum 
+  *   and maximum output respectively, \f$ \bar l_t \f$ and \f$ \bar u_t \f$ are the
+  *   StartUpLimit and the ShutDownLimit. The ramp-up constraints set that the maximum
+  *   increasing in power output between two time instants \f$ t+j \f$ and \f$ t \f$,
+  *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^+_t, |\mathcal{T}| - t\} \f$
+  *   must be at most equal to \f$ j \Delta^+_t \f$.
   *
+  * - Ramp-up constraints (3bin formulation):
+  * 
   *   \f[
-  *     p_{t+1}^{ac} - p_t^{ac} \leq ( - \Delta^+_t)  v_{t+1}
-  *        + (\underline{p}_t + \Delta^+_t) u_{t+1} - \underline{p}_t u_t
-  *                       \quad t \in \{ t_0, ..., \mathcal{T} - 1 \} \quad (4)
+  *     p_{t+1} - p_t \leq \Delta^+_t u_{t}
+  *        + \bar l_t v_{t+1}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (1)
   *   \f]
   *
-  *   where \f$ \Delta^+_t \f$ and \f$ \Delta^-_t \f$ are the constants
-  *   defining ramp-up threshold and \f$ \underline{p}_t  \f$ and
-  *   \f$ \bar{p}_t \f$  are the defining minimum and maximum output
-  *   respectively. Let \f$ p_t^{ac} \f$ be the active power variable in time
-  *   period t in all time horizon \f$ \mathcal{T} \f$.
+  * - Ramp-up constraints (T formulation):
+  * 
+  *   \f[
+  *     p_{t+1} - p_t \leq (\Delta^+_t + \underline{p}) u_{t+1}
+  *        + (\bar l_{t+1} - \underline{p}_{t} - \Delta^+_{t}) v_{t+1}
+  *        - \underline{p}_t u_t
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (2)
+  *   \f]
   *
-  *   According to above definition about the size of variables and since the
-  *   variables commitment \f$ u_t \f$ have full size of time horizon and
-  *   start-up \f$ v_t \f$ variables have size (f_time_horizon - init_t).
-  *   Analyzing the left hand side of the ramp-up constraint (4), in any
-  *   integral feasible solution we can see that
-  *   \f$ p_{t+1}^{ac} - p_t^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_t \f$ and \f$ v_{t+1}\f$. Then for each
-  *   (0, ..., f_time_horizon - 1) entries of this
-  *   std::vector< FRowConstraint >, there are two possible cases for t from
-  *   0 until init_t - 1:
+  * - Ramp-up constraints (pt formulation):
+  * 
+  *   \f[
+  *     p_{t+1} - p_t \leq \Delta^+_t \sum_{(h,k): h \le t < k} y_+^{hk} 
+  *        - \underline{p}_t \sum_{(h,k): h \le t} y_+^{ht}
+  *        + \bar l_t \sum_{(h,k):  t+1 \leq k} y_+^{t+1k}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (3)
+  *   \f]
   *
-  *   - when \f$ u_t = 0 \f$, and \f$ u_{t+1} = 0 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac}  \leq 0 \f$.
+  * - Ramp-up constraints (DP formulation):
+  * 
+  *   \f[
+  *     p_{t+1}^{hk} - p_t^{hk} \leq \Delta^+_t y_+^{hk} 
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \}, 
+  *                       \quad (h,k) : h \le t < k \quad (4)
+  *   \f]
   *
-  *   - when \f$ u_t = 1 \f$, and \f$ u_{t+1} = 1 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
+  * - Ramp-up constraints (SU formulation):
+  * 
+  *   \f[
+  *     p_{t+1}^{h} - p_t^{h} \leq \Delta^+_t \sum_{ k: t+1 \le k} y_+^{hk}
+  *             - \underline{p}_t y_+^{ht} 
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \}, 
+  *                       \quad h : h \le t \quad (5)
+  *   \f]
   *
-  *   and four possible cases for each t from init_t until
-  *   \f$ \mathcal{T} - 1 \f$:
+  * - Ramp-up constraints (SD formulation):
+  * 
+  *   \f[
+  *     \tilde p_{t+1}^{k} - \tilde p_t^{k} \leq \Delta^+_t \sum_{ h: h \le t} y_+^{hk}
+  *             + \bar l_{t+1} y_+^{t+1k} 
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \}, 
+  *                       \quad k : t+1 \le k \quad (6)
+  *   \f]
   *
-  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq 0 \f$.
+  * - Ramp-up constraints (SUSD formulation):
+  * 
+  *   \f[
+  *       p_{t+j}^{h} - p_t^{h} \leq j \Delta^+_t \sum_{ k: t+j \le k} y_+^{hk}
+  *             - \underline{p}_t \sum_{ k: t \le k < t+j} y_+^{hk} 
+  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \}
+  *    \quad j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^+_t, |\mathcal{T}| - t\}\}, 
+  *                       \quad h : h \le t \quad (7)
+  *   \f]
   *
-  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 1 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \underline{p}_t \f$.
   *
-  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 0 \f$ and \f$ v_{t+1} = 0 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq - \underline{p}_t \f$.
-  *
-  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 1 \f$ and \f$ v_{t+1} = 0 \f$ then
-  *     \f$ p_{t+1}^{ac} - p_t^{ac} \leq \Delta^+_t \f$.
   *
   *   Using the symmetry between ramp up and ramp down constraints, we can
-  *   derive the ramp-down analogues of the ramp-up inequality as below:
+  *   derive the ramp-down analogues of the ramp-up inequality. The ramp-down
+  *   constraints impose that the maximum decreasing in power output between
+  *   two time instant \f$ t \f$ and \f$ t+j \f$ must be at most equal to \f$ j \Delta^-_t \f$, 
+  *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^-_t, |\mathcal{T}| - t\} \f$
+  *
+  * - Ramp-down constraints (3bin formulation):
   *
   *   \f[
-  *     p_t^{ac} - p_{t+1}^{ac} \leq ( - \Delta^-_t) w_{t+1}
-  *       + (\underline{p}_t + \Delta^-_t)  u_t - \underline{p}_t u_{t+1}
-  *                        \quad t \in \{t_0, ..., \mathcal{T} - 1 \} \quad (5)
+  *     p_t - p_{t+1} \leq \Delta^-_t u_{t+1}
+  *       + \bar u_{t} w_{t+1}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (1)
   *   \f]
   *
-  *   The sam analyzing the left hand side of the ramp-down constraint (5), in
-  *   any integral feasible solution we can see that
-  *   \f$ p_t^{ac} - p_{t+1}^{ac} \f$ can be bounded from above based on the
-  *   values of \f$ u_{t+1}\f$, \f$ u_t \f$ and \f$ w_{t+1}\f$. Then for each
-  *   (0, ..., f_time_horizon - 1) entries of this std::vector< FRowConstraint >
-  *   there are two possible cases for t from 0 until init_t - 1:
+  * - Ramp-down constraints (T formulation):
   *
-  *   - when \f$ u_t = 0 \f$, and \f$ u_{t+1} = 0 \f$ then
-  *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
+  *   \f[
+  *     p_t - p_{t+1} \leq (\Delta^-_t + \underline{p}_{t+1})  u_{t}
+  *       + (\bar u_{t} - \Delta^-_t - \underline{p}_{t+1}) w_{t+1}
+  *       -  \underline{p}_{t+1} u_{t+1}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (2)
+  *   \f]
   *
-  *   - when \f$ u_t = 1 \f$, and \f$ u_{t+1} = 1 \f$ then
-  *     \f$ p_t^{ac} - p_{t+}^{ac} \leq \Delta^-_t \f$.
+  * - Ramp-down constraints (pt formulation):
   *
-  *   and four possible cases for each t from init_t until
-  *   \f$ \mathcal{T} - 1 \f$:
+  *   \f[
+  *     p_t - p_{t+1} \leq \Delta^-_t \sum_{(h,k): h \le t < k}  y_+^{hk}
+  *       + \bar u_{t} \sum_{h: h \le t}  y_+^{ht}
+  *       -  \underline{p}_{t+1} \sum_{k: t+1 \le k}  y_+^{t+1k}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (3)
+  *   \f]
   *
-  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 0 \f$ then
-  *     \f$ p_t^{ac} - p_{t+1}^{ac}  \leq 0 \f$.
+  * - Ramp-down constraints (DP formulation):
   *
-  *   - when \f$ u_t = 0 \f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
-  *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \underline{p}_t \f$.
+  *   \f[
+  *     p_t^{hk} - p_{t+1}^{hk} \leq \Delta^-_t y_+^{hk}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
+  *                       \quad (h,k) : h \le t < k \quad (4)
+  *   \f]
   *
-  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 0 \f$ and \f$ w_{t+1} = 1 \f$ then
-  *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq - \underline{p}_t \f$.
+  * - Ramp-down constraints (SU formulation):
   *
-  *   - when \f$ u_t = 1 \f$, \f$ u_{t+1} = 1 \f$ and \f$ w_{t+1} = 0 \f$ then
-  *     \f$ p_t^{ac} - p_{t+1}^{ac} \leq \Delta^-_t \f$.
+  *   \f[
+  *     p_t^h - p_{t+1}^h \leq \Delta^-_t \sum_{k: t+1 \le k}  y_+^{hk}
+  *       + \bar u_{t} y_+^{ht}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
+  *                       \quad h : h \le t \quad (5)
+  *   \f]
+  *
+  * - Ramp-down constraints (SD formulation):
+  *
+  *   \f[
+  *     \tilde p_t^k - \tilde p_{t+1}^k \leq \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
+  *       + \underline{p}_{t+1} y_+^{t+1k}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
+  *                       \quad k : t+1 \le k \quad (6)
+  *   \f]
+  *
+  * - Ramp-down constraints (SUSD formulation):
+  *
+  *   \f[
+  *     \tilde p_t^k - \tilde p_{t+j}^k \leq j \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
+  *       - \underline{p}_{t+j} \sum_{h: t < h \le t+j}  y_+^{hk}
+  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
+  *                        \quad j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^-_t, |\mathcal{T}| - t\},
+  *                       \quad k : t+1 \le k \quad (5)
+  *   \f]
   *
   * - Power output Constraints:
-  *   Since commitment variable \f$ u_t \f$ is fixed to one or zero
-  *   for "init_t" time steps (look above comments), because of power output
-  *   constraint (look constraint (6)) when for the (0, ..., init_t - 1) time
-  *   steps, commitment variable \f$ u_t \f$ is fixed to zero we must fix
-  *   \f$ p_t^{ac} \f$, \f$ p_t^{pr} \f$, and \f$ p_t^{sc}\f$ to zero for the same
-  *   time steps.
+  *   Maximum and minimum power output constraints according
+  *   are presented in the following for each formulation. They ensures that
+  *   the maximum (or minimum) amount of energy that unit can produce 
+  *   when it is on.
   *
-  *   Maximum and minimum power output constraints according to active power,
-  *   primary and secondary spinning reserves variables are presented in
-  *   inequalities (6) and (7) respectively. Each of them is a
-  *   std::vector< FRowConstraint > with exactly f_time_horizon entries
-  *   (0, ..., (f_time_horizon) - 1) and ensures the maximum (or minimum) amount
-  *   of energy that unit can produce (or use) when it is on (or off).
+  * - Minimum power output constraints (3bin and T formulations):
   *
   *   \f[
-  *      p_t^{ac} + p_t^{pr} + p_t^{sc} \leq \bar{p}_t u_t            \quad (6)
+  *      \underline{p_t} \leq p_t            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  *
+  * - Minimum power output constraints (pt formulation):
+  *
+  *   \f[
+  *      \underline{p_t} \sum_{(h,k): h \leq t \leq k} y_+^{hk} \leq p_t
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2) 
+  *   \f]
+  *
+  * - Minimum power output constraints (DP formulation):
+  *
+  *   \f[
+  *      \underline{p_t} y_+^{hk} \leq p_t^{hk}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        h,k : h \leq t \leq k \quad (3) 
+  *   \f]
+  *
+  *
+  * - Minimum power output constraints (SU and SUSD formulations):
+  *
+  *   \f[
+  *      \underline{p_t} \sum_{k: t \leq k} y_+^{hk} \leq p_t^h
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                           h : h \leq t                  \quad (4) 
+  *   \f]
+  *
+  * - Minimum power output constraints (SD and SUSD formulations):
+  *
+  *   \f[
+  *      \underline{p_t} \sum_{h: h \leq t} y_+^{hk} \leq \tilde p_t^k
+  *                                \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                       \quad k: t \leq k \quad (5) 
+  *   \f]
+  *
+  *
+  * - Maximum power output constraints (3bin formulation):
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t            
+  *                       \quad t \in \{ 1, ..., \mathcal{T}\} \quad (1) 
   *   \f]
   *
   *   \f[
-  *     \underline{p}_t u_t \leq p_t^{ac} - p_t^{pr} - p_t^{sc}       \quad (7)
-  *   \f]
-  *
-  *   The same as inequalities (6)-(7), the inequalities (8)-(9) ensure that
-  *   maximum amount of primary and secondary spinning reserve in the problem
-  *   respectively. Each of them is a std::vector< FRowConstraint > with exactly
-  *   f_time_horizon entries (0, ..., (f_time_horizon) - 1) as below:
-  *
-  *   \f[
-  *     p_t^{pr} \leq \rho^{pr}_t p_t^{ac}                            \quad (8)
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1}            
+  *                       \quad t = 1 \mbox{ and } t \geq \mbox{ InitUpDownTime } \quad (2) 
   *   \f]
   *
   *   \f[
-  *     p_t^{sc} \leq \rho^{sc}_t p_t^{ac}                            \quad (9)
-  *   \f]
-  *
-  *   There are two more power out put tighter formulations which make the
-  *   maximum power output being a function of three binary variables
-  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ as below. More specifically in
-  *   the case  \f$ \tau_+ \geq 2 \f$, the
-  *   following constraint is introduced, which is valid for
-  *   \f$ t \in \{t_0 + 2, ..., \mathcal{T} - 1\}  \f$:
-  *
-  *   \f[
-  *     p_t^{ac} \leq \bar{p}_t  u_t  - ( \bar{p}_t - \underline{p}_t ) v_t
-  *                   - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
-  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\}         \quad (10)
-  *   \f]
-  *
-  *   and in the case  \f$ \tau_+ = 1 \f$:
-  *
-  *   \f[
-  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) w_{t+1}
-  *            \quad t \in \{t_0 + 2, ..., \mathcal{T} - 1\}         \quad (11)
+  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_t            
+  *                       \quad t = |\mathcal{T}| - 1 \mbox{ and } t \geq \mbox{ InitUpDownTime }  \quad (3) 
   *   \f]
   *
   *   \f[
-  *     p_t^{ac} \leq \bar{p}_t u_t - ( \bar{p}_t - \underline{p}_t ) v_t
-  *             \quad t \in \{t_0 + 2, ...,  \mathcal{T} - 1\}       \quad (12)
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + \max\{0,\bar u_t - \bar l_t\} v_t            
+  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } = 1 \quad (4) 
   *   \f]
   *
-  *   These inequalities give the active power output generation limits when
-  *   unit is ON or OFF. More precisely, the unit generation limits taking into
-  *   account its maximum \f$ \bar{p}_t \f$ and minimum \f$ \underline{p}_t \f$
-  *   production, as well as its start-up and shut-down capabilities (here
-  *   both of them are assumed be equal with minimum production \f$
-  *   \underline{p}_t \f$) in each time step t. Be aware that (10) may be
-  *   infeasible in the event that the unit is online for just one period.
-  *   That is, \f$ v_t = w_{t+1} = 1 \f$ and the right side of the (10) can
-  *   be negative. Consequently, (10) is only valid when \f$ \tau_+ \geq 2
-  *   \f$. Therefore, the correct formulation for units with \f$ \tau_+ = 1
-  *   \f$ is given by (11) and (12). */
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_t           
+  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } \neq 1 \quad (5) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + \max\{0,\bar l_t - \bar u_t\} w_{t+1} + (\bar l_t - \bar{p_t}) v_t            
+  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } = 1 \quad (6) 
+  *   \f]
+  *
+  * - Maximum power output constraints (T formulation):
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t            
+  *                      \quad t  \in \{ 1, ..., \mathcal{T}\} \quad (1) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_{t}            
+  *                       \quad t = |\mathcal{T}| \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } > 1 \quad (2) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_{t}            
+  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \}, \quad \mbox{ MinUpTime } > 1 \quad (3) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_{t}            
+  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} \} : \bar l_t = \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (4) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + \max\{0,\bar u_{t} - \bar l_{t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_{t}            
+  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar u_t \neq \bar l_t, \quad \mbox{ MinUpTime } = 1 \quad (5) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1}            
+  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar l_t = \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (6) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + \max\{0,\bar l_{t} - \bar u_{t}) v_{t}            
+  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar l_t \neq \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (7) 
+  *   \f]
+  *
+  *
+  * The following sets of constraints are defined int the T formulation only when it includes ramp-up and/or ramp-down
+  * constraints 
+  *
+  * For \f$ t \in \{1,...,\mathcal{T}\}\f$, let
+  *
+  * - if ramp-up constraints are included, \f$ TRU_t = \lfloor \frac{\bar{p_t} - \bar u_t}{\Delta^+_t} \rfloor\f$
+  *
+  * - if ramp-down constraints are included, \f$ TRD_t = \lfloor \frac{\bar{p_t} - \bar l_t}{\Delta^-_t} \rfloor\f$
+  *
+  * - if ramp-down constraints are included, \f$ KSD_t = \min\{\mbox{ InitUpDownTime },|\mathcal{T}|-t,TRD_t\}\f$
+  *
+  * - if ramp-up and ramp-down constraints are included,
+  * 
+  * \f$ KSU_t = \min\{\mbox{ InitUpDownTime }-1-\max\{0,KSD_t\},TRU_t\}\f$
+  *
+  * - if ramp-up and not ramp-down constraints are included, 
+  *
+  * \f$ KSU_t = \min\{t-1,TRU_t\}\f$
+  *
+  * The following constraints are defined only if ramp-up constraints are included in the T formulation
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-2,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}            
+  *                       \quad t = |\mathcal{T}| \mbox{ and } t \geq \mbox{ InitUpDownTime } \quad (8) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_{t} - \bar{p_t}) w_{t+1} + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-2,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}            
+  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}-1\} \quad (9) 
+  *   \f]
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + (\bar u_{t} - \bar{p_t}) w_{t+1} + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-1,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}            
+  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}\} : \mbox{ MinUpTime } - 2 < TRU_t \quad (10) 
+  *   \f]
+  *
+  *
+  * The following constraints are defined only if ramp-up and ramp-down constraints are included in the T formulation
+  *
+  *
+  *   \f[
+  *      p_t \leq \bar{p_t} u_t + \sum_{s=1}^{KSD_t} (s\Delta^-_{t+1+s} - \bar u_{t+1+s} - \bar p_{t+1+s}) w_{t+1+s} + \sum_{s=1}^{KSU_t} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}            
+  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}\} : KSD_t > 0 \quad (11) 
+  *   \f]
+  *
+  * - Maximum power output constraints (DP formulation):
+  *
+  *   \f[
+  *       p_t^{tk} \leq \bar l_t y_+^{tk}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        k : t < k \quad (1) 
+  *   \f]
+  *
+  *   \f[
+  *       p_t^{hk} \leq \bar{p_t} y_+^{hk}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        h,k : h < t < k \quad (2) 
+  *   \f]
+  *
+  *   \f[
+  *       p_t^{ht} \leq \bar u_t y_+^{ht}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        h : h < t \quad (3) 
+  *   \f]
+  *
+  * - Maximum power output constraints (pt formulation):
+  *
+  * Let 
+  *
+  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar l_t + \Delta^+(t-h), \bar u_t + \Delta^-(k-t)\}\f$, if ramp-up and ramp-down are defined in the pt formulation 
+  *
+  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar l_t + \Delta^+(t-h)\}\f$, if ramp-up and not ramp-down are defined in the pt formulation 
+  *
+  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar u_t + \Delta^-(k-t)\}\f$, if ramp-down and not ramp-up are defined in the pt formulation 
+  *
+  * - \f$ \psi_t^{hk} = \bar{p_t}\f$, if ramp-up and ramp-down are not defined in the pt formulation 
+  *
+  * Then, the maximum power constraints for the pt formulation are
+  *
+  *   \f[
+  *       p_t \leq \sum_{k: t \leq k} \bar l_t y_+^{tk} + \sum_{(h,k): h < t < k} \psi_t^{hk} y_+^{hk} + \sum_{h: h \leq t} \bar u_t y_+^{ht}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        \mbox{ MinUpTime } \geq 2 \quad (1) 
+  *   \f]
+  *
+  *   \f[
+  *       p_t \leq \sum_{k: t < k} \bar l_t y_+^{tk} + \sum_{(h,k): h < t < k} \psi_t^{hk} y_+^{hk} + \sum_{h: h < t} \bar u_t y_+^{ht} + \min\{\bar l_t, \bar u_t\} y_+^{tt}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        \mbox{ MinUpTime } = 1 \quad (2) 
+  *   \f]
+  *
+  * - Maximum power output constraints (SU and SUSD formulation):
+  *
+  *   \f[
+  *       p_t^t \leq \sum_{k: t < k} \bar l_t y_+^{tk}  +  \min\{\bar l_t, \bar u_t\} y_+^{tt}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        \quad (1) 
+  *   \f]
+  *
+  *   \f[
+  *       p_t^h \leq \bar u_t y_+^{ht} + \sum_{k: t < k} \psi_t^{hk} y_+^{hk}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        h: h < t \quad (2) 
+  *   \f]
+  *
+  * - Maximum power output constraints (SD and SUSD formulation):
+  *
+  *   \f[
+  *       \tilde p_t^t \leq \sum_{h: h < t} \bar u_t y_+^{ht}  +  \min\{\bar l_t, \bar u_t\} y_+^{tt}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        \quad (1) 
+  *   \f]
+  *
+  *   \f[
+  *       \tilde p_t^k \leq \bar l_t y_+^{tk} + \sum_{h: h < t} \psi_t^{hk} y_+^{hk}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, 
+  *                        k: t < k \quad (2) 
+  *   \f]
+  *
+  *
+  * - Perspective function constraints: when the formulations make use of the perspective
+  *   function for measuring the total production cost (i.e. when parameter PCuts = 1),
+  *   a set of static constraints are defined for setting the values of the
+  *   relative perspective variables (\f$z_t\f$ for the 3bin, T and \f$p_t\f$ formulations,
+  *   \f$z_t^{hk}\f$ for the DP formulation, \f$z_t^h\f$ for the SU and SUSD formulations,
+  *   \f$\tilde z_t^k\f$  for the SU and SUSD formulations) and the \f$theta_t\f$ variables
+  *   for the SUSD formulation. In particular, the constraints are those that connects the 
+  *   perspective variables with the power output variable, set the values for \f$\theta_t\f$
+  *   and for set the initial conditions of the perspective cuts.
+  *
+  * - Initial conditions perspective cuts: those constraints set the perspective variable for
+  *   each formulation when the variable for the power output is equal to the maximum or the
+  *   minimum
+  *
+  * - Initial conditions perspective cuts constraints (3bin and T formulations) 
+  * 
+  *   \f[
+  *      z_t \geq 2 \bar{p_t} p_t - \bar{p_t}^2 u_{t}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      z_t \geq 2 \underline{p_t} p_t - \underline{p_t}^2 u_{t}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2) 
+  *   \f]
+  *
+  * - Initial conditions perspective cuts constraints (pt formulation) 
+  * 
+  *   \f[
+  *      z_t \geq 2 \bar{p_t} p_t - \bar{p_t}^2 \sum_{(hk): h \leq t \leq k} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      z_t \geq 2 \underline{p_t} p_t - \underline{p_t}^2 \sum_{(hk): h \leq t \leq k} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2) 
+  *   \f]
+  *
+  * - Initial conditions perspective cuts constraints (DP formulation) 
+  * 
+  *   \f[
+  *      z_t^{hk} \geq 2 \bar{p_t} p_t^{hk} - \bar{p_t}^2 y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad (h,k): h \leq t \leq k \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      z_t^{hk} \geq 2 \underline{p_t} p_t^{hk} - \underline{p_t}^2 y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad (h,k): h \leq t \leq k \quad (2) 
+  *   \f]
+  *
+  * - Initial conditions perspective cuts constraints (SU and SUSD formulations) 
+  * 
+  *   \f[
+  *      z_t^{h} \geq 2 \bar{p_t} p_t^{h} - \bar{p_t}^2 \sum_{k:t \leq k} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad h: h \leq t \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      z_t^{h} \geq 2 \underline{p_t} p_t^{h} - \underline{p_t}^2 \sum_{k: t\leq k} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad h: h \leq t \quad (2) 
+  *   \f]
+  *
+  * - Initial conditions perspective cuts constraints (SD and SUSD formulations) 
+  * 
+  *   \f[
+  *      \tilde z_t^{k} \geq 2 \bar{p_t} \tilde p_t^{k} - \bar{p_t}^2 \sum_{h:h \leq t} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad k: t \leq k \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      \tilde z_t^{k} \geq 2 \underline{p_t} \tilde p_t^{k} - \underline{p_t}^2 \sum_{h: h \leq t} y_+^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad k: t \leq k \quad (2) 
+  *   \f]
+  *
+  * - Constraints for regulating values of the variables \f$\theta_t\f$ (SUSD formulation) 
+  * 
+  *   \f[
+  *      \theta_t \geq \sum_{h : h \leq t} p_t^h            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  * 
+  *   \f[
+  *      \theta_t \geq \sum_{k : t \leq k} \tilde p_t^k            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2) 
+  *   \f]
+  *
+  * - Connection perspective 3bin with perspective DP variables
+  * 
+  *   \f[
+  *      z_t = \sum_{(hk) : h \leq t \leq k} z_t^{hk}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  *
+  * - Connection perspective 3bin with perspective SU and SUSD variables
+  * 
+  *   \f[
+  *      z_t = \sum_{h : h \leq t} z_t^{h}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  *
+  * - Connection perspective 3bin with perspective SD and SUSD variables
+  * 
+  *   \f[
+  *      z_t = \sum_{k : t \leq k} \tilde z_t^{k}            
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1) 
+  *   \f]
+  *
+  */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the dynamic constraint of the ThermalUnitBlock
- /**
-  * TODO - following the code-flow / order, add in the method blow the cnstrs
-  * TODO - details for each formulation.
+ /** This method generates the dynamic constraints of the ThermalUnitBlock.
+  * These constraints are dynamically added to a specific formulations during 
+  * the resolution.
+  * - Dynamic perspective cuts constraints: the perspective cuts constraints
+  *   are defined for each formulation when the perspective function in the
+  *   objective is defined (i.e. when parameter PCuts = 1). In the current
+  *   solution obtained during the resolution a tolerance value ('eps', that is
+  *   typically set to 1e-6) for a binary variable is considered variable. Then,
+  *   the relative perspective cut is added according to a threshold value ('tol',
+  *   typically set to 1e-4) for the separation. In the following, we denote by
+  *   x.get_value() the value retrieved by the current solution analyzed. While
+  *   separating perspective cuts it is possible that the procedure incurs in a loop,
+  *   i.e. it tries to add continuously the same cut. Thus, two different procedures
+  *   are defined for separating the cuts. Neither procedure seems to be effective
+  *   in general and the better choice depends on the specific instance. These two
+  *   procedures are regulated by binary parameter 'check_loop'. When check_loop = 1
+  *   a vector std::vector< double >  prevpbar with dimension \f$\mathcal{T}\f$ is
+  *   used for saving, for each time period, the last tolerance tracking the last 
+  *   perspective cuts added. In case, the new cut that is adding is close to the 
+  *   last one added then the addition of the new one is avoided. These procedure 
+  *   is used in order to avoid possible loops.  
+  *
+  * - Perspective cuts (3bin and T formulations)
+  *
+  * - For each time period \f$t\f$, the procedure checks if a relative perspective cut
+  *   could be added according to several checks
+  *
+  * - According to a fist check, a perspective cut is possibly added only if
+  *
+  *   \f$u_t\mbox{.get_value()} > \mbox{eps}\f$.
+  *
+  * - Checks if check_loop = 1:
+  *
+  *   1) \f$z_t\mbox{.get_value()} < ( (p_t\mbox{.get_value()} * p_t\mbox{.get_value()} )/ u_t\mbox{.get_value()} - \mbox{tol} )\f$
+  *
+  *   2) \f$\mbox{prevpbar}_t = 0\f$ or \f$\mbox{prevpbar}_t != 0  \wedge (\mbox{prevpbar}_t - (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}))/\mbox{prevpbar}_t > eps\f$
+  *
+  * - Check if check_loop = 0:
+  *
+  *   1) \f$ 2 \cdot (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}) \cdot p_t\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t\mbox{.get_value()} + (p_t\mbox{.get_value()} / u_t\mbox{.get_value()})^2 \cdot u_t\mbox{.get_value()}\} \f$
+  *
+  * - If all previous checks are satisfied, the following perspective cut is added and if check_loop = 1 then \f$\mbox{prevpbar}_t\f$ is set to \f$p_t\mbox{.get_value()} / u_t\mbox{.get_value()}\f$
+  *
+  *   \f[
+  *      z_t \geq 2 \cdot (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}) \cdot p_t - (p_t\mbox{.get_value()} / u_t\mbox{.get_value()})^2 \cdot u_t       
+  *                       \quad (1) 
+  *   \f]
+  *
+  * - Perspective cuts (pt formulation)
+  *
+  * - For each time period \f$t\f$, the procedure checks if a relative perspective cut
+  *   could be added according to several checks
+  *
+  * - According to a fist check, a perspective cut is possibly added only if
+  *
+  *   \f$\sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
+  *
+  * - According to a second check, a perspective cut is possibly added only if
+  *
+  *   \f$ 2 \cdot (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t\mbox{.get_value()} + (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
+  *
+  * - If all previous checks are satisfied, the following perspective cut is added
+  *
+  *   \f[
+  *      z_t \geq 2 \cdot (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t - (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{(hk) : h \leq t \leq k} y_+^{hk}      
+  *                       \quad (1) 
+  *   \f]
+  *
+  * - Perspective cuts (DP formulation)
+  *
+  * - For each variable \f$p_t^{hk}\f$, the procedure checks if a relative perspective cut
+  *   could be added according to several checks
+  *
+  * - According to a fist check, a perspective cut is possibly added only if
+  *
+  *   \f$y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
+  *
+  * - According to a second check, a perspective cut is possibly added only if
+  *
+  *   \f$ 2 \cdot (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()}) \cdot p_t^{hk}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{hk}\mbox{.get_value()} + (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()})^2 \cdot y_+^{hk}\mbox{.get_value()}\} \f$
+  *
+  * - If all previous checks are satisfied, the following perspective cut is added
+  *
+  *   \f[
+  *      z_t^{hk} \geq 2 \cdot (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()}) \cdot p_t^{hk} - (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()})^2 \cdot y_+^{hk}       
+  *                       \quad (1) 
+  *   \f]
+  *
+  * - Perspective cuts (SU and SUSD formulation)
+  *
+  * - For each variable \f$p_t^{h}\f$, the procedure checks if a relative perspective cut
+  *   could be added according to several checks
+  *
+  * - According to a fist check, a perspective cut is possibly added only if
+  *
+  *   \f$\sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
+  *
+  * - According to a second check, a perspective cut is possibly added only if
+  *
+  *   \f$ 2 \cdot (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t^{h}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{h}\mbox{.get_value()} + (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
+  *
+  * - If all previous checks are satisfied, the following perspective cut is added
+  *
+  *   \f[
+  *      z_t^{h} \geq 2 \cdot (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t^{h} - (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{h}\mbox{.get_value()})^2 \cdot \sum_{k : t \leq k} y_+^{hk}       
+  *                       \quad (1) 
+  *   \f]
+  *
+  * - Perspective cuts (SD and SUSD formulation)
+  *
+  * - For each variable \f$\tilde p_t^{k}\f$, the procedure checks if a relative perspective cut
+  *   could be added according to several checks
+  *
+  * - According to a fist check, a perspective cut is possibly added only if
+  *
+  *   \f$\sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
+  *
+  * - According to a second check, a perspective cut is possibly added only if
+  *
+  *   \f$ 2 \cdot (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}) \cdot \tilde p_t^{k}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,\tilde z_t^{k}\mbox{.get_value()} + (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}\} \f$
+  *
+  * - If all previous checks are satisfied, the following perspective cut is added
+  *
+  *   \f[
+  *      \tilde z_t^{k} \geq 2 \cdot (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}) \cdot \tilde p_t^{k} - (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{h}\mbox{.get_value()})^2 \cdot \sum_{h : h \leq t} y_+^{hk}       
+  *                       \quad (1) 
+  *   \f]
+  *
   */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
@@ -755,6 +1419,7 @@ class ThermalUnitBlock : public UnitBlock
   * \f[
   *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
   *   \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
+  *   \quad (1)
   * \f]
   *
   * where \f$ v_t \f$ indicates that the unit is starting up at time
@@ -809,7 +1474,66 @@ class ThermalUnitBlock : public UnitBlock
   * \f]
   *
   * where \f$ I \f$ is the investment cost and \f$ x \f$ is the design binary
-  * variable. */
+  * variable. 
+  *
+  * The objective function (1) is modified according to which formulations
+  * is used and the use of the perspective function (i.e. if PCuts = 1 or 0)
+  *
+  * - Objective function 3bin, T and pt formulations: in this case the objective
+  *   function coincides with (1) if the perspective function is not used
+  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t\f$ substitute 
+  *   the quadratic part \f$p_t^2\f$ as follows:
+  *
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t z_t + b_t p_t + c_t u_t) )
+  * \f]
+  *
+  * - Objective function DP formulation: in this case the objective
+  *   function coincides with (1) if the perspective function is not used
+  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t^{hk}\f$ substitute 
+  *   the quadratic part \f$p_t^2\f$ as follows:
+  *
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t \sum_{(hk) : h \leq t \leq k} z_t^{hk}
+  *    + b_t p_t + c_t u_t) )
+  * \f]
+  *
+  * - Objective function SU formulation: in this case the objective
+  *   function coincides with (1) if the perspective function is not used
+  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t^{h}\f$ substitute 
+  *   the quadratic part \f$p_t^2\f$ as follows:
+  *
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t \sum_{h : h \leq t} z_t^{h}
+  *    + b_t p_t + c_t u_t) )
+  * \f]
+  *
+  * - Objective function SD formulation: in this case the objective
+  *   function coincides with (1) if the perspective function is not used
+  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$\tilde z_t^{k}\f$ 
+  *   substitute the quadratic part \f$p_t^2\f$ as follows:
+  *
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t \sum_{k : t \leq k} \tilde z_t^{k}
+  *    + b_t p_t + c_t u_t) )
+  * \f]
+  *
+  * - Objective function SUSD formulation: in this case the objective
+  *   function coincides with (1) if the perspective function is not used
+  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$\theta_t\f$ substitute 
+  *   the quadratic part \f$p_t^2\f$ as follows:
+  *
+  * \f[
+  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
+  *   \sum_{ t \in \mathcal{T}  } (a_t \theta_t + b_t p_t + c_t u_t) )
+  * \f]
+  *
+  *
+  **/
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1091,30 +1815,6 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary spinning reserve costs
- /** This function returns the vector of primary spinning reserve costs. If it
-  * is empty, then the costs are all zero. Otherwise, it has size
-  * get_time_horizon() and its t-th element is the linear cost of the primary
-  * spinning reserve variable at time t.
-  *
-  * @return The vector containing the primary spinning reserve costs. */
-
- const std::vector< double > & get_primary_spinning_reserve_cost( void )
- const { return( v_PrimarySpinningReserveCost ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of secondary spinning reserve costs
- /** This function returns the vector of secondary spinning reserve costs. If
-  * it is empty, then the costs are all zero. Otherwise, it has size
-  * get_time_horizon() and its t-th element is the linear cost of the
-  * secondary spinning reserve variable at time t.
-  *
-  * @return The vector containing the secondary spinning reserve costs. */
-
- const std::vector< double > & get_secondary_spinning_reserve_cost( void )
- const { return( v_SecondarySpinningReserveCost ); }
-
-/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -1124,12 +1824,34 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the delta ramp-up at the given time instant
+ /** This function return the delta ramp-up at the given time instant,
+  * which is assumed to be between 0 and get_time_horizon() - 1. */
+
+ double get_delta_ramp_up( Index t ) const {
+  if( v_DeltaRampUp.empty() )
+   return( get_max_power( t ) );
+  return( v_DeltaRampUp[ t ] );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-down
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the delta ramp-down at the given time instant
+ /** This function return the delta ramp-down at the given time instant,
+  * which is assumed to be between 0 and get_time_horizon() - 1. */
+
+ double get_delta_ramp_down( Index t ) const {
+  if( v_DeltaRampDown.empty() )
+   return( get_max_power( t ) );
+  return( v_DeltaRampDown[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1877,12 +2599,6 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
 
- /// the vector of primary spinning reserve linear costs
- std::vector< double > v_PrimarySpinningReserveCost;
-
- /// the vector of secondary spinning reserve linear costs
- std::vector< double > v_SecondarySpinningReserveCost;
-
  /// the vector of fixed consumption of generator
  std::vector< double > v_FixedConsumption;
 
@@ -1895,6 +2611,16 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of shut-down limits
  std::vector< double > v_ShutDownLimit;
 
+ /// the vector of max ramps steps (SUSD formulation)
+ /// v_MaxRampSteps\f$_t = \min\{(\bar{p]-\underline{p])/\Delta_t^+, |\mathcal{T}|-t\}\f$
+ /// denotes the maximum number of ramp up steps from time period \f$t\f$ 
+ std::vector< int > v_MaxRampSteps;
+
+ /// the vector of max ramps steps (SUSD formulation)
+ /// v_MaxRampDownSteps\f$_t = \min\{(\bar{p]-\underline{p])/\Delta_t^-, |\mathcal{T}|-t\}\f$
+ /// denotes the maximum number of ramp down steps from time period \f$t\f$ 
+ std::vector< int > v_MaxRampDownSteps;
+
  /// the vector of MinReactivePower
  std::vector< double > v_MinReactivePower;
 
@@ -1906,41 +2632,50 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the vector of coefficients for the cost
  std::vector< double > v_PowerCostCoeffs;
- 
 
- /// the vector of index to map the active power variables of the 3bin
- /// formulation with those of the DP formulation  // TODO check
+ // the vector for separating PC-cuts
+ std::vector< double >  prevpbar;
+
+ /// the vector of index of the variables \f$p_t^{hk} of the DP formulation.
+ /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
+ /// v_P_h_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
- /// the vector of index to map the perspective cuts variables of the 3bin
- /// formulation with those of the DP formulation  // TODO check
+ /// the vector of index of the variables \f$z_t^{hk} of the DP formulation.
+ /// In particular, v_Z_h_k.fist = t, v_Z_h_k.second.fist = h,
+ /// v_P_Z_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
- /// the vector of index to map the active power variables of the 3bin
- /// formulation with those of the SU formulation  // TODO check
+ /// the vector of index of the variables \f$p_t^{h} of the SU formulation.
+ /// In particular, v_P_h.fist = t, v_P_h.second = h
  std::vector< std::pair< Index , Index > > v_P_h;
 
- /// the vector of index to map the perspective cuts variables of the 3bin
- /// formulation with those of the SU formulation  // TODO check
+ /// the vector of index of the variables \f$z_t^{h} of the SU formulation.
+ /// In particular, v_Z_h.fist = t, v_Z_h.second = h
  std::vector< std::pair< Index , Index > > v_Z_h;
 
- /// the vector of index to map the active power variables of the 3bin
- /// formulation with those of the SD formulation  // TODO check
+ /// the vector of index of the variables \f$\tilde p_t^{k} of the SD
+ /// formulation. In particular, v_P_k.fist = t, v_P_k.second = k
  std::vector< std::pair< Index , Index > > v_P_k;
 
- /// the vector of index to map the perspective cuts variables of the 3bin
- /// formulation with those of the SD formulation  // TODO check
+ /// the vector of index of the variables \f$\tilde z_t^{k} of the SD
+ /// formulation. In particular, v_Z_k.fist = t, v_Z_k.second = k
  std::vector< std::pair< Index , Index > > v_Z_k;
 
- /// TODO short description
+ /// the vector of index of the ON nodes in the state-space graph
  std::vector< Index > v_nodes_plus;
 
- /// TODO short description
+  /// the vector of index of the OFF nodes in the state-space graph
  std::vector< Index > v_nodes_minus;
 
- /// the vector of index to map the commitment variables of the 3bin
- /// formulation with those of the SD, DP and SU formulations  // TODO check
+ /// the vector of index of the variables \f$y_+^{hk} of the DP, pt, SU,
+ /// SD and SUSD formulations. In particular, v_Y_plus.fist = h,
+ /// v_Y_plus.second = k
  std::vector< std::pair< Index , Index > > v_Y_plus;
+
+ /// the vector of index of the variables \f$y_-^{hk} of the DP, pt, SU,
+ /// SD and SUSD formulations. In particular, v_Y_minus.fist = h,
+ /// v_Y_minus.second = k  
  std::vector< std::pair< Index , Index > > v_Y_minus;
 
 
@@ -2029,7 +2764,10 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the perspective cuts variables for SD model
  std::vector< ColVariable > v_cut_k;
-
+  
+ /// the perspective cuts variables for SUSD model
+ std::vector< ColVariable > v_cut_teta;
+  
 /*------------------------------- constraints ------------------------------*/
 
  /// the commitment design constraints
@@ -2064,22 +2802,22 @@ class ThermalUnitBlock : public UnitBlock
 
 
  /// the constraints connecting power variables of 3bin, T and
- /// pt formulations with those of DP, SU and SD formulations
+ /// pt formulations with those of DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_ActivePower_Const;
 
  /// the constraints connecting commitment variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_Commitment_Const;
 
  /// the constraints connecting start-up variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_StartUp_Const;
 
  /// the constraints connecting shut-down variables of 3bin and T
- /// formulations with those of pt, DP, SU and SD formulations
+ /// formulations with those of pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
- /// the network constraints of the pt, DP, SU and SD formulations
+ /// the network constraints of the pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Network_Const;
 
 
@@ -2087,9 +2825,12 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< FRowConstraint > Init_PC_Const;
 
  /// the constraints connecting perspective cuts variables of 3bin, T
- /// and pt formulations with those of DP, SU and SD formulations
+ /// and pt formulations with those of DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Eq_PC_Const;
 
+ //// Constraints connecting variables of the SUSD formulations with the
+ //// maximum of the perspective function of the SU and the SD formulations
+ std::vector< FRowConstraint > Max_SUSD_PC_Const;
 
  /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;

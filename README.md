@@ -1,6 +1,24 @@
 # UCBlock
 
-A SMS++ module for modeling Unit Commitment problems in electrical power production.
+A SMS++ module for modeling Unit Commitment (UC) problems in electrical power
+production.
+
+The core of the module is the `UCBlock` class which represents the UC problem.
+The formulation is very flexible in that `UCBlock` only knows that is has a
+bunch of generating units, each one a concrete class deriving from the abstract
+base class `UnitBlock`; several of these are available, such as
+`ThermalUnitBlock`, `HydroUnitBlock`, `BatteryUnitBlock` and others. Also,
+`UCBlock` knows that energy must flow between generating units and consumption
+points through an energy network, represented by concrete class deriving from
+the abstract base class `NetworkBlock` (unless there is no network, i.e., the
+"bus" case, which is handled directly by `UCBlock`); some of these are
+available, such as `DCNetworkBlock` for the linear DC or HVDC (or hybrid)
+cases and `ECNetworkBlock` for Energy Communities having to share the
+energy between users and then with the external grid. Other kinds of
+units and networks can easily be added, and specialised solution methods for
+certain units and networks (e.g., `ThermalUnitDPSolver` for
+`ThermalUnitBlock`) can be developed.
+
 
 ## Getting started
 
@@ -18,7 +36,7 @@ Configure and build the library with:
 mkdir build
 cd build
 cmake ..
-make
+cmake --build .
 ```
 
 The library has the same configuration options of
@@ -27,7 +45,7 @@ The library has the same configuration options of
 Optionally, install the library in the system with:
 
 ```sh
-sudo make install
+cmake --install .
 ```
 
 ### Usage with CMake
@@ -41,35 +59,68 @@ target_link_libraries(<my_target> SMS++::UCBlock)
 
 ### Running the tests with CMake
 
-Some unit tests will be built with the library.
-Launch `ctest` from the build directory to run them.
-To disable them, set the option `BUILD_TESTING` to `OFF`.
+Some unit tests will be built with the library. Launch `ctest` from the
+build directory to run them. To disable them, set the option
+`BUILD_TESTING` to `OFF`.
 
 > **Note:**
 > CMake will fetch and build it automatically.
 
+### Build and install with makefiles
+
+Carefully hand-crafted makefiles have also been developed for those unwilling
+to use CMake. Makefiles build the executable in-source (in the same directory
+tree where the code is) as opposed to out-of-source (in the copy of the
+directory tree constructed in the build/ folder) and therefore it is more
+convenient when having to recompile often, such as when developing/debugging
+a new module, as opposed to the compile-and-forget usage envisioned by CMake.
+
+Each executable using `UCBlock` has to include a "main makefile" of the
+module, which typically is either [makefile-c](makefile-c) including all
+necessary libraries comprised the "core SMS++" one, or
+[makefile-s](makefile-s) including all necessary libraries but not the "core
+SMS++" one (for the common case in which this is used together with other
+modules that already include them). One relevant case is the [tester for
+ThermalUnitDPSolver](https://gitlab.com/smspp/tests/-/tree/develop/ThermalUnitBlock_Solver?ref_type=heads). The makefiles in turn recursively include all the
+required other makefiles, hence one should only need to edit the "main
+makefile" for compilation type (C++ compiler and its options) and it all
+should be good to go. In case some of the external libraries are not at their
+default location, it should only be necessary to create the
+`../extlib/makefile-paths` out of the `extlib/makefile-default-paths-*` for
+your OS `*` and edit the relevant bits (commenting out all the rest).
+
+Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration#location-of-required-libraries)
+for further details.
+
+
 ## Tools
 
-We provide a simple tool that converts .dat and .mod files into netCDF files.
-TODO: Info on .dat and .mod format.
+We provide some tool to generate input data for UCBlock:
 
-You can run the tool from the `<build-dir>/tools` directory or install it
-with the library (see above).
-Run the tool without arguments for info on its usage:
+- [a converter from text-based formats to netCDF](tools/nc4generator.cpp)
+  that can be used to produce netCDF versions of the instances produced by
+  [classical random generators](https://commalab.di.unipi.it/datasets/UC)
 
-```sh
-nc4generator
-```
+- [a Matlab-based data generator](tools/DataGenerator/README.md)
+
+- [a converter from .yml and .csv data files](tools/DataConverter/README.md)
+  used to describe UC instances corresponding to Energy Community design
+  problems used in the [EnergyCommunity.jl JuMP
+  package](https://github.com/SPSUnipi/EnergyCommunity.jl)
+
+
 
 ## Getting help
 
 If you need support, you want to submit bugs or propose a new feature, you can
 [open a new issue](https://gitlab.com/smspp/ucblock/-/issues/new).
 
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of
 conduct, and the process for submitting merge requests to us.
+
 
 ## Authors
 

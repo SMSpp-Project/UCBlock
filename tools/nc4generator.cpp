@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*---------------------------- File dat2nc4.cpp ----------------------------*/
+/*------------------------- File nc4generator.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Small main() for constructing UCBlock netCDF files out of dat and mod ones.
@@ -15,13 +15,8 @@
  * \copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
-#include <iostream>
 #include <iomanip>
-#include <vector>
 #include <getopt.h>
-
-#include <netcdf>
-#include <ncByte.h>
 
 #include <SMSTypedefs.h>
 
@@ -721,3 +716,7 @@ int main( int argc , char ** argv ) {
  std::cout << "Output written on " << output_path << std::endl;
  return( 0 );
 }
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- End File nc4generator.cpp ------------------------*/
+/*--------------------------------------------------------------------------*/

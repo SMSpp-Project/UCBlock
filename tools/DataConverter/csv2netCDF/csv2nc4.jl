@@ -4,9 +4,27 @@ using YAML
 using NCDatasets
 using DataStructures
 
+using Parameters
+using DataFrames
+using XLSX
+using JLD2
+using YAML
+using CSV
+
+using Distributions
+using PointEstimateMethod
+
+using StochasticPrograms
+
+using Random
+
+# include additional useful functions, i.e., main type definitions and read data
 include("utils.jl")
 
-function csvEC2nc4()
+# setting the seed
+Random.seed!(123)
+
+function csvEC2nc4(deterministic::Bool=false)
 
     middle = ""
     if occursin("_CO", file_name)
@@ -27,7 +45,6 @@ function csvEC2nc4()
 
     # The mode "c" stands for creating a new file (clobber)
     ds = NCDataset(string("../../../netCDF_files/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
     # Store the number of nodes
@@ -35,16 +52,7 @@ function csvEC2nc4()
     defDim(block, "NumberNodes", n_users)
 
     # Store the number of time steps/horizons
-    n_timesteps = length(time_set)
-    defDim(block, "TimeHorizon", n_timesteps)
-
-    # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
-    # inform UCBlock about the specific type of network (since it deals with both transmission and 
-    # community networks)
-    network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
-    network_block_classname[1] = "ECNetworkBlock"
-    network_data_classname = defVar(block, "NetworkDataClassname", String, ())
-    network_data_classname[1] = "ECNetworkData"
+    defDim(block, "TimeHorizon", n_steps)
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
     peak_categories = profile(market_data, "peak_categories")[time_set]
@@ -77,9 +85,16 @@ function csvEC2nc4()
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
+    # `PenaltyPrice`, i.e., the penalty price for energy squilibrium
+    #= penalty_price_data = [profile(market_data, "penalty_price")[t] *
+                            profile(market_data, "energy_weight")[t] *
+                            profile(market_data, "time_res")[t]
+                            for t in time_set] *
+                            sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set) =#
+
     # `PeakTariff`, i.e., the peak tariff cost
-    peak_tariff_data = [profile(market_data, "peak_weight")[w] *
-                        profile(market_data, "peak_tariff")[w]
+    peak_tariff_data = [profile(market_data, "peak_tariff")[w] *
+                        profile(market_data, "peak_weight")[w]
                         for w in peak_set] *
                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -98,18 +113,24 @@ function csvEC2nc4()
         allequal(peak_tariff_data) &&
         allequal(reward_price_data))
 
-        # Store the first index (-1 since in C++ the array's indexing starts from
-        # zero) of each peak period/category, i.e., of each `ECNetworkBlock`
-        peak_start_idx = defVar(block, "StartNetworkIntervals", UInt32, ("NumberNetworks",))
-        peak_start_idx[:] = [findfirst(x -> x == w, peak_categories) - 1
-                             for w in peak_set]
+        n_intervals = [count(x -> x == w, peak_categories) for w in peak_set]
+        @assert length(unique(n_intervals)) == 1 "The values of n_intervals are not all equal"
+        defDim(block, "NumberIntervals", n_intervals[1])
+
+        # Store the specific classname of the NetworkBlock, i.e., `ECNetworkBlock` and `ECNetworkData`, to
+        # inform UCBlock about the specific type of network (since it deals with both transmission and
+        # community networks)
+        network_block_classname = defVar(block, "NetworkBlockClassname", String, ())
+        network_block_classname[1] = "ECNetworkBlock"
+        network_data_classname = defVar(block, "NetworkDataClassname", String, ())
+        network_data_classname[1] = "ECNetworkData"
 
         # `ActivePowerDemand`, i.e., the electricity demand of each node/user at each time horizon
-        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
-        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
-        ## will appear reversed when the data is loaded in languages or programs using row-major 
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
+        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions
+        ## will appear reversed when the data is loaded in languages or programs using row-major
         ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
-        ## To store the demand in the correct shape, i.e., NumberNodes x TimeHorizon, we need to store 
+        ## To store the demand in the correct shape, i.e., NumberNodes x TimeHorizon, we need to store
         ## it transposed, i.e., TimeHorizon x NumberNodes.
         power_demand = defVar(block, "ActivePowerDemand", Float64, ("TimeHorizon", "NumberNodes")) # ("NumberNodes", "TimeHorizon"))
         power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
@@ -145,6 +166,12 @@ function csvEC2nc4()
 
     else
 
+        # Store the specific classname of the NetworkData to inform UCBlock
+        # about the specific type of network (since it deals with both
+        # transmission and community networks)
+        network_data_classname = defVar(block, "NetworkDataClassname", String, ())
+        network_data_classname[1] = "NetworkData"
+
         # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time steps/horizons
         last_t = 1
         for (i_w, w) in enumerate(peak_set)
@@ -162,11 +189,11 @@ function csvEC2nc4()
             last_i = findlast(x -> x == w, peak_categories)
 
             # `ActiveDemand`, i.e., the electricity demand of each node/user at each intervals
-            ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are 
-            ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions 
-            ## will appear reversed when the data is loaded in languages or programs using row-major 
+            ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
+            ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions
+            ## will appear reversed when the data is loaded in languages or programs using row-major
             ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
-            ## To store the demand in the correct shape, i.e., NumberIntervals x NumberNodes, we need to store 
+            ## To store the demand in the correct shape, i.e., NumberIntervals x NumberNodes, we need to store
             ## it transposed, i.e., NumberNodes x NumberIntervals.
             power_demand = defVar(ecnb, "ActiveDemand", Float64, ("NumberNodes", "NumberIntervals")) # ("NumberIntervals", "NumberNodes"))
             power_demand[:, :] = [profile_component(users_data[u], "load", "load")[t]
@@ -403,11 +430,11 @@ function csvEC2nc4()
 
                         # store the start-up limit
                         thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                        thermal_start_up_limit[:] = thermal_max_power[:]
+                        thermal_start_up_limit[:] = thermal_max_power
 
                         # store the shut-down limit
                         thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                        thermal_shut_up_limit[:] = thermal_max_power[:]
+                        thermal_shut_up_limit[:] = thermal_max_power
 
                         # store the Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
@@ -462,6 +489,70 @@ function csvEC2nc4()
     end
 
     close(ds)
+
+    if !deterministic # stochastic model
+
+        # The mode "c" stands for creating a new file (clobber)
+        tssb_ds = NCDataset(string("../../../netCDF_files/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+
+        defDim(tssb, "NumberScenarios", scen_s_sample)
+        # defDim(tssb, "ScenarioSize", )
+
+        # AbstractPath
+        ap = defGroup(tssb, "AbstractPath")
+
+        path_dim = n_devices
+        defDim(ap, "PathDim", path_dim)
+
+        path_length = 2 # 1 B (UnitBlock_*) + 1 V (x_design) for each path
+        total_length = path_length * path_dim
+        defDim(ap, "TotalLength", total_length)
+
+        path_start = defVar(ap, "PathStart", UInt32, ("PathDim",))
+        path_start[:] = collect(0:path_length:total_length-1)[:] # range from 0 to total_length each path_length
+
+        path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
+        path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
+
+        path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
+        path_group_idx[:] = reduce(vcat, ([i, 0] for i in 0:path_dim-1), init=Int32[])[:] # [i, 0], i.e., i wrt B, 0 wrt V
+
+        path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
+        path_element_idx[:] = repeat([typemax(UInt32), 0], outer=path_dim) # [_, 0], i.e., _ wrt B, 0 wrt V
+
+        # StochasticBlock
+        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+
+        # SimpleDataMapping
+
+        # number_mappings = n_devices
+        # defDim(sb, "NumberDataMappings", number_mappings)
+
+        # data_type = defVar(sb, "DataType", Char, ("NumberDataMappings",))
+        # data_type[:] = collect("D"^number_mappings)[:] # repeat D number_mappings times
+
+        # function_name = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
+        # function_name[:] = fill("UCBlock::set_active_power_demand", number_mappings)[:]
+
+        # caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
+        # caller[:] =
+
+        # defDim(sb, "SetSizeSize",)
+
+        # set_size = defVar(sb, "SetSize", UInt32, ("SetSizeSize",))
+        # set_size[:] =
+
+        # defDim(sb, "SetElementSize",)
+
+        # set_element = defVar(sb, "SetElements", UInt32, ("SetElementSize",))
+        # set_element[:] =
+
+        # UCBlock nc4 file
+        defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
+
+        close(tssb_ds)
+    end
 end
 
 ## Parameters
@@ -490,9 +581,23 @@ user_set = user_names(gen_data, users_data)
 init_step = field(gen_data, "init_step")
 final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
+n_steps = length(time_set)
+
+# number of scenarios to be extracted
+scen_s_sample = field(gen_data, "scen_s_sample")
+scen_eps_sample = field(gen_data, "scen_eps_sample")
+
+is_det = false
+if scen_s_sample == 1 && scen_eps_sample == 1
+    is_det = true
+else
+    # standard deviation associated with load and renewable production in long period uncertainty
+    sigma_load = field(gen_data, "sigma_load")
+    sigma_ren = field(gen_data, "sigma_ren")
+end
 
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
 SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
 
 ## Data aggregation and netCDF files generation
-csvEC2nc4()
+csvEC2nc4(is_det)

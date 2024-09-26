@@ -13,6 +13,9 @@ netCDF_files/plan4res-data
 *.ko
 *.elf
 
+# executables
+tools/nc4generator
+
 # Precompiled Headers
 *.gch
 *.pch
