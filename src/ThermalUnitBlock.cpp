@@ -3359,7 +3359,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 {
  if( AR & PCuts ) {
-  double tol = 1e-4;  // threshold parameter for P/C separation
+  double tol = 1e-6;  // threshold parameter for P/C separation
   double eps = 1e-6;  // tolerance value to consider a binary variable
   bool check_loop = false;
   bool check_cut = false;
@@ -3405,7 +3405,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
         check_cut = true;
      } else {
       if( v_cut[ t ].get_value() + std::pow(
-        v_active_power[ t ].get_value() / v_commitment[ t ].get_value() , 2 ) *
+          v_active_power[ t ].get_value() / v_commitment[ t ].get_value() , 2 ) *
           v_commitment[ t ].get_value() < 1 )
        part1 = 1.0;
       else
