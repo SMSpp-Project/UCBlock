@@ -46,11 +46,15 @@
 
 #include "FRealObjective.h"
 
+#include <Eigen/Sparse>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
+
+typedef Eigen::SparseMatrix<double> SpMat;
 
 namespace SMSpp_di_unipi_it
 {
@@ -619,9 +623,9 @@ class DCNetworkBlock : public NetworkBlock
  *      \textnormal{ if } n = n'               \quad n,n' \in N
  *  \f] */
 
- Eigen::MatrixXd get_PTDF(const std::vector<Index>& AC_lines);
+ SpMat get_PTDF(const std::vector<Index>& AC_lines);
 
- Eigen::MatrixXd get_PTDF(){
+ SpMat get_PTDF(){
     std::vector<Index> all_lines(get_number_lines());
     std::iota(all_lines.begin(), all_lines.end(), 0);
     return get_PTDF(all_lines);
