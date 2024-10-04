@@ -618,7 +618,7 @@ class DCNetworkBlock : public NetworkBlock
  *      \textnormal{ if } n = n'               \quad n,n' \in N
  *  \f] */
 
- SpMat get_PTDF(const std::vector<Index>& AC_lines, double tiknonov_coeff = 1e-4);
+ SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
 
  SpMat get_PTDF(){
     std::vector<Index> all_lines(get_number_lines());

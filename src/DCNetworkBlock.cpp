@@ -38,6 +38,7 @@
 #include "FRealObjective.h"
 
 #include <Eigen/Sparse>
+#include <Eigen/SparseLU>
 #include <Eigen/IterativeLinearSolvers>
 
 /*--------------------------------------------------------------------------*/
@@ -303,7 +304,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 }  // end( DCNetworkBlock::deserialize )
 
-SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tiknonov_coeff){
+SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
   // get data
   const auto& susceptance = f_NetworkData->get_line_susceptance();
   const auto number_nodes = get_number_nodes();
@@ -331,7 +332,7 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tiknon
       B_bar_diag[end_line[line_id]] += susceptance[line_id];
   }
   for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-    B_bar.insert(node_id, node_id) = B_bar_diag[node_id] + tiknonov_coeff;
+    B_bar.insert(node_id, node_id) = B_bar_diag[node_id] + tikhonov_coeff;
   }
 
   Index ref_node = f_NetworkData->get_reference_node();
@@ -348,7 +349,8 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tiknon
   SpMat B2 = I_nref.transpose()*B_bar*I_nref;
 
   // Inversion of sparse matrix with eigen (solve B2*X = I)
-  Eigen::BiCGSTAB<SpMat> solver;
+  //Eigen::BiCGSTAB<SpMat> solver;
+  Eigen::SparseLU<SpMat> solver;
   solver.compute(B2);
   std::cout << "end compute" << std::endl;
   SpMat I(number_nodes-1, number_nodes-1);
