@@ -127,7 +127,7 @@ class DCNetworkBlock : public NetworkBlock
   * DCNetworkData, but most often they can share the same. By bunching all the
   * information together we make it easy for this sharing to happen. */
 
- class DCNetworkData : public NetworkBlock::NetworkData
+ class DCNetworkData : public NetworkData
  {
 
 /*--------------------------------------------------------------------------*/
@@ -143,13 +143,13 @@ class DCNetworkBlock : public NetworkBlock
  * @{ */
 
   /// constructor of DCNetworkData, does nothing
-  DCNetworkData( void ) : NetworkBlock::NetworkData() {}
+  DCNetworkData( void ) {}
 
   /// copy constructor of DCNetworkData, does nothing
-  DCNetworkData( NetworkData * dc_network_data ) {}
+  explicit DCNetworkData( const NetworkData * ) {}
 
   /// destructor of DCNetworkData: it is virtual, and empty
-  virtual ~DCNetworkData() = default;
+  virtual ~DCNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1040,12 +1040,12 @@ class DCNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the DCNetworkBlock
  * @{ */
 
- void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
+ void set_NetworkData( NetworkData * nd = nullptr ) override {
   // if there was a previous DCNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = static_cast< DCNetworkData * >( nd );
+  f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
   f_local_NetworkData = false;
  }
 

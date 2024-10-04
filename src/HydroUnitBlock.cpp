@@ -657,7 +657,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
 
-     if( ! v_NumberPieces.empty() )
+     if( v_NumberPieces.empty() )
+      ++end;
+     else
       end += v_NumberPieces[ arc ];
 
      if( ( v_MinFlow[ t ][ arc ] >= 0 ) &&

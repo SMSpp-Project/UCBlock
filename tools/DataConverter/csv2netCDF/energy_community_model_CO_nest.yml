@@ -3,15 +3,13 @@ general: # general input parameters
   final_step: 1152  # final time step
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
-  user_list: [ user1, user2, user3, user4, user5, user6, user7, user8, user9, user10 ]  # list of users for the simulation
-  scen_s_sample: 3  # number of scenarios s to be extracted
+  user_list: [ user1, user2, user3, user4, user5 ]  # list of users for the simulation
+  scen_s_sample: 1  # number of scenarios s to be extracted
   scen_eps_sample: 1  # number of scenarios eps to be extracted
-  sigma_load: 0.3  # standard deviation associated with load in long period uncertainty
-  sigma_ren: 0.2  # standard deviation associated with renewable production in long period uncertainty
 
   optional_datasets: # optional csv files storing data
     - input_resource.csv
-    - market_data_NC.csv
+    - market_data.csv
 
 market: # market characteristics
   profile:
@@ -38,7 +36,7 @@ users: # list of users and the corresponding assets
   user1: # name of the user
     # list of components
 
-    PV: # component photovoltaic
+    PV: # component PV
       type: renewable  # type of component
       CAPEX_lin: 1700  # [€/kW] specific investment cost of the component
       OEM_lin: 30  # [€/kW/y] specific O&M cost

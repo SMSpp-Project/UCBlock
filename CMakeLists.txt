@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.19)
 cmake_policy(VERSION 3.12)
 project(UCBlock
-        VERSION 0.6.2
+        VERSION 0.6.3
         DESCRIPTION "SMS++ UCBlock module"
         HOMEPAGE_URL https://gitlab.com/smspp/ucblock
         LANGUAGES C CXX)
@@ -78,7 +78,6 @@ target_sources(${modName} PRIVATE
                src/ACNetworkBlock.cpp
                src/ECNetworkBlock.cpp
                src/UnitBlock.cpp
-               #src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
                src/NuclearUnitBlock.cpp
                src/ThermalUnitBlock.cpp
