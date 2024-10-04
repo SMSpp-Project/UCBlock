@@ -46,11 +46,15 @@
 
 #include "FRealObjective.h"
 
+#include <Eigen/Sparse>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
+
+typedef Eigen::SparseMatrix<double> SpMat;
 
 namespace SMSpp_di_unipi_it
 {
@@ -355,10 +359,6 @@ class DCNetworkBlock : public NetworkBlock
    *   element of the vectors gives the Susceptance value for each line in the
    *   network. */
 
-  const std::vector< double > & get_susceptance( void ) const {
-   return( v_susceptance );
-  }
-
   const std::vector< double > & get_line_susceptance( void ) const {
    return( v_line_susceptance );
   }
@@ -431,10 +431,10 @@ class DCNetworkBlock : public NetworkBlock
   line_type get_lines_type( void ) const {
    if( get_number_lines() == 0 )
     return( kNone );
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+   if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
                     []( double s ) { return( s == 0.0 ); } ) )
     return( kHVDC );
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+   if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
                     []( double s ) { return( s != 0.0 ); } ) )
     return( kAC );
    return( kAC_HVDC );
@@ -495,7 +495,7 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< Index > v_end_line;
 
   /// vector to store the susceptance of each line of the network
-  std::vector< double > v_susceptance;
+  std::vector< double > v_line_susceptance;
 
   /// vector to store the minimum power flow at each line
   std::vector< double > v_min_power_flow;
@@ -510,7 +510,6 @@ class DCNetworkBlock : public NetworkBlock
 
   std::vector< std::string > v_line_names;  ///< Line names
 
-  std::vector< double > v_line_susceptance;
   std::vector< double > v_line_reactance;
   std::vector< double > v_line_resistance;
   std::vector< double > v_line_ratio;
@@ -619,9 +618,9 @@ class DCNetworkBlock : public NetworkBlock
  *      \textnormal{ if } n = n'               \quad n,n' \in N
  *  \f] */
 
- Eigen::MatrixXd get_PTDF(const std::vector<Index>& AC_lines);
+ SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
 
- Eigen::MatrixXd get_PTDF(){
+ SpMat get_PTDF(){
     std::vector<Index> all_lines(get_number_lines());
     std::iota(all_lines.begin(), all_lines.end(), 0);
     return get_PTDF(all_lines);
@@ -852,7 +851,7 @@ class DCNetworkBlock : public NetworkBlock
 
  std::vector<Index> get_AC_lines(){
     std::vector<Index> AC_lines;
-    const auto& susceptance = f_NetworkData->get_susceptance();
+    const auto& susceptance = f_NetworkData->get_line_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
       if (susceptance[line_id] > 0.)   AC_lines.push_back(line_id);
     }
@@ -868,7 +867,7 @@ class DCNetworkBlock : public NetworkBlock
 
  std::vector<Index> get_DC_lines(){
     std::vector<Index> DC_lines;
-    const auto& susceptance = f_NetworkData->get_susceptance();
+    const auto& susceptance = f_NetworkData->get_line_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
       if (susceptance[line_id] == 0.)   DC_lines.push_back(line_id);
     }
@@ -1333,6 +1332,8 @@ class DCNetworkBlock : public NetworkBlock
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
+ /// Definition of power flow por AC
+ std::vector< FRowConstraint > v_AC_power_flow_def;
 
  /// HVDC power flow limit constraints
  std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
