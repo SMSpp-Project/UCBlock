@@ -352,7 +352,6 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhon
   //Eigen::BiCGSTAB<SpMat> solver;
   Eigen::SparseLU<SpMat> solver;
   solver.compute(B2);
-  std::cout << "end compute" << std::endl;
   SpMat I(number_nodes-1, number_nodes-1);
   I.setIdentity();
   SpMat PTDF_matrix, B2_inv;
@@ -360,7 +359,6 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhon
   else {
     B2_inv = solver.solve(I);
     PTDF_matrix  = B1*B2_inv;
-    std::cout << PTDF_matrix.sum() << std::endl;
   }
 
   return PTDF_matrix;
