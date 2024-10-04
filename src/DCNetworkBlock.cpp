@@ -448,6 +448,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     v_power_flow_relax_abs[1][ line_id ].set_rhs( Inf< double >() );
     v_power_flow_relax_abs[1][ line_id ].set_function( lfunc_2 );
    }
+   add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
  } // ===== end( cost not empty )
 
  // Define power flow given PTDF (for AC lines)
