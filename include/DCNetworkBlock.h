@@ -1007,19 +1007,13 @@ class DCNetworkBlock : public NetworkBlock
   * constraints. The i-th element of this vector is a FRowConstraint for the
   * i-th line of the network. */
 
- const std::vector< FRowConstraint > &
+const std::vector< BoxConstraint > &
  get_power_flow_limit_constraints( void ) const {
   if( ! f_NetworkData )
    throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_constraints:"
                             " DCNetworkData has not been set." ) );
 
-  switch( f_NetworkData->get_lines_type() ) {
-   case( kAC ):
-    return( v_AC_power_flow_limit_const );
-   case( kAC_HVDC ):
-   default:
-    return( v_AC_HVDC_power_flow_limit_const );
-  }
+  return( v_power_flow_limit_const );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1031,7 +1025,7 @@ class DCNetworkBlock : public NetworkBlock
   if( ! f_NetworkData )
    throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
                             " DCNetworkData has not been set." ) );
-  return( v_HVDC_power_flow_limit_const );
+  return( v_power_flow_limit_const );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1320,23 +1314,17 @@ class DCNetworkBlock : public NetworkBlock
 
 /*------------------------------- constraints ------------------------------*/
 
- /// AC power flow limit constraints
- std::vector< FRowConstraint > v_AC_power_flow_limit_const;
-
- /// AC/HVDC power flow limit constraints
- std::vector< FRowConstraint > v_AC_HVDC_power_flow_limit_const;
-
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
- /// Definition of power flow por AC
- std::vector< FRowConstraint > v_AC_power_flow_def;
+ /// Definition of power flow 
+ std::vector< FRowConstraint > v_power_flow_def;
 
- /// HVDC power flow limit constraints
- std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
+ /// Power flow limit constraints
+ std::vector< BoxConstraint > v_power_flow_limit_const;
 
  /// the node injection bound constraints
  std::vector< BoxConstraint > node_injection_bounds_const;
