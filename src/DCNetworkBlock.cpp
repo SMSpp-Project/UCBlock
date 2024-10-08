@@ -438,6 +438,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ std::cout << "begin constraint" << std::endl;
+
  const auto number_nodes = get_number_nodes();
 
  if( number_nodes <= 1 )

@@ -37,6 +37,7 @@ using namespace SMSpp_di_unipi_it;
 using namespace std::complex_literals;
 
 typedef Eigen::SparseMatrix< std::complex<double> > SpCMat;
+typedef Eigen::SparseVector< std::complex<double> > SpCVec;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -204,7 +205,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   // imaginary part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
     auto lfunc = new LinearFunction();
-    lfunc->add_variable( & v_node_injection[ 1 ][ p ] , -1.0 );
+    lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 );
 
     for( Index n = 0 ; n < number_nodes ; ++n ) {
 
@@ -303,7 +304,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     Index n = end_line[line_id];
     auto qfunc = new QuadFunction();
     qfunc->add_variable( & W_voltage_real[p][n], 1.0, 0.0);
-    qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0);
+    qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0); // QJ: Bug
     v_socp_const[ line_id ].set_lhs( -Inf< double >() );
     v_socp_const[ line_id ].set_lhs( 0.0 );
     v_socp_const[ line_id ].set_function( qfunc );
@@ -341,6 +342,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
   }
 
   // Shunt admittance
+  ACdata.Ys = SpCVec(number_nodes);
   for(Index n = 0; n < number_nodes; ++n){
     double Gs = f_NetworkData->get_node_conductance().at(n);
     double Bs = f_NetworkData->get_node_susceptance().at(n);
