@@ -293,6 +293,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   }
   add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
 
+  std::cout << "begin\n";
+  
   // ----- Rotated SOCP cone for W matrix
   /*
   As we cannot take into account the true constraint W = V.V^H, we replace it by a SOCP relaxation:
@@ -303,13 +305,18 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto qfunc = new QuadFunction();
-    qfunc->add_variable( & W_voltage_real[p][n], 1.0, 0.0);
+    qfunc->add_variable( & W_voltage_real[p][n], 0.0, 1.0);
+	qfunc->add_variable( & W_voltage_real[p][p], 0.0, 0.0);
+	qfunc->add_variable( & W_voltage_real[n][n], 0.0, 0.0);	
     qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0); // QJ: Bug
     v_socp_const[ line_id ].set_lhs( -Inf< double >() );
     v_socp_const[ line_id ].set_lhs( 0.0 );
     v_socp_const[ line_id ].set_function( qfunc );
   }
   add_static_constraint(v_socp_const, "AC_socp_const" );
+  
+  std::cout << "end!\n";
+  
  };
 
 
