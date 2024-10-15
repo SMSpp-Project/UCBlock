@@ -6,6 +6,8 @@
 
 #include <complex>
 
+# include <cmath>
+
 #include "NetworkBlock.h"
 
 #include "DCNetworkBlock.h"
@@ -203,7 +205,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     v_power_flow_injection_const[ p ].set_function( lfunc );
   }
   // imaginary part of the power flow conservation
-  for( Index p = 0 ; p < number_nodes ; ++p ) {
+  /*for( Index p = 0 ; p < number_nodes ; ++p ) {
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 );
 
@@ -216,6 +218,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     v_power_flow_injection_const[ p ].set_function( lfunc );
   }
   add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
+  */
 
   // ----- Definition of complex power flow
   /*
@@ -292,8 +295,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
   }
   add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
-
-  std::cout << "begin\n";
   
   // ----- Rotated SOCP cone for W matrix
   /*
@@ -306,16 +307,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     Index n = end_line[line_id];
     auto qfunc = new QuadFunction();
     qfunc->add_variable( & W_voltage_real[p][n], 0.0, 1.0);
-	qfunc->add_variable( & W_voltage_real[p][p], 0.0, 0.0);
-	qfunc->add_variable( & W_voltage_real[n][n], 0.0, 0.0);	
-    qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0); // QJ: Bug
+    qfunc->add_variable( & W_voltage_real[p][p], 0.0, 0.0);
+    qfunc->add_variable( & W_voltage_real[n][n], 0.0, 0.0);	
+    qfunc->add_nd_term( & W_voltage_real[p][p], & W_voltage_real[n][n], -1.0);
     v_socp_const[ line_id ].set_lhs( -Inf< double >() );
-    v_socp_const[ line_id ].set_lhs( 0.0 );
+    v_socp_const[ line_id ].set_rhs( 0.0 );
     v_socp_const[ line_id ].set_function( qfunc );
   }
   add_static_constraint(v_socp_const, "AC_socp_const" );
-  
-  std::cout << "end!\n";
   
  };
 
@@ -341,6 +340,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
     double x = f_NetworkData->get_line_reactance().at(line_id);
     double b = f_NetworkData->get_line_susceptance().at(line_id);
     double tau = f_NetworkData->get_line_ratio().at(line_id);
+    if (abs(tau) < 1e-4) tau = 1.0;
     double theta = PI * f_NetworkData->get_line_angle().at(line_id) / 180;
     ACdata.Yff.insert(i,j) = (1./(r+1i*x) + 1i*b/2.)/pow(tau,2);
     ACdata.Yft.insert(i,j) = -1./((r+1i*x)*tau*exp(-1i*theta));

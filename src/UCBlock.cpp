@@ -192,6 +192,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "LineReactance" ,  
                                                      "LineMinAngle" , 
                                                      "LineMaxAngle" ,
+                                                     "LineRATEA",
+                                                     "LineRatio",
+                                                     "LineShiftAngle",
+                                                     "NodeMaxVoltage",
+                                                     "NodeMinVoltage",
                                                      // ECNetworkBlockData
                                                      "BuyPrice" ,
                                                      "SellPrice" ,
