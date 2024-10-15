@@ -160,17 +160,19 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   const auto & min_angle = f_NetworkData->get_line_min_angle();
   const auto & max_angle = f_NetworkData->get_line_max_angle();
   for (Index line_id = 0; line_id < number_lines; ++line_id) {
+    double phi_min = PI * min_angle[line_id];
+    double phi_max = PI * max_angle[line_id];
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto lfunc_1 = new LinearFunction();
     lfunc_1->add_variable( & W_voltage_imag[p][n], 1.0);
-    lfunc_1->add_variable( & W_voltage_real[p][n], -tan(min_angle[line_id]));
+    lfunc_1->add_variable( & W_voltage_real[p][n], -tan(phi_min));
     v_angle_bounds_const[0][ line_id ].set_lhs( 0.0 );
     v_angle_bounds_const[0][ line_id ].set_rhs( Inf< double >() );
     v_angle_bounds_const[0][ line_id ].set_function( lfunc_1 );
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & W_voltage_imag[p][n], 1.0);
-    lfunc_2->add_variable( & W_voltage_real[p][n], -tan(max_angle[line_id]));
+    lfunc_2->add_variable( & W_voltage_real[p][n], -tan(phi_max));
     v_angle_bounds_const[1][ line_id ].set_lhs( -Inf< double >() );
     v_angle_bounds_const[1][ line_id ].set_rhs( 0.0 );
     v_angle_bounds_const[1][ line_id ].set_function( lfunc_2 );
