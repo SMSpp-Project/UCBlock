@@ -132,8 +132,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   const auto & end_line = f_NetworkData->get_end_line();
 
   std::vector<Index> AC_lines = get_AC_lines();
-
-  
   double base_mva = f_NetworkData->get_baseMVA();
 
 
@@ -201,10 +199,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 );
 
-    for( Index n = 0 ; n < number_nodes ; ++n ) {
+    for (Index line_id = 0; line_id < number_lines; ++line_id) {
+      Index i = start_line[line_id];
+      Index j = end_line[line_id];
 
-      lfunc->add_variable( & W_voltage_real[p][n] , ACdata.M.coeff(p,n).real() );
-      lfunc->add_variable( & W_voltage_imag[p][n] , ACdata.M.coeff(p,n).imag() );
+      if (i == p) lfunc->add_variable( & S_power_flow[0][ line_id ], 1.);
+      if (j == p) lfunc->add_variable( & S_power_flow[0][ number_lines + line_id ], 1.);
     }
     v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
     v_power_flow_injection_const[ p ].set_function( lfunc );
