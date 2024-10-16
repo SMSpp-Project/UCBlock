@@ -194,7 +194,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 
   The complex matrix product <M,W>_F is then decomposed into a real part and an imaginary part.
   */
-  v_power_flow_injection_const.resize(2*number_nodes);
+  v_power_flow_injection_const.resize(1*number_nodes);
 
   // real part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
@@ -248,7 +248,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_2->add_variable( & W_voltage_imag[p][n],  ACdata.Yft.coeff(p,n).real());
     lfunc_2->add_variable( & W_voltage_real[p][p], -ACdata.Yff.coeff(p,n).imag());
     lfunc_2->add_variable( & W_voltage_real[p][n], -ACdata.Yft.coeff(p,n).imag());
-    lfunc_1->add_variable( & S_power_flow[1][line_id], -1.0);
+    lfunc_2->add_variable( & S_power_flow[1][line_id], -1.0);
     v_voltage_definition_const[1][ line_id ].set_both(0.0);
     v_voltage_definition_const[1][ line_id ].set_function( lfunc_2 );
   }
@@ -268,7 +268,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_2->add_variable( & W_voltage_imag[p][n],  ACdata.Ytf.coeff(n,p).real());
     lfunc_2->add_variable( & W_voltage_real[p][p], -ACdata.Ytt.coeff(n,p).imag());
     lfunc_2->add_variable( & W_voltage_real[p][n], -ACdata.Ytf.coeff(n,p).imag());
-    lfunc_1->add_variable( & S_power_flow[1][number_lines + line_id], -1.0);
+    lfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], -1.0);
     v_voltage_definition_const[1][ number_lines + line_id ].set_both(0.0);
     v_voltage_definition_const[1][ number_lines + line_id ].set_function( lfunc_2 );
   }
