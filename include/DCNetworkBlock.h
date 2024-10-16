@@ -48,6 +48,8 @@
 
 #include <Eigen/Sparse>
 
+#include <utility>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -346,6 +348,15 @@ class DCNetworkBlock : public NetworkBlock
    return( v_max_power_flow[ line ] );
   }
 
+
+/*--------------------------------------------------------------------------*/
+  const double get_baseMVA( void ) const {
+    return( f_base_mva );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+
 /*--------------------------------------------------------------------------*/
   /// returns vector of the susceptances
   /** Method for returning the vector of susceptances for each line. This vector
@@ -406,6 +417,24 @@ class DCNetworkBlock : public NetworkBlock
   const std::vector< double > & get_line_max_angle( void ) const {
    return( v_line_max_angle );
   }
+
+
+ SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
+
+ SpMat get_PTDF(){
+    std::vector<Index> all_lines(get_number_lines());
+    std::iota(all_lines.begin(), all_lines.end(), 0);
+    return get_PTDF(all_lines);
+ }
+
+ std::pair<SpMat, SpMat> get_stored_B2(){
+  return std::make_pair(stored_B2, stored_B2_inv);
+ }
+
+ void set_stored_B2(const SpMat& B2, const SpMat& B2_inv){
+  stored_B2 = B2;
+  stored_B2_inv = B2_inv;
+ }
 
 /*--------------------------------------------------------------------------*/
   /// returns vector of the network cost
@@ -487,6 +516,10 @@ class DCNetworkBlock : public NetworkBlock
   Index f_number_lines{};
 
   Index f_reference_node;    ///< reference node (used in the PTDF matrix)
+  SpMat stored_B2;
+  SpMat stored_B2_inv;
+
+  double f_base_mva;
 
   /// vector of starting lines
   std::vector< Index > v_start_line;
@@ -618,17 +651,9 @@ class DCNetworkBlock : public NetworkBlock
  *      \textnormal{ if } n = n'               \quad n,n' \in N
  *  \f] */
 
- SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
-
- SpMat get_PTDF(){
-    std::vector<Index> all_lines(get_number_lines());
-    std::iota(all_lines.begin(), all_lines.end(), 0);
-    return get_PTDF(all_lines);
- }
-
+  int get_reducedIdx(int idx);
 /*--------------------------------------------------------------------------*/
 
- int get_reducedIdx(int idx);
  /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below.
   * The topology of the transmission network is defined by a set of nodes

@@ -133,6 +133,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 
   std::vector<Index> AC_lines = get_AC_lines();
 
+  
+  double base_mva = f_NetworkData->get_baseMVA();
+
 
   // ----- Voltage bounds
   /*
@@ -203,7 +206,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
       lfunc->add_variable( & W_voltage_real[p][n] , ACdata.M.coeff(p,n).real() );
       lfunc->add_variable( & W_voltage_imag[p][n] , ACdata.M.coeff(p,n).imag() );
     }
-    v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] );
+    v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
     v_power_flow_injection_const[ p ].set_function( lfunc );
   }
   // imaginary part of the power flow conservation
@@ -216,11 +219,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
       lfunc->add_variable( & W_voltage_real[p][n] , -ACdata.M.coeff(p,n).imag() );
       lfunc->add_variable( & W_voltage_imag[p][n] , ACdata.M.coeff(p,n).real() );
     }
-    v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] ); // TODO must be ReactiveDemand (need modifications to be taken into account)
+    v_power_flow_injection_const[ p ].set_both( -v_ReactiveDemand[ p ] / base_mva ); // TODO must be ReactiveDemand (need modifications to be taken into account)
     v_power_flow_injection_const[ p ].set_function( lfunc );
-  }
+  }*/
   add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
-  */
 
   // ----- Definition of complex power flow
   /*
@@ -287,13 +289,13 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     qfunc_1->add_variable( & S_power_flow[0][line_id], 1.0, 0.0);
     qfunc_1->add_variable( & S_power_flow[1][line_id], 1.0, 0.0);
     v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
-    v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be divided by baseMVA
+    v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ line_id ].set_function( qfunc_1 );
     auto qfunc_2 = new DQuadFunction();
     qfunc_2->add_variable( & S_power_flow[0][number_lines + line_id], 1.0, 0.0);
     qfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], 1.0, 0.0);
     v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
-    v_thermal_limit[ number_lines + line_id ].set_rhs( pow(rate_A[line_id], 2) ); // TODO: rate_A should be devided by baseMVA
+    v_thermal_limit[ number_lines + line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
   }
   add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
@@ -352,9 +354,10 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
 
   // Shunt admittance
   ACdata.Ys = SpCVec(number_nodes);
+  double base_mva = f_NetworkData->get_baseMVA();
   for(Index n = 0; n < number_nodes; ++n){
-    double Gs = f_NetworkData->get_node_conductance().at(n);
-    double Bs = f_NetworkData->get_node_susceptance().at(n);
+    double Gs = f_NetworkData->get_node_conductance().at(n)/base_mva;
+    double Bs = f_NetworkData->get_node_susceptance().at(n)/base_mva;
     ACdata.Ys.insert(n) = Gs + 1i*Bs;
   }
 

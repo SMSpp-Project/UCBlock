@@ -2,7 +2,6 @@ netcdf case118 {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
-		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -15,6 +14,7 @@ group: Block_0 {
   	string NetworkBlockClassname ;
   	uint GeneratorNode(NumberElectricalGenerators) ;
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double ReactivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
   	double NodeMaxVoltage(NumberNodes) ;
@@ -35,6 +35,7 @@ group: Block_0 {
   // group attributes:
   		:type = "UCBlock" ;
   		:id = "0" ;
+  		:baseMVA = 100. ;
   data:
 
    NetworkBlockClassname = "ACNetworkBlock" ;
@@ -163,6 +164,126 @@ group: Block_0 {
   184,
   20,
   33 ;
+
+   ReactivePowerDemand =
+  27,
+  9,
+  10,
+  12,
+  0,
+  22,
+  2,
+  0,
+  0,
+  0,
+  23,
+  10,
+  16,
+  1,
+  30,
+  10,
+  3,
+  34,
+  25,
+  3,
+  8,
+  5,
+  3,
+  0,
+  0,
+  0,
+  13,
+  7,
+  4,
+  0,
+  27,
+  23,
+  9,
+  26,
+  9,
+  17,
+  0,
+  0,
+  11,
+  23,
+  10,
+  23,
+  7,
+  8,
+  22,
+  10,
+  0,
+  11,
+  30,
+  4,
+  8,
+  5,
+  11,
+  32,
+  22,
+  18,
+  3,
+  3,
+  113,
+  3,
+  0,
+  14,
+  0,
+  0,
+  0,
+  18,
+  7,
+  0,
+  0,
+  20,
+  0,
+  0,
+  0,
+  27,
+  11,
+  36,
+  28,
+  26,
+  32,
+  26,
+  0,
+  27,
+  10,
+  7,
+  15,
+  10,
+  0,
+  10,
+  0,
+  42,
+  0,
+  10,
+  7,
+  16,
+  31,
+  15,
+  9,
+  8,
+  0,
+  18,
+  15,
+  3,
+  16,
+  25,
+  26,
+  16,
+  12,
+  1,
+  3,
+  30,
+  0,
+  13,
+  0,
+  3,
+  7,
+  0,
+  8,
+  15 ;
 
    NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 

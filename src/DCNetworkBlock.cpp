@@ -27,6 +27,8 @@
 
 #include <map>
 
+#include <utility>
+
 #include "NetworkBlock.h"
 
 #include "DCNetworkBlock.h"
@@ -138,6 +140,17 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  NetworkData::deserialize( group );
 
+ 
+  // the baseMVA field is a simple scalar value specifying the system MVA base used for converting power into per unit quantities (see Matpower)
+  auto gbaseMVA = group.getAtt( "baseMVA" );
+  std::string tmp_base;
+  if(gbaseMVA.isNull()) f_base_mva = 1.;
+  else {
+    gbaseMVA.getValues(tmp_base);
+    try { f_base_mva = std::stod(tmp_base); }
+    catch (...) { f_base_mva = 1.; }
+  }
+  
  // Optional variables
 
  if( f_number_nodes > 1 ) {
@@ -185,6 +198,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   if( ! ::deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
     f_reference_node = 0;
  }
+
+ stored_B2 = SpMat(f_number_nodes - 1, f_number_nodes - 1);
+ stored_B2_inv = SpMat(f_number_nodes - 1, f_number_nodes - 1);
 
   ::deserialize( group , "LineSusceptance" , f_number_lines , v_line_susceptance ,
                  true , true );
@@ -336,17 +352,17 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 }  // end( DCNetworkBlock::deserialize )
 
-SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
+SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
   // get data
-  const auto& susceptance = f_NetworkData->get_line_susceptance();
+  const auto& susceptance = get_line_susceptance();
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
   if( number_lines <= 0 ) {
     throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                             "number of lines of DCNetworkBlock is not set" ) );
   }
-  const auto & start_line = f_NetworkData->get_start_line();
-  const auto & end_line = f_NetworkData->get_end_line();
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
   
   // construct the matrix using two sub-matrices B_bar and B_hat
   SpMat B_hat = SpMat(number_lines,number_nodes);
@@ -367,7 +383,7 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhon
     B_bar.insert(node_id, node_id) = B_bar_diag[node_id] + tikhonov_coeff;
   }
 
-  Index ref_node = f_NetworkData->get_reference_node();
+  Index ref_node = get_reference_node();
   SpMat I_nref = SpMat(number_nodes,number_nodes-1);
   for( Index node_id = 0; node_id < ref_node; ++node_id ) {
     I_nref.insert(node_id,node_id) = 1.;
@@ -376,22 +392,33 @@ SpMat DCNetworkBlock::get_PTDF(const std::vector<Index>& AC_lines, double tikhon
     I_nref.insert(node_id+1,node_id) = 1.;
   }
 
+  // construction of B1 and B2 (see documentation)
   SpMat B1 = B_hat*I_nref;
-
   SpMat B2 = I_nref.transpose()*B_bar*I_nref;
 
-  // Inversion of sparse matrix with eigen (solve B2*X = I)
-  //Eigen::BiCGSTAB<SpMat> solver;
-  Eigen::SparseLU<SpMat> solver;
-  solver.compute(B2);
-  SpMat I(number_nodes-1, number_nodes-1);
-  I.setIdentity();
-  SpMat PTDF_matrix, B2_inv;
-  if (solver.info() != Eigen::Success) std::cout<<"Inversion in PTDF not possible"<< std::endl;
-  else {
-    B2_inv = solver.solve(I);
-    PTDF_matrix  = B1*B2_inv;
+  // compute inverse of B2 and deduce PTDF
+  SpMat PTDF_matrix;
+  SpMat B2_inv = SpMat(number_nodes-1,number_nodes-1);
+  std::pair<SpMat, SpMat> t = get_stored_B2();
+  if ( B2.isApprox(t.first) ) {
+    B2_inv = t.second;
+    //std::cout << "stored found" << std::endl;
   }
+  else {
+    //std::cout << "stored NOT found" << std::endl;
+    // Inversion of sparse matrix with eigen (solve B2*X = I)
+    //Eigen::BiCGSTAB<SpMat> solver;
+    Eigen::SparseLU<SpMat> solver;
+    solver.compute(B2);
+    SpMat I(number_nodes-1, number_nodes-1);
+    I.setIdentity();
+    if (solver.info() != Eigen::Success) std::cout<<"Inversion in PTDF not possible"<< std::endl;
+    else {
+      B2_inv = solver.solve(I);
+      set_stored_B2(B2, B2_inv);
+    }
+  }
+  PTDF_matrix  = B1*B2_inv;
 
   return PTDF_matrix;
 }
@@ -457,7 +484,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // Splitting AC and DC part
  std::vector<Index> AC_lines = get_AC_lines();
- SpMat PTDF_matrix = get_PTDF(AC_lines);
+ SpMat PTDF_matrix = f_NetworkData->get_PTDF(AC_lines);
+
  std::vector<Index> DC_lines = get_DC_lines();
 
  // ===== auxiliary variables for nonempty cost
@@ -990,7 +1018,6 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::change_power_flow_limit_constraints
 (const std::vector<Index>& modified_lines, c_ModParam issueAMod){
-  SpMat PTDF_matrix;
   for( auto i : modified_lines ) {
    v_power_flow_limit_const[ i ].set_lhs
     ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
@@ -1005,7 +1032,7 @@ void DCNetworkBlock::change_relax_abs_constraints
 (const std::vector<Index>& modified_lines, c_ModParam issueAMod){
   if (f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC){
     std::vector<Index> AC_lines = get_AC_lines();
-    SpMat PTDF_matrix = get_PTDF(AC_lines);
+    SpMat PTDF_matrix = f_NetworkData->get_PTDF(AC_lines);
     for( auto& i : modified_lines){
       double constant_term = 0;
       for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {

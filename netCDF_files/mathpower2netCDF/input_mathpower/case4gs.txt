@@ -2,7 +2,6 @@ netcdf case4gs {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
-		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -15,6 +14,7 @@ group: Block_0 {
   	string NetworkBlockClassname ;
   	uint GeneratorNode(NumberElectricalGenerators) ;
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double ReactivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
   	double NodeMaxVoltage(NumberNodes) ;
@@ -35,6 +35,7 @@ group: Block_0 {
   // group attributes:
   		:type = "UCBlock" ;
   		:id = "0" ;
+  		:baseMVA = 100. ;
   data:
 
    NetworkBlockClassname = "ACNetworkBlock" ;
@@ -46,6 +47,12 @@ group: Block_0 {
   170,
   200,
   80 ;
+
+   ReactivePowerDemand =
+  30.99,
+  105.35,
+  123.94,
+  49.58 ;
 
    NodeConductance = 0, 0, 0, 0 ;
 

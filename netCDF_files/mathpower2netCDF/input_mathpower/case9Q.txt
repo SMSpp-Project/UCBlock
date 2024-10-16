@@ -2,7 +2,6 @@ netcdf case9Q {
 
 // global attributes:
 		:SMS++_file_type = 1 ;
-		:baseMVA = 100. ;
 
 group: Block_0 {
   dimensions:
@@ -15,6 +14,7 @@ group: Block_0 {
   	string NetworkBlockClassname ;
   	uint GeneratorNode(NumberElectricalGenerators) ;
   	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double ReactivePowerDemand(NumberNodes, TimeHorizon) ;
   	double NodeConductance(NumberNodes) ;
   	double NodeSusceptance(NumberNodes) ;
   	double NodeMaxVoltage(NumberNodes) ;
@@ -35,6 +35,7 @@ group: Block_0 {
   // group attributes:
   		:type = "UCBlock" ;
   		:id = "0" ;
+  		:baseMVA = 100. ;
   data:
 
    NetworkBlockClassname = "ACNetworkBlock" ;
@@ -51,6 +52,17 @@ group: Block_0 {
   100,
   0,
   125 ;
+
+   ReactivePowerDemand =
+  0,
+  0,
+  0,
+  0,
+  30,
+  0,
+  35,
+  0,
+  50 ;
 
    NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 

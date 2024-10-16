@@ -21,7 +21,7 @@ var_labels = {
 		("NodeNumber", None), 
 		("NodeType", None), 
 		("ActivePowerDemand", "double"), 
-		("ReactivePowerDemand", None), 
+		("ReactivePowerDemand", "double"), 
 		("NodeConductance", "double"), 
 		("NodeSusceptance", "double"), 
 		("NodeAreaNumber", None), 
