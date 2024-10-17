@@ -285,10 +285,18 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   }
   add_static_constraint( v_thermal_limit, "AC_thermal_limit_const" );
 
-  // QJ: up to now, only SOCP relaxation is available but it could be replaced by something else
+  // -----QJ: up to now, only SOCP relaxation is available but it could be replaced by something else
   generate_SOCP_relaxation();
  };
-  
+
+// ---------------------------------------
+ /*
+ Links between generic variables 
+    v_sum_product_voltages,
+    v_diff_product_voltages,
+    v_sqrt_voltages
+  using a SOCP relaxation.
+ */
 void ACNetworkBlock::generate_SOCP_relaxation(){
 
   const auto number_nodes = get_number_nodes();

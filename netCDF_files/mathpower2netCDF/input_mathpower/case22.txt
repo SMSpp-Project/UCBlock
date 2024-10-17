@@ -35,7 +35,6 @@ group: Block_0 {
   // group attributes:
   		:type = "UCBlock" ;
   		:id = "0" ;
-  		:baseMVA = 1. ;
   data:
 
    NetworkBlockClassname = "ACNetworkBlock" ;

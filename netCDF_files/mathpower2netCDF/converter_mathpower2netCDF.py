@@ -75,7 +75,7 @@ class ConverterMathpower2netCDF:
         rootgrp.setncatts({'SMS++_file_type':1}) # global attribute
         
         maingrp = rootgrp.createGroup("Block_0") # main block
-        maingrp.setncatts({'type':"UCBlock", 'id':"0", 'baseMVA':self.attrs['mpc.baseMVA']})
+        maingrp.setncatts({'type':"UCBlock", 'id':"0"})#, 'baseMVA':self.attrs['mpc.baseMVA']})
 
         var = maingrp.createVariable("NetworkBlockClassname",'<U13')
         var[0] = "ACNetworkBlock"
