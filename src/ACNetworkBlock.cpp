@@ -192,7 +192,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 
   The complex matrix product <M,W>_F is then decomposed into a real part and an imaginary part.
   */
-  v_power_flow_injection_const.resize(1*number_nodes);
+  v_power_flow_injection_const.resize(1*number_nodes); // QJ: TODO reactive power conservation
 
   // real part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
@@ -292,20 +292,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 void ACNetworkBlock::generate_SOCP_relaxation(){
 
   const auto number_nodes = get_number_nodes();
-
-  if( number_nodes <= 1 )
-    return;
-
-  const auto number_lines = get_number_lines();
-
-  if( number_lines <= 0 )
-    throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
-
-
 
   // ----- Voltage relaxation matrix W.
   /* We aim to impose W = V.V^H, where V is the vector of voltage for each bus/node. 
@@ -323,14 +311,11 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   add_static_variable( W_voltage , "W_voltage" );
 
 
-
-
-  // ----- Rotated SOCP cone for W matrix
+  // ----- Linking constraints between generic constraints and W variables
   /*
   As we cannot take into account the true constraint W = V.V^H, we replace it by a SOCP relaxation:
     |W_{ab}|^2 <= W_{aa}W_{bb}
   */
-
   v_linking_constraints.resize(2*number_lines + number_nodes);
   for (Index line_id = 0; line_id < number_lines; ++line_id) {
     Index p = start_line[line_id];
@@ -359,24 +344,12 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   }
   add_static_constraint(v_linking_constraints, "AC_linking_constraints");
 
-  /*for (Index line_id = 0; line_id < number_lines; ++line_id) {
-    Index p = start_line[line_id];
-    Index n = end_line[line_id];
-    auto qfunc = new QuadFunction();
-    qfunc->add_variable( & W_voltage[p][n], 0.0, 1.0);
-    qfunc->add_variable( & W_voltage[number_nodes + p][number_nodes + n], 0.0, 1.0);
-    qfunc->add_variable( & W_voltage[p][p], 0.0, 0.0);
-    qfunc->add_variable( & W_voltage[n][n], 0.0, 0.0);  
-    qfunc->add_variable( & W_voltage[number_nodes + p][number_nodes + p], 0.0, 0.0);
-    qfunc->add_variable( & W_voltage[number_nodes + n][number_nodes + n], 0.0, 0.0); 
-    qfunc->add_nd_term( & W_voltage[p][p], & W_voltage[n][n], -1.0);
-    qfunc->add_nd_term( & W_voltage[number_nodes + p][number_nodes + p], & W_voltage[n][n], -1.0);
-    qfunc->add_nd_term( & W_voltage[p][p], & W_voltage[number_nodes + n][number_nodes + n], -1.0);
-    qfunc->add_nd_term( & W_voltage[number_nodes + p][number_nodes + p], & W_voltage[number_nodes + n][number_nodes + n], -1.0);
-    v_socp_const[ line_id ].set_lhs( -Inf< double >() );
-    v_socp_const[ line_id ].set_rhs( 0.0 );
-    v_socp_const[ line_id ].set_function( qfunc );
-  }*/
+  // ----- Rotated SOCP cone for W matrix
+  /*
+  As we cannot take into account the true constraint W = V.V^H, we replace it by a SOCP relaxation:
+    |W_{ab}|^2 <= W_{aa}W_{bb}
+  As we are in complex algebra, we need auxiliary variables to write the SOCP constraints (QJ: maybe can be simplified)
+  */
   v_socp_aux_variables.resize( number_lines + number_nodes );
   for( Index i = number_lines ; i < number_lines + number_nodes ; ++i ) {
     v_socp_aux_variables[ i ].set_type( ColVariable::kNonNegative );
@@ -417,7 +390,6 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     v_socp_const[ line_id ].set_rhs( 0.0 );
     v_socp_const[ line_id ].set_function( qfunc );
   }
-
   add_static_constraint(v_socp_const, "AC_socp_const" );
   
  };
@@ -431,7 +403,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
 
-  // Line impedances for AC network
+  // Line impedances for AC network (old quantities, not used in optimization)
   ACdata.Yff = SpCMat(number_nodes,number_nodes);
   ACdata.Yft = SpCMat(number_nodes,number_nodes);
   ACdata.Ytf = SpCMat(number_nodes,number_nodes);
@@ -461,6 +433,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
     ACdata.Ys.insert(n) = Gs + 1i*Bs;
   }
 
+  // New version without explicit definition of Yff, Yft, Ytf, Ytt
   ACdata.v_admittance = std::vector< std::complex<double> >(number_lines, 0.);
   ACdata.v_transformer = std::vector< std::complex<double> >(number_lines, 0.);
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
