@@ -63,8 +63,10 @@ class ACNetworkBlock : public DCNetworkBlock
     // line shunt
     SpCVec Ys;
 
-    // matrix for power flow equations
-    SpCMat M, HM, ZM;
+    // quantities used in power flow conservation
+    std::vector< std::complex<double> > v_admittance;
+    std::vector< std::complex<double> > v_transformer;
+
   };
 
   struct ComplexColVariable
@@ -80,6 +82,8 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
  void generate_objective( Configuration * objc = nullptr ) override;
 
+ void generate_SOCP_relaxation();
+
 virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) override;
 
  
@@ -89,15 +93,24 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  ACNetworkData ACdata;
 
  // ----- Variables
- boost::multi_array< ColVariable , 2 > W_voltage_real;
+ boost::multi_array< ColVariable , 2 > W_voltage;
  boost::multi_array< ColVariable , 2 > W_voltage_imag;
+ boost::multi_array< ColVariable , 2 > W_voltage_real;
  boost::multi_array< ColVariable , 2 > S_power_flow;
+
+ // new !
+ std::vector< ColVariable > v_sum_product_voltages;
+ std::vector< ColVariable > v_diff_product_voltages;
+ std::vector< ColVariable > v_sqrt_voltages;
+ std::vector< ColVariable > v_socp_aux_variables;
 
  // ----- Constraints
  std::vector< BoxConstraint > v_voltage_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
+ std::vector< FRowConstraint > v_socp_definition_const;
  std::vector< FRowConstraint > v_thermal_limit;
+ std::vector< FRowConstraint > v_linking_constraints;
  std::vector< FRowConstraint > v_socp_const;
 
  private:
