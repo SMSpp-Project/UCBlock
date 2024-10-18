@@ -300,6 +300,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 void ACNetworkBlock::generate_SOCP_relaxation(){
 
   const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
 
@@ -310,13 +311,23 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     - W_voltage (0<=i<n,0<=j<n) for the real part
     - W_woltage (n<=i<2n,n<=j<2n) for the imaginary part
   */
-  W_voltage.resize( boost::extents[ 2*number_nodes ][ 2*number_nodes ] );
-  for( Index p = 0 ; p < 2*number_nodes ; ++p ) {
-    for( Index n = 0 ; n < 2*number_nodes ; ++n ) {
-      W_voltage[ p ][ n ].set_type( ColVariable::kContinuous );
-    }
+  for (Index line_id = 0; line_id < number_lines; ++line_id){
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    W_voltage.insertVar(p, n);
+    W_voltage.coeffRef(p, n).set_type(ColVariable::kContinuous );
+    W_voltage.insertVar(number_nodes + p, number_nodes + n);
+    W_voltage.coeffRef(number_nodes + p, number_nodes + n).set_type(ColVariable::kContinuous );
+    W_voltage.insertVar(p, number_nodes + n);
+    W_voltage.coeffRef(p, number_nodes + n).set_type(ColVariable::kContinuous );
+    W_voltage.insertVar(number_nodes + p, n);
+    W_voltage.coeffRef(number_nodes + p, n).set_type(ColVariable::kContinuous );
   }
-  add_static_variable( W_voltage , "W_voltage" );
+  for (Index node_id = 0; node_id < 2*number_nodes; ++node_id){
+    W_voltage.insertVar(node_id, node_id);
+    W_voltage.coeffRef(node_id, node_id).set_type(ColVariable::kContinuous );
+  }
+  add_static_variable( W_voltage._v_variables , "W_voltage" );
 
 
   // ----- Linking constraints between generic constraints and W variables
@@ -329,23 +340,23 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto lfunc1 = new LinearFunction();
-    lfunc1->add_variable( & W_voltage[p][n], 1.0);
-    lfunc1->add_variable( & W_voltage[number_nodes + p][number_nodes + n], 1.0);
+    lfunc1->add_variable( & W_voltage.coeffRef(p,n), 1.0);
+    lfunc1->add_variable( & W_voltage.coeffRef(number_nodes + p,number_nodes + n), 1.0);
     lfunc1->add_variable( & v_sum_product_voltages[ line_id ], -1.0);
     v_linking_constraints[ line_id ].set_both(0.);
     v_linking_constraints[ line_id ].set_function( lfunc1 );
 
     auto lfunc2 = new LinearFunction();
-    lfunc2->add_variable( & W_voltage[number_nodes + n][p], 1.0);
-    lfunc2->add_variable( & W_voltage[number_nodes + p][n], -1.0);
+    lfunc2->add_variable( & W_voltage.coeffRef(p,number_nodes + n), -1.0);
+    lfunc2->add_variable( & W_voltage.coeffRef(number_nodes + p,n), 1.0);
     lfunc2->add_variable( & v_diff_product_voltages[ line_id ], -1.0);
     v_linking_constraints[ number_lines + line_id ].set_both(0.);
     v_linking_constraints[ number_lines + line_id ].set_function( lfunc2 );
   }
   for (Index node_id = 0; node_id < number_nodes; ++node_id){
     auto lfunc3 = new LinearFunction();
-    lfunc3->add_variable( & W_voltage[ node_id][node_id ], 1.0);
-    lfunc3->add_variable( & W_voltage[ number_nodes + node_id][number_nodes + node_id ], 1.0);
+    lfunc3->add_variable( & W_voltage.coeffRef(node_id,node_id), 1.0);
+    lfunc3->add_variable( & W_voltage.coeffRef( number_nodes + node_id, number_nodes + node_id), 1.0);
     lfunc3->add_variable( & v_sqrt_voltages[ node_id ], -1.0);
     v_linking_constraints[ 2*number_lines + node_id ].set_both(0.);
     v_linking_constraints[ 2*number_lines + node_id ].set_function( lfunc3 );
@@ -368,16 +379,16 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto lfunc = new LinearFunction();
-    lfunc->add_variable( & W_voltage[p][n], 1.);
-    lfunc->add_variable( & W_voltage[number_nodes + p][number_nodes + n], 1.);
+    lfunc->add_variable( & W_voltage.coeffRef(p,n), 1.);
+    lfunc->add_variable( & W_voltage.coeffRef(number_nodes + p,number_nodes + n), 1.);
     lfunc->add_variable( & v_socp_aux_variables[line_id], -1.0);
     v_socp_definition_const[line_id].set_both(0.);
     v_socp_definition_const[line_id].set_function(lfunc);
   }
   for (Index node_id = 0; node_id < number_nodes; ++ node_id){
     auto lfunc1 = new LinearFunction();
-    lfunc1->add_variable( & W_voltage[node_id][node_id], 1.);
-    lfunc1->add_variable( & W_voltage[number_nodes + node_id][number_nodes + node_id], 1.);
+    lfunc1->add_variable( & W_voltage.coeffRef(node_id,node_id), 1.);
+    lfunc1->add_variable( & W_voltage.coeffRef(number_nodes + node_id,number_nodes + node_id), 1.);
     lfunc1->add_variable( & v_socp_aux_variables[number_lines + node_id], -1.0);
     v_socp_definition_const[number_lines + node_id].set_both(0.);
     v_socp_definition_const[number_lines + node_id].set_function(lfunc1);

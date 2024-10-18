@@ -48,8 +48,6 @@ typedef Eigen::SparseVector< std::complex<double> > SpCVec;
 namespace SMSpp_di_unipi_it
 {
 
-
-
 class ACNetworkBlock : public DCNetworkBlock
 {
 
@@ -69,10 +67,21 @@ class ACNetworkBlock : public DCNetworkBlock
 
   };
 
-  struct ComplexColVariable
+  struct SpVarMat
   {
-    ColVariable real;
-    ColVariable imag;
+    std::map<std::pair<Index,Index>,Index> _m_indices;
+    std::vector< ColVariable > _v_variables;
+
+    SpVarMat(){};
+
+    void insertVar(Index p, Index n){
+      _m_indices[std::make_pair(p,n)] = _v_variables.size();
+      _v_variables.push_back(ColVariable());
+    };
+
+    ColVariable& coeffRef(Index p, Index n){
+      return _v_variables[_m_indices[std::make_pair(p,n)]];
+    };
   };
 
 explicit ACNetworkBlock( Block * f_block = nullptr )
@@ -93,24 +102,26 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  ACNetworkData ACdata;
 
  // ----- Variables
- boost::multi_array< ColVariable , 2 > W_voltage;
- boost::multi_array< ColVariable , 2 > W_voltage_imag;
- boost::multi_array< ColVariable , 2 > W_voltage_real;
  boost::multi_array< ColVariable , 2 > S_power_flow;
 
- // new !
+ // ----- Generic variables for AC-OPF
  std::vector< ColVariable > v_sum_product_voltages;
  std::vector< ColVariable > v_diff_product_voltages;
  std::vector< ColVariable > v_sqrt_voltages;
  std::vector< ColVariable > v_socp_aux_variables;
 
- // ----- Constraints
+ // ----- Specific variables for SOCP relaxation
+ SpVarMat W_voltage; //< Sparse matrix (only defined for lines and reversed lines)
+
+ // ----- Generic constraints for AC-OPF
  std::vector< BoxConstraint > v_voltage_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
- std::vector< FRowConstraint > v_socp_definition_const;
  std::vector< FRowConstraint > v_thermal_limit;
  std::vector< FRowConstraint > v_linking_constraints;
+
+ // ----- Specific constraints for SOCP relaxation
+ std::vector< FRowConstraint > v_socp_definition_const;
  std::vector< FRowConstraint > v_socp_const;
 
  private:
