@@ -108,7 +108,6 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  std::vector< ColVariable > v_sum_product_voltages;
  std::vector< ColVariable > v_diff_product_voltages;
  std::vector< ColVariable > v_sqrt_voltages;
- std::vector< ColVariable > v_socp_aux_variables;
 
  // ----- Specific variables for SOCP relaxation
  SpVarMat W_voltage; //< Sparse matrix (only defined for lines and reversed lines)
@@ -118,10 +117,8 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
  std::vector< FRowConstraint > v_thermal_limit;
- std::vector< FRowConstraint > v_linking_constraints;
 
  // ----- Specific constraints for SOCP relaxation
- std::vector< FRowConstraint > v_socp_definition_const;
  std::vector< FRowConstraint > v_socp_const;
 
  private:
