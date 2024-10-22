@@ -64,7 +64,7 @@ var_labels = {
 "mpc.gencost":
 	[
 		("CostModel", "uint", True),
-		("StartupCost", "double", True),
+		("StartUpCost", "double", True),
 		("Shutdown", None, True),
 	]
 }

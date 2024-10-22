@@ -174,7 +174,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -202,7 +202,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 130, 400.6849 ;
 
@@ -229,7 +229,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -257,7 +257,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 130, 400.6849 ;
 
@@ -284,7 +284,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -312,7 +312,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.014142, 16.0811, 212.3076 ;
 
@@ -339,7 +339,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -367,7 +367,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.014142, 16.0811, 212.3076 ;
 
@@ -394,7 +394,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -422,7 +422,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 130, 400.6849 ;
 
@@ -449,7 +449,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -477,7 +477,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 130, 400.6849 ;
 
@@ -504,7 +504,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -532,7 +532,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.014142, 16.0811, 212.3076 ;
 
@@ -559,7 +559,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -587,7 +587,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.014142, 16.0811, 212.3076 ;
 
@@ -614,7 +614,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -642,7 +642,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.052672, 43.6615, 781.521 ;
 
@@ -669,7 +669,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -697,7 +697,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.052672, 43.6615, 781.521 ;
 
@@ -724,7 +724,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -752,7 +752,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.052672, 43.6615, 781.521 ;
 
@@ -779,7 +779,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -807,7 +807,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.00717, 48.5804, 832.7575 ;
 
@@ -834,7 +834,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -862,7 +862,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.00717, 48.5804, 832.7575 ;
 
@@ -889,7 +889,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -917,7 +917,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.00717, 48.5804, 832.7575 ;
 
@@ -944,7 +944,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -972,7 +972,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0, 0 ;
 
@@ -999,7 +999,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1027,7 +1027,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.328412, 56.564, 86.3852 ;
 
@@ -1054,7 +1054,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1082,7 +1082,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.328412, 56.564, 86.3852 ;
 
@@ -1109,7 +1109,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1137,7 +1137,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.328412, 56.564, 86.3852 ;
 
@@ -1164,7 +1164,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1192,7 +1192,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.328412, 56.564, 86.3852 ;
 
@@ -1219,7 +1219,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1247,7 +1247,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.328412, 56.564, 86.3852 ;
 
@@ -1274,7 +1274,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1302,7 +1302,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.008342, 12.3883, 382.2391 ;
 
@@ -1329,7 +1329,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1357,7 +1357,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.008342, 12.3883, 382.2391 ;
 
@@ -1384,7 +1384,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1412,7 +1412,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.000213, 4.4231, 395.3749 ;
 
@@ -1439,7 +1439,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1467,7 +1467,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.000213, 4.4231, 395.3749 ;
 
@@ -1494,7 +1494,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1522,7 +1522,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1549,7 +1549,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1577,7 +1577,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1604,7 +1604,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1632,7 +1632,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1659,7 +1659,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1687,7 +1687,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1714,7 +1714,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1742,7 +1742,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1769,7 +1769,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1797,7 +1797,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0, 0.001, 0.001 ;
 
@@ -1824,7 +1824,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1852,7 +1852,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.008342, 12.3883, 382.2391 ;
 
@@ -1879,7 +1879,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1907,7 +1907,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.008342, 12.3883, 382.2391 ;
 
@@ -1934,7 +1934,7 @@ group: Block_0 {
     	double MaxPower(TimeHorizon) ;
     	double MinPower(TimeHorizon) ;
     	uint CostModel ;
-    	double StartupCost ;
+    	double StartUpCost ;
     	double PowerCostCoeffs(NumberCostCoeffs) ;
     	double LinearTerm ;
     	double MinUpTime ;
@@ -1962,7 +1962,7 @@ group: Block_0 {
 
      CostModel = 1 ;
 
-     StartupCost = 1500 ;
+     StartUpCost = 1500 ;
 
      PowerCostCoeffs = 0.004895, 11.8495, 665.1094 ;
 

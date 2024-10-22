@@ -213,6 +213,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "MinReactivePower",
                                                "VoltageMagnitude",
                                                // cost model
+                                               "StartUpCost",
                                                "CostModel",
                                                "PowerCostCoeffs" };
   check_variables( group , expected_vars , std::cerr );
