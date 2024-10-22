@@ -197,6 +197,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "LineShiftAngle",
                                                      "NodeMaxVoltage",
                                                      "NodeMinVoltage",
+                                                     "StartupCost",
                                                      // ECNetworkBlockData
                                                      "BuyPrice" ,
                                                      "SellPrice" ,

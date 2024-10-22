@@ -346,6 +346,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
   const auto number_lines = get_number_lines();
 
   // Line impedances for AC network (old quantities, not used in optimization)
+  /*
   ACdata.Yff = SpCMat(number_nodes,number_nodes);
   ACdata.Yft = SpCMat(number_nodes,number_nodes);
   ACdata.Ytf = SpCMat(number_nodes,number_nodes);
@@ -360,11 +361,12 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
     double tau = f_NetworkData->get_line_ratio().at(line_id);
     if (abs(tau) < 1e-4) tau = 1.0;
     double theta = PI * f_NetworkData->get_line_angle().at(line_id) / 180;
-    ACdata.Yff.insert(i,j) = (1./(r+1i*x) + 1i*b/2.)/pow(tau,2);
-    ACdata.Yft.insert(i,j) = -1./((r+1i*x)*tau*exp(-1i*theta));
-    ACdata.Ytf.insert(i,j) = -1./((r+1i*x)*tau*exp(1i*theta));
-    ACdata.Ytt.insert(i,j) = 1./(r+1i*x) + 1i*b/2.;
+    ACdata.Yff.coeffRef(i,j) += (1./(r+1i*x) + 1i*b/2.)/pow(tau,2);
+    ACdata.Yft.coeffRef(i,j) += -1./((r+1i*x)*tau*exp(-1i*theta));
+    ACdata.Ytf.coeffRef(i,j) += -1./((r+1i*x)*tau*exp(1i*theta));
+    ACdata.Ytt.coeffRef(i,j) += 1./(r+1i*x) + 1i*b/2.;
   }
+  */
 
   // Shunt admittance
   ACdata.Ys = SpCVec(number_nodes);
@@ -377,7 +379,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
 
   // New version without explicit definition of Yff, Yft, Ytf, Ytt
   ACdata.v_admittance = std::vector< std::complex<double> >(number_lines, 0.);
-  ACdata.v_transformer = std::vector< std::complex<double> >(number_lines, 0.);
+  //ACdata.v_transformer = std::vector< std::complex<double> >(number_lines, 0.);
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
     Index i = start_line[line_id];
     Index j = end_line[line_id];
@@ -388,7 +390,7 @@ void ACNetworkBlock::add_ACdata(Index interval, Index node, UnitBlock* unit_bloc
     if (abs(tau) < 1e-4) tau = 1.0;
     double theta = PI * f_NetworkData->get_line_angle().at(line_id) / 180;
     ACdata.v_admittance[ line_id ] = (1./(r+1i*x) + 1i*b/2.)/pow(tau,2);
-    ACdata.v_transformer[ line_id ] = exp(1i*theta);
+    //ACdata.v_transformer[ line_id ] = exp(1i*theta);
   }
 
 };

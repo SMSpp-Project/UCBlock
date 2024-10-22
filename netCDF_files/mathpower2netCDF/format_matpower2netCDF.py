@@ -34,7 +34,7 @@ var_labels = {
 	],
 "mpc.gen":
 	[
-		("GeneratorNode", "uint"),
+		("GeneratorNode", "Index"),
 		("InitialPower", "double", True),
 		("InitialReactivePower", "double", True),
 		("MaxReactivePower", "double", True),
@@ -47,8 +47,8 @@ var_labels = {
 	],
 "mpc.branch": 
 	[
-		("StartLine", "uint"),
-		("EndLine", "uint"),
+		("StartLine", "Index"),
+		("EndLine", "Index"),
 		("LineResistance", "double"),
 		("LineReactance", "double"),
 		("LineSusceptance", "double"),			# QJ: comment to force DC line (see below)

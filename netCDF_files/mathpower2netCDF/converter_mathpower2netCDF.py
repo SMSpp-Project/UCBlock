@@ -66,6 +66,12 @@ class ConverterMathpower2netCDF:
                     self.attrs[key] = val
                 i += 1
 
+        # reorder buses (for instance where idx nodes > number nodes)
+        self.map_bus = {}
+        list_buses = [int(l[0]) for l in self.attrs["mpc.bus"]]
+        for i,b in enumerate(list_buses):
+            self.map_bus[b] = i
+
     def create_nc_file(self, filepath, txt_output = False):
         """
         Write the .nc file corresponding the instance previously loaded.
@@ -75,7 +81,7 @@ class ConverterMathpower2netCDF:
         rootgrp.setncatts({'SMS++_file_type':1}) # global attribute
         
         maingrp = rootgrp.createGroup("Block_0") # main block
-        maingrp.setncatts({'type':"UCBlock", 'id':"0"})#, 'baseMVA':self.attrs['mpc.baseMVA']})
+        maingrp.setncatts({'type':"UCBlock", 'id':"0", 'baseMVA':str(self.attrs['mpc.baseMVA'])})
 
         var = maingrp.createVariable("NetworkBlockClassname",'<U13')
         var[0] = "ACNetworkBlock"
@@ -104,10 +110,11 @@ class ConverterMathpower2netCDF:
                 # for main group
                 if v is not None and len(g) == 0:
                     if k in has_TimeHorizon_dim:
-                        var = maingrp.createVariable(k,v,(dim_labels[mpc_lab],"TimeHorizon"))
+                        var = maingrp.createVariable(k,v if v != "Index" else "uint",(dim_labels[mpc_lab],"TimeHorizon"))
                     else:
-                        var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
+                        var = maingrp.createVariable(k,v if v != "Index" else "uint",dim_labels[mpc_lab])
                     if "int" in v:      var[:] = [int(l[idx])-1 for l in self.attrs[mpc_lab]]
+                    if "Index" in v:    var[:] = [self.map_bus[int(l[idx])] for l in self.attrs[mpc_lab]]
                     if "double" in v:
                         if k in positive_fields:  
                             var[:] = [max(float(l[idx]),0.) for l in self.attrs[mpc_lab]]
@@ -123,10 +130,11 @@ class ConverterMathpower2netCDF:
                 if v is not None and len(g) > 0:
                     for i,l in enumerate(self.attrs[mpc_lab]):
                         if k in has_TimeHorizon_dim:
-                            var = subgroups[i].createVariable(k,v,"TimeHorizon")
+                            var = subgroups[i].createVariable(k,v if v != "Index" else "uint","TimeHorizon")
                         else:
-                            var = subgroups[i].createVariable(k,v)
+                            var = subgroups[i].createVariable(k,v if v != "Index" else "uint")
                         if "int" in v:      var[:] = int(l[idx])-1
+                        if "Index" in v:    var[:] = self.map_bus[int(l[idx])]
                         if "double" in v:   
                             if k in positive_fields:
                                 var[:] = max(float(l[idx]),0.)
@@ -148,10 +156,11 @@ class ConverterMathpower2netCDF:
                 if v is not None and len(g) > 0:
                     for i,l in enumerate(self.attrs[mpc_lab]):
                         if i < gen_dim:
-                            var = subgroups[i].createVariable(k,v,chunksizes=(1,))
+                            var = subgroups[i].createVariable(k,v if v != "Index" else "uint",chunksizes=(1,))
                         elif i < 2*gen_dim: # for reactive coeffs (optional)
                             var = subgroups[i%gen_dim].createVariable("Reactive{0}".format(k),v,chunksizes=(1,))
                         if "int" in v:      var[:] = int(l[idx])-1
+                        if "Index" in v:    var[:] = self.map_bus[int(l[idx])]
                         if "double" in v:   var[:] = float(l[idx])
                 idx += 1
                 
@@ -176,7 +185,7 @@ class ConverterMathpower2netCDF:
                 
                 # for main group
                 if v is not None and len(g) == 0:
-                    var = maingrp.createVariable(k,v,dim_labels[mpc_lab])
+                    var = maingrp.createVariable(k,v if v != "Index" else "uint",dim_labels[mpc_lab])
                     var[:] = [val for l in self.attrs[mpc_lab]]
                 # for subgroups
                 if v is not None and len(g) > 0:
