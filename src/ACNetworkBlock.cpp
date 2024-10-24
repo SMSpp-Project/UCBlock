@@ -132,6 +132,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   const auto & end_line = f_NetworkData->get_end_line();
 
   std::vector<Index> AC_lines = get_AC_lines();
+  int nb_ac_lines = AC_lines.size();
+  
   double base_mva = f_NetworkData->get_baseMVA();
 
 
@@ -157,26 +159,33 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   This constraint can be taken into account using:
      tan(min_angle_{line}) Real(W_{start,end})<= Imag(W_{start,end}) <= max_angle_{line} Real(W_{start,end})
   */
-  v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+  int i_line = 0;  
+  //v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+  v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ nb_ac_lines ] );
   const auto & min_angle = f_NetworkData->get_line_min_angle();
   const auto & max_angle = f_NetworkData->get_line_max_angle();
-  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  for( auto& line_id : AC_lines ){
     double phi_min = PI * min_angle[line_id] / 180.;
     double phi_max = PI * max_angle[line_id] / 180.;
     Index p = start_line[line_id];
     Index n = end_line[line_id];
+	// -- 
     auto lfunc_1 = new LinearFunction();
     lfunc_1->add_variable( & v_diff_product_voltages[ line_id ], 1.0);
     lfunc_1->add_variable( & v_sum_product_voltages[ line_id ], -tan(phi_min));
-    v_angle_bounds_const[0][ line_id ].set_lhs( 0.0 );
-    v_angle_bounds_const[0][ line_id ].set_rhs( Inf< double >() );
-    v_angle_bounds_const[0][ line_id ].set_function( lfunc_1 );
+    v_angle_bounds_const[0][ i_line ].set_lhs( 0.0 );
+    v_angle_bounds_const[0][ i_line ].set_rhs( Inf< double >() );
+    v_angle_bounds_const[0][ i_line ].set_function( lfunc_1 );
+	// -- 
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], 1.0);
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ], -tan(phi_max));
-    v_angle_bounds_const[1][ line_id ].set_lhs( -Inf< double >() );
-    v_angle_bounds_const[1][ line_id ].set_rhs( 0.0 );
-    v_angle_bounds_const[1][ line_id ].set_function( lfunc_2 );
+    v_angle_bounds_const[1][ i_line ].set_lhs( -Inf< double >() );
+    v_angle_bounds_const[1][ i_line ].set_rhs( 0.0 );
+    v_angle_bounds_const[1][ i_line ].set_function( lfunc_2 );
+	
+	++i_line;	
   }
   add_static_constraint( v_angle_bounds_const, "AC_angle_bounds_limit" );
 
@@ -220,8 +229,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     S_{end,start} = Ytt_{start,end} W_{start,start} + Ytf_{start,end}W_{end,end}
   Onece, again, we then split into two constraints (one for real and one for imaginary part)
   */
-  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
-  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  // v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
+  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*nb_ac_lines ] );
+  i_line = 0;
+  // for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  for( auto& line_id : AC_lines ){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto lfunc_1 = new LinearFunction();
@@ -229,17 +241,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_1->add_variable( & v_sum_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_diff_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].imag());
     lfunc_1->add_variable( & S_power_flow[0][line_id], -1.0);
-    v_voltage_definition_const[0][ line_id ].set_both(0.0);
-    v_voltage_definition_const[0][ line_id ].set_function( lfunc_1 );
+    v_voltage_definition_const[0][ i_line ].set_both(0.0);
+    v_voltage_definition_const[0][ i_line ].set_function( lfunc_1 );
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_sqrt_voltages[ p ],  - ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], -ACdata.v_admittance[ line_id ].real());
     lfunc_2->add_variable( & S_power_flow[1][line_id], -1.0);
-    v_voltage_definition_const[1][ line_id ].set_both(0.0);
-    v_voltage_definition_const[1][ line_id ].set_function( lfunc_2 );
+    v_voltage_definition_const[1][ i_line ].set_both(0.0);
+    v_voltage_definition_const[1][ i_line ].set_function( lfunc_2 );
+	
+	++i_line;
   }
-  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  i_line = 0;
+  //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  for( auto& line_id : AC_lines ){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto lfunc_1 = new LinearFunction();
@@ -247,15 +263,17 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_1->add_variable( & v_sum_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_diff_product_voltages[ line_id ], ACdata.v_admittance[ line_id ].imag());
     lfunc_1->add_variable( & S_power_flow[0][number_lines + line_id], -1.0);
-    v_voltage_definition_const[0][ number_lines + line_id ].set_both(0.0);
-    v_voltage_definition_const[0][ number_lines + line_id ].set_function( lfunc_1 );
+    v_voltage_definition_const[0][ nb_ac_lines + i_line ].set_both(0.0);
+    v_voltage_definition_const[0][ nb_ac_lines + i_line ].set_function( lfunc_1 );
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_sqrt_voltages[ n ],  - ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], ACdata.v_admittance[ line_id ].real());
     lfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], -1.0);
-    v_voltage_definition_const[1][ number_lines + line_id ].set_both(0.0);
-    v_voltage_definition_const[1][ number_lines + line_id ].set_function( lfunc_2 );
+    v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_both(0.0);
+    v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_function( lfunc_2 );
+	
+	++i_line;
   }
   add_static_constraint( v_voltage_definition_const, "AC_voltage_defintion_const" );
 
@@ -304,6 +322,9 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
 
+  std::vector<Index> AC_lines = get_AC_lines();
+  int nb_ac_lines = AC_lines.size();
+
   // ----- Voltage relaxation matrix W.
   /* We aim to impose W = V.V^H, where V is the vector of voltage for each bus/node. 
   This nonlinear constraint will be replaced by SOCP relaxation.
@@ -319,8 +340,11 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   As we are in complex algebra, we need auxiliary variables to write the SOCP constraints (QJ: maybe can be simplified)
   */
 
-  v_socp_const.resize( number_lines );
-  for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  // v_socp_const.resize( number_lines );
+  v_socp_const.resize( nb_ac_lines );
+  //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+  int i_line = 0;
+  for( auto& line_id : AC_lines ){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto qfunc = new QuadFunction();
@@ -328,9 +352,11 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     qfunc->add_variable( & v_sqrt_voltages[ n ], 0.0, 0.0); 
     qfunc->add_nd_term( & v_sqrt_voltages[ p ], & v_sqrt_voltages[ n ], -1.0);
     qfunc->add_variable( & v_sum_product_voltages[ line_id ], 0.0, 1.0);
-    v_socp_const[ line_id ].set_lhs( -Inf< double >() );
-    v_socp_const[ line_id ].set_rhs( 0.0 );
-    v_socp_const[ line_id ].set_function( qfunc );
+    v_socp_const[ i_line ].set_lhs( -Inf< double >() );
+    v_socp_const[ i_line ].set_rhs( 0.0 );
+    v_socp_const[ i_line ].set_function( qfunc );
+	
+	++i_line;
   }
   add_static_constraint(v_socp_const, "AC_socp_const" );
   
