@@ -2633,6 +2633,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of coefficients for the cost
  std::vector< double > v_PowerCostCoeffs;
 
+ /// the reference Schedule : optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule ;
+
  // the vector for separating PC-cuts
  std::vector< double >  prevpbar;
 
@@ -2729,7 +2732,6 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-
  /// the commitment binary variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_commitment;
 
@@ -2738,7 +2740,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the y^- commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_minus;
-
 
  /// the active power variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_active_power;
@@ -2751,7 +2752,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the active power variables for SD model
  std::vector< ColVariable > v_active_power_k;
-
 
  /// the perspective cuts variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_cut;
@@ -2768,7 +2768,14 @@ class ThermalUnitBlock : public UnitBlock
  /// the perspective cuts variables for SUSD model
  std::vector< ColVariable > v_cut_teta;
   
+ /// the variables for deviation to reference schedule
+ std::vector< ColVariable > v_abs_ref_schedule;
+
+
 /*------------------------------- constraints ------------------------------*/
+
+ /// the reference schedule constraints
+ std::vector< FRowConstraint > Reference_Schedule_Const;
 
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;
