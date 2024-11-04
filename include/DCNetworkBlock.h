@@ -619,12 +619,12 @@ class DCNetworkBlock : public NetworkBlock
  *      \textnormal{ if } n = n'               \quad n,n' \in N
  *  \f] */
 
- Eigen::MatrixXd get_PTDF(const std::vector<Index>& AC_lines);
+ Eigen::MatrixXd get_PTDF(const std::vector< Index > & AC_lines);
 
- Eigen::MatrixXd get_PTDF(){
-    std::vector<Index> all_lines(get_number_lines());
-    std::iota(all_lines.begin(), all_lines.end(), 0);
-    return get_PTDF(all_lines);
+ Eigen::MatrixXd get_PTDF() {
+    std::vector< Index > all_lines( get_number_lines() );
+    std::iota( all_lines.begin() , all_lines.end() , 0 );
+    return get_PTDF( all_lines );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -850,11 +850,12 @@ class DCNetworkBlock : public NetworkBlock
  /** This function returns the AC lines in the transmission network.
   * @return the AC lines in the network. */
 
- std::vector<Index> get_AC_lines(){
-    std::vector<Index> AC_lines;
+ std::vector< Index > get_AC_lines() {
+    std::vector< Index > AC_lines;
     const auto& susceptance = f_NetworkData->get_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if (susceptance[line_id] > 0.)   AC_lines.push_back(line_id);
+      if ( susceptance[ line_id ] > 0. )
+       AC_lines.push_back( line_id );
     }
     return AC_lines;
  }
@@ -866,11 +867,12 @@ class DCNetworkBlock : public NetworkBlock
  /** This function returns the DC lines in the transmission network.
   * @return the DC lines in the network. */
 
- std::vector<Index> get_DC_lines(){
-    std::vector<Index> DC_lines;
+ std::vector< Index > get_DC_lines() {
+    std::vector< Index > DC_lines;
     const auto& susceptance = f_NetworkData->get_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if (susceptance[line_id] == 0.)   DC_lines.push_back(line_id);
+      if ( susceptance[ line_id ] == 0. )
+       DC_lines.push_back( line_id );
     }
     return DC_lines;
  }
@@ -1204,7 +1206,7 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_power_flow_limit_constraints( 
-                const std::vector<Index>& modified_lines, 
+                const std::vector< Index > & modified_lines,
                 c_ModParam issueAMod);
 
 /*--------------------------------------------------------------------------*/
@@ -1219,7 +1221,7 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_relax_abs_constraints(
-                const std::vector<Index>& modified_lines, 
+                const std::vector< Index > & modified_lines,
                 c_ModParam issueAMod);
 
   /*--------------------------------------------------------------------------*/
@@ -1234,7 +1236,7 @@ class DCNetworkBlock : public NetworkBlock
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_DC_power_flow_injection_constraints(
-                const std::vector<Index>& modified_nodes, 
+                const std::vector< Index > & modified_nodes,
                 c_ModParam issueAMod);
 
 /*--------------------------------------------------------------------------*/
