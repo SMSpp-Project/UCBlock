@@ -195,16 +195,23 @@ class DCNetworkBlock : public NetworkBlock
    *   MxP[ l ] that, for each line l, contains the maximum power flow at
    *   line l (a non-negative number).
    *
-   * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
-   *   dimension "NumberLines". This is meant to represent the vector S[ l ]
-   *   that, for each line i contains the susceptance of the network for the
-   *   corresponding line i. Note that this variable is optional, for each line
+   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberLines". This is meant to represent the vector S[ l ]
+   *   that, for each line l contains the susceptance of the network for the
+   *   corresponding line l. Note that this variable is optional, for each line
    *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
    *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
    *   model with AC lines, and when for each line l, it's not defined or S[ l ]
    *   == 0, then it corresponds to a single connected grid composed of HVDC
    *   lines only which is also known as the Net Transfer Capacity (NTC)
    *   model.
+   *
+   * - The variable "NodeSusceptance", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberNodes". This is meant to represent the vector S[ n ]
+   *   that, for each node n contains the susceptance of the network for the
+   *   corresponding node n. Note that this variable is optional, for each node
+   *   n if it is provided then it is assumed that S[ n ] != 0, otherwise it is
+   *   assumed that S[ n ] == 0.
    *
    * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over the
    *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
@@ -355,10 +362,6 @@ class DCNetworkBlock : public NetworkBlock
    *   element of the vectors gives the Susceptance value for each line in the
    *   network. */
 
-  const std::vector< double > & get_susceptance( void ) const {
-   return( v_susceptance );
-  }
-
   const std::vector< double > & get_line_susceptance( void ) const {
    return( v_line_susceptance );
   }
@@ -431,10 +434,10 @@ class DCNetworkBlock : public NetworkBlock
   line_type get_lines_type( void ) const {
    if( get_number_lines() == 0 )
     return( kNone );
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+   if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
                     []( double s ) { return( s == 0.0 ); } ) )
     return( kHVDC );
-   if( std::all_of( v_susceptance.cbegin() , v_susceptance.cend() ,
+   if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
                     []( double s ) { return( s != 0.0 ); } ) )
     return( kAC );
    return( kAC_HVDC );
@@ -495,7 +498,10 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< Index > v_end_line;
 
   /// vector to store the susceptance of each line of the network
-  std::vector< double > v_susceptance;
+  std::vector< double > v_line_susceptance;
+
+  /// vector to store the susceptance of each node of the network
+  std::vector< double > v_node_susceptance;
 
   /// vector to store the minimum power flow at each line
   std::vector< double > v_min_power_flow;
@@ -510,7 +516,6 @@ class DCNetworkBlock : public NetworkBlock
 
   std::vector< std::string > v_line_names;  ///< Line names
 
-  std::vector< double > v_line_susceptance;
   std::vector< double > v_line_reactance;
   std::vector< double > v_line_resistance;
   std::vector< double > v_line_ratio;
@@ -518,12 +523,9 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< double > v_line_angle;
   std::vector< double > v_line_min_angle;
   std::vector< double > v_line_max_angle;
-  std::vector< double > v_node_susceptance;
   std::vector< double > v_node_conductance;
   std::vector< double > v_node_max_voltage; 
   std::vector< double > v_node_min_voltage;
-
-
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -852,7 +854,7 @@ class DCNetworkBlock : public NetworkBlock
 
  std::vector< Index > get_AC_lines() {
     std::vector< Index > AC_lines;
-    const auto& susceptance = f_NetworkData->get_susceptance();
+    const auto & susceptance = f_NetworkData->get_line_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
       if ( susceptance[ line_id ] > 0. )
        AC_lines.push_back( line_id );
@@ -869,7 +871,7 @@ class DCNetworkBlock : public NetworkBlock
 
  std::vector< Index > get_DC_lines() {
     std::vector< Index > DC_lines;
-    const auto& susceptance = f_NetworkData->get_susceptance();
+    const auto & susceptance = f_NetworkData->get_line_susceptance();
     for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
       if ( susceptance[ line_id ] == 0. )
        DC_lines.push_back( line_id );

@@ -182,9 +182,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  }
 
   // AC vars
-  ::deserialize( group , "LineSusceptance" , f_number_lines , v_susceptance ,
-                 true , true );
-
   ::deserialize( group , "LineSusceptance" , f_number_lines , v_line_susceptance ,
                  true , true );
 
@@ -276,7 +273,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
                                                      "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
-                                                     "Susceptance" ,
+                                                     "LineSusceptance" ,
+                                                     "NodeSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
@@ -334,28 +332,30 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 }  // end( DCNetworkBlock::deserialize )
 
-Eigen::MatrixXd DCNetworkBlock::get_PTDF(const std::vector< Index > & AC_lines ) {
+/*--------------------------------------------------------------------------*/
+
+Eigen::MatrixXd DCNetworkBlock::get_PTDF( const std::vector< Index > & AC_lines ) {
   // get data
-  const auto& susceptance = f_NetworkData->get_susceptance();
+  const auto & susceptance = f_NetworkData->get_line_susceptance();
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
   if( number_lines <= 0 ) {
     throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                            "number of lines of DCNetworkBlock is not set" ) );
+                              "number of lines of DCNetworkBlock is not set" ) );
   }
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
   
   // construct the matrix using two sub-matrices B_bar and B_hat
   Eigen::MatrixXd B_hat = Eigen::MatrixXd::Zero(number_lines,number_nodes );
-  for( auto& line_id : AC_lines ) {
+  for( auto & line_id : AC_lines ) {
     B_hat(line_id,start_line[line_id]) =  susceptance[line_id];
     B_hat(line_id,end_line[line_id])   = -susceptance[line_id];
   }
   
   Eigen::MatrixXd B_bar = Eigen::MatrixXd::Zero(number_nodes,number_nodes );
   for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-    for( auto& line_id : AC_lines ) {
+    for( auto & line_id : AC_lines ) {
       if( start_line[ line_id ] == node_id ) {
         B_bar(node_id,end_line[line_id]) = - susceptance[line_id];
         B_bar(node_id,node_id ) += susceptance[line_id];
@@ -415,6 +415,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 }  // end( DCNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
+
 int DCNetworkBlock::get_reducedIdx( int idx ) {
   if (idx > f_NetworkData->get_reference_node()) return idx -1;
   return idx;
@@ -452,7 +453,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
 
    // DC part 
-   for( auto& line_id : DC_lines ) {
+   for( auto & line_id : DC_lines ) {
     auto lfunc_1 = new LinearFunction();
     lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
     lfunc_1->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
@@ -469,7 +470,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
    // AC part
-   for( auto& line_id : AC_lines ) {
+   for( auto & line_id : AC_lines ) {
     auto lfunc_1 = new LinearFunction();
     auto lfunc_2 = new LinearFunction();
     double constant_term = 0;
@@ -530,7 +531,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 0 ][ n ] , -1.0 );
 
-    for( auto& line_id : DC_lines ) {
+    for( auto & line_id : DC_lines ) {
       if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
       if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
     }
@@ -557,7 +558,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   if ( lines_type == kAC_HVDC ) {
     // linking constraints between AC and HVDC
     Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1,number_lines );
-    for( auto& line_id : DC_lines ) {
+    for( auto & line_id : DC_lines ) {
       A_DC(get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
       A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = -1.; // QJ_TOCHECK 1 or -1 ?
     }
@@ -567,7 +568,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // Flow limit constraints
   if ( lines_type == kAC )
    v_AC_power_flow_limit_const.resize(number_lines );
-  for( auto& line_id : AC_lines ) {
+  for( auto & line_id : AC_lines ) {
     const auto kappa = get_kappa( line_id );
     auto lfunc = new LinearFunction();
     double constant_term = 0;
@@ -581,7 +582,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     } // for each node
 
     if ( lines_type == kAC_HVDC ) {
-      for (auto& dc_line_id: DC_lines ) {
+      for (auto & dc_line_id: DC_lines ) {
         lfunc->add_variable( & v_power_flow[ dc_line_id ], linkingMat( line_id , dc_line_id ) );
       }// for each dc line
 
@@ -719,6 +720,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
  NetworkData::serialize( group );
 
  if( f_number_nodes > 1 ) {
+  auto NumberNodes = group.getDim( "NumberNodes" );
   auto NumberLines = group.addDim( "NumberLines" );
 
   ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
@@ -733,8 +735,11 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
                v_max_power_flow );
 
-  ::serialize( group , "Susceptance" , netCDF::NcDouble() , NumberLines ,
-               v_susceptance );
+  ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
+               v_line_susceptance );
+
+  ::serialize( group , "NodeSusceptance" , netCDF::NcDouble() , NumberNodes ,
+               v_node_susceptance );
 
   ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
                v_network_cost );
@@ -1025,15 +1030,15 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values ,
 }  // end( DCNetworkData::set_kappa( range ) )
 
 /*--------------------------------------------------------------------------*/
-void DCNetworkBlock::change_power_flow_limit_constraints
-(const std::vector< Index > & modified_lines, c_ModParam issueAMod ) {
+
+void DCNetworkBlock::change_power_flow_limit_constraints(
+ const std::vector< Index > & modified_lines, c_ModParam issueAMod ) {
   Eigen::MatrixXd PTDF_matrix;
   switch( f_NetworkData->get_lines_type() ) {
    case( kHVDC ): {
     for( auto i : modified_lines ) {
      v_HVDC_power_flow_limit_const[ i ].set_lhs
       ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
-
      v_HVDC_power_flow_limit_const[ i ].set_rhs
       ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
     }
@@ -1072,12 +1077,12 @@ void DCNetworkBlock::change_power_flow_limit_constraints
 }
 
 /*--------------------------------------------------------------------------*/
-void DCNetworkBlock::change_relax_abs_constraints
-(const std::vector< Index > & modified_lines, c_ModParam issueAMod ) {
+void DCNetworkBlock::change_relax_abs_constraints(
+ const std::vector< Index > & modified_lines, c_ModParam issueAMod ) {
   if ( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
     std::vector< Index > AC_lines = get_AC_lines();
     Eigen::MatrixXd PTDF_matrix = get_PTDF( AC_lines );
-    for( auto& i : modified_lines ) {
+    for( auto & i : modified_lines ) {
       double constant_term = 0;
       for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
         constant_term -= PTDF_matrix( i , node_id ) * v_ActiveDemand[ node_id ];
@@ -1089,15 +1094,14 @@ void DCNetworkBlock::change_relax_abs_constraints
 }
 
 /*--------------------------------------------------------------------------*/
-void DCNetworkBlock::change_DC_power_flow_injection_constraints
-(const std::vector< Index > & modified_nodes, c_ModParam issueAMod ) {
+void DCNetworkBlock::change_DC_power_flow_injection_constraints(
+ const std::vector< Index > & modified_nodes, c_ModParam issueAMod ) {
   if ( f_NetworkData->get_lines_type() == kHVDC ) {
-    for( auto& n : modified_nodes ) {
+    for( auto & n : modified_nodes ) {
       v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
     }
   }
 }
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/
