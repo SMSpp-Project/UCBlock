@@ -133,7 +133,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
   v_MinPower.resize( v_MaxPower.size() );
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_MinPower.begin() );
   std::transform( v_MinPower.cbegin() , v_MinPower.cend() , v_MinPower.begin() ,
-                  []( double p ) { return -p; } );
+                  []( double p ) { return( -p ); } );
  }
 
  if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) ) {

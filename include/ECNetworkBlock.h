@@ -437,7 +437,7 @@ class ECNetworkBlock : public NetworkBlock
  bool is_cooperative( void ) const {
   auto reward_prices = f_NetworkData->get_reward_price();
   return( std::any_of( reward_prices.begin() , reward_prices.end() ,
-                       []( double cst ) { return cst != 0; } ) );
+                       []( double cst ) { return( cst != 0 ); } ) );
  }
 
 /**@} ----------------------------------------------------------------------*/

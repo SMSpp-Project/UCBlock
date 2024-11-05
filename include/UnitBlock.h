@@ -327,7 +327,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of the given generator
 
- virtual Index get_number_cost_coeffs(Index generator = 0) { return 0; }
+ virtual Index get_number_cost_coeffs(Index generator = 0) { return( 0 ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the ith cost coefficient of the given generator 
@@ -339,7 +339,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the cost model of the given generator
 
- virtual Index get_cost_model(Index generator = 0) { return 0; }
+ virtual Index get_cost_model(Index generator = 0) { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/

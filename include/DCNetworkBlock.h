@@ -626,7 +626,7 @@ class DCNetworkBlock : public NetworkBlock
  Eigen::MatrixXd get_PTDF() {
     std::vector< Index > all_lines( get_number_lines() );
     std::iota( all_lines.begin() , all_lines.end() , 0 );
-    return get_PTDF( all_lines );
+    return( get_PTDF( all_lines ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -859,7 +859,7 @@ class DCNetworkBlock : public NetworkBlock
       if ( susceptance[ line_id ] > 0. )
        AC_lines.push_back( line_id );
     }
-    return AC_lines;
+    return( AC_lines );
  }
 
 
@@ -876,7 +876,7 @@ class DCNetworkBlock : public NetworkBlock
       if ( susceptance[ line_id ] == 0. )
        DC_lines.push_back( line_id );
     }
-    return DC_lines;
+    return( DC_lines );
  }
 
 /*--------------------------------------------------------------------------*/

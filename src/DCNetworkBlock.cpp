@@ -380,7 +380,7 @@ Eigen::MatrixXd DCNetworkBlock::get_PTDF( const std::vector< Index > & AC_lines 
   Eigen::MatrixXd B2 = I_nref.transpose()*B_bar*I_nref;
   Eigen::MatrixXd PTDF_matrix  = B1*B2.inverse();
 
-  return PTDF_matrix;
+  return( PTDF_matrix );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -417,7 +417,8 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkBlock::get_reducedIdx( int idx ) {
-  if (idx > f_NetworkData->get_reference_node()) return idx -1;
+  if( idx > f_NetworkData->get_reference_node() )
+   return idx -1;
   return idx;
 }
 
