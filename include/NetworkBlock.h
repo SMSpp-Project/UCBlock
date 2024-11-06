@@ -50,6 +50,8 @@
 
 #include "ColVariable.h"
 
+#include "OneVarConstraint.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -370,6 +372,13 @@ class NetworkBlock : public Block
   * of the UC model. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// generate the static constraints of NetworkBlock
+ /** The base NetworkBlock class has just the node injection bound constraints.
+  */
+
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// loads a NetworkBlock from an input standard stream.
@@ -756,6 +765,9 @@ class NetworkBlock : public Block
  boost::multi_array< ColVariable , 2 > v_node_injection;
 
 /*------------------------------- constraints ------------------------------*/
+
+ /// the node injection bound constraints
+ boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

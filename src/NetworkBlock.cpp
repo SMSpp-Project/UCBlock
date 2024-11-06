@@ -38,6 +38,8 @@
 
 #include "NetworkBlock.h"
 
+#include "FRowConstraint.h"
+
 #include "RowConstraintSolution.h"
 
 #include "ColRowSolution.h"
@@ -78,6 +80,39 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
   add_static_variable( v_node_injection , "s_network" );
  }
 }  // end( NetworkBlock::generate_abstract_variables )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
+{
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
+
+ const auto number_nodes = get_number_nodes();
+ const auto number_intervals = get_number_intervals();
+
+ // node injection bound constraints
+
+ node_injection_bounds_const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ number_nodes ][ number_intervals ] );
+
+ for( Index i = 0 ; i < number_intervals ; ++i )
+
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+   node_injection_bounds_const[ node_id ][ i ].set_lhs(
+    v_MinNodeInjection[ i ][ node_id ] );
+   node_injection_bounds_const[ node_id ][ i ].set_rhs(
+    v_MaxNodeInjection[ i ][ node_id ] );
+   node_injection_bounds_const[ node_id ][ i ].set_variable(
+    &v_node_injection[ i ][ node_id ] );
+  }
+
+ add_static_constraint( node_injection_bounds_const ,
+                        "Node_Injection_Bound_Const_Network" );
+
+}  // end( NetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/

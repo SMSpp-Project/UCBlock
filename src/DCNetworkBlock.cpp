@@ -427,6 +427,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ NetworkBlock::generate_abstract_constraints( stcc );
+
  const auto number_nodes = get_number_nodes();
 
  if( number_nodes <= 1 )
@@ -617,22 +619,6 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( overall_balanced_const, "overall_balanced_const");
 
  } // ===== end AC and AC-HVDC constraints
-
- // node injection bound constraints
- node_injection_bounds_const.resize( number_nodes );
-
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-  node_injection_bounds_const[ node_id ].set_lhs(
-   v_MinNodeInjection[ 0 ][ node_id ] );
-  node_injection_bounds_const[ node_id ].set_rhs(
-   v_MaxNodeInjection[ 0 ][ node_id ] );
-  node_injection_bounds_const[ node_id ].set_variable(
-   &v_node_injection[ 0 ][ node_id ] );
- }
-
- add_static_constraint( node_injection_bounds_const ,
-                        "Node_Injection_Bound_Const_Network" );
 
  set_constraints_generated();
 

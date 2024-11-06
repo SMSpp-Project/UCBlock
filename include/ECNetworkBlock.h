@@ -35,8 +35,6 @@
 
 #include "FRowConstraint.h"
 
-#include "OneVarConstraint.h"
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -806,10 +804,6 @@ class ECNetworkBlock : public NetworkBlock
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
-
-
- /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
 
 
  /// the objective function

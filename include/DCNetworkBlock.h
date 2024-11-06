@@ -1340,9 +1340,6 @@ class DCNetworkBlock : public NetworkBlock
  /// HVDC power flow limit constraints
  std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
 
- /// the node injection bound constraints
- std::vector< BoxConstraint > node_injection_bounds_const;
-
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
 
