@@ -260,8 +260,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * the method of the base ThermalUnitBlock class that is called first thing
  * here inside. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 // generate the Objective of the NuclearUnitBlock

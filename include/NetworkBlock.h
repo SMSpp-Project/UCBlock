@@ -372,8 +372,8 @@ class NetworkBlock : public Block
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// loads a NetworkBlock from a input standard stream.
- /** Loads a NetworkBlock from a input standard stream.
+ /// loads a NetworkBlock from an input standard stream.
+ /** Loads a NetworkBlock from an input standard stream.
   *
   * @warning This method is not implemented yet.
   *
