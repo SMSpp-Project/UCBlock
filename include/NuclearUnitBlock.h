@@ -379,7 +379,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  ColVariable * get_modulation( void ) {
   if( v_modulation.empty() )
    return( nullptr );
-  return &( v_modulation.front() );
+  return( &( v_modulation.front() ) );
   }
 
 /** @} ---------------------------------------------------------------------*/

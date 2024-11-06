@@ -476,7 +476,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     auto lfunc_2 = new LinearFunction();
     double constant_term = 0;
     for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-      if (node_id != f_NetworkData->get_reference_node()) {
+      if( node_id != f_NetworkData->get_reference_node() ) {
        double coefficient = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
        lfunc_1->add_variable( &v_node_injection[ 0 ][ node_id ] , -coefficient );
        lfunc_2->add_variable( &v_node_injection[ 0 ][ node_id ] , coefficient );
@@ -507,7 +507,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( auto & line_id : DC_lines ) {
     const auto kappa = get_kappa( line_id );
-    if ( lines_type == kHVDC ) {
+    if( lines_type == kHVDC ) {
       v_HVDC_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) );
       v_HVDC_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) );
       v_HVDC_power_flow_limit_const[ line_id ].set_variable( & v_power_flow[ line_id ] );
@@ -524,9 +524,9 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   // Power flow and node injection constraints
-  if ( lines_type == kHVDC )
+  if( lines_type == kHVDC )
    v_power_flow_injection_const.resize(number_nodes );
-  //if ( lines_type == kAC_HVDC ) v_AC_HVDC_power_flow_constraints.resize( number_nodes );
+  //if( lines_type == kAC_HVDC ) v_AC_HVDC_power_flow_constraints.resize( number_nodes );
 
   for( Index n = 0 ; n < number_nodes ; ++n ) {
     auto lfunc = new LinearFunction();
@@ -536,7 +536,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
       if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
       if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
     }
-    if ( lines_type == kHVDC ) {
+    if( lines_type == kHVDC ) {
       v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
       v_power_flow_injection_const[ n ].set_function( lfunc );
     }
@@ -546,7 +546,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     }*/
 
   }
-  if ( lines_type == kHVDC )
+  if( lines_type == kHVDC )
     add_static_constraint( v_power_flow_injection_const, "HVDC_power_flow_injection" );
   /*else
     add_static_constraint(v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_injection");*/
@@ -556,7 +556,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // ===== constraints on AC Part
  if( lines_type == kAC || lines_type == kAC_HVDC ) {
   Eigen::MatrixXd linkingMat;
-  if ( lines_type == kAC_HVDC ) {
+  if( lines_type == kAC_HVDC ) {
     // linking constraints between AC and HVDC
     Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1,number_lines );
     for( auto & line_id : DC_lines ) {
@@ -567,7 +567,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   // Flow limit constraints
-  if ( lines_type == kAC )
+  if( lines_type == kAC )
    v_AC_power_flow_limit_const.resize(number_lines );
   for( auto & line_id : AC_lines ) {
     const auto kappa = get_kappa( line_id );
@@ -575,17 +575,17 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     double constant_term = 0;
 
     for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-      if (node_id != f_NetworkData->get_reference_node()) {
+      if( node_id != f_NetworkData->get_reference_node() ) {
        double coefficient = PTDF_matrix(line_id, get_reducedIdx( node_id ) ); // Distribution Factor Matrix
        lfunc->add_variable( &v_node_injection[ 0 ][ node_id ], coefficient );
        constant_term -= coefficient * v_ActiveDemand[ node_id ];
      }
     } // for each node
 
-    if ( lines_type == kAC_HVDC ) {
-      for (auto & dc_line_id: DC_lines ) {
+    if( lines_type == kAC_HVDC ) {
+      for( auto & dc_line_id: DC_lines ) {
         lfunc->add_variable( & v_power_flow[ dc_line_id ], linkingMat( line_id , dc_line_id ) );
-      }// for each dc line
+      } // for each dc line
 
       // Set the constraint (AC-HVDC)
       v_AC_HVDC_power_flow_limit_const[line_id].set_function( lfunc );
@@ -600,7 +600,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     }
   }
 
-  if ( lines_type == kAC_HVDC )
+  if( lines_type == kAC_HVDC )
     add_static_constraint( v_AC_HVDC_power_flow_limit_const, "AC/HVDC_power_flow_limits" );
   else
     add_static_constraint( v_AC_power_flow_limit_const, "AC_power_low_limits" );
@@ -839,11 +839,11 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
       not_dry_run( issueAMod ) &&
       constraints_generated() ) {
       // Change the abstract representation
-      if ( f_NetworkData->get_lines_type() == kHVDC ) {
+      if( f_NetworkData->get_lines_type() == kHVDC ) {
           std::vector< Index > modified_nodes(subset.begin(), subset.end());
           change_DC_power_flow_injection_constraints( modified_nodes , issueAMod );
       }
-      if ( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
+      if( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
           std::vector< Index > modified_lines( f_NetworkData->get_number_lines());
           std::iota( modified_lines.begin(), modified_lines.end() , 0 );
           change_relax_abs_constraints(modified_lines, issueAMod ); // all lines are modified
@@ -902,12 +902,12 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
        // Change the abstract representation
 
-       if ( f_NetworkData->get_lines_type() == kHVDC ) {
+       if( f_NetworkData->get_lines_type() == kHVDC ) {
           std::vector< Index > modified_nodes( rng.second - rng.first );
           std::iota(modified_nodes.begin(), modified_nodes.end(),rng.first );
           change_DC_power_flow_injection_constraints(modified_nodes, issueAMod );
         }
-        if ( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
+        if( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
           std::vector< Index > modified_lines( f_NetworkData->get_number_lines());
           std::iota( modified_lines.begin() , modified_lines.end(),0);
           change_relax_abs_constraints( modified_lines , issueAMod ); // all lines are modified
@@ -1080,7 +1080,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::change_relax_abs_constraints(
  const std::vector< Index > & modified_lines, c_ModParam issueAMod ) {
-  if ( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
+  if( f_NetworkData->get_lines_type() == kAC || f_NetworkData->get_lines_type() == kAC_HVDC ) {
     std::vector< Index > AC_lines = get_AC_lines();
     Eigen::MatrixXd PTDF_matrix = get_PTDF( AC_lines );
     for( auto & i : modified_lines ) {
@@ -1097,7 +1097,7 @@ void DCNetworkBlock::change_relax_abs_constraints(
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::change_DC_power_flow_injection_constraints(
  const std::vector< Index > & modified_nodes, c_ModParam issueAMod ) {
-  if ( f_NetworkData->get_lines_type() == kHVDC ) {
+  if( f_NetworkData->get_lines_type() == kHVDC ) {
     for( auto & n : modified_nodes ) {
       v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
     }
