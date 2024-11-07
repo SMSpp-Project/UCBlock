@@ -78,13 +78,14 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   S denotes the AC power for each line, therefore it is a 2-dimensional vector 
   (real and imaginary part).
   */
-  S_power_flow.resize( boost::extents[ 2 ][ 2*number_lines ] );
-  for( int i = 0; i < 2; ++i ) {
-    for( Index line_id = 0 ; line_id < 2*number_lines ; ++line_id ) {
-      S_power_flow[ i ][ line_id ].set_type( ColVariable::kContinuous );
-    }
+  v_power_flow.resize(2*number_lines);
+  v_power_flow_imag.resize(2*number_lines);
+  for( Index line_id = 0 ; line_id < 2*number_lines ; ++line_id ) {
+    v_power_flow[ line_id ].set_type( ColVariable::kContinuous );
+    v_power_flow_imag[ line_id ].set_type( ColVariable::kContinuous );
   }
-  add_static_variable( S_power_flow , "S_power_flow" );
+  add_static_variable( v_power_flow , "v_power_flow_real" );
+  add_static_variable( v_power_flow_imag , "v_power_flow_imag" );
 
   // -----
   v_sum_product_voltages.resize(number_lines);
@@ -213,8 +214,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
       Index i = start_line[line_id];
       Index j = end_line[line_id];
 
-      if (i == p) lfunc->add_variable( & S_power_flow[0][ line_id ], 1.);
-      if (j == p) lfunc->add_variable( & S_power_flow[0][ number_lines + line_id ], 1.);
+      if (i == p) lfunc->add_variable( & v_power_flow[ line_id ], 1.);
+      if (j == p) lfunc->add_variable( & v_power_flow[ number_lines + line_id ], 1.);
     }
     v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
     v_power_flow_injection_const[ p ].set_function( lfunc );
@@ -240,14 +241,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_1->add_variable( & v_sqrt_voltages[ p ], ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_sum_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_diff_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].imag());
-    lfunc_1->add_variable( & S_power_flow[0][line_id], -1.0);
+    lfunc_1->add_variable( & v_power_flow[line_id], -1.0);
     v_voltage_definition_const[0][ i_line ].set_both(0.0);
     v_voltage_definition_const[0][ i_line ].set_function( lfunc_1 );
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_sqrt_voltages[ p ],  - ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], -ACdata.v_admittance[ line_id ].real());
-    lfunc_2->add_variable( & S_power_flow[1][line_id], -1.0);
+    lfunc_2->add_variable( & v_power_flow_imag[line_id], -1.0);
     v_voltage_definition_const[1][ i_line ].set_both(0.0);
     v_voltage_definition_const[1][ i_line ].set_function( lfunc_2 );
 	
@@ -262,14 +263,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     lfunc_1->add_variable( & v_sqrt_voltages[ n ], ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_sum_product_voltages[ line_id ], - ACdata.v_admittance[ line_id ].real());
     lfunc_1->add_variable( & v_diff_product_voltages[ line_id ], ACdata.v_admittance[ line_id ].imag());
-    lfunc_1->add_variable( & S_power_flow[0][number_lines + line_id], -1.0);
+    lfunc_1->add_variable( & v_power_flow[number_lines + line_id], -1.0);
     v_voltage_definition_const[0][ nb_ac_lines + i_line ].set_both(0.0);
     v_voltage_definition_const[0][ nb_ac_lines + i_line ].set_function( lfunc_1 );
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_sqrt_voltages[ n ],  - ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  ACdata.v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], ACdata.v_admittance[ line_id ].real());
-    lfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], -1.0);
+    lfunc_2->add_variable( & v_power_flow_imag[number_lines + line_id], -1.0);
     v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_both(0.0);
     v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_function( lfunc_2 );
 	
@@ -289,14 +290,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
     Index p = start_line[line_id];
     Index n = end_line[line_id];
     auto qfunc_1 = new DQuadFunction();
-    qfunc_1->add_variable( & S_power_flow[0][line_id], 0.0, 1.0);
-    qfunc_1->add_variable( & S_power_flow[1][line_id], 0.0, 1.0);
+    qfunc_1->add_variable( & v_power_flow[line_id], 0.0, 1.0);
+    qfunc_1->add_variable( & v_power_flow_imag[line_id], 0.0, 1.0);
     v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
     v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ line_id ].set_function( qfunc_1 );
     auto qfunc_2 = new DQuadFunction();
-    qfunc_2->add_variable( & S_power_flow[0][number_lines + line_id], 0.0, 1.0);
-    qfunc_2->add_variable( & S_power_flow[1][number_lines + line_id], 0.0, 1.0);
+    qfunc_2->add_variable( & v_power_flow[number_lines + line_id], 0.0, 1.0);
+    qfunc_2->add_variable( & v_power_flow_imag[number_lines + line_id], 0.0, 1.0);
     v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
     v_thermal_limit[ number_lines + line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );

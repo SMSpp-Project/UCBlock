@@ -102,7 +102,7 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  ACNetworkData ACdata;
 
  // ----- Variables
- boost::multi_array< ColVariable , 2 > S_power_flow;
+ std::vector< ColVariable > v_power_flow_imag; // real part is the standard "v_power_flow" variable
 
  // ----- Generic variables for AC-OPF
  std::vector< ColVariable > v_sum_product_voltages;
