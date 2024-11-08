@@ -95,6 +95,8 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
 
 virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) override;
 
+ const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); };
+
  
  protected:
 
@@ -135,7 +137,7 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
    "DCNetworkBlock::set_active_demand" , &ACNetworkBlock::set_active_demand );
  }
 
-};  // end( class( DCNetworkBlock ) )
+};  // end( class( ACNetworkBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
