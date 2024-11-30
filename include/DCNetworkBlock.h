@@ -245,7 +245,7 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 /// returns the reference node of the network
-/** Method for returning the reference node of the network.*/
+/** Method for returning the reference node of the network. */
 
   Index get_reference_node() const { return( f_reference_node ); }
 
