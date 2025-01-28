@@ -853,13 +853,15 @@ class DCNetworkBlock : public NetworkBlock
   * @return the AC lines in the network. */
 
  std::vector< Index > get_AC_lines() {
-    std::vector< Index > AC_lines;
-    const auto & susceptance = f_NetworkData->get_line_susceptance();
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if ( susceptance[ line_id ] > 0. )
-       AC_lines.push_back( line_id );
-    }
-    return( AC_lines );
+  std::vector< Index > AC_lines;
+  const auto & susceptance = f_NetworkData->get_line_susceptance();
+  if( AC_lines.empty() )
+   return( AC_lines );
+  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+   if( susceptance[ line_id ] > 0. )
+    AC_lines.push_back( line_id );
+  }
+  return( AC_lines );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -869,13 +871,13 @@ class DCNetworkBlock : public NetworkBlock
   * @return the DC lines in the network. */
 
  std::vector< Index > get_DC_lines() {
-    std::vector< Index > DC_lines;
-    const auto & susceptance = f_NetworkData->get_line_susceptance();
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if ( susceptance[ line_id ] == 0. )
-       DC_lines.push_back( line_id );
-    }
-    return( DC_lines );
+  std::vector< Index > DC_lines;
+  const auto & susceptance = f_NetworkData->get_line_susceptance();
+  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+   if( ( susceptance.empty() ) || ( susceptance[ line_id ] == 0. ) )
+    DC_lines.push_back( line_id );
+  }
+  return( DC_lines );
  }
 
 /*--------------------------------------------------------------------------*/
