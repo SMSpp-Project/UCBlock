@@ -253,7 +253,7 @@ class UCBlock : public Block
   *   tells to which node of the transmission network, the specified electrical
   *   generator g belongs. Note that this means that different electrical
   *   generators in the same UnitBlock can belong to different nodes of the
-  *   transmission network. This is justified e.g., by hydro cascade units where
+  *   transmission network. This is justified, e.g., by hydro cascade units where
   *   different turbines can be rather far apart geographically, but still
   *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
   *   NumberUnits (all UnitBlock have exactly one electrical generator), then
@@ -273,7 +273,7 @@ class UCBlock : public Block
   *   zone, and hence the corresponding electrical generators are not involved
   *   into the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
   *   is not provided at all) then this variable need not be defined, since it
-  *   is not loaded. If NumberPrimaryZones == 1 and this variable is not
+  *   is not loaded. If NumberPrimaryZones == 1, and this variable is not
   *   defined, then there is only one primary zone and all the nodes belong to
   *   it.
   *
@@ -394,7 +394,7 @@ class UCBlock : public Block
   *   fixed costs, of the NetworkBlock n.
   *
   * - The variable "NetworkBlockClassname", of type netCDF::NcString specify
-  *   the classname of the specific NetworkBlock to be instantiate if no one is
+  *   the classname of the specific NetworkBlock to be instantiated if no one is
   *   explicitly given in input. For backward compatibility reasons w.r.t. the
   *   netCDF input data files already given, the default value is
   *   "DCNetworkBlock".
@@ -410,7 +410,7 @@ class UCBlock : public Block
  /** This method generates the abstract constraints of the UCBlock.
   *
   * Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
-  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are moreover given
+  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are, moreover, given
   * three partitions of the set of nodes which may or may not be identical:
   *
   * (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
