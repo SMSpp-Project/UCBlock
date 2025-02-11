@@ -1958,5 +1958,71 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 }  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- METHODS OF UCBlockSolution -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+
+ // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_units = 0;
+ if( ::deserialize_dim( group , "NumberUnits" , number_units ) ) {
+  v_unit_Solution.resize( number_units );
+  for( Index i = 0 ; i < number_units ; ++i ) {
+   std::string sub_group_name = "UnitBlock_" + std::to_string( i );
+   auto sub_group = group.getGroup( sub_group_name );
+   v_unit_Solution[ i ] = Solution::new_Solution( sub_group );
+   }
+  }
+
+ // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_networks = 0;
+ if( ::deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
+  v_network_Solution.resize( time_horizon );
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+   auto sub_group = group.getGroup( sub_group_name );
+   v_network_Solution[ i ] = Solution::new_Solution( sub_group );
+   }
+  }
+
+ // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_nodes = 0;
+ if( ::deserialize_dim( group , "NumberNodes" , number_nodes ) )
+  ::deserialize< double , 2 >( group , "ActivePowerDuals" , v_demand_duals ,
+			       false );
+
+ // deserialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_primary_zones = 0;
+ if( ::deserialize_dim( group , "NumberPrimaryZones" ,
+			number_primary_zones ) )
+  ::deserialize< double , 2 >( group , "PrimaryDuals" , v_primary_duals ,
+			       false );
+
+ // deserialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_secondary_zones = 0;
+ if( ::deserialize_dim( group , "NumberSecondaryZones" ,
+			number_secondary_zones ) )
+  ::deserialize< double , 2 >( group , "SecondaryDuals" , v_secondary_duals ,
+			       false );
+
+ // deserialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ Index number_inertia_zones = 0;
+ if( ::deserialize_dim( group , "NumberInertiaZones" ,
+			number_inertia_zones ) )
+  ::deserialize< double , 2 >( group , "InertiaDuals" , v_inertia_duals ,
+			       false );
+ 
+ }  // end( UCBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

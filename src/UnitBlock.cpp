@@ -193,21 +193,16 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 
  Solution * sol;
  switch( solution_type ) {
-  case( 1 ):
-   sol = new RowConstraintSolution;
-   break;
-  case( 2 ):
-   sol = new ColRowSolution;
-   break;
-  default:
-   sol = new ColVariableSolution;
- }
+  case( 1 ): sol = new RowConstraintSolution; break;
+  case( 2 ): sol = new ColRowSolution; break;
+  default:   sol = new ColVariableSolution;
+  }
 
  if( ! emptys )
   sol->read( this );
 
  return( sol );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/

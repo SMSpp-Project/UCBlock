@@ -287,59 +287,62 @@ class UnitBlock : public Block
 
  virtual const double * get_inertia_power( Index generator ) const {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power of the given generator at the given time
+ /// returns the minimum power of \p generator at time \p t
 
  virtual double get_min_power( Index t , Index generator = 0 ) const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power of the given generator at the given time
+ /// returns the maximum power of \p generator at time \p t
 
  virtual double get_max_power( Index t , Index generator = 0 ) const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the given generator at the given time
+ /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  virtual double get_min_reactive_power( Index t , Index generator = 0 )
+   const {
+   return( 0 );
+   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of \p generator at time \p t
+
+ virtual double get_max_reactive_power( Index t , Index generator = 0 )
+  const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the given generator at the given time
+ /// returns the voltage magnitude of \p generator at time \p t
 
- virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
+  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
+   const {
+   return( 0 );
+   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of cost coefficients of \p generator
+
+ virtual Index get_number_cost_coeffs( Index generator = 0 ) { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the i-th cost coefficient of \p generator
+
+ virtual double get_cost_coeff( Index i , Index generator = 0 ) { 
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the given generator at the given time
+ /// returns the cost model of \p generator
 
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
-  return( 0 );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of the given generator
-
- virtual Index get_number_cost_coeffs(Index generator = 0) { return( 0 ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the ith cost coefficient of the given generator 
-
- virtual double get_cost_coeff(Index i, Index generator = 0) { 
-    return( 0. );
-}
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of the given generator
-
- virtual Index get_cost_model(Index generator = 0) { return( 0 ); }
+ virtual Index get_cost_model( Index generator = 0 ) { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
@@ -372,15 +375,15 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_commitment( Index generator ) {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of primary spinning reserve variables
  /** This method returns a pointer to the array containing the primary
   * spinning reserve variables of the given \p generator at all time
   * instants. Being R the value returned by this method, R[t] is the primary
-  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
-  * 1}.
+  * spinning reserve variable at time t for each t in { 0 , ... ,
+  * time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the primary spinning reserve variable (if
@@ -391,15 +394,15 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of secondary spinning reserve variables
  /** This method returns a pointer to the array containing the secondary
   * spinning reserve variables of the given \p generator at all time
   * instants. Being R the value returned by this method, R[t] is the secondary
-  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
-  * 1}.
+  * spinning reserve variable at time t for each t in { 0 , ... ,
+  * time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the secondary spinning reserve variable (if
@@ -410,14 +413,14 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of active power variables
  /** This method returns a pointer to the array containing the active power
   * variables of the given \p generator at all time instants. Being P the
   * value returned by this method, P[t] is the active power variable at time t
-  * for each t in {0, ..., time_horizon - 1}.
+  * for each t in { 0 , ... , time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the active power variable (if any).
@@ -427,7 +430,7 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this UnitBlock
