@@ -1104,7 +1104,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
 
 Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 {
- int wsol = 0;
+ int wsol = 1;
  if( ( ! solc ) && f_BlockConfig )
   solc = f_BlockConfig->f_solution_Configuration;
 
@@ -2167,7 +2167,7 @@ void UCBlockSolution::read( const Block * block )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlockSolution::write( const Block * block )
+void UCBlockSolution::write( Block * block )
 {
  auto UCB = dynamic_cast< const UCBlock * >( block );
  if( ! UCB )
@@ -2286,7 +2286,7 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   auto nn = group.addDim( "NumberNodes" , v_demand_duals.shape()[ 1 ] );
 
   ::serialize< double , 2 >( group , "ActivePowerDuals" , netCDF::NcDouble() ,
-			     { tu , nn } , v_demand_duals );
+			     { th , nn } , v_demand_duals.data() );
   }
 
  // serialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - - -
@@ -2295,7 +2295,7 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   auto npz = group.addDim( "NumberPrimaryZones" , f_number_primary_zones );
 
   ::serialize< double , 2 >( group , "PrimaryDuals" , netCDF::NcDouble() ,
-			     { tu , npz } ,  v_primary_duals );
+			     { th , npz } ,  v_primary_duals.data() );
   }
 
  // serialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - - -
@@ -2305,16 +2305,16 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
 			   f_number_secondary_zones );
 
   ::serialize< double , 2 >( group , "SecondaryDuals" , netCDF::NcDouble() ,
-			     { tu , nsz } ,  v_secondary_duals );
+			     { th , nsz } ,  v_secondary_duals.data() );
   }
 
- // deserialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - -
+ // serialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_inertia_duals.empty() ) {
-  auto nsz = group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
+  auto niz = group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
 
   ::serialize< double , 2 >( group , "InertiaDuals" , netCDF::NcDouble() ,
-			     { tu , nsz } ,  v_inertia_duals );
+			     { th , niz } ,  v_inertia_duals.data() );
   }
  }  // end( UCBlockSolution::serialize )
 

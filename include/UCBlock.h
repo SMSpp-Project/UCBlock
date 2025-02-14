@@ -612,7 +612,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *   f_BlockConfig->f_solution_Configuration != nullptr and it
   *   is a SimpleConfiguration< int >, ws is its f_value
   *
-  * - otherwise ws is 0.
+  * - otherwise ws is 1 (only save the UnitBlock(s) Solution)
   *
   * The encoding of ws is bit-wise:
   *

@@ -452,18 +452,20 @@ class UnitBlock : public Block
 
  /// returns a Solution representing the current solution of this UnitBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this UnitBlock. The base
-  * UnitBlock class defaults to ColVariableSolution, RowConstraintSolution,
-  * and ColRowSolution, but :UnitBlock may make different choices.
+  * representing the current "solution state" of this UnitBlock. This may
+  * either be a UnitBlockSolution or a further derived class containing more
+  * specific solution information for derived :UnitBlock.
   *
   * The parameter for deciding which kind of Solution must be returned is a
-  * single int value. If this value is:
+  * single int value, coded bitwise:
   *
-  * - 1, then a RowConstraintSolution is returned;
+  * - bit 0 (& 1) means "store the active power"
   *
-  * - 2, then a ColRowSolution is returned;
+  * - bit 1 (& 2) means "store the commitment"
   *
-  * - any other value, then a ColVariable Solution is returned.
+  * - bit 2 (& 4) means "store the primary reserve"
+  *
+  * - bit 3 (& 8) means "store the secondary reserve"
   *
   * This value is to be found as:
   *
@@ -475,10 +477,26 @@ class UnitBlock : public Block
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 0. */
+  * - otherwise, it is 15 (save everything).
+  *
+  * Note, however, that the UnitBlockSolution may not contain some of the
+  * data that ws implies since it may just not be present in the :UnitBlock.
+  * This is true for commitment, primary and secondary reserve that are
+  * optional, but not for active power which is mandatory. */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" UnitBlockSolution
+ /** Small virtual method that just returns an "empty" UnitBlockSolution
+  * object. It is used by UnitBlock::get_Solution(), with the idea that
+  * derived classes can override it to make it return a :UnitBlockSolution
+  * better suited for the specific :UnitBlock at hand. */
+ 
+ virtual UnitBlockSolution * new_Solution( void ) const {
+  return( new UnitBlockSolution() );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
@@ -872,8 +890,9 @@ public:
  *
  * - [possibly] secondary spinning reserve variables
  *
- * for every generator of the unit.
- */
+ * for every generator of the unit. UnitBlockSolution is not thought to be
+ * "final", since :UnitBlock may want to define and handle their derived
+ * :UnitBlockSolution to store unit-specific solution information. */
 
 class UnitBlockSolution : public Solution {
 
@@ -889,9 +908,9 @@ class UnitBlockSolution : public Solution {
  
 /*------------------------------- FRIENDS ----------------------------------*/
 
- friend UCBlock;  ///< make UCBlock friend
+ friend UnitBlock;  ///< make UnitBlock friend
 
-/*-------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution --------------*/
+/*------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution -------------*/
 
  explicit UnitBlockSolution( void ) { }  /// constructor, it has nothing to do
 
@@ -903,7 +922,7 @@ class UnitBlockSolution : public Solution {
 
  ~UnitBlockSolution() = default;  ///< destructor: it is virtual, and empty
 
-/*----------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution ---------*/
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
 
  void read( const Block * block ) override final;
 
@@ -917,86 +936,49 @@ class UnitBlockSolution : public Solution {
   * - The dimension "TimeHorizon" containing the number of time steps in the
   *   problem. It is mandatory.
   *
-  * - The dimension "NumberUnits" containing the number of units (UnitBlock)
-  *   in the problem; the dimension is optional, if it is missing then no
-  *   unit Solution (see "UnitBlock_i" below) is present.
+  * - The dimension "NumberGenerators" containing the number of generators
+  *   in the unit; the dimension is optional, if it is missing then 1 (one)
+  *   generator is assumed.
   *
-  * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with n ==
-  *   NumberUnits - 1, containing each the UnitBlockSolution corresponding
-  *   to that electrical generator. If NumberUnits is present, it is an error
-  *   if the corresponding groups are not there.
+  * - The variable "ActivePower", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". ActivePower[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
   *
-  * - The dimension "NumberNetworks" containing the number of networks
-  *   (NetworkBlock) in the problem; the dimension is optional, if it is
-  *   missing then no network Solution (see "NetworkBlock_i" below) is
-  *   present.
+  * - The variable "Commitment", of type netCDF::NcDouble (note that
+  *   commitment variables are generally integer valued, in fact binary,
+  *   but one may want to save the values of continuous relaxations).
+  *   If "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". Commitment[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
   *
-  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
-  *   with T = NumberNetworks - 1, with "NetworkBlock_t" containing each the
-  *   NetworkBlockSolution corresponding to that network constraints. If
-  *   NumberNetworks is present, it is an error if the corresponding groups
-  *   are not there.
+  * - The variable "PrimaryReserve", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". PrimaryReserve[ i , t ] is assumed
+  *   to contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
   *
-  * - The dimension "NumberNodes" containing the number of nodes in the
-  *   networks, and therefore the number of active power demand constraints
-  *   for each time instants. The dimension is optional, if it is missing
-  *   then no dual solution for the active power demand constraints is
-  *   present.
-  *
-  * - The variable "ActivePowerDuals", of type netCDF::NcDouble and indexed
-  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
-  *   is only required to be present if  "NumberNodes" is present, otherwise
-  *   it is optional (since it is ignored). ActivePowerDuals[ n , t ] is
-  *   assumed to contain the dual of the active power demand constraint 
-  *   corresponding to node n of the transmission network at the time t
-  *
-  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
-  *   reserve zones" are there in the problem. The dimension is optional, if
-  *   it is not provided then it is taken to be 0, which means that no dual
-  *   solution for the primary reserve constraints is present.
-  *
-  * - The variable "PrimaryDuals", of type netCDF::NcDouble and indexed both
-  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberPrimaryZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   PrimaryDuals[ i , t ] is assumed to contain the dual of the active
-  *   power demand constraint corresponding to primary reserve zone i at the
-  *   time t.
-  *
-  * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
-  *   reserve zones" are there in the problem. The dimension is optional, if
-  *   it is not provided then it is taken to be 0, which means that no dual
-  *   solution for the secondary reserve constraints is present.
-  *
-  * - The variable "SecondaryDuals", of type netCDF::NcDouble and indexed
-  *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberSecondaryZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   SecondaryDuals[ i , t ] is assumed to contain the dual of the
-  *   secondary reserve constraint on the secondary reserve zone i in the
-  *   time t.
-  *
-  * - The dimension "NumberInertiaZones" tells how many "inertia constraints
-  *   zones" are there in the problem. The dimension is optional, if it is not
-  *   provided then it is taken to be 0, which means that no dual solution for
-  *   the inertia constraints is present.
-  *
-  * - The variable "InertiaDuals", of type netCDF::NcDouble and indexed both
-  *   over the dimensions "NumberInertiaZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberInertiaZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   InertiaDuals[ i , t ] is assumed to contain the dual of the inertia
-  *   reserve constraints for zone i in the time t. */
+  * - The variable "SecondaryReserve", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". SecondaryReserve[ i , t ] is assumed
+  *   to contain the optimal active power for generator i at the time t. The
+  *   variable is optional. */
  
- void serialize( netCDF::NcGroup & group ) const override final;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- UnitBlockSolution * scale( double factor ) const override final;
+ UnitBlockSolution * scale( double factor ) const override;
 
- void sum( const Solution * solution , double multiplier ) override final;
+ void sum( const Solution * solution , double multiplier ) override;
 
- UnitBlockSolution * clone( bool empty = false ) const override final;
+ UnitBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
@@ -1015,36 +997,19 @@ class UnitBlockSolution : public Solution {
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  Index f_time_horizon;            ///< the time horizon
- Index f_number_nodes;            ///< the number of nodes
- Index f_number_primary_zones;    ///< the number of primary zones
- Index f_number_secondary_zones;  ///< the number of secondary zones
- Index f_number_inertia_zones;    ///< the number of inertia zones
- 
- std::vector< UnitBlockSolution * > v_unit_Solution;
- ///< the Solution for each UnitBlock
- 
- std::vector< NetworkBlockSolution * > v_network_Solution;
- ///< the Solution for each NetworkBlock
+ Index f_number_generators;       ///< the number of generators
 
- boost::multi_array< double , 2 > v_demand_duals;
- ///< the dual variables for the node injection constraints
- /**< v_demand_duals[ t ][ n ] is the dual variable of the injection
-  * constraint for node n at time t. */
+ boost::multi_array< double , 2 > v_active_power;
+ ///< v_active_power[ i ][ i ] = active power of generator i at time t
 
- boost::multi_array< double , 2 > v_primary_duals;
- ///< the dual variables for the primary demand constraints
- /**< v_primary_duals[ t ][ n ] is the dual variable of the primary demand
-  * constraint for zone at time t. */
+ boost::multi_array< double , 2 > v_commitment;
+ ///< v_commitment[ i ][ i ] = commitment of generator i at time t
 
- boost::multi_array< double , 2 > v_secondary_duals;
- ///< the dual variables for the secondary demand constraints
- /**< v_secondary_duals[ t ][ n ] is the dual variable of the secondary
-  * demand constraint for zone at time t. */
+ boost::multi_array< double , 2 > v_primary_reserve;
+ ///< v_primary_reserve[ i ][ i ] = primary reserve of generator i at time t
 
- boost::multi_array< double , 2 > v_inertia_duals;
- ///< the dual variables for the inertia demand constraints
- /**< v_inertia_duals[ t ][ n ] is the dual variable of the inertia demand
-  * constraint for zone at time t. */
+ boost::multi_array< double , 2 > v_secondary_reserve;
+ ///< v_secondary_reserve[ i ][ i ] = secondary reserve of gen. i at time t
 
 /*--------------------------------------------------------------------------*/
 

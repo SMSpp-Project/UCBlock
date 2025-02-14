@@ -184,19 +184,35 @@ void UnitBlock::scale( double scale_factor ,
 
 Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 {
- Index solution_type = 0;
+ Index wsol = 15;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
-  solution_type = config->f_value;
+  wsol = config->f_value;
 
- Solution * sol;
- switch( solution_type ) {
-  case( 1 ): sol = new RowConstraintSolution; break;
-  case( 2 ): sol = new ColRowSolution; break;
-  default:   sol = new ColVariableSolution;
-  }
+ auto sol = new_Solution();
+
+ using mad2 = boost::multi_array< double , 2 >;
+
+ if( wsol & 1 )
+  sol->v_active_power.resize(
+       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+
+ // note: we assume that either all generators have commitment, or none has
+ if( ( wsol & 2 ) && get_commitment( 0 ) )
+  sol->v_commitment.resize(
+       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+
+ // note: we assume that either all generators have primary, or none has
+ if( ( wsol & 4 ) && get_primary_spinning_reserve( 0 ) )
+  sol->v_primary_reserve.resize(
+       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+
+ // note: we assume that either all generators have secondary, or none has
+ if( ( wsol & 8 ) && get_secondary_spinning_reserve( 0 ) )
+  sol->v_secondary_reserve.resize(
+       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
 
  if( ! emptys )
   sol->read( this );
@@ -214,13 +230,276 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const
 
  group.addDim( "TimeHorizon" , f_time_horizon );
 
- if( ( f_number_intervals > 1 ) && ( f_number_intervals < f_time_horizon ) ) {
+ if( ( f_number_intervals > 1 ) &&
+     ( f_number_intervals < f_time_horizon ) ) {
   auto NI = group.addDim( "NumberIntervals" , f_number_intervals );
 
   ::serialize( group , "ChangeInterval" , netCDF::NcUint64() , NI ,
                v_change_intervals );
+  }
  }
-}
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- METHODS OF UnitBlockSolution ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+
+ if( ! ::deserialize_dim( group , "NumberGenerators" , f_time_horizon ,
+			  true ) )
+  f_number_generators = 1;
+
+ // deserialize the Active Power- - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "ActivePower" , v_active_power ,
+			      false );
+
+ // deserialize the Commitment- - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "Commitment" , v_commitment , true );
+
+ // deserialize the Primary Reserve - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "PrimaryReserve" , v_primary_reserve ,
+			      true );
+
+ // deserialize the Secondary Reserve- - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "SecondaryReserve" ,
+			      v_secondary_reserve , true );
+
+ }  // end( UnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::read( const Block * block )
+{
+ auto UB = dynamic_cast< const UnitBlock * >( block );
+ if( ! UB )
+  throw( std::invalid_argument(
+		     "UnitBlockSolution::read: block is not a UnitBlock" ) );
+
+ f_time_horizon = UB->get_time_horizon();
+ f_number_generators = UB->get_number_generators();
+
+ if( ! v_active_power.empty() )
+  // read the active power variables - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+   auto APi = get_active_power( i );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_active_power[ i ][ t ] = APi[ t ].get_value();
+   }
+
+ if( ! v_commitment.empty() )
+  // read the commitment variables - - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto Ci = get_commitment( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_commitment[ i ][ t ] = Ci[ t ].get_value();
+
+ if( ! v_primary_reserve.empty() )
+  // read the primary reserve variables- - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto PRi = get_primary_spinning_reserve( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_primary_reserve[ i ][ t ] = PRi[ t ].get_value();
+
+ if( ! v_secondary_reserve.empty() )
+  // read the secondary reserve variables- - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto SRi = get_secondary_spinning_reserve( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_secondary_reserve[ i ][ t ] = SRi[ t ].get_value();
+
+ }  // end( UnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::write( Block * block )
+{
+ auto UB = dynamic_cast< const UnitBlock * >( block );
+ if( ! UB )
+  throw( std::invalid_argument(
+		   "UnitBlockSolution::write: block is not a UnitBlock" ) );
+
+ if( f_time_horizon != UB->get_time_horizon() )
+  throw( std::invalid_argument(
+		   "UnitBlockSolution::write: inconsistent time horizon" ) );
+
+ if( f_number_generators != UB->get_number_generators() )
+  throw( std::invalid_argument(
+	      "UnitBlockSolution::write: inconsistent generators number" ) );
+
+ if( ! v_active_power.empty() )
+  // write the active power variables- - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+   auto APi = get_active_power( i );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    APi[ t ].set_value( v_active_power[ i ][ t ] );
+   }
+
+ if( ! v_commitment.empty() )
+  // write the commitment variables- - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto Ci = get_commitment( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     Ci[ t ].set_value( v_commitment[ i ][ t ] );
+   else
+    throw( std::invalid_argument(
+	  "UnitBlockSolution::write: provided non-existent commitment" ) );
+    
+ if( ! v_primary_reserve.empty() )
+  // write the primary reserve variables - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto PRi = get_primary_spinning_reserve( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     PRi[ t ].set_value( v_primary_reserve[ i ][ t ] );
+   else
+    throw( std::invalid_argument(
+	  "UnitBlockSolution::write: provided non-existent primary" ) );
+
+ if( ! v_secondary_reserve.empty() )
+  // write the secondary reserve variables - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto SRi = get_secondary_spinning_reserve( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     SRi[ t ].set_value( v_secondary_reserve[ i ][ t ] );
+   else
+    throw( std::invalid_argument(
+	  "UnitBlockSolution::write: provided non-existent secondary" ) );
+
+ }  // end( UnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::serialize( const netCDF::NcGroup & group )
+{
+ // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ auto th = group.addDim( "TimeHorizon" , f_time_horizon );
+
+ netCDF::NcDim ng;
+ if( f_number_generators > 1 )
+  ng = group.addDim( "NumberGenerators" , get_NNodes() );
+
+ // serialize the Active Power- - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_active_power.empty() )
+  ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
+			     { ng , th } , v_active_power.data() ,
+			     { f_number_generators , f_time_horizon } );
+
+ // serialize the Commitment- - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_commitment.empty() )
+  ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
+			     { ng , th } , v_commitment.data() ,
+			     { f_number_generators , f_time_horizon } );
+
+
+ // serialize the Primary Reserve - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_primary_reserve.empty() )
+  ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
+			     { ng , th } , v_primary_reserve.data() ,
+			     { f_number_generators , f_time_horizon } );
+
+ // serialize the Secondary Reserve - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_secondary_reserve.empty() )
+  ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
+			     { ng , th } , v_secondary_reserve.data() ,
+			     { f_number_generators , f_time_horizon } );
+
+ }  // end( UnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+UnitBlockSolution * UnitBlockSolution::scale( double factor ) const
+{
+ auto *sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ if( ! v_active_power.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_active_power[ i ][ t ] *= factor;
+
+ if( ! v_commitment.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_commitment[ i ][ t ] *= factor;
+
+ if( ! v_primary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_primary_reserve[ i ][ t ] *= factor;
+
+ if( ! v_secondary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_secondary_reserve[ i ][ t ] *= factor;
+
+ return( sol );
+
+ }  // end( UnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::sum( const Solution * solution , double multiplier )
+{
+ auto UBS = dynamic_cast< const UnitBlockSolution * >( solution );
+ if( ! UBS )
+  throw( std::invalid_argument(
+	   "UnitBlockSolution::sum: solution is not a UnitBlockSolution" ) );
+
+ if( f_time_horizon != UBS->f_time_horizon )
+  throw( std::invalid_argument(
+		     "UnitBlockSolution::sum: inconsistent time horizon" ) );
+
+ if( f_number_generators != UBS->f_number_generators )
+  throw( std::invalid_argument(
+	        "UnitBlockSolution::sum: inconsistent generators number" ) );
+
+ if( ! v_active_power.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_active_power[ i ][ t ] += UBS->v_active_power[ i ][ t ] * multiplier;
+
+ if( ! v_commitment.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_commitment[ i ][ t ] += UBS->v_commitment[ i ][ t ] * multiplier;
+
+ if( ! v_primary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_primary_reserve[ i ][ t ] +=
+     UBS->v_primary_reserve[ i ][ t ] * multiplier;
+
+ if( ! v_secondary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_secondary_reserve[ i ][ t ] +=
+     UBS->v_secondary_reserve[ i ][ t ] * multiplier;
+
+ }  // end( UnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+UnitBlockSolution * UnitBlockSolution::clone( bool empty ) const
+{
+ auto *sol = new UnitBlockSolution();
+
+ if( ! empty ) {
+  sol->f_time_horizon = f_time_horizon;
+  sol->f_number_generators = f_number_generators;
+
+  sol->v_active_power = v_active_power;
+  sol->v_commitment = v_commitment;
+  sol->v_primary_reserve = v_primary_reserve;
+  sol->v_secondary_reserve = v_secondary_reserve;
+  }
+
+ return( sol );
+
+ }  // end( UnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/
