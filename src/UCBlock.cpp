@@ -1121,11 +1121,11 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 
  using mad2 = boost::multi_array< double , 2 >;
 
- if( wsol & 4  )
+ if( wsol & 4 )
   sol->v_demand_duals.resize(
 	   mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
 
- if( wsol & 8  )
+ if( wsol & 8 )
   sol->v_primary_duals.resize(
     mad2::extent_gen()[ get_time_horizon() ][ get_number_primary_zones() ] );
 
@@ -1143,7 +1143,6 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
  return( sol );
 
  }  // end( UCBlock::get_Solution )
-
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/

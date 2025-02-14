@@ -874,13 +874,13 @@ public:
 };  // end( class( UnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ CLASS UnitBlockSolution ---------------------------*/
+/*----------------------- CLASS UnitBlockSolution --------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a Solution of a UnitBlock
 /** The UnitBlockSolution class, derived from Solution, represents a solution
- * of a "generic" UCBlock, i.e., the values of
+ * of a "generic" UnitBlock, i.e., the values of
  *
  * - active power variables;
  *
@@ -912,7 +912,8 @@ class UnitBlockSolution : public Solution {
 
 /*------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution -------------*/
 
- explicit UnitBlockSolution( void ) { }  /// constructor, it has nothing to do
+ explicit UnitBlockSolution( void )  f_time_horizon( 0 ) ,
+  f_number_generators( 0 ) { }  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1000,16 +1001,16 @@ class UnitBlockSolution : public Solution {
  Index f_number_generators;       ///< the number of generators
 
  boost::multi_array< double , 2 > v_active_power;
- ///< v_active_power[ i ][ i ] = active power of generator i at time t
+ ///< v_active_power[ i ][ t ] = active power of generator i at time t
 
  boost::multi_array< double , 2 > v_commitment;
- ///< v_commitment[ i ][ i ] = commitment of generator i at time t
+ ///< v_commitment[ i ][ t ] = commitment of generator i at time t
 
  boost::multi_array< double , 2 > v_primary_reserve;
- ///< v_primary_reserve[ i ][ i ] = primary reserve of generator i at time t
+ ///< v_primary_reserve[ i ][ t ] = primary reserve of generator i at time t
 
  boost::multi_array< double , 2 > v_secondary_reserve;
- ///< v_secondary_reserve[ i ][ i ] = secondary reserve of gen. i at time t
+ ///< v_secondary_reserve[ i ][ t ] = secondary reserve of gen. i at time t
 
 /*--------------------------------------------------------------------------*/
 

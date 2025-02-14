@@ -1703,7 +1703,10 @@ class UCBlockSolution : public Solution {
 
 /*-------------- CONSTRUCTING AND DESTRUCTING UCBlockSolution --------------*/
 
- explicit UCBlockSolution( void ) { }  /// constructor, it has nothing to do
+ explicit UCBlockSolution( void ) : f_time_horizon( 0 ) ,
+  f_number_nodes( 0 ) , f_number_primary_zones( 0 ) ,
+  f_number_secondary_zones( 0 ) , f_number_inertia_zones( 0 ) { }
+ /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
