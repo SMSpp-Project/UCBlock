@@ -856,6 +856,205 @@ public:
 };  // end( class( UnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
+/*------------------------ CLASS UnitBlockSolution ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a Solution of a UnitBlock
+/** The UnitBlockSolution class, derived from Solution, represents a solution
+ * of a "generic" UCBlock, i.e., the values of
+ *
+ * - active power variables;
+ *
+ * - [possibly] commitment variables;
+ *
+ * - [possibly] primary spinning reserve variables;
+ *
+ * - [possibly] secondary spinning reserve variables
+ *
+ * for every generator of the unit.
+ */
+
+class UnitBlockSolution : public Solution {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ using Index = Block::Index;  // "import" Index
+ 
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend UCBlock;  ///< make UCBlock friend
+
+/*-------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution --------------*/
+
+ explicit UnitBlockSolution( void ) { }  /// constructor, it has nothing to do
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~UnitBlockSolution() = default;  ///< destructor: it is virtual, and empty
+
+/*----------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution ---------*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a UnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a UnitBlockSolution into a netCDF::NcGroup, with the following
+  * format:
+  *
+  * - The dimension "TimeHorizon" containing the number of time steps in the
+  *   problem. It is mandatory.
+  *
+  * - The dimension "NumberUnits" containing the number of units (UnitBlock)
+  *   in the problem; the dimension is optional, if it is missing then no
+  *   unit Solution (see "UnitBlock_i" below) is present.
+  *
+  * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with n ==
+  *   NumberUnits - 1, containing each the UnitBlockSolution corresponding
+  *   to that electrical generator. If NumberUnits is present, it is an error
+  *   if the corresponding groups are not there.
+  *
+  * - The dimension "NumberNetworks" containing the number of networks
+  *   (NetworkBlock) in the problem; the dimension is optional, if it is
+  *   missing then no network Solution (see "NetworkBlock_i" below) is
+  *   present.
+  *
+  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
+  *   with T = NumberNetworks - 1, with "NetworkBlock_t" containing each the
+  *   NetworkBlockSolution corresponding to that network constraints. If
+  *   NumberNetworks is present, it is an error if the corresponding groups
+  *   are not there.
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   networks, and therefore the number of active power demand constraints
+  *   for each time instants. The dimension is optional, if it is missing
+  *   then no dual solution for the active power demand constraints is
+  *   present.
+  *
+  * - The variable "ActivePowerDuals", of type netCDF::NcDouble and indexed
+  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
+  *   is only required to be present if  "NumberNodes" is present, otherwise
+  *   it is optional (since it is ignored). ActivePowerDuals[ n , t ] is
+  *   assumed to contain the dual of the active power demand constraint 
+  *   corresponding to node n of the transmission network at the time t
+  *
+  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
+  *   reserve zones" are there in the problem. The dimension is optional, if
+  *   it is not provided then it is taken to be 0, which means that no dual
+  *   solution for the primary reserve constraints is present.
+  *
+  * - The variable "PrimaryDuals", of type netCDF::NcDouble and indexed both
+  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon". This
+  *   variable is only required to be present if "NumberPrimaryZones" is
+  *   present, otherwise it is optional (since it is ignored). Entry
+  *   PrimaryDuals[ i , t ] is assumed to contain the dual of the active
+  *   power demand constraint corresponding to primary reserve zone i at the
+  *   time t.
+  *
+  * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
+  *   reserve zones" are there in the problem. The dimension is optional, if
+  *   it is not provided then it is taken to be 0, which means that no dual
+  *   solution for the secondary reserve constraints is present.
+  *
+  * - The variable "SecondaryDuals", of type netCDF::NcDouble and indexed
+  *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon". This
+  *   variable is only required to be present if "NumberSecondaryZones" is
+  *   present, otherwise it is optional (since it is ignored). Entry
+  *   SecondaryDuals[ i , t ] is assumed to contain the dual of the
+  *   secondary reserve constraint on the secondary reserve zone i in the
+  *   time t.
+  *
+  * - The dimension "NumberInertiaZones" tells how many "inertia constraints
+  *   zones" are there in the problem. The dimension is optional, if it is not
+  *   provided then it is taken to be 0, which means that no dual solution for
+  *   the inertia constraints is present.
+  *
+  * - The variable "InertiaDuals", of type netCDF::NcDouble and indexed both
+  *   over the dimensions "NumberInertiaZones" and "TimeHorizon". This
+  *   variable is only required to be present if "NumberInertiaZones" is
+  *   present, otherwise it is optional (since it is ignored). Entry
+  *   InertiaDuals[ i , t ] is assumed to contain the dual of the inertia
+  *   reserve constraints for zone i in the time t. */
+ 
+ void serialize( netCDF::NcGroup & group ) const override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ UnitBlockSolution * scale( double factor ) const override final;
+
+ void sum( const Solution * solution , double multiplier ) override final;
+
+ UnitBlockSolution * clone( bool empty = false ) const override final;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override final {
+  output << "UnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ Index f_time_horizon;            ///< the time horizon
+ Index f_number_nodes;            ///< the number of nodes
+ Index f_number_primary_zones;    ///< the number of primary zones
+ Index f_number_secondary_zones;  ///< the number of secondary zones
+ Index f_number_inertia_zones;    ///< the number of inertia zones
+ 
+ std::vector< UnitBlockSolution * > v_unit_Solution;
+ ///< the Solution for each UnitBlock
+ 
+ std::vector< NetworkBlockSolution * > v_network_Solution;
+ ///< the Solution for each NetworkBlock
+
+ boost::multi_array< double , 2 > v_demand_duals;
+ ///< the dual variables for the node injection constraints
+ /**< v_demand_duals[ t ][ n ] is the dual variable of the injection
+  * constraint for node n at time t. */
+
+ boost::multi_array< double , 2 > v_primary_duals;
+ ///< the dual variables for the primary demand constraints
+ /**< v_primary_duals[ t ][ n ] is the dual variable of the primary demand
+  * constraint for zone at time t. */
+
+ boost::multi_array< double , 2 > v_secondary_duals;
+ ///< the dual variables for the secondary demand constraints
+ /**< v_secondary_duals[ t ][ n ] is the dual variable of the secondary
+  * demand constraint for zone at time t. */
+
+ boost::multi_array< double , 2 > v_inertia_duals;
+ ///< the dual variables for the inertia demand constraints
+ /**< v_inertia_duals[ t ][ n ] is the dual variable of the inertia demand
+  * constraint for zone at time t. */
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( UnitBlockSolution ) )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

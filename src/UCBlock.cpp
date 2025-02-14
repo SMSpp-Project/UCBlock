@@ -1096,9 +1096,55 @@ void UCBlock::generate_pollutant_budget_constraints( void )
    v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
 
-}  // end( UCBlock::generate_pollutant_budget_constraints )
+ }  // end( UCBlock::generate_pollutant_budget_constraints )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
+{
+ int wsol = 0;
+ if( ( ! solc ) && f_BlockConfig )
+  solc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto tsolc = dynamic_cast< SimpleConfiguration< int > * >( solc ) )
+  wsol = tsolc->f_value;
+
+ auto *sol = new UCBlockSolution();
+
+ if( wsol & 1 )
+  sol->v_unit_Solution.resize( get_number_units() );
+
+ if( wsol & 2 )
+  sol->v_unit_Solution.resize( get_number_networks() );
+
+ using mad2 = boost::multi_array< double , 2 >;
+
+ if( wsol & 4  )
+  sol->v_demand_duals.resize(
+	   mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
+
+ if( wsol & 8  )
+  sol->v_primary_duals.resize(
+    mad2::extent_gen()[ get_time_horizon() ][ get_number_primary_zones() ] );
+
+ if( wsol & 16 )
+  sol->v_secondary_duals.resize(
+  mad2::extent_gen()[ get_time_horizon() ][ get_number_secondary_zones() ] );
+
+ if( wsol & 32 )
+  sol->v_inertia_duals.resize(
+    mad2::extent_gen()[ get_time_horizon() ][ get_number_inertia_zones() ] );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( UCBlock::get_Solution )
+
+
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
@@ -2045,9 +2091,11 @@ void UCBlockSolution::read( const Block * block )
   throw( std::invalid_argument(
 			 "UCBlockSolution::read: block is not a UCBlock" ) );
 
- if( f_time_horizon != UCB->get_time_horizon() )
-  throw( std::invalid_argument(
-		      "UCBlockSolution::read: inconsistent time horizon" ) );
+ f_time_horizon = UCB->get_time_horizon();
+ f_number_node = UCB->get_number_nodes();
+ f_number_primary_zones = UCB->get_number_primary_zones();
+ f_number_secondary_zones = UCB->get_number_secondary_zones();
+ f_number_inertia_zones = UCB->get_number_inertia_zones();
 
  if( ! v_unit_Solution.empty() ) {
   // read the UnitBlockSolution - - - - - - - - - - - - - - - - - - - - - - -
@@ -2074,9 +2122,6 @@ void UCBlockSolution::read( const Block * block )
 
  if( ! v_demand_duals.empty() ) {
   // read the dual variables of the node injection constraints- - - - - - - -
-  if( f_number_node != UCB->get_number_nodes() )
-   throw( std::invalid_argument(
-		       "UCBlockSolution::read: inconsistent node number" ) );
   auto & NIC = UCB->get_node_injection_constraints();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index i = 0 ; i < f_number_node ; ++i )
@@ -2085,9 +2130,6 @@ void UCBlockSolution::read( const Block * block )
 
  if( ! v_primary_duals.empty() ) {
   // read the dual variables of the primary demand constraints- - - - - - - -
-  if( f_number_primary_zones != UCB->get_number_primary_zones() )
-   throw( std::invalid_argument(
-		     "UCBlockSolution::read: inconsistent primary zones" ) );
   auto & PDC = UCB->get_primary_demand_constraints();
   if( PDC.empty() )
    throw( std::invalid_argument(
@@ -2100,9 +2142,6 @@ void UCBlockSolution::read( const Block * block )
  
  if( ! v_secondary_duals.empty() ) {
   // read the dual variables of the secondary demand constraints- - - - - - -
-  if( f_number_secondary_zones != UCB->get_number_secondary_zones() )
-   throw( std::invalid_argument(
-		   "UCBlockSolution::read: inconsistent secondary zones" ) );
   auto & SDC = UCB->get_secondary_demand_constraints();
   if( SDC.empty() )
    throw( std::invalid_argument(
@@ -2115,9 +2154,6 @@ void UCBlockSolution::read( const Block * block )
  
  if( ! v_inertia_duals.empty() ) {
   // read the dual variables of the inertia demand constraints - - - - - - -
-  if( f_number_inertia_zones != UCB->get_number_inertia_zones() )
-   throw( std::invalid_argument(
-		     "UCBlockSolution::read: inconsistent inertia zones" ) );
   auto & IDC = UCB->get_inertia_demand_constraints();
   if( IDC.empty() )
    throw( std::invalid_argument(

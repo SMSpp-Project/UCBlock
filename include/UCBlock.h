@@ -614,13 +614,23 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *
   * - otherwise ws is 0.
   *
-  * The encoding of ws is:
+  * The encoding of ws is bit-wise:
   *
-  *   = 1 means "only save the primal solution"
+  *   = bit 0 (& 1): means "save the solution of all UnitBlock"
   *
-  *   = 2 means "only save the dual solution"
+  *   = bit 1 (& 2): means "save the solution of all NetworkBlock"
   *
-  *   = everything else (e.g., 0) means "save everything";
+  *   = bit 2 (& 4): means "save the dual variables of the node injection
+  *     constraints"
+  *
+  *   = bit 3 (& 8): means "save the dual variables of the primary demand
+  *     constraints"
+  *
+  *   = bit 4 (& 16): means "save the dual variables of the secondary demand
+  *     constraints"
+  *
+  *   = bit 5 (& 32): means "save the dual variables of the inertia demand
+  *     constraints"
   *
   * Note that UCBlock may not contain some or all of the required solution,
   * if the corresponding Variable/Constraint have not been constructed yet:
@@ -668,6 +678,13 @@ void deserialize( const netCDF::NcGroup & group ) override;
  Index get_number_networks( void ) const { return( f_number_networks ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the number of nodes
+
+ Index get_number_nodes( void ) const {
+  return( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the number of primary zones of the problem
 
  Index get_number_primary_zones( void ) const {
@@ -692,6 +709,73 @@ void deserialize( const netCDF::NcGroup & group ) override;
  /// returns the number of pollutants of the problem
 
  Index get_number_pollutants( void ) const { return( f_number_pollutants ); }
+
+ /// returns true if the given node belongs to the given primary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the primary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a primary zone.
+  *
+  * @return True if and only if the given node belongs to the given primary
+  *         zone. */
+
+ bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_primary_zones > 1 ) &&
+      ( zone_id != v_primary_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given node belongs to the given secondary zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the secondary zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  *
+  * @param zone_id The ID of a secondary zone.
+  *
+  * @return True if and only if the given node belongs to the given secondary
+  *         zone. */
+
+ bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_secondary_zones > 1 ) &&
+      ( zone_id != v_secondary_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given node belongs to the given inertia zone
+ /** This function returns true if and only if the node identified by \p
+  * node_id belongs to the inertia zone identified by \p zone_id.
+  *
+  * @param node_id The ID of a node.
+  * @param zone_id The ID of an inertia zone.
+  *
+  * @return True if and only if the given node belongs to the given inertia
+  *         zone.
+  */
+
+ bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
+  if( ( f_number_inertia_zones > 1 ) &&
+      ( zone_id != v_inertia_zones[ node_id ] ) )
+   return( false );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the given \p generator belongs to the given node
+
+ bool generator_belongs_to_node( Index generator , Index node_id )
+  const {
+  if( ( get_number_nodes() > 1 ) &&
+      ( node_id != v_generator_node[ generator ] ) )
+   return( false );
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the NetworkData object
@@ -1044,79 +1128,6 @@ void deserialize( const netCDF::NcGroup & group ) override;
  const std::vector< std::vector< FRowConstraint > > &
  get_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
-  }
-
-/**@} ----------------------------------------------------------------------*/
-/*------------ METHODS FOR OBTAINING INFORMATION ABOUT THE UCBlock ---------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for obtaining information about the UCBlock
- * @{ */
-
- /// returns true if the given node belongs to the given primary zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the primary zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  *
-  * @param zone_id The ID of a primary zone.
-  *
-  * @return True if and only if the given node belongs to the given primary
-  *         zone. */
-
- bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_primary_zones > 1 ) &&
-      ( zone_id != v_primary_zones[ node_id ] ) )
-   return( false );
-  return( true );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns true if the given node belongs to the given secondary zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the secondary zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  *
-  * @param zone_id The ID of a secondary zone.
-  *
-  * @return True if and only if the given node belongs to the given secondary
-  *         zone. */
-
- bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_secondary_zones > 1 ) &&
-      ( zone_id != v_secondary_zones[ node_id ] ) )
-   return( false );
-  return( true );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns true if the given node belongs to the given inertia zone
- /** This function returns true if and only if the node identified by \p
-  * node_id belongs to the inertia zone identified by \p zone_id.
-  *
-  * @param node_id The ID of a node.
-  * @param zone_id The ID of an inertia zone.
-  *
-  * @return True if and only if the given node belongs to the given inertia
-  *         zone.
-  */
-
- bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_inertia_zones > 1 ) &&
-      ( zone_id != v_inertia_zones[ node_id ] ) )
-   return( false );
-  return( true );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns true if the given \p generator belongs to the given node
-
- bool generator_belongs_to_node( Index generator , Index node_id )
-  const {
-  if( ( get_number_nodes() > 1 ) &&
-      ( node_id != v_generator_node[ generator ] ) )
-   return( false );
-  return( true );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1493,13 +1504,6 @@ void deserialize( const netCDF::NcGroup & group ) override;
 
  void update_node_injection_constraints( Index time , Index node_index ,
                                          double demand );
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of nodes
-
- Index get_number_nodes( void ) const {
-  return( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
- }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary zone to which the given electrical generator belongs
