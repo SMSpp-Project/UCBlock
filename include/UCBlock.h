@@ -159,7 +159,7 @@ class UCBlock : public Block
  *   (NetworkBlock) in the problem. This dimension is optional. If it is not
  *   provided, it is taken to be the same as "TimeHorizon".
  *
- * - The dimension "NUmberNodes" containing the number of nodes in the
+ * - The dimension "NumberNodes" containing the number of nodes in the
  *   problem. This dimension is optional. If it is not provided, it is taken
  *   to be 1, so the NetworkBlock will be a transmission network, i.e., a
  *   DCNetworkBlock, with just one node (bus).
@@ -1821,7 +1821,7 @@ class UCBlockSolution : public Solution {
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  Index f_time_horizon;            ///< the time horizon
-
+ Index f_number_nodes;            ///< the number of nodes
  Index f_number_primary_zones;    ///< the number of primary zones
  Index f_number_secondary_zones;  ///< the number of secondary zones
  Index f_number_inertia_zones;    ///< the number of inertia zones
@@ -1834,15 +1834,23 @@ class UCBlockSolution : public Solution {
 
  boost::multi_array< double , 2 > v_demand_duals;
  ///< the dual variables for the node injection constraints
+ /**< v_demand_duals[ t ][ n ] is the dual variable of the injection
+  * constraint for node n at time t. */
 
  boost::multi_array< double , 2 > v_primary_duals;
  ///< the dual variables for the primary demand constraints
+ /**< v_primary_duals[ t ][ n ] is the dual variable of the primary demand
+  * constraint for zone at time t. */
 
  boost::multi_array< double , 2 > v_secondary_duals;
  ///< the dual variables for the secondary demand constraints
+ /**< v_secondary_duals[ t ][ n ] is the dual variable of the secondary
+  * demand constraint for zone at time t. */
 
  boost::multi_array< double , 2 > v_inertia_duals;
  ///< the dual variables for the inertia demand constraints
+ /**< v_inertia_duals[ t ][ n ] is the dual variable of the inertia demand
+  * constraint for zone at time t. */
 
 /*--------------------------------------------------------------------------*/
 
