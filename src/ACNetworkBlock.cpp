@@ -193,7 +193,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   // ----- Active and Reactive Power conservation:
   // Shunt admittance
   SpCVec Ys = SpCVec(number_nodes);
-  double base_mva = f_NetworkData->get_baseMVA();
   for(Index n = 0; n < number_nodes; ++n){
     double Gs = f_NetworkData->get_node_conductance().at(n)/base_mva;
     double Bs = f_NetworkData->get_node_susceptance().at(n)/base_mva;

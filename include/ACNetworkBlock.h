@@ -76,9 +76,6 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
  std::vector< ColVariable > v_diff_product_voltages;
  std::vector< ColVariable > v_sqrd_voltages;
 
- // ----- Specific variables for SOCP relaxation
- SpVarMat W_voltage; //< Sparse matrix (only defined for lines and reversed lines)
-
  // ----- Generic constraints for AC-OPF
  std::vector< BoxConstraint > v_voltage_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
