@@ -945,7 +945,7 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* IntermittentUnitBlock.h included */
+#endif /* __IntermittentUnitBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File IntermittentUnitBlock.h ----------------------*/

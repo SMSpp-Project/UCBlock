@@ -199,16 +199,23 @@ class DCNetworkBlock : public NetworkBlock
    *   MxP[ l ] that, for each line l, contains the maximum power flow at
    *   line l (a non-negative number).
    *
-   * - The variable "Susceptance", of type netCDF::NcDouble and indexed over the
-   *   dimension "NumberLines". This is meant to represent the vector S[ l ]
-   *   that, for each line i contains the susceptance of the network for the
-   *   corresponding line i. Note that this variable is optional, for each line
+   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberLines". This is meant to represent the vector S[ l ]
+   *   that, for each line l contains the susceptance of the network for the
+   *   corresponding line l. Note that this variable is optional, for each line
    *   l if it is provided then it is assumed that S[ l ] != 0, otherwise it is
    *   assumed that S[ l ] == 0. In fact, when S[ l ] != 0 this corresponds to a
    *   model with AC lines, and when for each line l, it's not defined or S[ l ]
    *   == 0, then it corresponds to a single connected grid composed of HVDC
    *   lines only which is also known as the Net Transfer Capacity (NTC)
    *   model.
+   *
+   * - The variable "NodeSusceptance", of type netCDF::NcDouble and indexed over
+   *   the dimension "NumberNodes". This is meant to represent the vector S[ n ]
+   *   that, for each node n contains the susceptance of the network for the
+   *   corresponding node n. Note that this variable is optional, for each node
+   *   n if it is provided then it is assumed that S[ n ] != 0, otherwise it is
+   *   assumed that S[ n ] == 0.
    *
    * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over the
    *   dimension "NumberLines". This is meant to represent the vector NC[ l ]
@@ -242,7 +249,7 @@ class DCNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 /// returns the reference node of the network
-/** Method for returning the reference node of the network.*/
+/** Method for returning the reference node of the network. */
 
   Index get_reference_node() const { return( f_reference_node ); }
 
@@ -497,6 +504,9 @@ class DCNetworkBlock : public NetworkBlock
   /// vector to store the susceptance of each line of the network
   std::vector< double > v_line_susceptance;
 
+  /// vector to store the susceptance of each node of the network
+  std::vector< double > v_node_susceptance;
+
   /// vector to store the minimum power flow at each line
   std::vector< double > v_min_power_flow;
 
@@ -517,12 +527,9 @@ class DCNetworkBlock : public NetworkBlock
   std::vector< double > v_line_angle;
   std::vector< double > v_line_min_angle;
   std::vector< double > v_line_max_angle;
-  std::vector< double > v_node_susceptance;
   std::vector< double > v_node_conductance;
   std::vector< double > v_node_max_voltage; 
   std::vector< double > v_node_min_voltage;
-
-
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -849,15 +856,17 @@ class DCNetworkBlock : public NetworkBlock
  /** This function returns the AC lines in the transmission network.
   * @return the AC lines in the network. */
 
- std::vector<Index> get_AC_lines(){
-    std::vector<Index> AC_lines;
-    const auto& susceptance = f_NetworkData->get_line_susceptance();
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if (susceptance[line_id] > 0.)   AC_lines.push_back(line_id);
-    }
-    return AC_lines;
+ std::vector< Index > get_AC_lines() {
+  std::vector< Index > AC_lines;
+  const auto & susceptance = f_NetworkData->get_line_susceptance();
+  if( AC_lines.empty() )
+   return( AC_lines );
+  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+   if( susceptance[ line_id ] > 0. )
+    AC_lines.push_back( line_id );
+  }
+  return( AC_lines );
  }
-
 
 /*--------------------------------------------------------------------------*/
 
@@ -865,14 +874,15 @@ class DCNetworkBlock : public NetworkBlock
  /** This function returns the DC lines in the transmission network.
   * @return the DC lines in the network. */
 
- std::vector<Index> get_DC_lines(){
-    std::vector<Index> DC_lines;
-    const auto& susceptance = f_NetworkData->get_line_susceptance();
-    for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
-      if (susceptance[line_id] == 0.)   DC_lines.push_back(line_id);
-    }
-    return DC_lines;
- }
+std::vector< Index > get_DC_lines() {
+  std::vector< Index > DC_lines;
+  const auto & susceptance = f_NetworkData->get_line_susceptance();
+  for( Index line_id = 0; line_id < f_NetworkData->get_number_lines(); ++line_id ) {
+   if( ( susceptance.empty() ) || ( susceptance[ line_id ] == 0. ) )
+    DC_lines.push_back( line_id );
+  }
+  return( DC_lines );
+}
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of lines of the network
@@ -1023,9 +1033,9 @@ const std::vector< BoxConstraint > &
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds( void ) const {
   if( ! f_NetworkData )
-   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
-                            " DCNetworkData has not been set." ) );
-  return( v_power_flow_limit_const );
+   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds: "
+                            "DCNetworkData has not been set." ) );
+  return( v_HVDC_power_flow_limit_const );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1197,7 +1207,7 @@ const std::vector< BoxConstraint > &
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_power_flow_limit_constraints( 
-                const std::vector<Index>& modified_lines, 
+                const std::vector< Index > & modified_lines,
                 c_ModParam issueAMod);
 
 /*--------------------------------------------------------------------------*/
@@ -1212,7 +1222,7 @@ const std::vector< BoxConstraint > &
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_relax_abs_constraints(
-                const std::vector<Index>& modified_lines, 
+                const std::vector< Index > & modified_lines,
                 c_ModParam issueAMod);
 
   /*--------------------------------------------------------------------------*/
@@ -1227,7 +1237,7 @@ const std::vector< BoxConstraint > &
   * @param issueAMod It controls how abstract Modification are issued. */
 
  void change_DC_power_flow_injection_constraints(
-                const std::vector<Index>& modified_nodes, 
+                const std::vector< Index > & modified_nodes,
                 c_ModParam issueAMod);
 
 /*--------------------------------------------------------------------------*/
@@ -1325,9 +1335,6 @@ const std::vector< BoxConstraint > &
 
  /// Power flow limit constraints
  std::vector< BoxConstraint > v_power_flow_limit_const;
-
- /// the node injection bound constraints
- std::vector< BoxConstraint > node_injection_bounds_const;
 
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
@@ -1494,7 +1501,7 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* DCNetworkBlock.h included */
+#endif /* __DCNetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File DCNetworkBlock.h ---------------------------*/

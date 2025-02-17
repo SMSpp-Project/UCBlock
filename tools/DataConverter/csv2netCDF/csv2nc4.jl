@@ -176,7 +176,7 @@ function csvEC2nc4(deterministic::Bool=false)
         last_t = 1
         for (i_w, w) in enumerate(peak_set)
 
-            ecnb = defGroup(block, "NetworkBlock_$(i_w-1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
+            ecnb = defGroup(block, "NetworkBlock_$(i_w - 1)", attrib=OrderedDict("type" => "ECNetworkBlock"))
 
             # `NumberIntervals`, i.e., the number of sub time horizons spanned by each peak period, i.e., an `ECNetworkBlock`
             n_intervals = count(x -> x == w, peak_categories)
@@ -245,11 +245,19 @@ function csvEC2nc4(deterministic::Bool=false)
     # Create g `UnitBlock`(s) for each electrical generator/device
 
     n_devices = reduce(+, [d != "generator" ? 1 :
-                           div(field_component(users_data[u], d, "max_capacity"), field_component(users_data[u], d, "nom_capacity"))
-                           for u in user_set
-                           for d in asset_names(users_data[u], SMSPP_DEVICES)], init=0)
+                          div(field_component(users_data[u], d, "max_capacity"), field_component(users_data[u], d, "nom_capacity"))
+                          for u in user_set
+                          for d in asset_names(users_data[u], SMSPP_DEVICES)], init=0)
     # number of UnitBlock
     defDim(block, "NumberUnits", n_devices)
+
+    # AbstractPath
+    if !deterministic # stochastic model
+        path_dim = 0
+        path_group_idx_data = Int[]
+        # path_group_idx_data = String[]
+        path_element_idx_data = Int[]
+    end
 
     if n_devices > 0
 
@@ -260,14 +268,14 @@ function csvEC2nc4(deterministic::Bool=false)
         # of each electrical generator/device
         generator_node = defVar(block, "GeneratorNode", UInt32, ("NumberElectricalGenerators",))
 
-        last_g = 1
+        last_g = 0
         for (i_u, u) in enumerate(user_set)
 
             for g in asset_names(users_data[u], SMSPP_DEVICES)
 
                 if g in ("PV", "wind")
 
-                    ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
+                    ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
                     # store the maximum installable capacity of the pv/wind asset
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
@@ -298,12 +306,19 @@ function csvEC2nc4(deterministic::Bool=false)
                                               (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                          field_component(users_data[u], g, "max_capacity")
 
-                    generator_node[last_g] = i_u - 1 # assign the ownership of the current pv/wind asset to the respective user
+                    if !deterministic # stochastic model
+                        path_dim += 1
+                        append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
+                        # append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
+                        append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
+                    end
+
                     last_g += 1
+                    generator_node[last_g] = i_u - 1 # assign the ownership of the current pv/wind asset to the respective user
 
                 elseif g == "batt"
 
-                    ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
+                    ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
                     # ----------- Battery -----------
 
@@ -405,14 +420,21 @@ function csvEC2nc4(deterministic::Bool=false)
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
                                                field_component(users_data[u], g_conv, "max_capacity"))
 
-                    generator_node[last_g] = i_u - 1 # assign the ownership of the current battery to the respective user
+                    if !deterministic # stochastic model
+                        path_dim += 2
+                        append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
+                        # append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
+                        append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
+                    end
+
                     last_g += 1
+                    generator_node[last_g] = i_u - 1 # assign the ownership of the current battery to the respective user
 
                 elseif g == "generator"
 
                     for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
 
-                        ub = defGroup(block, "UnitBlock_$(last_g - 1)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
+                        ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
                         # store the installable capacity of the thermal
                         thermal_capacity = defVar(ub, "Capacity", Float64, ())
@@ -480,8 +502,15 @@ function csvEC2nc4(deterministic::Bool=false)
                             const_term[:] = const_term_data[:]
                         end
 
-                        generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
+                        if !deterministic # stochastic model
+                            path_dim += 1
+                            append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
+                            # append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
+                            append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
+                        end
+
                         last_g += 1
+                        generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
                     end
                 end
             end
@@ -497,12 +526,21 @@ function csvEC2nc4(deterministic::Bool=false)
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
         defDim(tssb, "NumberScenarios", scen_s_sample)
-        # defDim(tssb, "ScenarioSize", )
+
+        # ScenarioGenerator
+        # dss = defGroup(tssb, "ScenarioGenerator", attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+
+        # defDim(dss, "NumberScenarios", scen_s_sample)
+        # defDim(dss, "ScenarioSize", )
+
+        ## To store the scenario set in the correct shape, i.e., NumberScenarios x ScenarioSize, we need to store
+        ## it transposed, i.e., ScenarioSize x NumberScenarios.
+        # scenario_set = defVar(block, "ScenarioSet", Float64, ("ScenarioSize", "NumberScenarios")) # ("NumberScenarios", "ScenarioSize"))
+        # scenario_set[:, :] = [ ]
 
         # AbstractPath
         ap = defGroup(tssb, "AbstractPath")
 
-        path_dim = n_devices
         defDim(ap, "PathDim", path_dim)
 
         path_length = 2 # 1 B (UnitBlock_*) + 1 V (x_design) for each path
@@ -516,10 +554,11 @@ function csvEC2nc4(deterministic::Bool=false)
         path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
 
         path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
-        path_group_idx[:] = reduce(vcat, ([i, 0] for i in 0:path_dim-1), init=Int32[])[:] # [i, 0], i.e., i wrt B, 0 wrt V
+        # path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
+        path_group_idx[:] = path_group_idx_data[:]
 
         path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
-        path_element_idx[:] = repeat([typemax(UInt32), 0], outer=path_dim) # [_, 0], i.e., _ wrt B, 0 wrt V
+        path_element_idx[:] = path_element_idx_data[:]
 
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))

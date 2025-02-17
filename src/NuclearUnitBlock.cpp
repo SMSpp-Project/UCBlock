@@ -242,10 +242,16 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
+
+ // call the method of the base class - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // note that set_constraints_generated() is called there inside, so that it
+ // does not need to be done again
+ ThermalUnitBlock::generate_abstract_constraints( stcc );
 
  // important information from the base class:
  // - if f_InitUpDownTime > 0 then the unit was on before the initial time

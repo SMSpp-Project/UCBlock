@@ -202,12 +202,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  // Mandatory variables
 
- ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
- ::deserialize_dim( group , "NumberUnits" , f_number_units , false );
+ deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+ deserialize_dim( group , "NumberUnits" , f_number_units , false );
 
  // Optional variables
 
- if( ! ::deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
+ if( ! deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
  if( ! ::deserialize( group , "NetworkConstantTerms" , f_number_networks ,
@@ -223,7 +223,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   network_data_classname = "DCNetworkData";
 
  Index number_nodes;
- if( ! ::deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
+ if( ! deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
   number_nodes = 1;
  } else {
   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
@@ -278,16 +278,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // Optional dimensions
 
  f_number_primary_zones = 0;
- ::deserialize_dim( group , "NumberPrimaryZones" , f_number_primary_zones );
+ deserialize_dim( group , "NumberPrimaryZones" , f_number_primary_zones );
 
  f_number_secondary_zones = 0;
- ::deserialize_dim( group , "NumberSecondaryZones" , f_number_secondary_zones );
+ deserialize_dim( group , "NumberSecondaryZones" , f_number_secondary_zones );
 
  f_number_inertia_zones = 0;
- ::deserialize_dim( group , "NumberInertiaZones" , f_number_inertia_zones );
+ deserialize_dim( group , "NumberInertiaZones" , f_number_inertia_zones );
 
  f_number_pollutants = 0;
- ::deserialize_dim( group , "NumberPollutants" , f_number_pollutants );
+ deserialize_dim( group , "NumberPollutants" , f_number_pollutants );
 
  ::deserialize( group , "PrimaryZones" , number_nodes ,
                 v_primary_zones , true , true );
@@ -310,8 +310,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                  v_number_pollutant_zones , true , true );
 
- if( ! ::deserialize_dim( group , "TotalNumberPollutantZones" ,
-                          f_total_number_pollutant_zones ) ) {
+ if( ! deserialize_dim( group , "TotalNumberPollutantZones" ,
+                        f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
@@ -475,12 +475,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  }  // end( else( number_nodes > 1 ) )
 
- if( ! ::deserialize_dim( group , "NumberElectricalGenerators" ,
-                          f_number_elc_generators ) ) {
+ if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
+                        f_number_elc_generators ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators += static_cast< UnitBlock * >(
-    v_Block[ i ] )->get_number_generators();
+   f_number_elc_generators +=
+    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
  }
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
@@ -522,7 +522,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
 
-       v_network_blocks[ n ]->add_ACdata(i, node_id, unit_block, t, g);
+       v_network_blocks[ n ]->add_ACdata( i , node_id , unit_block , t , g );
       }
      }
 

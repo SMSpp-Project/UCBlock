@@ -239,6 +239,8 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ NetworkBlock::generate_abstract_constraints( stcc );
+
  const auto number_nodes = get_number_nodes();
  const auto number_intervals = get_number_intervals();
 
@@ -371,27 +373,6 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( power_flow_limit_const ,
                         "Power_Flow_Limit_Const_Network" );
-
- // node injection bound constraints
-
- node_injection_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
-
- for( Index i = 0 ; i < number_intervals ; ++i )
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   node_injection_bounds_const[ node_id ][ i ].set_lhs(
-    v_MinNodeInjection[ i ][ node_id ] );
-   node_injection_bounds_const[ node_id ][ i ].set_rhs(
-    v_MaxNodeInjection[ i ][ node_id ] );
-   node_injection_bounds_const[ node_id ][ i ].set_variable(
-    &v_node_injection[ i ][ node_id ] );
-  }
-
- add_static_constraint( node_injection_bounds_const ,
-                        "Node_Injection_Bound_Const_Network" );
 
  set_constraints_generated();
 
