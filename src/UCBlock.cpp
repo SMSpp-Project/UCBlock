@@ -605,7 +605,7 @@ void UCBlock::generate_node_injection_constraints( void )
       // if the generator also has nonzero fixed consumption at t
       // fixed consumption happens when the generator is off, and it
       // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
-      // RHS of the constraint also has to be decreased by fc[ t ]. note
+      // RHS of the constraint also has to be increased by fc[ t ]. note
       // that a unit with no commitment is always on, and therefore the
       // fixed consumption is always 0
       if( auto fc = unit_block->get_fixed_consumption( g ) )
@@ -613,8 +613,8 @@ void UCBlock::generate_node_injection_constraints( void )
         if( auto u = unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
-         *(vcit++) = std::pair( &u[ t ] , -fixed_consumption );
-         rhs -= fixed_consumption;    // update the RHS
+         *(vcit++) = std::pair( &u[ t ] , fixed_consumption );
+         rhs += fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )
@@ -671,8 +671,8 @@ void UCBlock::generate_node_injection_constraints( void )
          if( auto c = unit_block->get_commitment( generator ) ) {
           auto fixed_consumption = fc[ t ] * scale;
           auto commitment = &c[ t ];
-          lf->add_variable( commitment , -fixed_consumption , eNoMod );
-          rhs -= fixed_consumption;
+          lf->add_variable( commitment , fixed_consumption , eNoMod );
+          rhs += fixed_consumption;
          }
        }
       }
@@ -1325,7 +1325,7 @@ void UCBlock::update_node_injection_constraints(
        if( fc[ t ] )
         if( unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
-         rhs -= fixed_consumption;    // update the RHS
+         rhs += fixed_consumption;    // update the RHS
 
          if( modified ) {
           // update the coefficient of the commitment variable
@@ -1422,7 +1422,7 @@ void UCBlock::update_node_injection_constraints(
 
          if( modified ) {
           // update the coefficient of the commitment variable
-          coefficients.push_back( - fixed_consumption );
+          coefficients.push_back( fixed_consumption );
           subset.push_back( active_var_index );
 
           assert( active_var_index < constraint.get_num_active_var() );
@@ -1433,7 +1433,7 @@ void UCBlock::update_node_injection_constraints(
          // increment due to the commitment variable
          ++active_var_index;
 
-         rhs -= fixed_consumption;
+         rhs += fixed_consumption;
         }
        }
       }
@@ -1813,7 +1813,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
     if( fc[ time ] )
      if( auto u = unit_block->get_commitment( g ) ) {
       // add the contribution of the corresponding commitment variables
-      rhs -= scale * fc[ time ];  // update the RHS
+      rhs += scale * fc[ time ];  // update the RHS
      }
   }  // end( for( g ) )
  }  // end( for( i ) )

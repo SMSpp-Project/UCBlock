@@ -243,206 +243,209 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
+  if( constraints_generated() )
+    return; // constraints have already been generated
 
- if( constraints_generated() )
-  return; // constraints have already been generated
+  // Since nuclear units are ThermalUnits on which we have additional constraints, 
+  // we must first generate the constraintes related to the base class
+  ThermalUnitBlock::generate_abstract_constraints( stcc );
 
- // important information from the base class:
- // - if f_InitUpDownTime > 0 then the unit was on before the initial time
- //   instant 0, i.e.,  u_{0 - 1} = 1, otherwise it was off, i.e.,
- //   u_{0 - 1} = 1
- // - if u_{0 - 1} = 1, then f_InitialPower = p_{0 - 1}
- // - v_StartUpLimit, the maximum power on startup
- // - v_ShutDownLimit, the maximum power on shutdown
- // - v_DeltaRampUp, the ramp-up delta
- // - v_DeltaRampDown, the ramp-down delta
- 
- // construct the modulation ramp-up constraint - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // p_t - p_{t-1} - \Delta^M_{t+} u_{t-1} -
- // ( \Delta_{t+} - \Delta^M_{t+} ) m_t - \bar{l}_t v_t \leq 0
+  // important information from the base class:
+  // - if f_InitUpDownTime > 0 then the unit was on before the initial time
+  //   instant 0, i.e.,  u_{0 - 1} = 1, otherwise it was off, i.e.,
+  //   u_{0 - 1} = 1
+  // - if u_{0 - 1} = 1, then f_InitialPower = p_{0 - 1}
+  // - v_StartUpLimit, the maximum power on startup
+  // - v_ShutDownLimit, the maximum power on shutdown
+  // - v_DeltaRampUp, the ramp-up delta
+  // - v_DeltaRampDown, the ramp-down delta
+  
+  // construct the modulation ramp-up constraint - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // p_t - p_{t-1} - \Delta^M_{t+} u_{t-1} -
+  // ( \Delta_{t+} - \Delta^M_{t+} ) m_t - \bar{l}_t v_t \leq 0
 
- Modulation_RampUp_Constraints.resize( f_time_horizon );
+  Modulation_RampUp_Constraints.resize( f_time_horizon );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  Index np = t ? 5 : 3;
-  if( t < init_t )
-   --np;
-  LinearFunction::v_coeff_pair cf( np );
-  double RHS = 0;
-  auto cfit = cf.begin();
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    Index np = t ? 5 : 3;
+    if( t < init_t )
+      --np;
+    LinearFunction::v_coeff_pair cf( np );
+    double RHS = 0;
+    auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , 1.0 );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
-			  - ( v_DeltaRampUp[ t ] - v_modulation_ramp_up[ t ] )
-			);
-  // the two terms "- p_{t-1}" and "- \Delta^M_{t+} u_{t-1}" only exist if
-  // t > 0, as otherwise p_{t-1} and u_{t-1} are undefined
-  if( t ) {
-   *(cfit++) = coeff_pair( & v_commitment[ t - 1 ] ,
-			 - v_modulation_ramp_up[ t ] );
+    *(cfit++) = coeff_pair( & v_active_power[ t ] , 1.0 );
+    *(cfit++) = coeff_pair( & v_modulation[ t ] ,
+          - ( v_DeltaRampUp[ t ] - v_modulation_ramp_up[ t ] )
+        );
+    // the two terms "- p_{t-1}" and "- \Delta^M_{t+} u_{t-1}" only exist if
+    // t > 0, as otherwise p_{t-1} and u_{t-1} are undefined
+    if( t ) {
+      *(cfit++) = coeff_pair( & v_commitment[ t - 1 ] ,
+          - v_modulation_ramp_up[ t ] );
 
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
-   }
-  else {
-   // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
-   // so there is no explicit term in the constraint (since the variable does
-   // not exist) and the RHS becomes f_InitialPower
-   RHS = f_InitialPower;
-   // similarly, the "- \Delta^M_{t+} u_{t-1}" term is fixed, and it is
-   // equal to - v_modulation_ramp_up[ t ] if u_{t-1} = 1 (i.e.,
-   // f_InitUpDownTime > 0) and 0 otherwise, so this has to be added to RHS
-   // (changing the sign) 
-   if( f_InitUpDownTime > 0 )
-    RHS += v_modulation_ramp_up[ 0 ];
-   }
+      *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
+    }
+    else {
+      // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
+      // so there is no explicit term in the constraint (since the variable does
+      // not exist) and the RHS becomes f_InitialPower
+      RHS = f_InitialPower;
+      // similarly, the "- \Delta^M_{t+} u_{t-1}" term is fixed, and it is
+      // equal to - v_modulation_ramp_up[ t ] if u_{t-1} = 1 (i.e.,
+      // f_InitUpDownTime > 0) and 0 otherwise, so this has to be added to RHS
+      // (changing the sign) 
+      if( f_InitUpDownTime > 0 )
+        RHS += v_modulation_ramp_up[ 0 ];
+      }
 
-  // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
-  // the commitment status if fixed and start-ups are not allowed, hence
-  // the corresponding start-up variables are not even defined
-  if( t >= init_t )
-   *cfit = coeff_pair( & v_start_up[ t - init_t ] , v_StartUpLimit[ t ] );
+      // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
+      // the commitment status if fixed and start-ups are not allowed, hence
+      // the corresponding start-up variables are not even defined
+      if( t >= init_t )
+        *cfit = coeff_pair( & v_start_up[ t - init_t ] , -1.0*v_StartUpLimit[ t ] );
 
-  Modulation_RampUp_Constraints[ t ].set_lhs( - Inf< double >() );
-  Modulation_RampUp_Constraints[ t ].set_rhs( RHS );
-  Modulation_RampUp_Constraints[ t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
-  }
+      Modulation_RampUp_Constraints[ t ].set_lhs( - Inf< double >() );
+      Modulation_RampUp_Constraints[ t ].set_rhs( RHS );
+      Modulation_RampUp_Constraints[ t ].set_function(
+                new LinearFunction( std::move( cf ) ) );
+    }
 
- add_static_constraint( Modulation_RampUp_Constraints ,
-			"Modulation_RampUp_Constraints_Nuclear" );
+    add_static_constraint( Modulation_RampUp_Constraints ,
+          "Modulation_RampUp_Constraints_Nuclear" );
 
- // construct the modulation ramp-down constraint - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // p_{t-1} - p_t - \Delta^M_{t-} u_t -
- // ( \Delta_{t-} - \Delta^M_{t-} ) m_t - \bar{u}_t w_t \leq 0
+    // construct the modulation ramp-down constraint - - - - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // p_{t-1} - p_t - \Delta^M_{t-} u_t -
+    // ( \Delta_{t-} - \Delta^M_{t-} ) m_t - \bar{u}_t w_t \leq 0
 
- Modulation_RampDown_Constraints.resize( f_time_horizon );
+    Modulation_RampDown_Constraints.resize( f_time_horizon );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  Index np = t ? 5 : 4;
-  if( t < init_t )
-   --np;
-  LinearFunction::v_coeff_pair cf( np );
-  auto cfit = cf.begin();
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      Index np = t ? 5 : 4;
+      if( t < init_t )
+        --np;
+      LinearFunction::v_coeff_pair cf( np );
+      auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , -1.0 );
-  *(cfit++) = coeff_pair( & v_commitment[ t ] ,
-			- v_modulation_ramp_down[ t ] );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
-			- ( v_DeltaRampDown[ t ] -
-			    v_modulation_ramp_down[ t ] ) );
+      *(cfit++) = coeff_pair( & v_active_power[ t ] , -1.0 );
+      *(cfit++) = coeff_pair( & v_commitment[ t ] ,
+          - v_modulation_ramp_down[ t ] );
+      *(cfit++) = coeff_pair( & v_modulation[ t ] ,
+          - ( v_DeltaRampDown[ t ] -
+              v_modulation_ramp_down[ t ] ) );
 
-  // the terms "p_{t-1}" only exists if t > 0, as otherwise p_{t-1} is
-  // undefined
-  if( t )
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
+      // the terms "p_{t-1}" only exists if t > 0, as otherwise p_{t-1} is
+      // undefined
+      if( t )
+        *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
 
-  // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
-  // the commitment status if fixed and shut-downs are not allowed, hence
-  // the corresponding shut-down variables are not even defined
-  if( t >= init_t )
-   *cfit = coeff_pair( & v_shut_down[ t - init_t ] , v_ShutDownLimit[ t ] );
- 
-  Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
-  // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
-  // there is no explicit term in the constraint (since the variable does
-  // not exist) and the RHS becomes - f_InitialPower
-  Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
-  Modulation_RampDown_Constraints[ t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
-  }
+      // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
+      // the commitment status if fixed and shut-downs are not allowed, hence
+      // the corresponding shut-down variables are not even defined
+      if( t >= init_t )
+        *cfit = coeff_pair( & v_shut_down[ t - init_t ] , -v_ShutDownLimit[ t ] );
+    
+      Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
+      // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
+      // there is no explicit term in the constraint (since the variable does
+      // not exist) and the RHS becomes - f_InitialPower
+      Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
+      Modulation_RampDown_Constraints[ t ].set_function(
+                new LinearFunction( std::move( cf ) ) );
+    }
 
- add_static_constraint( Modulation_RampDown_Constraints ,
-			"Modulation_RampDown_Constraints_Nuclear" );
+    add_static_constraint( Modulation_RampDown_Constraints ,
+          "Modulation_RampDown_Constraints_Nuclear" );
 
- // construct the logical constraints - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // m_t - u_t \leq 0  (modulation ==> unit up)
- // note: these only have to be constructed for t >= init_t, as for
- // t < init_t either u_t is fixed to 1, and the constraint is redundant, or
- // u_t is fixed to 0 and m_t has been fixed in generate_abstract_variables()
- 
- NoDownModulation.resize( f_time_horizon - init_t );
+    // construct the logical constraints - - - - - - - - - - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // m_t - u_t \leq 0  (modulation ==> unit up)
+    // note: these only have to be constructed for t >= init_t, as for
+    // t < init_t either u_t is fixed to 1, and the constraint is redundant, or
+    // u_t is fixed to 0 and m_t has been fixed in generate_abstract_variables()
+    
+    NoDownModulation.resize( f_time_horizon - init_t );
 
- for( Index t = init_t ; t < f_time_horizon ; ++t ) {
-  LinearFunction::v_coeff_pair cf( 2 );
+    for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+      LinearFunction::v_coeff_pair cf( 2 );
 
-  cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
-  cf[ 1 ] = coeff_pair( & v_commitment[ t ] , -1.0 );
- 
-  NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
-  NoDownModulation[ t - init_t ].set_rhs( 0 );
-  NoDownModulation[ t - init_t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
-  }
+      cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
+      cf[ 1 ] = coeff_pair( & v_commitment[ t ] , -1.0 );
+      
+      NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
+      NoDownModulation[ t - init_t ].set_rhs( 0 );
+      NoDownModulation[ t - init_t ].set_function(
+                  new LinearFunction( std::move( cf ) ) );
+    }
 
- add_static_constraint( NoDownModulation , "NoDownModulation_Nuclear" );
+    add_static_constraint( NoDownModulation , "NoDownModulation_Nuclear" );
 
- // construct the logical constraints m_t + v_t \leq 1  - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // the unit is not modulating while starting up
- // note: these only have to be constructed for t >= init_t, as for
- // t < init_t u_t is fixed (no matter if to 0 or 1) and therefore no
- // start-up can ever occur; in fact, the start-up variables are not even
- // defined for t < init_t. it may also be that the m_t are fixed for those
- // t: this happens if u_t is fixed to 0, but not if u_t is fixed to 1, in
- // which case modulations can occur within the first init_t periods unless
- // forbidden by the initial state (f_initial_modulation), but the latter
- // case is already taken care of in generate_abstract_variables()
+    // construct the logical constraints m_t + v_t \leq 1  - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // the unit is not modulating while starting up
+    // note: these only have to be constructed for t >= init_t, as for
+    // t < init_t u_t is fixed (no matter if to 0 or 1) and therefore no
+    // start-up can ever occur; in fact, the start-up variables are not even
+    // defined for t < init_t. it may also be that the m_t are fixed for those
+    // t: this happens if u_t is fixed to 0, but not if u_t is fixed to 1, in
+    // which case modulations can occur within the first init_t periods unless
+    // forbidden by the initial state (f_initial_modulation), but the latter
+    // case is already taken care of in generate_abstract_variables()
 
- NoStartUpModulation.resize( f_time_horizon - init_t );
+    NoStartUpModulation.resize( f_time_horizon - init_t );
 
- for( Index t = init_t ; t < f_time_horizon ; ++t ) {
-  LinearFunction::v_coeff_pair cf( 2 );
+    for( Index t = init_t ; t < f_time_horizon ; ++t ) {
+      LinearFunction::v_coeff_pair cf( 2 );
 
-  cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
-  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
- 
-  NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
-  NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
-  NoStartUpModulation[ t - init_t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
-  }
+      cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
+      cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
+      
+      NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
+      NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
+      NoStartUpModulation[ t - init_t ].set_function(
+                  new LinearFunction( std::move( cf ) ) );
+    }
 
- add_static_constraint( NoStartUpModulation ,
-			"NoStartUpModulation_Nuclear" );
+    add_static_constraint( NoStartUpModulation ,
+          "NoStartUpModulation_Nuclear" );
 
- // construct the modulation constraint proper- - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // sum_{h = \max\{ 0 , t - \tau^M + 1 \}}^t m_h \leq 1
- // recall that \tau^M >= 2: thus, for t = 0 one has t - \tau^M + 1 < 0 and
- // the sum would go for h = 0 to 0, i.e., it would be m[ 0 ]; but
- // m[ 0 ] <= 1, hence the first constraint is also redundant
- // more in general: for t < f_modulation_interval - f_initial_modulation
- // all m_t are fixed to 0, hence the constraint is useless until
- // t >= f_modulation_interval - f_initial_modulation + 1
- // similarly, if the unit is off at time 0 (f_InitUpDownTime <= 0) then all
- // the u_t for t = 0, ..., init_t - 1 are fixed to 0 as well, which means
- // that the m_t must be fixed to 0 due to the constraint m_t leq u_t;
- // hence the constraint is useless until t >= init_t + 1
- Index first_c = std::max( f_modulation_interval - f_initial_modulation ,
-			   int( 0 ) );
- if( f_InitUpDownTime <= 0 )
-  first_c = std::max( first_c , init_t );
- ++first_c;
+    // construct the modulation constraint proper- - - - - - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // sum_{h = \max\{ 0 , t - \tau^M + 1 \}}^t m_h \leq 1
+    // recall that \tau^M >= 2: thus, for t = 0 one has t - \tau^M + 1 < 0 and
+    // the sum would go for h = 0 to 0, i.e., it would be m[ 0 ]; but
+    // m[ 0 ] <= 1, hence the first constraint is also redundant
+    // more in general: for t < f_modulation_interval - f_initial_modulation
+    // all m_t are fixed to 0, hence the constraint is useless until
+    // t >= f_modulation_interval - f_initial_modulation + 1
+    // similarly, if the unit is off at time 0 (f_InitUpDownTime <= 0) then all
+    // the u_t for t = 0, ..., init_t - 1 are fixed to 0 as well, which means
+    // that the m_t must be fixed to 0 due to the constraint m_t leq u_t;
+    // hence the constraint is useless until t >= init_t + 1
+    Index first_c = std::max( f_modulation_interval - f_initial_modulation ,
+              int( 0 ) );
+    if( f_InitUpDownTime <= 0 )
+        first_c = std::max( first_c , init_t );
+    ++first_c;
 
- ModulationConst.resize( f_time_horizon - first_c );
+    ModulationConst.resize( f_time_horizon - first_c );
 
- for( Index t = first_c ; t < f_time_horizon ; ++t ) {
-  Index h = std::max( int( 0 ) , int( t ) - f_modulation_interval + 1 );
-  LinearFunction::v_coeff_pair cf( t - h + 1 );
+    for( Index t = first_c ; t < f_time_horizon ; ++t ) {
+      Index h = std::max( int( 0 ) , int( t ) - f_modulation_interval + 1 );
+      LinearFunction::v_coeff_pair cf( t - h + 1 );
 
-  for( auto cfit = cf.begin() ; h <= t ; )
-   *(cfit++) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
+      for( auto cfit = cf.begin() ; h <= t ; )
+        *(cfit++) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
 
-  ModulationConst[ t - first_c ].set_lhs( - Inf< double >() );
-  ModulationConst[ t - first_c ].set_rhs( 1.0 );
-  ModulationConst[ t - first_c ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
-  }
+      ModulationConst[ t - first_c ].set_lhs( - Inf< double >() );
+      ModulationConst[ t - first_c ].set_rhs( 1.0 );
+      ModulationConst[ t - first_c ].set_function(
+                  new LinearFunction( std::move( cf ) ) );
+    }
 
- add_static_constraint( ModulationConst , "ModulationConst_Nuclear" );
+    add_static_constraint( ModulationConst , "ModulationConst_Nuclear" );
 
  } // end( NuclearUnitBlock::generate_abstract_constraints )
 
