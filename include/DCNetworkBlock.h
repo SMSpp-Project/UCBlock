@@ -1058,9 +1058,9 @@ const std::vector< BoxConstraint > &
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds( void ) const {
   if( ! f_NetworkData )
-   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds: "
-                            "DCNetworkData has not been set." ) );
-  return( v_HVDC_power_flow_limit_const );
+   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
+                            " DCNetworkData has not been set." ) );
+  return( v_power_flow_limit_const );
  }
 
 /**@} ----------------------------------------------------------------------*/
