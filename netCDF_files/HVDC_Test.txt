@@ -17,7 +17,7 @@ group: Block_0 {
   	uint EndLine(NumberLines) ;
   	double MinPowerFlow(NumberLines) ;
   	double MaxPowerFlow(NumberLines) ;
-  	double Susceptance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
 
   // group attributes:
   		:id = "0" ;
@@ -43,7 +43,7 @@ group: Block_0 {
 
    MaxPowerFlow = 1000, 3900, 4600 ;
 
-   Susceptance = 0, 0, 0 ;
+   LineSusceptance = 0, 0, 0 ;
 
   group: UnitBlock_0 {
     dimensions:

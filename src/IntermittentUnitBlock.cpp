@@ -697,9 +697,9 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
       const auto design_idx0 = f0->is_active( &design );
 
       if( design_idx0 == Inf< Index >() )
-       throw( std::logic_error("IntermittentUnitBlock::set_kappa: expected "
-                               "Variable not found in "
-                               "active_power_bounds_design_Const." ) );
+       throw( std::logic_error( "IntermittentUnitBlock::set_kappa: expected "
+                                "Variable not found in "
+                                "active_power_bounds_design_Const." ) );
 
       f0->modify_coefficient( design_idx0 ,
                               -f_kappa * v_MinPower[ t ] ,

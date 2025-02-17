@@ -26,9 +26,8 @@
 
 #include <Eigen/Sparse>
 
-
 #ifndef PI
-    #define PI 3.14159265358979323846
+ #define PI 3.14159265358979323846
 #endif
 
 /*--------------------------------------------------------------------------*/
@@ -59,7 +58,7 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   std::cout << "LineResistance size : "  << f_NetworkData->get_line_resistance().size() << std::endl;
   std::cout << "LineReactance size : "   << f_NetworkData->get_line_reactance().size() << std::endl;
   std::cout << "LineSusceptance size : " << f_NetworkData->get_line_susceptance().size() << std::endl;
-  std::cout << "NodeSuceptance size : "  << f_NetworkData->get_node_susceptance().size() << std::endl;
+  std::cout << "NodeSusceptance size : "  << f_NetworkData->get_node_susceptance().size() << std::endl;
   std::cout << "NodeConductance size : " << f_NetworkData->get_node_conductance().size() << std::endl;
   std::cout << "NodeMinVoltage size : "  << f_NetworkData->get_node_min_voltage().size() << std::endl;
   std::cout << "NodeMaxVoltage size : "  << f_NetworkData->get_node_max_voltage().size() << std::endl;
@@ -106,17 +105,18 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 };
 
-// ---------------------------------------
+/*--------------------------------------------------------------------------*/
+
 void ACNetworkBlock::generate_objective( Configuration * objc){
   // TODO : use the coefficient of the matpower instance
   DCNetworkBlock::generate_objective(objc);
 };
 
+/*--------------------------------------------------------------------------*/
 
-// ---------------------------------------
-void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
+void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   if( constraints_generated() )  // constraints have already been generated
-  return;                       // nothing to do
+  return;                        // nothing to do
 
   const auto number_nodes = get_number_nodes();
 
@@ -127,7 +127,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
 
   if( number_lines <= 0 )
     throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
+                             "number of lines of DCNetworkBlock is not set" ) );
 
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
@@ -136,7 +136,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ){
   int nb_ac_lines = AC_lines.size();
   
   double base_mva = f_NetworkData->get_baseMVA();
-
 
   // ----- Voltage bounds
   /*
@@ -384,7 +383,6 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   add_static_constraint(v_socp_const, "AC_socp_const" );
   
  };
-
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/

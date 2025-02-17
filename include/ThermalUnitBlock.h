@@ -1685,7 +1685,7 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of the given generator
 
- Index get_number_cost_coeffs(Index generator = 0) override { return f_number_cost_coeffs; }
+ Index get_number_cost_coeffs(Index generator = 0) override { return( f_number_cost_coeffs ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the ith cost coefficient of the given generator 
@@ -1697,7 +1697,7 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the cost model of the given generator
 
- Index get_cost_model(Index generator = 0) override { return f_CostModel; }
+ Index get_cost_model(Index generator = 0) override { return( f_CostModel ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the operational minimum active power output at the given time
@@ -3082,7 +3082,7 @@ class ThermalUnitBlockSbstMod : public ThermalUnitBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* ThermalUnitBlock.h included */
+#endif /* __ThermalUnitBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File ThermalUnitBlock.h --------------------------*/

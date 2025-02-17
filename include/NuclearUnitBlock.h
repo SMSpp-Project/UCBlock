@@ -260,8 +260,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * the method of the base ThermalUnitBlock class that is called first thing
  * here inside. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 // generate the Objective of the NuclearUnitBlock
@@ -379,7 +378,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  ColVariable * get_modulation( void ) {
   if( v_modulation.empty() )
    return( nullptr );
-  return &( v_modulation.front() );
+  return( &( v_modulation.front() ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -739,7 +738,7 @@ class NuclearUnitBlockSbstMod : public NuclearUnitBlockMod {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* NuclearUnitBlock.h included */
+#endif /* __NuclearUnitBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File NuclearUnitBlock.h --------------------------*/

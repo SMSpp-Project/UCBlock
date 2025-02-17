@@ -35,8 +35,6 @@
 
 #include "FRowConstraint.h"
 
-#include "OneVarConstraint.h"
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -437,7 +435,7 @@ class ECNetworkBlock : public NetworkBlock
  bool is_cooperative( void ) const {
   auto reward_prices = f_NetworkData->get_reward_price();
   return( std::any_of( reward_prices.begin() , reward_prices.end() ,
-                       []( double cst ) { return cst != 0; } ) );
+                       []( double cst ) { return( cst != 0 ); } ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -808,10 +806,6 @@ class ECNetworkBlock : public NetworkBlock
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
 
 
- /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
-
-
  /// the objective function
  FRealObjective objective;
 
@@ -970,7 +964,7 @@ class ECNetworkBlockSbstMod : public ECNetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* ECNetworkBlock.h included */
+#endif /* __ECNetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File ECNetworkBlock.h -----------------------*/

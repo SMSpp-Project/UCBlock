@@ -223,7 +223,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the number of electrical generators of each unit in the problem
  /** Returns the number of electrical generators for this UnitBlock. Since in
-  * most of the cases each unit has only one electrical generator, this
+  * most of the cases, each unit has only one electrical generator, this
   * method in the base UnitBlock class returns to one by default. Therefore,
   * for all the units that have only one generator, the implementation of
   * this method is already done right in the base UnitBlock class. The units
@@ -327,7 +327,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of the given generator
 
- virtual Index get_number_cost_coeffs(Index generator = 0) { return 0; }
+ virtual Index get_number_cost_coeffs(Index generator = 0) { return( 0 ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the ith cost coefficient of the given generator 
@@ -339,7 +339,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the cost model of the given generator
 
- virtual Index get_cost_model(Index generator = 0) { return 0; }
+ virtual Index get_cost_model(Index generator = 0) { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
@@ -860,7 +860,7 @@ public:
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* UnitBlock.h included */
+#endif /* __UnitBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UnitBlock.h ----------------------------*/
