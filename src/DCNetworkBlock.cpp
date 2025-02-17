@@ -417,10 +417,12 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkBlock::get_reducedIdx( int idx ) {
-  if( idx > f_NetworkData->get_reference_node() )
-   return idx -1;
-  return idx;
-}
+ if( idx > f_NetworkData->get_reference_node() )
+  return( idx - 1 );
+ return( idx );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
@@ -650,6 +652,34 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
  set_objective_generated();
 
 }  // end( DCNetworkBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
+					 bool emptys )
+{
+ Index wsol = 3;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
+		     NetworkBlockSolution::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( wsol & 2 )
+  sol->v_flow.resize( f_number_lines );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------- METHODS FOR CHECKING THE DCNetworkBlock ----------------*/
@@ -1089,6 +1119,148 @@ void DCNetworkBlock::change_DC_power_flow_injection_constraints(
     }
   }
 }
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF DCNetworkBlockSolution ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ NetworkBlockSolution::deserialize( group );
+
+ // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ // deserialize the Flow Variables - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "FlowValue" , v_flow , false );
+
+ }  // end( DCNetworkBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::read( const Block * block )
+{
+ // call the method of the base class
+ NetworkBlockSolution::read( block );
+
+ auto DCNB = dynamic_cast< const DCNetworkBlock * >( block );
+ if( ! DCNB )
+  throw( std::invalid_argument(
+	  "DCNetworkBlockSolution::read: block is not a DCNetworkBlock" ) );
+
+ f_number_lines = DCNB->get_number_lines();
+
+ if( ! v_flow.empty() ) {
+  // read the flow power variables - - - - - - - - - - - - - - - - - - - - -
+  auto Fl = DCNB->get_power_flow();
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   v_flow[ l ] = Fl[ l ].get_value();
+  }
+ }  // end( DCNetworkBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::write( Block * block )
+{
+ // call the method of the base class
+ NetworkBlockSolution::write( block );
+
+ auto DCNB = dynamic_cast< const DCNetworkBlock * >( block );
+ if( ! DCNB )
+  throw( std::invalid_argument(
+	  "DCNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
+
+ if( f_number_lines != DCNB->get_number_lines() )
+  throw( std::invalid_argument(
+	      "DCNetworkBlockSolution::write: inconsistent lines number" ) );
+
+ if( ! v_flow.empty() ) {
+  // write the flow power variables- - - - - - - - - - - - - - - - - - - - -
+  auto Fl = DCNB->get_power_flow();
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   Fl[ l ].set_value( v_flow[ l ] );
+  }
+ }  // end( DCNetworkBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::serialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ NetworkBlockSolution::serialize( group );
+
+ // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ auto nl = group.addDim( "NumberLines" , f_number_lines );
+
+ // serialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_flow.empty() )
+  ::serialize< double >( group , "FlowValue" , netCDF::NcDouble() , nl ,
+			 v_flow );
+
+ }  // end( DCNetworkBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
+{
+ // call the method of the base class
+ auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
+				     NetworkBlockSolution::scale( factor ) );
+ assert( sol );
+
+ if( factor == 1 )
+  return( sol );
+
+ if( ! v_flow.empty() )
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   sol->v_flow[ l ][ i ] *= factor;
+
+ return( sol );
+
+ }  // end( DCNetworkBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::sum( const Solution * solution ,
+				  double multiplier )
+{
+ // call the method of the base class
+ NetworkBlockSolution::sum( solution , multiplier );
+
+ auto DCNBS = dynamic_cast< const DCNetworkBlockSolution * >( solution );
+ if( ! DCNBS )
+  throw( std::invalid_argument(
+    "DCNetworkBlockSolution::sum: solution not a DCNetworkBlockSolution" ) );
+
+ if( f_number_lines != DCNBS->f_number_lines )
+  throw( std::invalid_argument(
+		"DCNetworkBlockSolution::sum: inconsistent lines number" ) );
+
+ if( ! v_flow.empty() )
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   v_flow[ l ] += DCNBS->v_flow[ l ] * multiplier;
+
+ }  // end( DCNetworkBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+DCNetworkBlockSolution * DCNetworkBlockSolution::clone( bool empty ) const
+{
+ // call the method of the base class
+ auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
+					     NetworkBlockSolution::clone() );
+ assert( sol );
+
+ if( ! empty ) {
+  sol->f_number_lines = f_number_lines;
+
+  sol->v_flow = v_flow;
+  }
+
+ return( sol );
+
+ }  // end( DCNetworkBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File DCNetworkBlock.cpp ------------------------*/

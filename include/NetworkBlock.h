@@ -617,7 +617,7 @@ class NetworkBlock : public Block
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -644,8 +644,7 @@ class NetworkBlock : public Block
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 11 (save everything). */
-
+  * - otherwise, it is 1 (save everything). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -653,7 +652,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" NetworkBlockSolution
  /** Small virtual method that just returns an "empty" NetworkBlockSolution
-  * object. It is used by NetworkBlock::get_Solution(), with the idea that
+  * object. It is used by get_Solution() and clone(), with the idea that
   * derived classes can override it to make it return a :NetworkBlockSolution
   * better suited for the specific :UnitBlock at hand. */
  
@@ -1003,7 +1002,7 @@ class NetworkBlockSolution : public Solution {
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- void print( std::ostream &output ) const override final {
+ void print( std::ostream &output ) const override {
   output << "NetworkBlockSolution [" << this << "]: " << std::endl;
   }
 

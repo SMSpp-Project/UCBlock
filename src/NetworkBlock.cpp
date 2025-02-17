@@ -317,7 +317,7 @@ void NetworkBlockSolution::sum( const Solution * solution ,
 
 NetworkBlockSolution * NetworkBlockSolution::clone( bool empty ) const
 {
- auto *sol = new NetworkBlockSolution();
+ auto * sol = new_Solution();
 
  if( ! empty ) {
   sol->f_number_nodes = f_number_nodes;
