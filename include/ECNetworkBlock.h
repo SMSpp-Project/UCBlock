@@ -171,8 +171,8 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the data of the ECNetworkData
  * @{ */
 
-  /// returns the number of nodes of the network
-  /** Method for returning the number of nodes of the network. */
+  /// returns the nodes' number of the network
+  /** Method for returning the nodes' number of the network. */
 
   Index get_number_intervals( void ) const { return( f_number_intervals ); }
 
@@ -212,7 +212,7 @@ class ECNetworkBlock : public NetworkBlock
   /// serialize an ECNetworkData out of a netCDF::NcGroup
   /** Serialize an ECNetworkData out of a netCDF::NcGroup to the specific
    * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
-   * ) for details of the format of the created netCDF group. */
+   * ) for format's details of the created netCDF group. */
 
   virtual void serialize( netCDF::NcGroup & group ) const override;
 
